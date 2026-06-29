@@ -59,7 +59,7 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Git Wrapper Interface & Plumbing Commands",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Implement the git wrapper that shells out to the real git binary (NO go-git dependency per PRD §22.3) for all plumbing commands: RevParseHEAD (with unborn detection), WriteTree, CommitTree, UpdateRefCAS, and DiffTree. This is the atomic-commit foundation from PRD §13.",
               "subtasks": [
                 {
@@ -132,7 +132,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S5",
                   "title": "UpdateRefCAS (3-arg compare-and-swap, never force)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S1"
@@ -151,7 +151,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S6",
                   "title": "DiffTree for 'what landed' reporting",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S1"

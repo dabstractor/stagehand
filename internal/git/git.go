@@ -249,8 +249,42 @@ func (g *gitRunner) CommitTree(ctx context.Context, tree string, parents []strin
 	return strings.TrimSpace(stdout), nil
 }
 
+// ErrCASFailed is returned by UpdateRefCAS when git's compare-and-swap did not match — i.e. HEAD
+// moved concurrently since the snapshot (or expectedOld was the all-zeros hash on a repo that
+// already has commits). The orchestrator detects it via errors.Is(err, ErrCASFailed) to emit PRD
+// §13.5's "HEAD moved from <expected> to <actual>" message and exit 1 (FR41/§18.2). It is NOT
+// returned for infrastructural failures (missing git binary, cancelled context); those propagate the
+// underlying error unchanged so they remain distinguishable. The <actual> SHA is re-read by the
+// orchestrator via RevParseHEAD when it observes this error (it is deliberately NOT captured here —
+// see P1.M1.T2.S5 research §3 / decision D5).
+var ErrCASFailed = errors.New("git update-ref: compare-and-swap failed (ref moved since snapshot)")
+
+// UpdateRefCAS atomically moves ref to newSHA only if ref's current value equals expectedOld — the
+// 3-arg compare-and-swap form of git update-ref (git takes the ref lock, reads the current value, and
+// writes newSHA only if current == expectedOld, all under .git/<ref>.lock in one process). It is the
+// SOLE point at which Stagehand mutates a ref (PRD §18.1: "refs are modified only at the final
+// update-ref step, and only if HEAD is unchanged since the snapshot"). The 2-arg force form is NEVER
+// used — it would silently clobber a concurrent commit (PRD §13.1/§13.2/§18.2).
+//
+// For a root commit (unborn repo), the caller passes expectedOld = the all-zeros hash (40 zeros for
+// sha-1); the CAS then succeeds only if HEAD is truly unborn (UpdateRefCAS itself has no isUnborn
+// knowledge — the caller, via RevParseHEAD, decides). On any non-zero exit the CAS did not match
+// (HEAD moved, or all-zeros-expected on a repo that already has commits): return ErrCASFailed
+// (wrapped, so errors.Is works) carrying the exit code + git's own stderr for diagnostics. FINDING 3:
+// stderr varies by scenario/version — detection is by exit code (code != 0), NEVER by matching the
+// stderr string.
 func (g *gitRunner) UpdateRefCAS(ctx context.Context, ref, newSHA, expectedOld string) error {
-	panic("gitRunner.UpdateRefCAS: not yet implemented — see P1.M1.T2.S5")
+	stdout, stderr, code, err := g.run(ctx, g.workDir, "update-ref", ref, newSHA, expectedOld)
+	_ = stdout // update-ref prints nothing on success; referenced to silence unused-var linters
+	if err != nil {
+		return err // git binary missing / context cancelled / start failure (run sets code=-1) — UNWRAPPED
+	}
+	if code != 0 {
+		// CAS did not match. Branch on code (!= 0), NOT on a specific exit or stderr text (FINDING 3,
+		// gotcha G1/G2). Wrap with %w so errors.Is(err, ErrCASFailed) is true (gotcha G3).
+		return fmt.Errorf("%w (exit %d): %s", ErrCASFailed, code, strings.TrimSpace(stderr))
+	}
+	return nil
 }
 
 func (g *gitRunner) DiffTree(ctx context.Context, sha string, isRoot bool) ([]FileChange, error) {
