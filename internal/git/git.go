@@ -287,8 +287,61 @@ func (g *gitRunner) UpdateRefCAS(ctx context.Context, ref, newSHA, expectedOld s
 	return nil
 }
 
+// DiffTree returns the file-level change set of commit sha versus its first parent — the "what
+// landed" report printed after a successful commit (PRD §9.9/FR42, Appendix C). It runs
+// `git diff-tree --no-commit-id --name-status -r [--root] <sha>` and parses the tab-separated output
+// into []FileChange. For a root commit (no parent), isRoot MUST be true so git diffs against the
+// empty tree via --root; otherwise a root commit yields NO output (verified on git 2.54.0: empty
+// stdout, exit 0 — the trap the isRoot parameter exists to avoid). The command intentionally does NOT
+// pass -M (rename detection): it reproduces commit-pi's exact `diff-tree --name-status` UX (PRD
+// Appendix C "Identical UX"), so renames surface as a D+A pair; parseDiffTree still handles 3-field
+// R/C lines defensively.
+//
+// diff-tree exits 128 only on a bad/unresolvable SHA (verified); that is surfaced via run()'s
+// exitCode != 0 (err stays nil per run()'s invariant). Empty output (root-without---root, or a
+// no-change commit) is exit 0 and yields a nil slice — NOT an error.
 func (g *gitRunner) DiffTree(ctx context.Context, sha string, isRoot bool) ([]FileChange, error) {
-	panic("gitRunner.DiffTree: not yet implemented — see P1.M1.T2.S6")
+	args := []string{"diff-tree", "--no-commit-id", "--name-status", "-r"}
+	if isRoot {
+		args = append(args, "--root") // root commit: diff against the empty tree (G1)
+	}
+	args = append(args, sha) // flags first, then the positional SHA (G14)
+
+	stdout, stderr, code, err := g.run(ctx, g.workDir, args...)
+	if err != nil {
+		return nil, err // git binary missing / context cancelled / start failure (run sets code=-1) — UNWRAPPED
+	}
+	if code != 0 {
+		// Only a bad SHA reaches here (exit 128). Branch on code != 0, not code == 128 (G2).
+		return nil, fmt.Errorf("git diff-tree: failed (exit %d): %s", code, strings.TrimSpace(stderr))
+	}
+	return parseDiffTree(stdout), nil // may be a nil slice for empty output (G5)
+}
+
+// parseDiffTree parses the tab-separated output of `git diff-tree --no-commit-id --name-status -r`
+// into FileChange values. Each non-empty line is one of:
+//
+//	"<status>\t<path>"               (A/M/D/T — 2 fields)
+//	"<status><score>\t<src>\t<dst>"  (R/C — 3 fields, e.g. "R100\told.txt\tnew.txt")
+//
+// Empty lines (including the trailing newline after TrimSpace) are skipped. Lines with any other
+// field count are skipped defensively (git output is well-formed, so this never fires in practice).
+// Returns a nil slice for empty/whitespace-only input (range-safe).
+func parseDiffTree(out string) []FileChange {
+	var changes []FileChange
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		if line == "" {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		switch len(fields) {
+		case 2:
+			changes = append(changes, FileChange{Status: fields[0], Path: fields[1]})
+		case 3:
+			changes = append(changes, FileChange{Status: fields[0], SrcPath: fields[1], Path: fields[2]})
+		}
+	}
+	return changes
 }
 
 func (g *gitRunner) StagedDiff(ctx context.Context, opts StagedDiffOptions) (string, error) {
