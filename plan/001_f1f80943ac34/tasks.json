@@ -11,7 +11,7 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Foundation Layer: Scaffold, Git Plumbing, and Configuration",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Build the infrastructure layer with zero external product-logic dependencies: the Go module scaffold, the git wrapper that shells out to the real git binary for all plumbing/diff/log/stage operations, and the configuration system with full 7-layer precedence resolution. This milestone produces testable, isolated building blocks that all subsequent milestones consume.",
           "tasks": [
             {
@@ -254,7 +254,7 @@
               "type": "Task",
               "id": "P1.M1.T4",
               "title": "Configuration System with 7-Layer Precedence",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Implement the full configuration model per PRD §16: Config struct, built-in defaults, TOML file loading (global + repo-local via pelletier/go-toml/v2), git-config reader (stagehand.* keys), environment variables (STAGEHAND_*), and CLI flag precedence. The config feeds provider resolution and generation tuning.",
               "subtasks": [
                 {
@@ -311,7 +311,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T4.S4",
                   "title": "Full precedence resolution (env vars + CLI flags) and Load() orchestrator",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T4.S2",
@@ -347,7 +347,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Manifest struct with all §12.1 fields, TOML tags, and validation",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T4.S1"
