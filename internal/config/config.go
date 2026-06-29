@@ -30,6 +30,15 @@ type Config struct {
 	SubjectTargetChars  int    `toml:"subject_target_chars"`  // target subject length for truncation
 	Output              string `toml:"output"`                // "raw" | "json"
 	StripCodeFence      bool   `toml:"strip_code_fence"`      // strip ``` fences from agent output
+
+	// [provider.<name>] user-defined / override provider definitions (PRD §16.2, §12.8).
+	// Carried as a RAW map: the provider MANIFEST type is defined later (P1.M2.T1), so config must not
+	// import it (import-cycle risk). The registry (P1.M2.T3) consumes this map — for each name it
+	// re-encodes the entry to TOML and unmarshals into a Manifest, then field-merges with the built-in
+	// manifest per PRD §16.1. toml:"-" => excluded from flat marshal (no clash with `Provider` string)
+	// and from flat unmarshal (Config is never decoded from §16.2; fileConfig is). Populated by the
+	// file loaders (P1.M1.T4.S2); nil means "no user-defined providers".
+	Providers map[string]map[string]any `toml:"-"`
 }
 
 // Defaults returns the built-in Layer-1 configuration (PRD §16.1): timeout 120s, auto_stage_all
