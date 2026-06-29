@@ -340,7 +340,7 @@
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "Provider Manifest Schema and Merge Logic",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Define the Manifest struct (PRD §12.1) that describes how to invoke one agent, with all fields for discovery, prompt delivery, print mode, model, system prompt, sub-provider, bare mode, output, retry, and environment. Implement the field-by-field merge logic for user overrides.",
               "subtasks": [
                 {
@@ -363,7 +363,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S2",
                   "title": "Field-by-field manifest merge for user overrides",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S1"
@@ -388,7 +388,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T2.S1",
                   "title": "pi and claude manifests (explicit tool-disable switches)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S1"
