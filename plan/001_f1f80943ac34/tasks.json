@@ -570,7 +570,7 @@
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Prompt Construction (Style Learning + Anti-Reuse)",
-              "status": "Researching",
+              "status": "Ready",
               "description": "Implement the system-prompt builder (PRD §17) that learns style from the last 20 commits, detects multi-line vs single-line, enforces anti-reuse of example wording, and assembles the user payload (instruction + diff, with rejection block on retry).",
               "subtasks": [
                 {
@@ -610,7 +610,7 @@
                   "type": "Subtask",
                   "id": "P1.M3.T1.S3",
                   "title": "User payload assembly (instruction + diff + rejection block)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T3.S1"
@@ -628,14 +628,14 @@
               "type": "Task",
               "id": "P1.M3.T2",
               "title": "Duplicate Rejection Loop",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Implement the duplicate-subject detection and retry logic (PRD §9.7 / FR30-FR33): extract the generated subject, check it against the last 50 commit subjects, and if it matches, trigger a retry with an explicit rejection list appended to the user prompt.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T2.S1",
                   "title": "Subject extraction + exact-match check + rejection-list retry logic",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T3.S4",
