@@ -344,8 +344,118 @@ func parseDiffTree(out string) []FileChange {
 	return changes
 }
 
+// commit-pi defaults for staged-diff capture (PRD §9.1 / FINDING 7). Applied when the caller passes
+// a zero/negative cap in StagedDiffOptions — guaranteeing commit-pi parity for any caller (the
+// config system P1.M1.T4 populates these from resolved config; here we enforce the floor).
+const (
+	defaultMaxMDLines   = 100    // per-file line cap for markdown (commit-pi default)
+	defaultMaxDiffBytes = 300000 // byte cap on the non-markdown aggregate (commit-pi default)
+)
+
+// defaultExcludes is the commit-pi noise-filter pathspec set (lock files, snapshots, sourcemaps,
+// vendored code). Used when StagedDiffOptions.Excludes is empty; a non-empty opts.Excludes REPLACES
+// it. The structural markdown excludes (":!*.md", ":!*.markdown") are appended SEPARATELY in the
+// non-markdown section (always, regardless of opts.Excludes) because markdown is captured per-file in
+// Part 1 — omitting them would duplicate markdown in the payload (the double-count trap, G1).
+var defaultExcludes = []string{
+	":!*.lock", ":!package-lock.json", ":!pnpm-lock.yaml", ":!yarn.lock",
+	":!*.snap", ":!*.map", ":!vendor/*",
+}
+
+// StagedDiff returns the concatenated staged-diff payload for prompt construction and stdin delivery
+// to the agent CLI (PRD §9.1/FR1–FR4, Appendix C, FINDING 7). It mirrors commit-pi's two-part
+// capture:
+//
+//  1. Markdown files (.md, .markdown): `git diff --cached --name-only -- '*.md' '*.markdown'` lists
+//     them (git pathspec globs, NOT shell globs — passed as []string), then each is diffed
+//     individually (`git diff --cached -- '<file>'`) and capped at max_md_lines lines (split on
+//     "\n", take the first N). A per-file truncation sentinel marks over-cap files so the model knows
+//     the diff is partial.
+//  2. Non-markdown files: a single `git diff --cached -- <excludes>` with pathspec magic-prefix
+//     excludes for lock/snapshot/sourcemap/vendor noise (defaultExcludes, overridable via
+//     opts.Excludes) PLUS the structural markdown excludes (":!*.md", ":!*.markdown") so markdown is
+//     not double-counted (verified: without them markdown appears in BOTH sections). The aggregate is
+//     capped at max_diff_bytes bytes.
+//
+// Caps are POST-capture (FINDING 7: git has no --max-bytes/--max-lines). Zero/negative caps apply the
+// commit-pi defaults (100/300000). The two parts are concatenated (markdown first). An empty repo
+// (nothing staged) yields "" with no error — the caller gates on HasStagedChanges first, but
+// StagedDiff is safe to call unconditionally.
+//
+// `git diff` WITHOUT --quiet exits 0 on success whether or not there are changes (distinct from
+// HasStagedChanges' --quiet exit-1-means-staged); a non-zero exit (128) is a real error (bad
+// pathspec, corrupt repo) and is surfaced as a wrapped error.
 func (g *gitRunner) StagedDiff(ctx context.Context, opts StagedDiffOptions) (string, error) {
-	panic("gitRunner.StagedDiff: not yet implemented — see P1.M1.T3.S1")
+	maxMDLines := opts.MaxMDLines
+	if maxMDLines <= 0 {
+		maxMDLines = defaultMaxMDLines
+	}
+	maxDiffBytes := opts.MaxDiffBytes
+	if maxDiffBytes <= 0 {
+		maxDiffBytes = defaultMaxDiffBytes
+	}
+
+	var b strings.Builder
+
+	// ---- Part 1: markdown, per-file, line-capped ----
+	// "*.md" / "*.markdown" are git pathspec globs (interpreted by git, not the shell — G10); the "--"
+	// guards pathspec-like filenames (G11).
+	mdList, stderr, code, err := g.run(ctx, g.workDir,
+		"diff", "--cached", "--name-only", "--", "*.md", "*.markdown")
+	if err != nil {
+		return "", err // git binary missing / context cancelled / start failure (run sets code=-1)
+	}
+	if code != 0 {
+		return "", fmt.Errorf("git diff (markdown list): failed (exit %d): %s", code, strings.TrimSpace(stderr))
+	}
+	for _, file := range strings.Split(strings.TrimSpace(mdList), "\n") {
+		if file == "" {
+			continue // nothing-staged ⇒ mdList is "" ⇒ Split yields [""] ⇒ skipped (G15)
+		}
+		fileDiff, fstderr, fcode, ferr := g.run(ctx, g.workDir, "diff", "--cached", "--", file)
+		if ferr != nil {
+			return "", ferr
+		}
+		if fcode != 0 {
+			return "", fmt.Errorf("git diff --cached -- %s: failed (exit %d): %s", file, fcode, strings.TrimSpace(fstderr))
+		}
+		// Per-file line cap (post-capture, FINDING 7/G3). Split on "\n", keep first maxMDLines.
+		if lines := strings.Split(fileDiff, "\n"); len(lines) > maxMDLines {
+			fileDiff = strings.Join(lines[:maxMDLines], "\n") +
+				fmt.Sprintf("\n... [diff truncated at %d lines]", maxMDLines)
+		}
+		b.WriteString(fileDiff)
+		if !strings.HasSuffix(fileDiff, "\n") {
+			b.WriteByte('\n') // ensure a clean boundary before the next hunk / Part 2
+		}
+	}
+
+	// ---- Part 2: non-markdown, aggregate, byte-capped, excluded ----
+	// opts.Excludes REPLACES the noise-filter default if non-empty (G6); the markdown excludes are
+	// ALWAYS appended (structural — prevents the double-count trap, G1).
+	excludes := opts.Excludes
+	if len(excludes) == 0 {
+		excludes = defaultExcludes
+	}
+	nmArgs := []string{"diff", "--cached", "--"}
+	nmArgs = append(nmArgs, excludes...)
+	nmArgs = append(nmArgs, ":!*.md", ":!*.markdown")
+	nmDiff, nmstderr, nmcode, nmerr := g.run(ctx, g.workDir, nmArgs...)
+	if nmerr != nil {
+		return "", nmerr
+	}
+	if nmcode != 0 {
+		return "", fmt.Errorf("git diff (non-markdown): failed (exit %d): %s", nmcode, strings.TrimSpace(nmstderr))
+	}
+	// Byte cap (post-capture, FINDING 7/G3). len() is byte length; the slice may split a UTF-8 rune —
+	// matches `head -c` (G3). The sentinel is appended AFTER the cap and is not counted against it.
+	if len(nmDiff) > maxDiffBytes {
+		nmDiff = nmDiff[:maxDiffBytes] +
+			fmt.Sprintf("\n... [diff truncated at %d bytes]", maxDiffBytes)
+	}
+	b.WriteString(nmDiff)
+
+	return b.String(), nil
 }
 
 func (g *gitRunner) HasStagedChanges(ctx context.Context) (bool, error) {
