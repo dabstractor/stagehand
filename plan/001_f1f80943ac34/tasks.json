@@ -470,14 +470,14 @@
               "type": "Task",
               "id": "P1.M2.T4",
               "title": "Command Rendering Algorithm",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Implement the algorithm (PRD §12.2) that turns a manifest + resolved model + system prompt + user payload into a concrete command line ([]string args + stdin source) for exec.Command.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T4.S1",
                   "title": "Render manifest to exec.Cmd spec (args + stdin source)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M2.T1.S1"
@@ -501,7 +501,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T5.S1",
                   "title": "Subprocess executor (stdin pipe, stdout/stderr capture, env, timeout)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M2.T4.S1"
