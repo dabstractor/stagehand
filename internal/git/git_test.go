@@ -120,7 +120,6 @@ func TestStubsPanic(t *testing.T) {
 	ctx := context.Background()
 	g := New(".")
 
-	assertPanics(t, "HasStagedChanges", func() { _, _ = g.HasStagedChanges(ctx) })
 	assertPanics(t, "RecentMessages", func() { _, _ = g.RecentMessages(ctx, 5) })
 	assertPanics(t, "RecentSubjects", func() { _, _ = g.RecentSubjects(ctx, 5) })
 	assertPanics(t, "CommitCount", func() { _, _ = g.CommitCount(ctx) })

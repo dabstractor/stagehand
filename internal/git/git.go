@@ -458,8 +458,30 @@ func (g *gitRunner) StagedDiff(ctx context.Context, opts StagedDiffOptions) (str
 	return b.String(), nil
 }
 
+// HasStagedChanges reports whether the index differs from HEAD (PRD §9.4/FR16–FR17, FINDING 6). It
+// runs `git diff --cached --quiet`, which produces NO output (--quiet disables it) and encodes the
+// answer in the exit code. The semantics are INVERTED from the usual convention and must be read
+// explicitly: exit 0 → nothing staged (index == HEAD); exit 1 → staged changes EXIST (this is the
+// "has staged" signal, NOT an error); any other exit (e.g. 128 corrupt repo, 129 not-a-repo) → a
+// real error. A naive `err != nil` check would misread exit 1 as an error — this method is the
+// structural encoding of the inversion into a typed bool so no downstream caller can get it wrong.
+//
+// It is read-only with respect to refs and the index (PRD §18.1): it mutates nothing. The orchestrator
+// (P1.M3.T4) calls it as the pre-generation gate and again after auto-stage-all (FINDING 11); the
+// CLI uses it to drive the exit-2 "nothing to commit" path (PRD §15.4).
 func (g *gitRunner) HasStagedChanges(ctx context.Context) (bool, error) {
-	panic("gitRunner.HasStagedChanges: not yet implemented — see P1.M1.T3.S2")
+	_, stderr, code, err := g.run(ctx, g.workDir, "diff", "--cached", "--quiet")
+	if err != nil {
+		return false, err // git binary missing / context cancelled / start failure (run sets code=-1)
+	}
+	switch code {
+	case 0:
+		return false, nil // nothing staged (index == HEAD)
+	case 1:
+		return true, nil // staged changes exist — exit 1 is the signal, NOT an error (FINDING 6)
+	default:
+		return false, fmt.Errorf("git diff --cached --quiet: failed (exit %d): %s", code, strings.TrimSpace(stderr))
+	}
 }
 
 func (g *gitRunner) RecentMessages(ctx context.Context, n int) ([]string, error) {
