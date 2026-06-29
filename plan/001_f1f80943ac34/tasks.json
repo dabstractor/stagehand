@@ -168,7 +168,7 @@
               "type": "Task",
               "id": "P1.M1.T3",
               "title": "Git Diff Capture, Log Queries, and Staging",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Implement the diff capture (with caps and exclusions matching commit-pi), the git log queries for style learning and duplicate detection, and the staging operations (auto-stage-all). These read-only and stage operations feed the prompt builder and the generate orchestrator.",
               "subtasks": [
                 {
@@ -237,7 +237,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T3.S5",
                   "title": "AddAll and staged file counting",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S1"
@@ -261,7 +261,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T4.S1",
                   "title": "Config struct, defaults, and generation-tuning fields",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"

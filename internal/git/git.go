@@ -39,7 +39,7 @@ type StagedDiffOptions struct {
 //	DiffTree          — P1.M1.T2.S6
 //	StagedDiff        — P1.M1.T3.S1   HasStagedChanges — P1.M1.T3.S2
 //	RecentMessages    — P1.M1.T3.S3   CommitCount      — P1.M1.T3.S3
-//	RecentSubjects    — P1.M1.T3.S4   AddAll           — P1.M1.T3.S5
+//	RecentSubjects    — P1.M1.T3.S4   AddAll / StagedFileCount — P1.M1.T3.S5
 type Git interface {
 	// RevParseHEAD returns the SHA HEAD points at. On a repo with zero commits it returns
 	// sha="" and isUnborn=true (detected via git exit 128, NOT stdout emptiness — FINDING 1).
@@ -84,6 +84,11 @@ type Git interface {
 
 	// AddAll stages all changes (git add -A). Used by the auto-stage-all path (PRD §9.4 / FINDING 11).
 	AddAll(ctx context.Context) error
+
+	// StagedFileCount returns the number of files currently staged (git diff --cached --name-only,
+	// count of non-empty lines). Used for the FR18 "Nothing staged — staging all changes (N files)."
+	// notice. Read-only with respect to refs and the index.
+	StagedFileCount(ctx context.Context) (int, error)
 }
 
 // gitRunner is the production Git implementation. It wraps exec.CommandContext for the real git
@@ -609,6 +614,71 @@ func (g *gitRunner) CommitCount(ctx context.Context) (int, error) {
 	return n, nil
 }
 
+// AddAll stages every change in the working tree — new, modified, AND deleted files — via
+// `git add -A` (PRD §9.4/FR16, FR20; FINDING 11). It is the auto-stage-all primitive the CLI default
+// action (P1.M4.T1.S2) calls when nothing is staged (and `auto_stage_all` is on, default true) and that
+// `--all`/`-a` (FR20) force-invokes even when something is already staged. `-A` operates on the WHOLE
+// worktree (no pathspec) — it adds untracked files, updates modified ones, and removes deleted ones,
+// making the index match the working tree.
+//
+// It MUTATES THE INDEX (writes .git/index) — this is an EXPECTED pre-commit mutation, NOT a ref change
+// (PRD §18.1: refs move ONLY at UpdateRefCAS). The immutable snapshot (WriteTree) is taken AFTER AddAll,
+// from the freshly-staged index, so AddAll does not threaten the snapshot-then-CAS atomicity. On a clean
+// working tree `git add -A` is a safe no-op (exit 0, index unchanged).
+//
+// `git add -A` exits 0 on every happy path (born or unborn repo, with or without changes); a non-zero
+// exit (128 on a non-repo / corrupt repo) is a real error. So — unlike the read methods that special-case
+// exit 128 as "unborn is not an error" — AddAll treats ALL non-zero exits as errors (it is a mutation,
+// structurally identical to WriteTree/CommitTree). It delegates to run() (not exec) and targets the repo
+// via the -C flag (not cmd.Dir).
 func (g *gitRunner) AddAll(ctx context.Context) error {
-	panic("gitRunner.AddAll: not yet implemented — see P1.M1.T3.S5")
+	_, stderr, code, err := g.run(ctx, g.workDir, "add", "-A")
+	if err != nil {
+		return err // git binary missing / context cancelled / start failure (run sets code=-1)
+	}
+	if code != 0 {
+		return fmt.Errorf("git add -A: failed (exit %d): %s", code, strings.TrimSpace(stderr))
+	}
+	return nil
+}
+
+// StagedFileCount returns the number of files currently staged in the index (PRD §9.4/FR18). It is the
+// `N` in the auto-stage notice "Nothing staged — staging all changes (N files)." — the CLI layer
+// (P1.M4.T1.S2) calls it AFTER AddAll to report how many files auto-staging touched. It runs
+// `git diff --cached --name-only`, which lists each staged path on its own line (one per file: added,
+// modified, OR deleted — all count), and returns the count of non-empty lines.
+//
+// NOTE — why this OMITS `--quiet` (and does NOT invert exit codes like its sibling HasStagedChanges):
+// HasStagedChanges (T3.S2) runs `git diff --cached --quiet`, where `--quiet` SUPPRESSES output and
+// encodes the answer in the exit code (exit 1 = staged, FINDING 6). StagedFileCount needs the file LIST
+// to count it, so it uses `--name-only` and OMITS `--quiet`: without `--quiet`, `git diff` exits 0
+// whether or not changes exist, and `--name-only` emits the paths. Adding `--quiet` here would SUPPRESS
+// the list and silently make StagedFileCount ALWAYS return 0. So StagedFileCount uses the SIMPLE branch
+// form (code != 0 → error), byte-identical to StagedDiff/DiffTree — NOT HasStagedChanges' switch form.
+//
+// Counting splits stdout on "\n" and counts non-empty (post-TrimSpace) lines. The trailing newline after
+// the last path yields a final "" element, which is dropped; empty output (nothing staged) yields count 0.
+// A filename containing SPACES stays on ONE line (git does not quote spaces without -z), so the count is
+// correct for the common case. A filename with an EMBEDDED NEWLINE would inflate the count — an accepted
+// limitation (vanishingly rare; FR18's N is informational); the contract mandates the `wc -l` line-split
+// form, NOT the NUL-delimited `-z` alternative. It is read-only with respect to refs (PRD §18.1) — it
+// mutates neither the index nor HEAD.
+func (g *gitRunner) StagedFileCount(ctx context.Context) (int, error) {
+	stdout, stderr, code, err := g.run(ctx, g.workDir, "diff", "--cached", "--name-only")
+	if err != nil {
+		return 0, err // git binary missing / context cancelled / start failure (run sets code=-1)
+	}
+	if code != 0 {
+		// NOTE: a NON-REPO directory exits 129 here (git falls into --no-index mode; --cached invalid),
+		// NOT 128 — but we branch on code != 0, not on a specific code (G5). 128 (corrupt) and 129 (non-repo)
+		// are both real errors. Do NOT add --quiet (G2): it would suppress stdout and break the count.
+		return 0, fmt.Errorf("git diff --cached --name-only: failed (exit %d): %s", code, strings.TrimSpace(stderr))
+	}
+	count := 0
+	for _, line := range strings.Split(stdout, "\n") {
+		if strings.TrimSpace(line) != "" {
+			count++ // trailing newline → final "" element is skipped; empty output → count 0
+		}
+	}
+	return count, nil
 }

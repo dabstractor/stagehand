@@ -100,25 +100,3 @@ func TestRun_LookPathFailure(t *testing.T) {
 		t.Fatalf("run() exitCode = %d, want -1 (sentinel for infrastructural failure)", code)
 	}
 }
-
-func assertPanics(t *testing.T, name string, fn func()) {
-	t.Helper()
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatalf("%s: expected panic, but did not panic", name)
-		}
-		msg, ok := r.(string)
-		if !ok || !strings.Contains(msg, "not yet implemented") {
-			t.Fatalf("%s: panic message = %v, want it to contain 'not yet implemented'", name, r)
-		}
-	}()
-	fn()
-}
-
-func TestStubsPanic(t *testing.T) {
-	ctx := context.Background()
-	g := New(".")
-
-	assertPanics(t, "AddAll", func() { _ = g.AddAll(ctx) })
-}
