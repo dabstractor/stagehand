@@ -157,7 +157,8 @@ func materialize(fc *fileConfig, timeout time.Duration) *Config {
 		c.SubjectTargetChars = g.SubjectTargetChars
 	}
 	if g.Output != "" {
-		c.Output = g.Output
+		o := g.Output
+		c.Output = &o
 	}
 	if g.StripCodeFence != nil {
 		c.StripCodeFence = g.StripCodeFence
@@ -207,7 +208,7 @@ func overlay(dst, src *Config) {
 	if src.SubjectTargetChars != 0 {
 		dst.SubjectTargetChars = src.SubjectTargetChars
 	}
-	if src.Output != "" {
+	if src.Output != nil {
 		dst.Output = src.Output
 	}
 	if src.StripCodeFence != nil {

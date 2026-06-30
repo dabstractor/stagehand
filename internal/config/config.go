@@ -6,6 +6,8 @@ import (
 
 func boolPtr(b bool) *bool { return &b }
 
+func strPtr(s string) *string { return &s }
+
 // Config is the fully-resolved Stagehand configuration: the single value produced by the 7-layer
 // precedence resolver (PRD §16.1, FR34) and read by every consumer — the TOML/git/env/CLI loaders
 // (P1.M1.T4.S2-S4), the provider registry (P1.M2.T3), and the generation pipeline.
@@ -28,12 +30,12 @@ type Config struct {
 	NoColor bool `toml:"-"` // TTY-aware at runtime; set by UI layer (P1.M4.T3.S1)
 
 	// [generation] (PRD §16.2)
-	MaxDiffBytes        int    `toml:"max_diff_bytes"`        // byte cap on non-markdown diff section
-	MaxMdLines          int    `toml:"max_md_lines"`          // per-file line cap for markdown diffs
-	MaxDuplicateRetries int    `toml:"max_duplicate_retries"` // re-gen attempts on duplicate subject
-	SubjectTargetChars  int    `toml:"subject_target_chars"`  // target subject length for truncation
-	Output              string `toml:"output"`                // "raw" | "json"
-	StripCodeFence      *bool  `toml:"strip_code_fence"`      // strip ``` fences from agent output; nil ⇒ true
+	MaxDiffBytes        int     `toml:"max_diff_bytes"`        // byte cap on non-markdown diff section
+	MaxMdLines          int     `toml:"max_md_lines"`          // per-file line cap for markdown diffs
+	MaxDuplicateRetries int     `toml:"max_duplicate_retries"` // re-gen attempts on duplicate subject
+	SubjectTargetChars  int     `toml:"subject_target_chars"`  // target subject length for truncation
+	Output              *string `toml:"output"`                // nil ⇒ honor manifest (S2 bridge); non-nil ⇒ override
+	StripCodeFence      *bool   `toml:"strip_code_fence"`      // strip ``` fences from agent output; nil ⇒ true
 
 	// [provider.<name>] user-defined / override provider definitions (PRD §16.2, §12.8).
 	// Carried as a RAW map: the provider MANIFEST type is defined later (P1.M2.T1), so config must not
@@ -46,8 +48,8 @@ type Config struct {
 }
 
 // Defaults returns the built-in Layer-1 configuration (PRD §16.1): timeout 120s, auto_stage_all
-// true, max_diff_bytes 300000, max_md_lines 100, max_duplicate_retries 3, output "raw",
-// strip_code_fence true, subject_target_chars 50. Provider and Model are "" (Layer 1 does not pin
+// true, max_diff_bytes 300000, max_md_lines 100, max_duplicate_retries 3, subject_target_chars 50.
+// Output and StripCodeFence are nil (deferred to the manifest's Resolve() — §12.1). Provider and Model are "" (Layer 1 does not pin
 // them): empty Provider => auto-detect (PRD §15.2); empty Model => use the manifest default_model
 // (PRD §16.2). Verbose/NoColor are false (NoColor is ultimately TTY-aware in the UI layer).
 //
@@ -65,7 +67,7 @@ func Defaults() Config {
 		MaxMdLines:          100,
 		MaxDuplicateRetries: 3,
 		SubjectTargetChars:  50,
-		Output:              "raw",
-		StripCodeFence:      boolPtr(true),
+		Output:              nil,
+		StripCodeFence:      nil,
 	}
 }

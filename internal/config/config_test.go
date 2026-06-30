@@ -43,18 +43,21 @@ func TestDefaults(t *testing.T) {
 	if c.SubjectTargetChars != 50 {
 		t.Errorf("SubjectTargetChars = %d, want 50", c.SubjectTargetChars)
 	}
-	if c.Output != "raw" {
-		t.Errorf("Output = %q, want %q", c.Output, "raw")
+	if c.Output != nil {
+		t.Errorf("Output = %v, want nil", c.Output)
 	}
-	if c.StripCodeFence == nil || !*c.StripCodeFence {
-		t.Errorf("StripCodeFence = %v, want true", c.StripCodeFence)
+	if c.StripCodeFence != nil {
+		t.Errorf("StripCodeFence = %v, want nil", c.StripCodeFence)
 	}
 }
 
 func TestTOMLMarshalKeysAndNoColorExclusion(t *testing.T) {
-	data, err := toml.Marshal(Defaults())
+	c := Defaults()
+	c.Output = strPtr("raw")
+	c.StripCodeFence = boolPtr(true)
+	data, err := toml.Marshal(c)
 	if err != nil {
-		t.Fatalf("toml.Marshal(Defaults()) err = %v", err)
+		t.Fatalf("toml.Marshal(explicit values) err = %v", err)
 	}
 	s := string(data)
 	for _, key := range []string{

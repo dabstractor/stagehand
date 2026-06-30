@@ -124,7 +124,7 @@ func loadGitConfig(repoDir string) (*Config, error) {
 	if v, found, err := gitConfigGet(repoDir, "stagehand.output"); err != nil {
 		return nil, err
 	} else if found {
-		c.Output = v
+		c.Output = &v
 	}
 
 	// --- timeout: accepts both "90" (seconds) and "90s" (Go duration) forms. ---

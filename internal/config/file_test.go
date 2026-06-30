@@ -79,8 +79,8 @@ bare_flags = ["--no-mcp", "--ephemeral"]
 	if cfg.MaxDiffBytes != 12345 {
 		t.Errorf("MaxDiffBytes=%d want 12345", cfg.MaxDiffBytes)
 	}
-	if cfg.Output != "json" {
-		t.Errorf("Output=%q want json", cfg.Output)
+	if cfg.Output == nil || *cfg.Output != "json" {
+		t.Errorf("Output=%v want strPtr(json)", cfg.Output)
 	}
 	if len(cfg.Providers) != 2 {
 		t.Errorf("Providers len=%d want 2", len(cfg.Providers))
@@ -110,14 +110,14 @@ func TestLoadTOMLMissing(t *testing.T) {
 // --- Test C: TestOverlayPartial (CONTRACT CASE) ---
 
 func TestOverlayPartial(t *testing.T) {
-	dst := Defaults()                                         // Layer-1 baseline (AutoStageAll=true, MaxDiffBytes=300000, Timeout=120s, …)
-	src := &Config{Timeout: 90 * time.Second, Output: "json"} // PARTIAL: only 2 fields set
+	dst := Defaults()                                                 // Layer-1 baseline (AutoStageAll=true, MaxDiffBytes=300000, Timeout=120s, …)
+	src := &Config{Timeout: 90 * time.Second, Output: strPtr("json")} // PARTIAL: only 2 fields set
 	overlay(&dst, src)
 	if dst.Timeout != 90*time.Second {
 		t.Errorf("Timeout = %v, want 90s", dst.Timeout)
 	}
-	if dst.Output != "json" {
-		t.Errorf("Output = %q, want json", dst.Output)
+	if dst.Output == nil || *dst.Output != "json" {
+		t.Errorf("Output = %v, want strPtr(json)", dst.Output)
 	}
 	// Everything else MUST be untouched (NOT a wholesale replace):
 	if !dst.AutoStageAll {
@@ -138,8 +138,8 @@ func TestOverlayPartial(t *testing.T) {
 	if dst.SubjectTargetChars != 50 {
 		t.Errorf("SubjectTargetChars clobbered: %d, want 50", dst.SubjectTargetChars)
 	}
-	if dst.StripCodeFence == nil || !*dst.StripCodeFence {
-		t.Errorf("StripCodeFence clobbered: %v, want true", dst.StripCodeFence)
+	if dst.StripCodeFence != nil {
+		t.Errorf("StripCodeFence clobbered: %v, want nil", dst.StripCodeFence)
 	}
 }
 
@@ -402,9 +402,10 @@ func TestOverlayStripCodeFenceFalse(t *testing.T) {
 		t.Errorf("StripCodeFence = true, want false (overlay should honor explicit false)")
 	}
 
-	// Case 2: src has nil StripCodeFence — must NOT override dst's true
+	// Case 2: src has nil StripCodeFence — must NOT override a set dst
 	dst = Defaults()
-	src = &Config{Output: "json"} // StripCodeFence left nil (unset)
+	dst.StripCodeFence = boolPtr(true)
+	src = &Config{Output: strPtr("json")} // StripCodeFence left nil (unset)
 	overlay(&dst, src)
 	if dst.StripCodeFence == nil || !*dst.StripCodeFence {
 		t.Errorf("StripCodeFence = %v, want true (nil src must not clobber)", dst.StripCodeFence)
@@ -433,7 +434,7 @@ strip_code_fence = false
 	}
 
 	// Verify overlay preserves the false
-	dst := Defaults() // StripCodeFence = true
+	dst := Defaults() // StripCodeFence = nil (defaults no longer set it)
 	overlay(&dst, cfg)
 	if dst.StripCodeFence == nil || *dst.StripCodeFence {
 		t.Errorf("after overlay: StripCodeFence = %v, want false", dst.StripCodeFence)

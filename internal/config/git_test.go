@@ -108,8 +108,8 @@ func TestLoadGitConfig_ReadsValues(t *testing.T) {
 	if cfg.StripCodeFence == nil || !*cfg.StripCodeFence {
 		t.Errorf("StripCodeFence=%v want true (--bool '1')", cfg.StripCodeFence)
 	}
-	if cfg.Output != "json" {
-		t.Errorf("Output=%q want json", cfg.Output)
+	if cfg.Output == nil || *cfg.Output != "json" {
+		t.Errorf("Output=%v want strPtr(json)", cfg.Output)
 	}
 }
 
@@ -130,7 +130,7 @@ func TestLoadGitConfig_MissingKeysIgnored(t *testing.T) {
 		t.Fatal("cfg=nil, want non-nil")
 	}
 	// EVERY field must be its zero value (nothing was set):
-	if cfg.Provider != "" || cfg.Model != "" || cfg.Output != "" {
+	if cfg.Provider != "" || cfg.Model != "" || cfg.Output != nil {
 		t.Errorf("string field non-zero: %+v", cfg)
 	}
 	if cfg.Timeout != 0 || cfg.MaxDiffBytes != 0 || cfg.MaxMdLines != 0 ||
@@ -342,7 +342,7 @@ func TestLoadGitConfig_OverlaysWithDefaults(t *testing.T) {
 	if cfg.MaxDiffBytes != 300000 {
 		t.Errorf("MaxDiffBytes=%d want 300000 (default preserved)", cfg.MaxDiffBytes)
 	}
-	if cfg.Output != "raw" {
-		t.Errorf("Output=%q want raw (default preserved)", cfg.Output)
+	if cfg.Output != nil {
+		t.Errorf("Output=%v want nil (default preserved)", cfg.Output)
 	}
 }
