@@ -976,14 +976,14 @@
               "type": "Task",
               "id": "P1.M5.T1",
               "title": "Property/Invariant Tests & Real-Agent Integration Scaffold",
-              "status": "Planned",
+              "status": "Ready",
               "description": "Implement the cross-cutting test infrastructure from PRD §20.2 (property/invariant tests asserting repo safety) and §20.1 layer 4 (the opt-in real-agent test suite behind a build tag). Per-feature unit tests ride with each implementing subtask (§3 implicit TDD); this task covers the system-level safety invariants and the release-gate real-agent tests.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M5.T1.S1",
                   "title": "Property/invariant tests (idempotent index, atomic HEAD, snapshot immutability)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M3.T4.S2",
@@ -1000,7 +1000,7 @@
                   "type": "Subtask",
                   "id": "P1.M5.T1.S2",
                   "title": "Real-agent integration test scaffold (//go:build integration_real, opt-in)",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T4.S2"
@@ -1017,14 +1017,14 @@
               "type": "Task",
               "id": "P1.M5.T2",
               "title": "Shipped Reference Manifest Files (providers/*.toml)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Create the human-readable reference TOML manifest files shipped in the providers/ directory (PRD §14). These are documentation/reference artifacts that mirror the compiled-in built-ins and serve as copy-paste templates for user-defined providers.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M5.T2.S1",
                   "title": "providers/*.toml reference files (6 agents, human-readable with comments)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T2.S1",
