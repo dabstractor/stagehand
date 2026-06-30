@@ -131,6 +131,13 @@ func TestWriteTree_MergeConflict(t *testing.T) {
 	if !strings.Contains(err.Error(), "unresolved merge conflicts") {
 		t.Fatalf("WriteTree err = %v, want it to contain 'unresolved merge conflicts'", err)
 	}
+	// The conflict message must be a single clean line — no raw git stderr noise (bugfix-002 Issue 3).
+	if strings.Contains(err.Error(), "fatal: git-write-tree") {
+		t.Errorf("WriteTree err = %q; want it to NOT contain raw 'fatal: git-write-tree' stderr", err.Error())
+	}
+	if strings.Contains(err.Error(), "error building trees") {
+		t.Errorf("WriteTree err = %q; want it to NOT contain raw 'error building trees' stderr", err.Error())
+	}
 	if sha != "" {
 		t.Fatalf("WriteTree sha = %q, want empty string on conflict", sha)
 	}

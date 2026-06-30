@@ -91,21 +91,21 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Issue 3 — Unresolved merge conflicts surface a clean 'resolve merge conflicts first' message instead of raw multi-line git write-tree stderr",
-          "status": "Planned",
+          "status": "Complete",
           "description": "On unresolved conflicts, git.WriteTree returns a noisy multi-line error (f.txt: unmerged ×N + 'fatal: git-write-tree: error building trees') instead of PRD §13.5's clean single line. Behavior is already correct (exit 1, model never invoked, HEAD/index untouched — WriteTree is pipeline step 3, pre-generation); only the message is wrong. Localized fix to the WriteTree error path (covers both CommitStaged and runPipeline call sites). PRD §13.5/§18.2.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Return a clean single-line 'resolve merge conflicts' error from git.WriteTree on the unmerged-index failure",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Modify internal/git/git.go WriteTree so that on failure (code != 0) it returns a single clean line naming the conflict (dropping the raw multi-line stderr), preferring an accurate ls-files -u check to distinguish 'unmerged paths' from other write-tree failures. The error propagates unchanged through both call sites (generate.CommitStaged step 3 and pkg/stagehand.runPipeline step 3) -> handleGenError default branch -> exitcode.Error (1) + 'stagehand: <clean msg>'. Still pre-generation, still exit 1, HEAD untouched.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T1.S1",
                   "title": "Clean the git.WriteTree unmerged-conflict error message (single line, no raw stderr)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/001_f1f80943ac34/bugfix/002_18158df10968/architecture/issue_analysis.md ISSUE 3. git.WriteTree (internal/git/git.go:218-224) on code != 0 returns fmt.Errorf(\"git write-tree: unresolved merge conflicts in index (exit %d): %s\", code, strings.TrimSpace(stderr)) — the %s appends the FULL noisy multi-line git stderr. The error surfaces via handleGenError (internal/cmd/default_action.go:188 default branch) -> exitcode.New(Error, err) -> main prints 'stagehand: <msg>' + exit 1. Correct behavior; only the message is noisy. The existing test TestWriteTree_MergeConflict (internal/git/writetree_test.go:122-133) asserts strings.Contains(err.Error(), \"unresolved merge conflicts\") — KEEP that substring so the assertion still holds.\n2. INPUT: g.run(ctx, workDir, \"write-tree\") -> (stdout, stderr, code, err). The run() helper is the ONLY git exec seam (git.go:95); an additional g.run(ctx, workDir, \"ls-files\", \"-u\") call is available to detect unmerged entries (non-empty stdout => conflicts).\n3. LOGIC: Implement PRD §13.5 'resolve merge conflicts first'. In WriteTree, when code != 0: PREFERRED — run `git ls-files -u`; if its stdout is non-empty, return a clean single-line error that KEEPS the substring 'unresolved merge conflicts' (e.g. errors.New(\"unresolved merge conflicts in the index — resolve them first, then re-run stagehand\")); else return the original detailed error (a non-conflict write-tree failure). MINIMAL acceptable variant — drop the %s stderr and return a clean single line (exit-128 on a populated index is unambiguously unmerged). Either way: do NOT append the multi-line raw stderr to the conflict message. The extra ls-files call is on the FAILURE path only (not hot). Do NOT change the call sites (generate.go step 3 / stagehand.go runPipeline step 3) — they return the WriteTree error as-is.\n4. OUTPUT: A WriteTree whose conflict error is a single clean line; exit code semantics and call sites unchanged. Update writetree_test.go: keep the existing 'unresolved merge conflicts' contains-assertion AND ADD an assertion that the message does NOT contain the raw noise ('fatal: git-write-tree', 'error building trees'). Reuse the makeMergeConflict fixture (writetree_test.go:22-68) as-is.\n5. DOCS: [Mode A] If docs/how-it-works.md §'Failure modes and exit codes' (line ~53) quotes or describes the merge-conflict wording, align it to the clean single-line message; otherwise 'none — message-only change with no new config/API surface'.",

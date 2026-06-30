@@ -222,7 +222,14 @@ func (g *gitRunner) WriteTree(ctx context.Context) (sha string, err error) {
 		return "", err // git binary missing / context cancelled / start failure (run sets code=-1)
 	}
 	if code != 0 {
-		return "", fmt.Errorf("git write-tree: unresolved merge conflicts in index (exit %d): %s", code, strings.TrimSpace(stderr))
+		// PRD §13.5: when write-tree fails on an unmerged index, return a single clean line instead of
+		// dumping git's raw multi-line stderr. Probe `git ls-files -u` (lists unmerged stage entries);
+		// non-empty stdout ⇒ unresolved conflicts. Failure path only (not hot); on any ls-files error
+		// fall through to the detailed diagnostic so a genuine non-conflict failure isn't hidden.
+		if lsOut, _, _, lsErr := g.run(ctx, g.workDir, "ls-files", "-u"); lsErr == nil && strings.TrimSpace(lsOut) != "" {
+			return "", errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagehand")
+		}
+		return "", fmt.Errorf("git write-tree failed (exit %d): %s", code, strings.TrimSpace(stderr))
 	}
 	return strings.TrimSpace(stdout), nil
 }
