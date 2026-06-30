@@ -255,7 +255,7 @@
                   "type": "Subtask",
                   "id": "P1.M4.T2.S1",
                   "title": "Add n==0 early-return for the auto-stage notice on a clean tree",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 0.5,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: internal/cmd/default_action.go:60-91 AutoStageAll branch: after g.AddAll(ctx) (no-op on a clean tree) and n, err := g.StagedFileCount(ctx) (returns 0 on a clean tree), it prints 'Nothing staged - staging all changes (0 files).' (FR18 template, default_action.go:78) BEFORE the FR17 exit-2 'Nothing to commit.' at default_action.go:85. StagedFileCount (internal/git/git.go) counts non-empty lines of `git diff --cached --name-only`. See architecture/decisions.md D5 and architecture/seam_config_and_autostage.md Part B.\n2. INPUT: The n int from g.StagedFileCount(ctx) and the exitcode.NothingToCommit (2) constant.\n3. LOGIC: Between the StagedFileCount error guard and the Fprintln notice, add: `if n == 0 { return exitcode.New(exitcode.NothingToCommit, errors.New(\"Nothing to commit.\")) }`. Identical exit code/message to the existing FR17 path (PRD §15.4), just skips the misleading '(0 files)' line. Leave the downstream `if !hasStaged` FR17 re-check as a belt-and-suspenders guard.\n4. OUTPUT: On a clean tree with auto-stage on, stderr no longer shows 'staging all changes (0 files).'; goes straight to exit-2 'Nothing to commit.'\n5. DOCS: none - pure UX/cosmetic; the FR18 template is unchanged for the n>0 case (no doc surface change).",

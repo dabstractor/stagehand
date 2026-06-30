@@ -75,6 +75,11 @@ func runDefault(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return exitcode.New(exitcode.Error, fmt.Errorf("git diff --cached --name-only: %w", err))
 			}
+			if n == 0 {
+				// Clean tree: AddAll staged nothing. Skip the FR18 "(0 files)" notice and go straight
+				// to the FR17 exit-2 path (Issue 7 cosmetic fix; D5).
+				return exitcode.New(exitcode.NothingToCommit, errors.New("Nothing to commit."))
+			}
 			fmt.Fprintln(stderr, u.Yellow(fmt.Sprintf("Nothing staged — staging all changes (%d files).", n))) // FR18 (text verbatim, em-dash; colorized)
 			hasStaged, err = g.HasStagedChanges(ctx)
 			if err != nil {

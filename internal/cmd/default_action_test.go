@@ -335,6 +335,12 @@ func TestRunDefault_NothingStaged_FR17(t *testing.T) {
 	if logMsg != "init: add stagehand config" {
 		t.Errorf("HEAD moved to %q, want 'init: add stagehand config'", logMsg)
 	}
+
+	// Issue 7: clean tree must NOT print the misleading "staging all changes" notice.
+	stderr := errBuf.String()
+	if strings.Contains(stderr, "staging all changes") {
+		t.Errorf("stderr = %q, want NO auto-stage notice on a clean tree (Issue 7)", stderr)
+	}
 }
 
 // ---------------------------------------------------------------------------
