@@ -272,34 +272,9 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config, sys
 		model = *resolved.DefaultModel
 	}
 
-	// ---- DryRun: single pass, no commit. ----
-	if dryRun {
-		payload := prompt.BuildUserPayload(diff, nil)
-		spec, rerr := deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)
-		if rerr != nil {
-			return Result{}, fmt.Errorf("render: %w", rerr)
-		}
-		out, _, execErr := provider.Execute(ctx, *spec, cfg.Timeout, deps.Verbose)
-		if execErr != nil {
-			if errors.Is(execErr, context.DeadlineExceeded) {
-				return Result{}, ErrTimeout
-			}
-			return Result{}, fmt.Errorf("generate: %w", execErr)
-		}
-		msg, ok, _ := provider.ParseOutput(out, deps.Manifest)
-		if !ok {
-			return Result{}, errors.New("dry run: model produced no valid message")
-		}
-		return Result{
-			CommitSHA: "",
-			Subject:   generate.ExtractSubject(msg),
-			Message:   msg,
-			Provider:  deps.Manifest.Name,
-			Model:     model,
-		}, nil
-	}
-
-	// ---- Commit path (SystemExtra set): full generate→dedupe loop + commit. Mirror CommitStaged. ----
+	// ---- Generation+dedupe loop (FR29/FR32) — runs for both dry-run and commit paths. ----
+	// Mirror generate.CommitStaged step 5. Same loop body for dryRun and !dryRun;
+	// on success dry-run returns early (before CommitTree), commit continues to the tail.
 	retryInstr := *resolved.RetryInstruction
 	var rejected []string
 	var candidate, msg string
@@ -366,7 +341,19 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config, sys
 		}
 	}
 
-	// Commit (mirror CommitStaged steps 7-8).
+	// ---- Dry-run success: skip commit-tree/update-ref. ----
+	if dryRun {
+		signal.ClearSnapshot() // disarm — no rescue on dry-run success
+		return Result{
+			CommitSHA: "",
+			Subject:   generate.ExtractSubject(msg),
+			Message:   msg,
+			Provider:  deps.Manifest.Name,
+			Model:     model,
+		}, nil
+	}
+
+	// ---- Commit tail (mirror CommitStaged steps 7-8). ----
 	var parents []string
 	if !isUnborn {
 		parents = []string{parentSHA}

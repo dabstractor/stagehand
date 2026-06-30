@@ -23,7 +23,7 @@ With no subcommand, `stagehand` runs the **default action**: it snapshots your s
 | `--no-color` | bool | TTY-aware | `STAGEHAND_NO_COLOR` | — | Disable color (also honors `NO_COLOR`) |
 | `--all`, `-a` | bool | false | — | — | Run `git add -A` before snapshotting, even if something is staged |
 | `--no-auto-stage` | bool | false | — | — | If nothing is staged, exit instead of auto-staging |
-| `--dry-run` | bool | false | — | — | Generate and print the message; do not commit |
+| `--dry-run` | bool | false | — | — | Run the full generate→parse→duplicate-check pipeline (same as a real commit, including retry) and print the message; do not commit |
 | `--version` | — | — | — | — | Print the build version (`"dev"` for a local build; the release tag for a released binary) |
 | `--help`, `-h` | — | — | — | — | Print help |
 

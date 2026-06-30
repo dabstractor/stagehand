@@ -255,10 +255,16 @@ func TestGenerateCommit_Timeout(t *testing.T) {
 		if !errors.Is(err, ErrTimeout) {
 			t.Errorf("errors.Is(err, ErrTimeout) = false, error = %v", err)
 		}
-		// DryRun path returns bare ErrTimeout, not *RescueError.
+		// DryRun path returns *RescueError{Kind:ErrTimeout} with real TreeSHA (S1 snapshot).
 		var re *RescueError
-		if errors.As(err, &re) {
-			t.Error("DryRun timeout should return bare ErrTimeout, not *RescueError")
+		if !errors.As(err, &re) {
+			t.Fatalf("dryrun: error type = %T, want *RescueError", err)
+		}
+		if !errors.Is(err, ErrTimeout) {
+			t.Errorf("dryrun: errors.Is(err, ErrTimeout) = false, error = %v", err)
+		}
+		if re.TreeSHA == "" {
+			t.Error("dryrun: RescueError.TreeSHA empty, want non-empty (snapshot was taken — S1)")
 		}
 	})
 

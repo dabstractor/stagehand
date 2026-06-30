@@ -159,7 +159,7 @@
                   "type": "Subtask",
                   "id": "P1.M3.T1.S2",
                   "title": "Replace dry-run single-pass with the bounded dedupe/retry loop; skip commit-tree/update-ref only (Issue 2)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M3.T1.S1"
