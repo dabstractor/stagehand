@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -137,8 +138,8 @@ func TestOverlayPartial(t *testing.T) {
 	if dst.SubjectTargetChars != 50 {
 		t.Errorf("SubjectTargetChars clobbered: %d, want 50", dst.SubjectTargetChars)
 	}
-	if !dst.StripCodeFence {
-		t.Errorf("StripCodeFence clobbered: false, want true")
+	if dst.StripCodeFence == nil || !*dst.StripCodeFence {
+		t.Errorf("StripCodeFence clobbered: %v, want true", dst.StripCodeFence)
 	}
 }
 
@@ -359,6 +360,83 @@ func TestGlobalConfigPath_UserHomeDirFails(t *testing.T) {
 	// Otherwise UserHomeDir succeeded — verify it ends with config.toml
 	if !strings.HasSuffix(got, "config.toml") {
 		t.Errorf("globalConfigPath() = %q, want ending with config.toml", got)
+	}
+}
+
+// --- TestSetNoticeOut_NoticeOut ---
+
+func TestSetNoticeOut_NoticeOut(t *testing.T) {
+	// Save and restore the global noticeOut
+	orig := NoticeOut()
+	defer SetNoticeOut(orig)
+
+	buf := &bytes.Buffer{}
+	SetNoticeOut(buf)
+
+	// NoticeOut should return the buffer we just set
+	if got := NoticeOut(); got != buf {
+		t.Errorf("NoticeOut() = %p, want %p (the buffer we set)", got, buf)
+	}
+
+	// Write through noticeOut (via fmt.Fprint) and verify it lands in the buffer
+	fmt.Fprint(NoticeOut(), "hello notice")
+	if buf.String() != "hello notice" {
+		t.Errorf("buffer = %q, want %q", buf.String(), "hello notice")
+	}
+}
+
+// --- TestOverlayStripCodeFenceFalse ---
+
+func TestOverlayStripCodeFenceFalse(t *testing.T) {
+	// Regression test for Finding 2: StripCodeFence=false must survive overlay.
+	dst := Defaults() // StripCodeFence = true
+
+	// Case 1: src sets false via pointer — must override dst's true
+	f := false
+	src := &Config{StripCodeFence: &f}
+	overlay(&dst, src)
+	if dst.StripCodeFence == nil {
+		t.Fatal("StripCodeFence is nil after overlay")
+	}
+	if *dst.StripCodeFence {
+		t.Errorf("StripCodeFence = true, want false (overlay should honor explicit false)")
+	}
+
+	// Case 2: src has nil StripCodeFence — must NOT override dst's true
+	dst = Defaults()
+	src = &Config{Output: "json"} // StripCodeFence left nil (unset)
+	overlay(&dst, src)
+	if dst.StripCodeFence == nil || !*dst.StripCodeFence {
+		t.Errorf("StripCodeFence = %v, want true (nil src must not clobber)", dst.StripCodeFence)
+	}
+}
+
+// --- TestMaterializeStripCodeFenceFalse ---
+
+func TestMaterializeStripCodeFenceFalse(t *testing.T) {
+	// Regression test for Finding 2: a TOML file with strip_code_fence = false must
+	// produce a Config with StripCodeFence=false (not drop it).
+	body := `
+[generation]
+strip_code_fence = false
+`
+	path := writeTempTOML(t, body)
+	cfg, err := loadTOML(path)
+	if err != nil || cfg == nil {
+		t.Fatalf("loadTOML: cfg=%v err=%v", cfg, err)
+	}
+	if cfg.StripCodeFence == nil {
+		t.Fatal("StripCodeFence is nil, want non-nil")
+	}
+	if *cfg.StripCodeFence {
+		t.Errorf("StripCodeFence = true, want false")
+	}
+
+	// Verify overlay preserves the false
+	dst := Defaults() // StripCodeFence = true
+	overlay(&dst, cfg)
+	if dst.StripCodeFence == nil || *dst.StripCodeFence {
+		t.Errorf("after overlay: StripCodeFence = %v, want false", dst.StripCodeFence)
 	}
 }
 

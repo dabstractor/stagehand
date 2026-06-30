@@ -1,6 +1,10 @@
 package config
 
-import "time"
+import (
+	"time"
+)
+
+func boolPtr(b bool) *bool { return &b }
 
 // Config is the fully-resolved Stagehand configuration: the single value produced by the 7-layer
 // precedence resolver (PRD §16.1, FR34) and read by every consumer — the TOML/git/env/CLI loaders
@@ -29,7 +33,7 @@ type Config struct {
 	MaxDuplicateRetries int    `toml:"max_duplicate_retries"` // re-gen attempts on duplicate subject
 	SubjectTargetChars  int    `toml:"subject_target_chars"`  // target subject length for truncation
 	Output              string `toml:"output"`                // "raw" | "json"
-	StripCodeFence      bool   `toml:"strip_code_fence"`      // strip ``` fences from agent output
+	StripCodeFence      *bool  `toml:"strip_code_fence"`      // strip ``` fences from agent output; nil ⇒ true
 
 	// [provider.<name>] user-defined / override provider definitions (PRD §16.2, §12.8).
 	// Carried as a RAW map: the provider MANIFEST type is defined later (P1.M2.T1), so config must not
@@ -62,6 +66,6 @@ func Defaults() Config {
 		MaxDuplicateRetries: 3,
 		SubjectTargetChars:  50,
 		Output:              "raw",
-		StripCodeFence:      true,
+		StripCodeFence:      boolPtr(true),
 	}
 }

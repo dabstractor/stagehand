@@ -207,8 +207,9 @@ func buildDeps(cfg config.Config, repoDir string) (generate.Deps, error) {
 		o := cfg.Output
 		m.Output = &o
 	}
-	scf := cfg.StripCodeFence
-	m.StripCodeFence = &scf
+	if cfg.StripCodeFence != nil {
+		m.StripCodeFence = cfg.StripCodeFence
+	}
 
 	return generate.Deps{Git: git.New(repoDir), Manifest: m}, nil
 }

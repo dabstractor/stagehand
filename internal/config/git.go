@@ -152,7 +152,7 @@ func loadGitConfig(repoDir string) (*Config, error) {
 	if v, found, err := gitConfigBool(repoDir, "stagehand.stripCodeFence"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
-		c.StripCodeFence = v
+		c.StripCodeFence = &v
 	}
 
 	// --- ints (plain --get -> Atoi) ---

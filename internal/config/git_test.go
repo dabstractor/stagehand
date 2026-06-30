@@ -105,8 +105,8 @@ func TestLoadGitConfig_ReadsValues(t *testing.T) {
 	if cfg.MaxDiffBytes != 12345 {
 		t.Errorf("MaxDiffBytes=%d want 12345", cfg.MaxDiffBytes)
 	}
-	if !cfg.StripCodeFence {
-		t.Errorf("StripCodeFence=false want true (--bool '1')")
+	if cfg.StripCodeFence == nil || !*cfg.StripCodeFence {
+		t.Errorf("StripCodeFence=%v want true (--bool '1')", cfg.StripCodeFence)
 	}
 	if cfg.Output != "json" {
 		t.Errorf("Output=%q want json", cfg.Output)
@@ -137,7 +137,7 @@ func TestLoadGitConfig_MissingKeysIgnored(t *testing.T) {
 		cfg.MaxDuplicateRetries != 0 || cfg.SubjectTargetChars != 0 {
 		t.Errorf("numeric field non-zero: %+v", cfg)
 	}
-	if cfg.AutoStageAll || cfg.Verbose || cfg.StripCodeFence {
+	if cfg.AutoStageAll || cfg.Verbose || (cfg.StripCodeFence != nil && *cfg.StripCodeFence) {
 		t.Errorf("bool field non-zero: %+v", cfg)
 	}
 }
@@ -160,8 +160,8 @@ func TestLoadGitConfig_BoolNormalization(t *testing.T) {
 	if cfg.AutoStageAll {
 		t.Errorf("AutoStageAll=true want false (--bool 'off')")
 	}
-	if cfg.StripCodeFence {
-		t.Errorf("StripCodeFence=true want false (--bool 'no')")
+	if cfg.StripCodeFence != nil && *cfg.StripCodeFence {
+		t.Errorf("StripCodeFence=%v want false (--bool 'no')", cfg.StripCodeFence)
 	}
 }
 

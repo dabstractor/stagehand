@@ -38,7 +38,7 @@ type fileGeneration struct {
 	MaxDuplicateRetries int    `toml:"max_duplicate_retries"`
 	SubjectTargetChars  int    `toml:"subject_target_chars"`
 	Output              string `toml:"output"`
-	StripCodeFence      bool   `toml:"strip_code_fence"`
+	StripCodeFence      *bool  `toml:"strip_code_fence"`
 }
 
 // ---------------------------------------------------------------------------
@@ -159,8 +159,8 @@ func materialize(fc *fileConfig, timeout time.Duration) *Config {
 	if g.Output != "" {
 		c.Output = g.Output
 	}
-	if g.StripCodeFence {
-		c.StripCodeFence = true // v1 limitation: cannot set false via file
+	if g.StripCodeFence != nil {
+		c.StripCodeFence = g.StripCodeFence
 	}
 	c.Providers = fc.Provider // nil-safe: nil if no [provider] table
 	return c
@@ -210,8 +210,8 @@ func overlay(dst, src *Config) {
 	if src.Output != "" {
 		dst.Output = src.Output
 	}
-	if src.StripCodeFence {
-		dst.StripCodeFence = true
+	if src.StripCodeFence != nil {
+		dst.StripCodeFence = src.StripCodeFence
 	}
 	// [provider.X]
 	if len(src.Providers) > 0 {

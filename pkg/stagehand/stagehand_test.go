@@ -18,6 +18,8 @@ import (
 
 // --- Fixture helpers (copied from internal/generate/generate_test.go — package-private, unimportable) ---
 
+func boolPtr(b bool) *bool { return &b }
+
 // initRepo creates a git repo in dir with repo-local identity config (no env pollution).
 func initRepo(t *testing.T, dir string) {
 	t.Helper()
@@ -768,12 +770,7 @@ func TestGenerateCommit_GitConfig_OutputJSON_Issue4(t *testing.T) {
 // TestGenerateCommit_InjectedConfig_StripCodeFenceFalse_Issue4 proves PRD Issue 4: when
 // cfg.StripCodeFence=false (injected via Options.Config), ParseOutput RETAINS the ``` fences in
 // the message instead of stripping them. This proves the buildDeps bridge copies cfg.StripCodeFence
-// onto the manifest unconditionally (stagehand.go:208-209).
-//
-// NOTE: The git-config loader uses a non-zero overlay (file.go:overlay) that cannot propagate
-// `false` for bool fields (FINDING G in git.go). Similarly, file.go:153 cannot set
-// strip_code_fence=false (v1 quirk). Injecting Options.Config directly is the only way to reach
-// cfg.StripCodeFence=false and exercise the bridge's false-path.
+// onto the manifest. Now also reachable via file/git-config loaders (StripCodeFence is *bool).
 //
 // TDD check (manual, do not commit): comment out the S1 bridge block and re-run — this test FAILS
 // (fence stripped, message is "feat: keep the fence" without backticks).
@@ -784,10 +781,10 @@ func TestGenerateCommit_InjectedConfig_StripCodeFenceFalse_Issue4(t *testing.T) 
 	// when true (bridge absent), stripCodeFence() removes them → "feat: keep the fence".
 	stubOut := "```" + "\n" + "feat: keep the fence" + "\n" + "```"
 
-	// Start from Defaults, then set StripCodeFence=false to exercise the bridge's unconditional copy.
+	// Start from Defaults, then set StripCodeFence=false to exercise the bridge's copy.
 	cfg := config.Defaults()
 	cfg.Provider = "stub"
-	cfg.StripCodeFence = false // inject false — cannot reach this via file/git-config loaders (FINDING G)
+	cfg.StripCodeFence = boolPtr(false) // inject false — now reachable via file/git-config loaders too
 	cfg.Providers = map[string]map[string]any{
 		"stub": {
 			"command":          bin,

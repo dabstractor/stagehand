@@ -46,8 +46,8 @@ func TestDefaults(t *testing.T) {
 	if c.Output != "raw" {
 		t.Errorf("Output = %q, want %q", c.Output, "raw")
 	}
-	if !c.StripCodeFence {
-		t.Errorf("StripCodeFence = false, want true")
+	if c.StripCodeFence == nil || !*c.StripCodeFence {
+		t.Errorf("StripCodeFence = %v, want true", c.StripCodeFence)
 	}
 }
 
