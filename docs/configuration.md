@@ -78,6 +78,8 @@ These are the values when no config file, env var, git-config key, or flag sets 
 
 `NoColor` is TTY-aware at runtime (set by the UI layer); it is not a file field and has no config-file key.
 
+The `output` and `strip_code_fence` settings apply to **parsing** of agent output. Setting `output = "json"` makes Stagehand parse the agent's stdout as JSON (extracting the `json_field` value) across all providers. These `[generation]` values override any per-provider `[provider.<name>]` defaults — the broader layer wins.
+
 ## Environment variables
 
 All `STAGEHAND_*` variables override the config file and are overridden by CLI flags:
@@ -110,3 +112,5 @@ These keys live in `.git/config` (set with `git config --local` or `git config -
 | `stagehand.model` | string | `git config --get stagehand.model` | Model override |
 | `stagehand.timeout` | string | `git config --get stagehand.timeout` | Generation timeout (duration string) |
 | `stagehand.auto_stage_all` | bool | `git config --get --bool stagehand.auto_stage_all` | Auto-stage all when nothing staged |
+| `stagehand.output` | string | `git config --get stagehand.output` | Agent output mode: `raw` \| `json` (overrides per-provider default) |
+| `stagehand.stripCodeFence` | bool | `git config --get --bool stagehand.stripCodeFence` | Strip ``` fences from agent output (overrides per-provider default) |

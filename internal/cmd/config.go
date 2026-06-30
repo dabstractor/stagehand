@@ -158,8 +158,9 @@ const exampleConfigTemplate = `# Stagehand configuration file (PRD §16.2).
 # max_md_lines          = 100     # per-file line cap for markdown diffs
 # max_duplicate_retries = 3       # re-generation attempts when the subject duplicates a recent commit
 # subject_target_chars  = 50      # target subject-line length for truncation
-# output                = "raw"   # agent output mode: "raw" | "json"
-# strip_code_fence      = true    # remove ` + "`" + ` fences from agent output
+# output                = "raw"   # agent output mode: "raw" | "json" — applies to parsing across ALL providers
+# strip_code_fence      = true    # strip ` + "`" + ` fences from agent output (all providers)
+# NOTE: [generation] output/strip_code_fence override any per-provider [provider.<name>] values.
 
 # ---------------------------------------------------------------------------
 # [provider.<name>] — override a built-in or define a new provider (PRD §16.2, §12.8)

@@ -193,6 +193,23 @@ func buildDeps(cfg config.Config, repoDir string) (generate.Deps, error) {
 			name, m.DetectCommand())
 	}
 
+	// Apply [generation] output/strip_code_fence onto the resolved manifest (PRD Issue 4 / §16.2 / §12.9).
+	// cfg.Output / cfg.StripCodeFence are populated by every loader (file, git-config) and Defaults, but
+	// were previously dropped here — ParseOutput reads ONLY the manifest's pointer fields. Copying them
+	// onto the manifest makes the [generation] / git-config values override the per-provider per-manifest
+	// values (broader setting wins), which ParseOutput then honors. (decisions.md D4.)
+	//
+	// Copy into locals (not &cfg.*) to avoid aliasing the cfg value-param's address. Output is guarded
+	// (defensive; it is always non-empty post-Defaults); StripCodeFence is applied unconditionally so the
+	// broader [generation] layer consistently overrides any per-manifest default. No re-Validate():
+	// ParseOutput's switch-default degrades an unknown Output to raw.
+	if cfg.Output != "" {
+		o := cfg.Output
+		m.Output = &o
+	}
+	scf := cfg.StripCodeFence
+	m.StripCodeFence = &scf
+
 	return generate.Deps{Git: git.New(repoDir), Manifest: m}, nil
 }
 

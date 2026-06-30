@@ -212,7 +212,7 @@
                   "type": "Subtask",
                   "id": "P1.M4.T1.S1",
                   "title": "Apply cfg.Output/StripCodeFence onto the manifest in buildDeps",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S3",
