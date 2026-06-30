@@ -1,0 +1,15 @@
+h1.0 Bug Fix Requirements
+ h2.0 Overview
+ h2.1 Critical Issues (Must Fix)
+ h2.2 Major Issues (Should Fix)
+  h3.0 Issue 1: The --config flag is silently ignored by the default commit action
+  h3.1 Issue 2: --dry-run does not run the duplicate-check / retry pipeline (FR49 violation)
+  h3.2 Issue 3: A missing/uninstalled provider command triggers the rescue path (exit 3) instead of the documented pre-generation fail-fast (exit 1)
+ h2.3 Minor Issues (Nice to Fix)
+  h3.3 Issue 4: The [generation] output / strip_code_fence config fields (file and git-config) are loaded but never applied
+  h3.4 Issue 5: The §19 repo-local provider-redirect notice is printed twice
+  h3.5 Issue 6: --dry-run skips the write-tree snapshot
+  h3.6 Issue 7: Cosmetic — "Nothing staged — staging all changes (0 files)." on an already-clean tree
+ h2.4 Testing Summary
+---
+code:3 para:13 list:2

@@ -1,0 +1,252 @@
+{
+  "backlog": [
+    {
+      "type": "Phase",
+      "id": "P1",
+      "title": "Stagehand v1.0 Spec-Compliance & Contract-Conformance Bugfix",
+      "status": "Researching",
+      "description": "Fix the 7 spec/contract deviations and silent no-ops found in the v1.0 QA pass (PRD Issues 1-7). No data-integrity or crash bugs; the snapshot-based atomic-commit invariant (PRD §13.4/§18.1) holds. The work clusters on four code seams: the CLI<->pkg config double-load (Issues 1,5), the provider-command pre-flight (Issue 3), the divergent dry-run pipeline (Issues 2,6), and the cfg->manifest bridge + auto-stage UX (Issues 4,7). Research is persisted in plan/001_f1f80943ac34/bugfix/001_e92bab8b63e3/architecture/ (system_context.md, decisions.md, and the four seam_*.md recon reports). TDD is implicit per SOW §3: every subtask writes the failing test first, then implements, then passes.",
+      "milestones": [
+        {
+          "type": "Milestone",
+          "id": "P1.M1",
+          "title": "Eliminate the CLI<->pkg config double-load (Issues 1 & 5)",
+          "status": "Planned",
+          "description": "Make pkg/stagehand.GenerateCommit accept the CLI's already-resolved config instead of re-loading from scratch. This single seam fix honors --config on the default commit action (Issue 1) AND stops the §19 repo-local provider notice from printing twice (Issue 5), because the second config.Load (and its Layer-3 side effect) no longer runs. Root cause: resolveConfig (pkg/stagehand/stagehand.go:114) calls config.Load with LoadOpts{RepoDir, Flags:nil}, dropping ConfigPathOverride. Architectural decision: architecture/decisions.md D1 (PRD 'Option a' - pass the resolved config).",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M1.T1",
+              "title": "Make GenerateCommit accept a pre-resolved config and wire the CLI through",
+              "status": "Planned",
+              "description": "Add an additive, nil-optional resolved-config field to pkg/stagehand.Options; when set, skip config.Load in resolveConfig (preserving the Options override contract). Have internal/cmd runDefault pass the CLI's loaded cfg so the default action honors --config and the §19 notice prints once.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T1.S1",
+                  "title": "Add resolved-config injection to Options; skip config.Load in resolveConfig when provided",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h3.0"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Root cause of Issues 1 & 5 is resolveConfig (pkg/stagehand/stagehand.go:114) calling config.Load(ctx, config.LoadOpts{RepoDir: repoDir, Flags: nil}) - ConfigPathOverride is omitted (drops --config) and a SECOND Load re-runs Layer-3 loadRepoLocalConfig() (internal/config/file.go:223-235), printing the §19 notice twice. See architecture/decisions.md D1 and architecture/seam_config_handoff.md sections 4 & 9.\n2. INPUT: pkg/stagehand.Options struct (stagehand.go:36-50, documented 'Stable as of v1.0 / ADDITIVE-ONLY'). config.Load/LoadOpts (internal/config/load.go:14-20). resolveConfig(ctx, opts Options) (config.Config, string, error) currently ALWAYS calls config.Load.\n3. LOGIC: Add an additive field `Config *config.Config` to Options (pkg/stagehand already imports internal/config - no new import edge). In resolveConfig: if opts.Config != nil, set cfg := *opts.Config (copy) and SKIP config.Load entirely (keep the os.Getwd() repoDir derivation); still apply the existing opts.Provider/Model/Timeout/Verbose overrides afterward (redundant for the CLI path but preserves the standalone-library precedence contract). When opts.Config == nil, behavior is UNCHANGED (single Load - standalone path).\n4. OUTPUT: resolveConfig returns the caller-supplied config when provided; GenerateCommit signature unchanged; no second config.Load when a config is injected.\n5. DOCS: none - this subtask only adds a nil-optional internal Options field (not a user-facing/config/CLI surface). Per-issue doc sync rides with S2/S3 and the M5 README sweep."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T1.S2",
+                  "title": "Wire the CLI's loaded cfg through runDefault into Options",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T1.S1"],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h3.0"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: internal/cmd/default_action.go:147-156 builds stagehand.Options{Provider,Model,Timeout,DryRun,Verbose,VerboseOn} from cfg := Config() (the package-level loadedCfg set by PersistentPreRunE, which DID honor --config via LoadOpts.ConfigPathOverride: flagConfig at internal/cmd/root.go:62-80). The comment at default_action.go:130-134 documents the 'Options-as-flag-relay' workaround. See architecture/seam_config_handoff.md sections 2 & 3.\n2. INPUT: The Options.Config *config.Config field added in P1.M1.T1.S1. The Config() accessor (internal/cmd/root.go:108) returning the CLI-resolved *config.Config; cfg is already in scope at default_action.go:56.\n3. LOGIC: In runDefault, add `Config: cfg` to the stagehand.Options{...} literal passed to GenerateCommit (default_action.go:147). This makes GenerateCommit skip its internal re-Load, so --config is honored on the default action and the §19 notice prints exactly once.\n4. OUTPUT: `stagehand --config X.toml --provider <user-defined-in-X>` resolves the user-defined provider on the default commit action (no longer 'unknown provider').\n5. DOCS: [Mode A] docs/cli.md line ~20 (--config <path> row) and ~30 prose state --config overrides discovery; affirm the default action now honors it (adjust prose only if current wording implies subcommand-only). Keep the flag<->env<->git-config map (line ~97, STAGEHAND_CONFIG <-> --config) accurate."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T1.S3",
+                  "title": "Regression tests: --config honored by default action + §19 notice printed exactly once",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M1.T1.S2"],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h3.0", "h3.4", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: No existing test passes --config /custom.toml through the CLI default action, and none asserts the §19 notice count in the full seam. Harness: internal/cmd/default_action_test.go setupStubRepo/setupStubRepoRaw drive the full seam via rootCmd.SetArgs; internal/config/file.go package-level noticeOut io.Writer is swappable; internal/stubtest scripts the stub agent. See architecture/seam_config_handoff.md section 8 and architecture/system_context.md section 6.\n2. INPUT: The wired CLI from P1.M1.T1.S2. A user-defined provider declared ONLY in a --config TOML (e.g. [provider.stub] pointing at the stub agent command).\n3. LOGIC: (TDD - failing test first.) (a) Test that writes a config TOML defining [provider.stub], runs the default action with --config <that file> --provider stub --dry-run, and asserts success (exit 0) + the generated message - proving the --config provider is honored on the default path (currently fails 'unknown provider'). (b) Test with a repo-local .stagehand.toml setting provider that captures stderr and asserts the §19 notice 'repo-local config (.stagehand.toml) sets provider to' appears EXACTLY ONCE (grep -c == 1; currently 2). Mock the stub agent via internal/stubtest; use real temp git repos.\n4. OUTPUT: Green tests proving Issue 1 (--config honored on default action) and Issue 5 (single §19 notice). Both regressions live here because both share the root-cause fix (no second config.Load).\n5. DOCS: none - test-only; no doc surface change."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M2",
+          "title": "Provider command pre-flight fail-fast (Issue 3)",
+          "status": "Planned",
+          "description": "Add a pre-snapshot exec.LookPath check so a missing/uninstalled provider command fails fast with exit 1 (PRD §18.2/§13.5) BEFORE the write-tree snapshot, instead of falling through to the rescue path (exit 3 + dangling tree). The check lives in buildDeps (pkg/stagehand/stagehand.go) - the single chokepoint feeding both CommitStaged and runPipeline - and reuses the existing, tested Registry.IsInstalled. Architectural decision: architecture/decisions.md D2. NOTE: P1.M2 is logically independent of P1.M1 (different function: buildDeps vs resolveConfig); it may execute in parallel but edits the same file, so a sequencer should avoid concurrent edits to pkg/stagehand/stagehand.go.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M2.T1",
+              "title": "Add pre-snapshot IsInstalled pre-flight in buildDeps",
+              "status": "Planned",
+              "description": "Insert a reg.IsInstalled(m) check after m.Validate() in buildDeps; on failure return a plain (non-*RescueError) error that exitcode.For maps to exit 1, before any WriteTree runs.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M2.T1.S1",
+                  "title": "Add the reg.IsInstalled(m) pre-flight check + plain exit-1 error in buildDeps",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h3.2"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: buildDeps (pkg/stagehand/stagehand.go:145-178) resolves & validates the manifest but never checks $PATH. The missing binary is detected only at provider.Execute's cmd.Start (internal/provider/executor.go:64), AFTER WriteTree (CommitStaged step 3, generate.go:156) -> *RescueError -> exit 3 + a dangling tree. Registry.IsInstalled(m) (internal/provider/registry.go:72-83) already does exec.LookPath(m.DetectCommand()) and is tested; Manifest.Validate() (manifest.go:80-101) guarantees Command is non-nil/non-empty so DetectCommand() returns a real string. See architecture/decisions.md D2 and architecture/seam_provider_preflight.md section 7.\n2. INPUT: buildDeps local reg (provider.Registry) and resolved m (provider.Manifest) immediately after the `if err := m.Validate(); err != nil { ... }` block. exitcode constants (internal/exitcode/exitcode.go: Error=1).\n3. LOGIC: Immediately after the Validate() block and before `return generate.Deps{...}`, add: `if !reg.IsInstalled(m) { return generate.Deps{}, fmt.Errorf(\"provider %q: command %q not found. Is the agent installed?\", name, m.DetectCommand()) }`. This is a PLAIN error (not *RescueError) -> exitcode.For returns 1; it runs before any WriteTree -> no dangling tree; it covers BOTH CommitStaged and runPipeline (single chokepoint).\n4. OUTPUT: `stagehand --provider <missing-command>` fails fast pre-snapshot with exit 1 and 'command ... not found. Is the agent installed?', no rescue block, no dangling tree object.\n5. DOCS: [Mode A] docs/cli.md exit-code table - add/confirm 'Agent/provider command missing on $PATH -> 1 (Error), pre-generation'. docs/how-it-works.md 'Failure modes and exit codes' table - add the 'Agent missing on $PATH -> pre-generation -> exit 1' row ahead of the snapshot-based rescue rows."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M2.T1.S2",
+                  "title": "Tests: missing provider command fails fast (exit 1, not *RescueError, no dangling tree)",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M2.T1.S1"],
+                  "prd_selectors": ["h1.0", "h2.2", "h3.2", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Only an isolated Execute-level test exists (internal/provider/executor_test.go:128-137 TestExecute_CommandNotFound); no GenerateCommit/CLI-level test for the missing-command path. exitcode.For (internal/exitcode/exitcode.go:62-90) maps a plain error -> 1 and *RescueError -> 3. A dangling tree is detectable via `git count-objects -v` (count unchanged) or `git cat-file -t <tree>` failing. See architecture/seam_provider_preflight.md section 6.\n2. INPUT: The pre-flight check from P1.M2.T1.S1.\n3. LOGIC: (TDD - failing test first.) Register a [provider.missing] with command = \"/nonexistent/path/agent\" via repo-local .stagehand.toml (or --config), call GenerateCommit (and/or the full CLI seam via rootCmd.SetArgs), and assert: (a) the error is NOT a *RescueError (errors.As(err, &re) is false); (b) exitcode.For(err) == exitcode.Error (1); (c) the message contains 'not found' / 'Is the agent installed?'; (d) NO new tree object was written (assert git count-objects -v count unchanged before/after, or that no tree object exists for the run).\n4. OUTPUT: Green tests proving Issue 3 is fixed (exit 1, no rescue block, no dangling tree).\n5. DOCS: none - test-only."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M3",
+          "title": "Dry-run pipeline fidelity (Issues 2 & 6)",
+          "status": "Planned",
+          "description": "Make --dry-run run the FULL FR49 pipeline (diff -> snapshot -> generate -> parse -> duplicate-check) with the bounded retry loop (FR29 parse-retry, FR30-33 duplicate rejection), then stop before commit-tree/update-ref. Today runPipeline's dry-run branch is a degraded single-pass that skips the write-tree snapshot (Issue 6) and the duplicate-check/retry loop (Issue 2). The same loop body already exists in runPipeline for the SystemExtra commit path; reuse it. Architectural decision: architecture/decisions.md D3. NOTE: edits pkg/stagehand/stagehand.go (runPipeline); logically independent of M1/M2 but same file.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M3.T1",
+              "title": "Make dry-run run the full diff->snapshot->generate->parse->dedupe pipeline",
+              "status": "Planned",
+              "description": "Take the write-tree snapshot unconditionally in dry-run (Issue 6), then replace the dry-run single-pass with the bounded generate->parse->dedupe loop already present for the SystemExtra commit path, skipping only commit-tree/update-ref (Issue 2).",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T1.S1",
+                  "title": "Take the write-tree snapshot unconditionally in dry-run (Issue 6)",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.2", "h3.1", "h3.5"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: runPipeline (pkg/stagehand/stagehand.go:206-355) gates WriteTree behind `if !dryRun` (~line 228), so dry-run creates no snapshot object and never calls signal.SetSnapshot. FR49 requires the full diff->SNAPSHOT->... pipeline; the P1.M4.T4.S1 work-item contract states 'the snapshot is still taken (write-tree runs) but commit-tree/update-ref are skipped'. See architecture/seam_dryrun.md section 2(a) and architecture/decisions.md D3.\n2. INPUT: runPipeline's deps.Git.WriteTree(ctx) (returns tree SHA string), parentSHA, and the signal.SetSnapshot(treeSHA, parentSHA, \"\") call.\n3. LOGIC: Remove the `if !dryRun` gate so WriteTree runs for BOTH paths; call signal.SetSnapshot(treeSHA, parentSHA, \"\") unconditionally (arming rescue for dry-run too, consistent with the shared loop added in S2). The harmless dangling tree in dry-run is intentional per FR49.\n4. OUTPUT: Dry-run now creates the snapshot tree object and arms signal rescue, mirroring the real pipeline up to (but not including) commit-tree/update-ref.\n5. DOCS: [Mode A] docs/how-it-works.md dry-run description - if it states dry-run skips the snapshot, correct it to 'dry-run runs the full pipeline including the snapshot, omitting only the commit'. Affirm docs/cli.md --dry-run row if it implies snapshot is skipped."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T1.S2",
+                  "title": "Replace dry-run single-pass with the bounded dedupe/retry loop; skip commit-tree/update-ref only (Issue 2)",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M3.T1.S1"],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h3.1"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The dry-run branch (runPipeline ~lines 259-280) is a single-pass: Execute -> ParseOutput -> on !ok returns errors.New(\"dry run: model produced no valid message\"). No FR29 parse-retry, no FR30-33 duplicate rejection, no bounded loop. The SAME loop body already exists for the SystemExtra commit path (~lines 281-339): rejected []string, parseFail + retryInstr preamble, IsDuplicate(ExtractSubject(m), recent), MaxDuplicateRetries+1 attempts, *RescueError on timeout/exhaustion. Primitives: prompt.BuildUserPayload(diff, rejected), deps.Manifest.Render, provider.Execute, provider.ParseOutput, generate.ExtractSubject, generate.IsDuplicate, generate.RescueError. See architecture/seam_dryrun.md sections 1-3 and architecture/decisions.md D3.\n2. INPUT: The unconditional snapshot from P1.M3.T1.S1 (treeSHA now always set). The recent subjects slice (already built in runPipeline ~line 251-257 via recentSubjects). The SystemExtra commit-path loop (~281-339) as the reference implementation.\n3. LOGIC: Replace the dry-run single-pass block with the bounded generate->parse->dedupe loop (share/extract the loop with the SystemExtra commit path to avoid a third copy). On success, for dry-run return Result{CommitSHA: \"\", Subject: ExtractSubject(msg), Message: msg, Provider: deps.Manifest.Name, Model: model} - skipping ONLY CommitTree + UpdateRefCAS. Dry-run timeout/exhaustion now returns *RescueError{Kind: ErrTimeout/ErrRescue, TreeSHA: treeSHA, ...} (real TreeSHA from S1) instead of the bare ErrTimeout sentinel.\n4. OUTPUT: --dry-run previews the EXACT message a real commit would produce, including duplicate-rejection retry (FR30-33) and parse-retry (FR29). FR49 fully satisfied.\n5. DOCS: [Mode A] docs/cli.md --dry-run row ('Generate and print the message; do not commit') - affirm it runs the full duplicate-check/retry pipeline. docs/how-it-works.md prompt/retry section already documents the loop; edit only if it implies dry-run differs."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T1.S3",
+                  "title": "Update locked-in dry-run timeout test + add dry-run dup-retry/parse-retry/snapshot tests",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M3.T1.S2"],
+                  "prd_selectors": ["h1.0", "h2.2", "h3.1", "h3.5", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: pkg/stagehand/stagehand_test.go:224-250 TestGenerateCommit_Timeout/dryrun currently LOCKS IN the divergent behavior: it asserts errors.Is(err, ErrTimeout) AND errors.As(err, &re) is FALSE (bare sentinel, no *RescueError). After S2, dry-run timeout returns a *RescueError with a non-empty TreeSHA (mirroring the commit-path subtest at ~251-269). No test covers dry-run dup-retry, parse-retry, or snapshot creation. Harness: internal/stubtest (multi-line outputs for retry sequences, sleeps for timeout). See architecture/seam_dryrun.md section 5.\n2. INPUT: The shared loop from P1.M3.T1.S2.\n3. LOGIC: (TDD.) (a) UPDATE TestGenerateCommit_Timeout/dryrun to assert the error IS a *RescueError (errors.As true) with Kind==ErrTimeout and a non-empty TreeSHA (and exitcode.For==124), mirroring the commit-path subtest. (b) ADD a dry-run duplicate-retry test: stub attempt 1 = duplicate of an existing subject, attempt 2 = unique; assert dry-run returns the UNIQUE message (currently returns the duplicate). (c) ADD a dry-run parse-retry test: attempt 1 = unparseable, attempt 2 = valid; assert retry happens and the valid message is returned. (d) ADD a dry-run snapshot test (Issue 6): assert a tree object IS created in dry-run (e.g. git cat-file finds the snapshotted tree, or WriteTree was invoked via a spy/mock Git).\n4. OUTPUT: Green tests proving Issues 2 & 6 are fixed and the dry-run pipeline matches the real one.\n5. DOCS: none - test-only."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M4",
+          "title": "Config-field application & auto-stage UX cleanup (Issues 4 & 7)",
+          "status": "Planned",
+          "description": "Issue 4: make the [generation] output/strip_code_fence config fields (file AND git-config) actually apply to parsing by bridging cfg->manifest in buildDeps (architecture/decisions.md D4; depends on P1.M1 so --config'd generation knobs are honored, and on P1.M2 so buildDeps edits are sequenced). Issue 7: suppress the misleading 'Nothing staged - staging all changes (0 files).' notice on a clean tree (architecture/decisions.md D5; independent).",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M4.T1",
+              "title": "Apply [generation] output/strip_code_fence onto the resolved manifest (Issue 4)",
+              "status": "Planned",
+              "description": "Bridge cfg.Output/cfg.StripCodeFence onto the resolved provider Manifest in buildDeps so provider.ParseOutput honors them (overriding the per-manifest defaults).",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M4.T1.S1",
+                  "title": "Apply cfg.Output/StripCodeFence onto the manifest in buildDeps",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T1.S3", "P1.M2.T1.S2"],
+                  "prd_selectors": ["h1.0", "h2.3", "h3.3"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: cfg.Output/cfg.StripCodeFence are populated by every loader (Defaults Output:\"raw\"/StripCodeFence:true; file internal/config/file.go:151-155 & 202-206; git-config internal/config/git.go:124-128 & 152-156) but NO production code consumes them - provider.ParseOutput (internal/provider/parse.go:44-52) reads ONLY deps.Manifest.Output/.StripCodeFence (pointer fields, Resolve->defaults). The cfg->manifest bridge is missing in buildDeps. The config init template (internal/cmd/config.go:154-162) advertises these as usable. See architecture/decisions.md D4 and architecture/seam_config_and_autostage.md Part A.\n2. INPUT: buildDeps resolved m provider.Manifest, AFTER m.Validate() and AFTER the Issue 3 pre-flight from P1.M2.T1.S1. cfg.Output (string, always resolved) and cfg.StripCodeFence (bool, always resolved via Defaults).\n3. LOGIC: After Validate() (and the pre-flight), apply the config layer onto the manifest: `if cfg.Output != \"\" { o := cfg.Output; m.Output = &o }` and `scf := cfg.StripCodeFence; m.StripCodeFence = &scf` (copy into locals to avoid aliasing the cfg value's address). This makes the [generation]/git-config values override the manifest's per-provider values (broader setting wins), which ParseOutput then honors. Do NOT fix the unrelated file.go 'cannot set false via file' quirk (out of scope).\n4. OUTPUT: Setting [generation] output = \"json\" (or git config stagehand.output json) makes ParseOutput parse JSON; strip_code_fence = false disables fence stripping - end to end, overriding the per-manifest default.\n5. DOCS: [Mode A] docs/configuration.md [generation] table (lines ~76-77) - affirm output/strip_code_fence now apply to parsing (override the per-manifest defaults). internal/cmd/config.go exampleConfigTemplate (lines ~154-162) - the [generation] output/strip_code_fence comment is now accurate; add a one-line note that these tune ALL providers if the current comment implies per-provider-only."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M4.T1.S2",
+                  "title": "Tests: cfg Output/StripCodeFence honored by ParseOutput end-to-end (Issue 4)",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M4.T1.S1"],
+                  "prd_selectors": ["h1.0", "h2.3", "h3.3", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: internal/provider/parse_test.go exercises ParseOutput only via hand-built Manifests; no test asserts cfg.Output/cfg.StripCodeFence reach ParseOutput through buildDeps/GenerateCommit. Config-loader tests (internal/config/config_test.go:46-49, file_test.go, git_test.go) only assert population. See architecture/seam_config_and_autostage.md Part A 'Tests'.\n2. INPUT: The cfg->manifest apply from P1.M4.T1.S1.\n3. LOGIC: (TDD - failing test first.) Set [generation] output = \"json\" + strip_code_fence = false (and the git-config equivalents stagehand.output / stagehand.stripCodeFence) in a test config, point a stub provider at a manifest whose own output = \"raw\", run GenerateCommit (--dry-run) with stub output that is a JSON blob (and/or a fenced raw blob), and assert the parsed message reflects JSON parsing and/or fence-stripping per the [generation] setting (overriding the manifest). Also assert the per-manifest value still wins when [generation] is unset.\n4. OUTPUT: Green tests proving Issue 4 is fixed (config knobs flow through buildDeps to ParseOutput).\n5. DOCS: none - test-only."
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P1.M4.T2",
+              "title": "Fix the '(0 files)' auto-stage notice on a clean tree (Issue 7)",
+              "status": "Planned",
+              "description": "Suppress the misleading FR18 notice when AddAll staged nothing; go straight to the exit-2 'Nothing to commit.' path. Independent of the other tasks (edits internal/cmd/default_action.go only).",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M4.T2.S1",
+                  "title": "Add n==0 early-return for the auto-stage notice on a clean tree",
+                  "status": "Planned",
+                  "story_points": 0.5,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.3", "h3.6"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: internal/cmd/default_action.go:60-91 AutoStageAll branch: after g.AddAll(ctx) (no-op on a clean tree) and n, err := g.StagedFileCount(ctx) (returns 0 on a clean tree), it prints 'Nothing staged - staging all changes (0 files).' (FR18 template, default_action.go:78) BEFORE the FR17 exit-2 'Nothing to commit.' at default_action.go:85. StagedFileCount (internal/git/git.go) counts non-empty lines of `git diff --cached --name-only`. See architecture/decisions.md D5 and architecture/seam_config_and_autostage.md Part B.\n2. INPUT: The n int from g.StagedFileCount(ctx) and the exitcode.NothingToCommit (2) constant.\n3. LOGIC: Between the StagedFileCount error guard and the Fprintln notice, add: `if n == 0 { return exitcode.New(exitcode.NothingToCommit, errors.New(\"Nothing to commit.\")) }`. Identical exit code/message to the existing FR17 path (PRD §15.4), just skips the misleading '(0 files)' line. Leave the downstream `if !hasStaged` FR17 re-check as a belt-and-suspenders guard.\n4. OUTPUT: On a clean tree with auto-stage on, stderr no longer shows 'staging all changes (0 files).'; goes straight to exit-2 'Nothing to commit.'\n5. DOCS: none - pure UX/cosmetic; the FR18 template is unchanged for the n>0 case (no doc surface change)."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M4.T2.S2",
+                  "title": "Regression test: no '(0 files)' notice on a clean tree (Issue 7)",
+                  "status": "Planned",
+                  "story_points": 0.5,
+                  "dependencies": ["P1.M4.T2.S1"],
+                  "prd_selectors": ["h1.0", "h2.3", "h3.6"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: internal/cmd/default_action_test.go TestRunDefault_NothingStaged_FR17 (~line 293) asserts exit 2 + HEAD unchanged on a clean tree but does NOT assert the absence of the '(0 files)' notice. TestRunDefault_AutoStageNotice_FR18 (~396) asserts the n=2 message for the staged case. See architecture/seam_config_and_autostage.md Part B 'Tests'.\n2. INPUT: The early-return from P1.M4.T2.S1.\n3. LOGIC: (TDD - failing test first.) Extend TestRunDefault_NothingStaged_FR17 (or add a dedicated test) asserting that on a clean tree with auto-stage on, stderr does NOT contain 'staging all changes' (e.g. `if strings.Contains(stderr, \"staging all changes\") { t.Error(...) }`) and still exits 2. Keep TestRunDefault_AutoStageNotice_FR18 green (the n=2 message still prints).\n4. OUTPUT: Green test proving Issue 7 is fixed.\n5. DOCS: none - test-only."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M5",
+          "title": "Sync changeset-level documentation (Mode B)",
+          "status": "Planned",
+          "description": "Per SOW §5 Mode B: the cross-cutting/overview docs (README.md feature blurbs, docs/*.md overview sections) that only stay coherent once the WHOLE changeset (Issues 1-7) lands. Per-file docs touched directly by each change were already handled Mode-A inside the implementing subtasks (DOCS lines); this final milestone sweeps the overview-level surfaces for drift. Its subtasks declare dependencies on EVERY implementing subtask so they run last.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M5.T1",
+              "title": "Sync changeset-level documentation",
+              "status": "Planned",
+              "description": "Final sweep of README.md and docs/*.md overview sections so they are consistent with the shipped behavior after Issues 1-7. Runs after every implementing subtask.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M5.T1.S1",
+                  "title": "Sync README.md (config precedence, dry-run, agent configuration)",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T1.S2", "P1.M1.T1.S3", "P1.M2.T1.S1", "P1.M2.T1.S2", "P1.M3.T1.S1", "P1.M3.T1.S2", "P1.M3.T1.S3", "P1.M4.T1.S1", "P1.M4.T1.S2", "P1.M4.T2.S1", "P1.M4.T2.S2"],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.3", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: README.md has cross-cutting blurbs: config precedence (line ~115), --dry-run feature (line ~67), 'Configure your agent' (line ~81), config init (line ~104), community-agent [provider.<name>] block (line ~150). These summarize the whole product and only stay coherent once the changeset lands. See architecture/system_context.md section 7 and architecture/decisions.md D6.\n2. INPUT: All implementing subtasks complete (M1-M4) and the verified behavior.\n3. LOGIC: Sweep README.md for drift: (a) config-precedence blurb reflects that --config is honored by the default action (Issue 1); (b) --dry-run line reflects it previews the real message incl. duplicate-check (Issues 2/6); (c) 'Configure your agent' reflects a missing provider command fails fast with exit 1 (Issue 3) and [generation] tuning applies (Issue 4). Edit only where text is now inaccurate or can be strengthened; do not pad.\n4. OUTPUT: README.md consistent with shipped behavior post-changeset.\n5. DOCS: This IS the Mode-B documentation task. Verify markdownlint (.markdownlint.json) and the README's badge/anchor integrity."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M5.T1.S2",
+                  "title": "Sweep docs/*.md overview sections for changeset coherence",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T1.S2", "P1.M1.T1.S3", "P1.M2.T1.S1", "P1.M2.T1.S2", "P1.M3.T1.S1", "P1.M3.T1.S2", "P1.M3.T1.S3", "P1.M4.T1.S1", "P1.M4.T1.S2", "P1.M4.T2.S1", "P1.M4.T2.S2"],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.3", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: docs/how-it-works.md (architecture overview, 'Failure modes and exit codes' table ~line 49, dry-run/snapshot), docs/cli.md (flag/exit tables, flag<->env<->git-config map), docs/providers.md (manifest schema, command/detect), docs/configuration.md ([generation] table, layer resolution, git-config keys). Cross-cutting overview sections span the whole changeset; the per-issue rows were already handled Mode-A in the implementing subtasks. See architecture/system_context.md section 7.\n2. INPUT: All implementing subtasks complete, including their Mode-A doc edits (e.g. docs/cli.md exit table from P1.M2.T1.S1, docs/how-it-works.md failure modes from P1.M2.T1.S1, docs/configuration.md [generation] table from P1.M4.T1.S1, dry-run descriptions from P1.M3.T1.S1/S2).\n3. LOGIC: Read each docs/*.md and verify overview-level coherence with the changeset: failure-modes table lists agent-missing -> exit 1 (Issue 3); dry-run overview states full pipeline + snapshot (Issues 2/6); config overview states [generation] knobs apply (Issue 4) and --config honored everywhere incl. the default action (Issue 1); no stale claim that dry-run skips the snapshot or the duplicate-check. Fix only drift the implementing subtasks did not already cover; do not duplicate their edits.\n4. OUTPUT: docs/ overview consistent with shipped behavior post-changeset.\n5. DOCS: This IS the Mode-B documentation task."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
