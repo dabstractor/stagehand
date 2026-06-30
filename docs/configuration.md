@@ -52,8 +52,8 @@ The config file uses TOML with three section groups. Every line in the `config i
 # max_md_lines          = 100
 # max_duplicate_retries = 3
 # subject_target_chars  = 50
-# output                = "raw"
-# strip_code_fence      = true
+# output                = "raw"    # uncomment to override the per-provider manifest value
+# strip_code_fence      = true     # uncomment to override the per-provider manifest value
 
 # [provider.<name>] — override a built-in or define a new provider
 # [provider.pi]
@@ -76,12 +76,12 @@ These are the values when no config file, env var, git-config key, or flag sets 
 | `max_md_lines` | `100` | `config.Defaults()` |
 | `max_duplicate_retries` | `3` | `config.Defaults()` |
 | `subject_target_chars` | `50` | `config.Defaults()` |
-| `output` | `"raw"` | `config.Defaults()` |
-| `strip_code_fence` | `true` | `config.Defaults()` |
+| `output` | `"raw"` | provider manifest (§12.1) |
+| `strip_code_fence` | `true` | provider manifest (§12.1) |
 
 `NoColor` is TTY-aware at runtime (set by the UI layer); it is not a file field and has no config-file key.
 
-The `output` and `strip_code_fence` settings apply to **parsing** of agent output. Setting `output = "json"` makes Stagehand parse the agent's stdout as JSON (extracting the `json_field` value) across all providers. These `[generation]` values override any per-provider `[provider.<name>]` defaults — the broader layer wins.
+The `output` and `strip_code_fence` settings apply to **parsing** of agent output. Setting `output = "json"` makes Stagehand parse the agent's stdout as JSON (extracting the `json_field` value) across all providers. These `[generation]` values are an **opt-in override**: when `[generation]` (and git-config) omit them, the per-provider `[provider.<name>]` value is honored, falling back to the §12.1 manifest defaults (`output = "raw"`, `strip_code_fence = true`). Set `output = "json"` here only to force JSON parsing across ALL providers.
 
 ## Environment variables
 

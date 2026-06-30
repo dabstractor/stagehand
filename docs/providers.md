@@ -121,4 +121,4 @@ The output parser processes the agent's stdout in five steps (PRD §12.9):
 
 The v1 default is `output = "raw"` — the agent's stdout, after cleanup, is the commit message verbatim.
 
-A `[generation] output` / `strip_code_fence` value in the config file or git-config overrides these per-provider manifest defaults — the broader layer wins (see [configuration.md](configuration.md)).
+A `[generation] output` / `strip_code_fence` value in the config file or git-config is an **opt-in override**: when unset, the per-provider manifest value above is what `parseOutput` uses (so `providers show` and parsing agree). Set it only to force a value across all providers (see [configuration.md](configuration.md)).

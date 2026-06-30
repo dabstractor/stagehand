@@ -823,36 +823,30 @@ func TestGenerateCommit_InjectedConfig_StripCodeFenceFalse_Issue4(t *testing.T) 
 	}
 }
 
-// TestGenerateCommit_ManifestOutputWins_WhenCfgOutputEmpty_Issue4 proves PRD Issue 4: the
-// buildDeps bridge's `if cfg.Output != ""` guard lets the manifest's own output="json" win when
-// cfg.Output is empty. This is a deliberate regression guard on the bridge contract.
+// TestGenerateCommit_ManifestOutputWins_WhenCfgOutputNil_Issue4 proves PRD bugfix-002 Issue 2: the
+// buildDeps bridge's `if cfg.Output != nil` guard lets the manifest's own output="json" win when
+// cfg.Output is nil. This is a regression guard on the injected-Options.Config path.
 //
-// CRITICAL NOTE: cfg.Output="" never occurs via the real loaders — config.Defaults() ALWAYS sets
-// Output="raw" and config.Load() applies Defaults() first. The ONLY way to exercise the guard's
-// "manifest wins" branch is to inject Options.Config directly (resolveConfig then does
-// `cfg = *opts.Config` and SKIPS config.Load/Defaults), with Output explicitly set to "". This
-// test pins the bridge's guard contract; it is NOT claiming a production code path.
-//
-// TDD check (manual, do not commit): test 4 STILL PASSES even when the S1 bridge is removed,
-// because it exercises the guard's ABSENCE-of-override path (the manifest's value was never
-// overwritten).
-func TestGenerateCommit_ManifestOutputWins_WhenCfgOutputEmpty_Issue4(t *testing.T) {
+// After S1 (Output is *string, Defaults() leaves it nil), nil is the natural default when [generation]
+// and git-config omit output. This injected-config test pins the bridge's guard contract; the new
+// TestGenerateCommit_ManifestOutputJSON_Honored_NoGeneration covers the real config.Load+registry path.
+func TestGenerateCommit_ManifestOutputWins_WhenCfgOutputNil_Issue4(t *testing.T) {
 	bin := stubtest.Build(t)
 
-	// Start from Defaults so Timeout/MaxDuplicateRetries/etc. are sane, then ZERO Output to exercise
-	// the bridge's `if cfg.Output != ""` guard.
+	// Start from Defaults so Timeout/MaxDuplicateRetries/etc. are sane, then leave Output nil (the
+	// default after S1) to exercise the bridge's `if cfg.Output != nil` guard.
 	cfg := config.Defaults()
 	cfg.Provider = "stub"
-	cfg.Output = "" // "[generation] output unset" at the field level
+	cfg.Output = nil // "[generation] output unset" at the field level
 	cfg.Providers = map[string]map[string]any{
 		"stub": {
 			"command":          bin,
 			"prompt_delivery":  "stdin",
-			"output":           "json", // manifest's own value — must win because cfg.Output==""
+			"output":           "json", // manifest's own value — must win because cfg.Output==nil
 			"json_field":       "subject",
 			"strip_code_fence": true,
 			"env": map[string]any{
-				"STAGEHAND_STUB_OUT": `{"subject":"feat: manifest wins when cfg unset"}`,
+				"STAGEHAND_STUB_OUT": `{"subject":"feat: manifest wins when cfg nil"}`,
 			},
 		},
 	}
@@ -876,9 +870,120 @@ func TestGenerateCommit_ManifestOutputWins_WhenCfgOutputEmpty_Issue4(t *testing.
 	if res.CommitSHA != "" {
 		t.Errorf("CommitSHA = %q, want empty (DryRun)", res.CommitSHA)
 	}
-	// manifest output="json" won (cfg.Output="" ⇒ guard fell through) ⇒ JSON extracted.
-	if res.Message != "feat: manifest wins when cfg unset" {
-		t.Errorf("Message = %q, want %q (manifest output=json must win when cfg.Output is empty)",
-			res.Message, "feat: manifest wins when cfg unset")
+	// manifest output="json" won (cfg.Output=nil ⇒ guard fell through) ⇒ JSON extracted.
+	if res.Message != "feat: manifest wins when cfg nil" {
+		t.Errorf("Message = %q, want %q (manifest output=json must win when cfg.Output is nil)",
+			res.Message, "feat: manifest wins when cfg nil")
+	}
+}
+
+// TestGenerateCommit_ManifestOutputJSON_Honored_NoGeneration proves PRD bugfix-002 Issue 2: a
+// [provider.stub] output="json" (+ json_field) is honored by ParseOutput with NO [generation] block.
+// Before the S2 bridge fix, config.Defaults() seeded Output="raw" and buildDeps's `if cfg.Output != ""`
+// guard ALWAYS passed, clobbering the manifest's "json" — so the raw JSON blob was returned verbatim.
+// After S1 (Output is *string, nil default) + S2 (`if cfg.Output != nil`), the manifest's "json" wins.
+func TestGenerateCommit_ManifestOutputJSON_Honored_NoGeneration(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	jsonOut := `{"subject":"feat: manifest json wins"}`
+
+	// Manifest sets output="json" + json_field. NO [generation] block — the manifest value must win.
+	toml := "[provider.stub]\n" +
+		"command = \"" + bin + "\"\n" +
+		"prompt_delivery = \"stdin\"\n" +
+		"output = \"json\"\n" + // manifest-level — must be honored with no [generation]
+		"json_field = \"subject\"\n" + // REQUIRED: parseJSON extracts obj["subject"]
+		"strip_code_fence = true\n" +
+		"\n[provider.stub.env]\n" +
+		"STAGEHAND_STUB_OUT = '" + jsonOut + "'\n" // literal string preserves the JSON quotes
+	if err := os.WriteFile(repo+"/.stagehand.toml", []byte(toml), 0o644); err != nil {
+		t.Fatalf("write toml: %v", err)
+	}
+
+	initRepo(t, repo)
+	commitRaw(t, repo, "initial")
+	writeFile(t, repo, "new.txt", "data")
+	stageFile(t, repo, "new.txt")
+
+	wd, _ := os.Getwd()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(wd) })
+
+	res, err := GenerateCommit(context.Background(), Options{Provider: "stub", DryRun: true})
+	if err != nil {
+		t.Fatalf("GenerateCommit: %v", err)
+	}
+	if res.CommitSHA != "" {
+		t.Errorf("CommitSHA = %q, want empty (DryRun)", res.CommitSHA)
+	}
+	// The manifest's output="json" was honored (no [generation] override) ⇒ the JSON field extracted.
+	if res.Message != "feat: manifest json wins" {
+		t.Errorf("Message = %q, want %q (manifest output=json must be honored with no [generation] block)",
+			res.Message, "feat: manifest json wins")
+	}
+}
+
+// TestGenerateCommit_ManifestStripCodeFenceFalse_Honored_NoGeneration proves PRD bugfix-002 Issue 2:
+// a [provider.stub] strip_code_fence=false is honored by ParseOutput with NO [generation] block (the
+// ``` fences are RETAINED). Before the fix, config.Defaults() seeded StripCodeFence=boolPtr(true) and
+// the bridge's `!= nil` guard always passed, clobbering the manifest's false.
+func TestGenerateCommit_ManifestStripCodeFenceFalse_Honored_NoGeneration(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	// Use a TOML double-quoted string for STAGEHAND_STUB_OUT with \\n escapes so the stub emits
+	// a fenced block. In Go, \\n produces the two-char TOML escape \n; backticks are not special
+	// in TOML double-quoted strings.
+	toml := "[provider.stub]\n" +
+		"command = \"" + bin + "\"\n" +
+		"prompt_delivery = \"stdin\"\n" +
+		"output = \"raw\"\n" +
+		"strip_code_fence = false\n" + // manifest-level false — must be honored with no [generation]
+		"\n[provider.stub.env]\n" +
+		"STAGEHAND_STUB_OUT = \"```\\nfeat: keep the fence\\n```\"\n"
+	if err := os.WriteFile(repo+"/.stagehand.toml", []byte(toml), 0o644); err != nil {
+		t.Fatalf("write toml: %v", err)
+	}
+
+	initRepo(t, repo)
+	commitRaw(t, repo, "initial")
+	writeFile(t, repo, "new.txt", "data")
+	stageFile(t, repo, "new.txt")
+
+	wd, _ := os.Getwd()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(wd) })
+
+	res, err := GenerateCommit(context.Background(), Options{Provider: "stub", DryRun: true})
+	if err != nil {
+		t.Fatalf("GenerateCommit: %v", err)
+	}
+	// strip_code_fence=false honored (no [generation] override) ⇒ the ``` fence is RETAINED.
+	if !strings.Contains(res.Message, "```") {
+		t.Errorf("Message = %q; want to contain \"```\" (fence retained because manifest strip_code_fence=false)",
+			res.Message)
+	}
+}
+
+// TestGenerateCommit_ManifestDefaultRaw_StillWorks is a regression guard (PRD bugfix-002 Issue 2 clause d):
+// with no [generation] block and the manifest default output="raw"/strip_code_fence=true (setupTestRepo's
+// .stagehand.toml), a plain raw message still round-trips unchanged. This must pass BOTH before and after
+// the S2 fix (raw/true is the unchanged default).
+func TestGenerateCommit_ManifestDefaultRaw_StillWorks(t *testing.T) {
+	setupTestRepo(t, stubtest.Options{Out: "feat: default raw ok"}) // output="raw", strip=true, no [generation]
+	repoDir, _ := os.Getwd()
+
+	writeFile(t, repoDir, "new.txt", "data")
+	stageFile(t, repoDir, "new.txt")
+
+	res, err := GenerateCommit(context.Background(), Options{Provider: "stub", DryRun: true})
+	if err != nil {
+		t.Fatalf("GenerateCommit: %v", err)
+	}
+	if res.Message != "feat: default raw ok" {
+		t.Errorf("Message = %q, want %q (default raw path must be unchanged)", res.Message, "feat: default raw ok")
 	}
 }

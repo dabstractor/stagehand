@@ -43,14 +43,14 @@
           "type": "Milestone",
           "id": "P1.M2",
           "title": "Issue 2 — Manifest-level output / strip_code_fence honored; [generation] becomes a true opt-in override (tri-state)",
-          "status": "Planned",
+          "status": "Complete",
           "description": "The bugfix-001 'Issue 4' bridge copies cfg.Output/cfg.StripCodeFence onto the resolved manifest UNCONDITIONALLY, but both fields carry non-empty/non-nil Defaults, so the [generation] default always wins and a manifest-level output='json' / strip_code_fence=false is silently clobbered (JSON mode dead at the manifest level; providers show lies about parsing). Fix: make Config.Output a *string (tri-state, mirroring the existing StripCodeFence *bool) and stop defaulting BOTH fields in Defaults(), so [generation] is opt-in and the manifest's own values (with Resolve() supplying the §12.1 raw/true fallbacks) win by default. PRD §12.1/§12.9/§12.4/§17.4.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "Make the [generation] output/strip_code_fence override genuinely optional (tri-state) so manifest-level values win by default",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Two coupled subtasks: (S1) change Config.Output from string to *string, stop defaulting Output AND StripCodeFence in Defaults(), and update the config-package loaders (materialize/overlay/loadGitConfig) + their tests; (S2) fix the buildDeps bridge in pkg/stagehand so 'if cfg.X != nil' means 'only override when [generation] explicitly set', then validate end-to-end that manifest-level output=json / strip_code_fence=false are honored and [generation] still overrides when set.",
               "subtasks": [
                 {
@@ -71,7 +71,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S2",
                   "title": "Fix the buildDeps bridge so [generation] output/strip_code_fence override the manifest only when explicitly set",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S1"
