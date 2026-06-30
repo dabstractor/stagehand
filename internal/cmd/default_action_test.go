@@ -449,6 +449,55 @@ func TestRunDefault_AutoStageNotice_FR18(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestRunDefault_CleanTreeNoAutoStageNotice_Issue7 — clean tree: NO "(0 files)" notice
+// ---------------------------------------------------------------------------
+
+// TestRunDefault_CleanTreeNoAutoStageNotice_Issue7 proves PRD Issue 7 is fixed end-to-end through
+// the CLI seam: on a fully-clean tree with the default auto_stage_all=true, the misleading
+// "Nothing staged — staging all changes (0 files)." notice is NOT printed, while the process
+// still exits 2 (NothingToCommit) with the "Nothing to commit." message and HEAD unchanged.
+// Before P1.M4.T2.S1 the "(0 files)" notice printed right before "Nothing to commit." (Issue 7).
+func TestRunDefault_CleanTreeNoAutoStageNotice_Issue7(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	// setupStubRepo COMMITS .stagehand.toml, so with NO further writeFile/stageFile the tree is
+	// fully clean — exactly the Issue 7 scenario (nothing to auto-stage).
+	repo := setupStubRepo(t, "feat: x")
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub"})
+
+	err := Execute(context.Background())
+	if err == nil {
+		t.Fatal("Execute err=nil, want error (nothing to commit on a clean tree)")
+	}
+
+	// Still exit 2 (NothingToCommit) — §15.4 semantics unchanged by the Issue 7 cosmetic fix.
+	if code := exitcode.For(err); code != exitcode.NothingToCommit {
+		t.Errorf("exitcode.For(err) = %d, want %d (NothingToCommit)", code, exitcode.NothingToCommit)
+	}
+
+	// The user-facing message still prints (main's err.Error() != "" guard fires).
+	if msg := err.Error(); !strings.Contains(msg, "Nothing to commit.") {
+		t.Errorf("err.Error() = %q, want to contain 'Nothing to commit.'", msg)
+	}
+
+	// Issue 7: the misleading "staging all changes (0 files)." notice must be ABSENT on a clean tree.
+	stderr := errBuf.String()
+	if strings.Contains(stderr, "staging all changes") {
+		t.Errorf("stderr = %q, want NO auto-stage notice on a clean tree (Issue 7)", stderr)
+	}
+
+	// HEAD unchanged — last commit is still the config commit from setupStubRepo.
+	if logMsg := gitOut(t, repo, "log", "--format=%s", "-n1"); logMsg != "init: add stagehand config" {
+		t.Errorf("HEAD moved to %q, want 'init: add stagehand config'", logMsg)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // TestRunDefault_Rescue — blank stub output + MaxDuplicateRetries=0 → rescue, exit 3
 // ---------------------------------------------------------------------------
 

@@ -198,7 +198,7 @@
           "type": "Milestone",
           "id": "P1.M4",
           "title": "Config-field application & auto-stage UX cleanup (Issues 4 & 7)",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Issue 4: make the [generation] output/strip_code_fence config fields (file AND git-config) actually apply to parsing by bridging cfg->manifest in buildDeps (architecture/decisions.md D4; depends on P1.M1 so --config'd generation knobs are honored, and on P1.M2 so buildDeps edits are sequenced). Issue 7: suppress the misleading 'Nothing staged - staging all changes (0 files).' notice on a clean tree (architecture/decisions.md D5; independent).",
           "tasks": [
             {
@@ -248,7 +248,7 @@
               "type": "Task",
               "id": "P1.M4.T2",
               "title": "Fix the '(0 files)' auto-stage notice on a clean tree (Issue 7)",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Suppress the misleading FR18 notice when AddAll staged nothing; go straight to the exit-2 'Nothing to commit.' path. Independent of the other tasks (edits internal/cmd/default_action.go only).",
               "subtasks": [
                 {
@@ -269,7 +269,7 @@
                   "type": "Subtask",
                   "id": "P1.M4.T2.S2",
                   "title": "Regression test: no '(0 files)' notice on a clean tree (Issue 7)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 0.5,
                   "dependencies": [
                     "P1.M4.T2.S1"
