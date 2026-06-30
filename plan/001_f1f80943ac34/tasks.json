@@ -1046,7 +1046,7 @@
               "type": "Task",
               "id": "P1.M5.T3",
               "title": "CI Matrix & Release Tooling",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Set up the GitHub Actions CI matrix (PRD §20.4) and the goreleaser distribution config (PRD §21.2) for cross-platform binary builds, Homebrew tap, AUR, Scoop, checksums, and changelog.",
               "subtasks": [
                 {
@@ -1069,7 +1069,7 @@
                   "type": "Subtask",
                   "id": "P1.M5.T3.S2",
                   "title": "goreleaser config (archives, Homebrew, AUR, Scoop, checksums, changelog)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T1.S2"
@@ -1086,7 +1086,7 @@
                   "type": "Subtask",
                   "id": "P1.M5.T3.S3",
                   "title": "Makefile coverage gate (≥85% on core packages)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S2"

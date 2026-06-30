@@ -1,0 +1,120 @@
+# .goreleaser.yaml — Stagehand release config (goreleaser v2). PRD §21.2.
+# Docs: https://goreleaser.com/customization/
+# Validate: `goreleaser check`  then  `goreleaser release --snapshot --clean` (publishes NOTHING).
+#
+# Owner note: uses `dustin/stagehand` (+ dustin/homebrew-tap, dustin/scoop-bucket) per PRD §21.2/§21.3
+# and the go.mod module path (github.com/dustin/stagehand). See PRP "Namespace decision tree": the
+# current git remote is `dabstractor/stagehand`; before the first REAL tag the repo must be reachable
+# at github.com/dustin/stagehand (or the namespace is reconciled repo-wide). Snapshot validation is
+# unaffected (it publishes nothing).
+version: 2
+
+project_name: stagehand
+
+# Optional hygiene. Safe for a clean module; remove if it ever errors offline.
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: stagehand
+    main: ./cmd/stagehand          # matches Makefile MAIN_PKG; cmd/stagehand/main.go has `var version`
+    binary: stagehand              # name INSIDE the archive
+    env:
+      - CGO_ENABLED=0              # REQUIRED: static cross-compile (no C cross-compiler on CI). CRITICAL #2.
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # -> exactly 6 targets: linux/darwin/windows × amd64/arm64 (PRD §21.2/G9). No 32-bit ARM/MIPS -> no goarm/gomips.
+    ldflags:
+      - -s -w -X main.version={{.Version}}   # PRD §21.1. {{.Version}} = tag without leading "v" (e.g. 1.0.0).
+
+archives:
+  - id: default
+    ids:
+      - stagehand                  # references builds[0].id
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    # e.g. stagehand_1.0.0_linux_amd64.tar.gz / stagehand_1.0.0_windows_amd64.zip
+    formats:
+      - tar.gz                     # DECISION GATE: if `goreleaser check` rejects `formats`, use `format: tar.gz`.
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip                    # windows -> zip; everything else -> tar.gz.
+
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - '^release:'
+      - 'Merge pull request'
+      - 'Merge branch'
+
+release:
+  github:
+    owner: dustin                  # explicit; WINS over git-remote auto-detect (which is `dabstractor`).
+    name: stagehand
+  draft: false
+  prerelease: auto                 # prerelease if the tag looks like a pre-release (e.g. -rc1).
+
+# Homebrew Casks (replaces deprecated brews/formulas in goreleaser v2.10+).
+# Users install with: brew install dustin/tap/stagehand
+homebrew_casks:
+  - repository:
+      owner: dustin
+      name: homebrew-tap           # PRD §21.2: tap repo github.com/dustin/homebrew-tap
+      token: '{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}'   # fine-grained PAT, contents:write on the tap repo
+    homepage: https://github.com/dustin/stagehand
+    description: 'Snapshot-based AI commit message generator that uses YOUR local CLI agent'
+    license: MIT                   # ADJUST to the repo's actual license if different.
+
+scoops:
+  - name: stagehand
+    ids:
+      - default
+    repository:
+      owner: dustin
+      name: scoop-bucket           # PRD §21.3: scoop install dustin/stagehand -> bucket github.com/dustin/scoop-bucket
+      token: '{{ .Env.SCOOP_BUCKET_GITHUB_TOKEN }}'
+    homepage: https://github.com/dustin/stagehand
+    description: 'Snapshot-based AI commit message generator that uses YOUR local CLI agent'
+    license: MIT                   # ADJUST to the repo's actual license if different.
+    url_template: 'https://github.com/dustin/stagehand/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
+
+# AUR — BEST-EFFORT (PRD §21.2; contract LOGIC bullets don't list AUR, so this is nice-to-have).
+# Native pipe produces stagehand-BIN only (prebuilt binary PKGBUILD), pushed over SSH (NOT a PAT).
+# From-source `stagehand` AUR package is OUT of scope (manual/community PKGBUILD; PRD "possibly community").
+# DECISION GATE: if `goreleaser check` rejects any field below, COMMENT OUT this whole `aurs:` block and
+# ship the rest (brew+scoop+checksum+changelog+archives). AUR does not block the core contract.
+aurs:
+  - name: stagehand-bin
+    ids:
+      - default
+    homepage: https://github.com/dustin/stagehand
+    description: 'Snapshot-based AI commit message generator that uses YOUR local CLI agent'
+    maintainers:
+      - 'Dustin <dustin@example.com>'   # REPLACE with the maintainer's real name <email>.
+    license: MIT                        # ADJUST to the repo's actual license if different.
+    depends:
+      - git
+    provides:
+      - stagehand
+    conflicts:
+      - stagehand                       # conflicts with a hypothetical from-source `stagehand` package
+    private_key: '{{ .Env.AUR_SSH_PRIVATE_KEY }}'   # SSH private key whose pubkey is on the AUR account
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com

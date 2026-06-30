@@ -1,0 +1,43 @@
+# .github/workflows/release.yml — Release on tag via goreleaser (PRD §20.4, §21.2).
+# Triggered ONLY on `v*` tags. CI (build/test/lint/coverage) lives in ci.yml (P1.M5.T3.S1).
+# Required repo SECRETS (Settings → Secrets → Actions), needed ONLY for a REAL release (not for config
+# validation; `goreleaser release --snapshot` publishes nothing):
+#   HOMEBREW_TAP_GITHUB_TOKEN  fine-grained PAT, contents:write on dustin/homebrew-tap
+#   SCOOP_BUCKET_GITHUB_TOKEN  fine-grained PAT, contents:write on dustin/scoop-bucket
+#   AUR_SSH_PRIVATE_KEY        SSH private key for the AUR account (only if the `aurs:` block is kept)
+# (GITHUB_TOKEN is auto-provided — no secret needed for the GitHub Release itself.)
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # create the GitHub Release + upload assets
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # MANDATORY: goreleaser needs full history for the changelog.
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod   # uses the `go` directive in go.mod (1.22); keeps CI == module.
+          cache: true
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest           # the goreleaser BINARY version (pin e.g. ~> v2 for reproducibility).
+          args: release --clean     # --clean removes dist/ first (replaces removed --rm-dist).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
