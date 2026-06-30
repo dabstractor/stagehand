@@ -57,6 +57,11 @@ var noticeOut io.Writer = os.Stderr
 // $XDG_CONFIG_HOME/stagehand/config.toml when XDG_CONFIG_HOME is set AND absolute
 // (XDG Base Dir Spec: a relative/empty value is ignored); otherwise
 // ~/.config/stagehand/config.toml via os.UserHomeDir().
+// GlobalConfigPath returns the resolved GLOBAL Stagehand config path (PRD §16.1 layer 2):
+// the file `config init` writes and `config path` prints. It delegates to the unexported
+// globalConfigPath() so there is a SINGLE source of truth for the global config location.
+func GlobalConfigPath() string { return globalConfigPath() }
+
 func globalConfigPath() string {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" && filepath.IsAbs(xdg) {
 		return filepath.Join(xdg, "stagehand", "config.toml")

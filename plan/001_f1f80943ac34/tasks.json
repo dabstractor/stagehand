@@ -774,7 +774,7 @@
               "type": "Task",
               "id": "P1.M4.T1",
               "title": "CLI Command Structure & Default Action",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Implement the cobra command tree (PRD §15): root command with global flags, the default 'commit staged changes' action (with auto-stage-all), and the providers list/show + config init/path subcommands.",
               "subtasks": [
                 {
@@ -839,7 +839,7 @@
                   "type": "Subtask",
                   "id": "P1.M4.T1.S4",
                   "title": "config init/path subcommands",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M4.T1.S1",
@@ -858,14 +858,14 @@
               "type": "Task",
               "id": "P1.M4.T2",
               "title": "Signal Handling (SIGINT/SIGTERM → Child Kill → Rescue)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Implement the signal handler (PRD §18.4 / FR45) that intercepts SIGINT/SIGTERM, forwards to the running child's process group, runs the rescue path if the snapshot was taken, and restores the default handler before the final update-ref.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T2.S1",
                   "title": "Signal handler: intercept, forward to process group, rescue, restore before commit",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M2.T5.S2",
