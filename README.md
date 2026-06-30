@@ -67,6 +67,9 @@ stagehand -a
 stagehand --dry-run
 ```
 
+> [!NOTE]
+> If generation fails, `--dry-run` exits 1 with a short message — not the full recovery recipe or exit 3/124 — since no commit was ever intended.
+
 ### lazygit binding
 
 ```yaml
@@ -116,9 +119,9 @@ stagehand config path
 ```
 
 > [!NOTE]
-> The template also documents a `[generation]` section: `output` ("raw"|"json") and `strip_code_fence` tune how Stagehand parses agent output across all providers (overriding per-provider values).
+> The template also documents a `[generation]` section: `output` ("raw"|"json") and `strip_code_fence` are an **opt-in override** for how Stagehand parses agent output. When unset, the per-provider `[provider.<name>]` value is used (defaulting to `raw` / `true`); set them under `[generation]` only to force the value across ALL providers.
 
-Point discovery at a specific file with `stagehand --config path/to/config.toml`. It is honored by every command — including the default commit action — so a provider declared under `[provider.<name>]` there is usable with `--provider <name>` directly.
+Point discovery at a specific file with `stagehand --config path/to/config.toml`. It is honored by every command — including the default commit action — so a provider declared under `[provider.<name>]` there is usable with `--provider <name>` directly. The path must exist: an explicit `--config` (or `STAGEHAND_CONFIG`) pointing at a missing file fails fast with exit 1 rather than silently falling back to auto-detection.
 
 **Config precedence** (highest → lowest): CLI flags > `STAGEHAND_*` env vars > repo `git config` (`stagehand.*`) > repo `.stagehand.toml` > global config file > provider defaults > built-in defaults.
 
