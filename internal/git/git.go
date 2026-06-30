@@ -490,7 +490,11 @@ func (g *gitRunner) HasStagedChanges(ctx context.Context) (bool, error) {
 	case 1:
 		return true, nil // staged changes exist — exit 1 is the signal, NOT an error (FINDING 6)
 	default:
-		return false, fmt.Errorf("git diff --cached --quiet: failed (exit %d): %s", code, strings.TrimSpace(stderr))
+		msg := strings.TrimSpace(stderr)
+		if code == 129 && strings.Contains(msg, "not a git repository") {
+			return false, fmt.Errorf("not a git repository (or any of the parent directories): .git")
+		}
+		return false, fmt.Errorf("git diff --cached --quiet: failed (exit %d): %s", code, msg)
 	}
 }
 

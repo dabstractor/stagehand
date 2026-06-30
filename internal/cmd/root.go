@@ -84,7 +84,7 @@ func init() {
 	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "Print resolved command, raw output, retries (env STAGEHAND_VERBOSE)")
 	pf.BoolVar(&flagNoColor, "no-color", false, "Disable color (env STAGEHAND_NO_COLOR, NO_COLOR; default TTY-aware)")
 	// §15.2 behavioral flags (read by S2/S4 RunE; not Config fields).
-	pf.BoolVarP(&flagAll, "all", "a", false, "Run `git add -A` before snapshotting, even if something is staged")
+	pf.BoolVarP(&flagAll, "all", "a", false, "Run git add -A before snapshotting, even if something is staged")
 	pf.BoolVar(&flagNoAutoStage, "no-auto-stage", false, "If nothing is staged, exit instead of auto-staging")
 	pf.BoolVar(&flagDryRun, "dry-run", false, "Generate and print the message; do not commit")
 	// --version is auto-added by cobra (Version field above); --help/-h is cobra's built-in.

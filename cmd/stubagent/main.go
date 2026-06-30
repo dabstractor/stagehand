@@ -33,6 +33,13 @@ func main() {
 	//    /dev/null (Stdin=="") → io.Copy returns immediately.
 	io.Copy(io.Discard, os.Stdin)
 
+	// 1b. Write the readiness marker (if STAGEHAND_STUB_MARKER is set). This tells the test
+	//     harness that stdin has been drained and generation is in-flight. Must happen BEFORE
+	//     the sleep so the test can race HEAD movement deterministically.
+	if marker := os.Getenv("STAGEHAND_STUB_MARKER"); marker != "" {
+		_ = os.WriteFile(marker, []byte("1"), 0o644)
+	}
+
 	// 2. Sleep AFTER draining (timeout simulation). The parent isn't blocked on stdin anymore.
 	if ms := envInt("STAGEHAND_STUB_SLEEP_MS", 0); ms > 0 {
 		time.Sleep(time.Duration(ms) * time.Millisecond)

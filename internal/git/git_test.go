@@ -22,6 +22,18 @@ func initRepo(t *testing.T, dir string) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git init failed: %v\n%s", err, out)
 	}
+	// Set repo-local user identity so every subsequent git operation in this repo
+	// works even without a global ~/.gitconfig.
+	cfgCmd := exec.Command("git", "-C", dir, "config", "user.name", "Test")
+	cfgCmd.Env = os.Environ()
+	if out, err := cfgCmd.CombinedOutput(); err != nil {
+		t.Fatalf("git config user.name failed: %v\n%s", err, out)
+	}
+	emailCmd := exec.Command("git", "-C", dir, "config", "user.email", "test@example.com")
+	emailCmd.Env = os.Environ()
+	if out, err := emailCmd.CombinedOutput(); err != nil {
+		t.Fatalf("git config user.email failed: %v\n%s", err, out)
+	}
 }
 
 func TestNew(t *testing.T) {

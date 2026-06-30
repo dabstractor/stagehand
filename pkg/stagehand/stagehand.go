@@ -36,6 +36,7 @@ type Options struct {
 	DryRun      bool          // if true, return the message WITHOUT committing (CommitSHA == "")
 	Timeout     time.Duration // per-attempt generation timeout; 0 → config default (120s)
 	Verbose     io.Writer     // optional; when set AND cfg.Verbose, diagnostics (resolved command, raw output, retries) are written here (the CLI passes stderr). nil ⇒ silent. Additive-only (PRD §14.1).
+	VerboseOn   bool          // when true, forces cfg.Verbose=true (highest precedence — CLI --verbose / library consumer override). Overrides config/env/git-config layers.
 }
 
 // Result is the outcome of GenerateCommit. On DryRun (or any non-committing outcome) CommitSHA is "".
@@ -113,12 +114,12 @@ func GenerateCommit(ctx context.Context, opts Options) (Result, error) {
 func resolveConfig(ctx context.Context, opts Options) (config.Config, string, error) {
 	repoDir, err := os.Getwd()
 	if err != nil {
-		return config.Config{}, "", fmt.Errorf("stagehand: getwd: %w", err)
+		return config.Config{}, "", fmt.Errorf("getwd: %w", err)
 	}
 
 	cfgPtr, err := config.Load(ctx, config.LoadOpts{RepoDir: repoDir, Flags: nil})
 	if err != nil {
-		return config.Config{}, "", fmt.Errorf("stagehand: load config: %w", err)
+		return config.Config{}, "", fmt.Errorf("load config: %w", err)
 	}
 
 	cfg := *cfgPtr // copy to value
@@ -133,6 +134,9 @@ func resolveConfig(ctx context.Context, opts Options) (config.Config, string, er
 	if opts.Timeout != 0 {
 		cfg.Timeout = opts.Timeout
 	}
+	if opts.VerboseOn {
+		cfg.Verbose = true
+	}
 
 	return cfg, repoDir, nil
 }
@@ -141,7 +145,7 @@ func resolveConfig(ctx context.Context, opts Options) (config.Config, string, er
 func buildDeps(cfg config.Config, repoDir string) (generate.Deps, error) {
 	overrides, err := provider.DecodeUserOverrides(cfg.Providers)
 	if err != nil {
-		return generate.Deps{}, fmt.Errorf("stagehand: provider overrides: %w", err)
+		return generate.Deps{}, fmt.Errorf("provider overrides: %w", err)
 	}
 
 	reg := provider.NewRegistry(overrides)
@@ -158,16 +162,16 @@ func buildDeps(cfg config.Config, repoDir string) (generate.Deps, error) {
 	}
 	if name == "" {
 		return generate.Deps{}, fmt.Errorf(
-			"stagehand: no provider configured and none of the built-ins (%s) are installed",
+			"no provider configured and none of the built-ins (%s) are installed",
 			strings.Join([]string{"pi", "claude", "gemini", "opencode", "codex", "cursor"}, ", "))
 	}
 
 	m, ok := reg.Get(name)
 	if !ok {
-		return generate.Deps{}, fmt.Errorf("stagehand: unknown provider %q", name)
+		return generate.Deps{}, fmt.Errorf("unknown provider %q", name)
 	}
 	if err := m.Validate(); err != nil {
-		return generate.Deps{}, fmt.Errorf("stagehand: provider %q: %w", name, err)
+		return generate.Deps{}, fmt.Errorf("provider %q: %w", name, err)
 	}
 
 	return generate.Deps{Git: git.New(repoDir), Manifest: m}, nil
@@ -256,18 +260,18 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config, sys
 		payload := prompt.BuildUserPayload(diff, nil)
 		spec, rerr := deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)
 		if rerr != nil {
-			return Result{}, fmt.Errorf("stagehand: render: %w", rerr)
+			return Result{}, fmt.Errorf("render: %w", rerr)
 		}
 		out, _, execErr := provider.Execute(ctx, *spec, cfg.Timeout, deps.Verbose)
 		if execErr != nil {
 			if errors.Is(execErr, context.DeadlineExceeded) {
 				return Result{}, ErrTimeout
 			}
-			return Result{}, fmt.Errorf("stagehand: generate: %w", execErr)
+			return Result{}, fmt.Errorf("generate: %w", execErr)
 		}
 		msg, ok, _ := provider.ParseOutput(out, deps.Manifest)
 		if !ok {
-			return Result{}, errors.New("stagehand: dry run: model produced no valid message")
+			return Result{}, errors.New("dry run: model produced no valid message")
 		}
 		return Result{
 			CommitSHA: "",
@@ -293,7 +297,7 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config, sys
 
 		spec, rerr := deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)
 		if rerr != nil {
-			return Result{}, fmt.Errorf("stagehand: render: %w", rerr)
+			return Result{}, fmt.Errorf("render: %w", rerr)
 		}
 
 		out, _, execErr := provider.Execute(ctx, *spec, cfg.Timeout, deps.Verbose)

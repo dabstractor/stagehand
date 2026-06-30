@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // gitExec is the SOLE place internal/config shells out to git. It mirrors internal/git.run()'s proven
@@ -128,15 +127,15 @@ func loadGitConfig(repoDir string) (*Config, error) {
 		c.Output = v
 	}
 
-	// --- timeout: integer SECONDS -> time.Duration (FINDING D). NOT time.ParseDuration. ---
+	// --- timeout: accepts both "90" (seconds) and "90s" (Go duration) forms. ---
 	if v, found, err := gitConfigGet(repoDir, "stagehand.timeout"); err != nil {
 		return nil, err
 	} else if found {
-		n, perr := strconv.Atoi(v) // §16.3 "90" -> 90; "90s" FAILS (surfaced as a wrapped load error)
+		d, perr := parseTimeout(v) // parseTimeout handles both "90" and "90s"
 		if perr != nil {
-			return nil, fmt.Errorf("git config stagehand.timeout: invalid integer %q: %w", v, perr)
+			return nil, fmt.Errorf("git config stagehand.timeout: %w", perr)
 		}
-		c.Timeout = time.Duration(n) * time.Second
+		c.Timeout = d
 	}
 
 	// --- booleans (--bool canonicalizes; FINDING C) ---

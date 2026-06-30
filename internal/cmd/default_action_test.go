@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -550,20 +551,36 @@ strip_code_fence = true
 
 	headSHA(t, repo) // capture parent for reference
 
-	// Stub sleeps 400ms; we race a concurrent commit
+	// Use a readiness-marker file: the stub will create it after draining stdin,
+	// proving that generation has started (the orchestrator has taken the snapshot
+	// and dispatched to the agent). The test polls for the marker, then moves HEAD.
+	marker := filepath.Join(t.TempDir(), "generation-started")
 	t.Setenv("STAGEHAND_STUB_OUT", "feat: x")
-	t.Setenv("STAGEHAND_STUB_SLEEP_MS", "400")
+	t.Setenv("STAGEHAND_STUB_MARKER", marker)
+	// The stub must sleep long enough that the test can move HEAD before it exits.
+	t.Setenv("STAGEHAND_STUB_SLEEP_MS", "5000")
 
 	done := make(chan error, 1)
 	go func() {
 		var ob, eb bytes.Buffer
 		rootCmd.SetOut(&ob)
 		rootCmd.SetErr(&eb)
+		rootCmd.SetArgs([]string{"--provider", "stub"})
 		done <- rootCmd.ExecuteContext(context.Background())
 	}()
 
-	// Let the orchestrator snapshot + enter generation (stub sleeping 400ms)
-	time.Sleep(150 * time.Millisecond)
+	// Wait deterministically for generation to start (marker file created by stub).
+	deadline := time.After(10 * time.Second)
+	for {
+		if _, err := os.Stat(marker); err == nil {
+			break // stub has drained stdin and started sleeping — generation is in-flight
+		}
+		select {
+		case <-deadline:
+			t.Fatal("timed out waiting for generation-started marker")
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
 
 	// Move HEAD mid-generation
 	commitRaw(t, repo, "concurrent commit")
@@ -582,5 +599,67 @@ strip_code_fence = true
 	// HEAD is the concurrent commit, NOT the orchestrator's
 	if got := headSHA(t, repo); got != concurrent {
 		t.Errorf("HEAD = %q, want %q (concurrent commit)", got, concurrent)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestRunDefault_VerboseFlag — --verbose produces DEBUG output on stderr
+// ---------------------------------------------------------------------------
+
+func TestRunDefault_VerboseFlag(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	repo := setupStubRepo(t, "feat: verbose test")
+	writeFile(t, repo, "v.txt", "content")
+	stageFile(t, repo, "v.txt")
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub", "--verbose"})
+
+	err := Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Execute err=%v, want nil", err)
+	}
+
+	// stderr must contain DEBUG lines (verbose is on)
+	stderr := errBuf.String()
+	if !strings.Contains(stderr, "DEBUG:") {
+		t.Errorf("stderr = %q, want to contain 'DEBUG:' lines (verbose output)", stderr)
+	}
+	if !strings.Contains(stderr, "DEBUG: command:") {
+		t.Errorf("stderr = %q, want to contain 'DEBUG: command:' (verbose command)", stderr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestRunDefault_VerboseEnv — STAGEHAND_VERBOSE=1 produces DEBUG output
+// ---------------------------------------------------------------------------
+
+func TestRunDefault_VerboseEnv(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	repo := setupStubRepo(t, "feat: verbose env")
+	writeFile(t, repo, "ve.txt", "content")
+	stageFile(t, repo, "ve.txt")
+
+	t.Setenv("STAGEHAND_VERBOSE", "1")
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub"})
+
+	err := Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Execute err=%v, want nil", err)
+	}
+
+	stderr := errBuf.String()
+	if !strings.Contains(stderr, "DEBUG:") {
+		t.Errorf("stderr = %q, want to contain 'DEBUG:' (STAGEHAND_VERBOSE=1)", stderr)
 	}
 }

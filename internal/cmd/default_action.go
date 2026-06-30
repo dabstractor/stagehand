@@ -11,6 +11,7 @@ import (
 	"github.com/dustin/stagehand/internal/exitcode"
 	"github.com/dustin/stagehand/internal/generate"
 	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagehand/internal/provider"
 	"github.com/dustin/stagehand/internal/ui"
 	"github.com/dustin/stagehand/pkg/stagehand"
 )
@@ -56,7 +57,7 @@ func runDefault(cmd *cobra.Command, args []string) error {
 
 	hasStaged, err := g.HasStagedChanges(ctx)
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("git diff --cached --quiet: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("staged changes check: %w", err))
 	}
 
 	if !hasStaged {
@@ -77,7 +78,7 @@ func runDefault(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(stderr, u.Yellow(fmt.Sprintf("Nothing staged — staging all changes (%d files).", n))) // FR18 (text verbatim, em-dash; colorized)
 			hasStaged, err = g.HasStagedChanges(ctx)
 			if err != nil {
-				return exitcode.New(exitcode.Error, fmt.Errorf("git diff --cached --quiet: %w", err))
+				return exitcode.New(exitcode.Error, fmt.Errorf("staged changes check: %w", err))
 			}
 			if !hasStaged {
 				// FR17: clean tree even after auto-stage.
@@ -100,7 +101,19 @@ func runDefault(cmd *cobra.Command, args []string) error {
 	// §3: re-apply the CLI-resolved provider/model/timeout (Layer-7 flags already applied by
 	// PersistentPreRunE) as Options — GenerateCommit re-loads config with Flags:nil, so opts is how the
 	// CLI flags take effect (opts override is highest precedence in resolveConfig).
-	// Build the progress label defensively (provider unknown when auto-detect).
+
+	// Validate the provider before printing the progress label (Issue 7: avoid optimistically
+	// announcing an invalid provider). This mirrors the same resolution logic as
+	// pkg/stagehand.buildDeps but is intentionally lightweight — just the existence check.
+	if cfg.Provider != "" {
+		overrides, _ := provider.DecodeUserOverrides(cfg.Providers)
+		reg := provider.NewRegistry(overrides)
+		if _, ok := reg.Get(cfg.Provider); !ok {
+			return exitcode.New(exitcode.Error, fmt.Errorf("unknown provider %q", cfg.Provider))
+		}
+	}
+
+	// Build the progress label now that the provider is validated.
 	label := "Generating"
 	if cfg.Provider != "" {
 		label += " with " + cfg.Provider
@@ -112,11 +125,12 @@ func runDefault(cmd *cobra.Command, args []string) error {
 	u.Progress(label)
 
 	res, err := stagehand.GenerateCommit(ctx, stagehand.Options{
-		Provider: cfg.Provider,
-		Model:    cfg.Model,
-		Timeout:  cfg.Timeout,
-		DryRun:   flagDryRun,
-		Verbose:  stderr,
+		Provider:  cfg.Provider,
+		Model:     cfg.Model,
+		Timeout:   cfg.Timeout,
+		DryRun:    flagDryRun,
+		Verbose:   stderr,
+		VerboseOn: cfg.Verbose,
 	})
 	if err != nil {
 		return handleGenError(stderr, err) // §4: rescue/CAS/timeout/nothing/generic matrix

@@ -26,6 +26,18 @@ func initRepo(t *testing.T, dir string) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git init failed: %v\n%s", err, out)
 	}
+	// Set repo-local user identity so every subsequent git operation in this repo
+	// works even without a global ~/.gitconfig.
+	cfgCmd := exec.Command("git", "-C", dir, "config", "user.name", "Test")
+	cfgCmd.Env = os.Environ()
+	if out, err := cfgCmd.CombinedOutput(); err != nil {
+		t.Fatalf("git config user.name failed: %v\n%s", err, out)
+	}
+	emailCmd := exec.Command("git", "-C", dir, "config", "user.email", "test@example.com")
+	emailCmd.Env = os.Environ()
+	if out, err := emailCmd.CombinedOutput(); err != nil {
+		t.Fatalf("git config user.email failed: %v\n%s", err, out)
+	}
 }
 
 // setGitConfig writes a git config key=value in the repo at dir (repo-local).
@@ -154,7 +166,7 @@ func TestLoadGitConfig_BoolNormalization(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Test D: BadTimeout — non-integer timeout fails at load
+// Test D: BadTimeout — non-parseable timeout fails at load
 // ---------------------------------------------------------------------------
 
 func TestLoadGitConfig_BadTimeout(t *testing.T) {
@@ -170,8 +182,35 @@ func TestLoadGitConfig_BadTimeout(t *testing.T) {
 	if !strings.Contains(err.Error(), "stagehand.timeout") {
 		t.Errorf("err=%v, want it to contain 'stagehand.timeout'", err)
 	}
-	if !strings.Contains(err.Error(), "invalid integer") {
-		t.Errorf("err=%v, want it to contain 'invalid integer'", err)
+	if !strings.Contains(err.Error(), "invalid timeout") {
+		t.Errorf("err=%v, want it to contain 'invalid timeout'", err)
+	}
+}
+
+// Test D2: Timeout accepts both "90" and "90s" forms from git config
+func TestLoadGitConfig_TimeoutDurationForm(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	repo := t.TempDir()
+	initRepo(t, repo)
+
+	// Integer form
+	setGitConfig(t, repo, "stagehand.timeout", "90")
+	cfg, err := loadGitConfig(repo)
+	if err != nil {
+		t.Fatalf("loadGitConfig err=%v, want nil", err)
+	}
+	if cfg.Timeout != 90*time.Second {
+		t.Errorf("Timeout=%v want 90s (integer form)", cfg.Timeout)
+	}
+
+	// Duration form
+	setGitConfig(t, repo, "stagehand.timeout", "2m30s")
+	cfg, err = loadGitConfig(repo)
+	if err != nil {
+		t.Fatalf("loadGitConfig err=%v, want nil", err)
+	}
+	if cfg.Timeout != 150*time.Second {
+		t.Errorf("Timeout=%v want 2m30s (duration form)", cfg.Timeout)
 	}
 }
 

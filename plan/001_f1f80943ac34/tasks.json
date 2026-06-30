@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "v1.0 — Snapshot-Based AI Commit Message Generator",
-      "status": "Ready",
+      "status": "Complete",
       "description": "Ship Stagehand v1.0 per PRD §10.1: a single static Go binary that generates git commit messages by shelling out to the user's installed coding-agent CLI (pi, claude, gemini, opencode, codex, cursor). Implements the snapshot-based atomic commit flow (write-tree → generate → commit-tree → update-ref CAS), style learning with anti-duplicate guarantee, the provider-manifest system, full config precedence, CLI subcommands, and distribution via Homebrew/go install/releases. This phase covers all P0 and P1 functional requirements (FR1–FR51) and goals G1–G10.",
       "milestones": [
         {
@@ -563,21 +563,21 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Generation Pipeline: Prompts, Orchestrator, Dedupe, Rescue, and Public API",
-          "status": "Ready",
+          "status": "Complete",
           "description": "Assemble the core generation pipeline from the foundation and provider layers: prompt construction (style learning + anti-reuse), the CommitStaged orchestrator (the atomic snapshot→generate→parse→dedupe→commit flow), the duplicate-rejection retry loop, the rescue protocol, and the thin public API wrapper. This milestone produces the testable end-to-end flow using a stub provider.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Prompt Construction (Style Learning + Anti-Reuse)",
-              "status": "Ready",
+              "status": "Complete",
               "description": "Implement the system-prompt builder (PRD §17) that learns style from the last 20 commits, detects multi-line vs single-line, enforces anti-reuse of example wording, and assembles the user payload (instruction + diff, with rejection block on retry).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T1.S1",
                   "title": "Mature-repo system prompt (style examples + anti-reuse + multi-line rule)",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T3.S3"
