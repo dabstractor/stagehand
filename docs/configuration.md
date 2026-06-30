@@ -31,7 +31,7 @@ When a `[provider.<name>]` section appears in a config file, its fields are **me
 Use `stagehand config path` to print the resolved global path. Use `stagehand config init` to write a fully-commented example to the global path.
 
 > [!NOTE]
-> Point discovery at a specific file with `--config <path>` (or the `STAGEHAND_CONFIG` env var). It overrides global and repo-local file discovery and is honored by every command — including the default commit action — so a provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` directly.
+> Point discovery at a specific file with `--config <path>` (or the `STAGEHAND_CONFIG` env var). It overrides global and repo-local file discovery and is honored by every command — including the default commit action — so a provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` directly. A missing explicit path (typo'd `--config` or `STAGEHAND_CONFIG`) fails fast with exit 1; only the discovery default tolerates a missing global file.
 
 ## File format
 

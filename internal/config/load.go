@@ -38,7 +38,11 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 	cfg := Defaults() // Layer 1 (by value)
 
 	// Resolve the global-file path: --config > STAGEHAND_CONFIG > discovery.
+	// `explicit` records whether the path came from the user (--config / STAGEHAND_CONFIG) vs the
+	// discovery default — a missing EXPLICIT path is a hard error (PRD §15.2 "overrides discovery");
+	// a missing discovery file is the normal "layer absent" sentinel (tolerated below).
 	globalPath := opts.ConfigPathOverride
+	explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGEHAND_CONFIG") != ""
 	if globalPath == "" {
 		if env := os.Getenv("STAGEHAND_CONFIG"); env != "" {
 			globalPath = env
@@ -47,11 +51,16 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 		}
 	}
 
-	// Layer 2: global TOML (or --config/STAGEHAND_CONFIG override). nil => absent (no error).
+	// Layer 2: global TOML (or --config/STAGEHAND_CONFIG override). A present file is overlaid; a
+	// read/parse error is wrapped. A MISSING file is "layer absent" (no error) for discovery, but a
+	// HARD ERROR when the path was explicit (a typo'd --config must not silently fall back to
+	// auto-detection and invoke an unintended agent). loadTOML's (nil,nil) contract is preserved.
 	if g, err := loadTOML(globalPath); err != nil {
 		return nil, fmt.Errorf("global config: %w", err)
 	} else if g != nil {
 		overlay(&cfg, g)
+	} else if explicit {
+		return nil, fmt.Errorf("config file not found: %s", globalPath)
 	}
 
 	// Layer 3: repo-local TOML (CWD .stagehand.toml; emits the §19 notice). nil => absent.

@@ -554,6 +554,82 @@ func TestLoad_STAGEHAND_CONFIG_EnvPath(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Load — explicit-vs-discovery path tests (S1 bugfix)
+// ---------------------------------------------------------------------------
+
+func TestLoad_ConfigPathOverride_MissingFileFails(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+
+	missing := filepath.Join(t.TempDir(), "does-not-exist.toml")
+	_, err := Load(context.Background(), LoadOpts{ConfigPathOverride: missing, RepoDir: repo})
+	if err == nil {
+		t.Fatal("Load err=nil, want error for missing ConfigPathOverride file")
+	}
+	if !strings.Contains(err.Error(), "config file not found") {
+		t.Errorf("err=%v, want it to contain 'config file not found'", err)
+	}
+	if !strings.Contains(err.Error(), "does-not-exist.toml") {
+		t.Errorf("err=%v, want it to contain the missing file path", err)
+	}
+}
+
+func TestLoad_STAGEHAND_CONFIG_EnvPath_MissingFileFails(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+
+	missing := filepath.Join(t.TempDir(), "nope.toml")
+	t.Setenv("STAGEHAND_CONFIG", missing)
+	_, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err == nil {
+		t.Fatal("Load err=nil, want error for missing STAGEHAND_CONFIG file")
+	}
+	if !strings.Contains(err.Error(), "config file not found") {
+		t.Errorf("err=%v, want it to contain 'config file not found'", err)
+	}
+	if !strings.Contains(err.Error(), "nope.toml") {
+		t.Errorf("err=%v, want it to contain the missing file path", err)
+	}
+}
+
+func TestLoad_DiscoveryMissingFileOK(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+	// No --config, no STAGEHAND_CONFIG, no global file written to globalDir.
+	// Discovery should tolerate absence (contract preserved).
+	os.Unsetenv("STAGEHAND_CONFIG")
+
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err != nil {
+		t.Fatalf("Load err=%v, want nil (discovery tolerates absent global file)", err)
+	}
+	if cfg == nil {
+		t.Fatal("Load cfg=nil, want non-nil (Defaults() still returned)")
+	}
+}
+
+func TestLoad_ConfigPathOverride_MissingBeatsEnv(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+
+	// Both ConfigPathOverride (missing) and STAGEHAND_CONFIG (set but irrelevant).
+	// ConfigPathOverride wins precedence; the resolved path is the missing override → error.
+	missing := filepath.Join(t.TempDir(), "override-missing.toml")
+	t.Setenv("STAGEHAND_CONFIG", filepath.Join(t.TempDir(), "env-set.toml"))
+
+	_, err := Load(context.Background(), LoadOpts{ConfigPathOverride: missing, RepoDir: repo})
+	if err == nil {
+		t.Fatal("Load err=nil, want error for missing ConfigPathOverride (override beats env)")
+	}
+	if !strings.Contains(err.Error(), "config file not found") {
+		t.Errorf("err=%v, want it to contain 'config file not found'", err)
+	}
+	if !strings.Contains(err.Error(), "override-missing.toml") {
+		t.Errorf("err=%v, want it to contain the override missing file path", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Load — error propagation tests
 // ---------------------------------------------------------------------------
 
