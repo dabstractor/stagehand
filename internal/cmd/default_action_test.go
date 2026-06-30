@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dustin/stagehand/internal/config"
 	"github.com/dustin/stagehand/internal/exitcode"
 	"github.com/dustin/stagehand/internal/stubtest"
 )
@@ -661,5 +663,114 @@ func TestRunDefault_VerboseEnv(t *testing.T) {
 	stderr := errBuf.String()
 	if !strings.Contains(stderr, "DEBUG:") {
 		t.Errorf("stderr = %q, want to contain 'DEBUG:' (STAGEHAND_VERBOSE=1)", stderr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// swapNoticeOut — redirects config.noticeOut for tests that need to capture the §19 notice
+// ---------------------------------------------------------------------------
+
+// swapNoticeOut redirects the §19 notice sink to w and registers a cleanup that restores it.
+// The notice bypasses the cobra err sink (it writes to the package-level noticeOut var), so
+// rootCmd.SetErr alone cannot capture it. Use this helper instead.
+func swapNoticeOut(t *testing.T, w io.Writer) {
+	t.Helper()
+	prev := config.NoticeOut()
+	config.SetNoticeOut(w)
+	t.Cleanup(func() { config.SetNoticeOut(prev) })
+}
+
+// ---------------------------------------------------------------------------
+// TestRunDefault_ConfigFlagHonored_Issue1 — --config provider resolves on default action
+// ---------------------------------------------------------------------------
+
+// TestRunDefault_ConfigFlagHonored_Issue1 proves Issue 1 is fixed: a user-defined provider
+// ([provider.stub]) declared ONLY in a --config TOML resolves on the default action with --dry-run
+// (exit 0 + the generated message). Before S1/S2 this was "unknown provider \"stub\"" (exit 1).
+func TestRunDefault_ConfigFlagHonored_Issue1(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	bin := stubtest.Build(t)
+
+	// Isolate the global layer; fresh repo with NO .stagehand.toml (provider source = --config ONLY).
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", home)
+	repo := t.TempDir()
+	initRepo(t, repo)
+	chdir(t, repo)
+
+	// A --config file (outside the repo) declaring a USER-DEFINED provider ONLY here.
+	cfgPath := filepath.Join(t.TempDir(), "custom.toml")
+	body := fmt.Sprintf("[provider.stub]\ncommand = %q\nprompt_delivery = \"stdin\"\noutput = \"raw\"\nstrip_code_fence = true\n", bin)
+	if err := os.WriteFile(cfgPath, []byte(body), 0o644); err != nil {
+		t.Fatalf("write cfg: %v", err)
+	}
+
+	writeFile(t, repo, "new.txt", "hello")
+	stageFile(t, repo, "new.txt")
+	t.Setenv("STAGEHAND_STUB_OUT", "feat: config honored")
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--config", cfgPath, "--provider", "stub", "--dry-run"})
+
+	err := Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Execute err=%v, want nil (--config must honor [provider.stub] on the default action)", err)
+	}
+	if got := strings.TrimSpace(outBuf.String()); got != "feat: config honored" {
+		t.Errorf("dry-run stdout = %q, want %q", got, "feat: config honored")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestRunDefault_RepoLocalNoticeOnce_Issue5 — §19 notice printed EXACTLY ONCE
+// ---------------------------------------------------------------------------
+
+// TestRunDefault_RepoLocalNoticeOnce_Issue5 proves Issue 5 is fixed: a repo-local .stagehand.toml
+// that sets provider prints the §19 notice "repo-local config (.stagehand.toml) sets provider to"
+// EXACTLY ONCE (strings.Count == 1; was 2 before S1/S2's single-Load fix).
+func TestRunDefault_RepoLocalNoticeOnce_Issue5(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	initRepo(t, repo)
+	chdir(t, repo)
+
+	// Repo-local config: top-level provider= (fires the §19 notice) + [provider.stub] (resolves it).
+	toml := fmt.Sprintf("[defaults]\nprovider = \"stub\"\n\n[provider.stub]\ncommand = %q\nprompt_delivery = \"stdin\"\noutput = \"raw\"\nstrip_code_fence = true\n", bin)
+	writeConfigFile(t, repo, ".stagehand.toml", toml)
+	runGit(t, repo, "add", ".stagehand.toml")
+	runGit(t, repo, "commit", "-m", "init: config")
+
+	writeFile(t, repo, "new.txt", "hello")
+	stageFile(t, repo, "new.txt")
+	t.Setenv("STAGEHAND_STUB_OUT", "feat: add file")
+
+	var outBuf, errBuf, notice bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	swapNoticeOut(t, &notice) // §19 notice → buffer (it bypasses the cobra err sink)
+	rootCmd.SetArgs([]string{"--provider", "stub"})
+
+	err := Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Execute err=%v, want nil", err)
+	}
+
+	const needle = "repo-local config (.stagehand.toml) sets provider to"
+	if got := strings.Count(notice.String(), needle); got != 1 {
+		t.Errorf("§19 notice count = %d, want 1\n--- captured notice ---\n%s", got, notice.String())
+	}
+	if !strings.Contains(notice.String(), `"stub"`) {
+		t.Errorf("notice = %q, want it to name provider \"stub\"", notice.String())
+	}
+	if logMsg := gitOut(t, repo, "log", "--format=%s", "-n1"); logMsg != "feat: add file" {
+		t.Errorf("git log subject = %q, want %q (full seam)", logMsg, "feat: add file")
 	}
 }

@@ -49,6 +49,14 @@ type fileGeneration struct {
 // defaults to os.Stderr. (PRD §19: a repo-local config redirecting the provider is surfaced to the user.)
 var noticeOut io.Writer = os.Stderr
 
+// SetNoticeOut sets the destination for the §19 repo-local provider-redirect notice (default os.Stderr).
+// Intended for tests that need to observe/capture the notice. Pair with NoticeOut to restore.
+// Non-test code should leave it at os.Stderr. (PRD §19; system_context §6 lists noticeOut as a swappable test sink.)
+func SetNoticeOut(w io.Writer) { noticeOut = w }
+
+// NoticeOut returns the current §19 notice destination (default os.Stderr). Pair with SetNoticeOut.
+func NoticeOut() io.Writer { return noticeOut }
+
 // ---------------------------------------------------------------------------
 // Path helpers
 // ---------------------------------------------------------------------------

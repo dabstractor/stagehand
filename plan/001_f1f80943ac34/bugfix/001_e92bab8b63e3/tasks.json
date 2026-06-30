@@ -11,14 +11,14 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Eliminate the CLI<->pkg config double-load (Issues 1 & 5)",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Make pkg/stagehand.GenerateCommit accept the CLI's already-resolved config instead of re-loading from scratch. This single seam fix honors --config on the default commit action (Issue 1) AND stops the §19 repo-local provider notice from printing twice (Issue 5), because the second config.Load (and its Layer-3 side effect) no longer runs. Root cause: resolveConfig (pkg/stagehand/stagehand.go:114) calls config.Load with LoadOpts{RepoDir, Flags:nil}, dropping ConfigPathOverride. Architectural decision: architecture/decisions.md D1 (PRD 'Option a' - pass the resolved config).",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Make GenerateCommit accept a pre-resolved config and wire the CLI through",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Add an additive, nil-optional resolved-config field to pkg/stagehand.Options; when set, skip config.Load in resolveConfig (preserving the Options override contract). Have internal/cmd runDefault pass the CLI's loaded cfg so the default action honors --config and the §19 notice prints once.",
               "subtasks": [
                 {
@@ -57,7 +57,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S3",
                   "title": "Regression tests: --config honored by default action + §19 notice printed exactly once",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T1.S2"
