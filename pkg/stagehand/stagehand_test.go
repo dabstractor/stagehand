@@ -662,3 +662,226 @@ func TestResolveConfig_InjectedConfig(t *testing.T) {
 		}
 	})
 }
+
+// TestGenerateCommit_GenerationConfigFile_OutputJSON_Issue4 proves PRD Issue 4: the [generation]
+// output="json" field (file-loader path) overrides the provider manifest's output="raw" and is
+// honored by ParseOutput end-to-end through buildDeps. Without the S1 bridge (~196-207 in
+// stagehand.go), res.Message would equal the raw JSON blob instead of the extracted field.
+//
+// TDD check (manual, do not commit): comment out the S1 bridge block and re-run — this test FAILS
+// (raw blob observed instead of "feat: from json config").
+func TestGenerateCommit_GenerationConfigFile_OutputJSON_Issue4(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	jsonOut := `{"subject":"feat: from json config"}`
+
+	// TOML uses a literal string ('...') for STAGEHAND_STUB_OUT so the JSON quotes survive parsing.
+	toml := "[provider.stub]\n" +
+		"command = \"" + bin + "\"\n" +
+		"prompt_delivery = \"stdin\"\n" +
+		"output = \"raw\"\n" + // manifest baseline — [generation] must override this
+		"json_field = \"subject\"\n" + // REQUIRED: parseJSON extracts obj["subject"]
+		"strip_code_fence = true\n" +
+		"\n[provider.stub.env]\n" +
+		"STAGEHAND_STUB_OUT = '" + jsonOut + "'\n" +
+		"\n[generation]\n" +
+		"output = \"json\"\n" // the [generation] override
+	if err := os.WriteFile(repo+"/.stagehand.toml", []byte(toml), 0o644); err != nil {
+		t.Fatalf("write toml: %v", err)
+	}
+
+	initRepo(t, repo)
+	commitRaw(t, repo, "initial")
+	writeFile(t, repo, "new.txt", "data")
+	stageFile(t, repo, "new.txt")
+
+	wd, _ := os.Getwd()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(wd) })
+
+	res, err := GenerateCommit(context.Background(), Options{Provider: "stub", DryRun: true})
+	if err != nil {
+		t.Fatalf("GenerateCommit: %v", err)
+	}
+	if res.CommitSHA != "" {
+		t.Errorf("CommitSHA = %q, want empty (DryRun)", res.CommitSHA)
+	}
+	// The JSON field was extracted ⇒ the [generation] output="json" overrode the manifest's "raw".
+	if res.Message != "feat: from json config" {
+		t.Errorf("Message = %q, want %q ([generation] output=json must make ParseOutput extract the JSON field)",
+			res.Message, "feat: from json config")
+	}
+}
+
+// TestGenerateCommit_GitConfig_OutputJSON_Issue4 proves PRD Issue 4: git-config layer-4
+// `stagehand.output json` overrides the manifest's output="raw" and is honored by ParseOutput
+// end-to-end. Uses t.Setenv("HOME", t.TempDir()) to isolate the global git config (mirrors
+// git_test.go:71).
+//
+// TDD check (manual, do not commit): comment out the S1 bridge block and re-run — this test FAILS
+// (raw blob observed instead of extracted field).
+func TestGenerateCommit_GitConfig_OutputJSON_Issue4(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate global git config
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	jsonOut := `{"subject":"feat: from git-config json"}`
+
+	toml := "[provider.stub]\n" +
+		"command = \"" + bin + "\"\n" +
+		"prompt_delivery = \"stdin\"\n" +
+		"output = \"raw\"\n" +
+		"json_field = \"subject\"\n" +
+		"strip_code_fence = true\n" +
+		"\n[provider.stub.env]\n" +
+		"STAGEHAND_STUB_OUT = '" + jsonOut + "'\n"
+	if err := os.WriteFile(repo+"/.stagehand.toml", []byte(toml), 0o644); err != nil {
+		t.Fatalf("write toml: %v", err)
+	}
+
+	initRepo(t, repo)
+	commitRaw(t, repo, "initial")
+	runGit(t, repo, "config", "stagehand.output", "json") // Layer-4 override
+	writeFile(t, repo, "new.txt", "data")
+	stageFile(t, repo, "new.txt")
+
+	wd, _ := os.Getwd()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(wd) })
+
+	res, err := GenerateCommit(context.Background(), Options{Provider: "stub", DryRun: true})
+	if err != nil {
+		t.Fatalf("GenerateCommit: %v", err)
+	}
+	if res.CommitSHA != "" {
+		t.Errorf("CommitSHA = %q, want empty (DryRun)", res.CommitSHA)
+	}
+	if res.Message != "feat: from git-config json" {
+		t.Errorf("Message = %q, want %q (git config stagehand.output=json must reach ParseOutput)",
+			res.Message, "feat: from git-config json")
+	}
+}
+
+// TestGenerateCommit_InjectedConfig_StripCodeFenceFalse_Issue4 proves PRD Issue 4: when
+// cfg.StripCodeFence=false (injected via Options.Config), ParseOutput RETAINS the ``` fences in
+// the message instead of stripping them. This proves the buildDeps bridge copies cfg.StripCodeFence
+// onto the manifest unconditionally (stagehand.go:208-209).
+//
+// NOTE: The git-config loader uses a non-zero overlay (file.go:overlay) that cannot propagate
+// `false` for bool fields (FINDING G in git.go). Similarly, file.go:153 cannot set
+// strip_code_fence=false (v1 quirk). Injecting Options.Config directly is the only way to reach
+// cfg.StripCodeFence=false and exercise the bridge's false-path.
+//
+// TDD check (manual, do not commit): comment out the S1 bridge block and re-run — this test FAILS
+// (fence stripped, message is "feat: keep the fence" without backticks).
+func TestGenerateCommit_InjectedConfig_StripCodeFenceFalse_Issue4(t *testing.T) {
+	bin := stubtest.Build(t)
+
+	// Stub output: a fenced block. When cfg.StripCodeFence=false, fences are retained;
+	// when true (bridge absent), stripCodeFence() removes them → "feat: keep the fence".
+	stubOut := "```" + "\n" + "feat: keep the fence" + "\n" + "```"
+
+	// Start from Defaults, then set StripCodeFence=false to exercise the bridge's unconditional copy.
+	cfg := config.Defaults()
+	cfg.Provider = "stub"
+	cfg.StripCodeFence = false // inject false — cannot reach this via file/git-config loaders (FINDING G)
+	cfg.Providers = map[string]map[string]any{
+		"stub": {
+			"command":          bin,
+			"prompt_delivery":  "stdin",
+			"output":           "raw",
+			"strip_code_fence": true, // manifest says strip ON — cfg=false must override it
+			"env": map[string]any{
+				"STAGEHAND_STUB_OUT": stubOut,
+			},
+		},
+	}
+
+	repo := t.TempDir()
+	initRepo(t, repo)
+	commitRaw(t, repo, "initial")
+	writeFile(t, repo, "new.txt", "data")
+	stageFile(t, repo, "new.txt")
+
+	wd, _ := os.Getwd()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(wd) })
+
+	res, err := GenerateCommit(context.Background(), Options{Config: &cfg, Provider: "stub", DryRun: true})
+	if err != nil {
+		t.Fatalf("GenerateCommit: %v", err)
+	}
+	if res.CommitSHA != "" {
+		t.Errorf("CommitSHA = %q, want empty (DryRun)", res.CommitSHA)
+	}
+	// With cfg.StripCodeFence=false overriding the manifest's true, the fences are RETAINED.
+	if !strings.Contains(res.Message, "```") {
+		t.Errorf("Message = %q; want to contain \"```\" (fence retained because cfg.StripCodeFence=false)",
+			res.Message)
+	}
+}
+
+// TestGenerateCommit_ManifestOutputWins_WhenCfgOutputEmpty_Issue4 proves PRD Issue 4: the
+// buildDeps bridge's `if cfg.Output != ""` guard lets the manifest's own output="json" win when
+// cfg.Output is empty. This is a deliberate regression guard on the bridge contract.
+//
+// CRITICAL NOTE: cfg.Output="" never occurs via the real loaders — config.Defaults() ALWAYS sets
+// Output="raw" and config.Load() applies Defaults() first. The ONLY way to exercise the guard's
+// "manifest wins" branch is to inject Options.Config directly (resolveConfig then does
+// `cfg = *opts.Config` and SKIPS config.Load/Defaults), with Output explicitly set to "". This
+// test pins the bridge's guard contract; it is NOT claiming a production code path.
+//
+// TDD check (manual, do not commit): test 4 STILL PASSES even when the S1 bridge is removed,
+// because it exercises the guard's ABSENCE-of-override path (the manifest's value was never
+// overwritten).
+func TestGenerateCommit_ManifestOutputWins_WhenCfgOutputEmpty_Issue4(t *testing.T) {
+	bin := stubtest.Build(t)
+
+	// Start from Defaults so Timeout/MaxDuplicateRetries/etc. are sane, then ZERO Output to exercise
+	// the bridge's `if cfg.Output != ""` guard.
+	cfg := config.Defaults()
+	cfg.Provider = "stub"
+	cfg.Output = "" // "[generation] output unset" at the field level
+	cfg.Providers = map[string]map[string]any{
+		"stub": {
+			"command":          bin,
+			"prompt_delivery":  "stdin",
+			"output":           "json", // manifest's own value — must win because cfg.Output==""
+			"json_field":       "subject",
+			"strip_code_fence": true,
+			"env": map[string]any{
+				"STAGEHAND_STUB_OUT": `{"subject":"feat: manifest wins when cfg unset"}`,
+			},
+		},
+	}
+
+	repo := t.TempDir()
+	initRepo(t, repo)
+	commitRaw(t, repo, "initial")
+	writeFile(t, repo, "new.txt", "data")
+	stageFile(t, repo, "new.txt")
+
+	wd, _ := os.Getwd()
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(wd) })
+
+	res, err := GenerateCommit(context.Background(), Options{Config: &cfg, Provider: "stub", DryRun: true})
+	if err != nil {
+		t.Fatalf("GenerateCommit: %v", err)
+	}
+	if res.CommitSHA != "" {
+		t.Errorf("CommitSHA = %q, want empty (DryRun)", res.CommitSHA)
+	}
+	// manifest output="json" won (cfg.Output="" ⇒ guard fell through) ⇒ JSON extracted.
+	if res.Message != "feat: manifest wins when cfg unset" {
+		t.Errorf("Message = %q, want %q (manifest output=json must win when cfg.Output is empty)",
+			res.Message, "feat: manifest wins when cfg unset")
+	}
+}

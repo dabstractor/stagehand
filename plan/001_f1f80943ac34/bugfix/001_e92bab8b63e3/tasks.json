@@ -205,7 +205,7 @@
               "type": "Task",
               "id": "P1.M4.T1",
               "title": "Apply [generation] output/strip_code_fence onto the resolved manifest (Issue 4)",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Bridge cfg.Output/cfg.StripCodeFence onto the resolved provider Manifest in buildDeps so provider.ParseOutput honors them (overriding the per-manifest defaults).",
               "subtasks": [
                 {
@@ -229,7 +229,7 @@
                   "type": "Subtask",
                   "id": "P1.M4.T1.S2",
                   "title": "Tests: cfg Output/StripCodeFence honored by ParseOutput end-to-end (Issue 4)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M4.T1.S1"
