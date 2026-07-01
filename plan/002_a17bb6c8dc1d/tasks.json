@@ -404,7 +404,7 @@
       "type": "Phase",
       "id": "P2",
       "title": "Data Layer V2 — Binary Filtering & Git Plumbing",
-      "status": "Planned",
+      "status": "Researching",
       "description": "Add binary/non-text file filtering to all diff paths (FR3a-c) and implement the new git plumbing methods required by the decompose pipeline (tree operations, status porcelain, working-tree diff). These are independent of P1 and can proceed in parallel.",
       "milestones": [
         {
@@ -457,7 +457,7 @@
           "type": "Milestone",
           "id": "P2.M2",
           "title": "V2 Git Plumbing Methods",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Add the new git plumbing methods required by the decompose pipeline: RevParseTree (base tree for concept diffs), TreeDiff (tree-to-tree concept diff with binary filtering), ReadTree (for chain rebuild), StatusPorcelain (arbiter trigger), and WorkingTreeDiff (planner input).",
           "tasks": [
             {
@@ -508,14 +508,14 @@
               "type": "Task",
               "id": "P2.M2.T2",
               "title": "StatusPorcelain + WorkingTreeDiff",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add StatusPorcelain (arbiter trigger — detect leftovers after the decompose loop) and WorkingTreeDiff (planner input — full unstaged diff of the dirty working tree).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P2.M2.T2.S1",
                   "title": "Implement StatusPorcelain on Git interface and gitRunner",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The arbiter runs iff `git status --porcelain` is non-empty after the decompose loop (§13.6.5). StatusPorcelain returns the raw porcelain output; the caller checks if it's empty (clean) or non-empty (leftovers exist). `git status --porcelain` exits 0 on success, lists each changed path with a 2-char status code. Read-only w.r.t. refs/index.\n2. INPUT: The existing gitRunner.run() helper.\n3. LOGIC: Add `StatusPorcelain(ctx context.Context) (string, error)` to Git interface and gitRunner. Implementation: run `git status --porcelain`, return stdout trimmed. Non-zero exit → error. The caller (decompose orchestrator) checks `strings.TrimSpace(output) != \"\"` to decide whether to run the arbiter.\n4. OUTPUT: StatusPorcelain returns the porcelain output string. Empty string means clean tree.\n5. DOCS: none — interface addition.",
@@ -529,7 +529,7 @@
                   "type": "Subtask",
                   "id": "P2.M2.T2.S2",
                   "title": "Implement WorkingTreeDiff (unstaged diff with binary filtering) for planner input",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P2.M1.T1.S1"

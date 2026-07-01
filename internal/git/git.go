@@ -131,6 +131,21 @@ type Git interface {
 	// unresolvable tree SHA, which is a REAL error (NOT an unborn signal — branch on code != 0, never on
 	// code == 128). Read-only with respect to refs and the index.
 	TreeDiff(ctx context.Context, treeA, treeB string, opts StagedDiffOptions) (diff string, err error)
+
+	// StatusPorcelain returns the output of `git status --porcelain` — the arbiter trigger for
+	// multi-commit decomposition (PRD §13.6.5: "After the loop, if `git status --porcelain` is non-empty
+	// (some changes were not claimed by any stager), the arbiter runs … If `git status --porcelain` is
+	// empty after the loop, the arbiter does not run — the perfect run."). The caller — the decompose
+	// orchestrator (P3) — checks `output != ""` to decide whether to invoke the arbiter; an empty string
+	// means a clean tree (the perfect run). It is read-only with respect to refs and the index (PRD §18.1).
+	//
+	// `git status --porcelain` exits 0 on success whether the tree is clean or dirty, born or unborn (it
+	// lists each changed path with a 2-char "XY" status code; untracked files appear as "??"). Exit 128
+	// means a non-repo or corrupt repo — a REAL error, surfaced as a non-nil err (NOT an "unborn" signal:
+	// unlike rev-parse HEAD, porcelain works on unborn repos, so there is no 128-as-non-error convention
+	// here — branch on code != 0, never on code == 128). Each line is "XY <path>"; the raw string is
+	// returned trimmed (caller compares to "").
+	StatusPorcelain(ctx context.Context) (output string, err error)
 }
 
 // gitRunner is the production Git implementation. It wraps exec.CommandContext for the real git
@@ -908,4 +923,22 @@ func (g *gitRunner) TreeDiff(ctx context.Context, treeA, treeB string, opts Stag
 	b.WriteString(nmDiff)
 
 	return b.String(), nil
+}
+
+// StatusPorcelain returns the output of `git status --porcelain` (PRD §13.6.5 arbiter trigger). It is a
+// port of StagedFileCount: the SAME simple two-branch structure (err-first infrastructural-failure
+// propagation, then code != 0 → error), with the command swapped to `status --porcelain` and the count
+// loop DROPPED (the caller only checks emptiness, so there is nothing to parse — return the trimmed
+// stdout as-is). Read-only. NO 128-as-non-error special-case (porcelain exits 0 on unborn repos).
+func (g *gitRunner) StatusPorcelain(ctx context.Context) (string, error) {
+	stdout, stderr, code, err := g.run(ctx, g.workDir, "status", "--porcelain")
+	if err != nil {
+		return "", err // git binary missing / context cancelled / start failure (run sets code=-1) — UNWRAPPED
+	}
+	if code != 0 {
+		// ALL non-zero exits are errors (128 = non-repo/corrupt). NO 128-as-non-error special-case —
+		// `git status --porcelain` exits 0 on unborn repos, so a 128 here is a real caller error.
+		return "", fmt.Errorf("git status --porcelain: failed (exit %d): %s", code, strings.TrimSpace(stderr))
+	}
+	return strings.TrimSpace(stdout), nil
 }
