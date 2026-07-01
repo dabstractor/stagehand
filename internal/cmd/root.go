@@ -33,6 +33,23 @@ var (
 	flagNoColor  bool
 )
 
+// Decompose/per-role flags (resolved by config.Load via fs.Changed; P4.M1.T1.S1). loadFlags reads
+// them via fs.Changed — the &flagVar address is their use (satisfies the `unused` linter),
+// exactly as flagProvider/flagModel do. Do NOT read these vars directly — cfg.Commits/Single/...
+// is the source of truth after PersistentPreRunE.
+var (
+	flagCommits         int
+	flagSingle          bool
+	flagNoDecompose     bool
+	flagMaxCommits      int
+	flagPlannerProvider string
+	flagPlannerModel    string
+	flagStagerProvider  string
+	flagStagerModel     string
+	flagArbiterProvider string
+	flagArbiterModel    string
+)
+
 // Behavioral flags (NOT Config fields; read directly by the default-action RunE in S2 / dry-run in S4).
 var (
 	flagAll         bool
@@ -87,6 +104,27 @@ func init() {
 	pf.BoolVarP(&flagAll, "all", "a", false, "Run git add -A before snapshotting, even if something is staged")
 	pf.BoolVar(&flagNoAutoStage, "no-auto-stage", false, "If nothing is staged, exit instead of auto-staging")
 	pf.BoolVar(&flagDryRun, "dry-run", false, "Generate and print the message; do not commit")
+	// §15.2 decompose/per-role flags (P4.M1.T1.S1) — bound to package vars; loadFlags reads via fs.Changed.
+	pf.IntVar(&flagCommits, "commits", 0,
+		"Force exactly N commits when nothing is staged (skips the planner's count decision; 0 = auto-decompose). 1 ≡ --single (env/git stagehand.commits)")
+	pf.BoolVar(&flagSingle, "single", false,
+		"Bypass decomposition; force the single-commit auto-stage-all behavior (alias: --no-decompose)")
+	pf.BoolVar(&flagNoDecompose, "no-decompose", false,
+		"Bypass decomposition; force the single-commit auto-stage-all behavior (alias: --single)")
+	pf.IntVar(&flagMaxCommits, "max-commits", 12,
+		"Safety cap on auto-decompose commit count (env/git stagehand.max_commits)")
+	pf.StringVar(&flagPlannerProvider, "planner-provider", "",
+		"Per-role provider override for the decomposition planner (env STAGEHAND_PLANNER_PROVIDER; git stagehand.role.planner)")
+	pf.StringVar(&flagPlannerModel, "planner-model", "",
+		"Per-role model override for the decomposition planner (env STAGEHAND_PLANNER_MODEL; git stagehand.role.planner)")
+	pf.StringVar(&flagStagerProvider, "stager-provider", "",
+		"Per-role provider override for the (tooled) staging agent (env STAGEHAND_STAGER_PROVIDER; git stagehand.role.stager)")
+	pf.StringVar(&flagStagerModel, "stager-model", "",
+		"Per-role model override for the (tooled) staging agent (env STAGEHAND_STAGER_MODEL; git stagehand.role.stager)")
+	pf.StringVar(&flagArbiterProvider, "arbiter-provider", "",
+		"Per-role provider override for the leftover arbiter (env STAGEHAND_ARBITER_PROVIDER; git stagehand.role.arbiter)")
+	pf.StringVar(&flagArbiterModel, "arbiter-model", "",
+		"Per-role model override for the leftover arbiter (env STAGEHAND_ARBITER_MODEL; git stagehand.role.arbiter)")
 	// --version is auto-added by cobra (Version field above); --help/-h is cobra's built-in.
 }
 

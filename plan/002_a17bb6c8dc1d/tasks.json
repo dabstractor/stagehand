@@ -899,21 +899,21 @@
           "type": "Milestone",
           "id": "P4.M1",
           "title": "CLI Flags & Default Action Routing",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Add the new global flags (--commits, --single/--no-decompose, --max-commits, per-role flags) and update the default action to route to Decompose when nothing is staged.",
           "tasks": [
             {
               "type": "Task",
               "id": "P4.M1.T1",
               "title": "New CLI flags + default action decompose routing",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Register all new flags in root.go's init(), and update default_action.go to route to decompose when nothing is staged (FR-M1), keeping the single-commit path unchanged when something is staged.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P4.M1.T1.S1",
                   "title": "Add --commits/--single/--max-commits + per-role flags to root.go + update default_action routing",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P3.M4.T1.S1",
@@ -944,14 +944,14 @@
               "type": "Task",
               "id": "P4.M2.T1",
               "title": "Public Decompose API (DecomposeOptions, DecomposeResult, RoleModel, Decompose function)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add the public library surface for multi-commit decomposition per §14.1, mirroring the existing GenerateCommit pattern.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P4.M2.T1.S1",
                   "title": "Add DecomposeOptions/DecomposeResult/RoleModel types + Decompose() function to pkg/stagehand",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P3.M4.T1.S1"

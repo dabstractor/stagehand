@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/dustin/stagehand/internal/config"
+	"github.com/dustin/stagehand/internal/decompose"
 	"github.com/dustin/stagehand/internal/exitcode"
 	"github.com/dustin/stagehand/internal/generate"
 	"github.com/dustin/stagehand/internal/git"
@@ -61,6 +64,17 @@ func runDefault(cmd *cobra.Command, args []string) error {
 	}
 
 	if !hasStaged {
+		// FR-M1 (P4.M1.T1.S1): nothing staged + dirty tree + decompose enabled → decompose (NO AddAll).
+		if shouldDecompose(cfg, flagDryRun, flagNoAutoStage) {
+			status, err := g.StatusPorcelain(ctx)
+			if err != nil {
+				return exitcode.New(exitcode.Error, fmt.Errorf("git status --porcelain: %w", err))
+			}
+			if status == "" {
+				return exitcode.New(exitcode.NothingToCommit, errors.New("Nothing to commit.")) // clean tree
+			}
+			return runDecompose(ctx, stdout, stderr, u, cfg, g) // planner gets the working-tree diff
+		}
 		switch {
 		case flagNoAutoStage:
 			// FR19: --no-auto-stage + nothing staged → exit 2 "Nothing staged." (--no-auto-stage wins
@@ -229,6 +243,89 @@ func printCommitReport(w io.Writer, res stagehand.Result, changes []git.FileChan
 		}
 		fmt.Fprintf(w, "%s  %s\n", c.Status, c.Path)
 	}
+}
+
+// shouldDecompose is the FR-M1/M2 routing predicate (PURE — no I/O, no package-flag reads). True iff
+// the default action should route to multi-commit decomposition instead of the v1 AddAll→GenerateCommit
+// path. Decompose activates iff NOTHING is staged (caller guarantees via hasStaged), auto-stage-all is
+// on, the user did not opt out (--single/--no-decompose/--commits 1 ⇒ cfg.Single), and --dry-run is not
+// set (decompose commits; --dry-run honors the preview).
+func shouldDecompose(cfg *config.Config, dryRun, noAutoStage bool) bool {
+	if cfg == nil {
+		return false
+	}
+	if cfg.Single || cfg.Commits == 1 { // --single/--no-decompose/--commits 1 → v1
+		return false
+	}
+	if dryRun { // decompose commits; --dry-run → single preview
+		return false
+	}
+	return cfg.AutoStageAll && !noAutoStage // FR-M1 trigger context (auto-stage on)
+}
+
+// runDecompose builds decompose.Deps (ResolveRoles for the four roles) and runs the pipeline.
+// Prints each landed commit's FR42 report to stdout (including partial landings on FR-M12), then maps
+// the error. Calls internal/decompose.Decompose directly (pkg/stagehand.Decompose is P4.M2.T1.S1 —
+// not yet shipped; that task swaps this one call site to the public wrapper).
+func runDecompose(ctx context.Context, stdout, stderr io.Writer, u *ui.UI, cfg *config.Config, g git.Git) error {
+	overrides, err := provider.DecodeUserOverrides(cfg.Providers)
+	if err != nil {
+		return exitcode.New(exitcode.Error, fmt.Errorf("decompose: provider overrides: %w", err))
+	}
+	reg := provider.NewRegistry(overrides)
+	roleManifests, _, err := decompose.ResolveRoles(*cfg, reg) // RoleModels (2nd) unused by CLI
+	if err != nil {
+		return exitcode.New(exitcode.Error, fmt.Errorf("decompose: %w", err))
+	}
+	deps := decompose.Deps{
+		Git:      g,
+		Registry: reg,
+		Config:   *cfg,
+		Roles:    roleManifests,
+		Verbose:  ui.NewVerbose(stderr, cfg.Verbose),
+		Out:      stderr, // the loop prints §18.3 rescue + §13.5 CAS here (P3.M4.T1.S2)
+	}
+	// Optional progress label (UX consistency with the single path); best-effort, non-essential.
+	label := "Decomposing"
+	if cfg.Provider != "" {
+		label += " with " + cfg.Provider
+	}
+	label += "…"
+	u.Progress(label)
+
+	res, derr := decompose.Decompose(ctx, deps)
+	for _, c := range res.Commits { // print landed commits (success AND FR-M12 partial)
+		printDecomposeCommit(stdout, c)
+	}
+	if derr != nil {
+		return handleDecomposeError(derr) // suppress re-print; map exit code
+	}
+	return nil
+}
+
+// printDecomposeCommit renders the FR42 success line for one decompose.CommitResult to w (stdout):
+// `[<short-sha>] <subject>` then one line per file (mirrors printCommitReport; input type differs).
+func printDecomposeCommit(w io.Writer, c decompose.CommitResult) {
+	fmt.Fprintf(w, "[%s] %s\n", shortSHA(c.SHA), c.Subject)
+	for _, f := range c.Files {
+		if f.SrcPath != "" { // R/C rename/copy
+			fmt.Fprintf(w, "%s  %s → %s\n", f.Status, f.SrcPath, f.Path)
+			continue
+		}
+		fmt.Fprintf(w, "%s  %s\n", f.Status, f.Path)
+	}
+}
+
+// handleDecomposeError maps a decompose error to the §15.4 outcome WITHOUT double-printing:
+// rescue/CAS are already printed by the loop → silent exitcode.New(exitcode.For(err), nil);
+// planner/safety/infra → exitcode.New(exitcode.Error, err) so main prints 'stagehand: <msg>'.
+func handleDecomposeError(err error) error {
+	var re *generate.RescueError
+	var ce *generate.CASError
+	if errors.As(err, &re) || errors.As(err, &ce) { // *DecomposeRescueError unwraps to *RescueError
+		return exitcode.New(exitcode.For(err), nil) // SILENT — loop already printed to stderr
+	}
+	return exitcode.New(exitcode.Error, err) // planner/safety/infra — main prints
 }
 
 // printDryRunMessage writes the generated message to w (stdout) for --dry-run. stdout = message ONLY

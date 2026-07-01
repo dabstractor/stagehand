@@ -153,6 +153,17 @@ func TestFlags_RegisteredAndDefaults(t *testing.T) {
 		{"all", "a", "false"},
 		{"no-auto-stage", "", "false"},
 		{"dry-run", "", "false"},
+		// §15.2 decompose/per-role flags (P4.M1.T1.S1)
+		{"commits", "", "0"},
+		{"single", "", "false"},
+		{"no-decompose", "", "false"},
+		{"max-commits", "", "12"},
+		{"planner-provider", "", ""},
+		{"planner-model", "", ""},
+		{"stager-provider", "", ""},
+		{"stager-model", "", ""},
+		{"arbiter-provider", "", ""},
+		{"arbiter-model", "", ""},
 	}
 	for _, f := range requiredFlags {
 		t.Run("flag_"+f.name, func(t *testing.T) {

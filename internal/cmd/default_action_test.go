@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,7 +15,9 @@ import (
 	"time"
 
 	"github.com/dustin/stagehand/internal/config"
+	"github.com/dustin/stagehand/internal/decompose"
 	"github.com/dustin/stagehand/internal/exitcode"
+	"github.com/dustin/stagehand/internal/generate"
 	"github.com/dustin/stagehand/internal/stubtest"
 )
 
@@ -428,7 +431,7 @@ func TestRunDefault_AutoStageNotice_FR18(t *testing.T) {
 	var outBuf, errBuf bytes.Buffer
 	rootCmd.SetOut(&outBuf)
 	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"--provider", "stub"})
+	rootCmd.SetArgs([]string{"--provider", "stub", "--single"})
 
 	err := Execute(context.Background())
 	if err != nil {
@@ -964,6 +967,163 @@ func TestRunDefault_ConfigFlagHonored_Issue1(t *testing.T) {
 // TestRunDefault_RepoLocalNoticeOnce_Issue5 — §19 notice printed EXACTLY ONCE
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// TestShouldDecompose — FR-M1/M2 routing predicate (pure, no git/Execute)
+// ---------------------------------------------------------------------------
+
+func TestShouldDecompose(t *testing.T) {
+	tests := []struct {
+		name        string
+		cfg         *config.Config
+		dryRun      bool
+		noAutoStage bool
+		want        bool
+	}{
+		{"default_auto_stage", &config.Config{AutoStageAll: true}, false, false, true},
+		{"single_opt_out", &config.Config{Single: true, AutoStageAll: true}, false, false, false},
+		{"commits_1", &config.Config{Commits: 1, AutoStageAll: true}, false, false, false},
+		{"commits_3", &config.Config{Commits: 3, AutoStageAll: true}, false, false, true},
+		{"dry_run", &config.Config{AutoStageAll: true}, true, false, false},
+		{"no_auto_stage_flag", &config.Config{AutoStageAll: true}, false, true, false},
+		{"auto_stage_off", &config.Config{AutoStageAll: false}, false, false, false},
+		{"nil_cfg", nil, false, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldDecompose(tt.cfg, tt.dryRun, tt.noAutoStage)
+			if got != tt.want {
+				t.Errorf("shouldDecompose() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestHandleDecomposeError — exit-code mapping + silent vs printed
+// ---------------------------------------------------------------------------
+
+func TestHandleDecomposeError(t *testing.T) {
+	t.Run("rescue_err", func(t *testing.T) {
+		err := handleDecomposeError(&generate.RescueError{Kind: generate.ErrRescue})
+		var ee *exitcode.ExitError
+		if !errors.As(err, &ee) {
+			t.Fatal("expected *exitcode.ExitError")
+		}
+		if ee.Code != exitcode.Rescue {
+			t.Errorf("Code = %d, want %d (Rescue=3)", ee.Code, exitcode.Rescue)
+		}
+		if ee.Err != nil {
+			t.Errorf("Err = %v, want nil (silent)", ee.Err)
+		}
+	})
+	t.Run("timeout_err", func(t *testing.T) {
+		err := handleDecomposeError(&generate.RescueError{Kind: generate.ErrTimeout})
+		var ee *exitcode.ExitError
+		if !errors.As(err, &ee) {
+			t.Fatal("expected *exitcode.ExitError")
+		}
+		if ee.Code != exitcode.Timeout {
+			t.Errorf("Code = %d, want %d (Timeout=124)", ee.Code, exitcode.Timeout)
+		}
+		if ee.Err != nil {
+			t.Errorf("Err = %v, want nil (silent)", ee.Err)
+		}
+	})
+	t.Run("cas_err", func(t *testing.T) {
+		err := handleDecomposeError(&generate.CASError{})
+		var ee *exitcode.ExitError
+		if !errors.As(err, &ee) {
+			t.Fatal("expected *exitcode.ExitError")
+		}
+		if ee.Code != exitcode.Error {
+			t.Errorf("Code = %d, want %d (Error=1)", ee.Code, exitcode.Error)
+		}
+		if ee.Err != nil {
+			t.Errorf("Err = %v, want nil (silent)", ee.Err)
+		}
+	})
+	t.Run("planner_err", func(t *testing.T) {
+		wrapped := fmt.Errorf("%w: boom", decompose.ErrPlannerFailed)
+		err := handleDecomposeError(wrapped)
+		var ee *exitcode.ExitError
+		if !errors.As(err, &ee) {
+			t.Fatal("expected *exitcode.ExitError")
+		}
+		if ee.Code != exitcode.Error {
+			t.Errorf("Code = %d, want %d (Error=1)", ee.Code, exitcode.Error)
+		}
+		if ee.Err == nil {
+			t.Error("Err = nil, want non-nil (main prints)")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestRouting_SingleOptOut — --single on dirty/un-staged tree → v1 path, 1 commit
+// ---------------------------------------------------------------------------
+
+func TestRouting_SingleOptOut(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	repo := setupStubRepo(t, "feat: single opt out")
+	writeFile(t, repo, "uncommitted.txt", "changes")
+	// uncommitted.txt is NOT staged — the dirty-tree + nothing-staged condition for decompose.
+
+	beforeCount := len(strings.Split(gitOut(t, repo, "log", "--oneline"), "\n"))
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub", "--single"})
+
+	err := Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Execute err=%v, want nil (--single takes v1 path)", err)
+	}
+
+	afterCount := len(strings.Split(gitOut(t, repo, "log", "--oneline"), "\n"))
+	if afterCount != beforeCount+1 {
+		t.Errorf("commit count = %d, want %d (+1)", afterCount, beforeCount+1)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestRouting_DecomposeEntered — bare run on dirty/un-staged tree → decompose path
+// ---------------------------------------------------------------------------
+
+func TestRouting_DecomposeEntered(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	repo := setupStubRepo(t, "feat: decompose routing")
+	writeFile(t, repo, "decompose-me.txt", "changes")
+	// decompose-me.txt is NOT staged — should trigger decompose routing.
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub"})
+
+	err := Execute(context.Background())
+	if err == nil {
+		t.Fatal("Execute err=nil, want error (decompose path entered, ResolveRoles stager fallback fails)")
+	}
+
+	code := exitcode.For(err)
+	if code != exitcode.Error {
+		t.Errorf("exitcode.For(err) = %d, want %d (Error=1)", code, exitcode.Error)
+	}
+
+	// The error must mention "decompose" or "planner" — proving we entered the decompose path.
+	// GenerateCommit never calls ResolveRoles or the planner, so these errors are UNIQUE to decompose.
+	msg := err.Error()
+	if !strings.Contains(msg, "decompose") && !strings.Contains(strings.ToLower(msg), "planner") {
+		t.Errorf("err.Error() = %q, want to contain 'decompose' or 'planner' (decompose path)", msg)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // TestRunDefault_RepoLocalNoticeOnce_Issue5 proves Issue 5 is fixed: a repo-local .stagehand.toml
 // that sets provider prints the §19 notice "repo-local config (.stagehand.toml) sets provider to"
 // EXACTLY ONCE (strings.Count == 1; was 2 before S1/S2's single-Load fix).
