@@ -1,6 +1,9 @@
 package generate
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // FormatRescue implements PRD §18.3 / §9.10 FR44: assemble the rescue message
 // byte-for-byte for display when commit generation fails after the snapshot was taken.
@@ -65,6 +68,68 @@ func FormatRescue(treeSHA, parentSHA, candidateMsg string) string {
 
 	// Candidate note (§18.3 last paragraph): appended AFTER the closing separator with ONE blank
 	// line, iff a candidate message was produced but rejected (duplicate-exhaustion / parse).
+	if candidateMsg != "" {
+		b.WriteString("\n\nA candidate message was produced but rejected: \"")
+		b.WriteString(candidateMsg)
+		b.WriteString("\". You can use it manually in the command above.")
+	}
+
+	return b.String()
+}
+
+// FormatRescueMulti implements PRD §18.3's multi-commit variant (last ¶): when a single concept
+// fails mid-loop, the rescue is scoped to that concept's frozen tree[i]. It prints tree[i], its parent
+// (newSHA[i-1]), and the same commit-tree|update-ref recipe as FormatRescue — plus a concept-naming
+// header ("concept <index+1> of <count>: <title>") and a multi-commit reassurance line.
+// index is 0-based (printed 1-based); count is N. conceptTitle=="" omits the title suffix.
+// parentSHA=="" omits " -p <parent>" (root/unborn — mirrors git.CommitTree's root semantics).
+// candidateMsg!="" appends the §18.3 candidate note. No trailing newline (the caller's Fprintln adds it).
+// Reuses rescueSep (60 '-') + FormatRescue's recipe lines verbatim.
+func FormatRescueMulti(treeSHA, parentSHA, candidateMsg, conceptTitle string, index, count int) string {
+	var b strings.Builder
+
+	// Line 1 — concept-naming header.
+	b.WriteString("❌ Commit generation failed for concept ")
+	b.WriteString(strconv.Itoa(index + 1)) // 1-based for humans
+	b.WriteString(" of ")
+	b.WriteString(strconv.Itoa(count))
+	if conceptTitle != "" {
+		b.WriteString(": ")
+		b.WriteString(conceptTitle)
+	}
+	b.WriteString(".\n")
+	// Line 2 — separator.
+	b.WriteString(rescueSep)
+	b.WriteByte('\n')
+	// Line 3 — multi-commit reassurance (§18.3 multi-commit variant).
+	b.WriteString("Concepts already published are final and untouched. Remaining staged changes are safe in your index.\n")
+	// Line 4 — Tree ID.
+	b.WriteString("Tree ID: ")
+	b.WriteString(treeSHA)
+	b.WriteByte('\n')
+	// Line 5 — blank.
+	b.WriteByte('\n')
+	// Line 6 — manual-recovery header.
+	b.WriteString("To commit this concept's staged files manually:\n")
+	// Line 7 — the command (2 leading spaces; -p <parentSHA> omitted when root).
+	b.WriteString("  git commit-tree")
+	if parentSHA != "" {
+		b.WriteString(" -p ")
+		b.WriteString(parentSHA)
+	}
+	b.WriteString(` -m "Your message" `)
+	b.WriteString(treeSHA)
+	b.WriteString(" | xargs git update-ref HEAD")
+	b.WriteByte('\n')
+	// Line 8 — blank.
+	b.WriteByte('\n')
+	// Line 9 — first-commit hint (kept ALWAYS — mirrors FormatRescue).
+	b.WriteString(`(omit "-p <PARENT_SHA>" if this is the repository's first commit)`)
+	b.WriteByte('\n')
+	// Line 10 — closing separator.
+	b.WriteString(rescueSep)
+
+	// Candidate note (§18.3 last paragraph): same as FormatRescue.
 	if candidateMsg != "" {
 		b.WriteString("\n\nA candidate message was produced but rejected: \"")
 		b.WriteString(candidateMsg)

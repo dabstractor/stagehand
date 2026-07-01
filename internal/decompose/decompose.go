@@ -27,6 +27,7 @@ import (
 	"github.com/dustin/stagehand/internal/generate"
 	"github.com/dustin/stagehand/internal/git"
 	"github.com/dustin/stagehand/internal/prompt"
+	"github.com/dustin/stagehand/internal/signal"
 )
 
 // ErrDecomposeFailed is the sentinel for orchestrator-level INFRA failures not owned by a sibling
@@ -64,6 +65,36 @@ type CommitResult struct {
 type DecomposeResult struct {
 	Commits []CommitResult // the ordered commits created this run (oldest first)
 	Amended int            // arbiter rewrite count (0/1/N-i); see §G-RESULT for the post-arbiter gap
+}
+
+// DecomposeRescueError carries the partial result + concept context when message[i] generation fails
+// mid-loop (PRD §13.6.6 / §18.3 multi-commit variant / §9.14 FR-M12a). It wraps *generate.RescueError
+// (held as a field, NOT embedded — embedding would shadow Error/Unwrap) so errors.As to *RescueError
+// and errors.Is to generate.ErrRescue/ErrTimeout traverse the Unwrap chain for exit-code mapping
+// (exitcode.For → Rescue=3 / Timeout=124). Commits holds the already-published commits 0..i-1 (they
+// stand). The loop prints generate.FormatRescueMulti(...) to deps.Out BEFORE returning this.
+type DecomposeRescueError struct {
+	Rescue       *generate.RescueError // the concept-i failure: TreeSHA=tree[i], ParentSHA=newSHA[i-1], Candidate, Kind
+	ConceptTitle string                // concepts[i].Title — for the rescue header
+	Index        int                   // concept index i (0-based)
+	Count        int                   // total concept count N
+	Commits      []CommitResult        // partial commits 0..i-1 (already published — they stand)
+}
+
+func (e *DecomposeRescueError) Error() string {
+	if e.Rescue != nil {
+		return e.Rescue.Error()
+	}
+	return "decompose: concept generation failed"
+}
+
+// Unwrap returns the underlying *RescueError so errors.As(&re) + errors.Is(ErrRescue/ErrTimeout)
+// (→ exitcode 3/124) traverse the chain. nil-safe.
+func (e *DecomposeRescueError) Unwrap() error {
+	if e.Rescue != nil {
+		return e.Rescue
+	}
+	return nil
 }
 
 // msgOut carries the result of an in-flight generateMessage goroutine. It is unexported and scoped to
@@ -129,13 +160,16 @@ func Decompose(ctx context.Context, deps Deps) (DecomposeResult, error) {
 
 	// (5) Safety cap is enforced inside callPlanner (auto mode). Forced mode: user asserted N — no cap.
 
-	// (6) The loop (1-deep overlap, FR-M8 empty-skip, serialized CAS).
+	// (6) The loop (1-deep overlap, FR-M8 empty-skip, serialized CAS, FR-M12 isolation).
 	commits, chainData, err := runLoop(ctx, deps, out.Commits, baseTree, preRunHEAD, isUnborn)
 	if err != nil {
-		return DecomposeResult{}, err // *RescueError / *CASError / wrapped — propagated
+		// FR-M12: partial failures (rescue/CAS) AND hard failures return the partial commits that
+		// already landed (0..i-1). The arbiter does NOT run on a loop abort (§18.3).
+		return DecomposeResult{Commits: commits}, err
 	}
 
 	// (7)+(8) Arbiter gate: StatusPorcelain != "" → runArbiter → resolveArbiter.
+	// Happy path ONLY: the arbiter does NOT run on loop abort (rescue/CAS/hard error) — §18.3.
 	amended := 0
 	status, err := deps.Git.StatusPorcelain(ctx)
 	if err != nil {
@@ -214,16 +248,19 @@ func runSingleShortcut(ctx context.Context, deps Deps, plannerMsg, preRunHEAD st
 }
 
 // runLoop drives the per-concept pipeline with 1-DEEP overlap (stager[i+1] ∥ message[i]) + FR-M8
-// empty-skip + serialized CAS publication (PRD §13.6.3). It returns the ordered []CommitResult (oldest
-// first) + the parallel []ChainEntry (for resolveArbiter).
+// empty-skip + serialized CAS publication + FR-M12 per-concept failure isolation (PRD §13.6.3/§13.6.6).
+// It returns the ordered []CommitResult (oldest first) + the parallel []ChainEntry (for resolveArbiter).
+// On any error it returns the PARTIAL commits that already landed (0..i-1) — they are real and stand.
 //
-// Algorithm (§13.6.3): for each concept i — stage[i] (msg[i-1] in flight) → freeze tree[i] → FR-M8
-// skip check → drain+publish msg[i-1] (CAS) → launch msg[i]. Final: drain+publish msg[N-1].
+// Algorithm (§13.6.3 + FR-M12): for each concept i — stage[i] with retry-once-then-empty (msg[i-1] in
+// flight) → freeze tree[i] → FR-M8 skip check → drain+publish msg[i-1] (FR-M12a: *RescueError →
+// FormatRescueMulti + *DecomposeRescueError; FR-M12b: *CASError → ce.Error() + abort) → launch msg[i]
+// with signal armed (SetSnapshot). Final: drain+publish msg[N-1].
 //
 // Safety: message[i] uses diff(prevTree, tree[i]) — frozen, immune to the live index (§13.6.3 inv. 2).
 // Publication is strictly ordered (CAS chain). Channels are buffered(1) so goroutines never block on send.
-// On ANY error, drain the in-flight channel (<-ch) before returning (no leak). In S1 errors propagate
-// structurally; S2 (FR-M12) wraps the stage/message/publish seams with isolation.
+// On ANY error, drain the in-flight channel (<-ch) before returning (no leak). Signal uses SetSnapshot/
+// ClearSnapshot toggling (NOT RestoreDefault — one-shot+permanent, §G-RESTOREDEFAULT-ONESHOT).
 func runLoop(ctx context.Context, deps Deps, concepts []prompt.PlannerCommit, baseTree, preRunHEAD string, isUnborn bool) ([]CommitResult, []ChainEntry, error) {
 	var commits []CommitResult
 	var chainData []ChainEntry
@@ -241,17 +278,43 @@ func runLoop(ctx context.Context, deps Deps, concepts []prompt.PlannerCommit, ba
 	}
 
 	// publish drains a message channel + publishes the commit in order. Returns the newSHA + updated chain.
+	// FR-M12a: catches *RescueError → prints FormatRescueMulti + returns *DecomposeRescueError.
+	// FR-M12b: catches *CASError → prints ce.Error() + returns ce.
 	publish := func(ch chan msgOut) error {
 		if ch == nil {
 			return nil
 		}
 		res := <-ch
+		signal.ClearSnapshot() // disarm before the CAS (§18.4 analog; RestoreDefault is one-shot — see G-RESTOREDEFAULT)
 		if res.err != nil {
-			return res.err // *RescueError — propagate DIRECTLY (S2: rescue-for-concept-i)
+			var re *generate.RescueError
+			if errors.As(res.err, &re) {
+				// FR-M12a: message[i] failed → rescue for concept i ONLY. re.ParentSHA == newSHA[i-1]
+				// (generateMessage captured RevParseHEAD after commit[i-1] landed). Print the §18.3
+				// multi-commit variant (names the concept + position). The overlapped stager[i+1] has
+				// already completed (synchronous-before-drain) → its staging stays in the index.
+				title := ""
+				if res.conceptIdx < len(concepts) {
+					title = concepts[res.conceptIdx].Title
+				}
+				if deps.Out != nil {
+					fmt.Fprintln(deps.Out, generate.FormatRescueMulti(re.TreeSHA, re.ParentSHA, re.Candidate, title, res.conceptIdx, len(concepts)))
+				}
+				return &DecomposeRescueError{Rescue: re, ConceptTitle: title, Index: res.conceptIdx, Count: len(concepts), Commits: commits}
+			}
+			return res.err // HARD (ErrMessageFailed-wrapped infra) — propagate
 		}
 		newSHA, err := publishCommit(ctx, deps, res.treeB, prevSHA, res.msg) // parentSHA = prevSHA (CAS expected-old)
 		if err != nil {
-			return err // *CASError DIRECTLY (S2: abort-with-recovery)
+			var ce *generate.CASError
+			if errors.As(err, &ce) {
+				// FR-M12b: CAS failed → §13.5 message (ce.Error() has tree[i] recovery). Prior commits stand.
+				if deps.Out != nil {
+					fmt.Fprintln(deps.Out, ce.Error())
+				}
+				return ce // partial; DecomposeResult.Commits = commits (0..i-1)
+			}
+			return err // HARD (ErrPublicationFailed-wrapped CommitTree)
 		}
 		isRoot := res.conceptIdx == 0 && isUnborn
 		cr, err := buildCommitResult(ctx, deps, newSHA, res.msg, isRoot)
@@ -264,30 +327,51 @@ func runLoop(ctx context.Context, deps Deps, concepts []prompt.PlannerCommit, ba
 		return nil
 	}
 
+	// invokeStagerRetry: FR-M12d — stager exits non-zero → retry once; on second failure treat as empty
+	// (return nil → fall through to freezeSnapshot → tree[i]==prevTree → S1's empty-skip). Logs via Verbose.
+	// A cancelled ctx propagates (abort the loop) so the run doesn't silently skip every remaining concept.
+	invokeStagerRetry := func(concept prompt.PlannerCommit) error {
+		if cerr := ctx.Err(); cerr != nil {
+			return cerr // ctx cancelled/moved on → abort (drainMsg + return partial), not skip-everything
+		}
+		err := invokeStager(ctx, deps, concept)
+		if err == nil {
+			return nil
+		}
+		deps.Verbose.VerboseRetry(1, fmt.Sprintf("stager failed for %q; retrying once", concept.Title))
+		if err2 := invokeStager(ctx, deps, concept); err2 == nil {
+			return nil
+		}
+		deps.Verbose.VerboseRetry(2, fmt.Sprintf("stager failed twice for %q; treating concept as empty (FR-M8)", concept.Title))
+		return nil // empty: freezeSnapshot will yield tree[i]==prevTree → S1's empty-skip
+	}
+
 	var inflight chan msgOut // the in-flight message goroutine (concept i-1); nil if none
 	for i, concept := range concepts {
-		// stage[i] (msg[i-1] runs concurrently in `inflight` — the overlap). S1: propagate; S2: retry-once.
-		if err := invokeStager(ctx, deps, concept); err != nil {
-			drainMsg(inflight) // avoid goroutine leak
-			return nil, nil, err
+		// FR-M12d: stager retry-once-then-empty (replaces S1's single invokeStager + propagate).
+		if err := invokeStagerRetry(concept); err != nil {
+			drainMsg(inflight) // ctx cancellation (only non-nil return) — abort; partial commits stand
+			return commits, nil, err
 		}
 		treeI, err := freezeSnapshot(ctx, deps)
 		if err != nil {
 			drainMsg(inflight)
-			return nil, nil, fmt.Errorf("%w: freeze snapshot[%d]: %w", ErrDecomposeFailed, i, err)
+			return commits, nil, fmt.Errorf("%w: freeze snapshot[%d]: %w", ErrDecomposeFailed, i, err)
 		}
 
 		// FR-M8 empty-skip: stager staged nothing new → skip commit i (no message, no publish).
+		// Also the twice-failed-stager path (FR-M12d): invokeStagerRetry returned nil → nothing staged → tree[i]==prevTree.
 		skipped := treeI == prevTree
 
 		// Publish the PREVIOUS concept's commit (drain msg[i-1]) — serialized, in order.
 		if err := publish(inflight); err != nil {
-			return nil, nil, err
+			return commits, nil, err
 		}
 		inflight = nil
 
 		// Launch msg[i] (overlaps stage[i+1] in the NEXT iteration) unless this concept was skipped.
 		if !skipped {
+			signal.SetSnapshot(treeI, prevSHA, "") // arm rescue during msg[i] (§18.4; nil-safe without Install)
 			inflight = launch(i, prevTree, treeI)
 			prevTree = treeI
 		}
@@ -296,7 +380,7 @@ func runLoop(ctx context.Context, deps Deps, concepts []prompt.PlannerCommit, ba
 
 	// Drain + publish the final pending message.
 	if err := publish(inflight); err != nil {
-		return nil, nil, err
+		return commits, nil, err
 	}
 	return commits, chainData, nil
 }

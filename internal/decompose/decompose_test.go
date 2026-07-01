@@ -1,6 +1,7 @@
 package decompose
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -189,6 +190,20 @@ func dcmStagerSeam(t *testing.T, repo string, conceptFiles map[string][]string) 
 		}
 		return nil
 	}
+}
+
+// dcmOutBuffer returns a Deps with Out set to a *bytes.Buffer for capturing rescue/CAS output.
+func dcmOutBuffer(t *testing.T, repo string, roles RoleManifests) (Deps, *bytes.Buffer) {
+	t.Helper()
+	var buf bytes.Buffer
+	deps := Deps{
+		Git:     git.New(repo),
+		Config:  config.Defaults(),
+		Roles:   roles,
+		Verbose: nil,
+		Out:     &buf,
+	}
+	return deps, &buf
 }
 
 // --- Tests ---
@@ -691,19 +706,26 @@ func TestDecompose_ErrorPropagation_Stager(t *testing.T) {
 	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM}
 	deps := dcmDeps(t, repo, roles)
 	stagerErr := errors.New("stager injection error")
+	callCount := 0
 	deps.stager = func(ctx context.Context, deps Deps, concept prompt.PlannerCommit) error {
+		callCount++
 		return stagerErr
 	}
 
-	_, err := Decompose(context.Background(), deps)
-	if err == nil {
-		t.Fatal("expected stager error, got nil")
+	// S2 (FR-M12d): a stager that fails TWICE is treated as empty — the concept is skipped,
+	// no error is returned. The stager seam is called twice (retry-once).
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("expected no error (stager treated as empty), got %v", err)
 	}
-	if !errors.Is(err, stagerErr) {
-		t.Errorf("error = %v, want stager injection error", err)
+	if len(result.Commits) != 0 {
+		t.Fatalf("Commits len = %d, want 0 (stager failed → empty → skip)", len(result.Commits))
+	}
+	if callCount != 2 {
+		t.Errorf("stager call count = %d, want 2 (retry-once)", callCount)
 	}
 
-	// No commit should have been created (stager failed before any publish).
+	// No commit should have been created (stager failed → empty → skip).
 	if dcmLogCount(t, repo) != 0 {
 		t.Errorf("commit count = %d, want 0", dcmLogCount(t, repo))
 	}
@@ -796,6 +818,422 @@ func TestDecompose_Commits1_Mode(t *testing.T) {
 	}
 	if dcmLogCount(t, repo) != 1 {
 		t.Fatalf("commit count = %d, want 1", dcmLogCount(t, repo))
+	}
+}
+
+// TestDecompose_MessageRescuePartial (FR-M12a): 3 concepts; message stub times out for concept 1.
+// Asserts: partial DecomposeResult with commit[0], *DecomposeRescueError wrapping *RescueError,
+// errors.Is(generate.ErrRescue), FormatRescueMulti in deps.Out, arbiter NOT run.
+func TestDecompose_MessageRescuePartial(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+
+	// Create files for 3 concepts.
+	dcmWriteFile(t, repo, "a.txt", "aaa\n")
+	dcmWriteFile(t, repo, "b.txt", "bbb\n")
+	dcmWriteFile(t, repo, "c.txt", "ccc\n")
+
+	plannerJSON := `{"count":3,"single":false,"commits":[{"title":"c1","description":"a.txt"},{"title":"c2","description":"b.txt"},{"title":"c3","description":"c.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+
+	// Message stub: SleepMS > Timeout for concept 1 (index 1) to trigger timeout.
+	// Use a script that returns fast for concepts 0 and 2, and a slow-exit-1 for concept 1.
+	// Actually, simpler: use a script manifest. Concept 0 → "feat: add a" (success),
+	// concept 1 → times out (SleepMS > Timeout), concept 2 → should not be reached.
+	// The script responses are consumed in order by the message agent's retry loop.
+	// To make concept 1 fail, we use a message manifest with Exit=1 and SleepMS > config.Timeout.
+
+	// We need different behavior per concept index. Use the stager seam for staging
+	// and a message script that works for concept 0 and fails for concept 1.
+	// The message agent is called once per concept (MaxDuplicateRetries=0 for simplicity).
+
+	// Actually: generateMessage has its own retry loop. We need the message stub to fail
+	// for concept 1's generateMessage call. Let's use a call-counting approach.
+	callCount := 0
+	messageM := stubtest.NewScript(t, bin, []string{
+		"feat: add a", // concept 0: success
+		"",            // concept 1: empty → parse fail → RescueError (with MaxDuplicateRetries=0)
+		"feat: add c", // concept 2: would-be (not reached)
+	})
+
+	cfg := config.Defaults()
+	cfg.MaxDuplicateRetries = 0 // fail immediately on parse failure
+
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+
+	// Arbiter counter: should NOT be called on rescue.
+	counterDir := t.TempDir()
+	counterFile := counterDir + "/counter"
+	arbiterM := stubtest.Manifest(bin, stubtest.Options{Script: counterDir + "/script.txt", Counter: counterFile})
+
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
+	deps, buf := dcmOutBuffer(t, repo, roles)
+	deps.Config = cfg
+	_ = callCount // not used
+
+	// Stager seam: stages files for each concept. c2 (concept 1, the failing one) still stages.
+	deps.stager = dcmStagerSeam(t, repo, map[string][]string{
+		"c1": {"a.txt"},
+		"c2": {"b.txt"},
+		"c3": {"c.txt"},
+	})
+
+	result, err := Decompose(context.Background(), deps)
+	if err == nil {
+		t.Fatal("expected error (message rescue for concept 1), got nil")
+	}
+
+	// (a) errors.As → *DecomposeRescueError
+	var dre *DecomposeRescueError
+	if !errors.As(err, &dre) {
+		t.Fatalf("error = %v, want *DecomposeRescueError", err)
+	}
+
+	// (b) errors.As → *generate.RescueError (via Unwrap)
+	var re *generate.RescueError
+	if !errors.As(err, &re) {
+		t.Fatalf("error does not unwrap to *RescueError: %v", err)
+	}
+
+	// (c) errors.Is → generate.ErrRescue (→ exitcode 3)
+	if !errors.Is(err, generate.ErrRescue) {
+		t.Errorf("error is not ErrRescue: %v", err)
+	}
+
+	// (d) partial commits: exactly 1 (commit 0)
+	if len(result.Commits) != 1 {
+		t.Fatalf("Commits len = %d, want 1 (only concept 0 landed)", len(result.Commits))
+	}
+	if result.Commits[0].Subject != "feat: add a" {
+		t.Errorf("Commits[0].Subject = %q, want %q", result.Commits[0].Subject, "feat: add a")
+	}
+
+	// (d) git log shows exactly 1 commit
+	if dcmLogCount(t, repo) != 1 {
+		t.Fatalf("git log count = %d, want 1", dcmLogCount(t, repo))
+	}
+
+	// (e) deps.Out contains FormatRescueMulti output naming "concept 2 of 3"
+	out := buf.String()
+	if !strings.Contains(out, "concept 2 of 3") {
+		t.Errorf("rescue output missing 'concept 2 of 3'; got: %s", out)
+	}
+	if !strings.Contains(out, "update-ref HEAD") {
+		t.Errorf("rescue output missing 'update-ref HEAD'; got: %s", out)
+	}
+
+	// (f) arbiter NOT called
+	data, err := os.ReadFile(counterFile)
+	if err == nil {
+		count := strings.TrimSpace(string(data))
+		if count != "" && count != "0" {
+			t.Errorf("arbiter call count = %q, want 0 (rescue should skip arbiter)", count)
+		}
+	}
+}
+
+// TestDecompose_CASAbortPartial (FR-M12b): the stager seam moves HEAD between concept 0's
+// publication and concept 1's publication, so publishCommit[1]'s CAS fails.
+// Strategy: concept 0 publishes normally; concept 1's message generation uses treeA/treeB.
+// We inject a HEAD move DURING the message generation for concept 1 (via the message
+// script's STAGEHAND_STUB_SLEEP_MS) by running a background goroutine that waits a bit
+// then moves HEAD. This ensures HEAD has moved by the time publishCommit[1] runs its CAS.
+// Actually, simpler: use a 3-concept run where the stager for concept 2 moves HEAD
+// BEFORE the freeze for concept 1's publish.
+//
+// Simplest approach: 2 concepts, stager for c2 moves HEAD during concept 1's stager phase.
+// The loop: stage c1 → freeze → (no inflight) → stage c2 (HEAD moved here) → freeze →
+// publish msg c1 (CAS for msg c1: expected=HEAD-at-c1-commit, actual=HEAD-moved-by-c2-stager).
+func TestDecompose_CASAbortPartial(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+
+	// Create files for 3 concepts. Concept 1 (c2) is where the HEAD move will happen.
+	dcmWriteFile(t, repo, "a.txt", "aaa\n")
+	dcmWriteFile(t, repo, "b.txt", "bbb\n")
+	dcmWriteFile(t, repo, "c.txt", "ccc\n")
+
+	plannerJSON := `{"count":3,"single":false,"commits":[{"title":"c1","description":"a.txt"},{"title":"c2","description":"b.txt"},{"title":"c3","description":"c.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add a", "feat: add b", "feat: add c"})
+
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+
+	// Arbiter counter: should NOT be called on CAS abort.
+	counterDir := t.TempDir()
+	counterFile := counterDir + "/counter"
+	arbiterM := stubtest.Manifest(bin, stubtest.Options{Script: counterDir + "/script.txt", Counter: counterFile})
+
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
+	deps, buf := dcmOutBuffer(t, repo, roles)
+
+	// Stager seam: moves HEAD for concept c3 (index 2). This means:
+	//   iter 0: stage c1, freeze, no inflight → skip launch c1... wait, concept 0 launches msg.
+	//   Actually: iter 0: stage c1 → freeze tree0 → no inflight → publish(nil) → launch msg[0]
+	//   iter 1: stage c2 → freeze tree1 → publish(msg[0]) → launch msg[1]
+	//   iter 2: stage c3 (HEAD move here) → freeze tree2 → publish(msg[1]) → CAS fails for msg[1]
+	//
+	//   publish(msg[1]): expected prevSHA = newSHA[1], but HEAD was moved during c3's stager.
+	//   Wait, the HEAD move is during c3's stager, which runs BEFORE freeze tree2 and publish msg[1].
+	//   So when publish(msg[1]) runs, HEAD != newSHA[1] (it was moved) → CAS failure.
+	//   And newSHA[1] was already committed (from publish(msg[0])'s iteration).
+	//
+	//   Actually: publish(msg[1]) happens when we drain msg[1]'s channel. msg[1] was launched
+	//   at the end of iter 1 (concept c2). So msg[1] is concept 2's message (feat: add b).
+	//   The CAS for msg[1] expects prevSHA = newSHA[1]. But newSHA[1] hasn't been set yet —
+	//   that's the CAS from publish(msg[0]) which published concept 1 (c2). Let me re-think.
+	//
+	//   Loop iteration 0 (c1): stage c1, freeze tree0, publish(nil)=nil, launch msg[0] (c1).
+	//   Loop iteration 1 (c2): stage c2, freeze tree1, publish(msg[0]) → publishCommit(tree0, prevSHA, msg0)
+	//     → newSHA = commit for c1 → prevSHA updated → launch msg[1] (c2).
+	//   Loop iteration 2 (c3): stage c3 [HEAD MOVE HERE], freeze tree2, publish(msg[1])
+	//     → publishCommit(tree1, prevSHA=newSHA[0], msg1) → CAS: expected=newSHA[0], actual=HEAD-moved → FAIL
+	//   So: 1 commit landed (c1), CAS fails on c2. Partial = 1 commit.
+	deps.stager = func(ctx context.Context, d Deps, concept prompt.PlannerCommit) error {
+		files := map[string][]string{"c1": {"a.txt"}, "c2": {"b.txt"}, "c3": {"c.txt"}}
+		fl, ok := files[concept.Title]
+		if ok && len(fl) > 0 {
+			for _, f := range fl {
+				dcmRunGit(t, repo, "add", f)
+			}
+		}
+		// Move HEAD for concept c3 — this shifts HEAD away from what publishCommit expects.
+		if concept.Title == "c3" {
+			dcmRunGit(t, repo, "commit", "--allow-empty", "-m", "external head move")
+		}
+		return nil
+	}
+
+	result, err := Decompose(context.Background(), deps)
+	if err == nil {
+		t.Fatal("expected CAS error, got nil")
+	}
+
+	// (a) errors.As → *generate.CASError
+	var ce *generate.CASError
+	if !errors.As(err, &ce) {
+		t.Fatalf("error = %v, want *generate.CASError", err)
+	}
+
+	// (b) errors.Is → git.ErrCASFailed → exitcode 1
+	if !errors.Is(err, git.ErrCASFailed) {
+		t.Errorf("error is not ErrCASFailed: %v", err)
+	}
+
+	// (c) deps.Out contains "HEAD moved"
+	out := buf.String()
+	if !strings.Contains(out, "HEAD moved") {
+		t.Errorf("CAS output missing 'HEAD moved'; got: %s", out)
+	}
+
+	// (d) partial commits: exactly 1 (concept c1 landed before CAS failure on c2's publish)
+	if len(result.Commits) != 1 {
+		t.Fatalf("Commits len = %d, want 1 (only c1 landed before CAS failure)", len(result.Commits))
+	}
+
+	// (e) arbiter NOT called
+	data, aerr := os.ReadFile(counterFile)
+	if aerr == nil {
+		count := strings.TrimSpace(string(data))
+		if count != "" && count != "0" {
+			t.Errorf("arbiter call count = %q, want 0 (CAS abort should skip arbiter)", count)
+		}
+	}
+}
+
+// TestDecompose_StagerRetryThenEmpty (FR-M12d): stager seam fails twice for concept 1,
+// succeeds for others. Asserts: concept 1 skipped (≤N commits), stager called twice for c2,
+// loop continued.
+func TestDecompose_StagerRetryThenEmpty(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+
+	// Create files for c1 and c3 only. c2's stager fails, so no file for c2 is created.
+	dcmWriteFile(t, repo, "a.txt", "aaa\n")
+	dcmWriteFile(t, repo, "c.txt", "ccc\n")
+
+	plannerJSON := `{"count":3,"single":false,"commits":[{"title":"c1","description":"a.txt"},{"title":"c2","description":"b.txt"},{"title":"c3","description":"c.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add a", "feat: add c"})
+
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+	arbiterM := dcmArbiterManifest(t, bin, `{"target": null}`)
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
+	deps := dcmDeps(t, repo, roles)
+
+	// Stager seam: fails twice for concept c2, succeeds for others.
+	stagerCalls := map[string]int{}
+	deps.stager = func(ctx context.Context, d Deps, concept prompt.PlannerCommit) error {
+		stagerCalls[concept.Title]++
+		if concept.Title == "c2" && stagerCalls[concept.Title] <= 2 {
+			return errors.New("simulated stager failure")
+		}
+		// Stage real files for non-failing concepts.
+		files := map[string][]string{"c1": {"a.txt"}, "c3": {"c.txt"}}
+		fl, ok := files[concept.Title]
+		if ok && len(fl) > 0 {
+			for _, f := range fl {
+				dcmRunGit(t, repo, "add", f)
+			}
+		}
+		return nil
+	}
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(stager retry): %v", err)
+	}
+
+	// (a) concept c2 skipped: 2 commits (c1 + c3), not 3.
+	if len(result.Commits) != 2 {
+		t.Fatalf("Commits len = %d, want 2 (c2 skipped)", len(result.Commits))
+	}
+
+	// (b) stager called exactly twice for concept c2 (retry-once).
+	if stagerCalls["c2"] != 2 {
+		t.Errorf("c2 stager calls = %d, want 2 (retry-once)", stagerCalls["c2"])
+	}
+
+	// (d) the loop continued: c3 was committed.
+	if result.Commits[1].Subject != "feat: add c" {
+		t.Errorf("Commits[1].Subject = %q, want %q", result.Commits[1].Subject, "feat: add c")
+	}
+
+	// Verify git: 2 commits.
+	if dcmLogCount(t, repo) != 2 {
+		t.Fatalf("git log count = %d, want 2", dcmLogCount(t, repo))
+	}
+}
+
+// TestDecomposeRescueError_ExitCode verifies the Unwrap chain for exitcode.For mapping.
+func TestDecomposeRescueError_ExitCode(t *testing.T) {
+	// DecomposeRescueError → *RescueError → Kind: ErrRescue → exit 3
+	dre1 := &DecomposeRescueError{Rescue: &generate.RescueError{Kind: generate.ErrRescue}}
+	if !errors.Is(dre1, generate.ErrRescue) {
+		t.Error("errors.Is(DecomposeRescueError{ErrRescue}, ErrRescue) = false, want true")
+	}
+
+	// DecomposeRescueError → *RescueError → Kind: ErrTimeout → exit 124
+	dre2 := &DecomposeRescueError{Rescue: &generate.RescueError{Kind: generate.ErrTimeout}}
+	if !errors.Is(dre2, generate.ErrTimeout) {
+		t.Error("errors.Is(DecomposeRescueError{ErrTimeout}, ErrTimeout) = false, want true")
+	}
+
+	// errors.As to *RescueError traverses Unwrap
+	var re *generate.RescueError
+	if !errors.As(dre1, &re) {
+		t.Error("errors.As(DecomposeRescueError, &*RescueError) = false, want true")
+	}
+
+	// errors.As to *CASError → git.ErrCASFailed → exit 1
+	ce := &generate.CASError{}
+	if !errors.Is(ce, git.ErrCASFailed) {
+		t.Error("errors.Is(CASError, git.ErrCASFailed) = false, want true")
+	}
+}
+
+// TestDecompose_RescueArbiterSkipped is a focused assertion that the arbiter does NOT run after
+// a FR-M12a rescue (covered by TestDecompose_MessageRescuePartial's arbiter-count==0;
+// this test is a focused sub-assertion for clarity).
+func TestDecompose_RescueArbiterSkipped(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+	dcmWriteFile(t, repo, "a.txt", "aaa\n")
+	dcmWriteFile(t, repo, "b.txt", "bbb\n")
+
+	plannerJSON := `{"count":2,"single":false,"commits":[{"title":"c1","description":"a.txt"},{"title":"c2","description":"b.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+
+	// Message stub: concept 0 succeeds, concept 1 fails (empty output → parse fail → RescueError).
+	messageM := stubtest.NewScript(t, bin, []string{"feat: add a", ""})
+	cfg := config.Defaults()
+	cfg.MaxDuplicateRetries = 0
+
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+
+	// Arbiter with a counter — MUST be 0.
+	counterDir := t.TempDir()
+	counterFile := counterDir + "/counter"
+	arbiterM := stubtest.Manifest(bin, stubtest.Options{Script: counterDir + "/script.txt", Counter: counterFile})
+
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
+	deps, _ := dcmOutBuffer(t, repo, roles)
+	deps.Config = cfg
+	deps.stager = dcmStagerSeam(t, repo, map[string][]string{
+		"c1": {"a.txt"},
+		"c2": {"b.txt"},
+	})
+
+	result, err := Decompose(context.Background(), deps)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	// Must be a rescue error (not some other failure).
+	var dre *DecomposeRescueError
+	if !errors.As(err, &dre) {
+		t.Fatalf("expected *DecomposeRescueError, got %v", err)
+	}
+
+	// 1 commit landed (concept 0).
+	if len(result.Commits) != 1 {
+		t.Fatalf("Commits len = %d, want 1", len(result.Commits))
+	}
+
+	// Arbiter was NOT called.
+	data, aerr := os.ReadFile(counterFile)
+	if aerr == nil {
+		count := strings.TrimSpace(string(data))
+		if count != "" && count != "0" {
+			t.Errorf("arbiter call count = %q, want 0", count)
+		}
+	}
+}
+
+// TestDecompose_StagerRetryThenSuccess (FR-M12d variant): stager fails once then succeeds.
+func TestDecompose_StagerRetryThenSuccess(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+	dcmWriteFile(t, repo, "a.txt", "aaa\n")
+
+	plannerJSON := `{"count":1,"single":false,"commits":[{"title":"c1","description":"a.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+	messageM := dcmMessageManifest(t, bin, "feat: add a")
+
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM}
+	deps := dcmDeps(t, repo, roles)
+
+	stagerCalls := 0
+	deps.stager = func(ctx context.Context, d Deps, concept prompt.PlannerCommit) error {
+		stagerCalls++
+		if stagerCalls == 1 {
+			return errors.New("first failure")
+		}
+		// Second call succeeds: stage the file.
+		dcmRunGit(t, repo, "add", "a.txt")
+		return nil
+	}
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(retry-then-success): %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("Commits len = %d, want 1", len(result.Commits))
+	}
+	if result.Commits[0].Subject != "feat: add a" {
+		t.Errorf("Subject = %q, want %q", result.Commits[0].Subject, "feat: add a")
+	}
+	if stagerCalls != 2 {
+		t.Errorf("stager call count = %d, want 2 (fail once, succeed on retry)", stagerCalls)
+	}
+	if dcmLogCount(t, repo) != 1 {
+		t.Fatalf("git log count = %d, want 1", dcmLogCount(t, repo))
 	}
 }
 

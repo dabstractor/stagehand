@@ -552,7 +552,7 @@
       "type": "Phase",
       "id": "P3",
       "title": "Multi-Commit Decomposition",
-      "status": "Researching",
+      "status": "Complete",
       "description": "Implement the full decompose pipeline: decomposition prompts (planner, stager, arbiter), the plan→stage→generate→commit loop with overlapped staging/generation, the arbiter for leftover reconciliation, mid-chain rebuild, and per-concept failure isolation. This is the headline v2 feature (§13.6).",
       "milestones": [
         {
@@ -827,14 +827,14 @@
           "type": "Milestone",
           "id": "P3.M4",
           "title": "Decompose Orchestrator & Failure Handling",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Implement the top-level Decompose() orchestrator that ties together the planner→stager→message→arbiter pipeline, enforces the safety cap, handles the single-shortcut, and implements per-concept failure isolation (rescue for concept i only, prior commits stand).",
           "tasks": [
             {
               "type": "Task",
               "id": "P3.M4.T1",
               "title": "Decompose orchestrator + failure handling",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Implement the Decompose() function that orchestrates the full pipeline: trigger detection, planner call, the stage→snapshot→generate→commit loop with overlap, arbiter, and all failure paths.",
               "subtasks": [
                 {
@@ -865,7 +865,7 @@
                   "type": "Subtask",
                   "id": "P3.M4.T1.S2",
                   "title": "Implement per-concept failure isolation (FR-M12) + multi-commit rescue variant",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P3.M4.T1.S1"
@@ -899,21 +899,21 @@
           "type": "Milestone",
           "id": "P4.M1",
           "title": "CLI Flags & Default Action Routing",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Add the new global flags (--commits, --single/--no-decompose, --max-commits, per-role flags) and update the default action to route to Decompose when nothing is staged.",
           "tasks": [
             {
               "type": "Task",
               "id": "P4.M1.T1",
               "title": "New CLI flags + default action decompose routing",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Register all new flags in root.go's init(), and update default_action.go to route to decompose when nothing is staged (FR-M1), keeping the single-commit path unchanged when something is staged.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P4.M1.T1.S1",
                   "title": "Add --commits/--single/--max-commits + per-role flags to root.go + update default_action routing",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P3.M4.T1.S1",

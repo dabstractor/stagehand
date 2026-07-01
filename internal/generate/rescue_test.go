@@ -203,7 +203,71 @@ func TestFormatRescue_Properties(t *testing.T) {
 	}
 }
 
-// TestFormatRescue_RescueSepLen pins the separator constant to exactly 60 hyphens.
+// TestFormatRescueMulti_TitledRooted asserts the FULL assembled multi-commit rescue for the
+// titled+rooted case (concept 2 of 3, with parent, no candidate). Independently derived from PRD §18.3.
+func TestFormatRescueMulti_TitledRooted(t *testing.T) {
+	treeSHA, parentSHA := "9f3a1c", "abc1234"
+	sep := strings.Repeat("-", 60)
+	want := "❌ Commit generation failed for concept 2 of 3: feat: add b.\n" +
+		sep + "\n" +
+		"Concepts already published are final and untouched. Remaining staged changes are safe in your index.\n" +
+		"Tree ID: " + treeSHA + "\n" +
+		"\n" +
+		"To commit this concept's staged files manually:\n" +
+		"  git commit-tree -p " + parentSHA + ` -m "Your message" ` + treeSHA + " | xargs git update-ref HEAD\n" +
+		"\n" +
+		`(omit "-p <PARENT_SHA>" if this is the repository's first commit)` + "\n" +
+		sep // NO trailing newline
+	got := FormatRescueMulti(treeSHA, parentSHA, "", "feat: add b", 1, 3)
+	if got != want {
+		t.Errorf("FormatRescueMulti titled/rooted mismatch:\n--- got ---\n%q\n--- want ---\n%q", got, want)
+	}
+}
+
+// TestFormatRescueMulti_RootlessNoTitle asserts the root/unborn case with no concept title.
+func TestFormatRescueMulti_RootlessNoTitle(t *testing.T) {
+	treeSHA := "9f3a1c"
+	sep := strings.Repeat("-", 60)
+	want := "❌ Commit generation failed for concept 1 of 2.\n" +
+		sep + "\n" +
+		"Concepts already published are final and untouched. Remaining staged changes are safe in your index.\n" +
+		"Tree ID: " + treeSHA + "\n" +
+		"\n" +
+		"To commit this concept's staged files manually:\n" +
+		`  git commit-tree -m "Your message" ` + treeSHA + " | xargs git update-ref HEAD\n" +
+		"\n" +
+		`(omit "-p <PARENT_SHA>" if this is the repository's first commit)` + "\n" +
+		sep
+	got := FormatRescueMulti(treeSHA, "", "", "", 0, 2)
+	if got != want {
+		t.Errorf("FormatRescueMulti rootless/no-title mismatch:\n--- got ---\n%q\n--- want ---\n%q", got, want)
+	}
+}
+
+// TestFormatRescueMulti_WithCandidate asserts the candidate note is appended after the closing sep.
+func TestFormatRescueMulti_WithCandidate(t *testing.T) {
+	treeSHA, parentSHA := "9f3a1c", "abc1234"
+	candidate := "feat: add c"
+	sep := strings.Repeat("-", 60)
+	want := "❌ Commit generation failed for concept 3 of 3: fix: something.\n" +
+		sep + "\n" +
+		"Concepts already published are final and untouched. Remaining staged changes are safe in your index.\n" +
+		"Tree ID: " + treeSHA + "\n" +
+		"\n" +
+		"To commit this concept's staged files manually:\n" +
+		"  git commit-tree -p " + parentSHA + ` -m "Your message" ` + treeSHA + " | xargs git update-ref HEAD\n" +
+		"\n" +
+		`(omit "-p <PARENT_SHA>" if this is the repository's first commit)` + "\n" +
+		sep +
+		"\n\n" +
+		`A candidate message was produced but rejected: "feat: add c". You can use it manually in the command above.`
+	got := FormatRescueMulti(treeSHA, parentSHA, candidate, "fix: something", 2, 3)
+	if got != want {
+		t.Errorf("FormatRescueMulti with-candidate mismatch:\n--- got ---\n%q\n--- want ---\n%q", got, want)
+	}
+}
+
+// TestFormatRescue_Properties pins the separator constant to exactly 60 hyphens.
 func TestFormatRescue_RescueSepLen(t *testing.T) {
 	if len(rescueSep) != 60 {
 		t.Errorf("rescueSep length = %d, want 60", len(rescueSep))
