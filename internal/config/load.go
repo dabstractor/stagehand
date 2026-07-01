@@ -23,6 +23,7 @@ type LoadOpts struct {
 	ConfigPathOverride string         // from --config (CLI); "" => fall back to STAGEHAND_CONFIG, then discovery
 	RepoDir            string         // repo root for git config (passed to loadGitConfig); "" is valid for tests
 	Flags              *pflag.FlagSet // cobra/pflag set; nil => skip the CLI-flag layer
+	DisableBootstrap   bool           // TEST-ONLY seam (FR-B3): true => skip the first-run auto-write. Production never sets it.
 }
 
 // setRoleProvider sets the Provider field for a role in cfg.Roles, lazily allocating the map.
@@ -94,6 +95,19 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 		overlay(&cfg, g)
 	} else if explicit {
 		return nil, fmt.Errorf("config file not found: %s", globalPath)
+	} else if !opts.DisableBootstrap {
+		// FR-B3 first-run fallback (P1.M4.T4.S1): no global config AND no explicit override → auto-write
+		// the populated bootstrap config, notice the path, then load it as Layer 2.
+		if err := bootstrapWriteConfig(globalPath); err != nil {
+			return nil, fmt.Errorf("bootstrap config: %w", err)
+		}
+		fmt.Fprintf(noticeOut, "stagehand: wrote bootstrap config to %s\n", globalPath)
+		if g, err := loadTOML(globalPath); err != nil {
+			return nil, fmt.Errorf("global config: %w", err)
+		} else if g != nil {
+			fileLoaded = true
+			overlay(&cfg, g)
+		}
 	}
 
 	// Layer 3: repo-local TOML (CWD .stagehand.toml; emits the §19 notice). nil => absent.

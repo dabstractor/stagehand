@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Foundation — Provider, Manifest & Config V2",
-      "status": "Researching",
+      "status": "Complete",
       "description": "Extend the provider manifest system and config layer to support all v2 prerequisites: tooled mode (tooled_flags), the agy provider, cascading provider priority, decoupled pi defaults, per-role provider/model configuration, tier-based default models, config schema versioning, and a populated config bootstrap. These are the foundational layers that the decompose pipeline (P3) and CLI integration (P4) depend on.",
       "milestones": [
         {
@@ -290,7 +290,7 @@
           "type": "Milestone",
           "id": "P1.M4",
           "title": "Config Bootstrap & Schema Versioning",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Implement config schema versioning with advisory warnings (FR-B4), rewrite config init to write a populated working config (FR-B1/B2), add config upgrade (FR-B5), add first-run fallback (FR-B3), and fix help de-duplication (FR-B6).",
           "tasks": [
             {
@@ -376,14 +376,14 @@
               "type": "Task",
               "id": "P1.M4.T4",
               "title": "First-run fallback (FR-B3)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "If stagehand starts with no global config and no STAGEHAND_CONFIG, auto-write the bootstrap config once, print a notice with the path, and continue.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T4.S1",
                   "title": "Implement first-run auto-bootstrap fallback",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M4.T2.S1"
@@ -425,7 +425,7 @@
                   "type": "Subtask",
                   "id": "P2.M1.T1.S1",
                   "title": "Implement binary detection (numstat + denylist) + placeholder line in internal/git/binary.go",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 2,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR3a: primary signal is `git diff --cached --numstat` which emits `-\\t-\\t<path>` for binary files. Supplemented by extension denylist: png jpg jpeg gif webp bmp ico svgz pdf zip tar gz tgz bz2 7z rar exe dll so dylib o class jar war wasm a mp3 mp4 mov avi mkv flac ogg wav ttf otf woff woff2. FR3b: placeholder is `<status>\\t[binary] <path>` where status from `git diff --cached --name-status`. The existing StagedDiff in internal/git/git.go captures markdown per-file then non-markdown aggregate with caps/excludes. Binary files currently produce useless 'Binary files a/… and b/… differ' hunks.\n2. INPUT: The existing gitRunner.run() helper and StagedDiffOptions struct in internal/git/git.go.\n3. LOGIC: Create internal/git/binary.go. Implement `defaultBinaryExtensions` (the denylist as a set). Implement `isBinaryByExtension(path string, extraExts []string) bool`. Implement `(g *gitRunner) detectBinaryFiles(ctx, diffArgs ...string) (map[string]bool, error)` — runs `git diff <diffArgs> --numstat`, parses lines where added==\"-\" and deleted==\"-\" as binary, unions with extension check. Implement `binaryPlaceholderLine(status, path string) string` returning `\"<status>\\t[binary] <path>\"`. Also implement `(g *gitRunner) fileStatuses(ctx, diffArgs ...string) (map[string]string, error)` running `git diff <diffArgs> --name-status` to get A/M/D/R/T per path.\n4. OUTPUT: Pure functions and gitRunner methods for binary detection and placeholder generation. These are consumed by StagedDiff (S2), WorkingTreeDiff (P2.M2.T2.S2), and TreeDiff (P2.M2.T1.S2).\n5. DOCS: [Mode A] Add a doc comment to binary.go explaining the two-signal detection strategy and the placeholder format per FR3a/b/c.",

@@ -228,12 +228,13 @@ func TestRoot_LoadsConfigAndRunsStub(t *testing.T) {
 	if cfg == nil {
 		t.Fatal("Config() returned nil, want non-nil")
 	}
-	// Defaults: Timeout=120s, Provider=""
+	// FR-B3 (P1.M4.T4.S1): the bootstrap fires on first run with no config file,
+	// so Provider is now the bootstrap target ("pi" or auto-detected) instead of "".
 	if cfg.Timeout != 120*time.Second {
 		t.Errorf("Timeout=%v, want 120s (default)", cfg.Timeout)
 	}
-	if cfg.Provider != "" {
-		t.Errorf("Provider=%q, want empty (default)", cfg.Provider)
+	if cfg.Provider == "" {
+		t.Errorf("Provider=%q, want non-empty (FR-B3 bootstrap writes provider)", cfg.Provider)
 	}
 }
 

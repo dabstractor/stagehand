@@ -454,7 +454,7 @@ func TestLoad_DefaultsOnly(t *testing.T) {
 	_, repo, _ := loadEnvSetup(t)
 	chdir(t, repo)
 
-	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
 	if err != nil {
 		t.Fatalf("Load err=%v", err)
 	}
@@ -773,7 +773,7 @@ func TestLoad_DiscoveryMissingFileOK(t *testing.T) {
 	// Discovery should tolerate absence (contract preserved).
 	os.Unsetenv("STAGEHAND_CONFIG")
 
-	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
 	if err != nil {
 		t.Fatalf("Load err=%v, want nil (discovery tolerates absent global file)", err)
 	}
@@ -1135,7 +1135,7 @@ func TestLoad_ConfigVersionAdvisory_NoFile(t *testing.T) {
 	noticeOut = &buf
 	defer func() { noticeOut = origNoticeOut }()
 
-	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
 	if err != nil {
 		t.Fatalf("Load err=%v", err)
 	}
@@ -1145,5 +1145,175 @@ func TestLoad_ConfigVersionAdvisory_NoFile(t *testing.T) {
 	got := buf.String()
 	if got != "" {
 		t.Errorf("advisory = %q, want empty (fileLoaded guard — no file loaded)", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Load — FR-B3 first-run bootstrap fallback tests (P1.M4.T4.S1)
+// ---------------------------------------------------------------------------
+
+func TestLoad_FirstRun_BootstrapsConfig(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+	// No config file exists — the bootstrap should write one.
+
+	// Capture notice output
+	origNoticeOut := noticeOut
+	var buf strings.Builder
+	noticeOut = &buf
+	defer func() { noticeOut = origNoticeOut }()
+
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+
+	// File must have been written
+	path := globalConfigPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("bootstrap config not found at %s: %v", path, err)
+	}
+
+	// notice must contain the path
+	got := buf.String()
+	if !strings.Contains(got, "wrote bootstrap config to") {
+		t.Errorf("notice = %q, want to contain 'wrote bootstrap config to'", got)
+	}
+	if !strings.Contains(got, path) {
+		t.Errorf("notice = %q, want to contain path %s", got, path)
+	}
+
+	// Config should have a non-empty provider (bootstrap writes "pi" or detected)
+	if cfg.Provider == "" {
+		t.Errorf("Provider=%q, want non-empty (bootstrap writes provider)", cfg.Provider)
+	}
+
+	// ConfigVersion must be CurrentConfigVersion (no advisory)
+	if cfg.ConfigVersion != CurrentConfigVersion {
+		t.Errorf("ConfigVersion=%d, want %d (bootstrap writes current)", cfg.ConfigVersion, CurrentConfigVersion)
+	}
+
+	// The written file must contain config_version = 2
+	if !strings.Contains(string(data), "config_version = 2") {
+		t.Error("bootstrap config missing config_version = 2")
+	}
+
+	// Re-loading should find the file (no error, no new notice)
+	buf.Reset()
+	cfg2, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err != nil {
+		t.Fatalf("re-Load err=%v", err)
+	}
+	if cfg2 == nil {
+		t.Fatal("re-Load cfg=nil")
+	}
+	// Second load should NOT print bootstrap notice (file already exists)
+	if strings.Contains(buf.String(), "wrote bootstrap config") {
+		t.Error("second Load should not print bootstrap notice (file already exists)")
+	}
+}
+
+func TestLoad_Bootstrap_SkippedWhenExplicit(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+
+	// Capture notice
+	origNoticeOut := noticeOut
+	var buf strings.Builder
+	noticeOut = &buf
+	defer func() { noticeOut = origNoticeOut }()
+
+	// --config pointing to a missing file — should error, NOT bootstrap
+	missing := filepath.Join(t.TempDir(), "missing.toml")
+	_, err := Load(context.Background(), LoadOpts{ConfigPathOverride: missing, RepoDir: repo})
+	if err == nil {
+		t.Fatal("expected error for explicit missing path")
+	}
+	if !strings.Contains(err.Error(), "config file not found") {
+		t.Errorf("err=%v, want 'config file not found'", err)
+	}
+	// NO bootstrap notice
+	if strings.Contains(buf.String(), "wrote bootstrap config") {
+		t.Error("explicit missing should NOT trigger bootstrap")
+	}
+
+	// STAGEHAND_CONFIG pointing to missing file — should error, NOT bootstrap
+	buf.Reset()
+	missing2 := filepath.Join(t.TempDir(), "missing2.toml")
+	t.Setenv("STAGEHAND_CONFIG", missing2)
+	_, err = Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err == nil {
+		t.Fatal("expected error for STAGEHAND_CONFIG missing path")
+	}
+	if !strings.Contains(err.Error(), "config file not found") {
+		t.Errorf("err=%v, want 'config file not found'", err)
+	}
+	if strings.Contains(buf.String(), "wrote bootstrap config") {
+		t.Error("STAGEHAND_CONFIG missing should NOT trigger bootstrap")
+	}
+}
+
+func TestLoad_Bootstrap_DisabledNoWrite(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+
+	// Capture notice
+	origNoticeOut := noticeOut
+	var buf strings.Builder
+	noticeOut = &buf
+	defer func() { noticeOut = origNoticeOut }()
+
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+
+	// Defaults — no bootstrap side-effects
+	d := Defaults()
+	if cfg.Provider != d.Provider {
+		t.Errorf("Provider=%q, want %q (DisableBootstrap=true ⇒ no bootstrap)", cfg.Provider, d.Provider)
+	}
+
+	// No file written
+	path := globalConfigPath()
+	if _, err := os.Stat(path); err == nil {
+		t.Errorf("bootstrap config should NOT exist at %s (DisableBootstrap=true)", path)
+	}
+
+	// No notice
+	if buf.String() != "" {
+		t.Errorf("notice = %q, want empty (DisableBootstrap=true)", buf.String())
+	}
+}
+
+func TestLoad_Bootstrap_DoesNotReFire(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+
+	// Capture notice
+	origNoticeOut := noticeOut
+	var buf strings.Builder
+	noticeOut = &buf
+	defer func() { noticeOut = origNoticeOut }()
+
+	// First Load — bootstrap fires
+	_, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	firstNotice := buf.String()
+	if !strings.Contains(firstNotice, "wrote bootstrap config") {
+		t.Error("first Load should print bootstrap notice")
+	}
+
+	// Second Load — file now exists, bootstrap should NOT re-fire
+	buf.Reset()
+	_, err = Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err != nil {
+		t.Fatalf("re-Load err=%v", err)
+	}
+	if strings.Contains(buf.String(), "wrote bootstrap config") {
+		t.Error("second Load should NOT print bootstrap notice (file already exists)")
 	}
 }
