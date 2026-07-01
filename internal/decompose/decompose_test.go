@@ -194,6 +194,44 @@ func dcmStagerSeam(t *testing.T, repo string, conceptFiles map[string][]string) 
 	}
 }
 
+// dcmShaResolves reports whether SHA resolves via git rev-parse --verify <sha>^{commit}.
+// Exit 0 means resolvable (not dangling).
+func dcmShaResolves(t *testing.T, repo, sha string) bool {
+	t.Helper()
+	cmd := exec.Command("git", "-C", repo, "rev-parse", "--verify", sha+"^{commit}")
+	_, err := cmd.CombinedOutput()
+	return err == nil
+}
+
+// dcmScriptArbiter builds a provider.Manifest whose Command is a shell script that parses SHAs
+// from the arbiter's STDIN prompt (each commit's SHA is a bare 40-hex line). The script emits
+// {"target": "<sha>"} for the chosen SHA. mode is "tip" (last SHA) or "mid" (2nd SHA).
+func dcmScriptArbiter(t *testing.T, bin string, mode string) provider.Manifest {
+	t.Helper()
+	var script string
+	switch mode {
+	case "tip":
+		script = `#!/bin/sh
+sha=$(sed -n 's/^\([0-9a-f]\{40\}\)$/\1/p' | tail -n 1)
+printf '{"target": "%s"}\n' "$sha"
+`
+	case "mid":
+		script = `#!/bin/sh
+sha=$(sed -n 's/^\([0-9a-f]\{40\}\)$/\1/p' | sed -n '2p')
+printf '{"target": "%s"}\n' "$sha"
+`
+	default:
+		t.Fatalf("dcmScriptArbiter: unknown mode %q", mode)
+	}
+	path := t.TempDir() + "/arbiter.sh"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatalf("write arbiter script: %v", err)
+	}
+	m := stubtest.Manifest(bin, stubtest.Options{Out: ""})
+	m.Command = &path
+	return m
+}
+
 // dcmOutBuffer returns a Deps with Out set to a *bytes.Buffer for capturing rescue/CAS output.
 func dcmOutBuffer(t *testing.T, repo string, roles RoleManifests) (Deps, *bytes.Buffer) {
 	t.Helper()
@@ -539,7 +577,7 @@ func TestDecompose_StagerMovedHEAD(t *testing.T) {
 	bin := stubtest.Build(t)
 	repo := t.TempDir()
 	dcmInitRepo(t, repo)
-	dcmCommitRaw(t, repo, "initial") // BORN repo → HEAD has a real SHA to move away from
+	dcmCommitRaw(t, repo, "initial")        // BORN repo → HEAD has a real SHA to move away from
 	dcmWriteFile(t, repo, "a.txt", "aaa\n") // untracked → dirty tree (FR-M1 routing satisfied)
 
 	plannerJSON := `{"count":1,"single":false,"commits":[{"title":"c1","description":"a.txt"}]}`
@@ -746,12 +784,22 @@ func TestDecompose_ArbiterWiring(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Decompose(arbiter wiring): %v", err)
 	}
-	if len(result.Commits) != 1 {
-		t.Fatalf("loop Commits len = %d, want 1", len(result.Commits))
+	if len(result.Commits) != 2 {
+		t.Fatalf("loop Commits len = %d, want 2 (null-path commit now included via reread)", len(result.Commits))
 	}
 	// Amended == 0 because target was null → new commit (not an amend).
 	if result.Amended != 0 {
 		t.Errorf("Amended = %d, want 0 (null target → new commit)", result.Amended)
+	}
+	// The second commit is the arbiter-created null-path commit — verify it resolves and is HEAD.
+	if result.Commits[1].Subject != "feat: add leftover" {
+		t.Errorf("Commits[1].Subject = %q, want %q", result.Commits[1].Subject, "feat: add leftover")
+	}
+	if !dcmShaResolves(t, repo, result.Commits[1].SHA) {
+		t.Errorf("Commits[1].SHA %q does not resolve (dangling)", result.Commits[1].SHA)
+	}
+	if result.Commits[1].SHA != dcmHeadSHA(t, repo) {
+		t.Errorf("Commits[1].SHA = %q, want HEAD %q", result.Commits[1].SHA, dcmHeadSHA(t, repo))
 	}
 
 	// Verify the tree is clean after the arbiter.
@@ -1497,6 +1545,161 @@ func (l *lockedBuffer) String() string {
 func piShape(m *provider.Manifest, providerFlag, defaultProvider string) {
 	m.ProviderFlag = &providerFlag
 	m.DefaultProvider = &defaultProvider
+}
+
+// TestDecompose_ArbiterTipAmend_RereadsFinalSHA: 2 concepts + leftover; arbiter amends the tip.
+// Verifies rereadFinalCommits replaces stale SHAs with the post-amend tip.
+func TestDecompose_ArbiterTipAmend_RereadsFinalSHA(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+
+	// 2 concepts + 1 leftover.
+	dcmWriteFile(t, repo, "a.txt", "aaa\n")
+	dcmWriteFile(t, repo, "b.txt", "bbb\n")
+	dcmWriteFile(t, repo, "leftover.txt", "leftover\n")
+
+	plannerJSON := `{"count":2,"single":false,"commits":[{"title":"c1","description":"a.txt"},{"title":"c2","description":"b.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+
+	// Message stub: 2 entries for the loop (resolveTipAmend reuses messages — no extra call).
+	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add a", "feat: add b"})
+
+	// Shell-script arbiter picks the tip (last SHA).
+	arbiterM := dcmScriptArbiter(t, bin, "tip")
+
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
+	deps := dcmDeps(t, repo, roles)
+	deps.stager = dcmStagerSeam(t, repo, map[string][]string{
+		"c1": {"a.txt"},
+		"c2": {"b.txt"},
+	})
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(tip amend): %v", err)
+	}
+	// 2 commits (tip was amended, not a new one — null adds; amend replaces).
+	if len(result.Commits) != 2 {
+		t.Fatalf("Commits len = %d, want 2", len(result.Commits))
+	}
+	// Both SHAs must resolve.
+	for i, cr := range result.Commits {
+		if !dcmShaResolves(t, repo, cr.SHA) {
+			t.Errorf("Commits[%d].SHA %q does not resolve (dangling)", i, cr.SHA)
+		}
+	}
+	// The tip commit's SHA must equal HEAD (post-amend).
+	if result.Commits[1].SHA != dcmHeadSHA(t, repo) {
+		t.Errorf("Commits[1].SHA = %q, want HEAD %q", result.Commits[1].SHA, dcmHeadSHA(t, repo))
+	}
+	// The first commit should be unchanged (only the tip was amended).
+	if result.Commits[0].Subject != "feat: add a" {
+		t.Errorf("Commits[0].Subject = %q, want \"feat: add a\"", result.Commits[0].Subject)
+	}
+	// Amended == 1 for tip amend.
+	if result.Amended != 1 {
+		t.Errorf("Amended = %d, want 1 (tip amend)", result.Amended)
+	}
+	// Clean tree after the arbiter.
+	if status := dcmStatusPorcelain(t, repo); status != "" {
+		t.Errorf("status = %q, want empty (clean)", status)
+	}
+}
+
+// TestDecompose_ArbiterMidChain_AllSHAsResolve: 3 concepts + leftover; arbiter rebuilds from
+// concept[1] (mid-chain). Verifies all re-read SHAs resolve.
+func TestDecompose_ArbiterMidChain_AllSHAsResolve(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+
+	// 3 concepts + 1 leftover.
+	dcmWriteFile(t, repo, "a.txt", "aaa\n")
+	dcmWriteFile(t, repo, "b.txt", "bbb\n")
+	dcmWriteFile(t, repo, "c.txt", "ccc\n")
+	dcmWriteFile(t, repo, "leftover.txt", "leftover\n")
+
+	plannerJSON := `{"count":3,"single":false,"commits":[{"title":"c1","description":"a.txt"},{"title":"c2","description":"b.txt"},{"title":"c3","description":"c.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+
+	// 3 message entries (resolveMidChain reuses messages).
+	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add a", "feat: add b", "feat: add c"})
+
+	// Shell-script arbiter picks the 2nd SHA (concept[1]).
+	arbiterM := dcmScriptArbiter(t, bin, "mid")
+
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
+	deps := dcmDeps(t, repo, roles)
+	deps.stager = dcmStagerSeam(t, repo, map[string][]string{
+		"c1": {"a.txt"},
+		"c2": {"b.txt"},
+		"c3": {"c.txt"},
+	})
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(mid-chain): %v", err)
+	}
+	// 3 commits after mid-chain rebuild (concept[1] onward rewritten).
+	if len(result.Commits) != 3 {
+		t.Fatalf("Commits len = %d, want 3", len(result.Commits))
+	}
+	// All SHAs must resolve.
+	for i, cr := range result.Commits {
+		if !dcmShaResolves(t, repo, cr.SHA) {
+			t.Errorf("Commits[%d].SHA %q does not resolve (dangling)", i, cr.SHA)
+		}
+	}
+	// SHAs should match git log --reverse --format=%H.
+	logSHAs := strings.Split(dcmGitOut(t, repo, "log", "--reverse", "--format=%H"), "\n")
+	for i, cr := range result.Commits {
+		if i < len(logSHAs) && cr.SHA != logSHAs[i] {
+			t.Errorf("Commits[%d].SHA = %q, want %q", i, cr.SHA, logSHAs[i])
+		}
+	}
+	// Clean tree.
+	if status := dcmStatusPorcelain(t, repo); status != "" {
+		t.Errorf("status = %q, want empty (clean)", status)
+	}
+}
+
+// TestDecompose_HappyPath_CommitsAccurate: verifies that on the happy path (arbiter does NOT run),
+// the loop's Commits entries are accurate (SHA resolves, matches HEAD).
+func TestDecompose_HappyPath_CommitsAccurate(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+
+	dcmWriteFile(t, repo, "a.txt", "aaa\n")
+	plannerJSON := `{"count":1,"single":false,"commits":[{"title":"c1","description":"a.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+	messageM := dcmMessageManifest(t, bin, "feat: add a")
+
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM}
+	deps := dcmDeps(t, repo, roles)
+	deps.stager = dcmStagerSeam(t, repo, map[string][]string{"c1": {"a.txt"}})
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(happy path): %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("Commits len = %d, want 1", len(result.Commits))
+	}
+	// The loop's SHA must resolve and equal HEAD.
+	if !dcmShaResolves(t, repo, result.Commits[0].SHA) {
+		t.Errorf("Commits[0].SHA %q does not resolve", result.Commits[0].SHA)
+	}
+	if result.Commits[0].SHA != dcmHeadSHA(t, repo) {
+		t.Errorf("Commits[0].SHA = %q, want HEAD %q", result.Commits[0].SHA, dcmHeadSHA(t, repo))
+	}
+	if result.Amended != 0 {
+		t.Errorf("Amended = %d, want 0", result.Amended)
+	}
 }
 
 func TestDecompose_RoleResolvesSubProvider(t *testing.T) {

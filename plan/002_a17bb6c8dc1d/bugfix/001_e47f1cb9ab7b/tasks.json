@@ -147,7 +147,7 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Fix post-arbiter output fidelity (Issue 3, Major)",
-          "status": "Planned",
+          "status": "Complete",
           "description": "After the arbiter amends/rebuilds/creates, the user-facing stdout currently prints stale (now-dangling) commit SHAs and omits the arbiter's new commit entirely. Fix by re-reading git for the final commits (git log <preRunHEAD>..HEAD) after a successful arbiter phase and replacing DecomposeResult.Commits with accurate post-arbiter entries. Requires adding a new git commit-range listing capability to the Git interface.",
           "tasks": [
             {
@@ -177,14 +177,14 @@
               "type": "Task",
               "id": "P1.M3.T2",
               "title": "Re-read final commits after arbiter and update DecomposeResult",
-              "status": "Planned",
+              "status": "Complete",
               "description": "After the arbiter phase succeeds in Decompose (decompose.go), re-read the final commits via LogRange(preRunHEAD) and DiffTree, rebuild []CommitResult with accurate post-arbiter SHAs/subjects/file-lists, and set DecomposeResult.Commits to the rebuilt slice. This closes the §G-RESULT 'post-arbiter gap' — the success report will now show resolvable SHAs and include the arbiter's new commit.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T2.S1",
                   "title": "Add rereadFinalCommits and call it after successful arbiter in Decompose",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M3.T1.S1"

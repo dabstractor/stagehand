@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/dustin/stagehand/internal/generate"
 	"github.com/dustin/stagehand/internal/git"
@@ -38,8 +39,9 @@ var ErrDecomposeFailed = errors.New("decompose: orchestrator failed")
 
 // CommitResult is one commit produced by a Decompose run (mirrors generate.Result's commit-relevant
 // fields). Ordered oldest-first in DecomposeResult.Commits. On the happy path (arbiter did not run) the
-// SHA/Subject/Message/Files are the published commit's. When the arbiter amended/rebuilt (Amended>0) the
-// last `Amended` entries' SHAs are PRE-amend (superseded by the rebuild) — see §G-RESULT.
+// SHA/Subject/Message/Files are the published commit's. When the arbiter RAN, Decompose re-reads git
+// post-arbiter (rereadFinalCommits) so Commits carry the FINAL, resolvable SHAs/subjects/file-lists;
+// Message is "" in those rebuilt entries (the success report prints only SHA+Subject+Files).
 type CommitResult struct {
 	SHA     string           // the published commit SHA (newSHA[i])
 	Subject string           // ExtractSubject(Message) — for the "[<short-sha>] <subject>] line (FR42)
@@ -52,19 +54,16 @@ type CommitResult struct {
 // (clean tree) or made a new commit (null target). Designed to mirror the future pkg/stagehand public
 // DecomposeResult (P4.M2.T1.S1).
 //
-// §G-RESULT — the post-arbiter gap: resolveArbiter returns ONLY an error (it is parallel-owned and
-// cannot be changed this cycle), so after the arbiter runs Decompose cannot know the post-arbiter SHAs
-// (tip amend / mid-chain rebuild rewrite SHAs; null adds an (N+1)-th commit). S1 documents this:
-//   - DecomposeResult.Commits = the loop's []CommitResult (original SHAs/messages/files — accurate
-//     on the happy path where the arbiter didn't run).
-//   - DecomposeResult.Amended = the arbiter's rewrite COUNT (computed via findTargetIndex BEFORE
-//     resolveArbiter).
-//   - When Amended>0, the last `Amended` entries' SHAs are pre-amend (superseded); the null-path
-//     (N+1)-th commit is created (tree ends clean) but not in Commits. P4 (public API) re-reads git
-//     for final display.
+// §G-RESULT — the post-arbiter gap is CLOSED: when the arbiter runs, Decompose calls
+// rereadFinalCommits (LogRange(preRunHEAD..HEAD) + DiffTree) AFTER runArbiterPhase succeeds and
+// replaces Commits with the FINAL, resolvable post-arbiter entries (tip/mid-chain new SHAs; the
+// null-path (N+1)-th commit is included). The re-read is best-effort: on a git-read error it logs via
+// Verbose and KEEPS the loop's pre-arbiter Commits (commits are already published — stale SHAs beat
+// erroring). When the arbiter did NOT run (clean tree → StatusPorcelain "" → arbiter skipped, or
+// len(commits)==0), Commits are the loop's accurate entries, unchanged.
 type DecomposeResult struct {
 	Commits []CommitResult // the ordered commits created this run (oldest first)
-	Amended int            // arbiter rewrite count (0/1/N-i); see §G-RESULT for the post-arbiter gap
+	Amended int            // arbiter rewrite count (0/1/N-i); 0 if the arbiter did not run or made a new commit (null).
 }
 
 // DecomposeRescueError carries the partial result + concept context when message[i] generation fails
@@ -181,6 +180,14 @@ func Decompose(ctx context.Context, deps Deps) (DecomposeResult, error) {
 		amended, err = runArbiterPhase(ctx, deps, arbiterCommits, chainData)
 		if err != nil {
 			return DecomposeResult{}, err // resolveArbiter errors propagated (incl. *RescueError/*CASError)
+		}
+		// §G-RESULT gap closed: re-read the FINAL commits (post-arbiter) for accurate, resolvable SHAs.
+		finalCommits, rerr := rereadFinalCommits(ctx, deps, preRunHEAD, isUnborn)
+		if rerr != nil {
+			// Best-effort: the commits are already published. Log and keep the loop's pre-arbiter commits.
+			deps.Verbose.VerboseRawOutput(fmt.Sprintf("decompose: reread final commits failed (best-effort, keeping loop commits): %v", rerr))
+		} else {
+			commits = finalCommits
 		}
 	}
 
@@ -417,6 +424,44 @@ func drainMsg(ch chan msgOut) {
 // arbiter made a new commit; 1 for tip amend; N-i for mid-chain at index i). resolveArbiter returns
 // ONLY an error; the count is computed from the target via findTargetIndex (same package) BEFORE calling
 // resolveArbiter.
+// rereadFinalCommits re-reads the FINAL commits this run produced (post-arbiter) by listing the range
+// preRunHEAD..HEAD via LogRange and pairing each entry's SHA with DiffTree, rebuilding accurate
+// []CommitResult for DecomposeResult.Commits. It closes the §G-RESULT post-arbiter gap: after the
+// arbiter amends/rebuilds/creates, the loop's pre-arbiter SHAs are stale (dangling) and the null-path
+// (N+1)-th commit is missing from the loop's slice.
+//
+// baseSHA: preRunHEAD (captured at Decompose step (2) BEFORE the loop/arbiter mutated HEAD), or the
+// all-zeros sentinel strings.Repeat("0",40) when the repo was originally unborn (isUnborn) — LogRange
+// branches the all-zeros sentinel to the no-range HEAD form (lists ALL commits created this run).
+//
+// isRoot (per DiffTree): true ONLY for the FIRST entry when isUnborn (concept 0 is the repo's root
+// commit). Message is set to "" — printDecomposeCommit prints only SHA+Subject+Files (the full message
+// is not part of the success report), so it is not re-fetched.
+//
+// Best-effort: callers log a non-nil error and fall back to the loop's pre-arbiter commits rather than
+// failing the run (the commits are already published; stale SHAs beat erroring). Returns (nil, err) on
+// any git read failure (the caller decides the fallback).
+func rereadFinalCommits(ctx context.Context, deps Deps, preRunHEAD string, isUnborn bool) ([]CommitResult, error) {
+	baseSHA := preRunHEAD
+	if isUnborn {
+		baseSHA = strings.Repeat("0", 40) // LogRange's all-zeros unborn sentinel → no-range HEAD form
+	}
+	entries, err := deps.Git.LogRange(ctx, baseSHA)
+	if err != nil {
+		return nil, fmt.Errorf("%w: log range: %w", ErrDecomposeFailed, err)
+	}
+	out := make([]CommitResult, 0, len(entries))
+	for i, entry := range entries {
+		isRoot := isUnborn && i == 0 // concept 0 is the root commit only on an originally-unborn repo
+		files, err := deps.Git.DiffTree(ctx, entry.SHA, isRoot)
+		if err != nil {
+			return nil, fmt.Errorf("%w: diff-tree %s: %w", ErrDecomposeFailed, entry.SHA, err)
+		}
+		out = append(out, CommitResult{SHA: entry.SHA, Subject: entry.Subject, Message: "", Files: files})
+	}
+	return out, nil
+}
+
 func runArbiterPhase(ctx context.Context, deps Deps, commits []CommitInfo, chainData []ChainEntry) (int, error) {
 	// Build the arbiter input: the leftover diff.
 	leftoverDiff, err := deps.Git.WorkingTreeDiff(ctx, git.StagedDiffOptions{
