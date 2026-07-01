@@ -164,7 +164,7 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Per-Role Config Schema & Model Resolution",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Add per-role provider/model configuration to the Config struct, file decode, overlay, env, and flag layers. Implement the ResolveRoleModel function with 5-layer precedence (flag > env > per-role config > global config > manifest default). Define the tier-based per-provider×per-role default model table (FR-D4).",
           "tasks": [
             {
@@ -262,14 +262,14 @@
               "type": "Task",
               "id": "P1.M3.T3",
               "title": "Define tier-based per-provider × per-role default model table (FR-D4)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Implement the FR-D4 default model table as a Go constant set / function, mapping each provider to its planner (smart) / stager (mid) / message (fast) / arbiter (mid) default model. The bootstrap config (P1.M4.T2) materializes one provider's column.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T3.S1",
                   "title": "Implement RoleModelDefaults table + per-provider default models",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M2.T1.S1",
@@ -297,14 +297,14 @@
               "type": "Task",
               "id": "P1.M4.T1",
               "title": "Config schema versioning + advisory warnings",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add config_version to the config file decode and emit an advisory staleness warning when the file's version doesn't match CurrentConfigVersion.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T1.S1",
                   "title": "Add config_version advisory warning on load",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T1.S2"

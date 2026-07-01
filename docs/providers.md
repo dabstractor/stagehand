@@ -94,6 +94,33 @@ The stager's safety is enforced by three layers (PRD §12.7.1):
 2. **Stagehand's ref-mutation monopoly** — the orchestrator alone runs `git commit`, `git update-ref`, and `git push` (§13.6.2/§19).
 3. **The stager task prompt** (§17.6) — instructs the agent to stage only concept[i]'s subset and never commit/update-ref/push.
 
+## Per-role default models (FR-D4)
+
+Out of the box, each agent role is assigned a model sized to its job (PRD §9.16 FR-D3):
+
+| Role | Tier | Rationale |
+|------|------|-----------|
+| **planner** | flagship / smart | Needs the strongest model for task decomposition and architecture reasoning. |
+| **stager** | mid | Needs tool use + competence, but not the flagship — cost-effective for git staging. |
+| **message** | fast | Commit-message generation is a short-text task — the cheapest/fastest tier suffices. |
+| **arbiter** | mid | Needs reasoning to evaluate diffs, but not the flagship — mid-tier balances quality and cost. |
+
+The compiled-in per-provider table (PRD §9.16 FR-D4) lives in `internal/config/role_defaults.go` and is the source of truth for the config bootstrap (`config init`, P1.M4.T2). Model names are 2026-07 baselines — FR-D5 mandates periodic re-verification per provider.
+
+| Provider | planner | stager | message | arbiter |
+|----------|---------|--------|---------|--------|
+| `pi` | `gpt-5.4` | `gpt-5.4-mini` | `gpt-5.4-nano` | `gpt-5.4-mini` |
+| `claude` | `opus` | `sonnet` | `haiku` | `sonnet` |
+| `gemini` | `gemini-3.5-pro` | *(cannot)* | `gemini-3.1-flash-lite` | `gemini-3.5-flash` |
+| `agy` | `gemini-3.5-pro` | *(cannot)* | `gemini-3.1-flash-lite` | `gemini-3.5-flash` |
+| `opencode` | `openai/gpt-5.4` | *(cannot)* | `openai/gpt-5.4-nano` | `openai/gpt-5.4-mini` |
+| `codex` | `gpt-5.1-codex-max` | *(cannot)* | `gpt-5.4-nano` | `gpt-5.1-codex-mini` |
+| `cursor` | `gpt-5.4` ⚠️ | *(cannot)* | `gpt-5.4-nano` ⚠️ | `gpt-5.4-mini` ⚠️ |
+
+*⚠️ cursor models are PRD tier-names (flagship/mid/nano) resolved to best-guess OpenAI tokens — FR-D5: verify against `agent --help`.*
+
+**Stager column:** A value of *(cannot)* means the provider lacks `tooled_flags` in its manifest and cannot serve as the stager. When the detected provider cannot be the stager, the bootstrap falls back to the next stager-capable provider (FR-D4 fallback — currently pi or claude).
+
 ## Adding a new agent
 
 Define a `[provider.<name>]` block in your config file (global or repo-local). You only need to set the fields that differ from the defaults — omitted fields inherit the built-in values (for a known name) or the schema defaults.
