@@ -622,7 +622,7 @@
           "type": "Milestone",
           "id": "P3.M2",
           "title": "Decompose Core Pipeline (plan → stage → generate → commit loop)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Implement the decompose core: per-role resolution, planner agent call with JSON parse and single-shortcut, tooled stager agent call with snapshot freezing and overlap scheduling, per-concept message generation via tree-to-tree diff, and the serialized publication loop (commit-tree + update-ref CAS chain).",
           "tasks": [
             {
@@ -691,14 +691,14 @@
               "type": "Task",
               "id": "P3.M2.T3",
               "title": "Stager agent call (tooled mode) + snapshot freeze + overlap scheduling",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Implement the tooled stager agent call that stages one concept's changes, and the snapshot freeze (write-tree before stager[i+1] starts) that enables overlapped staging/generation.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P3.M2.T3.S1",
                   "title": "Implement tooled stager invocation + snapshot freeze in decompose/stager.go",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P3.M2.T1.S1",
@@ -723,14 +723,14 @@
               "type": "Task",
               "id": "P3.M2.T4",
               "title": "Per-concept message generation + serialized publication loop",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Implement per-concept message generation (tree-to-tree concept diff + bare message agent) and the serialized publication loop (commit-tree + update-ref CAS chain per concept, empty-concept skip, stager retry).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P3.M2.T4.S1",
                   "title": "Implement per-concept message gen (tree-to-tree diff) + serialized publication loop",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P3.M2.T3.S1",
