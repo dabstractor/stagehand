@@ -28,7 +28,7 @@ var (
 // built-in value on merge), while a field PRESENT — even set to "" or false — decodes to a NON-NIL
 // pointer (→ override). This is the only way a field-by-field struct merge can honor a user's
 // strip_code_fence=false or print_flag="" override. Verified empirically; see research FINDING C/D.
-// Slices (Subcommand, BareFlags) and the Env map stay plain: nil is their natural "absent" sentinel
+// Slices (Subcommand, BareFlags, TooledFlags) and the Env map stay plain: nil is their natural "absent" sentinel
 // (absent → nil; present → non-nil even if empty), so pointers would add only dereference noise.
 // Name is plain: it is the identity, always set by the registry from the [provider.<name>] table key.
 //
@@ -60,6 +60,17 @@ type Manifest struct {
 
 	// --- bare mode (§12.1) ---
 	BareFlags []string `toml:"bare_flags"` // appended verbatim; nil => none.
+
+	// --- tooled mode (v2; §11.5, §12.1) ---
+	// Flags for the STAGER role (tools on, git-scoped, non-interactive). nil/empty => this
+	// provider does not support tooled mode and cannot serve as a stager. Used in place of
+	// BareFlags when mode=="tooled" in Render.
+	TooledFlags []string `toml:"tooled_flags"`
+
+	// --- experimental (§12.7.2, §12.5.1) ---
+	// true => provider ships from docs/issue-tracker research, not a verified --help.
+	// `providers list` marks experimental providers distinctly.
+	Experimental *bool `toml:"experimental"`
 
 	// --- output (§12.1) ---
 	Output         *string `toml:"output"`           // raw|json; nil => Resolve→"raw".
@@ -157,10 +168,13 @@ func (m Manifest) Resolve() Manifest {
 	if out.StripCodeFence == nil {
 		out.StripCodeFence = boolPtr(DefaultStripCodeFence)
 	}
+	if out.Experimental == nil {
+		out.Experimental = boolPtr(false) // §12.7.2 default: non-experimental unless explicitly set
+	}
 	if out.RetryInstruction == nil {
 		out.RetryInstruction = strPtr(DefaultRetryInstruction)
 	}
-	// Subcommand / BareFlags / Env: left as-is (nil stays nil).
+	// Subcommand / BareFlags / TooledFlags / Env: left as-is (nil stays nil).
 	return out
 }
 

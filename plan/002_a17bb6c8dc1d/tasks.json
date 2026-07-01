@@ -11,35 +11,46 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Manifest Schema Extensions (tooled_flags, experimental, Render mode)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Extend the Manifest struct with TooledFlags and Experimental fields, update MergeManifest and Resolve accordingly, and update Render to accept a bare|tooled mode that selects BareFlags vs TooledFlags. This enables the stager role to run in tooled mode (git tools on, scoped) while all other roles stay bare.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Add TooledFlags and Experimental fields to Manifest struct",
-              "status": "Planned",
+              "status": "Ready",
               "description": "Add the two new manifest fields per §12.1, update Resolve() to fill Experimental to *false when nil, and update Validate() if needed. Follow the pointer-scalar convention for Experimental (*bool) and the slice convention for TooledFlags ([]string, same regime as BareFlags).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T1.S1",
                   "title": "Add TooledFlags + Experimental to Manifest struct; update Resolve + Validate",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.12", "h3.43", "h3.42", "h3.44"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The Manifest struct in internal/provider/manifest.go uses *string/*bool pointer scalars for optional fields (nil=absent, non-nil=explicit). Slices ([]string) use nil as their natural absent sentinel (nil=absent, non-nil empty=present). TooledFlags follows the slice convention (same as BareFlags/Subcommand). Experimental follows the pointer-scalar convention (*bool).\n2. INPUT: The existing Manifest struct, Resolve() method, and Validate() method in internal/provider/manifest.go.\n3. LOGIC: Add `TooledFlags []string` with toml tag \"tooled_flags\" and `Experimental *bool` with toml tag \"experimental\" to the Manifest struct. In Resolve(): add `if out.Experimental == nil { out.Experimental = boolPtr(false) }` (default non-experimental). Leave TooledFlags as-is in Resolve (nil stays nil, matching BareFlags/Subcommand regime). No new Validate rules needed.\n4. OUTPUT: The updated Manifest struct with two new fields. Existing code compiles unchanged (new fields are zero-valued/nil by default). The Resolve() method guarantees *Experimental is non-nil on the returned copy.\n5. DOCS: [Mode A] Update the inline doc comments on the Manifest struct to document the two new fields (tooled mode §11.5, experimental §12.7.2). No user-facing docs change yet."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The Manifest struct in internal/provider/manifest.go uses *string/*bool pointer scalars for optional fields (nil=absent, non-nil=explicit). Slices ([]string) use nil as their natural absent sentinel (nil=absent, non-nil empty=present). TooledFlags follows the slice convention (same as BareFlags/Subcommand). Experimental follows the pointer-scalar convention (*bool).\n2. INPUT: The existing Manifest struct, Resolve() method, and Validate() method in internal/provider/manifest.go.\n3. LOGIC: Add `TooledFlags []string` with toml tag \"tooled_flags\" and `Experimental *bool` with toml tag \"experimental\" to the Manifest struct. In Resolve(): add `if out.Experimental == nil { out.Experimental = boolPtr(false) }` (default non-experimental). Leave TooledFlags as-is in Resolve (nil stays nil, matching BareFlags/Subcommand regime). No new Validate rules needed.\n4. OUTPUT: The updated Manifest struct with two new fields. Existing code compiles unchanged (new fields are zero-valued/nil by default). The Resolve() method guarantees *Experimental is non-nil on the returned copy.\n5. DOCS: [Mode A] Update the inline doc comments on the Manifest struct to document the two new fields (tooled mode §11.5, experimental §12.7.2). No user-facing docs change yet.",
+                  "prd_selectors": [
+                    "h2.12",
+                    "h3.43",
+                    "h3.42",
+                    "h3.44"
+                  ]
                 },
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": "Update MergeManifest for TooledFlags + Experimental",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h2.12", "h3.43", "h3.44"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: MergeManifest in internal/provider/merge.go has three regimes: (1) scalar pointer fields (non-nil override wins), (2) slices (non-empty override replaces wholesale), (3) Env map (key-by-key merge). TooledFlags is a slice → regime 2. Experimental is a *bool → regime 1.\n2. INPUT: The updated Manifest struct from P1.M1.T1.S1.\n3. LOGIC: In MergeManifest(), add to regime 1: `if override.Experimental != nil { out.Experimental = override.Experimental }`. Add to regime 2: `if len(override.TooledFlags) > 0 { out.TooledFlags = override.TooledFlags }`. This mirrors the existing BareFlags handling exactly.\n4. OUTPUT: MergeManifest correctly field-merges the two new fields. A user override setting only tooled_flags preserves all other manifest fields from the built-in.\n5. DOCS: none — internal merge logic, no user-facing/config/API surface change beyond what S1 documents."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: MergeManifest in internal/provider/merge.go has three regimes: (1) scalar pointer fields (non-nil override wins), (2) slices (non-empty override replaces wholesale), (3) Env map (key-by-key merge). TooledFlags is a slice → regime 2. Experimental is a *bool → regime 1.\n2. INPUT: The updated Manifest struct from P1.M1.T1.S1.\n3. LOGIC: In MergeManifest(), add to regime 1: `if override.Experimental != nil { out.Experimental = override.Experimental }`. Add to regime 2: `if len(override.TooledFlags) > 0 { out.TooledFlags = override.TooledFlags }`. This mirrors the existing BareFlags handling exactly.\n4. OUTPUT: MergeManifest correctly field-merges the two new fields. A user override setting only tooled_flags preserves all other manifest fields from the built-in.\n5. DOCS: none — internal merge logic, no user-facing/config/API surface change beyond what S1 documents.",
+                  "prd_selectors": [
+                    "h2.12",
+                    "h3.43",
+                    "h3.44"
+                  ]
                 }
               ]
             },
@@ -47,18 +58,25 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Update Render to accept bare/tooled mode parameter",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add a RenderMode type and update Manifest.Render to accept an optional mode parameter. In bare mode (default), BareFlags are appended. In tooled mode, TooledFlags are appended (error if empty). All existing callers pass no mode → default bare → backward-compatible.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Add RenderMode type + update Render signature with variadic mode parameter",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h2.12", "h3.43", "h3.44", "h3.42"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Render in internal/provider/render.go currently has signature `Render(model, provider, sysPrompt, userPayload string) (*CmdSpec, error)`. It's called from internal/generate/generate.go (CommitStaged step 5) and pkg/stagehand/stagehand.go (runPipeline). Using a variadic `mode ...RenderMode` parameter with default bare keeps these callers working unchanged. PRD §12.2 line: `args += (mode == \"tooled\") ? m.tooled_flags : m.bare_flags`.\n2. INPUT: The updated Manifest struct with TooledFlags from P1.M1.T1.S1.\n3. LOGIC: Define `type RenderMode string` with constants `RenderBare RenderMode = \"bare\"` and `RenderTooled RenderMode = \"tooled\"`. Change Render signature to `Render(model, provider, sysPrompt, userPayload string, mode ...RenderMode) (*CmdSpec, error)`. After the system-prompt flag block (before print_flag), replace the unconditional `args = append(args, r.BareFlags...)` with a mode switch: if mode is empty or RenderBare → append BareFlags; if RenderTooled → if len(r.TooledFlags)==0 return error \"provider %q: tooled mode requires non-empty tooled_flags\", else append TooledFlags. All other rendering logic (provider flag, model flag, print flag, prompt delivery) is unchanged.\n4. OUTPUT: Render accepts an optional mode. Existing callers unchanged (bare default). The decompose stager (P3.M2.T3) will call Render(model, provider, sys, payload, provider.RenderTooled).\n5. DOCS: [Mode A] Update the JSDoc/comment on Manifest.Render to document the new mode parameter and the tooled_flags requirement. Update the CmdSpec doc comment if needed."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Render in internal/provider/render.go currently has signature `Render(model, provider, sysPrompt, userPayload string) (*CmdSpec, error)`. It's called from internal/generate/generate.go (CommitStaged step 5) and pkg/stagehand/stagehand.go (runPipeline). Using a variadic `mode ...RenderMode` parameter with default bare keeps these callers working unchanged. PRD §12.2 line: `args += (mode == \"tooled\") ? m.tooled_flags : m.bare_flags`.\n2. INPUT: The updated Manifest struct with TooledFlags from P1.M1.T1.S1.\n3. LOGIC: Define `type RenderMode string` with constants `RenderBare RenderMode = \"bare\"` and `RenderTooled RenderMode = \"tooled\"`. Change Render signature to `Render(model, provider, sysPrompt, userPayload string, mode ...RenderMode) (*CmdSpec, error)`. After the system-prompt flag block (before print_flag), replace the unconditional `args = append(args, r.BareFlags...)` with a mode switch: if mode is empty or RenderBare → append BareFlags; if RenderTooled → if len(r.TooledFlags)==0 return error \"provider %q: tooled mode requires non-empty tooled_flags\", else append TooledFlags. All other rendering logic (provider flag, model flag, print flag, prompt delivery) is unchanged.\n4. OUTPUT: Render accepts an optional mode. Existing callers unchanged (bare default). The decompose stager (P3.M2.T3) will call Render(model, provider, sys, payload, provider.RenderTooled).\n5. DOCS: [Mode A] Update the JSDoc/comment on Manifest.Render to document the new mode parameter and the tooled_flags requirement. Update the CmdSpec doc comment if needed.",
+                  "prd_selectors": [
+                    "h2.12",
+                    "h3.43",
+                    "h3.44",
+                    "h3.42"
+                  ]
                 }
               ]
             }
@@ -84,9 +102,16 @@
                   "title": "Implement builtinAgy() manifest + add to BuiltinManifests() + create providers/agy.toml",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h2.12", "h3.48", "h4.0", "h3.44"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: agy is Google's Antigravity CLI (Gemini-CLI successor, superseded gemini on 2026-06-18). Per §12.5.1: detect=\"agy\", command=\"agy\", prompt_delivery=\"stdin\", print_flag=\"-p\", model_flag=\"-m\", default_model=\"gemini-2.5-pro\", system_prompt_flag=\"\" (none first-class → prepend to payload per §12.2), provider_flag=\"\" , bare_flags=[\"--approval-mode\",\"default\"], tooled_flags=nil (intentionally empty until §12.5.1.1 item 4 is verified — agy cannot serve as stager yet), experimental=boolPtr(true) (ships experimental per §12.5.1.1 non-TTY stdout bug), output=\"raw\", strip_code_fence=true. The test TestPreferredBuiltins_MatchesBuiltinKeys must be updated to include \"agy\".\n2. INPUT: The Manifest struct with Experimental field from P1.M1.T1.S1.\n3. LOGIC: Add `builtinAgy()` function to internal/provider/builtin.go returning the manifest above. Add `\"agy\": builtinAgy()` to the BuiltinManifests() map. Create providers/agy.toml mirroring the manifest fields (matching the existing providers/*.toml style). Update preferredBuiltins sync test if it enumerates expected keys.\n4. OUTPUT: `agy` is available as a built-in provider. `stagehand providers list` shows it as detected/experimental. `stagehand providers show agy` prints its manifest. It can serve bare roles (planner/message/arbiter) but NOT the stager (tooled_flags empty).\n5. DOCS: [Mode A] Update docs/providers.md to include agy in the provider reference table. Note its experimental status and the non-TTY stdout limitation (issue #76)."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: agy is Google's Antigravity CLI (Gemini-CLI successor, superseded gemini on 2026-06-18). Per §12.5.1: detect=\"agy\", command=\"agy\", prompt_delivery=\"stdin\", print_flag=\"-p\", model_flag=\"-m\", default_model=\"gemini-2.5-pro\", system_prompt_flag=\"\" (none first-class → prepend to payload per §12.2), provider_flag=\"\" , bare_flags=[\"--approval-mode\",\"default\"], tooled_flags=nil (intentionally empty until §12.5.1.1 item 4 is verified — agy cannot serve as stager yet), experimental=boolPtr(true) (ships experimental per §12.5.1.1 non-TTY stdout bug), output=\"raw\", strip_code_fence=true. The test TestPreferredBuiltins_MatchesBuiltinKeys must be updated to include \"agy\".\n2. INPUT: The Manifest struct with Experimental field from P1.M1.T1.S1.\n3. LOGIC: Add `builtinAgy()` function to internal/provider/builtin.go returning the manifest above. Add `\"agy\": builtinAgy()` to the BuiltinManifests() map. Create providers/agy.toml mirroring the manifest fields (matching the existing providers/*.toml style). Update preferredBuiltins sync test if it enumerates expected keys.\n4. OUTPUT: `agy` is available as a built-in provider. `stagehand providers list` shows it as detected/experimental. `stagehand providers show agy` prints its manifest. It can serve bare roles (planner/message/arbiter) but NOT the stager (tooled_flags empty).\n5. DOCS: [Mode A] Update docs/providers.md to include agy in the provider reference table. Note its experimental status and the non-TTY stdout limitation (issue #76).",
+                  "prd_selectors": [
+                    "h2.12",
+                    "h3.48",
+                    "h4.0",
+                    "h3.44"
+                  ]
                 }
               ]
             },
@@ -103,9 +128,15 @@
                   "title": "Reorder preferredBuiltins + update pi default_model to empty",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M2.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.32", "h3.45"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Current preferredBuiltins in internal/provider/registry.go is [\"pi\", \"claude\", \"gemini\", \"opencode\", \"codex\", \"cursor\"]. FR-D1 requires [\"pi\", \"opencode\", \"cursor\", \"agy\", \"gemini\", \"codex\", \"claude\"] — open/self-hostable harnesses first, closed subscription CLIs last. Current pi default_model is \"glm-5-turbo\" (the author's z.ai subscription); FR-D2 requires empty (decoupled; config init fills per-role from FR-D4 table). The TestPreferredBuiltins_MatchesBuiltinKeys test must be updated to match the new order + agy.\n2. INPUT: The updated BuiltinManifests() with agy from P1.M2.T1.S1.\n3. LOGIC: In registry.go, change preferredBuiltins to the FR-D1 order. In builtin.go builtinPi(), change DefaultModel from strPtr(\"glm-5-turbo\") to strPtr(\"\"). Update any tests that assert on pi's default_model or the preferredBuiltins order. The glm-5-turbo/zai setup becomes a documented personal override (not a default).\n4. OUTPUT: DefaultProvider(installed) returns providers in the new priority order. pi's manifest has empty default_model and default_provider (user/config must set them via config init or manual config).\n5. DOCS: [Mode A] Update the pi manifest doc comment in builtin.go to note FR-D2 decoupling. Update providers/pi.toml to remove the glm-5-turbo default."
+                  "dependencies": [
+                    "P1.M2.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Current preferredBuiltins in internal/provider/registry.go is [\"pi\", \"claude\", \"gemini\", \"opencode\", \"codex\", \"cursor\"]. FR-D1 requires [\"pi\", \"opencode\", \"cursor\", \"agy\", \"gemini\", \"codex\", \"claude\"] — open/self-hostable harnesses first, closed subscription CLIs last. Current pi default_model is \"glm-5-turbo\" (the author's z.ai subscription); FR-D2 requires empty (decoupled; config init fills per-role from FR-D4 table). The TestPreferredBuiltins_MatchesBuiltinKeys test must be updated to match the new order + agy.\n2. INPUT: The updated BuiltinManifests() with agy from P1.M2.T1.S1.\n3. LOGIC: In registry.go, change preferredBuiltins to the FR-D1 order. In builtin.go builtinPi(), change DefaultModel from strPtr(\"glm-5-turbo\") to strPtr(\"\"). Update any tests that assert on pi's default_model or the preferredBuiltins order. The glm-5-turbo/zai setup becomes a documented personal override (not a default).\n4. OUTPUT: DefaultProvider(installed) returns providers in the new priority order. pi's manifest has empty default_model and default_provider (user/config must set them via config init or manual config).\n5. DOCS: [Mode A] Update the pi manifest doc comment in builtin.go to note FR-D2 decoupling. Update providers/pi.toml to remove the glm-5-turbo default.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.32",
+                    "h3.45"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -113,9 +144,17 @@
                   "title": "Add tooled_flags to pi and claude manifests (stager-capable providers)",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T1.S2"],
-                  "prd_selectors": ["h2.12", "h3.43", "h3.42", "h2.11"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Per §12.7.1, only agents with an explicit tool-disable switch (pi: --no-tools, claude: --tools \"\") can cleanly express a tooled profile. For pi, tooled mode = the same invocation MINUS the --no-tools flag (tools on, with a git-scoped allowlist if pi supports one). For claude, tooled mode = tools ENABLED with an allowlist restricted to git/read/edit. PRD §12.1: `tooled_flags` expresses 'git-scoped allowlist + non-interactive approval mode' per provider idiom. Gemini/agy/opencode have empty tooled_flags (cannot stager until verified — Appendix D note). FR-D4 notes stager falls back to next-priority provider that CAN.\n2. INPUT: Manifest struct with TooledFlags from P1.M1.T1.S1.\n3. LOGIC: Add TooledFlags to builtinPi() and builtinClaude() in builtin.go. For pi: the tooled profile is the bare invocation without --no-tools (pi's tool system); set TooledFlags to the remaining bare flags minus --no-tools (e.g. [\"--no-extensions\", \"--no-skills\", \"--no-prompt-templates\", \"--no-context-files\", \"--no-session\"]). For claude: set TooledFlags to [\"--allowed-tools\", \"Bash(git:*),Read,Edit\", \"--setting-sources\", \"\", \"--no-session-persistence\"] (git-scoped tool allowlist). Leave gemini, agy, opencode, codex, cursor TooledFlags as nil/empty (they cannot serve as stager in v2). Update the providers/*.toml files to reflect these.\n4. OUTPUT: pi and claude manifests have non-empty TooledFlags and can serve as the stager role. Other providers have empty TooledFlags.\n5. DOCS: [Mode A] Update docs/providers.md and Appendix D quick-reference to show which providers are stager-capable (non-empty tooled_flags)."
+                  "dependencies": [
+                    "P1.M1.T1.S1",
+                    "P1.M1.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Per §12.7.1, only agents with an explicit tool-disable switch (pi: --no-tools, claude: --tools \"\") can cleanly express a tooled profile. For pi, tooled mode = the same invocation MINUS the --no-tools flag (tools on, with a git-scoped allowlist if pi supports one). For claude, tooled mode = tools ENABLED with an allowlist restricted to git/read/edit. PRD §12.1: `tooled_flags` expresses 'git-scoped allowlist + non-interactive approval mode' per provider idiom. Gemini/agy/opencode have empty tooled_flags (cannot stager until verified — Appendix D note). FR-D4 notes stager falls back to next-priority provider that CAN.\n2. INPUT: Manifest struct with TooledFlags from P1.M1.T1.S1.\n3. LOGIC: Add TooledFlags to builtinPi() and builtinClaude() in builtin.go. For pi: the tooled profile is the bare invocation without --no-tools (pi's tool system); set TooledFlags to the remaining bare flags minus --no-tools (e.g. [\"--no-extensions\", \"--no-skills\", \"--no-prompt-templates\", \"--no-context-files\", \"--no-session\"]). For claude: set TooledFlags to [\"--allowed-tools\", \"Bash(git:*),Read,Edit\", \"--setting-sources\", \"\", \"--no-session-persistence\"] (git-scoped tool allowlist). Leave gemini, agy, opencode, codex, cursor TooledFlags as nil/empty (they cannot serve as stager in v2). Update the providers/*.toml files to reflect these.\n4. OUTPUT: pi and claude manifests have non-empty TooledFlags and can serve as the stager role. Other providers have empty TooledFlags.\n5. DOCS: [Mode A] Update docs/providers.md and Appendix D quick-reference to show which providers are stager-capable (non-empty tooled_flags).",
+                  "prd_selectors": [
+                    "h2.12",
+                    "h3.43",
+                    "h3.42",
+                    "h2.11"
+                  ]
                 }
               ]
             }
@@ -142,8 +181,15 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.9", "h3.31", "h3.32", "h3.33", "h2.16", "h3.68"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Config in internal/config/config.go is flat+plain-typed+RESOLVED. It is NOT decoded directly from TOML — file.go's fileConfig intermediate structs decode and materialize() copies non-zero fields. New fields must follow this pattern. See architecture/config_v2_delta.md §1 for exact field definitions.\n2. INPUT: The existing Config struct and Defaults() function.\n3. LOGIC: Add to Config: `Roles map[string]RoleConfig` (toml:\"-\"), `ConfigVersion int`, `MaxCommits int`, `BinaryExtensions []string`, `Commits int` (toml:\"-\"), `Single bool` (toml:\"-\"). Define `type RoleConfig struct { Provider string; Model string }`. Update Defaults() to set ConfigVersion=CurrentConfigVersion (new const=2), MaxCommits=12, Commits=0, Single=false, BinaryExtensions=nil, Roles=nil. Define `const CurrentConfigVersion = 2`.\n4. OUTPUT: The Config struct has all v2 fields. Defaults() returns a v2-compatible Config. Existing code compiles (new fields are zero-valued).\n5. DOCS: [Mode A] Update the Config struct doc comment to document the new fields and CurrentConfigVersion constant."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Config in internal/config/config.go is flat+plain-typed+RESOLVED. It is NOT decoded directly from TOML — file.go's fileConfig intermediate structs decode and materialize() copies non-zero fields. New fields must follow this pattern. See architecture/config_v2_delta.md §1 for exact field definitions.\n2. INPUT: The existing Config struct and Defaults() function.\n3. LOGIC: Add to Config: `Roles map[string]RoleConfig` (toml:\"-\"), `ConfigVersion int`, `MaxCommits int`, `BinaryExtensions []string`, `Commits int` (toml:\"-\"), `Single bool` (toml:\"-\"). Define `type RoleConfig struct { Provider string; Model string }`. Update Defaults() to set ConfigVersion=CurrentConfigVersion (new const=2), MaxCommits=12, Commits=0, Single=false, BinaryExtensions=nil, Roles=nil. Define `const CurrentConfigVersion = 2`.\n4. OUTPUT: The Config struct has all v2 fields. Defaults() returns a v2-compatible Config. Existing code compiles (new fields are zero-valued).\n5. DOCS: [Mode A] Update the Config struct doc comment to document the new fields and CurrentConfigVersion constant.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.31",
+                    "h3.32",
+                    "h3.33",
+                    "h2.16",
+                    "h3.68"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -151,9 +197,19 @@
                   "title": "Add [role.<role>] decode structs + update materialize() + overlay()",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M3.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.31", "h3.33", "h2.16", "h3.65", "h3.66", "h3.68"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: file.go has fileConfig (with Defaults, Generation, Provider maps), materialize() copies non-zero fields to Config, overlay() merges non-zero src→dst field-by-field. Provider blocks already use field-level merge in overlay() (FR37a). Per-role must follow the same pattern.\n2. INPUT: The updated Config struct from P1.M3.T1.S1.\n3. LOGIC: In file.go: add `ConfigVersion int` to fileConfig, add `Role map[string]fileRoleConfig` (with `type fileRoleConfig struct { Provider string; Model string }`), add `MaxCommits int` and `BinaryExtensions []string` to fileGeneration. In materialize(): copy fc.ConfigVersion→c.ConfigVersion, fc.Generation.MaxCommits→c.MaxCommits, fc.Generation.BinaryExtensions→c.BinaryExtensions, convert fc.Role→c.Roles map[string]RoleConfig. In overlay(): add per-role field-merge (like Providers): for each role in src.Roles, merge Provider/Model into dst.Roles[role] (non-zero wins). Also overlay ConfigVersion, MaxCommits, BinaryExtensions (non-zero wins).\n4. OUTPUT: Config files with [role.planner], [role.stager], etc., [generation] max_commits/binary_extensions, and top-level config_version are correctly decoded and overlaid across layers.\n5. DOCS: [Mode A] Update the config init template (exampleConfigTemplate in internal/cmd/config.go) to show [role.*] and [generation] max_commits/binary_extensions as commented-out reference sections."
+                  "dependencies": [
+                    "P1.M3.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: file.go has fileConfig (with Defaults, Generation, Provider maps), materialize() copies non-zero fields to Config, overlay() merges non-zero src→dst field-by-field. Provider blocks already use field-level merge in overlay() (FR37a). Per-role must follow the same pattern.\n2. INPUT: The updated Config struct from P1.M3.T1.S1.\n3. LOGIC: In file.go: add `ConfigVersion int` to fileConfig, add `Role map[string]fileRoleConfig` (with `type fileRoleConfig struct { Provider string; Model string }`), add `MaxCommits int` and `BinaryExtensions []string` to fileGeneration. In materialize(): copy fc.ConfigVersion→c.ConfigVersion, fc.Generation.MaxCommits→c.MaxCommits, fc.Generation.BinaryExtensions→c.BinaryExtensions, convert fc.Role→c.Roles map[string]RoleConfig. In overlay(): add per-role field-merge (like Providers): for each role in src.Roles, merge Provider/Model into dst.Roles[role] (non-zero wins). Also overlay ConfigVersion, MaxCommits, BinaryExtensions (non-zero wins).\n4. OUTPUT: Config files with [role.planner], [role.stager], etc., [generation] max_commits/binary_extensions, and top-level config_version are correctly decoded and overlaid across layers.\n5. DOCS: [Mode A] Update the config init template (exampleConfigTemplate in internal/cmd/config.go) to show [role.*] and [generation] max_commits/binary_extensions as commented-out reference sections.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.31",
+                    "h3.33",
+                    "h2.16",
+                    "h3.65",
+                    "h3.66",
+                    "h3.68"
+                  ]
                 }
               ]
             },
@@ -170,9 +226,18 @@
                   "title": "Add per-role + decompose env vars to loadEnv() and flag handling to loadFlags()",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M3.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.31", "h2.15", "h3.61", "h2.16", "h3.68"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: loadEnv() in internal/config/load.go handles STAGEHAND_* vars. loadFlags() handles explicitly-set CLI flags via fs.Changed(). Per FR-R3: env vars are STAGEHAND_PLANNER_PROVIDER, STAGEHAND_PLANNER_MODEL, STAGEHAND_STAGER_PROVIDER, etc. Flags are --planner-provider, --planner-model, etc. Also --commits (int), --single (bool), --max-commits (int). The role names are: planner, stager, message, arbiter.\n2. INPUT: The updated Config struct from P1.M3.T1.S1.\n3. LOGIC: In loadEnv(): loop over the four role names, check STAGEHAND_<ROLE>_PROVIDER/_MODEL, store into cfg.Roles map (allocate if nil). Also handle STAGEHAND_COMMITS (int). In loadFlags(): loop over the four role names, check fs.Changed(\"<role>-provider\")/fs.Changed(\"<role>-model\"), store into cfg.Roles. Also check fs.Changed(\"commits\"), fs.Changed(\"single\")/fs.Changed(\"no-decompose\"), fs.Changed(\"max-commits\"). Helper: add `func (c *Config) setRole(role, provider, model string)` or inline map manipulation.\n4. OUTPUT: Per-role env/flag overrides are resolved into cfg.Roles. Decompose flags (Commits, Single, MaxCommits) are set from env/flags.\n5. DOCS: [Mode A] Update the env/flag documentation in the config init template to list the per-role env vars and flags."
+                  "dependencies": [
+                    "P1.M3.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: loadEnv() in internal/config/load.go handles STAGEHAND_* vars. loadFlags() handles explicitly-set CLI flags via fs.Changed(). Per FR-R3: env vars are STAGEHAND_PLANNER_PROVIDER, STAGEHAND_PLANNER_MODEL, STAGEHAND_STAGER_PROVIDER, etc. Flags are --planner-provider, --planner-model, etc. Also --commits (int), --single (bool), --max-commits (int). The role names are: planner, stager, message, arbiter.\n2. INPUT: The updated Config struct from P1.M3.T1.S1.\n3. LOGIC: In loadEnv(): loop over the four role names, check STAGEHAND_<ROLE>_PROVIDER/_MODEL, store into cfg.Roles map (allocate if nil). Also handle STAGEHAND_COMMITS (int). In loadFlags(): loop over the four role names, check fs.Changed(\"<role>-provider\")/fs.Changed(\"<role>-model\"), store into cfg.Roles. Also check fs.Changed(\"commits\"), fs.Changed(\"single\")/fs.Changed(\"no-decompose\"), fs.Changed(\"max-commits\"). Helper: add `func (c *Config) setRole(role, provider, model string)` or inline map manipulation.\n4. OUTPUT: Per-role env/flag overrides are resolved into cfg.Roles. Decompose flags (Commits, Single, MaxCommits) are set from env/flags.\n5. DOCS: [Mode A] Update the env/flag documentation in the config init template to list the per-role env vars and flags.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.31",
+                    "h2.15",
+                    "h3.61",
+                    "h2.16",
+                    "h3.68"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -180,9 +245,16 @@
                   "title": "Implement ResolveRoleModel() function with 5-layer precedence",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M3.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.31", "h2.16", "h3.68"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Per FR-R3, the precedence for a role's provider/model is: flag > env > per-role config > global config > built-in manifest default. Since flag/env are already overlaid into cfg.Roles by loadEnv/loadFlags (P1.M3.T2.S1), ResolveRoleModel only needs to check cfg.Roles[role] then fall back to cfg.Provider/cfg.Model (the global defaults). The manifest default is handled by Render (model=\"\" → manifest default_model).\n2. INPUT: The Config struct with Roles map from P1.M3.T1.S1.\n3. LOGIC: Implement `func ResolveRoleModel(role string, cfg Config) (provider, model string)` in internal/config/config.go (or a new internal/config/roles.go). Logic: check cfg.Roles[role]; if Provider non-empty use it, else fall back to cfg.Provider; if Model non-empty use it, else fall back to cfg.Model. Return (\"\", \"\") means 'use manifest defaults'. This function is consumed by the decompose pipeline (P3.M2.T1.S1) and the CLI.\n4. OUTPUT: A pure function `ResolveRoleModel(role, cfg) → (provider, model)` that resolves per-role config with correct precedence.\n5. DOCS: none — internal function, no user-facing surface change."
+                  "dependencies": [
+                    "P1.M3.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Per FR-R3, the precedence for a role's provider/model is: flag > env > per-role config > global config > built-in manifest default. Since flag/env are already overlaid into cfg.Roles by loadEnv/loadFlags (P1.M3.T2.S1), ResolveRoleModel only needs to check cfg.Roles[role] then fall back to cfg.Provider/cfg.Model (the global defaults). The manifest default is handled by Render (model=\"\" → manifest default_model).\n2. INPUT: The Config struct with Roles map from P1.M3.T1.S1.\n3. LOGIC: Implement `func ResolveRoleModel(role string, cfg Config) (provider, model string)` in internal/config/config.go (or a new internal/config/roles.go). Logic: check cfg.Roles[role]; if Provider non-empty use it, else fall back to cfg.Provider; if Model non-empty use it, else fall back to cfg.Model. Return (\"\", \"\") means 'use manifest defaults'. This function is consumed by the decompose pipeline (P3.M2.T1.S1) and the CLI.\n4. OUTPUT: A pure function `ResolveRoleModel(role, cfg) → (provider, model)` that resolves per-role config with correct precedence.\n5. DOCS: none — internal function, no user-facing surface change.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.31",
+                    "h2.16",
+                    "h3.68"
+                  ]
                 }
               ]
             },
@@ -199,9 +271,16 @@
                   "title": "Implement RoleModelDefaults table + per-provider default models",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M2.T1.S1", "P1.M2.T2.S1"],
-                  "prd_selectors": ["h2.9", "h3.32", "h2.16"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR-D4 specifies a per-provider × per-role table with tier assignments (planner=smart, stager=mid, message=fast, arbiter=mid). FR-D5 mandates model names be RE-VERIFIED at implementation against each provider's live docs. Current exemplars (as of 2026-07): pi→gpt-5.4/gpt-5.4-mini/gpt-5.4-nano, opencode→openai/gpt-5.4/.../openai/gpt-5.4-nano, agy→gemini-3.5-pro/gemini-3.5-flash/gemini-3.1-flash-lite, gemini→same, codex→gpt-5.1-codex-max/gpt-5.1-codex-mini/gpt-5.4-nano, claude→opus(4.8)/sonnet(5)/haiku. The implementing agent MUST verify these against live docs and record verified names + date.\n2. INPUT: The set of built-in provider names from BuiltinManifests() (including agy from P1.M2.T1.S1).\n3. LOGIC: Create internal/config/role_defaults.go (or provider/role_defaults.go). Define `type RoleModelDefaults map[string]map[string]string` keyed by provider→role→model. Also define `func DefaultModelsForProvider(name string) map[string]string` returning that provider's role→model column. Include the four roles: \"planner\", \"stager\", \"message\", \"arbiter\". For providers that cannot serve as stager (empty tooled_flags), mark the stager entry as \"\" and document the fallback. Add a comment block listing the verification date and source for each model name.\n4. OUTPUT: A function/constant set that the config bootstrap (P1.M4.T2) uses to populate per-role models for the detected provider.\n5. DOCS: [Mode A] Add inline comments recording the model verification date per FR-D5. Update docs/providers.md to show the tier assignments."
+                  "dependencies": [
+                    "P1.M2.T1.S1",
+                    "P1.M2.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR-D4 specifies a per-provider × per-role table with tier assignments (planner=smart, stager=mid, message=fast, arbiter=mid). FR-D5 mandates model names be RE-VERIFIED at implementation against each provider's live docs. Current exemplars (as of 2026-07): pi→gpt-5.4/gpt-5.4-mini/gpt-5.4-nano, opencode→openai/gpt-5.4/.../openai/gpt-5.4-nano, agy→gemini-3.5-pro/gemini-3.5-flash/gemini-3.1-flash-lite, gemini→same, codex→gpt-5.1-codex-max/gpt-5.1-codex-mini/gpt-5.4-nano, claude→opus(4.8)/sonnet(5)/haiku. The implementing agent MUST verify these against live docs and record verified names + date.\n2. INPUT: The set of built-in provider names from BuiltinManifests() (including agy from P1.M2.T1.S1).\n3. LOGIC: Create internal/config/role_defaults.go (or provider/role_defaults.go). Define `type RoleModelDefaults map[string]map[string]string` keyed by provider→role→model. Also define `func DefaultModelsForProvider(name string) map[string]string` returning that provider's role→model column. Include the four roles: \"planner\", \"stager\", \"message\", \"arbiter\". For providers that cannot serve as stager (empty tooled_flags), mark the stager entry as \"\" and document the fallback. Add a comment block listing the verification date and source for each model name.\n4. OUTPUT: A function/constant set that the config bootstrap (P1.M4.T2) uses to populate per-role models for the detected provider.\n5. DOCS: [Mode A] Add inline comments recording the model verification date per FR-D5. Update docs/providers.md to show the tier assignments.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.32",
+                    "h2.16"
+                  ]
                 }
               ]
             }
@@ -227,9 +306,14 @@
                   "title": "Add config_version advisory warning on load",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M3.T1.S2"],
-                  "prd_selectors": ["h2.9", "h3.33"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: ConfigVersion was added to Config in P1.M3.T1.S1 and CurrentConfigVersion const in P1.M3.T1.S1. The file decoder copies fc.ConfigVersion→c.ConfigVersion in P1.M3.T1.S2's materialize(). The advisory is checked AFTER overlay (so the highest-layer version wins). Warning goes to stderr (matching the repo-config notice pattern). Advisory only — no auto-migration.\n2. INPUT: Config with ConfigVersion field from P1.M3.T1.S1, file decode from P1.M3.T1.S2.\n3. LOGIC: In load.go Load(), after overlay, check cfg.ConfigVersion against CurrentConfigVersion. If cfg.ConfigVersion == 0 (missing) or < CurrentConfigVersion → print warning to stderr: \"stagehand: config file uses schema version X; current is Y. Run 'stagehand config upgrade' or 'stagehand config init --force'.\" If > CurrentConfigVersion → warn file is ahead of binary. Use the existing noticeOut pattern from file.go for testability.\n4. OUTPUT: A clear advisory warning is printed when a config file's schema version mismatches the binary. No automatic migration occurs.\n5. DOCS: [Mode A] Update the config init template header to document config_version and the upgrade mechanism."
+                  "dependencies": [
+                    "P1.M3.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: ConfigVersion was added to Config in P1.M3.T1.S1 and CurrentConfigVersion const in P1.M3.T1.S1. The file decoder copies fc.ConfigVersion→c.ConfigVersion in P1.M3.T1.S2's materialize(). The advisory is checked AFTER overlay (so the highest-layer version wins). Warning goes to stderr (matching the repo-config notice pattern). Advisory only — no auto-migration.\n2. INPUT: Config with ConfigVersion field from P1.M3.T1.S1, file decode from P1.M3.T1.S2.\n3. LOGIC: In load.go Load(), after overlay, check cfg.ConfigVersion against CurrentConfigVersion. If cfg.ConfigVersion == 0 (missing) or < CurrentConfigVersion → print warning to stderr: \"stagehand: config file uses schema version X; current is Y. Run 'stagehand config upgrade' or 'stagehand config init --force'.\" If > CurrentConfigVersion → warn file is ahead of binary. Use the existing noticeOut pattern from file.go for testability.\n4. OUTPUT: A clear advisory warning is printed when a config file's schema version mismatches the binary. No automatic migration occurs.\n5. DOCS: [Mode A] Update the config init template header to document config_version and the upgrade mechanism.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.33"
+                  ]
                 }
               ]
             },
@@ -246,9 +330,19 @@
                   "title": "Rewrite config init to populated bootstrap + add --provider/--force/--template flags",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M3.T3.S1", "P1.M2.T2.S1", "P1.M4.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.33", "h2.15", "h3.62", "h2.16"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: config init currently writes the inert exampleConfigTemplate (all-commented) in internal/cmd/config.go. FR-B1 requires a POPULATED config: cascading detection finds the highest-priority installed built-in (FR-D1 order), writes [defaults] provider=<detected>, writes [role.*] per-role default models for that provider UNCOMMENTED (from P1.M3.T3.S1's DefaultModelsForProvider), writes other installed providers as COMMENTED-OUT [role.*] blocks. Parent dirs created; existing file NOT overwritten unless --force. FR-B2: --provider targets a specific provider; --force regenerates; --template retains the old inert behavior. The written path is always printed.\n2. INPUT: DefaultModelsForProvider from P1.M3.T3.S1, the Registry with installed detection (IsInstalled/DefaultProvider), and CurrentConfigVersion from P1.M3.T1.S1.\n3. LOGIC: In internal/cmd/config.go: add --provider, --force, --template local flags to configInitCmd. Rewrite runConfigInit: if --template, write the old inert template; else run cascading detection (build registry, find installed providers, pick default or --provider target), generate the populated TOML string (config_version, [defaults] provider, [role.*] uncommented for detected provider, commented-out for other installed providers, [generation] defaults), write to GlobalConfigPath (MkdirAll, refuse overwrite unless --force), print path. Generate the TOML via string building (not toml.Marshal of Config — the populated format has specific commenting).\n4. OUTPUT: `stagehand config init` writes a working config. `--provider <name>`, `--force`, `--template` flags work. The tool is immediately usable after init.\n5. DOCS: [Mode A] Update the config init Long help to describe the populated bootstrap behavior, the three new flags, and the cascading detection. Update docs/configuration.md to document the populated config format."
+                  "dependencies": [
+                    "P1.M3.T3.S1",
+                    "P1.M2.T2.S1",
+                    "P1.M4.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: config init currently writes the inert exampleConfigTemplate (all-commented) in internal/cmd/config.go. FR-B1 requires a POPULATED config: cascading detection finds the highest-priority installed built-in (FR-D1 order), writes [defaults] provider=<detected>, writes [role.*] per-role default models for that provider UNCOMMENTED (from P1.M3.T3.S1's DefaultModelsForProvider), writes other installed providers as COMMENTED-OUT [role.*] blocks. Parent dirs created; existing file NOT overwritten unless --force. FR-B2: --provider targets a specific provider; --force regenerates; --template retains the old inert behavior. The written path is always printed.\n2. INPUT: DefaultModelsForProvider from P1.M3.T3.S1, the Registry with installed detection (IsInstalled/DefaultProvider), and CurrentConfigVersion from P1.M3.T1.S1.\n3. LOGIC: In internal/cmd/config.go: add --provider, --force, --template local flags to configInitCmd. Rewrite runConfigInit: if --template, write the old inert template; else run cascading detection (build registry, find installed providers, pick default or --provider target), generate the populated TOML string (config_version, [defaults] provider, [role.*] uncommented for detected provider, commented-out for other installed providers, [generation] defaults), write to GlobalConfigPath (MkdirAll, refuse overwrite unless --force), print path. Generate the TOML via string building (not toml.Marshal of Config — the populated format has specific commenting).\n4. OUTPUT: `stagehand config init` writes a working config. `--provider <name>`, `--force`, `--template` flags work. The tool is immediately usable after init.\n5. DOCS: [Mode A] Update the config init Long help to describe the populated bootstrap behavior, the three new flags, and the cascading detection. Update docs/configuration.md to document the populated config format.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.33",
+                    "h2.15",
+                    "h3.62",
+                    "h2.16"
+                  ]
                 }
               ]
             },
@@ -265,9 +359,16 @@
                   "title": "Implement config upgrade command",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M4.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.33", "h2.15", "h3.62"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR-B5: config upgrade rewrites an existing config to CurrentConfigVersion in place. It preserves user values for keys that still exist, comments out removed/renamed keys with a note. Simple, idempotent, future-extensible. There are no existing users to migrate (v1 had no config_version), so the first upgrade simply adds config_version=N and is a no-op otherwise. Add a configUpgradeCmd to the config command group. Add to shouldSkipConfigLoad so it works outside a repo.\n2. INPUT: GlobalConfigPath() and CurrentConfigVersion from P1.M3.T1.S1.\n3. LOGIC: In internal/cmd/config.go: add configUpgradeCmd with `Use: \"upgrade\"`. Add \"upgrade\" to shouldSkipConfigLoad. RunE: read the existing config file (error if missing), parse it, set/update config_version to CurrentConfigVersion, re-serialize preserving structure, write back. For v2.0 this is primarily: ensure config_version=CurrentConfigVersion is present; leave all other content unchanged. Print a confirmation. Idempotent: running twice is safe.\n4. OUTPUT: `stagehand config upgrade` brings a config file up to CurrentConfigVersion. Existing user values are preserved.\n5. DOCS: [Mode A] Update the config command group Long help to list the upgrade subcommand. Remove the manual 'Subcommands:' block from config and providers parent commands (FR-B6 help de-duplication — cobra's 'Available Commands' is the single source)."
+                  "dependencies": [
+                    "P1.M4.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR-B5: config upgrade rewrites an existing config to CurrentConfigVersion in place. It preserves user values for keys that still exist, comments out removed/renamed keys with a note. Simple, idempotent, future-extensible. There are no existing users to migrate (v1 had no config_version), so the first upgrade simply adds config_version=N and is a no-op otherwise. Add a configUpgradeCmd to the config command group. Add to shouldSkipConfigLoad so it works outside a repo.\n2. INPUT: GlobalConfigPath() and CurrentConfigVersion from P1.M3.T1.S1.\n3. LOGIC: In internal/cmd/config.go: add configUpgradeCmd with `Use: \"upgrade\"`. Add \"upgrade\" to shouldSkipConfigLoad. RunE: read the existing config file (error if missing), parse it, set/update config_version to CurrentConfigVersion, re-serialize preserving structure, write back. For v2.0 this is primarily: ensure config_version=CurrentConfigVersion is present; leave all other content unchanged. Print a confirmation. Idempotent: running twice is safe.\n4. OUTPUT: `stagehand config upgrade` brings a config file up to CurrentConfigVersion. Existing user values are preserved.\n5. DOCS: [Mode A] Update the config command group Long help to list the upgrade subcommand. Remove the manual 'Subcommands:' block from config and providers parent commands (FR-B6 help de-duplication — cobra's 'Available Commands' is the single source).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.33",
+                    "h2.15",
+                    "h3.62"
+                  ]
                 }
               ]
             },
@@ -284,9 +385,14 @@
                   "title": "Implement first-run auto-bootstrap fallback",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M4.T2.S1"],
-                  "prd_selectors": ["h2.9", "h3.33"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR-B3: 'if stagehand starts with no global config and no STAGEHAND_CONFIG, it auto-writes the bootstrap config once, prints a notice with the path, and continues — the tool is never unconfigured.' This happens in config.Load() (internal/config/load.go) when the global file is absent AND no STAGEHAND_CONFIG override. It runs the same cascading detection + populated bootstrap as config init (P1.M4.T2.S1), then proceeds normally.\n2. INPUT: The populated config init logic from P1.M4.T2.S1 (extract the bootstrap-generation into a reusable function).\n3. LOGIC: In Load(), when globalPath discovery yields a missing file AND !explicit (no --config, no STAGEHAND_CONFIG): call the bootstrap function (extracted from config init's write logic) to write the populated config, print a notice to stderr ('stagehand: wrote bootstrap config to <path>'), then proceed to read it as Layer 2. Refactor config init's TOML generation into a shared `GenerateBootstrapConfig(provider string) string` function that both config init and this fallback call.\n4. OUTPUT: First run with no config → bootstrap config is written automatically, a notice is printed, and the tool works immediately.\n5. DOCS: none — the notice printed at runtime IS the documentation; no additional docs file change needed."
+                  "dependencies": [
+                    "P1.M4.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR-B3: 'if stagehand starts with no global config and no STAGEHAND_CONFIG, it auto-writes the bootstrap config once, prints a notice with the path, and continues — the tool is never unconfigured.' This happens in config.Load() (internal/config/load.go) when the global file is absent AND no STAGEHAND_CONFIG override. It runs the same cascading detection + populated bootstrap as config init (P1.M4.T2.S1), then proceeds normally.\n2. INPUT: The populated config init logic from P1.M4.T2.S1 (extract the bootstrap-generation into a reusable function).\n3. LOGIC: In Load(), when globalPath discovery yields a missing file AND !explicit (no --config, no STAGEHAND_CONFIG): call the bootstrap function (extracted from config init's write logic) to write the populated config, print a notice to stderr ('stagehand: wrote bootstrap config to <path>'), then proceed to read it as Layer 2. Refactor config init's TOML generation into a shared `GenerateBootstrapConfig(provider string) string` function that both config init and this fallback call.\n4. OUTPUT: First run with no config → bootstrap config is written automatically, a notice is printed, and the tool works immediately.\n5. DOCS: none — the notice printed at runtime IS the documentation; no additional docs file change needed.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.33"
+                  ]
                 }
               ]
             }
@@ -322,8 +428,11 @@
                   "status": "Planned",
                   "story_points": 2,
                   "dependencies": [],
-                  "prd_selectors": ["h2.9", "h3.17"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR3a: primary signal is `git diff --cached --numstat` which emits `-\\t-\\t<path>` for binary files. Supplemented by extension denylist: png jpg jpeg gif webp bmp ico svgz pdf zip tar gz tgz bz2 7z rar exe dll so dylib o class jar war wasm a mp3 mp4 mov avi mkv flac ogg wav ttf otf woff woff2. FR3b: placeholder is `<status>\\t[binary] <path>` where status from `git diff --cached --name-status`. The existing StagedDiff in internal/git/git.go captures markdown per-file then non-markdown aggregate with caps/excludes. Binary files currently produce useless 'Binary files a/… and b/… differ' hunks.\n2. INPUT: The existing gitRunner.run() helper and StagedDiffOptions struct in internal/git/git.go.\n3. LOGIC: Create internal/git/binary.go. Implement `defaultBinaryExtensions` (the denylist as a set). Implement `isBinaryByExtension(path string, extraExts []string) bool`. Implement `(g *gitRunner) detectBinaryFiles(ctx, diffArgs ...string) (map[string]bool, error)` — runs `git diff <diffArgs> --numstat`, parses lines where added==\"-\" and deleted==\"-\" as binary, unions with extension check. Implement `binaryPlaceholderLine(status, path string) string` returning `\"<status>\\t[binary] <path>\"`. Also implement `(g *gitRunner) fileStatuses(ctx, diffArgs ...string) (map[string]string, error)` running `git diff <diffArgs> --name-status` to get A/M/D/R/T per path.\n4. OUTPUT: Pure functions and gitRunner methods for binary detection and placeholder generation. These are consumed by StagedDiff (S2), WorkingTreeDiff (P2.M2.T2.S2), and TreeDiff (P2.M2.T1.S2).\n5. DOCS: [Mode A] Add a doc comment to binary.go explaining the two-signal detection strategy and the placeholder format per FR3a/b/c."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR3a: primary signal is `git diff --cached --numstat` which emits `-\\t-\\t<path>` for binary files. Supplemented by extension denylist: png jpg jpeg gif webp bmp ico svgz pdf zip tar gz tgz bz2 7z rar exe dll so dylib o class jar war wasm a mp3 mp4 mov avi mkv flac ogg wav ttf otf woff woff2. FR3b: placeholder is `<status>\\t[binary] <path>` where status from `git diff --cached --name-status`. The existing StagedDiff in internal/git/git.go captures markdown per-file then non-markdown aggregate with caps/excludes. Binary files currently produce useless 'Binary files a/… and b/… differ' hunks.\n2. INPUT: The existing gitRunner.run() helper and StagedDiffOptions struct in internal/git/git.go.\n3. LOGIC: Create internal/git/binary.go. Implement `defaultBinaryExtensions` (the denylist as a set). Implement `isBinaryByExtension(path string, extraExts []string) bool`. Implement `(g *gitRunner) detectBinaryFiles(ctx, diffArgs ...string) (map[string]bool, error)` — runs `git diff <diffArgs> --numstat`, parses lines where added==\"-\" and deleted==\"-\" as binary, unions with extension check. Implement `binaryPlaceholderLine(status, path string) string` returning `\"<status>\\t[binary] <path>\"`. Also implement `(g *gitRunner) fileStatuses(ctx, diffArgs ...string) (map[string]string, error)` running `git diff <diffArgs> --name-status` to get A/M/D/R/T per path.\n4. OUTPUT: Pure functions and gitRunner methods for binary detection and placeholder generation. These are consumed by StagedDiff (S2), WorkingTreeDiff (P2.M2.T2.S2), and TreeDiff (P2.M2.T1.S2).\n5. DOCS: [Mode A] Add a doc comment to binary.go explaining the two-signal detection strategy and the placeholder format per FR3a/b/c.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.17"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -331,9 +440,14 @@
                   "title": "Integrate binary filtering into StagedDiff",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P2.M1.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.17"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: StagedDiff in internal/git/git.go currently captures markdown per-file (Part 1) and non-markdown aggregate (Part 2) with caps and excludes. Binary files slip through as 'Binary files differ' hunks in Part 2. The integration must: (a) detect binary files among staged changes, (b) emit placeholder lines for them, (c) exclude them from the non-markdown diff body capture via pathspec excludes. FR3c: binary filtering applies in every diff path (staged, working-tree, tree-to-tree).\n2. INPUT: The binary detection + placeholder functions from P2.M1.T1.S1. The existing StagedDiff method.\n3. LOGIC: In StagedDiff, after the markdown section and before the non-markdown capture: call detectBinaryFiles with the staged-diff args to get the binary path set. Call fileStatuses to get statuses. For each binary file, append `binaryPlaceholderLine(status, path)` to the builder. Add each binary path to the non-markdown section's pathspec excludes as `:!<path>` so their bodies don't appear in the aggregate diff. The placeholder lines appear in the payload between markdown and non-markdown sections (or at the top of the non-markdown section). Accept BinaryExtensions from StagedDiffOptions (new field) to merge with the built-in denylist.\n4. OUTPUT: StagedDiff produces a payload where binary files appear as one-line placeholders instead of useless 'Binary files differ' hunks. Existing markdown/cap/exclude behavior is unchanged for non-binary files.\n5. DOCS: none — internal diff-capture change, the agent payload format is documented by the placeholder line itself."
+                  "dependencies": [
+                    "P2.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: StagedDiff in internal/git/git.go currently captures markdown per-file (Part 1) and non-markdown aggregate (Part 2) with caps and excludes. Binary files slip through as 'Binary files differ' hunks in Part 2. The integration must: (a) detect binary files among staged changes, (b) emit placeholder lines for them, (c) exclude them from the non-markdown diff body capture via pathspec excludes. FR3c: binary filtering applies in every diff path (staged, working-tree, tree-to-tree).\n2. INPUT: The binary detection + placeholder functions from P2.M1.T1.S1. The existing StagedDiff method.\n3. LOGIC: In StagedDiff, after the markdown section and before the non-markdown capture: call detectBinaryFiles with the staged-diff args to get the binary path set. Call fileStatuses to get statuses. For each binary file, append `binaryPlaceholderLine(status, path)` to the builder. Add each binary path to the non-markdown section's pathspec excludes as `:!<path>` so their bodies don't appear in the aggregate diff. The placeholder lines appear in the payload between markdown and non-markdown sections (or at the top of the non-markdown section). Accept BinaryExtensions from StagedDiffOptions (new field) to merge with the built-in denylist.\n4. OUTPUT: StagedDiff produces a payload where binary files appear as one-line placeholders instead of useless 'Binary files differ' hunks. Existing markdown/cap/exclude behavior is unchanged for non-binary files.\n5. DOCS: none — internal diff-capture change, the agent payload format is documented by the placeholder line itself.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.17"
+                  ]
                 }
               ]
             }
@@ -360,8 +474,13 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.13", "h3.58", "h3.53", "h3.54"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The Git interface in internal/git/git.go lists all methods with doc comments. New methods are added to the interface AND the gitRunner struct. RevParseTree: `git rev-parse <ref>^{tree}` returns the tree SHA of a commit-ish (e.g. HEAD, or a commit SHA). For an unborn repo with ref=HEAD, git exits 128 — return (\"\", nil) defensively (callers gate on isUnborn). ReadTree: `git read-tree <tree>` loads a tree into the index — MUTATES THE INDEX. Used only by the arbiter's mid-chain rebuild (P3.M3.T2). Both use the existing run()/runWithInput() helpers with -C flag.\n2. INPUT: The existing Git interface and gitRunner.run() helper.\n3. LOGIC: Add to Git interface: `RevParseTree(ctx context.Context, ref string) (string, error)` and `ReadTree(ctx context.Context, tree string) error`. Implement on gitRunner: RevParseTree runs `git rev-parse <ref>^{tree}`, handles 128 as empty (unborn), trims stdout. ReadTree runs `git read-tree <tree>`, non-zero exit → error.\n4. OUTPUT: Two new Git interface methods available to the decompose pipeline. RevParseTree provides the base tree (tree[-1]) for concept diffs. ReadTree enables chain rebuild.\n5. DOCS: none — interface additions, documented by doc comments on the interface."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The Git interface in internal/git/git.go lists all methods with doc comments. New methods are added to the interface AND the gitRunner struct. RevParseTree: `git rev-parse <ref>^{tree}` returns the tree SHA of a commit-ish (e.g. HEAD, or a commit SHA). For an unborn repo with ref=HEAD, git exits 128 — return (\"\", nil) defensively (callers gate on isUnborn). ReadTree: `git read-tree <tree>` loads a tree into the index — MUTATES THE INDEX. Used only by the arbiter's mid-chain rebuild (P3.M3.T2). Both use the existing run()/runWithInput() helpers with -C flag.\n2. INPUT: The existing Git interface and gitRunner.run() helper.\n3. LOGIC: Add to Git interface: `RevParseTree(ctx context.Context, ref string) (string, error)` and `ReadTree(ctx context.Context, tree string) error`. Implement on gitRunner: RevParseTree runs `git rev-parse <ref>^{tree}`, handles 128 as empty (unborn), trims stdout. ReadTree runs `git read-tree <tree>`, non-zero exit → error.\n4. OUTPUT: Two new Git interface methods available to the decompose pipeline. RevParseTree provides the base tree (tree[-1]) for concept diffs. ReadTree enables chain rebuild.\n5. DOCS: none — interface additions, documented by doc comments on the interface.",
+                  "prd_selectors": [
+                    "h2.13",
+                    "h3.58",
+                    "h3.53",
+                    "h3.54"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -369,9 +488,19 @@
                   "title": "Implement TreeDiff (tree-to-tree concept diff with binary filtering)",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P2.M2.T1.S1", "P2.M1.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.17", "h2.13", "h3.58", "h3.43", "h3.44"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The concept diff for message[i] is `git diff tree[i-1] tree[i]` — a TREE-TO-TREE diff, never index-vs-HEAD (§13.6.3 invariant 2). This is what makes stager[i+1] ∥ message[i] safe. The diff must apply the same caps/excludes/binary-filtering as StagedDiff. The existing StagedDiff uses --cached (index-vs-HEAD); TreeDiff uses two positional tree SHAs (no --cached). For binary files in the tree diff, emit placeholders per FR3c (same format as StagedDiff integration).\n2. INPUT: RevParseTree from S1, binary detection from P2.M1.T1.S1.\n3. LOGIC: Add `TreeDiff(ctx context.Context, treeA, treeB string, opts StagedDiffOptions) (string, error)` to Git interface and gitRunner. Implementation: run `git diff <treeA> <treeB>` with pathspec excludes (same pattern as StagedDiff Part 2 but WITHOUT --cached). Apply binary detection (detectBinaryFiles with the tree-diff args), emit placeholders, exclude binary paths from the diff body. Apply byte cap. For the empty tree (unborn base), use the well-known empty tree SHA (4b825dc642cb6eb9a060e54bf8d69288fbee4904) or pass as-is (git handles it). StagedDiffOptions gets a BinaryExtensions field if not already added.\n4. OUTPUT: TreeDiff returns a concept diff payload between two tree SHAs, with binary filtering applied. This is consumed by the decompose message-generation step (P3.M2.T4.S1).\n5. DOCS: none — internal method, documented by interface doc comment."
+                  "dependencies": [
+                    "P2.M2.T1.S1",
+                    "P2.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The concept diff for message[i] is `git diff tree[i-1] tree[i]` — a TREE-TO-TREE diff, never index-vs-HEAD (§13.6.3 invariant 2). This is what makes stager[i+1] ∥ message[i] safe. The diff must apply the same caps/excludes/binary-filtering as StagedDiff. The existing StagedDiff uses --cached (index-vs-HEAD); TreeDiff uses two positional tree SHAs (no --cached). For binary files in the tree diff, emit placeholders per FR3c (same format as StagedDiff integration).\n2. INPUT: RevParseTree from S1, binary detection from P2.M1.T1.S1.\n3. LOGIC: Add `TreeDiff(ctx context.Context, treeA, treeB string, opts StagedDiffOptions) (string, error)` to Git interface and gitRunner. Implementation: run `git diff <treeA> <treeB>` with pathspec excludes (same pattern as StagedDiff Part 2 but WITHOUT --cached). Apply binary detection (detectBinaryFiles with the tree-diff args), emit placeholders, exclude binary paths from the diff body. Apply byte cap. For the empty tree (unborn base), use the well-known empty tree SHA (4b825dc642cb6eb9a060e54bf8d69288fbee4904) or pass as-is (git handles it). StagedDiffOptions gets a BinaryExtensions field if not already added.\n4. OUTPUT: TreeDiff returns a concept diff payload between two tree SHAs, with binary filtering applied. This is consumed by the decompose message-generation step (P3.M2.T4.S1).\n5. DOCS: none — internal method, documented by interface doc comment.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.17",
+                    "h2.13",
+                    "h3.58",
+                    "h3.43",
+                    "h3.44"
+                  ]
                 }
               ]
             },
@@ -389,8 +518,12 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.13", "h3.58", "h3.56"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The arbiter runs iff `git status --porcelain` is non-empty after the decompose loop (§13.6.5). StatusPorcelain returns the raw porcelain output; the caller checks if it's empty (clean) or non-empty (leftovers exist). `git status --porcelain` exits 0 on success, lists each changed path with a 2-char status code. Read-only w.r.t. refs/index.\n2. INPUT: The existing gitRunner.run() helper.\n3. LOGIC: Add `StatusPorcelain(ctx context.Context) (string, error)` to Git interface and gitRunner. Implementation: run `git status --porcelain`, return stdout trimmed. Non-zero exit → error. The caller (decompose orchestrator) checks `strings.TrimSpace(output) != \"\"` to decide whether to run the arbiter.\n4. OUTPUT: StatusPorcelain returns the porcelain output string. Empty string means clean tree.\n5. DOCS: none — interface addition."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The arbiter runs iff `git status --porcelain` is non-empty after the decompose loop (§13.6.5). StatusPorcelain returns the raw porcelain output; the caller checks if it's empty (clean) or non-empty (leftovers exist). `git status --porcelain` exits 0 on success, lists each changed path with a 2-char status code. Read-only w.r.t. refs/index.\n2. INPUT: The existing gitRunner.run() helper.\n3. LOGIC: Add `StatusPorcelain(ctx context.Context) (string, error)` to Git interface and gitRunner. Implementation: run `git status --porcelain`, return stdout trimmed. Non-zero exit → error. The caller (decompose orchestrator) checks `strings.TrimSpace(output) != \"\"` to decide whether to run the arbiter.\n4. OUTPUT: StatusPorcelain returns the porcelain output string. Empty string means clean tree.\n5. DOCS: none — interface addition.",
+                  "prd_selectors": [
+                    "h2.13",
+                    "h3.58",
+                    "h3.56"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -398,9 +531,16 @@
                   "title": "Implement WorkingTreeDiff (unstaged diff with binary filtering) for planner input",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P2.M1.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.17", "h2.13", "h3.58"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The planner (§13.6.2) receives the FULL working-tree diff — all unstaged changes. This is `git diff` WITHOUT --cached (working-tree-vs-index). It must apply the same caps/excludes/binary-filtering as StagedDiff. The planner uses this to decide how to partition the changes. Binary files in the working tree get placeholder lines per FR3c.\n2. INPUT: Binary detection functions from P2.M1.T1.S1.\n3. LOGIC: Add `WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions) (string, error)` to Git interface and gitRunner. Implementation mirrors StagedDiff but uses `git diff` (no --cached). Markdown handling: same per-file approach. Non-markdown: same aggregate with excludes + caps. Binary filtering: detectBinaryFiles with working-tree diff args, emit placeholders, exclude from body. The planner feeds this diff + style examples (§17.5) to the planner agent.\n4. OUTPUT: WorkingTreeDiff returns the full unstaged working-tree diff payload with binary filtering. Consumed by the decompose planner (P3.M2.T2.S1).\n5. DOCS: none — internal method."
+                  "dependencies": [
+                    "P2.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The planner (§13.6.2) receives the FULL working-tree diff — all unstaged changes. This is `git diff` WITHOUT --cached (working-tree-vs-index). It must apply the same caps/excludes/binary-filtering as StagedDiff. The planner uses this to decide how to partition the changes. Binary files in the working tree get placeholder lines per FR3c.\n2. INPUT: Binary detection functions from P2.M1.T1.S1.\n3. LOGIC: Add `WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions) (string, error)` to Git interface and gitRunner. Implementation mirrors StagedDiff but uses `git diff` (no --cached). Markdown handling: same per-file approach. Non-markdown: same aggregate with excludes + caps. Binary filtering: detectBinaryFiles with working-tree diff args, emit placeholders, exclude from body. The planner feeds this diff + style examples (§17.5) to the planner agent.\n4. OUTPUT: WorkingTreeDiff returns the full unstaged working-tree diff payload with binary filtering. Consumed by the decompose planner (P3.M2.T2.S1).\n5. DOCS: none — internal method.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.17",
+                    "h2.13",
+                    "h3.58"
+                  ]
                 }
               ]
             }
@@ -436,8 +576,13 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.17", "h3.73", "h2.13", "h3.58"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: §17.5 specifies the planner prompt verbatim. The planner is bare and receives the full working-tree diff + style examples. Its JSON output contract: `{\"count\": N, \"single\": bool, \"commits\": [{\"title\": \"...\", \"description\": \"...\"}], \"message\": \"...\"}`. message present iff single==true. Forced-count mode prepends 'Produce EXACTLY N commits...'. Retry instruction: 'Respond with ONLY the JSON object described, no other text.' The style examples are the same RecentMessages-based examples from prompt/system.go.\n2. INPUT: The existing prompt package patterns (prompt/system.go, prompt/payload.go — string constants without trailing newlines, assembly functions own inter-block newlines).\n3. LOGIC: Create internal/prompt/planner.go. Define plannerSystemPrompt constant (verbatim from §17.5 — role, rules, JSON contract). Define plannerUserPayload(diff string, forcedCount int) string — assembles the user instruction + diff (prepends forced-count directive if forcedCount>0). Define PlannerOutput struct with json tags: Count int, Single bool, Commits []PlannerCommit (Title, Description), Message string. Define ParsePlannerOutput(raw string) (PlannerOutput, error) — json.Unmarshal with brace-balanced fallback (reuse provider.parseJSON pattern or provider.extractJSONObject).\n4. OUTPUT: prompt/planner.go exports BuildPlannerSystemPrompt(), BuildPlannerUserPayload(), and ParsePlannerOutput(). Consumed by decompose/planner.go (P3.M2.T2.S1).\n5. DOCS: none — prompt constants are self-documenting via PRD §17.5 reference."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: §17.5 specifies the planner prompt verbatim. The planner is bare and receives the full working-tree diff + style examples. Its JSON output contract: `{\"count\": N, \"single\": bool, \"commits\": [{\"title\": \"...\", \"description\": \"...\"}], \"message\": \"...\"}`. message present iff single==true. Forced-count mode prepends 'Produce EXACTLY N commits...'. Retry instruction: 'Respond with ONLY the JSON object described, no other text.' The style examples are the same RecentMessages-based examples from prompt/system.go.\n2. INPUT: The existing prompt package patterns (prompt/system.go, prompt/payload.go — string constants without trailing newlines, assembly functions own inter-block newlines).\n3. LOGIC: Create internal/prompt/planner.go. Define plannerSystemPrompt constant (verbatim from §17.5 — role, rules, JSON contract). Define plannerUserPayload(diff string, forcedCount int) string — assembles the user instruction + diff (prepends forced-count directive if forcedCount>0). Define PlannerOutput struct with json tags: Count int, Single bool, Commits []PlannerCommit (Title, Description), Message string. Define ParsePlannerOutput(raw string) (PlannerOutput, error) — json.Unmarshal with brace-balanced fallback (reuse provider.parseJSON pattern or provider.extractJSONObject).\n4. OUTPUT: prompt/planner.go exports BuildPlannerSystemPrompt(), BuildPlannerUserPayload(), and ParsePlannerOutput(). Consumed by decompose/planner.go (P3.M2.T2.S1).\n5. DOCS: none — prompt constants are self-documenting via PRD §17.5 reference.",
+                  "prd_selectors": [
+                    "h2.17",
+                    "h3.73",
+                    "h2.13",
+                    "h3.58"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -446,8 +591,13 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.17", "h3.74", "h2.13", "h3.58"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: §17.6 specifies the stager task prompt verbatim. The stager is TOOLED (git access, repo-scoped). It receives a concept's title + description as a TASK (not a system-prompt-and-diff). It must stage exactly that concept's changes and stop. Hard guardrails: no commit/amend/push/ref-mutation. The prompt is delivered as the user payload with minimal/empty system prompt.\n2. INPUT: The existing prompt package patterns.\n3. LOGIC: Create internal/prompt/stager.go. Define BuildStagerTask(title, description string) string — assembles the §17.6 stager task prompt: 'Stage, but do NOT commit, all changes in this repository that match this concept:' + title + description + the git instructions and guardrails (verbatim from §17.6). No JSON contract (stager returns a text confirmation of paths staged, not structured output).\n4. OUTPUT: prompt/stager.go exports BuildStagerTask(). Consumed by decompose/stager.go (P3.M2.T3.S1).\n5. DOCS: none — self-documenting via PRD §17.6."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: §17.6 specifies the stager task prompt verbatim. The stager is TOOLED (git access, repo-scoped). It receives a concept's title + description as a TASK (not a system-prompt-and-diff). It must stage exactly that concept's changes and stop. Hard guardrails: no commit/amend/push/ref-mutation. The prompt is delivered as the user payload with minimal/empty system prompt.\n2. INPUT: The existing prompt package patterns.\n3. LOGIC: Create internal/prompt/stager.go. Define BuildStagerTask(title, description string) string — assembles the §17.6 stager task prompt: 'Stage, but do NOT commit, all changes in this repository that match this concept:' + title + description + the git instructions and guardrails (verbatim from §17.6). No JSON contract (stager returns a text confirmation of paths staged, not structured output).\n4. OUTPUT: prompt/stager.go exports BuildStagerTask(). Consumed by decompose/stager.go (P3.M2.T3.S1).\n5. DOCS: none — self-documenting via PRD §17.6.",
+                  "prd_selectors": [
+                    "h2.17",
+                    "h3.74",
+                    "h2.13",
+                    "h3.58"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -456,8 +606,13 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.17", "h3.75", "h2.13", "h3.58"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: §17.7 specifies the arbiter prompt verbatim. The arbiter is bare and runs only if the working tree is non-empty after the loop. It receives: commits made this run (SHA+subject+file-list each) + a diff of remaining changes. Returns JSON: `{\"target\": \"<sha>\"}` or `{\"target\": null}`. 'When in doubt, prefer a NEW commit (return null).' May only target a commit from the provided list.\n2. INPUT: The existing prompt package patterns + provider.extractJSONObject for JSON parsing.\n3. LOGIC: Create internal/prompt/arbiter.go. Define arbiterSystemPrompt constant (verbatim from §17.7). Define BuildArbiterUserPayload(commits []ArbiterCommit, leftoverDiff string) string — assembles the commit list (SHA+subject+files each) + the leftover diff. Define ArbiterOutput struct: Target *string (nil=null=new commit). Define ParseArbiterOutput(raw string) (ArbiterOutput, error).\n4. OUTPUT: prompt/arbiter.go exports BuildArbiterSystemPrompt(), BuildArbiterUserPayload(), and ParseArbiterOutput(). Consumed by decompose/arbiter.go (P3.M3.T1.S1).\n5. DOCS: none — self-documenting via PRD §17.7."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: §17.7 specifies the arbiter prompt verbatim. The arbiter is bare and runs only if the working tree is non-empty after the loop. It receives: commits made this run (SHA+subject+file-list each) + a diff of remaining changes. Returns JSON: `{\"target\": \"<sha>\"}` or `{\"target\": null}`. 'When in doubt, prefer a NEW commit (return null).' May only target a commit from the provided list.\n2. INPUT: The existing prompt package patterns + provider.extractJSONObject for JSON parsing.\n3. LOGIC: Create internal/prompt/arbiter.go. Define arbiterSystemPrompt constant (verbatim from §17.7). Define BuildArbiterUserPayload(commits []ArbiterCommit, leftoverDiff string) string — assembles the commit list (SHA+subject+files each) + the leftover diff. Define ArbiterOutput struct: Target *string (nil=null=new commit). Define ParseArbiterOutput(raw string) (ArbiterOutput, error).\n4. OUTPUT: prompt/arbiter.go exports BuildArbiterSystemPrompt(), BuildArbiterUserPayload(), and ParseArbiterOutput(). Consumed by decompose/arbiter.go (P3.M3.T1.S1).\n5. DOCS: none — self-documenting via PRD §17.7.",
+                  "prd_selectors": [
+                    "h2.17",
+                    "h3.75",
+                    "h2.13",
+                    "h3.58"
+                  ]
                 }
               ]
             }
@@ -483,9 +638,20 @@
                   "title": "Implement decompose/roles.go — resolve four role manifests from config",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M3.T2.S2"],
-                  "prd_selectors": ["h2.9", "h3.31", "h3.32", "h2.13", "h3.58", "h3.59", "h2.16", "h3.68"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Each of the four roles (planner/stager/message/arbiter) independently resolves its provider and model via config.ResolveRoleModel (P1.M3.T2.S2), then looks up the manifest from the Registry, validates it, and checks IsInstalled. For bare roles (planner/message/arbiter), the manifest's BareFlags are used. For the stager, TooledFlags must be non-empty — if the resolved stager provider has empty TooledFlags, fall back to the next-priority provider that CAN (FR-D4 note). FR-R5b: for multi-provider agents, if model is set but provider is empty, surface a config error. The Deps struct carries Git, the Registry, Config, resolved RoleManifests, and Verbose — injectable for testing with stub manifests.\n2. INPUT: config.ResolveRoleModel from P1.M3.T2.S2, provider.Registry from existing code.\n3. LOGIC: Create internal/decompose/roles.go. Define `type RoleManifests struct { Planner, Stager, Message, Arbiter provider.Manifest }` and `type RoleModels struct { Planner, Stager, Message, Arbiter config.RoleConfig }`. Define `type Deps struct { Git git.Git; Registry *provider.Registry; Config config.Config; Roles RoleManifests; Verbose *ui.Verbose }`. Implement `func ResolveRoles(cfg config.Config, reg *provider.Registry) (RoleManifests, RoleModels, error)` — for each role: call config.ResolveRoleModel, get manifest from reg.Get, Validate, IsInstalled check, stager tooled_flags check (fall back if empty). Return error on missing provider, uninstalled command, or model-without-provider for multi-provider agents.\n4. OUTPUT: decompose/roles.go exports Deps, RoleManifests, RoleModels, and ResolveRoles(). The decompose orchestrator (P3.M4.T1.S1) calls ResolveRoles to build Deps.\n5. DOCS: none — internal resolution logic."
+                  "dependencies": [
+                    "P1.M3.T2.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Each of the four roles (planner/stager/message/arbiter) independently resolves its provider and model via config.ResolveRoleModel (P1.M3.T2.S2), then looks up the manifest from the Registry, validates it, and checks IsInstalled. For bare roles (planner/message/arbiter), the manifest's BareFlags are used. For the stager, TooledFlags must be non-empty — if the resolved stager provider has empty TooledFlags, fall back to the next-priority provider that CAN (FR-D4 note). FR-R5b: for multi-provider agents, if model is set but provider is empty, surface a config error. The Deps struct carries Git, the Registry, Config, resolved RoleManifests, and Verbose — injectable for testing with stub manifests.\n2. INPUT: config.ResolveRoleModel from P1.M3.T2.S2, provider.Registry from existing code.\n3. LOGIC: Create internal/decompose/roles.go. Define `type RoleManifests struct { Planner, Stager, Message, Arbiter provider.Manifest }` and `type RoleModels struct { Planner, Stager, Message, Arbiter config.RoleConfig }`. Define `type Deps struct { Git git.Git; Registry *provider.Registry; Config config.Config; Roles RoleManifests; Verbose *ui.Verbose }`. Implement `func ResolveRoles(cfg config.Config, reg *provider.Registry) (RoleManifests, RoleModels, error)` — for each role: call config.ResolveRoleModel, get manifest from reg.Get, Validate, IsInstalled check, stager tooled_flags check (fall back if empty). Return error on missing provider, uninstalled command, or model-without-provider for multi-provider agents.\n4. OUTPUT: decompose/roles.go exports Deps, RoleManifests, RoleModels, and ResolveRoles(). The decompose orchestrator (P3.M4.T1.S1) calls ResolveRoles to build Deps.\n5. DOCS: none — internal resolution logic.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.31",
+                    "h3.32",
+                    "h2.13",
+                    "h3.58",
+                    "h3.59",
+                    "h2.16",
+                    "h3.68"
+                  ]
                 }
               ]
             },
@@ -502,9 +668,22 @@
                   "title": "Implement planner agent call + JSON parse + single-shortcut in decompose/planner.go",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P3.M2.T1.S1", "P3.M1.T1.S1", "P2.M2.T2.S2"],
-                  "prd_selectors": ["h2.9", "h3.30", "h2.13", "h3.58", "h3.43", "h3.59", "h2.17", "h3.73"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The planner (§13.6.2, FR-M3) is bare, receives the full working-tree diff (WorkingTreeDiff from P2.M2.T2.S2) + style examples (same as v1 prompt: RecentMessages/DetectMultiline/BuildSystemPrompt). Output is JSON (PlannerOutput from prompt/planner.go P3.M1.T1.S1). Modes: auto-decompose (planner decides count+partition), forced-count (--commits N, planner only partitions). Single-call shortcut (FR-M11): if planner returns single==true, use planner's message directly (git add -A → CommitStaged). Retry once on unparseable JSON. Planner failure (§13.6.6): no commits made yet, surface error, exit non-rescue.\n2. INPUT: Deps with Planner manifest from P3.M2.T1.S1, prompt/planner.go from P3.M1.T1.S1, WorkingTreeDiff from P2.M2.T2.S2.\n3. LOGIC: Create internal/decompose/planner.go. Implement `func callPlanner(ctx, deps Deps, forcedCount int, isUnborn bool) (prompt.PlannerOutput, error)`: capture working-tree diff via deps.Git.WorkingTreeDiff; build system prompt (style examples); build user payload (forced-count prefix if forcedCount>0); Render with bare mode; Execute; ParsePlannerOutput with one retry on parse failure. If single==true, the output carries a Message field for the single-shortcut. Enforce safety cap: if output.Count > deps.Config.MaxCommits and forcedCount==0, return error 'planner proposed N commits; exceeds max_commits (M); use --commits or --max-commits'.\n4. OUTPUT: callPlanner returns a parsed PlannerOutput (concepts list or single-shortcut). Consumed by the orchestrator (P3.M4.T1.S1).\n5. DOCS: none — internal agent call."
+                  "dependencies": [
+                    "P3.M2.T1.S1",
+                    "P3.M1.T1.S1",
+                    "P2.M2.T2.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The planner (§13.6.2, FR-M3) is bare, receives the full working-tree diff (WorkingTreeDiff from P2.M2.T2.S2) + style examples (same as v1 prompt: RecentMessages/DetectMultiline/BuildSystemPrompt). Output is JSON (PlannerOutput from prompt/planner.go P3.M1.T1.S1). Modes: auto-decompose (planner decides count+partition), forced-count (--commits N, planner only partitions). Single-call shortcut (FR-M11): if planner returns single==true, use planner's message directly (git add -A → CommitStaged). Retry once on unparseable JSON. Planner failure (§13.6.6): no commits made yet, surface error, exit non-rescue.\n2. INPUT: Deps with Planner manifest from P3.M2.T1.S1, prompt/planner.go from P3.M1.T1.S1, WorkingTreeDiff from P2.M2.T2.S2.\n3. LOGIC: Create internal/decompose/planner.go. Implement `func callPlanner(ctx, deps Deps, forcedCount int, isUnborn bool) (prompt.PlannerOutput, error)`: capture working-tree diff via deps.Git.WorkingTreeDiff; build system prompt (style examples); build user payload (forced-count prefix if forcedCount>0); Render with bare mode; Execute; ParsePlannerOutput with one retry on parse failure. If single==true, the output carries a Message field for the single-shortcut. Enforce safety cap: if output.Count > deps.Config.MaxCommits and forcedCount==0, return error 'planner proposed N commits; exceeds max_commits (M); use --commits or --max-commits'.\n4. OUTPUT: callPlanner returns a parsed PlannerOutput (concepts list or single-shortcut). Consumed by the orchestrator (P3.M4.T1.S1).\n5. DOCS: none — internal agent call.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.30",
+                    "h2.13",
+                    "h3.58",
+                    "h3.43",
+                    "h3.59",
+                    "h2.17",
+                    "h3.73"
+                  ]
                 }
               ]
             },
@@ -521,9 +700,22 @@
                   "title": "Implement tooled stager invocation + snapshot freeze in decompose/stager.go",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P3.M2.T1.S1", "P3.M1.T1.S2", "P1.M1.T2.S1"],
-                  "prd_selectors": ["h2.9", "h3.30", "h2.11", "h3.42", "h2.13", "h3.58", "h3.44", "h3.59"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The stager (§13.6.2, FR-M5) is the ONLY tooled role. It receives a concept's title+description as a task (prompt/stager.go from P3.M1.T1.S2), runs with tools ON via RenderTooled mode (P1.M1.T2.S1). It stages changes via git add and hunk-staging. It MUST NOT commit/amend/push — stagehand owns all ref mutations. After stager[i] returns, the orchestrator FREEZES tree[i] = write-tree BEFORE stager[i+1] starts (§13.6.3 invariant 1). Stager failure: retry once, then treat as empty (FR-M8). The stager mutates the INDEX only (not refs).\n2. INPUT: Deps with Stager manifest (tooled_flags non-empty) from P3.M2.T1.S1, prompt/stager.go from P3.M1.T1.S2, Render with RenderTooled mode from P1.M1.T2.S1.\n3. LOGIC: Create internal/decompose/stager.go. Implement `func stageConcept(ctx, deps Deps, concept prompt.PlannerCommit) error`: build stager task prompt (BuildStagerTask), Render with RenderTooled mode, Execute. Non-zero exit: return error (caller retries once, then treats as empty). On success, the index holds the concept's changes. Implement `func freezeSnapshot(ctx, deps Deps) (treeSHA string, err error)`: calls deps.Git.WriteTree to freeze the current index into an immutable tree. This MUST be called synchronously after stageConcept returns and BEFORE the next stageConcept starts.\n4. OUTPUT: stageConcept stages one concept's changes; freezeSnapshot returns the frozen tree SHA. The orchestrator (P3.M4.T1.S1) interleaves these with message generation.\n5. DOCS: none — internal agent call + git operation."
+                  "dependencies": [
+                    "P3.M2.T1.S1",
+                    "P3.M1.T1.S2",
+                    "P1.M1.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The stager (§13.6.2, FR-M5) is the ONLY tooled role. It receives a concept's title+description as a task (prompt/stager.go from P3.M1.T1.S2), runs with tools ON via RenderTooled mode (P1.M1.T2.S1). It stages changes via git add and hunk-staging. It MUST NOT commit/amend/push — stagehand owns all ref mutations. After stager[i] returns, the orchestrator FREEZES tree[i] = write-tree BEFORE stager[i+1] starts (§13.6.3 invariant 1). Stager failure: retry once, then treat as empty (FR-M8). The stager mutates the INDEX only (not refs).\n2. INPUT: Deps with Stager manifest (tooled_flags non-empty) from P3.M2.T1.S1, prompt/stager.go from P3.M1.T1.S2, Render with RenderTooled mode from P1.M1.T2.S1.\n3. LOGIC: Create internal/decompose/stager.go. Implement `func stageConcept(ctx, deps Deps, concept prompt.PlannerCommit) error`: build stager task prompt (BuildStagerTask), Render with RenderTooled mode, Execute. Non-zero exit: return error (caller retries once, then treats as empty). On success, the index holds the concept's changes. Implement `func freezeSnapshot(ctx, deps Deps) (treeSHA string, err error)`: calls deps.Git.WriteTree to freeze the current index into an immutable tree. This MUST be called synchronously after stageConcept returns and BEFORE the next stageConcept starts.\n4. OUTPUT: stageConcept stages one concept's changes; freezeSnapshot returns the frozen tree SHA. The orchestrator (P3.M4.T1.S1) interleaves these with message generation.\n5. DOCS: none — internal agent call + git operation.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.30",
+                    "h2.11",
+                    "h3.42",
+                    "h2.13",
+                    "h3.58",
+                    "h3.44",
+                    "h3.59"
+                  ]
                 }
               ]
             },
@@ -540,9 +732,22 @@
                   "title": "Implement per-concept message gen (tree-to-tree diff) + serialized publication loop",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P3.M2.T3.S1", "P2.M2.T1.S2", "P3.M2.T2.S1"],
-                  "prd_selectors": ["h2.9", "h3.30", "h2.13", "h3.58", "h3.43", "h3.44", "h3.59", "h2.18"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Per §13.6.3, message[i] reasons over `git diff tree[i-1] tree[i]` (tree-to-tree, never index-vs-HEAD). The message agent is bare — it reuses v1's generate primitives (system prompt, dedupe, parse). The concept diff comes from TreeDiff (P2.M2.T1.S2). Publication is serialized: commit[i] = commit-tree -p newSHA[i-1] tree[i] msg[i], then update-ref HEAD newSHA[i] newSHA[i-1] (CAS). tree[-1] is RevParseTree(HEAD) or the empty tree for unborn. Empty-concept skip (FR-M8): if tree[i]==tree[i-1], skip commit[i]. Overlap: message[i] can overlap stager[i+1] (goroutine for generation while staging runs). The orchestrator manages this interleaving.\n2. INPUT: freezeSnapshot from P3.M2.T3.S1, TreeDiff from P2.M2.T1.S2, generate primitives (ExtractSubject, IsDuplicate, FormatRescue) from existing code.\n3. LOGIC: In decompose/decompose.go (or a decompose/loop.go): implement the core loop. For each concept i: (a) stageConcept(i) → freezeSnapshot → tree[i]; (b) if tree[i]==tree[i-1] → skip (FR-M8); (c) generate message[i] from TreeDiff(tree[i-1],tree[i]) using the message-role manifest (bare mode, same generate/dedupe loop as v1 CommitStaged but with concept diff instead of StagedDiff); (d) start stager[i+1] in a goroutine (overlap); (e) wait for msg[i]; (f) CommitTree(tree[i], [newSHA[i-1]], msg[i]) → newSHA[i]; (g) UpdateRefCAS(HEAD, newSHA[i], newSHA[i-1]) — on CAS failure, abort with §13.5 message; (h) wait for stager[i+1] goroutine. The message generation function is a variant of generate.CommitStaged's loop that takes a diff string instead of calling StagedDiff.\n4. OUTPUT: The serialized publication loop creates N commits in order, each from a frozen tree, each with a CAS-protected update-ref. Empty concepts are skipped. Overlapped staging/generation works safely.\n5. DOCS: none — internal orchestration."
+                  "dependencies": [
+                    "P3.M2.T3.S1",
+                    "P2.M2.T1.S2",
+                    "P3.M2.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Per §13.6.3, message[i] reasons over `git diff tree[i-1] tree[i]` (tree-to-tree, never index-vs-HEAD). The message agent is bare — it reuses v1's generate primitives (system prompt, dedupe, parse). The concept diff comes from TreeDiff (P2.M2.T1.S2). Publication is serialized: commit[i] = commit-tree -p newSHA[i-1] tree[i] msg[i], then update-ref HEAD newSHA[i] newSHA[i-1] (CAS). tree[-1] is RevParseTree(HEAD) or the empty tree for unborn. Empty-concept skip (FR-M8): if tree[i]==tree[i-1], skip commit[i]. Overlap: message[i] can overlap stager[i+1] (goroutine for generation while staging runs). The orchestrator manages this interleaving.\n2. INPUT: freezeSnapshot from P3.M2.T3.S1, TreeDiff from P2.M2.T1.S2, generate primitives (ExtractSubject, IsDuplicate, FormatRescue) from existing code.\n3. LOGIC: In decompose/decompose.go (or a decompose/loop.go): implement the core loop. For each concept i: (a) stageConcept(i) → freezeSnapshot → tree[i]; (b) if tree[i]==tree[i-1] → skip (FR-M8); (c) generate message[i] from TreeDiff(tree[i-1],tree[i]) using the message-role manifest (bare mode, same generate/dedupe loop as v1 CommitStaged but with concept diff instead of StagedDiff); (d) start stager[i+1] in a goroutine (overlap); (e) wait for msg[i]; (f) CommitTree(tree[i], [newSHA[i-1]], msg[i]) → newSHA[i]; (g) UpdateRefCAS(HEAD, newSHA[i], newSHA[i-1]) — on CAS failure, abort with §13.5 message; (h) wait for stager[i+1] goroutine. The message generation function is a variant of generate.CommitStaged's loop that takes a diff string instead of calling StagedDiff.\n4. OUTPUT: The serialized publication loop creates N commits in order, each from a frozen tree, each with a CAS-protected update-ref. Empty concepts are skipped. Overlapped staging/generation works safely.\n5. DOCS: none — internal orchestration.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.30",
+                    "h2.13",
+                    "h3.58",
+                    "h3.43",
+                    "h3.44",
+                    "h3.59",
+                    "h2.18"
+                  ]
                 }
               ]
             }
@@ -568,9 +773,21 @@
                   "title": "Implement arbiter agent call + JSON parse in decompose/arbiter.go",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P3.M1.T1.S3", "P3.M2.T4.S1", "P2.M2.T2.S1"],
-                  "prd_selectors": ["h2.9", "h3.30", "h2.13", "h3.58", "h3.43", "h2.17", "h3.75"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The arbiter (§13.6.5, FR-M9) is bare and runs only if StatusPorcelain (P2.M2.T2.S1) is non-empty after the loop. It receives: SHAs, subjects, and file-lists (diff-tree) of every commit made this run, plus a diff of remaining changes (WorkingTreeDiff). Returns JSON: {\"target\": \"<sha>\"} or {\"target\": null}. Ambiguous → null. May only target a commit from this run. The arbiter only DECIDES; stagehand performs all git (FR-M10). Output is parsed via ParseArbiterOutput (P3.M1.T1.S3).\n2. INPUT: prompt/arbiter.go from P3.M1.T1.S3, StatusPorcelain from P2.M2.T2.S1, the list of commits made this run (SHAs, subjects, file-lists).\n3. LOGIC: Create internal/decompose/arbiter.go. Implement `func runArbiter(ctx, deps Deps, commits []CommitInfo, leftoverDiff string) (prompt.ArbiterOutput, error)`: build system prompt (BuildArbiterSystemPrompt), build user payload (BuildArbiterUserPayload with commit list + diff), Render with bare mode, Execute, ParseArbiterOutput. If the returned target SHA is not in the commits-made list → treat as null (ambiguous). Define `type CommitInfo struct { SHA, Subject string; Files []git.FileChange }`.\n4. OUTPUT: runArbiter returns a target SHA (or nil for new commit). Consumed by the resolution logic (S2).\n5. DOCS: none — internal agent call."
+                  "dependencies": [
+                    "P3.M1.T1.S3",
+                    "P3.M2.T4.S1",
+                    "P2.M2.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The arbiter (§13.6.5, FR-M9) is bare and runs only if StatusPorcelain (P2.M2.T2.S1) is non-empty after the loop. It receives: SHAs, subjects, and file-lists (diff-tree) of every commit made this run, plus a diff of remaining changes (WorkingTreeDiff). Returns JSON: {\"target\": \"<sha>\"} or {\"target\": null}. Ambiguous → null. May only target a commit from this run. The arbiter only DECIDES; stagehand performs all git (FR-M10). Output is parsed via ParseArbiterOutput (P3.M1.T1.S3).\n2. INPUT: prompt/arbiter.go from P3.M1.T1.S3, StatusPorcelain from P2.M2.T2.S1, the list of commits made this run (SHAs, subjects, file-lists).\n3. LOGIC: Create internal/decompose/arbiter.go. Implement `func runArbiter(ctx, deps Deps, commits []CommitInfo, leftoverDiff string) (prompt.ArbiterOutput, error)`: build system prompt (BuildArbiterSystemPrompt), build user payload (BuildArbiterUserPayload with commit list + diff), Render with bare mode, Execute, ParseArbiterOutput. If the returned target SHA is not in the commits-made list → treat as null (ambiguous). Define `type CommitInfo struct { SHA, Subject string; Files []git.FileChange }`.\n4. OUTPUT: runArbiter returns a target SHA (or nil for new commit). Consumed by the resolution logic (S2).\n5. DOCS: none — internal agent call.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.30",
+                    "h2.13",
+                    "h3.58",
+                    "h3.43",
+                    "h2.17",
+                    "h3.75"
+                  ]
                 }
               ]
             },
@@ -587,9 +804,20 @@
                   "title": "Implement arbiter resolution: new commit + tip amend + mid-chain chain rebuild",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P3.M3.T1.S1", "P2.M2.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.30", "h2.13", "h3.58", "h3.43", "h3.44", "h2.18"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR-M10 specifies three paths. (1) null/new: stage leftovers, snapshot, message-agent, commit-tree + update-ref as (N+1)-th commit. (2) target==HEAD (tip): stage leftovers, write-tree → tree', commit-tree -p tip's parent tree' reusing tip's message, update-ref HEAD (plumbing amend). (3) target==earlier commit[i] (mid-chain): rebuild linear chain — read-tree each base, fold leftovers at i, write-tree + commit-tree against rebuilt parent, update-ref (deterministic, NEVER interactive rebase). Ambiguous → null. Amend restricted to commits made THIS run. The mid-chain rebuild uses ReadTree (P2.M2.T1.S1) to load each tree, adds leftovers, re-commits.\n2. INPUT: runArbiter from P3.M3.T1.S1, ReadTree + TreeDiff + WriteTree + CommitTree + UpdateRefCAS from git interface, the chain of commits made this run (trees, messages, SHAs).\n3. LOGIC: In decompose/arbiter.go: implement `func resolveArbiter(ctx, deps Deps, target *string, commits []CommitInfo, chainData []ChainEntry) error`. For null: AddAll → WriteTree → generate message (reuse the message-generation function from P3.M2.T4.S1) → CommitTree → UpdateRefCAS. For tip: AddAll → WriteTree → CommitTree(-p, tree', tip's message) → UpdateRefCAS (amend). For mid-chain: implement in decompose/chain.go — for each j in the chain: ReadTree(tree[j]), if j==target fold leftovers (AddAll then ReadTree would overwrite — instead read-tree tree[j] then add leftover paths then write-tree), CommitTree against rebuilt parent[j], UpdateRefCAS chain. This is complex but deterministic.\n4. OUTPUT: All leftovers are reconciled — either folded into an existing commit or made into a new one. git status is clean after resolution.\n5. DOCS: none — internal git orchestration."
+                  "dependencies": [
+                    "P3.M3.T1.S1",
+                    "P2.M2.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR-M10 specifies three paths. (1) null/new: stage leftovers, snapshot, message-agent, commit-tree + update-ref as (N+1)-th commit. (2) target==HEAD (tip): stage leftovers, write-tree → tree', commit-tree -p tip's parent tree' reusing tip's message, update-ref HEAD (plumbing amend). (3) target==earlier commit[i] (mid-chain): rebuild linear chain — read-tree each base, fold leftovers at i, write-tree + commit-tree against rebuilt parent, update-ref (deterministic, NEVER interactive rebase). Ambiguous → null. Amend restricted to commits made THIS run. The mid-chain rebuild uses ReadTree (P2.M2.T1.S1) to load each tree, adds leftovers, re-commits.\n2. INPUT: runArbiter from P3.M3.T1.S1, ReadTree + TreeDiff + WriteTree + CommitTree + UpdateRefCAS from git interface, the chain of commits made this run (trees, messages, SHAs).\n3. LOGIC: In decompose/arbiter.go: implement `func resolveArbiter(ctx, deps Deps, target *string, commits []CommitInfo, chainData []ChainEntry) error`. For null: AddAll → WriteTree → generate message (reuse the message-generation function from P3.M2.T4.S1) → CommitTree → UpdateRefCAS. For tip: AddAll → WriteTree → CommitTree(-p, tree', tip's message) → UpdateRefCAS (amend). For mid-chain: implement in decompose/chain.go — for each j in the chain: ReadTree(tree[j]), if j==target fold leftovers (AddAll then ReadTree would overwrite — instead read-tree tree[j] then add leftover paths then write-tree), CommitTree against rebuilt parent[j], UpdateRefCAS chain. This is complex but deterministic.\n4. OUTPUT: All leftovers are reconciled — either folded into an existing commit or made into a new one. git status is clean after resolution.\n5. DOCS: none — internal git orchestration.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.30",
+                    "h2.13",
+                    "h3.58",
+                    "h3.43",
+                    "h3.44",
+                    "h2.18"
+                  ]
                 }
               ]
             }
@@ -615,9 +843,23 @@
                   "title": "Implement Decompose() orchestrator — full pipeline + safety cap + planner failure",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P3.M2.T4.S1", "P3.M3.T2.S1", "P3.M2.T2.S1"],
-                  "prd_selectors": ["h2.9", "h3.30", "h2.11", "h3.41", "h2.13", "h3.58", "h3.59", "h2.18", "h2.14"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Decompose (§13.6, §11.4) is the top-level orchestrator. Trigger (FR-M1): activates iff nothing staged AND working tree has changes. Modes (FR-M2): auto-decompose (planner decides), forced-count (--commits N), single (--single bypasses planner). Safety cap (FR-M4): max_commits default 12. Single-shortcut (FR-M11): planner returns single==true → use planner's message directly via git add -A → CommitStaged. Planner failure (§13.6.6): nothing snapshotted yet, surface error, exit non-rescue. The orchestrator composes: ResolveRoles → callPlanner → [single-shortcut OR loop(stageConcept→freezeSnapshot→generateMessage→CommitTree→UpdateRefCAS)] → [StatusPorcelain empty? done : runArbiter→resolveArbiter].\n2. INPUT: callPlanner from P3.M2.T2.S1, the loop from P3.M2.T4.S1, runArbiter+resolveArbiter from P3.M3, ResolveRoles from P3.M2.T1.S1.\n3. LOGIC: Create internal/decompose/decompose.go. Implement `func Decompose(ctx context.Context, deps Deps) (DecomposeResult, error)`. Logic: (1) if deps.Config.Single or deps.Config.Commits==1 → delegate to v1 path (AddAll → generate.CommitStaged). (2) ResolveRoles (or receive pre-resolved). (3) callPlanner(forcedCount=deps.Config.Commits). (4) If planner output single==true → AddAll → CommitStaged with planner's message (fall back to standard message agent on duplicate failure). (5) Safety cap check. (6) Run the loop (P3.M2.T4.S1 logic) producing []CommitResult. (7) StatusPorcelain check. (8) If non-empty → runArbiter → resolveArbiter. (9) Return DecomposeResult{Commits, Amended}. Define DecomposeResult struct matching pkg/stagehand.\n4. OUTPUT: Decompose() is the entry point for the multi-commit pipeline. Returns the ordered commits created this run.\n5. DOCS: none — internal orchestrator."
+                  "dependencies": [
+                    "P3.M2.T4.S1",
+                    "P3.M3.T2.S1",
+                    "P3.M2.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Decompose (§13.6, §11.4) is the top-level orchestrator. Trigger (FR-M1): activates iff nothing staged AND working tree has changes. Modes (FR-M2): auto-decompose (planner decides), forced-count (--commits N), single (--single bypasses planner). Safety cap (FR-M4): max_commits default 12. Single-shortcut (FR-M11): planner returns single==true → use planner's message directly via git add -A → CommitStaged. Planner failure (§13.6.6): nothing snapshotted yet, surface error, exit non-rescue. The orchestrator composes: ResolveRoles → callPlanner → [single-shortcut OR loop(stageConcept→freezeSnapshot→generateMessage→CommitTree→UpdateRefCAS)] → [StatusPorcelain empty? done : runArbiter→resolveArbiter].\n2. INPUT: callPlanner from P3.M2.T2.S1, the loop from P3.M2.T4.S1, runArbiter+resolveArbiter from P3.M3, ResolveRoles from P3.M2.T1.S1.\n3. LOGIC: Create internal/decompose/decompose.go. Implement `func Decompose(ctx context.Context, deps Deps) (DecomposeResult, error)`. Logic: (1) if deps.Config.Single or deps.Config.Commits==1 → delegate to v1 path (AddAll → generate.CommitStaged). (2) ResolveRoles (or receive pre-resolved). (3) callPlanner(forcedCount=deps.Config.Commits). (4) If planner output single==true → AddAll → CommitStaged with planner's message (fall back to standard message agent on duplicate failure). (5) Safety cap check. (6) Run the loop (P3.M2.T4.S1 logic) producing []CommitResult. (7) StatusPorcelain check. (8) If non-empty → runArbiter → resolveArbiter. (9) Return DecomposeResult{Commits, Amended}. Define DecomposeResult struct matching pkg/stagehand.\n4. OUTPUT: Decompose() is the entry point for the multi-commit pipeline. Returns the ordered commits created this run.\n5. DOCS: none — internal orchestrator.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.30",
+                    "h2.11",
+                    "h3.41",
+                    "h2.13",
+                    "h3.58",
+                    "h3.59",
+                    "h2.18",
+                    "h2.14"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -625,9 +867,20 @@
                   "title": "Implement per-concept failure isolation (FR-M12) + multi-commit rescue variant",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P3.M4.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.30", "h2.13", "h3.58", "h3.43", "h3.44", "h2.18", "h3.78"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR-M12 / §13.6.6: (a) message[i] generation fails → rescue for concept i ONLY; already-published commits 0..i-1 stand; frozen tree[i] and manual recovery printed; remaining staged work left in index. (b) CAS failure on commit[i] → abort with §13.5 HEAD-moved message; prior commits stand; tree[i] recovery printed. (c) stager stages nothing → skip commit[i] (FR-M8). (d) stager exits non-zero twice → treat as empty. The multi-commit rescue variant (§18.3) prints tree[i], its parent (newSHA[i-1]), and the same commit-tree|update-ref recipe. The overlapped stager[i+1], if running, is allowed to complete so its staging is not lost.\n2. INPUT: The Decompose orchestrator from P3.M4.T1.S1.\n3. LOGIC: In decompose/decompose.go, add error handling to the loop: catch message-generation errors (RescueError) → print multi-commit rescue (tree[i], parent, recipe), return partial DecomposeResult with commits 0..i-1. Catch CAS errors (CASError) → print §13.5 message, return partial result. Catch stager errors after retry → skip concept (log), continue. The multi-commit rescue message format: extend generate.FormatRescue or create a decompose-specific variant that names the concept and its position in the chain.\n4. OUTPUT: Per-concept failures are isolated — prior commits stand, remaining work is preserved, and the user gets actionable recovery instructions.\n5. DOCS: none — internal error handling."
+                  "dependencies": [
+                    "P3.M4.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FR-M12 / §13.6.6: (a) message[i] generation fails → rescue for concept i ONLY; already-published commits 0..i-1 stand; frozen tree[i] and manual recovery printed; remaining staged work left in index. (b) CAS failure on commit[i] → abort with §13.5 HEAD-moved message; prior commits stand; tree[i] recovery printed. (c) stager stages nothing → skip commit[i] (FR-M8). (d) stager exits non-zero twice → treat as empty. The multi-commit rescue variant (§18.3) prints tree[i], its parent (newSHA[i-1]), and the same commit-tree|update-ref recipe. The overlapped stager[i+1], if running, is allowed to complete so its staging is not lost.\n2. INPUT: The Decompose orchestrator from P3.M4.T1.S1.\n3. LOGIC: In decompose/decompose.go, add error handling to the loop: catch message-generation errors (RescueError) → print multi-commit rescue (tree[i], parent, recipe), return partial DecomposeResult with commits 0..i-1. Catch CAS errors (CASError) → print §13.5 message, return partial result. Catch stager errors after retry → skip concept (log), continue. The multi-commit rescue message format: extend generate.FormatRescue or create a decompose-specific variant that names the concept and its position in the chain.\n4. OUTPUT: Per-concept failures are isolated — prior commits stand, remaining work is preserved, and the user gets actionable recovery instructions.\n5. DOCS: none — internal error handling.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.30",
+                    "h2.13",
+                    "h3.58",
+                    "h3.43",
+                    "h3.44",
+                    "h2.18",
+                    "h3.78"
+                  ]
                 }
               ]
             }
@@ -662,9 +915,19 @@
                   "title": "Add --commits/--single/--max-commits + per-role flags to root.go + update default_action routing",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P3.M4.T1.S1", "P1.M3.T2.S1"],
-                  "prd_selectors": ["h2.9", "h3.30", "h2.15", "h3.61", "h3.62", "h3.64"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: root.go's init() registers persistent flags. default_action.go implements the nothing-staged state machine (FR16-FR20). FR-M1: decomposition activates iff nothing staged AND working tree has changes. When something IS staged, the single-commit primitive (v1) runs unchanged. New flags per §15.2: --commits (int, default 0=auto), --single/--no-decompose (bool), --max-commits (int, default 12), --planner-provider/--planner-model, --stager-provider/--stager-model, --arbiter-provider/--arbiter-model. The default action currently calls stagehand.GenerateCommit; when nothing is staged and !--single, it must call the decompose path instead.\n2. INPUT: config.Commits/Single/MaxCommits fields from P1.M3.T1.S1, the Decompose pipeline from P3.M4.T1.S1.\n3. LOGIC: In root.go init(): add IntVar for --commits (default 0), BoolVar for --single and --no-decompose, IntVar for --max-commits (default 12), StringVar pairs for --planner-provider/--planner-model, --stager-provider/--stager-model, --arbiter-provider/--arbiter-model. In default_action.go: after the nothing-staged state machine, if !flagNoAutoStage && cfg.AutoStageAll && !cfg.Single && cfg.Commits != 1 → instead of AddAll→GenerateCommit, route to the decompose path (AddAll is NOT called — the planner receives the working-tree diff). If --single or --commits==1 → old AddAll→GenerateCommit behavior. If something IS already staged → old GenerateCommit behavior (decompose never re-partitions a hand-staged index). The decompose CLI path calls pkg/stagehand.Decompose (P4.M2.T1.S1).\n4. OUTPUT: `stagehand` with nothing staged → decompose (auto or forced). `stagehand --single` → old behavior. `stagehand` with something staged → old behavior. All new flags work.\n5. DOCS: [Mode A] Update the root command's flag help strings to document the decompose flags. The changeset-level README update is in P4.M3.T1.S1."
+                  "dependencies": [
+                    "P3.M4.T1.S1",
+                    "P1.M3.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: root.go's init() registers persistent flags. default_action.go implements the nothing-staged state machine (FR16-FR20). FR-M1: decomposition activates iff nothing staged AND working tree has changes. When something IS staged, the single-commit primitive (v1) runs unchanged. New flags per §15.2: --commits (int, default 0=auto), --single/--no-decompose (bool), --max-commits (int, default 12), --planner-provider/--planner-model, --stager-provider/--stager-model, --arbiter-provider/--arbiter-model. The default action currently calls stagehand.GenerateCommit; when nothing is staged and !--single, it must call the decompose path instead.\n2. INPUT: config.Commits/Single/MaxCommits fields from P1.M3.T1.S1, the Decompose pipeline from P3.M4.T1.S1.\n3. LOGIC: In root.go init(): add IntVar for --commits (default 0), BoolVar for --single and --no-decompose, IntVar for --max-commits (default 12), StringVar pairs for --planner-provider/--planner-model, --stager-provider/--stager-model, --arbiter-provider/--arbiter-model. In default_action.go: after the nothing-staged state machine, if !flagNoAutoStage && cfg.AutoStageAll && !cfg.Single && cfg.Commits != 1 → instead of AddAll→GenerateCommit, route to the decompose path (AddAll is NOT called — the planner receives the working-tree diff). If --single or --commits==1 → old AddAll→GenerateCommit behavior. If something IS already staged → old GenerateCommit behavior (decompose never re-partitions a hand-staged index). The decompose CLI path calls pkg/stagehand.Decompose (P4.M2.T1.S1).\n4. OUTPUT: `stagehand` with nothing staged → decompose (auto or forced). `stagehand --single` → old behavior. `stagehand` with something staged → old behavior. All new flags work.\n5. DOCS: [Mode A] Update the root command's flag help strings to document the decompose flags. The changeset-level README update is in P4.M3.T1.S1.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.30",
+                    "h2.15",
+                    "h3.61",
+                    "h3.62",
+                    "h3.64"
+                  ]
                 }
               ]
             }
@@ -690,9 +953,16 @@
                   "title": "Add DecomposeOptions/DecomposeResult/RoleModel types + Decompose() function to pkg/stagehand",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P3.M4.T1.S1"],
-                  "prd_selectors": ["h2.14", "h3.59", "h2.13", "h3.58"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: §14.1 specifies the public API surface. DecomposeOptions embeds Options (Provider/Model/DryRun/Timeout for the MESSAGE role), adds Count (int, 0=auto), Single (bool), MaxCommits (int, default 12), and Planner/Stager/Arbiter RoleModel. DecomposeResult has Commits []Result, Amended int, Provider string. Decompose() delegates to internal/decompose.Decompose. It's a NO-OP (delegates to GenerateCommit) when Single or Count==1. Caller must ensure nothing is staged (CLI gates on HasStagedChanges).\n2. INPUT: The internal decompose.Decompose from P3.M4.T1.S1, the existing Options/Result types from pkg/stagehand/stagehand.go.\n3. LOGIC: In pkg/stagehand/stagehand.go: add `type RoleModel struct { Provider, Model string }`, `type DecomposeOptions struct { Options; Count int; Single bool; MaxCommits int; Planner, Stager, Arbiter RoleModel }`, `type DecomposeResult struct { Commits []Result; Amended int; Provider string }`. Implement `func Decompose(ctx context.Context, opts DecomposeOptions) (DecomposeResult, error)`: if opts.Single || opts.Count==1 → delegate to GenerateCommit (wrap in DecomposeResult with one commit). Else: resolve config (reuse resolveConfig pattern), build decompose.Deps (reuse ResolveRoles), call decompose.Decompose, map internal result to public DecomposeResult.\n4. OUTPUT: pkg/stagehand exports Decompose, DecomposeOptions, DecomposeResult, RoleModel. External integrators can call Decompose() for multi-commit. CLI (P4.M1.T1.S1) calls this.\n5. DOCS: [Mode A] Add doc comments to all new exported types and the Decompose function, marking 'Stable as of v2.0' per the additive-only convention."
+                  "dependencies": [
+                    "P3.M4.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: §14.1 specifies the public API surface. DecomposeOptions embeds Options (Provider/Model/DryRun/Timeout for the MESSAGE role), adds Count (int, 0=auto), Single (bool), MaxCommits (int, default 12), and Planner/Stager/Arbiter RoleModel. DecomposeResult has Commits []Result, Amended int, Provider string. Decompose() delegates to internal/decompose.Decompose. It's a NO-OP (delegates to GenerateCommit) when Single or Count==1. Caller must ensure nothing is staged (CLI gates on HasStagedChanges).\n2. INPUT: The internal decompose.Decompose from P3.M4.T1.S1, the existing Options/Result types from pkg/stagehand/stagehand.go.\n3. LOGIC: In pkg/stagehand/stagehand.go: add `type RoleModel struct { Provider, Model string }`, `type DecomposeOptions struct { Options; Count int; Single bool; MaxCommits int; Planner, Stager, Arbiter RoleModel }`, `type DecomposeResult struct { Commits []Result; Amended int; Provider string }`. Implement `func Decompose(ctx context.Context, opts DecomposeOptions) (DecomposeResult, error)`: if opts.Single || opts.Count==1 → delegate to GenerateCommit (wrap in DecomposeResult with one commit). Else: resolve config (reuse resolveConfig pattern), build decompose.Deps (reuse ResolveRoles), call decompose.Decompose, map internal result to public DecomposeResult.\n4. OUTPUT: pkg/stagehand exports Decompose, DecomposeOptions, DecomposeResult, RoleModel. External integrators can call Decompose() for multi-commit. CLI (P4.M1.T1.S1) calls this.\n5. DOCS: [Mode A] Add doc comments to all new exported types and the Decompose function, marking 'Stable as of v2.0' per the additive-only convention.",
+                  "prd_selectors": [
+                    "h2.14",
+                    "h3.59",
+                    "h2.13",
+                    "h3.58"
+                  ]
                 }
               ]
             },
@@ -709,9 +979,17 @@
                   "title": "Register config upgrade + apply help de-duplication (FR-B6) + verify populated init wiring",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M4.T2.S1", "P1.M4.T3.S1"],
-                  "prd_selectors": ["h2.9", "h3.33", "h2.15", "h3.62"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: config upgrade was implemented in P1.M4.T3.S1 but needs to be registered on the configCmd via configCmd.AddCommand(configUpgradeCmd). FR-B6: the config and providers parent commands must NOT list their leaf commands twice — the manual 'Subcommands:' block in each parent's Long help must be removed; cobra's auto-generated 'Available Commands' is the single source. The config init populated bootstrap from P1.M4.T2.S1 needs its flags wired to root.go's flag set so config.Load can read them (or they're local to configInitCmd).\n2. INPUT: configUpgradeCmd from P1.M4.T3.S1, the updated configInitCmd from P1.M4.T2.S1.\n3. LOGIC: In internal/cmd/config.go: ensure configCmd.AddCommand(configUpgradeCmd). Remove the manual 'Subcommands:' text block from configCmd.Long and providersCmd.Long (keep only the Short/Long prose, let cobra auto-generate Available Commands). Verify configInitCmd's --provider/--force/--template local flags are registered. Run through the full config init → use → config upgrade lifecycle.\n4. OUTPUT: `stagehand config` shows init/path/upgrade once (no duplication). config init writes populated config. config upgrade works.\n5. DOCS: none — the help text IS the documentation; removing the manual block IS the doc fix."
+                  "dependencies": [
+                    "P1.M4.T2.S1",
+                    "P1.M4.T3.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: config upgrade was implemented in P1.M4.T3.S1 but needs to be registered on the configCmd via configCmd.AddCommand(configUpgradeCmd). FR-B6: the config and providers parent commands must NOT list their leaf commands twice — the manual 'Subcommands:' block in each parent's Long help must be removed; cobra's auto-generated 'Available Commands' is the single source. The config init populated bootstrap from P1.M4.T2.S1 needs its flags wired to root.go's flag set so config.Load can read them (or they're local to configInitCmd).\n2. INPUT: configUpgradeCmd from P1.M4.T3.S1, the updated configInitCmd from P1.M4.T2.S1.\n3. LOGIC: In internal/cmd/config.go: ensure configCmd.AddCommand(configUpgradeCmd). Remove the manual 'Subcommands:' text block from configCmd.Long and providersCmd.Long (keep only the Short/Long prose, let cobra auto-generate Available Commands). Verify configInitCmd's --provider/--force/--template local flags are registered. Run through the full config init → use → config upgrade lifecycle.\n4. OUTPUT: `stagehand config` shows init/path/upgrade once (no duplication). config init writes populated config. config upgrade works.\n5. DOCS: none — the help text IS the documentation; removing the manual block IS the doc fix.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.33",
+                    "h2.15",
+                    "h3.62"
+                  ]
                 }
               ]
             }
@@ -737,9 +1015,45 @@
                   "title": "Update README.md + docs/ overview files for all v2.0 features",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M1.T2.S1", "P1.M2.T1.S1", "P1.M2.T2.S1", "P1.M3.T3.S1", "P1.M4.T2.S1", "P1.M4.T3.S1", "P2.M1.T1.S2", "P2.M2.T2.S2", "P3.M4.T1.S1", "P4.M1.T1.S1", "P4.M2.T1.S1", "P4.M2.T2.S1"],
-                  "prd_selectors": ["h1.0", "h2.1", "h2.5", "h2.6", "h2.8", "h2.9", "h3.30", "h3.31", "h3.32", "h3.33", "h2.10", "h2.13", "h3.58", "h2.14", "h2.15", "h2.16", "h2.17", "h2.18", "h2.21", "h3.88", "h2.24", "h2.27"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: README.md is the marketing surface (§21.5 structure). docs/ contains how-it-works.md, configuration.md, cli.md, providers.md, README.md. The v2.0 changeset adds: multi-commit decomposition (the headline feature — §13.6), per-role provider/model config (§16.4), binary/non-text filtering (§9.1), agy provider (§12.5.1), cascading provider priority (§9.16), populated config bootstrap (§9.17). The README hero pitch should be updated to mention multi-commit. docs/how-it-works.md should add the decompose pipeline section. docs/configuration.md should add per-role config + config_version + config upgrade. docs/cli.md should add --commits/--single/--max-commits/per-role flags. docs/providers.md should add agy + the priority order + tooled_flags + stager-capability notes.\n2. INPUT: All implemented v2 features from P1-P4.\n3. LOGIC: Update README.md: add multi-commit to the hero pitch (§5), add a 'Multi-commit decomposition' section after the single-commit quick start, update the feature list, update install/config sections to mention config init populated bootstrap, add the v2.0 example invocations (§15.5). Update docs/how-it-works.md: add the decompose pipeline data flow (§11.4), explain the four roles and overlapped staging/generation. Update docs/configuration.md: add [role.*] config, config_version, config upgrade, per-role env/flag reference. Update docs/cli.md: add all new flags to the reference table. Update docs/providers.md: add agy, update the priority order, add tooled_flags/stager-capability column.\n4. OUTPUT: All user-facing documentation reflects the complete v2.0 feature set. A new user can discover and use multi-commit decomposition, per-role models, and binary filtering from the docs alone.\n5. DOCS: [Mode B] This IS the changeset-level documentation sync task — it sweeps README.md and all docs/ overview files that span the whole v2.0 delta."
+                  "dependencies": [
+                    "P1.M1.T2.S1",
+                    "P1.M2.T1.S1",
+                    "P1.M2.T2.S1",
+                    "P1.M3.T3.S1",
+                    "P1.M4.T2.S1",
+                    "P1.M4.T3.S1",
+                    "P2.M1.T1.S2",
+                    "P2.M2.T2.S2",
+                    "P3.M4.T1.S1",
+                    "P4.M1.T1.S1",
+                    "P4.M2.T1.S1",
+                    "P4.M2.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: README.md is the marketing surface (§21.5 structure). docs/ contains how-it-works.md, configuration.md, cli.md, providers.md, README.md. The v2.0 changeset adds: multi-commit decomposition (the headline feature — §13.6), per-role provider/model config (§16.4), binary/non-text filtering (§9.1), agy provider (§12.5.1), cascading provider priority (§9.16), populated config bootstrap (§9.17). The README hero pitch should be updated to mention multi-commit. docs/how-it-works.md should add the decompose pipeline section. docs/configuration.md should add per-role config + config_version + config upgrade. docs/cli.md should add --commits/--single/--max-commits/per-role flags. docs/providers.md should add agy + the priority order + tooled_flags + stager-capability notes.\n2. INPUT: All implemented v2 features from P1-P4.\n3. LOGIC: Update README.md: add multi-commit to the hero pitch (§5), add a 'Multi-commit decomposition' section after the single-commit quick start, update the feature list, update install/config sections to mention config init populated bootstrap, add the v2.0 example invocations (§15.5). Update docs/how-it-works.md: add the decompose pipeline data flow (§11.4), explain the four roles and overlapped staging/generation. Update docs/configuration.md: add [role.*] config, config_version, config upgrade, per-role env/flag reference. Update docs/cli.md: add all new flags to the reference table. Update docs/providers.md: add agy, update the priority order, add tooled_flags/stager-capability column.\n4. OUTPUT: All user-facing documentation reflects the complete v2.0 feature set. A new user can discover and use multi-commit decomposition, per-role models, and binary filtering from the docs alone.\n5. DOCS: [Mode B] This IS the changeset-level documentation sync task — it sweeps README.md and all docs/ overview files that span the whole v2.0 delta.",
+                  "prd_selectors": [
+                    "h1.0",
+                    "h2.1",
+                    "h2.5",
+                    "h2.6",
+                    "h2.8",
+                    "h2.9",
+                    "h3.30",
+                    "h3.31",
+                    "h3.32",
+                    "h3.33",
+                    "h2.10",
+                    "h2.13",
+                    "h3.58",
+                    "h2.14",
+                    "h2.15",
+                    "h2.16",
+                    "h2.17",
+                    "h2.18",
+                    "h2.21",
+                    "h3.88",
+                    "h2.24",
+                    "h2.27"
+                  ]
                 }
               ]
             }

@@ -350,6 +350,9 @@ func TestResolve_AppliesDefaultsToNilOptionals(t *testing.T) {
 		t.Errorf("StripCodeFence = %v, want %v", r.StripCodeFence, DefaultStripCodeFence)
 	}
 	assertStr(t, "RetryInstruction", r.RetryInstruction, DefaultRetryInstruction)
+	if r.Experimental == nil || *r.Experimental != false {
+		t.Errorf("Experimental = %v, want non-nil *false (default non-experimental)", r.Experimental)
+	}
 }
 
 func TestResolve_PreservesExplicitValues(t *testing.T) {
@@ -358,6 +361,7 @@ func TestResolve_PreservesExplicitValues(t *testing.T) {
 		Command:        strPtr("x"),
 		StripCodeFence: boolPtr(false), // explicit false — must NOT become the true default
 		Output:         strPtr("json"), // explicit json — must NOT become the raw default
+		Experimental:   boolPtr(true),  // explicit true — must survive Resolve
 	}
 	r := m.Resolve()
 
@@ -366,6 +370,9 @@ func TestResolve_PreservesExplicitValues(t *testing.T) {
 	}
 	if r.Output == nil || *r.Output != "json" {
 		t.Errorf("Resolve clobbered explicit output=json (got %v)", r.Output)
+	}
+	if r.Experimental == nil || *r.Experimental != true {
+		t.Errorf("Experimental = %v, want non-nil *true (explicit value preserved)", r.Experimental)
 	}
 }
 
@@ -404,6 +411,9 @@ func TestResolve_SlicesLeftNil(t *testing.T) {
 	}
 	if r.BareFlags != nil {
 		t.Errorf("BareFlags = %v, want nil (left as-is)", r.BareFlags)
+	}
+	if r.TooledFlags != nil {
+		t.Errorf("TooledFlags = %v, want nil (left as-is, slice regime)", r.TooledFlags)
 	}
 	if r.Env != nil {
 		t.Errorf("Env = %v, want nil (left as-is)", r.Env)
