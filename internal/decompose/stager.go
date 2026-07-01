@@ -39,6 +39,23 @@ import (
 // P3.M2.T4's UpdateRefCAS).
 var ErrStagerFailed = errors.New("decompose: stager failed")
 
+// ErrStagerMovedHEAD is the sentinel for a stager SAFETY VIOLATION: the stager agent moved HEAD
+// (committed, amended, update-ref'd, or reset a ref). The stager is contractually allowed to mutate
+// the INDEX only (git add / git apply --cached); all ref mutations are owned exclusively by stagehand
+// via UpdateRefCAS (PRD §18.1/§19).
+//
+// This guard is DEFENSE-IN-DEPTH for providers that cannot be flag-scoped — specifically pi's
+// tooled profile, which has no tool allowlist (Issue 2 / PRD §19). For such providers the stager
+// constraint is instructionally enforced only; this runtime check provides the structural guarantee.
+//
+// This is a HARD (non-rescue) error: when the guard fires, there is no snapshot to restore — the stager
+// corrupted repo state. The run aborts (exit 1). Contrast *generate.RescueError (exit 3) which IS
+// rescuable because a snapshot exists.
+//
+// Produced by the HEAD pre/post-snapshot guard in invokeStagerRetry (decompose.go). Wrapped with %w
+// so errors.Is(err, ErrStagerMovedHEAD) is true for test assertions and exit-code mapping.
+var ErrStagerMovedHEAD = errors.New("decompose: stager moved HEAD")
+
 // stageConcept invokes the stager agent once (TOOLED, no retry) for a single concept from the
 // planner's partition (PRD §13.6.2 / FR-M5). It is the tooled, no-retry, no-parse counterpart of
 // callPlanner: the stager is the ONLY tooled role (RenderTooled), it mutates the INDEX only (never

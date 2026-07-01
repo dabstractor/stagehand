@@ -534,6 +534,76 @@ func TestDecompose_EmptyConceptSkip(t *testing.T) {
 	}
 }
 
+func TestDecompose_StagerMovedHEAD(t *testing.T) {
+	// A rogue stager seam that commits (moves HEAD) should trigger ErrStagerMovedHEAD.
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+	dcmCommitRaw(t, repo, "initial") // BORN repo → HEAD has a real SHA to move away from
+	dcmWriteFile(t, repo, "a.txt", "aaa\n") // untracked → dirty tree (FR-M1 routing satisfied)
+
+	plannerJSON := `{"count":1,"single":false,"commits":[{"title":"c1","description":"a.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add a"})
+	roles := dcmAllRoles(t, bin, stubtest.Options{Out: ""})
+	roles.Planner = plannerM
+	roles.Message = messageM
+	deps := dcmDeps(t, repo, roles)
+
+	// ROGUE seam: stages nothing, instead COMMITS → moves HEAD.
+	deps.stager = func(ctx context.Context, d Deps, concept prompt.PlannerCommit) error {
+		dcmRunGit(t, repo, "commit", "--allow-empty", "-m", "rogue: moved HEAD")
+		return nil
+	}
+
+	_, err := Decompose(context.Background(), deps)
+	if err == nil {
+		t.Fatal("expected ErrStagerMovedHEAD, got nil")
+	}
+	if !errors.Is(err, ErrStagerMovedHEAD) {
+		t.Fatalf("expected ErrStagerMovedHEAD, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "stager moved HEAD") {
+		t.Errorf("error message missing 'stager moved HEAD'; got: %s", err.Error())
+	}
+	if !strings.Contains(err.Error(), "mutated refs") {
+		t.Errorf("error message missing 'mutated refs'; got: %s", err.Error())
+	}
+}
+
+func TestDecompose_StagerGuardHappyPath(t *testing.T) {
+	// A well-behaved stager (git add, no ref mutation) completes normally — guard passes.
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+	dcmCommitRaw(t, repo, "initial")
+	dcmWriteFile(t, repo, "a.txt", "aaa\n")
+
+	plannerJSON := `{"count":1,"single":false,"commits":[{"title":"c1","description":"a.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add a"})
+	roles := dcmAllRoles(t, bin, stubtest.Options{Out: ""})
+	roles.Planner = plannerM
+	roles.Message = messageM
+	deps := dcmDeps(t, repo, roles)
+	deps.stager = dcmStagerSeam(t, repo, map[string][]string{"c1": {"a.txt"}}) // git add only
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("happy-path guard false-positive: %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("Commits len = %d, want 1", len(result.Commits))
+	}
+	// HEAD advanced exactly once (the published commit), via UpdateRefCAS — NOT via the stager.
+	if got := dcmLogCount(t, repo); got != 2 { // initial + 1 published
+		t.Errorf("commit count = %d, want 2", got)
+	}
+	if status := dcmStatusPorcelain(t, repo); status != "" {
+		t.Errorf("status = %q, want empty (clean)", status)
+	}
+}
+
 func TestDecompose_PlannerFailure(t *testing.T) {
 	bin := stubtest.Build(t)
 	repo := t.TempDir()
@@ -935,18 +1005,10 @@ func TestDecompose_MessageRescuePartial(t *testing.T) {
 	}
 }
 
-// TestDecompose_CASAbortPartial (FR-M12b): the stager seam moves HEAD between concept 0's
+// TestDecompose_CASAbortPartial (FR-M12b): an external goroutine moves HEAD between concept 0's
 // publication and concept 1's publication, so publishCommit[1]'s CAS fails.
-// Strategy: concept 0 publishes normally; concept 1's message generation uses treeA/treeB.
-// We inject a HEAD move DURING the message generation for concept 1 (via the message
-// script's STAGEHAND_STUB_SLEEP_MS) by running a background goroutine that waits a bit
-// then moves HEAD. This ensures HEAD has moved by the time publishCommit[1] runs its CAS.
-// Actually, simpler: use a 3-concept run where the stager for concept 2 moves HEAD
-// BEFORE the freeze for concept 1's publish.
-//
-// Simplest approach: 2 concepts, stager for c2 moves HEAD during concept 1's stager phase.
-// The loop: stage c1 → freeze → (no inflight) → stage c2 (HEAD moved here) → freeze →
-// publish msg c1 (CAS for msg c1: expected=HEAD-at-c1-commit, actual=HEAD-moved-by-c2-stager).
+// Uses a well-behaved stager (no HEAD movement) and an external goroutine with a timed delay
+// that fires during the message agent's sleep window.
 func TestDecompose_CASAbortPartial(t *testing.T) {
 	bin := stubtest.Build(t)
 	repo := t.TempDir()
@@ -960,6 +1022,7 @@ func TestDecompose_CASAbortPartial(t *testing.T) {
 	plannerJSON := `{"count":3,"single":false,"commits":[{"title":"c1","description":"a.txt"},{"title":"c2","description":"b.txt"},{"title":"c3","description":"c.txt"}]}`
 	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
 	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add a", "feat: add b", "feat: add c"})
+	messageM.Env["STAGEHAND_STUB_SLEEP_MS"] = "1000" // create timing window for external HEAD move
 
 	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
 
@@ -971,28 +1034,20 @@ func TestDecompose_CASAbortPartial(t *testing.T) {
 	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
 	deps, buf := dcmOutBuffer(t, repo, roles)
 
-	// Stager seam: moves HEAD for concept c3 (index 2). This means:
-	//   iter 0: stage c1, freeze, no inflight → skip launch c1... wait, concept 0 launches msg.
-	//   Actually: iter 0: stage c1 → freeze tree0 → no inflight → publish(nil) → launch msg[0]
-	//   iter 1: stage c2 → freeze tree1 → publish(msg[0]) → launch msg[1]
-	//   iter 2: stage c3 (HEAD move here) → freeze tree2 → publish(msg[1]) → CAS fails for msg[1]
-	//
-	//   publish(msg[1]): expected prevSHA = newSHA[1], but HEAD was moved during c3's stager.
-	//   Wait, the HEAD move is during c3's stager, which runs BEFORE freeze tree2 and publish msg[1].
-	//   So when publish(msg[1]) runs, HEAD != newSHA[1] (it was moved) → CAS failure.
-	//   And newSHA[1] was already committed (from publish(msg[0])'s iteration).
-	//
-	//   Actually: publish(msg[1]) happens when we drain msg[1]'s channel. msg[1] was launched
-	//   at the end of iter 1 (concept c2). So msg[1] is concept 2's message (feat: add b).
-	//   The CAS for msg[1] expects prevSHA = newSHA[1]. But newSHA[1] hasn't been set yet —
-	//   that's the CAS from publish(msg[0]) which published concept 1 (c2). Let me re-think.
-	//
-	//   Loop iteration 0 (c1): stage c1, freeze tree0, publish(nil)=nil, launch msg[0] (c1).
-	//   Loop iteration 1 (c2): stage c2, freeze tree1, publish(msg[0]) → publishCommit(tree0, prevSHA, msg0)
-	//     → newSHA = commit for c1 → prevSHA updated → launch msg[1] (c2).
-	//   Loop iteration 2 (c3): stage c3 [HEAD MOVE HERE], freeze tree2, publish(msg[1])
-	//     → publishCommit(tree1, prevSHA=newSHA[0], msg1) → CAS: expected=newSHA[0], actual=HEAD-moved → FAIL
+	// External HEAD move: a goroutine moves HEAD after c1 is published but before c2's CAS.
+	// The message agent sleep (1000ms) creates the timing window:
+	//   iter 0: stage c1, freeze, publish(nil), launch msg[0] (sleep 1000ms)
+	//   iter 1: stage c2, freeze, publish(msg[0]) → drain (wait ~1000ms) → publishCommit c1 → success
+	//     → launch msg[1] (sleep 1000ms)
+	//   iter 2: stage c3, freeze, publish(msg[1]) → drain (wait ~1000ms) → goroutine fired at
+	//     1500ms → HEAD moved → publishCommit c2 → CAS failure!
 	//   So: 1 commit landed (c1), CAS fails on c2. Partial = 1 commit.
+	go func() {
+		time.Sleep(1500 * time.Millisecond)
+		dcmRunGit(t, repo, "commit", "--allow-empty", "-m", "external head move")
+	}()
+
+	// Well-behaved stager seam: stages files only (no HEAD movement — the guard would catch it).
 	deps.stager = func(ctx context.Context, d Deps, concept prompt.PlannerCommit) error {
 		files := map[string][]string{"c1": {"a.txt"}, "c2": {"b.txt"}, "c3": {"c.txt"}}
 		fl, ok := files[concept.Title]
@@ -1000,10 +1055,6 @@ func TestDecompose_CASAbortPartial(t *testing.T) {
 			for _, f := range fl {
 				dcmRunGit(t, repo, "add", f)
 			}
-		}
-		// Move HEAD for concept c3 — this shifts HEAD away from what publishCommit expects.
-		if concept.Title == "c3" {
-			dcmRunGit(t, repo, "commit", "--allow-empty", "-m", "external head move")
 		}
 		return nil
 	}

@@ -330,17 +330,34 @@ func runLoop(ctx context.Context, deps Deps, concepts []prompt.PlannerCommit, ba
 	// invokeStagerRetry: FR-M12d — stager exits non-zero → retry once; on second failure treat as empty
 	// (return nil → fall through to freezeSnapshot → tree[i]==prevTree → S1's empty-skip). Logs via Verbose.
 	// A cancelled ctx propagates (abort the loop) so the run doesn't silently skip every remaining concept.
+	// Issue 2 / PRD §19 defense-in-depth: snapshot HEAD before each stager call; abort (HARD, non-rescue)
+	// if any stager call moves it. The guard bypasses retry-once-then-empty via errors.Is short-circuits.
 	invokeStagerRetry := func(concept prompt.PlannerCommit) error {
 		if cerr := ctx.Err(); cerr != nil {
 			return cerr // ctx cancelled/moved on → abort (drainMsg + return partial), not skip-everything
 		}
-		err := invokeStager(ctx, deps, concept)
-		if err == nil {
+		// Issue 2 / PRD §19 defense-in-depth: a correctly-behaving stager mutates the INDEX only,
+		// never refs. Snapshot HEAD once; abort (HARD, non-rescue) if any stager call moves it.
+		preStagerHEAD, _, _ := deps.Git.RevParseHEAD(ctx)
+		// runOnce invokes the stager once and aborts if HEAD moved during that call.
+		runOnce := func() error {
+			serr := invokeStager(ctx, deps, concept)
+			postStagerHEAD, _, _ := deps.Git.RevParseHEAD(ctx)
+			if preStagerHEAD != postStagerHEAD {
+				return fmt.Errorf("%w: stager moved HEAD from %s to %s — aborting; the stager agent mutated refs which it must not do", ErrStagerMovedHEAD, preStagerHEAD, postStagerHEAD)
+			}
+			return serr
+		}
+		if err := runOnce(); err == nil {
 			return nil
+		} else if errors.Is(err, ErrStagerMovedHEAD) {
+			return err // HARD — safety violation; do NOT retry, do NOT empty-skip
 		}
 		deps.Verbose.VerboseRetry(1, fmt.Sprintf("stager failed for %q; retrying once", concept.Title))
-		if err2 := invokeStager(ctx, deps, concept); err2 == nil {
+		if err2 := runOnce(); err2 == nil {
 			return nil
+		} else if errors.Is(err2, ErrStagerMovedHEAD) {
+			return err2 // HARD — safety violation even on the retry
 		}
 		deps.Verbose.VerboseRetry(2, fmt.Sprintf("stager failed twice for %q; treating concept as empty (FR-M8)", concept.Title))
 		return nil // empty: freezeSnapshot will yield tree[i]==prevTree → S1's empty-skip

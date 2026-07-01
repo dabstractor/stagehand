@@ -84,14 +84,14 @@
           "type": "Milestone",
           "id": "P1.M2",
           "title": "Scope the stager toolset (Issue 2, Major)",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Deliver the PRD §19 'structurally constrained' safety claim for the stager agent by: (a) tightening claude's tooled_flags from Bash(git:*) to a staging-only allowlist; (b) honestly documenting pi's unsoped risk; (c) adding a defensive HEAD-movement guard that aborts if a stager moves HEAD. This closes the gap between the advertised safety model and the actual shipped profiles.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "Tighten stager toolset profiles and add defensive HEAD guard",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Three changes: (1) Restrict claude's TooledFlags to a staging-only git allowlist (git add/apply/status/diff + Read + Edit). (2) Update pi's tooled profile comments to honestly state it is instructionally constrained, not structurally. (3) Add a HEAD-movement guard in the decompose orchestrator that snapshots HEAD before each stager call and aborts if HEAD moved after the stager returns.",
               "subtasks": [
                 {
@@ -126,7 +126,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S3",
                   "title": "Add defensive HEAD-movement guard for stager invocations",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M2.T1.S1",
