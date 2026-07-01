@@ -559,14 +559,14 @@
           "type": "Milestone",
           "id": "P3.M1",
           "title": "Decomposition Prompts (planner, stager, arbiter)",
-          "status": "Researching",
+          "status": "Ready",
           "description": "Implement the three new prompt templates: the planner system prompt + JSON contract (§17.5), the stager task prompt (§17.6), and the arbiter system prompt + JSON contract (§17.7). These are committed verbatim from the PRD as Go string constants.",
           "tasks": [
             {
               "type": "Task",
               "id": "P3.M1.T1",
               "title": "Planner, stager, and arbiter prompt templates",
-              "status": "Researching",
+              "status": "Ready",
               "description": "Create the three prompt files in internal/prompt/ with the verbatim PRD prompt text, JSON contracts, and assembly functions.",
               "subtasks": [
                 {
@@ -588,7 +588,7 @@
                   "type": "Subtask",
                   "id": "P3.M1.T1.S2",
                   "title": "Implement stager task prompt in prompt/stager.go",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: §17.6 specifies the stager task prompt verbatim. The stager is TOOLED (git access, repo-scoped). It receives a concept's title + description as a TASK (not a system-prompt-and-diff). It must stage exactly that concept's changes and stop. Hard guardrails: no commit/amend/push/ref-mutation. The prompt is delivered as the user payload with minimal/empty system prompt.\n2. INPUT: The existing prompt package patterns.\n3. LOGIC: Create internal/prompt/stager.go. Define BuildStagerTask(title, description string) string — assembles the §17.6 stager task prompt: 'Stage, but do NOT commit, all changes in this repository that match this concept:' + title + description + the git instructions and guardrails (verbatim from §17.6). No JSON contract (stager returns a text confirmation of paths staged, not structured output).\n4. OUTPUT: prompt/stager.go exports BuildStagerTask(). Consumed by decompose/stager.go (P3.M2.T3.S1).\n5. DOCS: none — self-documenting via PRD §17.6.",
@@ -603,7 +603,7 @@
                   "type": "Subtask",
                   "id": "P3.M1.T1.S3",
                   "title": "Implement arbiter system prompt + JSON contract in prompt/arbiter.go",
-                  "status": "Researching",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: §17.7 specifies the arbiter prompt verbatim. The arbiter is bare and runs only if the working tree is non-empty after the loop. It receives: commits made this run (SHA+subject+file-list each) + a diff of remaining changes. Returns JSON: `{\"target\": \"<sha>\"}` or `{\"target\": null}`. 'When in doubt, prefer a NEW commit (return null).' May only target a commit from the provided list.\n2. INPUT: The existing prompt package patterns + provider.extractJSONObject for JSON parsing.\n3. LOGIC: Create internal/prompt/arbiter.go. Define arbiterSystemPrompt constant (verbatim from §17.7). Define BuildArbiterUserPayload(commits []ArbiterCommit, leftoverDiff string) string — assembles the commit list (SHA+subject+files each) + the leftover diff. Define ArbiterOutput struct: Target *string (nil=null=new commit). Define ParseArbiterOutput(raw string) (ArbiterOutput, error).\n4. OUTPUT: prompt/arbiter.go exports BuildArbiterSystemPrompt(), BuildArbiterUserPayload(), and ParseArbiterOutput(). Consumed by decompose/arbiter.go (P3.M3.T1.S1).\n5. DOCS: none — self-documenting via PRD §17.7.",
