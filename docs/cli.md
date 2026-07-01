@@ -43,7 +43,7 @@ With no subcommand, `stagehand` runs the **default action**. The routing depends
 | `--version` | — | — | — | — | Print the build version (`"dev"` for a local build; the release tag for a released binary) |
 | `--help`, `-h` | — | — | — | — | Print help |
 
-The `--config` flag is a path override for config-file discovery — it is not itself a `Config` field. An explicit `--config` (or `STAGEHAND_CONFIG`) pointing at a missing file errors with `config: config file not found: <path>` (exit 1) instead of silently falling back to provider auto-detection. Only the discovery default (no `--config` or `STAGEHAND_CONFIG`) tolerates a missing global file. The behavioral flags (`--all`, `--no-auto-stage`, `--dry-run`) have no env-var or git-config analogs. `--config` is honored by every command — including the default commit action, so a user-defined provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` on `stagehand` directly (not just the `providers`/`config` subcommands).
+The `--config` flag is a path override for config-file discovery — it is not itself a `Config` field. An explicit `--config` (or `STAGEHAND_CONFIG`) pointing at a missing file errors with `config: config file not found: <path>` (exit 1) instead of silently falling back to provider auto-detection. Only the discovery default (no `--config` or `STAGEHAND_CONFIG`) tolerates a missing global file. The behavioral flags (`--all`, `--no-auto-stage`, `--dry-run`) have no env-var or git-config analogs. `--config` is honored by every command — including the default commit action **and the `config init`, `config path`, and `config upgrade` subcommands** (e.g. `stagehand --config X config upgrade` upgrades file `X`, and `config path` prints the resolved path) — so a user-defined provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` on `stagehand` directly.
 
 ## Subcommands
 
@@ -73,7 +73,7 @@ stagehand providers show pi
 
 ### `config init`
 
-Bootstrap a **populated, working config** to the global config path. Auto-detects the highest-priority installed built-in agent (order: pi, opencode, cursor, agy, gemini, codex, claude) and writes `config_version = 2`, `[defaults] provider = "<detected>"`, and that provider's per-role model defaults UNCOMMENTED so the tool works immediately. Other installed providers appear as commented-out `[role.*]` blocks. If no agent is detected, defaults to `"pi"`. Creates parent directories as needed. **Refuses to overwrite** an existing file (exit 1) unless `--force` is passed:
+Bootstrap a **populated, working config** to the resolved config path (override-aware: honors `--config` / `STAGEHAND_CONFIG`, defaulting to the global path). Auto-detects the highest-priority installed built-in agent (order: pi, opencode, cursor, agy, gemini, codex, claude) and writes `config_version = 2`, `[defaults] provider = "<detected>"`, and that provider's per-role model defaults — EXCEPT for **pi** (the default), whose per-role models are left EMPTY so pi picks its own backend model (set `[provider.pi] default_provider` to pin a specific backend). Other detected providers get their per-role models UNCOMMENTED. Other installed providers appear as commented-out `[role.*]` blocks. If no agent is detected, defaults to `"pi"`. Creates parent directories as needed. **Refuses to overwrite** an existing file (exit 1) unless `--force` is passed:
 
 ```bash
 stagehand config init
@@ -110,7 +110,7 @@ At load time, a missing or outdated `config_version` triggers an advisory pointi
 
 ### `config path`
 
-Print the resolved global config path:
+Print the resolved config path (override-aware: honors `--config` / `STAGEHAND_CONFIG`, falling back to the global path):
 
 ```bash
 stagehand config path

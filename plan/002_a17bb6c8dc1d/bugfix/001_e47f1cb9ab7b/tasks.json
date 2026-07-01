@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Stagehand v2.0 QA Bug Fixes",
-      "status": "Planned",
+      "status": "Complete",
       "description": "Fix the five issues found during creative end-to-end QA of the Stagehand v2.0 release: (1) Critical — provider/sub-provider conflation that breaks the default provider pi; (2) Major — stager toolset not actually scoped per the §19 structural claim; (3) Major — post-arbiter stdout prints stale/dangling SHAs and omits the arbiter's new commit; (4) Major — config init/upgrade/path ignore --config/STAGEHAND_CONFIG; (5) Minor — the pi bootstrap config is non-functional out-of-box once Issue 1 is fixed. All fixes follow the existing architectural patterns (real-git tests, stubtest agent, cobra CLI, provider manifest merge/render).",
       "milestones": [
         {
@@ -287,14 +287,14 @@
           "type": "Milestone",
           "id": "P1.M6",
           "title": "Sync changeset-level documentation",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Final sweep of changeset-level documentation: update README.md to reflect the provider fix, the tightened stager safety model, the config override honoring, and the bootstrap change. This is the catch-all Mode B task that prevents a coherent delta from shipping with a stale README.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M6.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Update README.md and any overview docs to reflect the five fixes: corrected provider rendering, tightened stager toolset safety, accurate post-arbiter output, config override honoring, and functional pi bootstrap. Enumerate each doc file that needs changes.",
               "subtasks": [
                 {
@@ -334,7 +334,7 @@
                   "type": "Subtask",
                   "id": "P1.M6.T1.S2",
                   "title": "Verify docs/ directory consistency with all fixes",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",

@@ -91,8 +91,8 @@ The v2 manifest system has two invocation modes (PRD §11.5):
 
 The stager's safety is enforced by three layers (PRD §12.7.1):
 
-1. **`tooled_flags`** — scopes tools to staging (claude: git/read/edit allowlist via `--allowed-tools`; pi: all tools on, chrome stripped).
-2. **Stagehand's ref-mutation monopoly** — the orchestrator alone runs `git commit`, `git update-ref`, and `git push` (§13.6.2/§19).
+1. **`tooled_flags`** — claude is **structurally** scoped via a staging-only git allowlist (`--allowed-tools Bash(git add:*,git apply:*,git status:*,git diff:*),Read,Edit`) that makes `git commit`/`push`/`update-ref`/`reset`/`rebase` unreachable. pi is **not** flag-scoped — its tooled profile enables tools with chrome stripped (no git-scoped allowlist), so a misbehaving pi stager CAN run arbitrary Bash. pi's safety is therefore **instructional** (the §17.6 stager task prompt) + a **best-effort HEAD-movement guard** (HEAD is snapshotted before each stager call; the run aborts if HEAD moved), not structural.
+2. **Stagehand's ref-mutation monopoly** — the orchestrator alone runs `git commit`, `git update-ref`, and `git push` (§13.6.2/§19). This is a defense-in-depth layer: for claude, the structural allowlist makes ref-mutating commands unreachable; for pi, the HEAD-movement guard (Layer 1) is the actual safety net since pi lacks flag-scoping.
 3. **The stager task prompt** (§17.6) — instructs the agent to stage only concept[i]'s subset and never commit/update-ref/push.
 
 ## Per-role default models (FR-D4)
@@ -106,7 +106,7 @@ Out of the box, each agent role is assigned a model sized to its job (PRD §9.16
 | **message** | fast | Commit-message generation is a short-text task — the cheapest/fastest tier suffices. |
 | **arbiter** | mid | Needs reasoning to evaluate diffs, but not the flagship — mid-tier balances quality and cost. |
 
-The compiled-in per-provider table (PRD §9.16 FR-D4) lives in `internal/config/role_defaults.go` and is the source of truth for the config bootstrap (`config init`, P1.M4.T2). Model names are 2026-07 baselines — FR-D5 mandates periodic re-verification per provider.
+The compiled-in per-provider table (PRD §9.16 FR-D4) lives in `internal/config/role_defaults.go`. The config bootstrap (`config init`) uses these defaults — EXCEPT for **pi**, whose per-role models are written EMPTY (pi needs a `default_provider` to route its `gpt-5.4*` models; see [configuration.md](configuration.md)). The pi row below is the compiled-in default, not the bootstrap output. Model names are 2026-07 baselines — FR-D5 mandates periodic re-verification per provider.
 
 | Provider | planner | stager | message | arbiter |
 |----------|---------|--------|---------|--------|

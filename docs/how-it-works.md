@@ -112,7 +112,7 @@ Decompose activates when **nothing is staged**, **auto-stage-all is on** (the de
 
 The same snapshot-based safety invariants from the single-commit path apply to every decompose iteration:
 
-- **Atomic and safe** — `update-ref CAS` is the only ref mutation per commit. The stager is the ONE role that touches the index (scoped strictly to `git add`); stagehand owns all `commit-tree`, `update-ref`, and `push` operations.
+- **Atomic and safe** — `update-ref CAS` is the only ref mutation per commit; stagehand owns all `commit-tree`, `update-ref`, and `push` operations. The stager is the ONE role that touches the index. Its scoping differs by provider: claude is structurally constrained to a staging-only git allowlist (`git add`/`apply`/`status`/`diff`); pi is constrained instructionally (its task prompt) plus a HEAD-movement guard that aborts the run if the stager moves a ref. See [providers.md](providers.md#tooled-mode-and-the-stager-role).
 - **Frozen content** — `tree[i]` captures exactly what was staged at `write-tree` time. Nothing added afterward can affect it.
 - **No index resets** — the index accumulates across concepts. After the final commit, HEAD.tree == tree[N-1] == full accumulated index, so the index is clean relative to HEAD.
 

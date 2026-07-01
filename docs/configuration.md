@@ -28,14 +28,14 @@ When a `[provider.<name>]` section appears in a config file, its fields are **me
 | Global | `$XDG_CONFIG_HOME/stagehand/config.toml` (default `~/.config/stagehand/config.toml`) | Written by `stagehand config init`; read as Layer 3. |
 | Repo-local | `./.stagehand.toml` | Gitignored; read as Layer 4; overrides global. |
 
-Use `stagehand config path` to print the resolved global path.
+Use `stagehand config path` to print the resolved config path (override-aware: honors `--config` / `STAGEHAND_CONFIG`, else the global path).
 
 ### Bootstrap (`config init`)
 
 `stagehand config init` writes a **populated, working config** to the global path by default. It:
 
 1. Runs cascading provider detection (highest-priority installed built-in, in order: pi, opencode, cursor, agy, gemini, codex, claude).
-2. Writes `[defaults] provider = "<detected>"` and that provider's per-role model defaults UNCOMMENTED (from the FR-D4 table).
+2. Writes `[defaults] provider = "<detected>"` and that provider's per-role model defaults UNCOMMENTED (from the FR-D4 table) — EXCEPT for **pi**, whose per-role models are left EMPTY (pi needs a `default_provider` sub-provider to route its `gpt-5.4*` models; the bootstrap writes none, so pi picks its own backend default). Set `[provider.pi] default_provider` to pin a backend.
 3. Writes other installed providers as commented-out `[role.*]` blocks (one-line uncomment to route a role to a different agent).
 4. If no agent is detected, defaults to `"pi"` with an annotation.
 
@@ -64,7 +64,7 @@ $ stagehand config upgrade
 At load time, if `config_version` is missing or older, stagehand prints an advisory to stderr pointing at `config upgrade` (or `config init --force` to regenerate). The current schema (version 2) includes per-role models, multi-commit decomposition, and binary filtering.
 
 > [!NOTE]
-> Point discovery at a specific file with `--config <path>` (or the `STAGEHAND_CONFIG` env var). It overrides global and repo-local file discovery and is honored by every command — including the default commit action — so a provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` directly. A missing explicit path (typo'd `--config` or `STAGEHAND_CONFIG`) fails fast with exit 1; only the discovery default tolerates a missing global file.
+> Point discovery at a specific file with `--config <path>` (or the `STAGEHAND_CONFIG` env var). It overrides global and repo-local file discovery and is honored by every command — including the default commit action **and the `config init`, `config path`, and `config upgrade` subcommands** (e.g. `stagehand --config X config upgrade` upgrades file `X`; `config path` prints the resolved path) — so a provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` directly. A missing explicit path (typo'd `--config` or `STAGEHAND_CONFIG`) fails fast with exit 1; only the discovery default tolerates a missing global file.
 
 ## File format
 
