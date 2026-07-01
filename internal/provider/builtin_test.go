@@ -57,7 +57,7 @@ bare_flags = [
   "--no-session-persistence",
 ]
 tooled_flags = [
-  "--allowed-tools", "Bash(git:*),Read,Edit",
+  "--allowed-tools", "Bash(git add:*,git apply:*,git status:*,git diff:*),Read,Edit",
   "--setting-sources", "",
   "--no-session-persistence",
 ]
@@ -311,9 +311,9 @@ func TestBuiltinManifests_ClaudeFields(t *testing.T) {
 		t.Errorf("BareFlags = %v, want %v", m.BareFlags, wantBare)
 	}
 
-	// TooledFlags: 5 tokens (tools ENABLED + git/read/edit allowlist; --allowed-tools TO CONFIRM at integration)
+	// TooledFlags: 5 tokens (tools ENABLED + staging-only git allowlist; --allowed-tools TO CONFIRM at integration)
 	wantTooled := []string{
-		"--allowed-tools", "Bash(git:*),Read,Edit",
+		"--allowed-tools", "Bash(git add:*,git apply:*,git status:*,git diff:*),Read,Edit",
 		"--setting-sources", "", "--no-session-persistence",
 	}
 	if !reflect.DeepEqual(m.TooledFlags, wantTooled) {
@@ -770,7 +770,7 @@ func TestBuiltinManifests_RenderedCommand_Claude_Tooled(t *testing.T) {
 	want := []string{
 		"--model", "sonnet",
 		"--system-prompt", "<sys>",
-		"--allowed-tools", "Bash(git:*),Read,Edit", // tools ENABLED + git/read/edit allowlist (NOT --tools "")
+		"--allowed-tools", "Bash(git add:*,git apply:*,git status:*,git diff:*),Read,Edit", // staging-only allowlist (NOT --tools "")
 		"--setting-sources", "",
 		"--no-session-persistence",
 		"-p",

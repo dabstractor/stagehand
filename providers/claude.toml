@@ -60,18 +60,21 @@ bare_flags = [                      # appended VERBATIM to make the call bare + 
 
 # --- tooled mode (v2; §11.5: the stager role) ---
 # INVERTS claude's bare mode: instead of --tools "" (disable ALL tools), ENABLE tools
-# RESTRICTED via an allowlist to Bash(git:*) + Read + Edit — the staging-relevant toolset.
+# RESTRICTED via an allowlist to Bash(git add:*,git apply:*,git status:*,git diff:*)
+# + Read + Edit — the staging-relevant toolset ONLY. This makes ref-mutating git subcommands
+# (commit/push/update-ref/reset/rebase/amend) STRUCTURALLY UNREACHABLE for the stager, delivering
+# the §19 "cannot commit/amend/push" guarantee for claude.
 # --setting-sources "" (clean slate) + --no-session-persistence (ephemeral) carry over.
 # # TO CONFIRM (P3.M2.T3): the item contract uses --allowed-tools; external_deps.md records --tools.
 # Verify against a real claude --help at the first stager run; if wrong, swap the flag token.
 tooled_flags = [
-  "--allowed-tools", "Bash(git:*),Read,Edit",  # tools enabled + git/read/edit allowlist (single string)
+  "--allowed-tools", "Bash(git add:*,git apply:*,git status:*,git diff:*),Read,Edit",  # staging-only allowlist (excludes commit/amend/push/etc.)
   "--setting-sources", "",                      # clean slate
   "--no-session-persistence",                  # ephemeral (only valid with -p)
 ]
 # RENDERED TOOLED COMMAND
 #   claude -p --model sonnet --system-prompt "<sys>" \
-#      --allowed-tools "Bash(git:*),Read,Edit" --setting-sources "" \
+#      --allowed-tools "Bash(git add:*,git apply:*,git status:*,git diff:*),Read,Edit" --setting-sources "" \
 #      --no-session-persistence < <user payload via stdin>
 
 # --- output ---

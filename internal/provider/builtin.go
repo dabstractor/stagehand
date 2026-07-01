@@ -99,14 +99,16 @@ func builtinClaude() Manifest {
 			"--no-session-persistence", // ephemeral (only valid with -p)
 		},
 		// TOOLED MODE (v2 §11.5 — the stager role). INVERTS claude's bare mode: instead of --tools "" (disable
-		// ALL tools), ENABLE tools RESTRICTED via an allowlist to Bash(git:*) (git only) + Read + Edit — the
-		// staging-relevant toolset. --setting-sources "" (clean slate) + --no-session-persistence (ephemeral)
+		// ALL tools), ENABLE tools RESTRICTED via an allowlist to Bash(git add:*,git apply:*,git status:*,git diff:*)
+		// + Read + Edit — the staging-relevant toolset ONLY. This makes ref-mutating git subcommands
+		// (commit/push/update-ref/reset/rebase/amend) STRUCTURALLY UNREACHABLE for the stager, delivering the
+		// §19 "cannot commit/amend/push" guarantee for claude. --setting-sources "" + --no-session-persistence
 		// carry over from bare.
 		// # TO CONFIRM (integration, P3.M2.T3): external_deps.md §claude records --tools;
 		// the item contract + codebase use --allowed-tools (the explicit-enable allow-list flag). Verify against
 		// a real claude --help at the first stager run; if wrong, swap the flag token (the value is the allowlist).
 		TooledFlags: []string{
-			"--allowed-tools", "Bash(git:*),Read,Edit",
+			"--allowed-tools", "Bash(git add:*,git apply:*,git status:*,git diff:*),Read,Edit",
 			"--setting-sources", "",
 			"--no-session-persistence",
 		},
