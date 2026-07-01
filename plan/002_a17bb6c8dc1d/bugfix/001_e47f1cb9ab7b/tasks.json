@@ -1,0 +1,269 @@
+{
+  "backlog": [
+    {
+      "type": "Phase",
+      "id": "P1",
+      "title": "Stagehand v2.0 QA Bug Fixes",
+      "status": "Researching",
+      "description": "Fix the five issues found during creative end-to-end QA of the Stagehand v2.0 release: (1) Critical — provider/sub-provider conflation that breaks the default provider pi; (2) Major — stager toolset not actually scoped per the §19 structural claim; (3) Major — post-arbiter stdout prints stale/dangling SHAs and omits the arbiter's new commit; (4) Major — config init/upgrade/path ignore --config/STAGEHAND_CONFIG; (5) Minor — the pi bootstrap config is non-functional out-of-box once Issue 1 is fixed. All fixes follow the existing architectural patterns (real-git tests, stubtest agent, cobra CLI, provider manifest merge/render).",
+      "milestones": [
+        {
+          "type": "Milestone",
+          "id": "P1.M1",
+          "title": "Fix provider/sub-provider conflation (Issue 1, Critical)",
+          "status": "Planned",
+          "description": "Stop passing the manifest/agent name (e.g. 'pi') as Manifest.Render's sub-provider parameter at all five call sites (generate.go single-commit + four decompose roles). Pass '' so Render falls back to the merged manifest's DefaultProvider (the actual sub-provider like 'openrouter'). This unbreaks the default provider and honors the user's configured default_provider across all config layers (FR37a).",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M1.T1",
+              "title": "Decouple manifest name from sub-provider at all Render call sites",
+              "status": "Planned",
+              "description": "Change the provider parameter from the manifest name to '' in every Manifest.Render call across the single-commit path (generate.go) and all four decompose roles (planner, stager, message, arbiter). Render's existing fallback to *r.DefaultProvider handles the rest. Add caller-level tests asserting the correct sub-provider token is emitted.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T1.S1",
+                  "title": "Fix single-commit Render call in generate.go",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.0", "h2.1", "h3.0"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue1_provider_conflation.md. The bug is at generate.go ~L192 inside CommitStaged's generate→dedupe loop: `spec, rerr := deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)`. cfg.Provider is the manifest/agent name (e.g. \"pi\"), NOT the sub-provider. Render (render.go) treats the provider param as the sub-provider and emits `--provider <value>`. When the value is the manifest name, it is not a valid sub-provider and silently overrides the user's configured default_provider.\n2. INPUT: CommitStaged receives `deps Manifest` (a provider.Manifest) and `cfg config.Config` where `cfg.Provider` is the manifest name and `cfg.Model` is the model. The manifest is already merged (registry.Get → MergeManifest preserves default_provider per FR37a into manifest.DefaultProvider).\n3. LOGIC: Change the Render call's second argument from `cfg.Provider` to `\"\"` (empty string). This makes Render's fallback fire: `if providerToUse == \"\" { providerToUse = *r.DefaultProvider }` — emitting the merged DefaultProvider (e.g. \"openrouter\") or omitting --provider if DefaultProvider is empty. No other changes to generate.go logic. The model param cfg.Model stays unchanged (Render falls back to *r.DefaultModel when model is empty). Add a comment explaining why '' is passed (the manifest name is the registry key, NOT the sub-provider).\n4. OUTPUT: CommitStaged now correctly renders `--provider <DefaultProvider>` when the sub-provider is configured, or omits --provider entirely when it is not. No change to the Result struct.\n5. TESTING: Add a test in generate_test.go that builds a pi-shaped manifest via stubtest with DefaultProvider=\"openrouter\" (set DefaultProvider field on the manifest), passes ui.NewVerbose(&buf, true) as deps.Verbose, runs CommitStaged against a temp repo with a staged change, and asserts buf.String() contains \"--provider openrouter\" and does NOT contain \"--provider pi\". Also assert existing tests still pass (the stubtest.Manifest default has DefaultProvider=\"\" so --provider is omitted — back-compatible).\n6. DOCS: [Mode A] Update the inline comment on the Render call in generate.go to explain that '' is passed because cfg.Provider is the manifest name, not the sub-provider, and Render resolves the sub-provider from the manifest's DefaultProvider. No separate docs subtask."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T1.S2",
+                  "title": "Fix all four decompose role Render calls (planner, stager, message, arbiter)",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.0", "h2.1", "h3.0"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue1_provider_conflation.md. Each decompose role file (internal/decompose/planner.go, stager.go, message.go, arbiter.go) derives (prov, mdl) via config.ResolveRoleModel(role, deps.Config) and then passes prov as the Render provider param: `deps.Roles.X.Render(mdl, prov, ...)`. prov is cfg.Provider (manifest name \"pi\"), same bug as generate.go. The manifest is already resolved in deps.Roles.X (merged by ResolveRoles via registry.Get).\n2. INPUT: Each role file has `prov, mdl := config.ResolveRoleModel(\"<role>\", deps.Config)` where prov is the manifest name. The resolved manifest is `deps.Roles.<Role>` (RoleManifests). ResolveRoleModel's prov is still needed by ResolveRoles (roles.go) for registry.Get(prov) — that usage is CORRECT and must not change. Only the Render call's provider param changes.\n3. LOGIC: In each of the four role files, change the Render call's provider argument from `prov` to `\"\"`:\n   - planner.go (~L75): `deps.Roles.Planner.Render(mdl, \"\", sysPrompt, payload, provider.RenderBare)`\n   - stager.go (~L50): `deps.Roles.Stager.Render(mdl, \"\", \"\", task, provider.RenderTooled)`\n   - message.go (~L103): `deps.Roles.Message.Render(mdl, \"\", sysPrompt, payload, provider.RenderBare)`\n   - arbiter.go (~L73): `deps.Roles.Arbiter.Render(mdl, \"\", sysPrompt, payload, provider.RenderBare)`\n   The `prov` variable from ResolveRoleModel becomes unused in each Render call but is still assigned — if the compiler/linter flags it, either suppress with `_ = prov` or remove the assignment if prov is not used elsewhere in the function (verify: in planner.go prov is ONLY used for Render; in stager.go same; in message.go same; in arbiter.go same — so the assignment can be changed to `_, mdl := config.ResolveRoleModel(...)` or left and suppressed). Add a comment explaining why '' is passed.\n4. OUTPUT: Each decompose role now renders the correct sub-provider from the manifest's merged DefaultProvider, not the manifest name. All four roles behave consistently with generate.go after S1.\n5. TESTING: For each role, add a test that uses a pi-shaped manifest (DefaultProvider=\"openrouter\") with ui.NewVerbose(&buf, true) and asserts the verbose buffer contains \"--provider openrouter\" (not \"--provider pi\"). The decompose_test.go file already has infrastructure for running full decompose with stubtest — extend it. Test at least one role end-to-end through the decompose loop (e.g. a 2-concept planner partition). Assert existing tests pass (stubtest default DefaultProvider=\"\" → no --provider → back-compatible).\n6. DOCS: [Mode A] Add a brief comment at each changed Render call explaining the '' provider param. No user-facing docs change for internal decompose roles."
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P1.M1.T2",
+              "title": "Add end-to-end integration test verifying correct sub-provider rendering",
+              "status": "Planned",
+              "description": "Add an integration test that drives the real CLI binary (or the cobra rootCmd) with a pi-shaped stubagent config (default_provider set) and asserts via --verbose that the rendered command shows --provider <default_provider>, NOT --provider <manifest-name>. This test covers both the single-commit path (staged change) and the multi-commit decompose path (dirty tree), mirroring the PRD's reproduction steps. This is the test that would have caught the bug — the existing unit tests bypass the caller conflation by calling Render directly.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T2.S1",
+                  "title": "E2E integration test with pi-shaped stub asserting --provider <default_provider>",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T1.S2"],
+                  "prd_selectors": ["h2.0", "h2.1", "h3.0", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue1_provider_conflation.md and test_patterns.md. The reproduction in the PRD uses a pi-shaped config.toml with [provider.pi] default_provider=\"openrouter\" and runs `stagehand --dry-run --verbose --no-color`, asserting the DEBUG command line shows `--provider openrouter` not `--provider pi`. The test infrastructure uses cmd/stubagent compiled via stubtest.Build(t) and configured via STAGEHAND_STUB_OUT env. The CLI test pattern (internal/cmd/default_action_test.go) drives rootCmd.SetArgs(...) + rootCmd.Execute() with t.Setenv for HOME/XDG isolation.\n2. INPUT: The fixed generate.go (S1) and decompose roles (S2) that pass '' for the provider param. The existing CLI test infrastructure in internal/cmd/default_action_test.go and internal/cmd/config_test.go.\n3. LOGIC: Write a test (in default_action_test.go or a new test) that:\n   (a) Creates a temp git repo with a staged change (for single-commit path) and/or a dirty tree (for decompose path).\n   (b) Writes a config.toml with [defaults] provider=\"pi\", [provider.pi] with command/detect pointing to the stubagent binary (from stubtest.Build(t)), provider_flag=\"--provider\", default_provider=\"openrouter\", model_flag=\"--model\", default_model=\"gpt-5.4-nano\", prompt_delivery=\"stdin\", print_flag=\"-p\", output=\"raw\", and [provider.pi.env] STAGEHAND_STUB_OUT=\"feat: test\".\n   (c) Sets STAGEHAND_CONFIG=<temp config path> and STAGEHAND_PROVIDER=pi.\n   (d) Runs rootCmd.SetArgs([]string{\"--dry-run\", \"--verbose\", \"--no-color\"}) + rootCmd.Execute().\n   (e) Captures stdout (which includes verbose output when --verbose is on) and asserts the rendered command contains \"--provider openrouter\" and does NOT contain \"--provider pi\".\n   (f) Test BOTH paths: single-commit (staged change) and decompose (dirty tree with a 1-concept planner stub).\n   MOCKING: The stubagent binary replaces pi — no real model calls. The stubagent reads STAGEHAND_STUB_OUT from its env and prints the canned response.\n4. OUTPUT: A passing integration test that proves the fix works end-to-end through the real CLI. This test is the regression guard that prevents reintroduction of the conflation.\n5. DOCS: none — test-only, no user-facing surface change."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M2",
+          "title": "Scope the stager toolset (Issue 2, Major)",
+          "status": "Planned",
+          "description": "Deliver the PRD §19 'structurally constrained' safety claim for the stager agent by: (a) tightening claude's tooled_flags from Bash(git:*) to a staging-only allowlist; (b) honestly documenting pi's unsoped risk; (c) adding a defensive HEAD-movement guard that aborts if a stager moves HEAD. This closes the gap between the advertised safety model and the actual shipped profiles.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M2.T1",
+              "title": "Tighten stager toolset profiles and add defensive HEAD guard",
+              "status": "Planned",
+              "description": "Three changes: (1) Restrict claude's TooledFlags to a staging-only git allowlist (git add/apply/status/diff + Read + Edit). (2) Update pi's tooled profile comments to honestly state it is instructionally constrained, not structurally. (3) Add a HEAD-movement guard in the decompose orchestrator that snapshots HEAD before each stager call and aborts if HEAD moved after the stager returns.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M2.T1.S1",
+                  "title": "Tighten claude's TooledFlags to staging-only git allowlist",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.0", "h2.2", "h3.1"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue2_stager_toolset.md. The current claude TooledFlags in internal/provider/builtin.go builtinClaude() is `[\"--allowed-tools\", \"Bash(git:*),Read,Edit\", \"--setting-sources\", \"\", \"--no-session-persistence\"]`. `Bash(git:*)` allows ALL git subcommands including git commit/push/update-ref/reset. The fix restricts to staging-relevant subcommands only.\n2. INPUT: internal/provider/builtin.go builtinClaude() TooledFlags field and providers/claude.toml tooled_flags section. The existing TestBuiltinClaude and TestRender_Tooled tests assert on TooledFlags values.\n3. LOGIC: Change the TooledFlags value from `Bash(git:*),Read,Edit` to `Bash(git add:*,git apply:*,git status:*,git diff:*),Read,Edit` in BOTH internal/provider/builtin.go (builtinClaude()) and providers/claude.toml. Update the inline comment to explain the restricted allowlist. This makes git commit/push/update-ref/reset/rebase/amend structurally unreachable for the claude stager.\n4. OUTPUT: claude's TooledFlags now structurally prevents commit/amend/push/ref-mutation by the stager. The existing render tests and stager tests that reference the old value must be updated.\n5. TESTING: Update internal/provider/builtin_test.go (TestBuiltinClaude or equivalent) to assert the new allowlist string. Update any render test (TestRender_Tooled) that snapshots the claude tooled command. Verify `go test ./internal/provider/...` passes.\n6. DOCS: [Mode A] Update providers/claude.toml tooled_flags section comment to explain the restricted allowlist (staging-only git subcommands + Read + Edit, explicitly excluding commit/amend/push/update-ref). This reference doc rides WITH the work."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M2.T1.S2",
+                  "title": "Honestly document pi's unsoped tooled profile",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.0", "h2.2", "h3.1"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue2_stager_toolset.md. pi has no git-scoped allowlist flag (--help shows only the all-or-nothing --no-tools). Its TooledFlags = bare flags MINUS --no-tools, enabling pi's entire native tool system with no allowlist. The current inline comment in builtinPi() already admits this but uses soft language. The §19 PRD claim ('structurally constrained') is not true for pi.\n2. INPUT: internal/provider/builtin.go builtinPi() TooledFlags comment block and providers/pi.toml tooled_flags comment block.\n3. LOGIC: Update the comments in BOTH files to clearly state: pi's stager is INSTRUCTIONALLY constrained (via the §17.6 stager task prompt) and BEST-EFFORT guarded (via the S3 HEAD-movement guard), NOT structurally/flag-scoped. Explicitly note that a misbehaving pi stager CAN run git commit/push/update-ref, and the safety net is the HEAD-movement guard (S3), not flag-scoping. No code change — comment-only.\n4. OUTPUT: The pi provider profile honestly documents its safety model. No behavior change.\n5. TESTING: No new tests needed (comment-only). Verify `go test ./...` still passes (comments don't affect compilation/tests).\n6. DOCS: [Mode A] Update providers/pi.toml tooled_flags comment to clearly state the instructional + best-effort constraint model, explicitly contrasting with claude's structural allowlist. This reference doc rides WITH the work."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M2.T1.S3",
+                  "title": "Add defensive HEAD-movement guard for stager invocations",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M2.T1.S1", "P1.M2.T1.S2"],
+                  "prd_selectors": ["h2.0", "h2.2", "h3.1"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue2_stager_toolset.md. The stager mutates the INDEX (git add / git apply --cached) but NEVER HEAD. A correctly-behaving stager does not move refs. This guard is defense-in-depth: if a misbehaving stager (especially pi's unsoped profile) moves HEAD via git commit/update-ref/reset, the guard detects it and aborts the run. The guard wraps the real stageConcept call in decompose.go's invokeStagerRetry function.\n2. INPUT: internal/decompose/decompose.go's invokeStagerRetry function (which calls invokeStager → stageConcept). The Git interface's RevParseHEAD(ctx) returns (sha, isUnborn, err). The stager test seam (deps.stager) is used in tests to inject a staging-capable stager.\n3. LOGIC: In decompose.go, modify the stager invocation path to snapshot HEAD before and after the stager call:\n   (a) Before invokeStagerRetry (or inside it, before the first invokeStager call): capture `preStagerHEAD, _, _ := deps.Git.RevParseHEAD(ctx)`.\n   (b) After the stager returns successfully: capture `postStagerHEAD, _, _ := deps.Git.RevParseHEAD(ctx)`.\n   (c) If `preStagerHEAD != postStagerHEAD`: return a new error (e.g. ErrStagerMovedHEAD) — a HARD error that aborts the decompose run. This is NOT a rescue (no snapshot to restore) — the stager corrupted the repo state. The CLI maps this to exit 1 with a clear message: 'stager moved HEAD from <pre> to <post> — aborting; the stager agent mutated refs which it must not do'.\n   (d) Guard the test seam: when deps.stager is non-nil (test injection), the stager stages via real git which doesn't move HEAD — the guard passes. When deps.stager is nil (production), the guard wraps the real stageConcept.\n   Consideration for the unborn repo: on an unborn repo, RevParseHEAD returns (\"\", true, nil). The pre/post comparison works (both would be \"\" unless the stager created a commit — which would be a violation).\n4. OUTPUT: A new sentinel error `ErrStagerMovedHEAD` (or similar) that the CLI maps to a clear exit-1 message. The decompose loop aborts on any HEAD movement by the stager.\n5. TESTING: Add a test in decompose_test.go that injects a stager test-seam (deps.stager) that runs `git update-ref HEAD <some-sha>` or `git commit` to move HEAD, then asserts Decompose returns the HEAD-movement error. Also test the happy path: a normal stager (stages files via git add, does NOT move HEAD) passes the guard.\n6. DOCS: [Mode A] Add JSDoc on the new ErrStagerMovedHEAD sentinel and the guard logic explaining: the stager must only mutate the index, never refs; this guard is the safety net for providers that cannot be flag-scoped (pi). No user-facing config/API surface change."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M3",
+          "title": "Fix post-arbiter output fidelity (Issue 3, Major)",
+          "status": "Planned",
+          "description": "After the arbiter amends/rebuilds/creates, the user-facing stdout currently prints stale (now-dangling) commit SHAs and omits the arbiter's new commit entirely. Fix by re-reading git for the final commits (git log <preRunHEAD>..HEAD) after a successful arbiter phase and replacing DecomposeResult.Commits with accurate post-arbiter entries. Requires adding a new git commit-range listing capability to the Git interface.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M3.T1",
+              "title": "Add git commit-range listing capability (LogRange)",
+              "status": "Planned",
+              "description": "Add a LogRange method to the Git interface and gitRunner that lists commits in the range baseSHA..HEAD (oldest-first) with their SHAs and subject lines. The Git interface currently has no range-based commit listing — RecentMessages/RecentSubjects use `git log -N` (last N commits), not range-based.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T1.S1",
+                  "title": "Add LogEntry type and LogRange method to Git interface + gitRunner",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.0", "h2.2", "h3.2"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue3_post_arbiter_output.md. The Git interface (internal/git/git.go) is an interface implemented ONLY by gitRunner (no mocks exist — all tests use real git). The existing git log usage: RecentMessages uses `git log --format=%x00%B -<n>`, RecentSubjects uses `git log --format=%s -<n>`, CommitCount uses `git rev-list --count HEAD`. There is no range-based log function. The gitRunner type is a struct with a `run(ctx, workDir, args...)` helper and a `workDir` field.\n2. INPUT: The Git interface in internal/git/git.go (add a new method to the interface + implement in gitRunner). The `run` method signature: `run(ctx context.Context, dir string, args ...string) (stdout, stderr string, code int, err error)`.\n3. LOGIC: Add to internal/git/git.go:\n   (a) A new type `LogEntry struct { SHA string; Subject string }`.\n   (b) A new interface method: `LogRange(ctx context.Context, baseSHA string) ([]LogEntry, error)` — returns commits in the range `baseSHA..HEAD`, oldest-first.\n   (c) gitRunner implementation: run `git log --reverse --format=%H%x1f%s <baseSHA>..HEAD`. Parse the output: each line is `<full-SHA>\\x1f<subject>`. The `%x1f` (ASCII Unit Separator) delimits SHA from subject (safe — subjects never contain \\x1f). Split on \\x1f, build LogEntry per line. Return the slice oldest-first (--reverse ensures this).\n   (d) Unborn edge case: when baseSHA is the all-zeros SHA (strings.Repeat(\"0\", 40)), `git log <zeros>..HEAD` lists ALL commits reachable from HEAD (git treats the zeros ref as non-existent). When the repo is unborn (no commits), `git log <zeros>..HEAD` exits 128 — handle this defensively by returning (nil, nil) on exit 128 with an empty HEAD, matching the 128-as-non-error convention used by RecentMessages/RevParseHEAD. Alternatively, the caller (decompose.go) already knows isUnborn and can skip the call.\n   (e) Empty range (baseSHA == HEAD): git log exits 0 with empty stdout → return (nil, nil).\n4. OUTPUT: A new Git interface method `LogRange` that returns `[]LogEntry{SHA, Subject}` for the range baseSHA..HEAD. All existing git.Git consumers continue to work (interface extension is backward-compatible). No existing tests break (no mocks to update).\n5. TESTING: Add a test in a new file internal/git/logrange_test.go (or in git_test.go): create a repo with 3 commits (A→B→C), call LogRange(A), assert it returns [B, C] with correct SHAs and subjects. Test the empty range (baseSHA == HEAD → nil). Test the all-zeros base (returns all commits). Test the unborn repo edge case.\n6. DOCS: [Mode A] Add JSDoc on the LogRange interface method and LogEntry type in git.go explaining the semantics (range baseSHA..HEAD, oldest-first, %x1f delimiter, all-zeros base special case). This interface doc rides WITH the work."
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P1.M3.T2",
+              "title": "Re-read final commits after arbiter and update DecomposeResult",
+              "status": "Planned",
+              "description": "After the arbiter phase succeeds in Decompose (decompose.go), re-read the final commits via LogRange(preRunHEAD) and DiffTree, rebuild []CommitResult with accurate post-arbiter SHAs/subjects/file-lists, and set DecomposeResult.Commits to the rebuilt slice. This closes the §G-RESULT 'post-arbiter gap' — the success report will now show resolvable SHAs and include the arbiter's new commit.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T2.S1",
+                  "title": "Add rereadFinalCommits and call it after successful arbiter in Decompose",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M3.T1.S1"],
+                  "prd_selectors": ["h2.0", "h2.2", "h3.2"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue3_post_arbiter_output.md. The bug: Decompose (internal/decompose/decompose.go) returns DecomposeResult{Commits, Amended} where Commits carries pre-arbiter SHAs (stale after amend/rebuild) and is missing the arbiter's new commit on the null path. The §G-RESULT doc comment on DecomposeResult acknowledges this gap. The arbiter runs inside Decompose at step (7)+(8) via runArbiterPhase. preRunHEAD and isUnborn are captured at step (2). The printing happens in cmd/default_action.go runDecompose which iterates res.Commits via printDecomposeCommit (prints SHA + Subject + Files).\n2. INPUT: P1.M3.T1.S1 provides the LogRange(ctx, baseSHA) git method returning []LogEntry{SHA, Subject}. Decompose already has `preRunHEAD` and `isUnborn` from step (2). The Git interface's DiffTree(ctx, sha, isRoot) returns []FileChange. The existing []CommitResult type has fields SHA, Subject, Message, Files.\n3. LOGIC: In internal/decompose/decompose.go:\n   (a) Add a helper `rereadFinalCommits(ctx, deps, preRunHEAD string, isUnborn bool) ([]CommitResult, error)`:\n       - Compute the baseSHA for LogRange: if isUnborn, use strings.Repeat(\"0\", 40) (all-zeros — lists all commits); else use preRunHEAD.\n       - Call `entries, err := deps.Git.LogRange(ctx, baseSHA)`.\n       - For each entry, call `deps.Git.DiffTree(ctx, entry.SHA, isRootForEntry)` where isRootForEntry is true only for the FIRST entry on an unborn repo (concept 0 on unborn).\n       - Build []CommitResult{SHA: entry.SHA, Subject: entry.Subject, Message: \"\", Files: fileChanges}. Message can be \"\" (not used in the success report — only SHA/Subject/Files are printed by printDecomposeCommit).\n       - Return the slice.\n   (b) In Decompose, after runArbiterPhase succeeds (the `if status != \"\" && len(commits) > 0` block, after `amended, err = runArbiterPhase(...)` returns nil error):\n       - Call `finalCommits, err := rereadFinalCommits(ctx, deps, preRunHEAD, isUnborn)`.\n       - If err is non-nil, log it via deps.Verbose but do NOT fail the run (best-effort — the commits are already published; falling back to stale SHAs is better than erroring). Set commits = finalCommits on success.\n       - Update step (9) to return DecomposeResult{Commits: finalCommits (or commits if reread failed), Amended: amended}.\n   (c) Update the §G-RESULT doc comment on DecomposeResult to reflect the gap is closed: Commits are now re-read post-arbiter when the arbiter ran. When the arbiter did NOT run (status==\"\" or len(commits)==0), Commits are the loop's accurate entries (unchanged).\n4. OUTPUT: DecomposeResult.Commits now carries accurate, resolvable post-arbiter SHAs/subjects/file-lists. The null path's (N+1)-th commit is included. The default_action.go printing code needs NO change (it already iterates res.Commits).\n5. TESTING: Add tests in decompose_test.go:\n   (a) Tip amend: run a 2-concept decompose with leftovers that fold into the tip. Assert res.Commits[last].SHA resolves via `git rev-parse` (not dangling) and matches `git log` tip. Assert the pre-amend SHA is NOT in res.Commits.\n   (b) Null path: run a decompose where the arbiter creates a new commit. Assert len(res.Commits) == N+1 and the last entry's SHA resolves.\n   (c) Mid-chain: run a decompose with a mid-chain arbiter target. Assert ALL SHAs in res.Commits resolve.\n   (d) Happy path (arbiter does not run): assert res.Commits unchanged (still accurate from the loop).\n6. DOCS: [Mode A] Update the §G-RESULT doc comment on DecomposeResult in decompose.go to document that the post-arbiter gap is closed. No user-facing docs change (the success report format is unchanged — only the data accuracy improves)."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M4",
+          "title": "Honor --config / STAGEHAND_CONFIG override in config subcommands (Issue 4, Major)",
+          "status": "Planned",
+          "description": "The config init/upgrade/path subcommands hardcode config.GlobalConfigPath() and never consult the --config flag or STAGEHAND_CONFIG env var. Add a shared override-aware path resolver (matching config.Load's precedence) and wire it into all three subcommands so they operate on the file the user actually selected.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M4.T1",
+              "title": "Add override-aware config path resolution and wire into config subcommands",
+              "status": "Planned",
+              "description": "Add config.ResolveConfigPath(flagConfig) that honors --config > STAGEHAND_CONFIG > GlobalConfigPath(). Refactor config.Load to use it (DRY). Update config init/upgrade/path RunE functions to call ResolveConfigPath(flagConfig) instead of GlobalConfigPath().",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M4.T1.S1",
+                  "title": "Add ResolveConfigPath function and refactor config.Load to use it",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.0", "h2.2", "h3.3"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue4_config_path_override.md. config.Load (internal/config/load.go L76-82) has the override logic inline: `globalPath := opts.ConfigPathOverride; if globalPath == \"\" { if env := os.Getenv(\"STAGEHAND_CONFIG\"); env != \"\" { globalPath = env } else { globalPath = globalConfigPath() } }`. This logic needs to be extracted into a shared function so the config subcommands can reuse it. The GlobalConfigPath() function (internal/config/file.go L83) delegates to globalConfigPath() which checks $XDG_CONFIG_HOME or $HOME/.config/stagehand/config.toml.\n2. INPUT: internal/config/load.go (the inline path resolution at L76-82) and internal/config/file.go (GlobalConfigPath/globalConfigPath).\n3. LOGIC: Add to internal/config/file.go:\n   ```go\n   func ResolveConfigPath(flagConfig string) string {\n       if flagConfig != \"\" { return flagConfig }\n       if env := os.Getenv(\"STAGEHAND_CONFIG\"); env != \"\" { return env }\n       return GlobalConfigPath()\n   }\n   ```\n   Refactor internal/config/load.go L76-82 to use ResolveConfigPath(opts.ConfigPathOverride). The `explicit` variable (L77) must still be computed correctly: `explicit := opts.ConfigPathOverride != \"\" || os.Getenv(\"STAGEHAND_CONFIG\") != \"\"`. This can be computed from the same inputs (ResolveConfigPath doesn't return `explicit`, so compute it separately or derive it). Keep the existing behavior: a missing EXPLICIT path is a hard error; a missing discovery path is a layer-absent sentinel.\n4. OUTPUT: A new exported function config.ResolveConfigPath(flagConfig string) string that resolves the config path honoring the same override precedence as config.Load. config.Load's behavior is unchanged (refactored to use the shared function).\n5. TESTING: Add unit tests in internal/config/file_test.go (or load_test.go) for ResolveConfigPath: table-driven — (a) flagConfig set → returns flagConfig; (b) STAGEHAND_CONFIG set, flagConfig empty → returns env value; (c) both set → flagConfig wins; (d) neither set → returns GlobalConfigPath(). Use t.Setenv for env tests. Verify config.Load tests still pass.\n6. DOCS: [Mode A] Add JSDoc on ResolveConfigPath explaining the precedence (--config > STAGEHAND_CONFIG > GlobalConfigPath) and that it is the shared resolver for config.Load and the config init/upgrade/path subcommands. No user-facing docs change yet (the subcommand wiring is S2)."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M4.T1.S2",
+                  "title": "Wire ResolveConfigPath into config init/upgrade/path subcommands",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M4.T1.S1"],
+                  "prd_selectors": ["h2.0", "h2.2", "h3.3"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue4_config_path_override.md. The three config subcommands in internal/cmd/config.go (runConfigPath L130, runConfigUpgrade L138, runConfigInit L231) each hardcode `config.GlobalConfigPath()`. The flagConfig package variable (internal/cmd/root.go L33) is populated by cobra's persistent flag parsing (`pf.StringVar(&flagConfig, \"config\", \"\", ...)`) BEFORE any RunE runs, so it is available even though these subcommands skip config.Load via shouldSkipConfigLoad. Cobra parses persistent flags before RunE regardless of PersistentPreRunE returning early.\n2. INPUT: P1.M4.T1.S1 provides config.ResolveConfigPath(flagConfig string). The flagConfig package variable in internal/cmd/root.go. The three RunE functions in internal/cmd/config.go.\n3. LOGIC: In internal/cmd/config.go, change each RunE function:\n   (a) runConfigPath (L130): change `config.GlobalConfigPath()` to `config.ResolveConfigPath(flagConfig)`.\n   (b) runConfigUpgrade (L138): change `path := config.GlobalConfigPath()` to `path := config.ResolveConfigPath(flagConfig)`.\n   (c) runConfigInit (L231): change `path := config.GlobalConfigPath()` to `path := config.ResolveConfigPath(flagConfig)`.\n   The flagConfig variable is accessible because config.go and root.go are in the same package (internal/cmd). No import changes needed.\n4. OUTPUT: `stagehand --config X config path` prints X; `stagehand --config X config upgrade` upgrades X; `stagehand --config X config init` writes to X. Same for STAGEHAND_CONFIG=X. Back-compatible when no override is set (falls back to GlobalConfigPath).\n5. TESTING: Add tests in internal/cmd/config_test.go:\n   (a) config path with --config: `rootCmd.SetArgs([]string{\"--config\", \"/tmp/foo.toml\", \"config\", \"path\"})`, assert stdout is /tmp/foo.toml.\n   (b) config path with STAGEHAND_CONFIG: t.Setenv(\"STAGEHAND_CONFIG\", \"/tmp/foo.toml\"), run `config path`, assert /tmp/foo.toml.\n   (c) config upgrade with --config: write a v1 config to /tmp/foo.toml, run `--config /tmp/foo.toml config upgrade`, assert /tmp/foo.toml was upgraded (config_version=2) and the global path was NOT touched.\n   (d) config init with --config: run `--config /tmp/foo.toml config init`, assert /tmp/foo.toml was written.\n   (e) Back-compat: no override → uses GlobalConfigPath (existing tests should still pass).\n6. DOCS: [Mode A] Update the Long help text of the configPathCmd and configUpgradeCmd in config.go to remove the misleading 'not a --config/STAGEHAND_CONFIG override' language and instead state that --config/STAGEHAND_CONFIG ARE honored. This user-facing help text rides WITH the work."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M5",
+          "title": "Fix bootstrap config for pi (Issue 5, Minor)",
+          "status": "Planned",
+          "description": "The bootstrap config written by `config init` sets pi per-role models (gpt-5.4*) but no default_provider (sub-provider). Once Issue 1 is fixed, pi receives no --provider flag and routes gpt-5.4* models to its default backend (google) where they don't exist. Fix by blanking pi's per-role models in the bootstrap so pi picks its own backend default until the user configures a verified routing sub-provider.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M5.T1",
+              "title": "Blank pi per-role models in bootstrap when no default_provider is configured",
+              "status": "Planned",
+              "description": "In buildBootstrapConfig (internal/config/bootstrap.go), when the target provider is pi, write model='' for all [role.*] blocks instead of gpt-5.4* models. Add an explanatory comment in the bootstrap output noting the user must configure default_provider + compatible models. This prevents the out-of-box model-not-found error and satisfies FR-B1's 'works immediately' promise conservatively.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M5.T1.S1",
+                  "title": "Blank pi models in bootstrap and add explanatory annotation",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T1.S2"],
+                  "prd_selectors": ["h2.0", "h2.3", "h3.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue5_bootstrap_config.md. buildBootstrapConfig (internal/config/bootstrap.go) gets per-role models from DefaultModelsForProvider(target) which returns the roleDefaults table (internal/config/role_defaults.go): pi → {planner: gpt-5.4, stager: gpt-5.4-mini, message: gpt-5.4-nano, arbiter: gpt-5.4-mini}. These models require a sub-provider (default_provider) to route. The bootstrap does NOT write default_provider. pi's manifest DefaultProvider is '' (FR-D2/§12.3), so after Issue 1's fix, Render omits --provider and pi routes to its default backend (google) where gpt-5.4* doesn't exist → model-not-found. The writeRoleBlock function writes `model = %q` for each role.\n2. INPUT: internal/config/bootstrap.go's buildBootstrapConfig function (gets models via DefaultModelsForProvider(target)), writeRoleBlock helper, and the bootstrapHeader/stagerFallback logic. internal/config/role_defaults.go's roleDefaults table.\n3. LOGIC: In buildBootstrapConfig, after `models := DefaultModelsForProvider(target)`, add a conditional: if target == \"pi\", blank all model values: `for role := range models { models[role] = \"\" }`. This makes writeRoleBlock write `model = \"\"` for all pi roles. Add an annotation comment in the per-role header block for pi explaining: 'pi requires a default_provider (sub-provider) to route models. Set [provider.pi] default_provider and compatible per-role models, or let pi pick its own backend default by leaving models empty.' The stager fallback logic (stagerFallback) already handles empty stager models — verify it still routes correctly (stagerFallback returns the first stager-capable provider with a non-empty stager model; if pi's is blank, it falls through to the preferredBuiltins loop which finds pi as stager-capable but with empty model → it should use pi anyway with model=\"\" — verify this path or adjust).\n4. OUTPUT: `config init` (or auto-bootstrap) for pi writes `model = \"\"` for all [role.*] blocks, preventing the model-not-found error. The user sees a clear comment explaining how to configure pi with a sub-provider.\n5. TESTING: Add/modify tests in internal/config/bootstrap_test.go: assert GenerateBootstrapConfig(\"pi\") produces `model = \"\"` for all four role blocks (not gpt-5.4*). Assert GenerateBootstrapConfig(\"claude\") still writes opus/sonnet/haiku (claude models don't need a sub-provider — ProviderFlag is empty). Verify the stager fallback still resolves (pi with blank models should still be the stager since it's the first stager-capable provider; the stager model will be \"\" which is acceptable).\n6. DOCS: [Mode A] The bootstrap output itself IS the user-facing doc (the header comment). Add the explanatory annotation about pi's sub-provider requirement directly in the generated TOML. No separate docs file update needed for this subtask."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M6",
+          "title": "Sync changeset-level documentation",
+          "status": "Planned",
+          "description": "Final sweep of changeset-level documentation: update README.md to reflect the provider fix, the tightened stager safety model, the config override honoring, and the bootstrap change. This is the catch-all Mode B task that prevents a coherent delta from shipping with a stale README.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M6.T1",
+              "title": "Sync changeset-level documentation",
+              "status": "Planned",
+              "description": "Update README.md and any overview docs to reflect the five fixes: corrected provider rendering, tightened stager toolset safety, accurate post-arbiter output, config override honoring, and functional pi bootstrap. Enumerate each doc file that needs changes.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M6.T1.S1",
+                  "title": "Update README.md to reflect all five fixes",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T1.S2", "P1.M1.T2.S1", "P1.M2.T1.S1", "P1.M2.T1.S2", "P1.M2.T1.S3", "P1.M3.T1.S1", "P1.M3.T2.S1", "P1.M4.T1.S1", "P1.M4.T1.S2", "P1.M5.T1.S1"],
+                  "prd_selectors": ["h2.0", "h2.1", "h3.0", "h2.2", "h3.1", "h3.2", "h3.3", "h2.3", "h3.4", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: README.md is the top-level project overview. It likely documents: the provider model (--provider flag behavior), the stager safety claim (§19 'structurally constrained'), config subcommands (--config behavior), and the out-of-box bootstrap experience. All five fixes touch user-facing behavior that README.md may describe.\n2. INPUT: All implementing subtasks (dependencies list). README.md current content. The providers/*.toml reference docs (already updated by P1.M2.T1.S1/S2 per Mode A).\n3. LOGIC: Read README.md. Update any sections that describe:\n   (a) Provider rendering: ensure the --provider flag behavior is accurately described (the sub-provider comes from default_provider, not the manifest name).\n   (b) Stager safety: update the safety model language to reflect the tightened claude allowlist + the honest pi documentation + the HEAD-movement guard. If README repeats the §19 'structurally constrained' claim, qualify it for pi.\n   (c) Config subcommands: ensure README documents that --config/STAGEHAND_CONFIG are honored by config init/upgrade/path (if README mentions these subcommands).\n   (d) Bootstrap: if README claims pi 'works immediately', verify the claim is still accurate (pi works with empty models — pi picks its own default) or adjust the language.\n   (e) Any environment variable table: ensure STAGEHAND_CONFIG's behavior with config subcommands is accurately described.\n4. OUTPUT: README.md is consistent with the shipped behavior after all five fixes. No stale claims remain.\n5. TESTING: No automated tests for docs. Verify `go build ./...` and `go test ./...` still pass (docs changes shouldn't affect them). Optionally run markdownlint if configured (see .markdownlint.json).\n6. DOCS: [Mode B] This IS the changeset-level docs sync task. It updates README.md (the top-level overview) which spans the entire changeset. Dependencies on all implementing subtasks ensure it runs last."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M6.T1.S2",
+                  "title": "Verify docs/ directory consistency with all fixes",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T1.S2", "P1.M2.T1.S1", "P1.M2.T1.S2", "P1.M3.T1.S1", "P1.M3.T2.S1", "P1.M4.T1.S1", "P1.M4.T1.S2", "P1.M5.T1.S1"],
+                  "prd_selectors": ["h2.0", "h2.1", "h3.0", "h2.2", "h3.1", "h3.2", "h3.3", "h2.3", "h3.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The docs/ directory contains project documentation files (e.g. CONFIGURATION.md, provider docs, etc.). The five fixes may have cross-cutting documentation implications that only make sense once the whole change is in place (e.g. the provider model overview, the stager safety section, the config override behavior).\n2. INPUT: All implementing subtasks (dependencies list). The docs/ directory contents.\n3. LOGIC: Read each file in docs/. For any file that describes provider rendering, stager safety, config subcommands, or the bootstrap experience, verify the content is consistent with the post-fix behavior. Update as needed:\n   (a) If docs/CONFIGURATION.md exists: verify --config/STAGEHAND_CONFIG behavior is accurately described for all subcommands.\n   (b) If docs/ describes provider manifests: verify the --provider flag rendering is accurate (sub-provider from default_provider).\n   (c) If docs/ describes the stager: verify the safety model matches the tightened claude allowlist + honest pi documentation + HEAD guard.\n   (d) If docs/ describes the bootstrap: verify pi's model behavior is accurate.\n4. OUTPUT: All docs/ files are consistent with the post-fix behavior. No stale claims.\n5. TESTING: No automated tests. Verify build/test still pass.\n6. DOCS: [Mode B] This IS part of the changeset-level docs sync. It sweeps docs/ for cross-cutting consistency. Dependencies on all implementing subtasks ensure it runs last."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
