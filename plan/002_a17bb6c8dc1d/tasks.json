@@ -659,14 +659,14 @@
               "type": "Task",
               "id": "P3.M2.T2",
               "title": "Planner agent call + JSON parse/retry + single-call shortcut",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Implement the planner agent invocation: build the system+user prompt with style examples and working-tree diff, call the bare planner agent, parse JSON output with retry, and handle the single-call shortcut (FR-M11).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P3.M2.T2.S1",
                   "title": "Implement planner agent call + JSON parse + single-shortcut in decompose/planner.go",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P3.M2.T1.S1",
@@ -691,14 +691,14 @@
               "type": "Task",
               "id": "P3.M2.T3",
               "title": "Stager agent call (tooled mode) + snapshot freeze + overlap scheduling",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Implement the tooled stager agent call that stages one concept's changes, and the snapshot freeze (write-tree before stager[i+1] starts) that enables overlapped staging/generation.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P3.M2.T3.S1",
                   "title": "Implement tooled stager invocation + snapshot freeze in decompose/stager.go",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P3.M2.T1.S1",
