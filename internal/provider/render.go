@@ -96,6 +96,21 @@ func (m Manifest) Render(model, provider, sysPrompt, userPayload string, mode ..
 		providerToUse = *r.DefaultProvider
 	}
 
+	// FR-R5b backstop: a multi-provider agent (one with a provider_flag, e.g. pi) must NEVER receive a
+	// bare --model. The inference provider is the manifest's default_provider (what a user sets via
+	// [provider.<name>] default_provider); when a model IS pinned but no inference provider resolves,
+	// the agent would guess the upstream and guess wrong (e.g. a bare glm-5.2 routed to the wrong
+	// backend → empty output). Reject here so EVERY call path (v1 generate + all four decompose roles,
+	// all of which pass "" for the provider param and rely on default_provider) fails loudly instead of
+	// emitting an unroutable command. Exempt: single-backend agents (claude/codex/gemini/cursor) and
+	// combined-form agents (opencode/agy, no provider_flag — the provider lives in the model string).
+	if *r.ProviderFlag != "" && modelToUse != "" && providerToUse == "" {
+		return nil, fmt.Errorf(
+			"provider render %q: model %q requires an inference provider; set [provider.%s] default_provider "+
+				"(e.g. \"zai\", \"openrouter\") so the model routes correctly",
+			m.Name, modelToUse, m.Name)
+	}
+
 	// §12.2 token order. append(nil, x...) is safe for absent slices (Subcommand/BareFlags nil → no-op).
 	args := make([]string, 0, 16)
 	args = append(args, r.Subcommand...)

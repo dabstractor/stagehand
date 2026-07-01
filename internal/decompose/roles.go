@@ -95,11 +95,6 @@ func ResolveRoles(cfg config.Config, reg *provider.Registry) (RoleManifests, Rol
 	for _, role := range []string{"planner", "stager", "message", "arbiter"} {
 		prov, mdl := config.ResolveRoleModel(role, cfg)
 
-		// FR-R5b: capture the PRE-auto-detect state. A model set with NO provider at role or global
-		// level means auto-detect will pick one — on a multi-provider agent (pi), this is ambiguous
-		// (which sub-provider does the model target?). We detect this BEFORE overwriting prov.
-		bareModelNoProvider := prov == "" && mdl != ""
-
 		if prov == "" {
 			prov = reg.DefaultProvider(installed) // auto-detect (mirrors buildDeps)
 		}
@@ -121,17 +116,8 @@ func ResolveRoles(cfg config.Config, reg *provider.Registry) (RoleManifests, Rol
 				role, prov, m.DetectCommand())
 		}
 
-		// FR-R5b: model set with NO provider, on a multi-provider agent → ambiguous → config error.
-		// Uses the ProviderFlag signal (only pi today). opencode/agy are excluded because their
-		// ProviderFlag="" means no separate --provider flag exists to omit — the bare-model misroute
-		// mechanism does not apply to them. Out of scope: sub-provider conflation when provider IS set
-		// (config has no sub-provider field; cfg.Provider conflates manifest name + Render provider param).
-		if bareModelNoProvider && isMultiProvider(m) {
-			return RoleManifests{}, RoleModels{}, fmt.Errorf(
-				"role %q: model %q is set without a provider; %q is a multi-provider agent and needs an "+
-					"explicit provider so the model is routed correctly (set stagehand.provider or --%s-provider)",
-				role, mdl, prov, role)
-		}
+		// (The FR-R5b check lives AFTER the FR-D4 stager fallback below, so it validates the FINAL
+		// resolved (agent, model) pair — including a fallback onto a multi-provider agent.)
 
 		// FR-D4 stager fallback: a TooledFlags-less stager cannot stage → fall back to a capable one.
 		if role == "stager" && len(m.TooledFlags) == 0 {
@@ -152,6 +138,21 @@ func ResolveRoles(cfg config.Config, reg *provider.Registry) (RoleManifests, Rol
 			if col := config.DefaultModelsForProvider(fb); col != nil {
 				mdl = col["stager"] // e.g. "gpt-5.4-mini" for pi; "" if absent → manifest DefaultModel
 			}
+		}
+
+		// FR-R5b: a model pinned on a multi-provider agent (pi) is ambiguous unless an inference provider
+		// is resolved. The inference provider is the manifest's default_provider (what Render forwards as
+		// the agent's --provider), sourced from [provider.<agent>] default_provider — NOT the agent name
+		// in cfg.Provider. The prior guard keyed off cfg.Provider and was defeated the moment the
+		// bootstrap set provider="pi" (the normal case), letting a bare --model slip through to Render.
+		// This catches it early with a role-named message; Render is the authoritative backstop for any
+		// path that bypasses ResolveRoles (v1 generate). isMultiProvider excludes opencode/agy (no
+		// provider_flag — they carry the provider in the model string, the FR-R5b "combined form").
+		if mdl != "" && isMultiProvider(m) && inferenceProvider(m) == "" {
+			return RoleManifests{}, RoleModels{}, fmt.Errorf(
+				"role %q: model %q is set but agent %q has no inference provider; set "+
+					"[provider.%s] default_provider (e.g. \"zai\", \"openrouter\") so the model routes correctly",
+				role, mdl, prov, prov)
 		}
 
 		setRole(&rm, &rmodels, role, m, prov, mdl)
@@ -179,6 +180,14 @@ func computeInstalled(reg *provider.Registry) []string {
 // string; agy is single-backend). The check is nil-safe for hypothetical user overrides.
 func isMultiProvider(m provider.Manifest) bool {
 	return m.ProviderFlag != nil && *m.ProviderFlag != ""
+}
+
+// inferenceProvider returns the manifest's resolved inference (upstream) provider — the value Render
+// forwards as the agent's --provider, sourced from [provider.<name>] default_provider. Empty means
+// "unset": the agent would guess the upstream, which FR-R5b forbids when a model is pinned. Resolve()
+// is nil-safe (fills a nil DefaultProvider with ""). Used by the FR-R5b guard in ResolveRoles.
+func inferenceProvider(m provider.Manifest) string {
+	return *m.Resolve().DefaultProvider
 }
 
 // setRole assigns the resolved manifest and RoleConfig to the correct struct field for the given role.

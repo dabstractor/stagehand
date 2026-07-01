@@ -228,6 +228,54 @@ func TestRender_ValidateErrors(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Test 8b: FR-R5b backstop — Render NEVER emits a bare --model for a multi-provider agent.
+// This is the single chokepoint every call path (v1 generate + all four decompose roles) flows
+// through; all pass "" for the provider param and rely on the manifest's default_provider. A pinned
+// model with no inference provider is rejected here so no path can emit an unroutable command.
+// Exempt: no model, or a single-backend / combined-form agent (no provider_flag).
+// ---------------------------------------------------------------------------
+
+func TestRender_FR5b_RejectsBareModelOnMultiProvider(t *testing.T) {
+	pi := builtinPi() // ProviderFlag="--provider", DefaultProvider="" (shipped)
+
+	// Pinned model + NO inference provider → ERROR (the bug: was silently `pi --model glm-5.2`).
+	if _, err := pi.Render("glm-5.2", "", "<sys>", "<user>"); err == nil {
+		t.Fatal("Render accepted a bare --model on pi (no inference provider); want FR-R5b error")
+	}
+
+	// Same via the manifest default_model path (param "" → DefaultModel) when DefaultModel is set:
+	// build a pi-shaped manifest with a default_model but no default_provider.
+	m := Manifest{
+		Name: "pi", Command: strPtr("pi"), PromptDelivery: strPtr("stdin"),
+		ProviderFlag: strPtr("--provider"), ModelFlag: strPtr("--model"),
+		DefaultModel: strPtr("glm-5.2"), DefaultProvider: strPtr(""),
+	}
+	if _, err := m.Render("", "", "<sys>", "<user>"); err == nil {
+		t.Fatal("Render accepted a bare default_model on a multi-provider agent; want FR-R5b error")
+	}
+
+	// Inference provider supplied as the Render param → OK, emits --provider.
+	spec, err := pi.Render("glm-5.2", "zai", "<sys>", "<user>")
+	if err != nil {
+		t.Fatalf("Render with explicit provider: %v", err)
+	}
+	if !containsPair(spec.Args, "--provider", "zai") || !containsPair(spec.Args, "--model", "glm-5.2") {
+		t.Errorf("want --provider zai + --model glm-5.2; got %v", spec.Args)
+	}
+
+	// No model at all → OK (pi picks its own backend default; the shipped, blank-model path).
+	if _, err := pi.Render("", "", "<sys>", "<user>"); err != nil {
+		t.Errorf("Render with no model should be allowed (pi picks its own default): %v", err)
+	}
+
+	// Single-backend agent (claude, no provider_flag) + model + no provider → OK.
+	claude := builtinClaude()
+	if _, err := claude.Render("sonnet", "", "<sys>", "<user>"); err != nil {
+		t.Errorf("claude (single-backend) should allow a bare --model: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Test 9: Resolve is non-mutating: the caller's manifest is untouched after
 // Render.
 // ---------------------------------------------------------------------------

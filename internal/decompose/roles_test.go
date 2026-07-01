@@ -20,9 +20,24 @@ func goRegistry(t *testing.T, names []string, extraOverrides map[string]provider
 		overrides[name] = provider.Manifest{Command: &cmd}
 	}
 	for name, ov := range extraOverrides {
-		overrides[name] = ov
+		if base, ok := overrides[name]; ok {
+			// Merge extra fields (e.g. DefaultProvider) onto the install override WITHOUT dropping
+			// Command="go" (which makes the agent "installed"). Models a correctly-configured user.
+			overrides[name] = provider.MergeManifest(base, ov)
+		} else {
+			overrides[name] = ov
+		}
 	}
 	return provider.NewRegistry(overrides)
+}
+
+// withInferenceProvider returns a manifest override carrying only DefaultProvider — for use as a
+// goRegistry extraOverride. It models a correctly-configured multi-provider-agent user: one who set
+// [provider.<name>] default_provider so a pinned model routes (FR-R5b). go-merged with the install
+// override, so the agent stays "installed" (Command="go") AND carries the inference provider.
+func withInferenceProvider(p string) provider.Manifest {
+	v := p
+	return provider.Manifest{DefaultProvider: &v}
 }
 
 // bogusRegistry builds a Registry where all built-in providers are overridden to a bogus command
@@ -83,8 +98,9 @@ func geminiManifest(t *testing.T) provider.Manifest {
 // ---------------------------------------------------------------------------
 
 func TestResolveRoles_HappyPath_AllPi(t *testing.T) {
-	// All 4 roles resolve to pi (global provider=pi, no per-role override).
-	reg := goRegistry(t, []string{"pi"}, nil)
+	// All 4 roles resolve to pi (global provider=pi, no per-role override). pi is multi-provider, so a
+	// pinned model needs an inference provider (FR-R5b) — model a correctly-configured user here.
+	reg := goRegistry(t, []string{"pi"}, map[string]provider.Manifest{"pi": withInferenceProvider("zai")})
 	wantPi := piManifest(t)
 
 	cfg := config.Config{
@@ -126,8 +142,8 @@ func TestResolveRoles_HappyPath_AllPi(t *testing.T) {
 
 func TestResolveRoles_StagerFallback(t *testing.T) {
 	// Stager is set to gemini (TooledFlags nil → cannot stage); fallback to pi (first capable).
-	// Other roles have no per-role override (inherit global).
-	reg := goRegistry(t, []string{"gemini", "pi", "claude"}, nil)
+	// The fallback lands on pi (multi-provider) with pi's stager model → needs an inference provider.
+	reg := goRegistry(t, []string{"gemini", "pi", "claude"}, map[string]provider.Manifest{"pi": withInferenceProvider("zai")})
 	wantPi := piManifest(t)
 
 	cfg := config.Config{
@@ -248,8 +264,8 @@ func TestResolveRoles_FR5b_BareModelOnPi(t *testing.T) {
 		t.Fatal("ResolveRoles returned nil error, want FR-R5b error")
 	}
 	errMsg := err.Error()
-	if !strings.Contains(errMsg, "without a provider") || !strings.Contains(errMsg, "multi-provider") {
-		t.Errorf("error = %q, want FR-R5b bare-model error", errMsg)
+	if !strings.Contains(errMsg, "no inference provider") || !strings.Contains(errMsg, "[provider.pi] default_provider") {
+		t.Errorf("error = %q, want FR-R5b inference-provider error", errMsg)
 	}
 }
 
@@ -287,12 +303,41 @@ func TestResolveRoles_FR5b_BareModelOnClaude_NoError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// TestResolveRoles_FR5b_ProviderSet_NoError
+// TestResolveRoles_FR5b_ProviderSet_NoInferenceProvider
 // ---------------------------------------------------------------------------
 
-func TestResolveRoles_FR5b_ProviderSet_NoError(t *testing.T) {
-	// Provider is set (config-init default pattern) + bare model → no error.
+func TestResolveRoles_FR5b_ProviderSet_NoInferenceProvider(t *testing.T) {
+	// The config-init default pattern: provider="pi" (the AGENT name) + a pinned model, but NO
+	// inference provider ([provider.pi] default_provider unset). This is the exact misconfiguration
+	// that emitted a bare `pi --model <m>` and returned empty output. FR-R5b forbids it — it must
+	// error, NOT silently render an unroutable command. (The prior test blessed this as no-error.)
 	reg := goRegistry(t, []string{"pi"}, nil)
+
+	cfg := config.Config{
+		Provider: "pi",
+		Roles: map[string]config.RoleConfig{
+			"planner": {Provider: "pi", Model: "gpt-5.4"},
+		},
+	}
+
+	_, _, err := ResolveRoles(cfg, reg)
+	if err == nil {
+		t.Fatal("ResolveRoles returned nil error; want FR-R5b inference-provider error " +
+			"(provider=\"pi\" is the AGENT name, not an inference provider)")
+	}
+	if !strings.Contains(err.Error(), "no inference provider") {
+		t.Errorf("error = %q, want inference-provider message", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestResolveRoles_FR5b_InferenceProviderSet_NoError
+// ---------------------------------------------------------------------------
+
+func TestResolveRoles_FR5b_InferenceProviderSet_NoError(t *testing.T) {
+	// Same as above BUT [provider.pi] default_provider="zai" is set → the model routes → no error.
+	// This is the correctly-configured pi user (the fix path FR-R5b is meant to guide users TO).
+	reg := goRegistry(t, []string{"pi"}, map[string]provider.Manifest{"pi": withInferenceProvider("zai")})
 
 	cfg := config.Config{
 		Provider: "pi",
@@ -384,8 +429,9 @@ func TestResolveRoles_Uninstalled(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestResolveRoles_PerRoleOverrides(t *testing.T) {
-	// Per-role overrides: planner=claude, stager=pi, message=claude, arbiter=pi.
-	reg := goRegistry(t, []string{"pi", "claude"}, nil)
+	// Per-role overrides: planner=claude, stager=pi, message=claude, arbiter=pi. The pi roles pin a
+	// model → need an inference provider (FR-R5b); claude is single-backend (no provider needed).
+	reg := goRegistry(t, []string{"pi", "claude"}, map[string]provider.Manifest{"pi": withInferenceProvider("zai")})
 
 	cfg := config.Config{
 		Provider: "claude", // global default

@@ -22,16 +22,20 @@ import (
 	"github.com/dustin/stagehand/internal/provider"
 )
 
-// realDefault is the best-effort model+provider for one provider's real run (env-overridable).
-// model=="" means "let Render fall back to the manifest DefaultModel, or emit no model flag
-// (agent-config-driven for codex/cursor)". provider=="" means "no --provider flag".
+// realDefault is the best-effort model + inference provider for one AGENT's real run (env-overridable).
+// NOTE the terminology (PRD §12 / FR-R5b): the loop's `name` is the AGENT (pi, claude, …); `inference`
+// here is the upstream MODEL-PROVIDER (zai, openrouter, …) — the two must NEVER be conflated. The
+// inference provider is what a user sets via [provider.<name>] default_provider and what Render
+// forwards as the agent's --provider; it is NOT the agent identity and does NOT go into cfg.Provider.
+// model=="" ⇒ let Render fall back to the manifest DefaultModel (or emit no model flag).
+// inference=="" ⇒ no --provider flag (single-backend agents, or the combined-form agents).
 type realDefault struct {
-	model, provider string
+	model, inference string
 }
 
-// realDefaults — best-effort per-provider model+provider (env-overridable). "" ⇒ fall back to the
-// manifest DefaultModel / emit no flag. Sourced from architecture/external_deps.md.
-// Override per-run via STAGEHAND_REAL_MODEL_<NAME> / STAGEHAND_REAL_PROVIDER_<NAME>.
+// realDefaults — best-effort per-AGENT model + inference provider (env-overridable). "" ⇒ fall back
+// to the manifest DefaultModel / emit no flag. Sourced from architecture/external_deps.md.
+// Override per-run via STAGEHAND_REAL_MODEL_<NAME> / STAGEHAND_REAL_INFERENCE_<NAME>.
 var realDefaults = map[string]realDefault{
 	"pi":       {"glm-5-turbo", "zai"},            // explicit personal override (commit-pi); manifest default empty (FR-D2)
 	"claude":   {"", ""},                          // sonnet from manifest default
@@ -52,22 +56,26 @@ func envOr(key, def string) string {
 	return def
 }
 
-// realConfig builds a config tuned for one provider's real run. Model+provider come from the
-// env-overridable realDefaults map; Timeout/MaxDuplicateRetries inherit config.Defaults() (120s/3).
+// realConfig builds a config for one AGENT's real run. cfg.Provider is the AGENT name (pi, claude, …)
+// and cfg.Model is the model. The inference provider is intentionally NOT a config field here — it is
+// applied to the manifest's default_provider in TestRealAgents (mirroring a user's
+// [provider.<name>] default_provider), the only field Render consults for the --provider flag (FR-R5b).
+// Timeout/MaxDuplicateRetries inherit config.Defaults() (120s/3).
 func realConfig(name string) config.Config {
 	cfg := config.Defaults()
 	d := realDefaults[name]
+	cfg.Provider = name // the AGENT — NOT the inference provider (prior code conflated the two)
 	cfg.Model = envOr("STAGEHAND_REAL_MODEL_"+strings.ToUpper(name), d.model)
-	cfg.Provider = envOr("STAGEHAND_REAL_PROVIDER_"+strings.ToUpper(name), d.provider)
 	return cfg
 }
 
 // logResolvedCommand renders the manifest to its concrete argv and logs it (payload truncated) so the
 // operator can audit the EXACT real invocation — this is what makes the external_deps.md TO CONFIRM
-// items (codex exec flags, cursor --mode ask) visually verifiable.
+// items (codex exec flags, cursor --mode ask) visually verifiable. Mirrors CommitStaged: model from
+// cfg, provider param "" (the inference provider comes from m.DefaultProvider — never cfg.Provider).
 func logResolvedCommand(t *testing.T, name string, m provider.Manifest, cfg config.Config) {
 	t.Helper()
-	spec, err := m.Render(cfg.Model, cfg.Provider, "<system prompt>", "<staged diff>")
+	spec, err := m.Render(cfg.Model, "", "<system prompt>", "<staged diff>")
 	if err != nil {
 		t.Logf("[%s] render error (manifest may be invalid): %v", name, err)
 		return
@@ -109,6 +117,16 @@ func TestRealAgents(t *testing.T) {
 			stageFile(t, repo, "main.go")
 
 			cfg := realConfig(name)
+
+			// Apply the inference provider to the manifest — mirrors a user's [provider.<name>]
+			// default_provider. This is the ONLY source Render consults for the --provider flag; stuffing
+			// it into cfg.Provider (as prior code did) is the agent/model-provider conflation FR-R5b now
+			// rejects at Render. DefaultProvider is nil on the pure built-in; set it only when non-empty.
+			if inf := envOr("STAGEHAND_REAL_INFERENCE_"+strings.ToUpper(name), realDefaults[name].inference); inf != "" {
+				ip := inf
+				m.DefaultProvider = &ip
+			}
+
 			logResolvedCommand(t, name, m, cfg)
 
 			// RUN: real agent via CommitStaged. Timeout per attempt = cfg.Timeout (120s).

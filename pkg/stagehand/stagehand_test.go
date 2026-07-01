@@ -1117,7 +1117,8 @@ func TestDecompose_StagerOverride(t *testing.T) {
 	writeFile(t, repoDir, "b.txt", "un-staged change\n")
 
 	res, err := Decompose(context.Background(), DecomposeOptions{
-		Stager: RoleModel{Provider: "nonexistent"},
+		Options: Options{Provider: "stub"}, // pin every role to stub so the stager override is the only error
+		Stager:  RoleModel{Provider: "nonexistent"},
 	})
 	if err == nil {
 		t.Fatal("expected error (ResolveRoles unknown provider), got nil")
