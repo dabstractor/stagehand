@@ -111,7 +111,7 @@ stagehand --dry-run
 
 ### Multi-commit decomposition
 
-With a dirty working tree and nothing staged, `stagehand` automatically decomposes your changes into a sequence of logically-coherent commits using a four-role agent pipeline (planner → stager → message → arbiter). Each concept becomes its own commit.
+With a dirty working tree and nothing staged, `stagehand` automatically decomposes your changes into a sequence of logically-coherent commits using a four-role agent pipeline (planner → stager → message → arbiter). Each concept becomes its own commit. The stager is constrained to staging operations: claude via a staging-only git allowlist (`git add`/`apply`/`status`/`diff`); pi instructionally (its task prompt) plus a HEAD-movement guard that aborts the run if the stager moves a ref. Either way, Stagehand owns every commit via git plumbing.
 
 ```bash
 # Auto-decompose — planner decides the count and grouping
@@ -169,7 +169,14 @@ git config stagehand.provider pi
 git config stagehand.model sonnet
 ```
 
-Or bootstrap a **populated, working config** (auto-detects your agent and writes per-role model defaults):
+> [!NOTE]
+> `pi` is a multi-provider agent: the `--provider` flag it receives selects a *backend*
+> (`zai`, `openrouter`, `anthropic`, …). That backend comes from `[provider.pi] default_provider`
+> in your config — **not** the manifest name. If `default_provider` is unset, pi is invoked with
+> no `--provider` and routes the model on its own default backend. See
+> [Provider manifests](docs/providers.md) for the full schema.
+
+Or bootstrap a **populated, working config** (auto-detects your agent and writes per-role model defaults — for **pi**, the default, per-role models are left empty so pi picks its own backend model; set `[provider.pi] default_provider` to pin a specific backend):
 
 ```bash
 stagehand config init
@@ -186,7 +193,7 @@ stagehand config upgrade
 > [!NOTE]
 > The template also documents a `[generation]` section: `output` ("raw"|"json") and `strip_code_fence` are an **opt-in override** for how Stagehand parses agent output. When unset, the per-provider `[provider.<name>]` value is used (defaulting to `raw` / `true`); set them under `[generation]` only to force the value across ALL providers.
 
-Point discovery at a specific file with `stagehand --config path/to/config.toml`. It is honored by every command — including the default commit action — so a provider declared under `[provider.<name>]` there is usable with `--provider <name>` directly. The path must exist: an explicit `--config` (or `STAGEHAND_CONFIG`) pointing at a missing file fails fast with exit 1 rather than silently falling back to auto-detection.
+Point discovery at a specific file with `stagehand --config path/to/config.toml`. It is honored by every command — including the default commit action **and the `config init`, `config path`, and `config upgrade` subcommands** (e.g. `stagehand --config X config upgrade` upgrades file `X`, and `config path` prints the resolved path) — so a provider declared under `[provider.<name>]` there is usable with `--provider <name>` directly. The path must exist: an explicit `--config` (or `STAGEHAND_CONFIG`) pointing at a missing file fails fast with exit 1 rather than silently falling back to auto-detection.
 
 **Config precedence** (highest → lowest): CLI flags > `STAGEHAND_*` env vars > repo `git config` (`stagehand.*`) > repo `.stagehand.toml` > global config file > provider defaults > built-in defaults.
 
