@@ -464,7 +464,7 @@
               "type": "Task",
               "id": "P2.M2.T1",
               "title": "Tree operations (RevParseTree, TreeDiff, ReadTree)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Add RevParseTree, TreeDiff (with binary filtering), and ReadTree to the Git interface and gitRunner implementation.",
               "subtasks": [
                 {
@@ -486,7 +486,7 @@
                   "type": "Subtask",
                   "id": "P2.M2.T1.S2",
                   "title": "Implement TreeDiff (tree-to-tree concept diff with binary filtering)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P2.M2.T1.S1",
@@ -515,7 +515,7 @@
                   "type": "Subtask",
                   "id": "P2.M2.T2.S1",
                   "title": "Implement StatusPorcelain on Git interface and gitRunner",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The arbiter runs iff `git status --porcelain` is non-empty after the decompose loop (§13.6.5). StatusPorcelain returns the raw porcelain output; the caller checks if it's empty (clean) or non-empty (leftovers exist). `git status --porcelain` exits 0 on success, lists each changed path with a 2-char status code. Read-only w.r.t. refs/index.\n2. INPUT: The existing gitRunner.run() helper.\n3. LOGIC: Add `StatusPorcelain(ctx context.Context) (string, error)` to Git interface and gitRunner. Implementation: run `git status --porcelain`, return stdout trimmed. Non-zero exit → error. The caller (decompose orchestrator) checks `strings.TrimSpace(output) != \"\"` to decide whether to run the arbiter.\n4. OUTPUT: StatusPorcelain returns the porcelain output string. Empty string means clean tree.\n5. DOCS: none — interface addition.",

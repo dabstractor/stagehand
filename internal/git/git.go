@@ -117,6 +117,20 @@ type Git interface {
 	// non-zero exit (128 = bad/unresolvable tree SHA, not-a-repo, corrupt object) is a real error — the
 	// SAME convention as AddAll / WriteTree / CommitTree (mutations never special-case 128 as "unborn").
 	ReadTree(ctx context.Context, tree string) error
+
+	// TreeDiff returns the concept diff between two tree SHAs via `git diff <treeA> <treeB>` — the
+	// per-concept tree-to-tree diff the multi-commit message agent reasons over (PRD §13.6.3 invariant 2:
+	// "the concept diff is computed tree-to-tree, never index-vs-HEAD; message[i] reasons over
+	// `git diff tree[i-1] tree[i]`"). It is the tree-to-tree analogue of StagedDiff (which is index-vs-HEAD):
+	// it applies the SAME caps, pathspec excludes, and FR3c binary filtering (identical placeholder format
+	// in every diff path), and reuses StagedDiffOptions. For the unborn-repo base case the caller passes
+	// EmptyTreeSHA as treeA (TreeDiff itself is NOT unborn-aware — the caller resolves trees via RevParseTree
+	// and converts the unborn base to EmptyTreeSHA). A no-change diff (treeA == treeB) returns ("", nil).
+	//
+	// `git diff` (without --quiet) exits 0 whether or not there are changes; exit 128 means a bad or
+	// unresolvable tree SHA, which is a REAL error (NOT an unborn signal — branch on code != 0, never on
+	// code == 128). Read-only with respect to refs and the index.
+	TreeDiff(ctx context.Context, treeA, treeB string, opts StagedDiffOptions) (diff string, err error)
 }
 
 // gitRunner is the production Git implementation. It wraps exec.CommandContext for the real git
@@ -402,6 +416,13 @@ const maxRecentMessageLines = 100
 // it. The structural markdown excludes (":!*.md", ":!*.markdown") are appended SEPARATELY in the
 // non-markdown section (always, regardless of opts.Excludes) because markdown is captured per-file in
 // Part 1 — omitting them would duplicate markdown in the payload (the double-count trap, G1).
+// EmptyTreeSHA is git's well-known empty-tree object name. It is a valid `git diff` tree arg and is used
+// as tree[-1] (treeA) for the unborn-repo base case of the multi-commit concept-diff loop (PRD §13.6.3:
+// "tree[-1] is the original parent tree, or the empty tree for an unborn repo"). The decompose
+// orchestrator (P3) passes it as treeA when RevParseTree returns "" on an unborn repo. TreeDiff itself
+// treats both args as opaque tree SHAs and is NOT unborn-aware.
+const EmptyTreeSHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
 var defaultExcludes = []string{
 	":!*.lock", ":!package-lock.json", ":!pnpm-lock.yaml", ":!yarn.lock",
 	":!*.snap", ":!*.map", ":!vendor/*",
@@ -790,4 +811,101 @@ func (g *gitRunner) ReadTree(ctx context.Context, tree string) error {
 		return fmt.Errorf("git read-tree: failed (exit %d): %s", code, strings.TrimSpace(stderr))
 	}
 	return nil
+}
+
+// TreeDiff returns the concept diff between two tree SHAs (PRD §13.6.3 invariant 2). It is a port of
+// StagedDiff: the same two-part payload (markdown per-file, line-capped; non-markdown aggregate,
+// byte-capped) with the same pathspec excludes and FR3c binary filtering — the ONLY difference is the
+// diff domain (`git diff <treeA> <treeB>` instead of `git diff --cached`). Every `git diff` invocation
+// uses the simple exit-code branch (code != 0 → error); exit 128 = a bad/unresolvable tree SHA = a real
+// error (NOT an unborn signal — the caller resolves trees and passes EmptyTreeSHA for the unborn base).
+func (g *gitRunner) TreeDiff(ctx context.Context, treeA, treeB string, opts StagedDiffOptions) (string, error) {
+	maxMDLines := opts.MaxMDLines
+	if maxMDLines <= 0 {
+		maxMDLines = defaultMaxMDLines
+	}
+	maxDiffBytes := opts.MaxDiffBytes
+	if maxDiffBytes <= 0 {
+		maxDiffBytes = defaultMaxDiffBytes
+	}
+
+	var b strings.Builder
+
+	// ---- Part 1: markdown, per-file, line-capped ----
+	mdList, stderr, code, err := g.run(ctx, g.workDir,
+		"diff", treeA, treeB, "--name-only", "--", "*.md", "*.markdown")
+	if err != nil {
+		return "", err
+	}
+	if code != 0 {
+		return "", fmt.Errorf("git diff tree-to-tree (markdown list): failed (exit %d): %s", code, strings.TrimSpace(stderr))
+	}
+	for _, file := range strings.Split(strings.TrimSpace(mdList), "\n") {
+		if file == "" {
+			continue
+		}
+		fileDiff, fstderr, fcode, ferr := g.run(ctx, g.workDir, "diff", treeA, treeB, "--", file)
+		if ferr != nil {
+			return "", ferr
+		}
+		if fcode != 0 {
+			return "", fmt.Errorf("git diff %s %s -- %s: failed (exit %d): %s", treeA, treeB, file, fcode, strings.TrimSpace(fstderr))
+		}
+		if lines := strings.Split(fileDiff, "\n"); len(lines) > maxMDLines {
+			fileDiff = strings.Join(lines[:maxMDLines], "\n") +
+				fmt.Sprintf("\n... [diff truncated at %d lines]", maxMDLines)
+		}
+		b.WriteString(fileDiff)
+		if !strings.HasSuffix(fileDiff, "\n") {
+			b.WriteByte('\n')
+		}
+	}
+
+	// ---- Binary filtering (PRD §9.1 FR3a/b/c, tree-to-tree path) ----
+	binSet, berr := g.detectBinaryFiles(ctx, treeA, treeB)
+	if berr != nil {
+		return "", berr
+	}
+	statuses, serr := g.fileStatuses(ctx, treeA, treeB)
+	if serr != nil {
+		return "", serr
+	}
+
+	binPaths := make([]string, 0, len(statuses))
+	for path := range statuses {
+		if binSet[path] || isBinaryByExtension(path, opts.BinaryExtensions) {
+			binPaths = append(binPaths, path)
+		}
+	}
+	sort.Strings(binPaths)
+	var binExcludes []string
+	for _, path := range binPaths {
+		b.WriteString(binaryPlaceholderLine(statuses[path], path))
+		b.WriteByte('\n')
+		binExcludes = append(binExcludes, ":!"+path)
+	}
+
+	// ---- Part 2: non-markdown, aggregate, byte-capped, excluded ----
+	excludes := opts.Excludes
+	if len(excludes) == 0 {
+		excludes = defaultExcludes
+	}
+	nmArgs := []string{"diff", treeA, treeB, "--"}
+	nmArgs = append(nmArgs, excludes...)
+	nmArgs = append(nmArgs, ":!*.md", ":!*.markdown")
+	nmArgs = append(nmArgs, binExcludes...)
+	nmDiff, nmstderr, nmcode, nmerr := g.run(ctx, g.workDir, nmArgs...)
+	if nmerr != nil {
+		return "", nmerr
+	}
+	if nmcode != 0 {
+		return "", fmt.Errorf("git diff tree-to-tree (non-markdown): failed (exit %d): %s", nmcode, strings.TrimSpace(nmstderr))
+	}
+	if len(nmDiff) > maxDiffBytes {
+		nmDiff = nmDiff[:maxDiffBytes] +
+			fmt.Sprintf("\n... [diff truncated at %d bytes]", maxDiffBytes)
+	}
+	b.WriteString(nmDiff)
+
+	return b.String(), nil
 }
