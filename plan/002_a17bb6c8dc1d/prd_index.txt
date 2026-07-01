@@ -1,0 +1,143 @@
+h1.0 Stagehand — Product Requirements & Technical Specification
+ h2.0 0. How to read this document
+h1.1 PART I — PRODUCT REQUIREMENTS
+ h2.1 1. Executive summary
+ h2.2 2. Background and motivation
+  h3.0 2.1 The originating tool: commit-pi
+  h3.1 2.2 Why "use your own CLI agent" is the right framing
+  h3.2 2.3 Why Go
+ h2.3 3. Problem statement
+  h3.3 3.1 The problem, in one sentence
+  h3.4 3.2 The secondary problem
+  h3.5 3.3 The tertiary problem
+  h3.6 3.4 What Stagehand is not solving
+ h2.4 4. Competitive landscape
+  h3.7 4.1 Direct competitors
+  h3.8 4.2 What each incumbent does well (so we respect them, not dismiss them)
+  h3.9 4.3 The structural moat
+ h2.5 5. Unique value proposition
+ h2.6 6. Goals and non-goals
+  h3.10 6.1 Goals (v1)
+  h3.11 6.2 Non-goals (v1 — explicitly deferred)
+  h3.12 6.3 Non-goals (permanent)
+ h2.7 7. Target users and personas
+  h3.13 7.1 Primary persona — "the plan-holder"
+  h3.14 7.2 Secondary persona — "the API-key refusenik"
+  h3.15 7.3 Tertiary persona — "the multi-agent tinkerer"
+  h3.16 7.4 Anti-persona — "the no-CLI user"
+ h2.8 8. User stories
+ h2.9 9. Functional requirements
+  h3.17 9.1 Diff capture (P0, → G1, G3)
+  h3.18 9.2 Snapshot (P0, → G3, G4)
+  h3.19 9.3 Prompt construction (P0, → G6)
+  h3.20 9.4 Nothing-staged / auto-stage-all (P0, → G5)
+  h3.21 9.5 Generation (P0, → G1, G2)
+  h3.22 9.6 Output parsing (P0, → G1)
+  h3.23 9.7 Duplicate rejection (P0, → G6)
+  h3.24 9.8 Configuration & precedence (P0, → G8)
+  h3.25 9.9 Commit creation (P0, → G3, G4)
+  h3.26 9.10 Rescue protocol (P0, → G10)
+  h3.27 9.11 Provider management (P1, → G7)
+  h3.28 9.12 Dry run (P1)
+  h3.29 9.13 Verbosity & color (P1)
+  h3.30 9.14 Multi-commit decomposition (P0, → G11, references §13.6)
+  h3.31 9.15 Per-role provider/model configuration (P0, → G12, references §16.4)
+  h3.32 9.16 Default provider & per-role model defaults (P0, → G12, G14)
+  h3.33 9.17 Config bootstrap & versioning (P0, → G8)
+ h2.10 10. v1 scope, v1.1, and v2 roadmap
+  h3.34 10.1 v1.0 (shipped — the single-commit core)
+  h3.35 10.2 v1.1 (likely quick follow-ons)
+  h3.36 10.3 v2.0 (this revision) — multi-commit decomposition + per-role models
+  h3.37 10.4 v2+ (speculative)
+h1.2 PART II — TECHNICAL SPECIFICATION
+ h2.11 11. Architecture overview
+  h3.38 11.1 High-level data flow
+  h3.39 11.2 Process model
+  h3.40 11.3 Design constraints that protect v2 (now realized)
+  h3.41 11.4 Multi-commit pipeline (data flow)
+  h3.42 11.5 Two invocation modes: bare and tooled
+ h2.12 12. The provider system
+  h3.43 12.1 The manifest schema
+  h3.44 12.2 Command rendering algorithm
+  h3.45 12.3 Built-in provider: pi
+  h3.46 12.4 Built-in provider: Claude Code
+  h3.47 12.5 Built-in provider: Gemini CLI
+  h3.48 12.5.1 Built-in provider: Antigravity CLI (agy) — the Gemini-CLI successor
+   h4.0 12.5.1.1 TO CONFIRM (agy) — block until a real run clears these
+  h3.49 12.6 Built-in provider: opencode
+  h3.50 12.7 Verified providers: Codex, Cursor Agent
+   h4.1 12.7.1 The tools-disable asymmetry (important, documented honestly)
+   h4.2 12.7.2 On stubbing and progressive verification
+  h3.51 12.8 Extensibility: user-defined providers
+  h3.52 12.9 Output parsing pipeline (detailed)
+ h2.13 13. The snapshot-based generation flow (the core IP)
+  h3.53 13.1 Why git commit is the wrong primitive
+  h3.54 13.2 The plumbing alternative
+  h3.55 13.3 The resulting workflow
+  h3.56 13.4 Stage-while-generating: the user's mental model
+  h3.57 13.5 Edge cases and their handling
+  h3.58 13.6 Multi-commit decomposition (the v2 core, now specified)
+   h4.3 13.6.1 When it activates (the trigger model)
+   h4.4 13.6.2 The four agent roles
+   h4.5 13.6.3 The pipeline (sequential staging, overlapped generation)
+   h4.6 13.6.4 The single-commit shortcut
+   h4.7 13.6.5 The arbiter (leftover reconciliation)
+   h4.8 13.6.6 Failure handling within the loop
+   h4.9 13.6.7 Why this is safe (the one-paragraph proof)
+ h2.14 14. Package layout (Go)
+  h3.59 14.1 The public library surface (pkg/stagehand)
+ h2.15 15. CLI reference
+  h3.60 15.1 Synopsis
+  h3.61 15.2 Global flags
+  h3.62 15.3 Subcommands
+  h3.63 15.4 Exit codes
+  h3.64 15.5 Example invocations
+ h2.16 16. Configuration model (full)
+  h3.65 16.1 Resolution order (FR34), lowest to highest
+  h3.66 16.2 Full config file example
+  h3.67 16.3 Git-config keys (alternative to a file)
+  h3.68 16.4 Per-role provider/model configuration (v2; → G12, FR-R1–R5)
+ h2.17 17. Prompt engineering
+  h3.69 17.1 The system prompt (mature repo, >1 commit)
+  h3.70 17.2 The system prompt (new repo, ≤1 commit)
+  h3.71 17.3 The user payload
+  h3.72 17.4 Why raw output, not JSON (the v1 design call)
+  h3.73 17.5 Planner prompt (v2; §13.6.2, FR-M3)
+  h3.74 17.6 Stager task prompt (v2; §13.6.2, FR-M5)
+  h3.75 17.7 Arbiter prompt (v2; §13.6.5, FR-M9)
+ h2.18 18. Error handling, rescue protocol, and safety
+  h3.76 18.1 The invariant
+  h3.77 18.2 Failure modes and responses
+  h3.78 18.3 The rescue message (FR43–FR45)
+  h3.79 18.4 Signal handling
+ h2.19 19. Security considerations
+ h2.20 20. Testing and QA strategy
+  h3.80 20.1 Layers
+  h3.81 20.2 Property/invariant tests
+  h3.82 20.3 Coverage target
+  h3.83 20.4 CI matrix
+ h2.21 21. Distribution and release
+  h3.84 21.1 Build
+  h3.85 21.2 goreleaser
+  h3.86 21.3 Install paths
+  h3.87 21.4 Versioning
+  h3.88 21.5 README structure (the marketing surface)
+ h2.22 22. Risks, assumptions, dependencies
+  h3.89 22.1 Risks
+  h3.90 22.2 Assumptions
+  h3.91 22.3 Dependencies
+ h2.23 23. Glossary
+h1.3 Appendices
+ h2.24 Appendix A — Full v1 system prompt templates
+ h2.25 Appendix B — Example terminal sessions
+  h3.92 B.1 Happy path
+  h3.93 B.2 Stage-while-generating
+  h3.94 B.3 Dry run
+  h3.95 B.4 Duplicate retry
+  h3.96 B.5 Rescue
+ h2.26 Appendix C — Line-by-line porting map from commit-pi
+ h2.27 Appendix D — Built-in manifest quick reference
+ h2.28 Appendix E — Open questions (to resolve before/during v1 implementation)
+ h2.29 Appendix F — Decision log (key calls and why)
+---
+code:42 para:135 list:59 table:11 quote:2
