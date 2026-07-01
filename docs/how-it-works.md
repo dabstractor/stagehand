@@ -44,6 +44,84 @@ stagehand                     ┐
 
 Generation time is no longer dead time. The in-flight commit only ever contains what was staged when it started.
 
+## Multi-commit decomposition
+
+v2.0's headline feature: run `stagehand` with a dirty working tree and nothing staged, and it automatically splits the changes into a sequence of logically-coherent commits — one per concept — using a four-role agent pipeline.
+
+### Trigger
+
+Decompose activates when **nothing is staged**, **auto-stage-all is on** (the default), and the user has **not opted out** (`--single`, `--no-decompose`, or `--commits 1`). If something is already staged, the single-commit path runs unchanged. `--dry-run` also forces the single-commit preview (decompose commits, so dry-run honors the single preview).
+
+### The four roles
+
+| Role | Mode | Job | Output |
+|------|------|-----|--------|
+| **planner** | bare | Analyze the full working-tree diff; decide how many commits and what each covers | JSON `{count, single, commits:[...], message?}` |
+| **stager** | tooled | Stage one concept's subset of files (`git add`, hunk-level staging) | Mutates the index; exits 0 |
+| **message** | bare | Generate a commit message from the concept diff | Raw commit message text |
+| **arbiter** | bare | Decide which just-made commit any leftover changes belong to, or create a new commit | JSON `{target: "<sha>"\|null}` |
+
+### Pipeline flow
+
+```text
+                 nothing staged + dirty working tree
+                              │
+                              ▼
+            ┌────────────┐   full working-tree diff (binary placeholders)
+            │  planner   │◀──── + style examples
+            │ (bare)     │
+            └─────┬──────┘   JSON: {count, single, commits:[…], message?}
+                  │ single? ──yes──▶ git add -A → CommitStaged (one call) → done
+                  ▼ no (N concepts)
+         for i in 0..N-1:
+            ┌────────────┐  concept[i] description        ┌────────────┐
+            │  stager[i] │──────────────────────▶ index   │            │
+            │ (tooled)   │   (mutates index; no commit)   │            │
+            └─────┬──────┘                                │            │
+                  ▼ tree[i]=write-tree (FROZEN)            │            │
+            ┌────────────┐  diff(tree[i-1],tree[i])  ═══▶ │  message[i]│ (bare)
+            │            │                                │ (overlaps) │
+            │            │  ‖ stager[i+1] runs here       │            │
+            └─────┬──────┘                                └─────┬──────┘
+                  ▼ msg[i]                                      │
+            commit-tree -p newSHA[i-1] tree[i] msg[i] ◀──────────┘
+            update-ref HEAD newSHA[i] newSHA[i-1]   (serialized)
+                  ▼
+         git status clean? ──yes──▶ done
+                  │ no
+                  ▼
+            ┌────────────┐  commits made + leftover diff   target SHA or null
+            │  arbiter   │◀───────────────────────────▶  (stagehand does all git)
+            │ (bare)     │
+            └────────────┘
+```
+
+### Key design points
+
+**Overlapped staging and generation.** `stager[i+1]` runs in parallel with `message[i]` — the stager prepares the next concept's index while the message agent generates the current commit message. This 1-deep overlap keeps latency low.
+
+**Frozen tree snapshots.** After each stager returns, `write-tree` freezes the accumulated index into an immutable tree object (`tree[i]`). This is the SAME snapshot mechanism as the single-commit path, composed N times.
+
+**Tree-to-tree diffs.** `message[i]` reasons over `diff(tree[i-1], tree[i])` — never `index-vs-HEAD`. This makes each concept diff immune to concurrent staging and to earlier commits landing.
+
+**Serialized publication.** Even though generation overlaps, `commit-tree` + `update-ref` are serialized per concept (CAS). If `HEAD` moved externally, the CAS fails and prior commits stand.
+
+**Arbiter leftover reconciliation.** After all N concepts are committed, if `git status --porcelain` shows remaining changes, the arbiter decides whether they belong to an existing commit (amend) or warrant a new (N+1)th commit.
+
+### Safety
+
+The same snapshot-based safety invariants from the single-commit path apply to every decompose iteration:
+
+- **Atomic and safe** — `update-ref CAS` is the only ref mutation per commit. The stager is the ONE role that touches the index (scoped strictly to `git add`); stagehand owns all `commit-tree`, `update-ref`, and `push` operations.
+- **Frozen content** — `tree[i]` captures exactly what was staged at `write-tree` time. Nothing added afterward can affect it.
+- **No index resets** — the index accumulates across concepts. After the final commit, HEAD.tree == tree[N-1] == full accumulated index, so the index is clean relative to HEAD.
+
+See [configuration.md](configuration.md) for per-role model configuration and [cli.md](cli.md) for the decompose and per-role flags.
+
+### Binary and non-text file filtering
+
+Binary files, lock files, snapshots, sourcemaps, and vendor directories are **excluded from every diff payload** — staged diff, working-tree snapshot, and concept diff. They are replaced with a `<status>\t[binary] <path>` placeholder so the agent sees *that* the file changed without the useless binary hunk. This applies identically in the single-commit and multi-commit paths.
+
 ## Safety and the rescue protocol
 
 ### Safety invariant

@@ -5,7 +5,7 @@ Stagehand writes your commit messages using the AI agent you already have instal
 See the [README](../README.md) for the quick start, feature overview, and FAQ.
 
 > [!NOTE]
-> The `docs/` directory is new in v1.0. It ships the full reference that the README's "see docs/" link promises. If anything here disagrees with `stagehand --help`, the binary is authoritative — open an issue.
+> The `docs/` directory tracks the shipped binary. If anything here disagrees with `stagehand --help`, the binary is authoritative — open an issue.
 
 ## Install
 
@@ -30,10 +30,10 @@ scoop install dustin/stagehand
 
 | Page | Description |
 |------|-------------|
-| [CLI reference](cli.md) | Synopsis, all 11 global flags, subcommands, exit codes, examples, and the flag↔env↔git-config map. |
+| [CLI reference](cli.md) | Synopsis, all global flags (incl. decompose + per-role), subcommands, exit codes, examples, and the flag↔env↔git-config map. |
 | [Configuration](configuration.md) | 7-layer precedence, config file format, environment variables, git-config keys, built-in defaults, and paths. |
-| [Provider manifests](providers.md) | 18-field manifest schema, command rendering, the 6 built-in providers, and adding a new agent. |
-| [How Stagehand works](how-it-works.md) | Snapshot-based architecture, stage-while-generating, the safety and rescue protocol, and prompt engineering. |
+| [Provider manifests](providers.md) | 18-field manifest schema, command rendering, the 7 built-in providers (incl. agy), and adding a new agent. |
+| [How Stagehand works](how-it-works.md) | Snapshot-based architecture, multi-commit decomposition pipeline, stage-while-generating, the safety and rescue protocol, binary filtering, and prompt engineering. |
 
 ## Product specification
 

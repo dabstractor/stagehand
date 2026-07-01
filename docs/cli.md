@@ -9,7 +9,13 @@ stagehand [flags]
 stagehand <command> [flags]
 ```
 
-With no subcommand, `stagehand` runs the **default action**: it snapshots your staged changes, generates a commit message using the configured AI agent, and commits atomically. If nothing is staged and auto-stage is on (the default), it runs `git add -A` first. See [how-it-works.md](how-it-works.md) for the snapshot architecture.
+With no subcommand, `stagehand` runs the **default action**. The routing depends on repo state:
+
+- **Something staged** → single-commit path (snapshot the staged diff, generate, commit).
+- **Nothing staged, dirty tree, auto-stage on (default), not opted out** → **multi-commit decomposition** (planner → stager → message → arbiter pipeline; see [how-it-works.md](how-it-works.md#multi-commit-decomposition)).
+- **Nothing staged, clean tree** → exit 2 "Nothing to commit."
+- `--single` / `--no-decompose` / `--commits 1` → force the single-commit path.
+- `--dry-run` → force the single-commit preview (decompose commits, so dry-run honors the single preview).
 
 ## Global flags
 
@@ -24,6 +30,16 @@ With no subcommand, `stagehand` runs the **default action**: it snapshots your s
 | `--all`, `-a` | bool | false | — | — | Run `git add -A` before snapshotting, even if something is staged |
 | `--no-auto-stage` | bool | false | — | — | If nothing is staged, exit instead of auto-staging |
 | `--dry-run` | bool | false | — | — | Run the full snapshot→generate→parse→duplicate-check pipeline (same as a real commit, including the write-tree snapshot and retry) and print the message; do not commit. If generation fails (timeout or parse/duplicate-check exhaustion), exits **1** with a short stderr message instead of exit 3/124 + the full recovery recipe (since no commit was ever intended) |
+| `--commits <N>` | int | 0 (auto) | `STAGEHAND_COMMITS` | — | Force exactly N commits when nothing is staged (0 = auto-decompose; ≥2 = force N; 1 ≡ `--single`) |
+| `--single` | bool | false | — | — | Bypass decomposition; force the single-commit auto-stage-all behavior (alias: `--no-decompose`) |
+| `--no-decompose` | bool | false | — | — | Alias for `--single` |
+| `--max-commits <N>` | int | 12 | — | — | Safety cap on auto-decompose commit count (also `[generation].max_commits` in config) |
+| `--planner-provider <name>` | string | "" | `STAGEHAND_PLANNER_PROVIDER` | — | Per-role provider override for the decomposition planner |
+| `--planner-model <name>` | string | "" | `STAGEHAND_PLANNER_MODEL` | — | Per-role model override for the decomposition planner |
+| `--stager-provider <name>` | string | "" | `STAGEHAND_STAGER_PROVIDER` | — | Per-role provider override for the (tooled) staging agent |
+| `--stager-model <name>` | string | "" | `STAGEHAND_STAGER_MODEL` | — | Per-role model override for the (tooled) staging agent |
+| `--arbiter-provider <name>` | string | "" | `STAGEHAND_ARBITER_PROVIDER` | — | Per-role provider override for the leftover arbiter |
+| `--arbiter-model <name>` | string | "" | `STAGEHAND_ARBITER_MODEL` | — | Per-role model override for the leftover arbiter |
 | `--version` | — | — | — | — | Print the build version (`"dev"` for a local build; the release tag for a released binary) |
 | `--help`, `-h` | — | — | — | — | Print help |
 
@@ -45,7 +61,7 @@ opencode  ✓
 pi        ✓         (default)
 ```
 
-`✓` = the provider's command is found on `$PATH`. `(default)` marks the provider selected by auto-detection (first installed built-in in preference order: pi, claude, gemini, opencode, codex, cursor).
+`✓` = the provider's command is found on `$PATH`. `(default)` marks the provider selected by auto-detection (first installed built-in in preference order: pi, opencode, cursor, agy, gemini, codex, claude).
 
 ### `providers show <name>`
 
@@ -57,12 +73,40 @@ stagehand providers show pi
 
 ### `config init`
 
-Write a fully-commented example config to the global config path. Creates parent directories as needed. **Refuses to overwrite** an existing file (exit 1) — delete it first to regenerate:
+Bootstrap a **populated, working config** to the global config path. Auto-detects the highest-priority installed built-in agent (order: pi, opencode, cursor, agy, gemini, codex, claude) and writes `config_version = 2`, `[defaults] provider = "<detected>"`, and that provider's per-role model defaults UNCOMMENTED so the tool works immediately. Other installed providers appear as commented-out `[role.*]` blocks. If no agent is detected, defaults to `"pi"`. Creates parent directories as needed. **Refuses to overwrite** an existing file (exit 1) unless `--force` is passed:
 
 ```bash
 stagehand config init
-# Wrote example config to ~/.config/stagehand/config.toml
+# Wrote config to ~/.config/stagehand/config.toml
+
+# Target a specific provider:
+stagehand config init --provider claude
+
+# Overwrite existing config:
+stagehand config init --force
+
+# Write the inert all-commented reference (v1 behavior):
+stagehand config init --template
 ```
+
+| Flag | Description |
+|------|-------------|
+| `--provider <name>` | Target a specific built-in provider instead of auto-detecting |
+| `--force` | Overwrite an existing config file |
+| `--template` | Write the inert all-commented reference config (v1 behavior) |
+
+### `config upgrade`
+
+Upgrade an existing config's `config_version` to the current schema version (2) in place. Every line except the top-level `config_version` is preserved byte-for-byte. Idempotent — running it twice leaves the file unchanged. No flags.
+
+```bash
+stagehand config upgrade
+# Already at version 2 →  "Config at ~/.config/stagehand/config.toml is already at version 2 (no changes)."
+# Upgraded from v1  →  "Upgraded config at ~/.config/stagehand/config.toml to version 2."
+# No file          →  "no config file at <path> (run 'stagehand config init' first)"  (exit 1)
+```
+
+At load time, a missing or outdated `config_version` triggers an advisory pointing at `config upgrade` or `config init --force`.
 
 ### `config path`
 
@@ -100,6 +144,19 @@ Config-backed flags can also be set via environment variables or git-config keys
 | `--all` | — | — |
 | `--no-auto-stage` | — | — |
 | `--dry-run` | — | — |
+| `--commits` | `STAGEHAND_COMMITS` | — |
+| `--single` | — | — |
+| `--no-decompose` | — | — |
+| `--max-commits` | — | — (also `[generation].max_commits` in config) |
+| `--planner-provider` | `STAGEHAND_PLANNER_PROVIDER` | — |
+| `--planner-model` | `STAGEHAND_PLANNER_MODEL` | — |
+| `--stager-provider` | `STAGEHAND_STAGER_PROVIDER` | — |
+| `--stager-model` | `STAGEHAND_STAGER_MODEL` | — |
+| `--arbiter-provider` | `STAGEHAND_ARBITER_PROVIDER` | — |
+| `--arbiter-model` | `STAGEHAND_ARBITER_MODEL` | — |
+
+> [!NOTE]
+> The **message role** has no CLI flag (`--message-provider`/`--message-model` do not exist). It is reachable via `STAGEHAND_MESSAGE_PROVIDER`/`STAGEHAND_MESSAGE_MODEL` env vars and the `[role.message]` config block only. When unset, it inherits the global `--provider`/`--model`.
 
 ## Examples
 
@@ -127,4 +184,22 @@ stagehand --dry-run --no-color | tee /tmp/msg.txt
 
 # See what command is being run
 stagehand --verbose
+
+# Multi-commit decomposition — auto-split a dirty tree
+stagehand
+# Decomposes into N logically-coherent commits automatically
+
+# Force exactly 3 commits
+stagehand --commits 3
+
+# Keep v1 single-commit behavior
+stagehand --single
+
+# Route planning to a bigger model
+stagehand --planner-provider claude --planner-model opus
+
+# Per-repo per-role config (.stagehand.toml)
+# [role.planner]
+# provider = "claude"
+# model = "opus"
 ```

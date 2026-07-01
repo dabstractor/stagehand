@@ -892,7 +892,7 @@
       "type": "Phase",
       "id": "P4",
       "title": "CLI & API Integration + Documentation Sync",
-      "status": "Researching",
+      "status": "Complete",
       "description": "Wire the decompose pipeline into the CLI (new flags, default action routing) and the public API (Decompose function + types). Update config CLI for populated bootstrap. Sync all changeset-level documentation.",
       "milestones": [
         {
@@ -999,21 +999,21 @@
           "type": "Milestone",
           "id": "P4.M3",
           "title": "Changeset-Level Documentation Sync",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Final sweep of all cross-cutting documentation: README.md feature blurbs, docs/ overview files, and the architecture overview that summarizes the entire v2.0 delta.",
           "tasks": [
             {
               "type": "Task",
               "id": "P4.M3.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Update README.md, docs/how-it-works.md, docs/configuration.md, docs/cli.md, and docs/providers.md to surface all v2.0 features: multi-commit decomposition, per-role models, binary filtering, agy provider, cascading priority, populated config bootstrap.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P4.M3.T1.S1",
                   "title": "Update README.md + docs/ overview files for all v2.0 features",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T2.S1",

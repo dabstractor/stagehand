@@ -57,11 +57,11 @@ In **tooled mode** (the stager role), `tooled_flags` replaces `bare_flags`; tool
 
 ## The 7 built-in providers
 
-Auto-detection order (first installed = default): **pi**, claude, gemini, opencode, codex, cursor, agy. User-defined providers are never auto-selected.
+Auto-detection order (first installed = default): **pi, opencode, cursor, agy, gemini, codex, claude**. User-defined providers are never auto-selected.
 
 | Provider | Delivery | Print flag | Model flag | Default model | System prompt flag | Tool-disable approach | Stager? |
 |----------|----------|-----------|-----------|----------------|-------------------|----------------------|--------|
-| `pi` | stdin | `-p` | `--model` | `glm-5-turbo` | `--system-prompt` | Explicit `--no-*` flags | ✓ yes |
+| `pi` | stdin | `-p` | `--model` | "" (user must set) | `--system-prompt` | Explicit `--no-*` flags | ✓ yes |
 | `claude` | stdin | `-p` | `--model` | `sonnet` | `--system-prompt` | Explicit `--tools ""` + settings flags | ✓ yes |
 | `gemini` | stdin | (none) | `-m` | `gemini-2.5-pro` | (prepended) | Read-only constraint (`--approval-mode default`) | — no |
 | `opencode` | positional | (none) | `-m` | (user must set) | (prepended) | Read-only constraint (`run` subcommand) | — no |
@@ -90,6 +90,7 @@ The v2 manifest system has two invocation modes (PRD §11.5):
 - **Tooled mode** (stager only): tools on, git-scoped, non-interactive. Serves **only** the stager role — the per-concept agent that runs `git add` and applies hunks. Uses `tooled_flags`. A provider with nil/empty `tooled_flags` **cannot** serve as a stager (render errors at invocation time); FR-D4 falls back to the next stager-capable provider.
 
 The stager's safety is enforced by three layers (PRD §12.7.1):
+
 1. **`tooled_flags`** — scopes tools to staging (claude: git/read/edit allowlist via `--allowed-tools`; pi: all tools on, chrome stripped).
 2. **Stagehand's ref-mutation monopoly** — the orchestrator alone runs `git commit`, `git update-ref`, and `git push` (§13.6.2/§19).
 3. **The stager task prompt** (§17.6) — instructs the agent to stage only concept[i]'s subset and never commit/update-ref/push.

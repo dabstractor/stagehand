@@ -1,7 +1,7 @@
 # Stagehand
 
 > **Stagehand writes your commit messages using the AI agent you already pay for.**
-> No API key. No per-token billing. It shells out to Claude Code, Codex, Gemini CLI, pi, opencode, or Cursor — whatever you already have installed — and spends your existing coding-plan quota instead. Stage while it thinks; it commits only what was staged when it started, atomically, and can never corrupt your repo.
+> No API key. No per-token billing. It shells out to Claude Code, Codex, Gemini CLI, pi, opencode, agy, or Cursor — whatever you already have installed — and spends your existing coding-plan quota instead. Stage while it thinks; it commits only what was staged when it started, atomically, and can never corrupt your repo. With a dirty working tree and nothing staged, it automatically decomposes your changes into a sequence of logically-coherent commits.
 
 A snapshot-based AI commit message generator that uses YOUR local CLI agent.
 
@@ -28,6 +28,8 @@ Stagehand inverts the architecture: it shells out to your installed CLI agent, t
 | Architecture | Owns the HTTP call | Shells out to your CLI agent |
 | Billing | Per-token | Your existing coding-plan quota |
 | Stage while generating | No | Yes (snapshot-based) |
+| Multi-commit decomposition | No | Yes (auto-decompose dirty tree into N logical commits) |
+| Per-role model routing | No | Yes (planner/stager/message/arbiter — right model for the right job) |
 
 <details>
 <summary><em>Which coding plans actually gate their quota?</em></summary>
@@ -107,6 +109,29 @@ stagehand --dry-run
 > [!NOTE]
 > If generation fails, `--dry-run` exits 1 with a short message — not the full recovery recipe or exit 3/124 — since no commit was ever intended.
 
+### Multi-commit decomposition
+
+With a dirty working tree and nothing staged, `stagehand` automatically decomposes your changes into a sequence of logically-coherent commits using a four-role agent pipeline (planner → stager → message → arbiter). Each concept becomes its own commit.
+
+```bash
+# Auto-decompose — planner decides the count and grouping
+stagehand
+# Decomposes into N commits automatically
+
+# Force exactly 3 commits
+stagehand --commits 3
+
+# Keep the v1 single-commit behavior
+stagehand --single
+
+# Route planning to a bigger model (per-repo .stagehand.toml):
+# [role.planner]
+# provider = "claude"
+# model = "opus"
+```
+
+See [How Stagehand works — Multi-commit decomposition](docs/how-it-works.md#multi-commit-decomposition) for the pipeline architecture and [CLI reference](docs/cli.md) for all decompose and per-role flags.
+
 ### lazygit binding
 
 ```yaml
@@ -120,7 +145,7 @@ stagehand --dry-run
 
 ## Configure your agent
 
-Stagehand auto-detects which agents are installed and uses the first one it finds (in preference order: pi, claude, gemini, opencode, codex, cursor). To see what's detected:
+Stagehand auto-detects which agents are installed and uses the first one it finds (in preference order: pi, opencode, cursor, agy, gemini, codex, claude). To see what's detected:
 
 ```bash
 $ stagehand providers list
@@ -140,19 +165,22 @@ Set a per-repo default with git config:
 
 ```bash
 git config stagehand.provider pi
-# Optionally pin a model:
-git config stagehand.model glm-5.2
+# Optionally pin a model (overrides the per-provider default):
+git config stagehand.model sonnet
 ```
 
-Or write a fully-commented global config file:
+Or bootstrap a **populated, working config** (auto-detects your agent and writes per-role model defaults):
 
 ```bash
 stagehand config init
-# Wrote example config to ~/.config/stagehand/config.toml
+# Wrote config to ~/.config/stagehand/config.toml
 
 # See where that lives:
 stagehand config path
 # ~/.config/stagehand/config.toml
+
+# Upgrade a v1 config to the current schema:
+stagehand config upgrade
 ```
 
 > [!NOTE]
@@ -187,7 +215,8 @@ The **authoritative, always-available** reference lives in the binary itself:
 
 ```bash
 stagehand --help          # every flag, subcommand, and option
-stagehand config init     # writes a fully-commented config file (the canonical config reference)
+stagehand config init     # bootstraps a populated working config (auto-detects your agent)
+stagehand config upgrade  # upgrades an existing config to the current schema version
 stagehand config path     # shows where the global config lives
 ```
 
@@ -240,7 +269,7 @@ No. It shells out to *your* agent under *your* existing auth and billing. Stageh
 
 ### Can it write multiple commits?
 
-Not in v1 — v1 creates a single commit per invocation. Multi-commit hunk decomposition is planned for v2.
+Yes. Run `stagehand` with a dirty working tree and nothing staged, and it automatically decomposes the changes into a sequence of logically-coherent commits. Force a count with `--commits 3`, or keep the one-commit behavior with `--single`. See [Multi-commit decomposition](#multi-commit-decomposition) and the [pipeline architecture](docs/how-it-works.md#multi-commit-decomposition).
 
 ### How does it match my project's style?
 
@@ -248,7 +277,7 @@ It learns from the last 20 commits in your repo, with a prohibition on reusing t
 
 ### Which agents are supported?
 
-Six built-ins are auto-detected: **pi**, **claude**, **gemini**, **opencode**, **codex**, **cursor**. Any agent with a non-interactive CLI interface can be added via a `[provider.<name>]` manifest — see [Adding a new agent](#adding-a-new-agent).
+Seven built-ins are auto-detected: **pi**, **opencode**, **cursor**, **agy** *(experimental)*, **gemini**, **codex**, **claude**. Any agent with a non-interactive CLI interface can be added via a `[provider.<name>]` manifest — see [Adding a new agent](#adding-a-new-agent).
 
 ### How do I see what command it runs?
 

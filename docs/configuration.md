@@ -30,9 +30,10 @@ When a `[provider.<name>]` section appears in a config file, its fields are **me
 
 Use `stagehand config path` to print the resolved global path.
 
-#### Bootstrap (`config init`)
+### Bootstrap (`config init`)
 
 `stagehand config init` writes a **populated, working config** to the global path by default. It:
+
 1. Runs cascading provider detection (highest-priority installed built-in, in order: pi, opencode, cursor, agy, gemini, codex, claude).
 2. Writes `[defaults] provider = "<detected>"` and that provider's per-role model defaults UNCOMMENTED (from the FR-D4 table).
 3. Writes other installed providers as commented-out `[role.*]` blocks (one-line uncomment to route a role to a different agent).
@@ -47,6 +48,20 @@ The written path is always printed on success.
 | `--template` | Write the inert all-commented reference config (v1 behavior) instead of a populated bootstrap. |
 
 If a config file already exists, it is NOT overwritten unless `--force` is passed (exit code 1). Parent directories are created as needed.
+
+### Schema versioning (`config upgrade`)
+
+`stagehand config upgrade` rewrites an existing config's top-level `config_version` line to the current schema version (2) in place — every other line is preserved byte-for-byte. Idempotent: running it twice leaves the file unchanged. No flags.
+
+```text
+$ stagehand config upgrade
+# Already at version 2 →  "Config at <path> is already at version 2 (no changes)."
+# Upgraded from v1  →  "Upgraded config at <path> to version 2."
+# No file          →  "no config file at <path> (run 'stagehand config init' first)"  (exit 1)
+# Not valid TOML   →  "config <path> is not valid TOML: <err>"  (exit 1, file untouched)
+```
+
+At load time, if `config_version` is missing or older, stagehand prints an advisory to stderr pointing at `config upgrade` (or `config init --force` to regenerate). The current schema (version 2) includes per-role models, multi-commit decomposition, and binary filtering.
 
 > [!NOTE]
 > Point discovery at a specific file with `--config <path>` (or the `STAGEHAND_CONFIG` env var). It overrides global and repo-local file discovery and is honored by every command — including the default commit action — so a provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` directly. A missing explicit path (typo'd `--config` or `STAGEHAND_CONFIG`) fails fast with exit 1; only the discovery default tolerates a missing global file.
@@ -124,6 +139,15 @@ All `STAGEHAND_*` variables override the config file and are overridden by CLI f
 | `STAGEHAND_VERBOSE` | `--verbose` | Print resolved command and output | `STAGEHAND_VERBOSE=true stagehand` |
 | `STAGEHAND_NO_COLOR` | `--no-color` | Disable color | `STAGEHAND_NO_COLOR=true stagehand` |
 | `NO_COLOR` | `--no-color` | Universal color-disable (honored when set) | `NO_COLOR=1 stagehand` |
+| `STAGEHAND_COMMITS` | `--commits` | Force N commits (0=auto, 1≡single) | `STAGEHAND_COMMITS=3 stagehand` |
+| `STAGEHAND_PLANNER_PROVIDER` | `--planner-provider` | Per-role: planner provider | `STAGEHAND_PLANNER_PROVIDER=claude stagehand` |
+| `STAGEHAND_PLANNER_MODEL` | `--planner-model` | Per-role: planner model | `STAGEHAND_PLANNER_MODEL=opus stagehand` |
+| `STAGEHAND_STAGER_PROVIDER` | `--stager-provider` | Per-role: stager provider | `STAGEHAND_STAGER_PROVIDER=pi stagehand` |
+| `STAGEHAND_STAGER_MODEL` | `--stager-model` | Per-role: stager model | `STAGEHAND_STAGER_MODEL=gpt-5.4-mini stagehand` |
+| `STAGEHAND_MESSAGE_PROVIDER` | *(no flag)* | Per-role: message provider (env + config only) | `STAGEHAND_MESSAGE_PROVIDER=claude stagehand` |
+| `STAGEHAND_MESSAGE_MODEL` | *(no flag)* | Per-role: message model (env + config only) | `STAGEHAND_MESSAGE_MODEL=haiku stagehand` |
+| `STAGEHAND_ARBITER_PROVIDER` | `--arbiter-provider` | Per-role: arbiter provider | `STAGEHAND_ARBITER_PROVIDER=claude stagehand` |
+| `STAGEHAND_ARBITER_MODEL` | `--arbiter-model` | Per-role: arbiter model | `STAGEHAND_ARBITER_MODEL=sonnet stagehand` |
 
 ## Git-config keys
 
@@ -145,3 +169,16 @@ These keys live in `.git/config` (set with `git config --local` or `git config -
 | `stagehand.auto_stage_all` | bool | `git config --get --bool stagehand.auto_stage_all` | Auto-stage all when nothing staged |
 | `stagehand.output` | string | `git config --get stagehand.output` | Agent output mode: `raw` \| `json` (overrides per-provider default) |
 | `stagehand.stripCodeFence` | bool | `git config --get --bool stagehand.stripCodeFence` | Strip ``` fences from agent output (overrides per-provider default) |
+
+> [!NOTE]
+> The git-config layer has **no** per-role keys (`stagehand.role.*`), no `stagehand.commits`, and no `stagehand.max_commits`. Per-role configuration is available via CLI flags (`--planner-provider`, etc.), env vars (`STAGEHAND_PLANNER_*`), and config-file `[role.*]` blocks only. Decompose settings (`--commits`, `--single`, `--no-decompose`) are flag/env only; `--max-commits` also reads from the `[generation]` config-file section.
+
+### Decompose config keys
+
+| Setting | Flag | Env var | Config file | Default | Notes |
+|---------|------|---------|-------------|---------|-------|
+| Commit count | `--commits <N>` | `STAGEHAND_COMMITS` | — | `0` (auto) | 0=auto-decompose; ≥2=force N; 1≡`--single` |
+| Single-commit | `--single` / `--no-decompose` | — | — | `false` | Bypass decompose → v1 single-commit |
+| Max commits | `--max-commits <N>` | — | `[generation].max_commits` | `12` | Safety cap on auto-decompose count |
+
+Per-role provider/model overrides (flag > env > `[role.<role>]` config > `[defaults]` > built-in): see [providers.md](providers.md#per-role-default-models-fr-d4) for the compiled-in defaults per provider. The message role has no CLI flag — it is reachable via `STAGEHAND_MESSAGE_PROVIDER`/`STAGEHAND_MESSAGE_MODEL` and `[role.message]` only (inherits the global `--provider`/`--model` if unset).
