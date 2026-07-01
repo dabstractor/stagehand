@@ -21,6 +21,15 @@ type FileChange struct {
 	Path    string // the destination path — always set
 }
 
+// LogEntry is one commit in a log range (oldest-first when produced by LogRange).
+// It is the post-arbiter re-read primitive (PRD §13.6.5 / FR-M9): after the arbiter amends/rebuilds/
+// creates commits, the orchestrator re-reads the final commits in preRunHEAD..HEAD via LogRange and
+// pairs each entry's SHA with DiffTree to rebuild the accurate success report (FR42).
+type LogEntry struct {
+	SHA     string // full 40/64-hex commit SHA (git %H)
+	Subject string // first line of the commit message (git %s — single-line by construction)
+}
+
 // StagedDiffOptions configures staged-diff capture (commit-pi parity, PRD §9.1 / FINDING 7).
 // The T3.S1 (StagedDiff) implementation consumes these.
 type StagedDiffOptions struct {
@@ -177,6 +186,27 @@ type Git interface {
 	// REAL error (NOT an unborn signal: branch on code != 0, never on code == 128; never use --quiet).
 	// Read-only with respect to refs and the index (PRD §18.1). A no-change working tree returns ("", nil).
 	WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions) (diff string, err error)
+
+	// LogRange returns the commits in the range baseSHA..HEAD, oldest-first, as []LogEntry. It runs
+	// `git log --reverse --format=%H%x1f%s baseSHA..HEAD`: --reverse yields oldest-first, %H is the
+	// full SHA, %x1f (ASCII Unit Separator) delimits SHA from subject (a safe delimiter — subjects
+	// never contain \x1f, and %s is single-line by construction), and %s is the subject (first line).
+	// It is read-only with respect to refs and the index (PRD §18.1).
+	//
+	// baseSHA is the pre-run HEAD captured before the decompose loop/arbiter mutated it. The range
+	// `baseSHA..HEAD` is "commits reachable from HEAD but not from baseSHA" — i.e. exactly the commits
+	// created/rewritten this run. An empty range (baseSHA == HEAD) returns (nil, nil).
+	//
+	// Originally-unborn repo: pass the all-zeros SHA strings.Repeat("0", 40) as baseSHA. The
+	// `<zeros>..HEAD` range is INVALID (git rejects it as "Invalid revision range"), so LogRange
+	// detects the all-zeros sentinel and runs `git log --reverse … HEAD` (NO range) instead — listing
+	// ALL commits reachable from HEAD, which on an originally-unborn repo are exactly the commits
+	// created this run. (A real all-zeros ref is never a valid git range base.)
+	//
+	// Truly-unborn repo (HEAD has no commits): git exits 128 ("ambiguous argument 'HEAD'"); LogRange
+	// returns (nil, nil) — the 128-as-non-error convention shared with RevParseHEAD / RecentSubjects /
+	// CommitCount. Any other non-zero exit is a real error.
+	LogRange(ctx context.Context, baseSHA string) ([]LogEntry, error)
 }
 
 // gitRunner is the production Git implementation. It wraps exec.CommandContext for the real git
@@ -748,6 +778,46 @@ func (g *gitRunner) CommitCount(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("git rev-list --count HEAD: unparseable output %q: %w", stdout, perr)
 	}
 	return n, nil
+}
+
+// LogRange returns the commits in the range baseSHA..HEAD, oldest-first (see the interface doc).
+// Implementation: `git log --reverse --format=%H%x1f%s <baseSHA>..HEAD`, parsed one LogEntry per line.
+// For the all-zeros unborn sentinel the `<zeros>..HEAD` range is invalid, so it runs the no-range
+// `... HEAD` form instead (all commits reachable from HEAD).
+func (g *gitRunner) LogRange(ctx context.Context, baseSHA string) ([]LogEntry, error) {
+	args := []string{"log", "--reverse", "--format=%H%x1f%s"}
+	if baseSHA == strings.Repeat("0", 40) {
+		// Originally-unborn base: the all-zeros ref is NOT a valid `git log` range base (git rejects
+		// `<zeros>..HEAD` as "Invalid revision range"). List ALL commits reachable from HEAD instead —
+		// on an originally-unborn repo these are exactly the commits created this run.
+		args = append(args, "HEAD")
+	} else {
+		args = append(args, baseSHA+"..HEAD")
+	}
+
+	stdout, stderr, code, err := g.run(ctx, g.workDir, args...)
+	if err != nil {
+		return nil, err // git binary missing / context cancelled / start failure (run sets code=-1)
+	}
+	if code == 128 {
+		return nil, nil // truly-unborn repo (no commits on HEAD) — 128-as-non-error (matches RevParseHEAD/RecentSubjects/CommitCount)
+	}
+	if code != 0 {
+		return nil, fmt.Errorf("git log: failed (exit %d): %s", code, strings.TrimSpace(stderr))
+	}
+
+	var entries []LogEntry
+	for _, line := range strings.Split(stdout, "\n") {
+		if line == "" {
+			continue // trailing newline → trailing empty element
+		}
+		sha, subject, ok := strings.Cut(line, "\x1f")
+		if !ok {
+			continue // defensive: skip a line lacking the %x1f delimiter
+		}
+		entries = append(entries, LogEntry{SHA: sha, Subject: subject})
+	}
+	return entries, nil
 }
 
 // AddAll stages every change in the working tree — new, modified, AND deleted files — via
