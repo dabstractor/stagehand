@@ -458,7 +458,7 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config, sys
 			payload = retryInstr + "\n\n" + payload
 		}
 
-		spec, rerr := deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)
+		spec, rerr := deps.Manifest.Render(cfg.Model, "", sysPrompt, payload)
 		if rerr != nil {
 			return Result{}, fmt.Errorf("render: %w", rerr)
 		}

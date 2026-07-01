@@ -11,7 +11,7 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Fix provider/sub-provider conflation (Issue 1, Critical)",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Stop passing the manifest/agent name (e.g. 'pi') as Manifest.Render's sub-provider parameter at all five call sites (generate.go single-commit + four decompose roles). Pass '' so Render falls back to the merged manifest's DefaultProvider (the actual sub-provider like 'openrouter'). This unbreaks the default provider and honors the user's configured default_provider across all config layers (FR37a).",
           "tasks": [
             {
@@ -55,14 +55,14 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Add end-to-end integration test verifying correct sub-provider rendering",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Add an integration test that drives the real CLI binary (or the cobra rootCmd) with a pi-shaped stubagent config (default_provider set) and asserts via --verbose that the rendered command shows --provider <default_provider>, NOT --provider <manifest-name>. This test covers both the single-commit path (staged change) and the multi-commit decompose path (dirty tree), mirroring the PRD's reproduction steps. This is the test that would have caught the bug — the existing unit tests bypass the caller conflation by calling Render directly.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "E2E integration test with pi-shaped stub asserting --provider <default_provider>",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T1.S1",

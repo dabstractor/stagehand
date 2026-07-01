@@ -1168,3 +1168,142 @@ func TestRunDefault_RepoLocalNoticeOnce_Issue5(t *testing.T) {
 		t.Errorf("git log subject = %q, want %q (full seam)", logMsg, "feat: add file")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// TestRunDefault_ProviderSubProviderRendering_Issue1 — E2E regression guard for PRD Issue 1
+// ---------------------------------------------------------------------------
+
+// TestRunDefault_ProviderSubProviderRendering_Issue1 proves the provider/sub-provider conflation
+// fix (P1.M1.T1.S1+S2) works through the real cobra CLI: when a pi-shaped config sets
+// default_provider = "openrouter", the rendered agent command emits --provider openrouter (the
+// sub-provider) and does NOT emit --provider pi (the manifest name). Covers both the single-commit
+// (generate.CommitStaged) and multi-commit decomposition (planner role) execution paths using
+// the bundled cmd/stubagent.
+func TestRunDefault_ProviderSubProviderRendering_Issue1(t *testing.T) {
+	bin := stubtest.Build(t)
+
+	// writePiStubConfig creates a temp pi-shaped config TOML and returns its path.
+	writePiStubConfig := func(t *testing.T) string {
+		t.Helper()
+		cfgPath := filepath.Join(t.TempDir(), "config.toml")
+		body := fmt.Sprintf(`config_version = 2
+
+[defaults]
+provider = "pi"
+
+[provider.pi]
+command = %q
+detect = %q
+provider_flag = "--provider"
+default_provider = "openrouter"
+model_flag = "--model"
+default_model = "gpt-5.4-nano"
+system_prompt_flag = "--system"
+prompt_delivery = "stdin"
+print_flag = "-p"
+output = "raw"
+tooled_flags = ["--yes"]
+`, bin, bin)
+		if err := os.WriteFile(cfgPath, []byte(body), 0o644); err != nil {
+			t.Fatalf("write cfg: %v", err)
+		}
+		return cfgPath
+	}
+
+	// (Task 2) single-commit path: staged change + --dry-run --verbose --no-color
+	t.Run("single_commit", func(t *testing.T) {
+		origArgs, origOut, origErr, origRunE := saveRootState(t)
+		defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		t.Setenv("XDG_CONFIG_HOME", home)
+		cfgPath := writePiStubConfig(t)
+		t.Setenv("STAGEHAND_CONFIG", cfgPath)
+		t.Setenv("STAGEHAND_PROVIDER", "pi")
+
+		repo := t.TempDir()
+		initRepo(t, repo)
+		chdir(t, repo)
+		commitRaw(t, repo, "initial")
+		writeFile(t, repo, "new.txt", "content")
+		stageFile(t, repo, "new.txt")
+
+		const singleStubOut = "feat: single path provider render"
+		t.Setenv("STAGEHAND_STUB_OUT", singleStubOut)
+
+		var outBuf, errBuf bytes.Buffer
+		rootCmd.SetOut(&outBuf)
+		rootCmd.SetErr(&errBuf)
+		rootCmd.SetArgs([]string{"--dry-run", "--verbose", "--no-color"})
+
+		if err := Execute(context.Background()); err != nil {
+			t.Fatalf("Execute err=%v, want nil", err)
+		}
+
+		// G1: verbose DEBUG output goes to stderr, not stdout.
+		stderr := errBuf.String()
+		if !strings.Contains(stderr, "DEBUG: command:") {
+			t.Errorf("stderr = %q, want to contain 'DEBUG: command:'", stderr)
+		}
+		if !strings.Contains(stderr, "--provider openrouter") {
+			t.Errorf("stderr = %q, want rendered command to contain --provider openrouter", stderr)
+		}
+		if strings.Contains(stderr, "--provider pi") {
+			t.Errorf("stderr = %q, must NOT contain --provider pi (manifest name)", stderr)
+		}
+
+		// Bonus: dry-run stdout equals the canned commit message.
+		if got := strings.TrimSpace(outBuf.String()); got != singleStubOut {
+			t.Errorf("dry-run stdout = %q, want %q", got, singleStubOut)
+		}
+	})
+
+	// (Task 3) decompose path: dirty/un-staged tree → planner single-shortcut
+	t.Run("decompose", func(t *testing.T) {
+		origArgs, origOut, origErr, origRunE := saveRootState(t)
+		defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		t.Setenv("XDG_CONFIG_HOME", home)
+		cfgPath := writePiStubConfig(t)
+		t.Setenv("STAGEHAND_CONFIG", cfgPath)
+		t.Setenv("STAGEHAND_PROVIDER", "pi")
+
+		repo := t.TempDir()
+		initRepo(t, repo)
+		chdir(t, repo)
+		commitRaw(t, repo, "initial")
+		// Un-staged file → shouldDecompose routes to decompose path.
+		writeFile(t, repo, "dirty.txt", "content")
+
+		const decomposeStubOut = `{"count":1,"single":true,"commits":[{"title":"add dirty","description":"dirty.txt"}],"message":"feat: decompose path provider render"}`
+		t.Setenv("STAGEHAND_STUB_OUT", decomposeStubOut)
+
+		var outBuf, errBuf bytes.Buffer
+		rootCmd.SetOut(&outBuf)
+		rootCmd.SetErr(&errBuf)
+		// NO --dry-run (G5): decompose is skipped when dry-run is set.
+		rootCmd.SetArgs([]string{"--verbose", "--no-color"})
+
+		if err := Execute(context.Background()); err != nil {
+			t.Fatalf("Execute err=%v, want nil (single-shortcut should commit)", err)
+		}
+
+		// G1: verbose DEBUG output goes to stderr.
+		stderr := errBuf.String()
+		if !strings.Contains(stderr, "--provider openrouter") {
+			t.Errorf("stderr = %q, want rendered planner command to contain --provider openrouter", stderr)
+		}
+		if strings.Contains(stderr, "--provider pi") {
+			t.Errorf("stderr = %q, must NOT contain --provider pi (manifest name)", stderr)
+		}
+
+		// Bonus: one new commit was created by the planner single-shortcut.
+		logMsg := gitOut(t, repo, "log", "--format=%s", "-n1")
+		if logMsg != "feat: decompose path provider render" {
+			t.Errorf("git log subject = %q, want 'feat: decompose path provider render'", logMsg)
+		}
+	})
+}

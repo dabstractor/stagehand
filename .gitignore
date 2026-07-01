@@ -2,6 +2,7 @@
 /dist/
 /build/
 /stagehand
+/stubagent
 *.exe
 *.dll
 *.so
