@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/dustin/stagehand/internal/config"
 	"github.com/dustin/stagehand/internal/git"
 	"github.com/dustin/stagehand/internal/stubtest"
+	"github.com/dustin/stagehand/internal/ui"
 )
 
 // --- Fixture helpers (own copies — git's _test.go helpers are unimportable) ---
@@ -398,5 +400,45 @@ func TestCommitStaged_IdempotentIndexOnFailure(t *testing.T) {
 	afterIndexFull := gitOut(t, repo, "diff", "--cached")
 	if afterIndexFull != beforeIndexFull {
 		t.Error("staged diff content changed (byte-for-byte mismatch)")
+	}
+}
+
+// TestCommitStaged_ResolvesSubProviderFromManifest verifies that CommitStaged passes "" (not
+// cfg.Provider) to Render, so the manifest's merged DefaultProvider is emitted as --provider.
+// cfg.Provider="pi" is the manifest/agent NAME; it must NOT appear in the rendered command.
+func TestCommitStaged_ResolvesSubProviderFromManifest(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	initRepo(t, repo)
+	commitRaw(t, repo, "initial")
+	writeFile(t, repo, "f.txt", "content")
+	stageFile(t, repo, "f.txt")
+
+	// Pi-shaped stub: emit --provider with a merged DefaultProvider that MUST be honored.
+	m := stubtest.Manifest(bin, stubtest.Options{Out: "feat: provider ok"})
+	pflag, dp := "--provider", "openrouter"
+	m.ProviderFlag = &pflag
+	m.DefaultProvider = &dp
+
+	cfg := config.Defaults()
+	cfg.Provider = "pi" // the manifest NAME — the conflation source; must NOT be emitted
+
+	var buf bytes.Buffer
+	deps := Deps{Git: git.New(repo), Manifest: m, Verbose: ui.NewVerbose(&buf, true)}
+
+	res, err := CommitStaged(context.Background(), deps, cfg)
+	if err != nil {
+		t.Fatalf("CommitStaged: %v", err)
+	}
+	if res.Subject != "feat: provider ok" {
+		t.Errorf("Subject = %q, want %q", res.Subject, "feat: provider ok")
+	}
+
+	cmd := buf.String()
+	if !strings.Contains(cmd, "--provider openrouter") {
+		t.Errorf("rendered command missing --provider openrouter\ngot: %s", cmd)
+	}
+	if strings.Contains(cmd, "--provider pi") {
+		t.Errorf("rendered command emits the manifest name as sub-provider (conflation bug)\ngot: %s", cmd)
 	}
 }

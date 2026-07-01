@@ -189,7 +189,11 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 			payload = retryInstr + "\n\n" + payload // FR29 corrective preamble
 		}
 
-		spec, rerr := deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)
+		// Pass "" for the sub-provider: cfg.Provider is the manifest/agent NAME (the registry key,
+		// e.g. "pi"), NOT the upstream backend. Render resolves the real sub-provider from the
+		// manifest's merged DefaultProvider (FR37a) — emitting "--provider <DefaultProvider>", or
+		// omitting --provider when DefaultProvider is unset (pi's shipped default, §12.3).
+		spec, rerr := deps.Manifest.Render(cfg.Model, "", sysPrompt, payload)
 		if rerr != nil {
 			return Result{}, fmt.Errorf("commit staged: render: %w", rerr)
 		}
