@@ -177,7 +177,7 @@
                   "id": "P1.M3.T1.S1",
                   "type": "Subtask",
                   "title": "internal/git/git.go — Git wrapper + run(args) exec helper",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: decisions.md §2; system_context §2 (git 2.54 present). PRD §22.3 — shell out to real git, NO go-git. NO sh -c (§19).\n2. INPUT: None.\n3. LOGIC: Git struct{dir string; git string (default \"git\")}. run(args ...string) (stdout string, err error): exec.Command(git, args...) with Dir=dir, capture stdout+stderr, on non-zero exit return typed *ExitError{Args, Code, Stderr}. Constructor New(dir) resolves git via exec.LookPath. MOCKING: tests — run(\"version\") returns a string containing \"git version\"; run(\"rev-parse\",\"--git-dir\") in an init'd temp dir works; run in a non-repo dir returns a clear error.\n4. OUTPUT: git.Git + run() used by every plumbing/diff/log/stage subtask (M3.T2/T3/T4) and the test util (M3.T1.S2)."
