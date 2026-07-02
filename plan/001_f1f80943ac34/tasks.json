@@ -90,14 +90,14 @@
               "id": "P1.M2.T2",
               "type": "Task",
               "title": "Output parsing pipeline",
-              "status": "Planned",
+              "status": "Complete",
               "description": "The robust parseOutput function (§12.9) that turns agent stdout into a commit message, handling code-fence stripping, JSON extraction with fallback, and newline normalization.",
               "subtasks": [
                 {
                   "id": "P1.M2.T2.S1",
                   "type": "Subtask",
                   "title": "internal/provider/parse.go — parseOutput(raw, m) (msg, ok)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S1"

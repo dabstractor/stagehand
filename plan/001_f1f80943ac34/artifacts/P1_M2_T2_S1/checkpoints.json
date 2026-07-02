@@ -1,0 +1,171 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1_M2_T2_S1_1782958539403_pre-execution_b5aaa3de",
+      "taskId": "P1_M2_T2_S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T2_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T02:15:39.403Z"
+      },
+      "createdAt": "2026-07-02T02:15:39.404Z"
+    },
+    {
+      "id": "P1_M2_T2_S1_1782958665363_coder-response_ce1c6c25",
+      "taskId": "P1_M2_T2_S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T2_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "The PRP has been implemented successfully. All validation gates pass.\n\n## Summary\n\nI created two new sibling files in the EXISTING `package provider`:\n\n### `internal/provider/parse.go`\n- Plain `package provider` line (manifest.go keeps the `// Package provider` doc — exactly one occurrence)\n- Imports stdlib ONLY: `encoding/json`, `regexp`, `strings`\n- Package-level `collapseNewlines = regexp.MustCompile(`​`\\n{3,}`​`)` (compiled once)\n- `parseOutput(raw string, m Manifest) (string, bool)` — the 5-step §12.9 pipeline byte-exactly: trim → optional single-layer fence unwrap (opener-line drop + LAST-closer cut searched in the post-opener body) → output switch (`\"\"`/`\"raw\"` → msg=s; only `\"json\"` extracts) → `\\r\\n`→`\\n` then 3+→2 collapse → final trim → `ok = msg != \"\"`\n- `extractJSON(s, field string) (string, bool)` — whole-then-brace-balanced retry with strict `.(string)` assertion; any failure → `(\"\", false)` so parseOutput falls back to raw\n- Reads ONLY `m.Output`/`m.JSONField`/`m.StripCodeFence`; never returns an error; pure (no `log`/`os`/`fmt`/config)\n- Godoc on both functions cites PRD §12.9 and §17.4 (Mode A docs)\n\n### `internal/provider/parse_test.go`\n- White-box `package provider`, stdlib `testing` only, `tc := tc` + `t.Run` idiom\n- Full 12-case contract matrix (raw clean, fenced-raw, langtag, tilde, fenced-json, json-in-prose, malformed→fallback, non-string→fallback, newline normalization, fence-off keeps fence, empty→false, whitespace-only→false)\n- `TestParseOutput_EmptyOutputIsRaw` proving `\"\"` defaults to raw\n- `TestParseOutput_PiFixture` using the realistic pi builtin manifest\n\n### Validation gates (all green)\n- ✅ `go build ./internal/provider/` clean\n- ✅ `go vet ./internal/provider/` clean\n- ✅ `gofmt -l internal/provider/` empty\n- ✅ `go test ./internal/provider/` PASS (14 tests incl. existing manifest golden tests)\n- ✅ `go test ./...` PASS (whole-module integrity)\n- ✅ LSP diagnostics clean on both files\n\n### Scope boundaries respected\nOnly the two new source files created; `git diff` shows no changes to manifest.go, manifest_test.go, main.go, Makefile, go.mod, go.sum, or internal/ui; no README/docs/providers TOML; no `go mod tidy`; package doc appears exactly once.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Created internal/provider/parse.go (parseOutput + extractJSON + collapseNewlines regexp implementing the PRD §12.9 pipeline byte-exactly, stdlib-only imports, pure with no error return) and internal/provider/parse_test.go (white-box table-driven tests covering the full 12-case contract matrix plus empty-Output-is-raw and a pi-fixture case). All validation gates pass: go build clean, go vet clean, gofmt empty, go test ./internal/provider/ PASS (14 tests), go test ./... PASS. Scope boundaries respected: only the two new files created; manifest.go/manifest_test.go/main.go/Makefile/go.mod/go.sum/internal/ui unchanged; package doc appears exactly once (manifest.go); no go mod tidy; no README/docs/providers TOML.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Created internal/provider/parse.go (parseOutput + extractJSON + collapseNewlines regexp implementing the PRD §12.9 pipeline byte-exactly, stdlib-only imports, pure with no error return) and internal/provider/parse_test.go (white-box table-driven tests covering the full 12-case contract matrix plus empty-Output-is-raw and a pi-fixture case). All validation gates pass: go build clean, go vet clean, gofmt empty, go test ./internal/provider/ PASS (14 tests), go test ./... PASS. Scope boundaries respected: only the two new files created; manifest.go/manifest_test.go/main.go/Makefile/go.mod/go.sum/internal/ui unchanged; package doc appears exactly once (manifest.go); no go mod tidy; no README/docs/providers TOML."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T02:17:45.363Z"
+      },
+      "createdAt": "2026-07-02T02:17:45.363Z"
+    },
+    {
+      "id": "P1_M2_T2_S1_1782958665665_validation-gate-2_cc1e7e0a",
+      "taskId": "P1_M2_T2_S1",
+      "label": "After validation gate 2",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T2_S1.md",
+        "stage": "validation-gate-2",
+        "coderResponse": "The PRP has been implemented successfully. All validation gates pass.\n\n## Summary\n\nI created two new sibling files in the EXISTING `package provider`:\n\n### `internal/provider/parse.go`\n- Plain `package provider` line (manifest.go keeps the `// Package provider` doc — exactly one occurrence)\n- Imports stdlib ONLY: `encoding/json`, `regexp`, `strings`\n- Package-level `collapseNewlines = regexp.MustCompile(`​`\\n{3,}`​`)` (compiled once)\n- `parseOutput(raw string, m Manifest) (string, bool)` — the 5-step §12.9 pipeline byte-exactly: trim → optional single-layer fence unwrap (opener-line drop + LAST-closer cut searched in the post-opener body) → output switch (`\"\"`/`\"raw\"` → msg=s; only `\"json\"` extracts) → `\\r\\n`→`\\n` then 3+→2 collapse → final trim → `ok = msg != \"\"`\n- `extractJSON(s, field string) (string, bool)` — whole-then-brace-balanced retry with strict `.(string)` assertion; any failure → `(\"\", false)` so parseOutput falls back to raw\n- Reads ONLY `m.Output`/`m.JSONField`/`m.StripCodeFence`; never returns an error; pure (no `log`/`os`/`fmt`/config)\n- Godoc on both functions cites PRD §12.9 and §17.4 (Mode A docs)\n\n### `internal/provider/parse_test.go`\n- White-box `package provider`, stdlib `testing` only, `tc := tc` + `t.Run` idiom\n- Full 12-case contract matrix (raw clean, fenced-raw, langtag, tilde, fenced-json, json-in-prose, malformed→fallback, non-string→fallback, newline normalization, fence-off keeps fence, empty→false, whitespace-only→false)\n- `TestParseOutput_EmptyOutputIsRaw` proving `\"\"` defaults to raw\n- `TestParseOutput_PiFixture` using the realistic pi builtin manifest\n\n### Validation gates (all green)\n- ✅ `go build ./internal/provider/` clean\n- ✅ `go vet ./internal/provider/` clean\n- ✅ `gofmt -l internal/provider/` empty\n- ✅ `go test ./internal/provider/` PASS (14 tests incl. existing manifest golden tests)\n- ✅ `go test ./...` PASS (whole-module integrity)\n- ✅ LSP diagnostics clean on both files\n\n### Scope boundaries respected\nOnly the two new source files created; `git diff` shows no changes to manifest.go, manifest_test.go, main.go, Makefile, go.mod, go.sum, or internal/ui; no README/docs/providers TOML; no `go mod tidy`; package doc appears exactly once.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Created internal/provider/parse.go (parseOutput + extractJSON + collapseNewlines regexp implementing the PRD §12.9 pipeline byte-exactly, stdlib-only imports, pure with no error return) and internal/provider/parse_test.go (white-box table-driven tests covering the full 12-case contract matrix plus empty-Output-is-raw and a pi-fixture case). All validation gates pass: go build clean, go vet clean, gofmt empty, go test ./internal/provider/ PASS (14 tests), go test ./... PASS. Scope boundaries respected: only the two new files created; manifest.go/manifest_test.go/main.go/Makefile/go.mod/go.sum/internal/ui unchanged; package doc appears exactly once (manifest.go); no go mod tidy; no README/docs/providers TOML.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Created internal/provider/parse.go (parseOutput + extractJSON + collapseNewlines regexp implementing the PRD §12.9 pipeline byte-exactly, stdlib-only imports, pure with no error return) and internal/provider/parse_test.go (white-box table-driven tests covering the full 12-case contract matrix plus empty-Output-is-raw and a pi-fixture case). All validation gates pass: go build clean, go vet clean, gofmt empty, go test ./internal/provider/ PASS (14 tests), go test ./... PASS. Scope boundaries respected: only the two new files created; manifest.go/manifest_test.go/main.go/Makefile/go.mod/go.sum/internal/ui unchanged; package doc appears exactly once (manifest.go); no go mod tidy; no README/docs/providers TOML."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/provider/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/provider/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T02:17:45.665Z"
+      },
+      "createdAt": "2026-07-02T02:17:45.665Z"
+    },
+    {
+      "id": "P1_M2_T2_S1_1782958665668_complete_2f0817c6",
+      "taskId": "P1_M2_T2_S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T2_S1.md",
+        "stage": "complete",
+        "coderResponse": "The PRP has been implemented successfully. All validation gates pass.\n\n## Summary\n\nI created two new sibling files in the EXISTING `package provider`:\n\n### `internal/provider/parse.go`\n- Plain `package provider` line (manifest.go keeps the `// Package provider` doc — exactly one occurrence)\n- Imports stdlib ONLY: `encoding/json`, `regexp`, `strings`\n- Package-level `collapseNewlines = regexp.MustCompile(`​`\\n{3,}`​`)` (compiled once)\n- `parseOutput(raw string, m Manifest) (string, bool)` — the 5-step §12.9 pipeline byte-exactly: trim → optional single-layer fence unwrap (opener-line drop + LAST-closer cut searched in the post-opener body) → output switch (`\"\"`/`\"raw\"` → msg=s; only `\"json\"` extracts) → `\\r\\n`→`\\n` then 3+→2 collapse → final trim → `ok = msg != \"\"`\n- `extractJSON(s, field string) (string, bool)` — whole-then-brace-balanced retry with strict `.(string)` assertion; any failure → `(\"\", false)` so parseOutput falls back to raw\n- Reads ONLY `m.Output`/`m.JSONField`/`m.StripCodeFence`; never returns an error; pure (no `log`/`os`/`fmt`/config)\n- Godoc on both functions cites PRD §12.9 and §17.4 (Mode A docs)\n\n### `internal/provider/parse_test.go`\n- White-box `package provider`, stdlib `testing` only, `tc := tc` + `t.Run` idiom\n- Full 12-case contract matrix (raw clean, fenced-raw, langtag, tilde, fenced-json, json-in-prose, malformed→fallback, non-string→fallback, newline normalization, fence-off keeps fence, empty→false, whitespace-only→false)\n- `TestParseOutput_EmptyOutputIsRaw` proving `\"\"` defaults to raw\n- `TestParseOutput_PiFixture` using the realistic pi builtin manifest\n\n### Validation gates (all green)\n- ✅ `go build ./internal/provider/` clean\n- ✅ `go vet ./internal/provider/` clean\n- ✅ `gofmt -l internal/provider/` empty\n- ✅ `go test ./internal/provider/` PASS (14 tests incl. existing manifest golden tests)\n- ✅ `go test ./...` PASS (whole-module integrity)\n- ✅ LSP diagnostics clean on both files\n\n### Scope boundaries respected\nOnly the two new source files created; `git diff` shows no changes to manifest.go, manifest_test.go, main.go, Makefile, go.mod, go.sum, or internal/ui; no README/docs/providers TOML; no `go mod tidy`; package doc appears exactly once.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Created internal/provider/parse.go (parseOutput + extractJSON + collapseNewlines regexp implementing the PRD §12.9 pipeline byte-exactly, stdlib-only imports, pure with no error return) and internal/provider/parse_test.go (white-box table-driven tests covering the full 12-case contract matrix plus empty-Output-is-raw and a pi-fixture case). All validation gates pass: go build clean, go vet clean, gofmt empty, go test ./internal/provider/ PASS (14 tests), go test ./... PASS. Scope boundaries respected: only the two new files created; manifest.go/manifest_test.go/main.go/Makefile/go.mod/go.sum/internal/ui unchanged; package doc appears exactly once (manifest.go); no go mod tidy; no README/docs/providers TOML.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Created internal/provider/parse.go (parseOutput + extractJSON + collapseNewlines regexp implementing the PRD §12.9 pipeline byte-exactly, stdlib-only imports, pure with no error return) and internal/provider/parse_test.go (white-box table-driven tests covering the full 12-case contract matrix plus empty-Output-is-raw and a pi-fixture case). All validation gates pass: go build clean, go vet clean, gofmt empty, go test ./internal/provider/ PASS (14 tests), go test ./... PASS. Scope boundaries respected: only the two new files created; manifest.go/manifest_test.go/main.go/Makefile/go.mod/go.sum/internal/ui unchanged; package doc appears exactly once (manifest.go); no go mod tidy; no README/docs/providers TOML."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/provider/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/provider/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T02:17:45.668Z"
+      },
+      "createdAt": "2026-07-02T02:17:45.668Z"
+    }
+  ],
+  "lastModified": "2026-07-02T02:17:45.668Z"
+}
