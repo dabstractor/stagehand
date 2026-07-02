@@ -227,6 +227,10 @@ func loadEnv(cfg *Config) error {
 		cfg.Commits = n
 	}
 
+	// No STAGEHAND_EXCLUDE: deliberately omitted (§9.18 FR-X1) — a colon/comma-joined env list is a
+	// documented quoting trap for glob patterns. Do NOT "helpfully" add one; [generation].exclude and
+	// --exclude/-x already cover the persistent and ad-hoc cases.
+
 	return nil
 }
 
@@ -301,6 +305,15 @@ func loadFlags(cfg *Config, fs *pflag.FlagSet) {
 	if fs.Changed("max-commits") {
 		if v, err := fs.GetInt("max-commits"); err == nil {
 			cfg.MaxCommits = v
+		}
+	}
+
+	// §9.18 FR-X1 — exclude UNIONS onto whatever the config files contributed; it does NOT replace
+	// (differs from every scalar flag above, which sets DIRECTLY). Each -x/--exclude occurrence is
+	// appended in CLI order after [global..., repo...] globs.
+	if fs.Changed("exclude") {
+		if vals, err := fs.GetStringArray("exclude"); err == nil {
+			cfg.Exclude = append(cfg.Exclude, vals...)
 		}
 	}
 }

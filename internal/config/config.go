@@ -83,6 +83,11 @@ type Config struct {
 	// V2 generation tuning (PRD §16.2, §9.1 FR3a, §9.14 FR-M4) — decoded from [generation] in S2.
 	MaxCommits       int      `toml:"max_commits"`       // safety cap on auto-decompose (default 12; FR-M4)
 	BinaryExtensions []string `toml:"binary_extensions"` // extra non-text exts to filter (FR3a); nil ⇒ built-in denylist only
+	// Exclude holds §9.18 FR-X1 gitignore-style globs, RAW/untranslated; UNION across global+repo
+	// files AND --exclude/-x (NOT replace — the one list key in this resolver that accumulates
+	// rather than replaces). No env var, no git-config key (deliberate — avoids the env-list
+	// quoting trap). Consumed by S2's :(exclude,glob) pathspec translator. nil ⇒ none.
+	Exclude []string `toml:"exclude"`
 
 	// [provider.<name>] user-defined / override provider definitions (PRD §16.2, §12.8).
 	// Carried as a RAW map: the provider MANIFEST type lives in internal/provider, so config must not import
@@ -138,6 +143,7 @@ func Defaults() Config {
 		StripCodeFence:      nil,
 		MaxCommits:          12,  // §9.14 FR-M4 default safety cap on auto-decompose
 		BinaryExtensions:    nil, // nil ⇒ built-in denylist only (§9.1 FR3a)
+		Exclude:             nil, // §9.18 FR-X1: no built-in exclude globs at Layer 1 (denylist lives in git.go)
 		Providers:           nil,
 		Roles:               nil, // no per-role overrides → all roles use the global (§16.4 FR-R2)
 		ConfigVersion:       0,   // UNSET sentinel — the load-time advisory (P1.M4.T1.S1) compares the resolved

@@ -64,6 +64,11 @@ var (
 	flagDryRun      bool
 )
 
+// flagExclude holds repeatable --exclude/-x occurrences (§9.18 FR-X1). Read only via
+// fs.Changed/fs.GetStringArray in config.Load's loadFlags — never read directly (same
+// discipline as flagProvider/flagModel); the &flagExclude address here is its use.
+var flagExclude []string
+
 // loadedCfg holds the config resolved in PersistentPreRunE; nil until then. Read by Config().
 var loadedCfg *config.Config
 
@@ -111,6 +116,9 @@ func init() {
 	pf.BoolVarP(&flagAll, "all", "a", false, "Run git add -A before snapshotting, even if something is staged")
 	pf.BoolVar(&flagNoAutoStage, "no-auto-stage", false, "If nothing is staged, exit instead of auto-staging")
 	pf.BoolVar(&flagDryRun, "dry-run", false, "Generate and print the message; do not commit")
+	pf.StringArrayVarP(&flagExclude, "exclude", "x", nil,
+		"Exclude matching files from the agent payload (unions with .stagehandignore and "+
+			"[generation].exclude; never excluded from the commit)")
 	// §15.2 decompose/per-role flags (P4.M1.T1.S1) — bound to package vars; loadFlags reads via fs.Changed.
 	pf.IntVar(&flagCommits, "commits", 0,
 		"Force exactly N commits when nothing is staged (skips the planner's count decision; 0 = auto-decompose). 1 ≡ --single (env/git stagehand.commits)")

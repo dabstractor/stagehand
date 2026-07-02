@@ -68,6 +68,8 @@ func newFlagSet(t *testing.T) *pflag.FlagSet {
 	fs.Bool("single", false, "")
 	fs.Bool("no-decompose", false, "")
 	fs.Int("max-commits", 0, "")
+	// §9.18 FR-X1 — repeatable exclude flag (StringArray; each Set call appends one literal value).
+	fs.StringArray("exclude", nil, "")
 	return fs
 }
 
@@ -425,6 +427,46 @@ func TestLoadFlags_Decompose(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// loadFlags — §9.18 FR-X1 exclude UNION tests
+// ---------------------------------------------------------------------------
+
+func TestLoadFlags_ExcludeUnion(t *testing.T) {
+	// Starting from a config that already has file-contributed globs, the flag layer must APPEND,
+	// not replace (differs from every scalar flag in loadFlags, which sets DIRECTLY).
+	cfg := Config{Exclude: []string{"g1", "r1"}}
+	fs := newFlagSet(t)
+	if err := fs.Set("exclude", "f1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.Set("exclude", "f2"); err != nil {
+		t.Fatal(err)
+	}
+
+	loadFlags(&cfg, fs)
+
+	want := []string{"g1", "r1", "f1", "f2"}
+	if len(cfg.Exclude) != len(want) {
+		t.Fatalf("Exclude=%v want %v", cfg.Exclude, want)
+	}
+	for i, v := range want {
+		if cfg.Exclude[i] != v {
+			t.Errorf("Exclude[%d]=%q want %q", i, cfg.Exclude[i], v)
+		}
+	}
+}
+
+func TestLoadFlags_ExcludeNotChangedNoop(t *testing.T) {
+	cfg := Config{Exclude: []string{"g1"}}
+	fs := newFlagSet(t) // --exclude NOT Set
+
+	loadFlags(&cfg, fs)
+
+	if len(cfg.Exclude) != 1 || cfg.Exclude[0] != "g1" {
+		t.Errorf("Exclude=%v want [g1] (unset flag must not touch Exclude)", cfg.Exclude)
+	}
+}
+
 func TestLoadFlags_TimeoutInteger(t *testing.T) {
 	cfg := Config{}
 	fs := newFlagSet(t)
@@ -632,6 +674,106 @@ func TestLoad_CLIBoolFalseEscape(t *testing.T) {
 	}
 	if cfg.Verbose {
 		t.Errorf("Verbose=true want false (CLI DIRECT set overrides file true)")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Load — §9.18 FR-X1 exclude UNION tests (P1.M1.T1.S1)
+// ---------------------------------------------------------------------------
+
+func TestLoad_ExcludeUnion_GlobalOnly(t *testing.T) {
+	_, repo, globalDir := loadEnvSetup(t)
+	chdir(t, repo)
+	writeConfigFile(t, globalDir, "config.toml", "[generation]\nexclude = [\"*.min.js\", \"dist/*\"]\n")
+
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	want := []string{"*.min.js", "dist/*"}
+	if len(cfg.Exclude) != len(want) || cfg.Exclude[0] != want[0] || cfg.Exclude[1] != want[1] {
+		t.Errorf("Exclude=%v want %v", cfg.Exclude, want)
+	}
+}
+
+func TestLoad_ExcludeUnion_GlobalAndRepo(t *testing.T) {
+	_, repo, globalDir := loadEnvSetup(t)
+	chdir(t, repo)
+	writeConfigFile(t, globalDir, "config.toml", "[generation]\nexclude = [\"g1\"]\n")
+	writeConfigFile(t, repo, ".stagehand.toml", "[generation]\nexclude = [\"r1\"]\n")
+
+	origNoticeOut := noticeOut
+	noticeOut = &strings.Builder{}
+	defer func() { noticeOut = origNoticeOut }()
+
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	want := []string{"g1", "r1"}
+	if len(cfg.Exclude) != len(want) || cfg.Exclude[0] != want[0] || cfg.Exclude[1] != want[1] {
+		t.Errorf("Exclude=%v want %v (global then repo — UNION, not replace)", cfg.Exclude, want)
+	}
+}
+
+func TestLoad_ExcludeUnion_GlobalRepoAndFlags(t *testing.T) {
+	_, repo, globalDir := loadEnvSetup(t)
+	chdir(t, repo)
+	writeConfigFile(t, globalDir, "config.toml", "[generation]\nexclude = [\"g1\"]\n")
+	writeConfigFile(t, repo, ".stagehand.toml", "[generation]\nexclude = [\"r1\"]\n")
+
+	origNoticeOut := noticeOut
+	noticeOut = &strings.Builder{}
+	defer func() { noticeOut = origNoticeOut }()
+
+	fs := newFlagSet(t)
+	if err := fs.Set("exclude", "f1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.Set("exclude", "f2"); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo, Flags: fs})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	want := []string{"g1", "r1", "f1", "f2"}
+	if len(cfg.Exclude) != len(want) {
+		t.Fatalf("Exclude=%v want %v", cfg.Exclude, want)
+	}
+	for i, v := range want {
+		if cfg.Exclude[i] != v {
+			t.Errorf("Exclude[%d]=%q want %q (order: global, repo, flags)", i, cfg.Exclude[i], v)
+		}
+	}
+}
+
+func TestLoad_ExcludeNoEnvVar(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+	// FR-X1: no STAGEHAND_EXCLUDE env var exists — it must be silently ignored, not consumed.
+	t.Setenv("STAGEHAND_EXCLUDE", "*.snap")
+
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	if len(cfg.Exclude) != 0 {
+		t.Errorf("Exclude=%v want empty (no STAGEHAND_EXCLUDE support per FR-X1)", cfg.Exclude)
+	}
+}
+
+func TestLoad_ExcludeAbsentEverywhere(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	if len(cfg.Exclude) != 0 {
+		t.Errorf("Exclude=%v want empty/nil (nothing set anywhere)", cfg.Exclude)
 	}
 }
 

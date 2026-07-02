@@ -11,35 +11,52 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Payload exclusions (§9.18)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "`.stagehandignore` + repeatable `--exclude/-x` + `[generation].exclude`, union semantics, gitignore-glob → `:(exclude,glob)` pathspec translation, `[excluded]` placeholders on all three diff paths. Payload-only — never affects the commit. Lands first: hook mode (M3) reuses this pipeline.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Exclusion pattern sources and resolution",
-              "status": "Planned",
+              "status": "Ready",
               "description": "Resolve the union of exclusion patterns from config, flag, and .stagehandignore into git pathspecs (FR-X1, FR-X2).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T1.S1",
                   "title": "Add [generation].exclude config key and repeatable --exclude/-x flag with union merge",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.9", "h3.34", "h3.24", "h3.69", "h2.15", "h2.16", "h3.73", "h3.74"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — `internal/git` `StagedDiffOptions.Excludes []string` already exists but every caller passes nil; `internal/config/file.go` `overlay()` REPLACES list values (see `BinaryExtensions`) — `exclude` must UNION across layers instead (FR-X1). There is deliberately NO env var for exclusions (FR-X1: quoting trap).\n2. INPUT: existing `Config` struct (`internal/config/config.go`), `fileGeneration` (`internal/config/file.go`), `Load()` layer application (`internal/config/load.go`), root flag registration in `internal/cmd/root.go` init().\n3. LOGIC: add `Exclude []string` to Config with `[generation].exclude` TOML key; global-file and repo-file values UNION (accumulate) rather than override — a new merge behavior distinct from the scalar cascade; add repeatable `--exclude <glob>` / `-x` (pflag StringArray) whose values append to the union. No git-config key and no env var per FR-X1. Table-driven config-precedence tests mirroring the existing load_test patterns; mock nothing.\n4. OUTPUT: `cfg.Exclude` — resolved union of raw (untranslated) gitignore-style glob patterns, consumed by P1.M1.T1.S2's translator and P1.M1.T2.S1.\n5. DOCS: [Mode A] docs/cli.md (`--exclude/-x` row in the flags table), docs/configuration.md (`[generation].exclude` key; note union-not-override semantics per §16.1). Rides WITH this subtask."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — `internal/git` `StagedDiffOptions.Excludes []string` already exists but every caller passes nil; `internal/config/file.go` `overlay()` REPLACES list values (see `BinaryExtensions`) — `exclude` must UNION across layers instead (FR-X1). There is deliberately NO env var for exclusions (FR-X1: quoting trap).\n2. INPUT: existing `Config` struct (`internal/config/config.go`), `fileGeneration` (`internal/config/file.go`), `Load()` layer application (`internal/config/load.go`), root flag registration in `internal/cmd/root.go` init().\n3. LOGIC: add `Exclude []string` to Config with `[generation].exclude` TOML key; global-file and repo-file values UNION (accumulate) rather than override — a new merge behavior distinct from the scalar cascade; add repeatable `--exclude <glob>` / `-x` (pflag StringArray) whose values append to the union. No git-config key and no env var per FR-X1. Table-driven config-precedence tests mirroring the existing load_test patterns; mock nothing.\n4. OUTPUT: `cfg.Exclude` — resolved union of raw (untranslated) gitignore-style glob patterns, consumed by P1.M1.T1.S2's translator and P1.M1.T2.S1.\n5. DOCS: [Mode A] docs/cli.md (`--exclude/-x` row in the flags table), docs/configuration.md (`[generation].exclude` key; note union-not-override semantics per §16.1). Rides WITH this subtask.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.34",
+                    "h3.24",
+                    "h3.69",
+                    "h2.15",
+                    "h2.16",
+                    "h3.73",
+                    "h3.74"
+                  ]
                 },
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": ".stagehandignore parser and gitignore-glob → :(exclude,glob) pathspec translation",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.34", "h3.17", "h2.16", "h3.73"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §4 (verified vs gitglossary) — `:(exclude)` pathspecs work standalone; default pathspec matching is fnmatch WITHOUT FNM_PATHNAME (`*` crosses `/`), so gitignore-style semantics require the glob magic: translate to `:(exclude,glob)<pattern>` (map leading-`/` anchors and `dir/` → `dir/**`). Pathspecs have NO negation — `!` lines are skipped with a `--verbose`-visible warning, never an error (FR-X2).\n2. INPUT: `cfg.Exclude` union from P1.M1.T1.S1; repo root from the existing `internal/git` runner; `internal/ui` for the verbose warning.\n3. LOGIC: loader for `.stagehandignore` at the repo root — one glob per line, blank lines and `#` comments ignored, `!` lines skipped with a warning, missing file = no-op (FR-X2); a pure translation function from gitignore-style globs to `:(exclude,glob)` pathspec strings compatible with `StagedDiffOptions.Excludes`. Golden-table unit tests for the translator (anchored, dir/, **, embedded *).\n4. OUTPUT: `ResolveExcludePathspecs(cfg, repoRoot) ([]string, error)` (or equivalent) returning the final translated union (.stagehandignore ∪ cfg.Exclude), consumed by P1.M1.T2.S1.\n5. DOCS: [Mode A] docs/configuration.md — new `.stagehandignore` section: syntax, no-negation rule, and the FR-X5 sentence \"excluded from what the agent sees, still committed\"."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §4 (verified vs gitglossary) — `:(exclude)` pathspecs work standalone; default pathspec matching is fnmatch WITHOUT FNM_PATHNAME (`*` crosses `/`), so gitignore-style semantics require the glob magic: translate to `:(exclude,glob)<pattern>` (map leading-`/` anchors and `dir/` → `dir/**`). Pathspecs have NO negation — `!` lines are skipped with a `--verbose`-visible warning, never an error (FR-X2).\n2. INPUT: `cfg.Exclude` union from P1.M1.T1.S1; repo root from the existing `internal/git` runner; `internal/ui` for the verbose warning.\n3. LOGIC: loader for `.stagehandignore` at the repo root — one glob per line, blank lines and `#` comments ignored, `!` lines skipped with a warning, missing file = no-op (FR-X2); a pure translation function from gitignore-style globs to `:(exclude,glob)` pathspec strings compatible with `StagedDiffOptions.Excludes`. Golden-table unit tests for the translator (anchored, dir/, **, embedded *).\n4. OUTPUT: `ResolveExcludePathspecs(cfg, repoRoot) ([]string, error)` (or equivalent) returning the final translated union (.stagehandignore ∪ cfg.Exclude), consumed by P1.M1.T2.S1.\n5. DOCS: [Mode A] docs/configuration.md — new `.stagehandignore` section: syntax, no-negation rule, and the FR-X5 sentence \"excluded from what the agent sees, still committed\".",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.34",
+                    "h3.17",
+                    "h2.16",
+                    "h3.73"
+                  ]
                 }
               ]
             },
@@ -47,18 +64,31 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Apply exclusions to every diff path with placeholders",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Thread the resolved pathspecs through all three diff paths and emit [excluded] placeholders (FR-X3, FR-X4, FR-X5).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Thread pathspecs into StagedDiff / working-tree snapshot / TreeDiff and emit [excluded] placeholders",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
-                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T1.S2"],
-                  "prd_selectors": ["h2.9", "h3.34", "h3.17", "h2.13", "h3.66", "h4.5", "h3.29", "h2.20", "h3.93"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — binary filtering in `internal/git/binary.go` (`detectBinaryFiles`, `fileStatuses`, `binaryPlaceholderLine`) is the exact template: it emits `<status>\\t[binary] <path>` placeholders and appends per-file excludes; `StagedDiff`, `WorkingTreeDiff`, and `TreeDiff` all already accept `StagedDiffOptions`.\n2. INPUT: translated pathspec list from P1.M1.T1.S2 (`ResolveExcludePathspecs`).\n3. LOGIC: populate `StagedDiffOptions.Excludes` at every call site of the three diff paths — single-commit `StagedDiff` (FR1–FR4), the decompose working-tree snapshot diff (§13.6.2), and the per-concept tree-to-tree `TreeDiff` (§13.6.3) — per FR-X3; for each excluded file that actually changed, emit the one-line placeholder `<status>\\t[excluded] <path>` (status from `git diff --name-status`, same source as FR3b, distinguishable from `[binary]` by tag) per FR-X4; `--verbose` prints the payload-only notice (FR-X5). Exclusion must NEVER alter staging or commit content. Stub-agent integration test (cmd/stubagent payload capture via STAGEHAND_STUB_ARGSFILE/stdin) asserting the excluded body is absent and the placeholder present on all three paths; add an internal/e2e scenario.\n4. OUTPUT: exclusions live end-to-end; placeholder contract `<status>\\t[excluded] <path>` rides inside the diff payload (no prompt-side change needed). Hook exec (P1.M3.T2.S1) inherits this for free via StagedDiff.\n5. DOCS: [Mode A] docs/how-it-works.md diff-capture section: placeholder format and the payload-only guarantee (FR-X5 documentation duty)."
+                  "dependencies": [
+                    "P1.M1.T1.S1",
+                    "P1.M1.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — binary filtering in `internal/git/binary.go` (`detectBinaryFiles`, `fileStatuses`, `binaryPlaceholderLine`) is the exact template: it emits `<status>\\t[binary] <path>` placeholders and appends per-file excludes; `StagedDiff`, `WorkingTreeDiff`, and `TreeDiff` all already accept `StagedDiffOptions`.\n2. INPUT: translated pathspec list from P1.M1.T1.S2 (`ResolveExcludePathspecs`).\n3. LOGIC: populate `StagedDiffOptions.Excludes` at every call site of the three diff paths — single-commit `StagedDiff` (FR1–FR4), the decompose working-tree snapshot diff (§13.6.2), and the per-concept tree-to-tree `TreeDiff` (§13.6.3) — per FR-X3; for each excluded file that actually changed, emit the one-line placeholder `<status>\\t[excluded] <path>` (status from `git diff --name-status`, same source as FR3b, distinguishable from `[binary]` by tag) per FR-X4; `--verbose` prints the payload-only notice (FR-X5). Exclusion must NEVER alter staging or commit content. Stub-agent integration test (cmd/stubagent payload capture via STAGEHAND_STUB_ARGSFILE/stdin) asserting the excluded body is absent and the placeholder present on all three paths; add an internal/e2e scenario.\n4. OUTPUT: exclusions live end-to-end; placeholder contract `<status>\\t[excluded] <path>` rides inside the diff payload (no prompt-side change needed). Hook exec (P1.M3.T2.S1) inherits this for free via StagedDiff.\n5. DOCS: [Mode A] docs/how-it-works.md diff-capture section: placeholder format and the payload-only guarantee (FR-X5 documentation duty).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.34",
+                    "h3.17",
+                    "h2.13",
+                    "h3.66",
+                    "h4.5",
+                    "h3.29",
+                    "h2.20",
+                    "h3.93"
+                  ]
                 }
               ]
             }
@@ -85,8 +115,16 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.9", "h3.35", "h3.24", "h3.69", "h2.15", "h2.16", "h3.74"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — scalar keys follow the existing cascade in `internal/config/load.go` `Load()` (defaults → global → repo → git → env → flags, `fs.Changed` gating). An unknown `--format` mode is a HARD configuration error (FR-F1); `locale` is free-form and passed verbatim, never validated, no i18n tables (FR-F6).\n2. INPUT: `Config` struct + `fileGeneration` + root.go flag registration (same seams as P1.M1.T1.S1, disjoint fields — no dependency).\n3. LOGIC: add `Format` (default \"auto\") and `Locale` (default \"\") to Config; `[generation].format` / `[generation].locale` TOML keys; `--format` / `--locale` flags; `STAGEHAND_FORMAT` / `STAGEHAND_LOCALE` env; `stagehand.format` / `stagehand.locale` git-config keys (FR35/FR36 updates); validate format ∈ {auto, conventional, gitmoji, plain} at Load time with an error naming the offending value and the valid set.\n4. OUTPUT: `cfg.Format`, `cfg.Locale` resolved through the full precedence chain, consumed by P1.M2.T1.S3.\n5. DOCS: [Mode A] docs/cli.md (two flag rows), docs/configuration.md ([generation] keys + env-var + git-config tables)."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — scalar keys follow the existing cascade in `internal/config/load.go` `Load()` (defaults → global → repo → git → env → flags, `fs.Changed` gating). An unknown `--format` mode is a HARD configuration error (FR-F1); `locale` is free-form and passed verbatim, never validated, no i18n tables (FR-F6).\n2. INPUT: `Config` struct + `fileGeneration` + root.go flag registration (same seams as P1.M1.T1.S1, disjoint fields — no dependency).\n3. LOGIC: add `Format` (default \"auto\") and `Locale` (default \"\") to Config; `[generation].format` / `[generation].locale` TOML keys; `--format` / `--locale` flags; `STAGEHAND_FORMAT` / `STAGEHAND_LOCALE` env; `stagehand.format` / `stagehand.locale` git-config keys (FR35/FR36 updates); validate format ∈ {auto, conventional, gitmoji, plain} at Load time with an error naming the offending value and the valid set.\n4. OUTPUT: `cfg.Format`, `cfg.Locale` resolved through the full precedence chain, consumed by P1.M2.T1.S3.\n5. DOCS: [Mode A] docs/cli.md (two flag rows), docs/configuration.md ([generation] keys + env-var + git-config tables).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.35",
+                    "h3.24",
+                    "h3.69",
+                    "h2.15",
+                    "h2.16",
+                    "h3.74"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -95,8 +133,14 @@
                   "status": "Planned",
                   "story_points": 0.5,
                   "dependencies": [],
-                  "prd_selectors": ["h2.9", "h3.35", "h2.17", "h3.84", "h2.28"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §5 (verified 2026-07-02) — canonical source is carloscuesta/gitmoji `packages/gitmojis/src/gitmojis.json` (raw GitHub URL in the doc), currently 75 entries; stable fields emoji/code/description/name. Compiled into the binary; NO network fetch, ever (FR-F3). Appendix E #16 requires re-verifying currency at implementation time.\n2. INPUT: none — leaf data subtask.\n3. LOGIC: author `internal/prompt/gitmoji.go` with a Go constant table (emoji + description, keep `name` as the stable key); header comment records the source URL, entry count, and verification date (FR-D5 discipline). Re-check the upstream JSON during implementation and update count/date if drifted. Unit test asserts non-empty, unique emojis, and that every entry has emoji+description.\n4. OUTPUT: `prompt.GitmojiTable` (or equivalent) rendered into the gitmoji format scaffold by P1.M2.T1.S3.\n5. DOCS: [Mode A] none — internal constant; user-facing gitmoji docs ride with P1.M2.T1.S3."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §5 (verified 2026-07-02) — canonical source is carloscuesta/gitmoji `packages/gitmojis/src/gitmojis.json` (raw GitHub URL in the doc), currently 75 entries; stable fields emoji/code/description/name. Compiled into the binary; NO network fetch, ever (FR-F3). Appendix E #16 requires re-verifying currency at implementation time.\n2. INPUT: none — leaf data subtask.\n3. LOGIC: author `internal/prompt/gitmoji.go` with a Go constant table (emoji + description, keep `name` as the stable key); header comment records the source URL, entry count, and verification date (FR-D5 discipline). Re-check the upstream JSON during implementation and update count/date if drifted. Unit test asserts non-empty, unique emojis, and that every entry has emoji+description.\n4. OUTPUT: `prompt.GitmojiTable` (or equivalent) rendered into the gitmoji format scaffold by P1.M2.T1.S3.\n5. DOCS: [Mode A] none — internal constant; user-facing gitmoji docs ride with P1.M2.T1.S3.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.35",
+                    "h2.17",
+                    "h3.84",
+                    "h2.28"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -104,9 +148,24 @@
                   "title": "Format-mode prompt scaffolds + locale line, applied everywhere a message is produced",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M2.T1.S1", "P1.M2.T1.S2"],
-                  "prd_selectors": ["h2.9", "h3.35", "h3.19", "h2.17", "h3.77", "h3.78", "h3.84", "h3.81", "h3.30", "h4.6", "h3.23"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — the style-examples block is assembled unconditionally in `internal/prompt/system.go` `BuildSystemPrompt(examples, hasMultiline, subjectTarget)`; there is NO seam today. Messages are produced in three places: the message role (`internal/generate/generate.go` + `internal/decompose/message.go` `generateMessage`), the planner FR-M11 single-shortcut (`internal/decompose/planner.go` `callPlanner` → §17.5 contract), and the arbiter N+1 commit (message role again).\n2. INPUT: `cfg.Format`/`cfg.Locale` from P1.M2.T1.S1; gitmoji table from P1.M2.T1.S2.\n3. LOGIC: make the examples block swappable per §17.8 — a non-auto mode REPLACES the \"Match the tone and style…\" block AND the anti-reuse warning (history examples are not fetched/included at all); implement `conventional` (FR-F2: type(scope): description, standard type vocabulary, FR12 multi-line rule still keyed off history shape), `gitmoji` (FR-F3: exactly one leading emoji character, embedded table), `plain` (FR-F4: output rules + essence + subject-length target only); `auto` = existing behavior verbatim. Locale (FR-F6) appends `Write the commit message in <lang>.` in EVERY mode and both repo-age variants. Apply at all three production sites including the planner's §17.5 message contract — the planner's PARTITIONING prompt is otherwise unchanged (FR-F5). Duplicate rejection (§9.7) applies in every mode. Table-driven prompt tests per mode; stub-agent test asserting the rendered system prompt.\n4. OUTPUT: format/locale-aware prompt builders (signature change on BuildSystemPrompt and the planner builder); consumed as-is by hook exec (P1.M3.T2.S1).\n5. DOCS: [Mode A] docs/how-it-works.md prompt-construction section: format-mode substitution behavior and the locale line."
+                  "dependencies": [
+                    "P1.M2.T1.S1",
+                    "P1.M2.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — the style-examples block is assembled unconditionally in `internal/prompt/system.go` `BuildSystemPrompt(examples, hasMultiline, subjectTarget)`; there is NO seam today. Messages are produced in three places: the message role (`internal/generate/generate.go` + `internal/decompose/message.go` `generateMessage`), the planner FR-M11 single-shortcut (`internal/decompose/planner.go` `callPlanner` → §17.5 contract), and the arbiter N+1 commit (message role again).\n2. INPUT: `cfg.Format`/`cfg.Locale` from P1.M2.T1.S1; gitmoji table from P1.M2.T1.S2.\n3. LOGIC: make the examples block swappable per §17.8 — a non-auto mode REPLACES the \"Match the tone and style…\" block AND the anti-reuse warning (history examples are not fetched/included at all); implement `conventional` (FR-F2: type(scope): description, standard type vocabulary, FR12 multi-line rule still keyed off history shape), `gitmoji` (FR-F3: exactly one leading emoji character, embedded table), `plain` (FR-F4: output rules + essence + subject-length target only); `auto` = existing behavior verbatim. Locale (FR-F6) appends `Write the commit message in <lang>.` in EVERY mode and both repo-age variants. Apply at all three production sites including the planner's §17.5 message contract — the planner's PARTITIONING prompt is otherwise unchanged (FR-F5). Duplicate rejection (§9.7) applies in every mode. Table-driven prompt tests per mode; stub-agent test asserting the rendered system prompt.\n4. OUTPUT: format/locale-aware prompt builders (signature change on BuildSystemPrompt and the planner builder); consumed as-is by hook exec (P1.M3.T2.S1).\n5. DOCS: [Mode A] docs/how-it-works.md prompt-construction section: format-mode substitution behavior and the locale line.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.35",
+                    "h3.19",
+                    "h2.17",
+                    "h3.77",
+                    "h3.78",
+                    "h3.84",
+                    "h3.81",
+                    "h3.30",
+                    "h4.6",
+                    "h3.23"
+                  ]
                 }
               ]
             },
@@ -124,8 +183,15 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.9", "h3.35", "h3.79", "h3.84", "h2.17", "h3.69"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — `internal/prompt/payload.go` `BuildUserPayload(diff, rejected []string)` owns the §17.3 payload; §17.8 places the context block after the instruction line, before the diff, and BEFORE the duplicate-rejection block when both are present. Flag-only by spec (FR-F7: per-invocation by nature) — no env, no config key, no git key.\n2. INPUT: existing payload builders (`BuildUserPayload`, `BuildPlannerUserPayload` in planner.go); root.go flag seam.\n3. LOGIC: add `--context <text>`; extend both builders to insert the exact block `Additional context from the user (treat as authoritative):\\n<text>` when non-empty; thread through the generate and decompose call sites — message and planner roles ONLY (stager and arbiter payloads unchanged). Hook exec takes no --context (git invokes the hook; there is no flag surface at commit time) — note as N/A in its docs.\n4. OUTPUT: context-aware payload builders with an explicit ordering contract (instruction → context → rejection → diff) covered by unit tests.\n5. DOCS: [Mode A] docs/cli.md (`--context` row)."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — `internal/prompt/payload.go` `BuildUserPayload(diff, rejected []string)` owns the §17.3 payload; §17.8 places the context block after the instruction line, before the diff, and BEFORE the duplicate-rejection block when both are present. Flag-only by spec (FR-F7: per-invocation by nature) — no env, no config key, no git key.\n2. INPUT: existing payload builders (`BuildUserPayload`, `BuildPlannerUserPayload` in planner.go); root.go flag seam.\n3. LOGIC: add `--context <text>`; extend both builders to insert the exact block `Additional context from the user (treat as authoritative):\\n<text>` when non-empty; thread through the generate and decompose call sites — message and planner roles ONLY (stager and arbiter payloads unchanged). Hook exec takes no --context (git invokes the hook; there is no flag surface at commit time) — note as N/A in its docs.\n4. OUTPUT: context-aware payload builders with an explicit ordering contract (instruction → context → rejection → diff) covered by unit tests.\n5. DOCS: [Mode A] docs/cli.md (`--context` row).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.35",
+                    "h3.79",
+                    "h3.84",
+                    "h2.17",
+                    "h3.69"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -133,9 +199,22 @@
                   "title": "--template with mandatory $msg + shared message-finalization seam in all three commit paths",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M2.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.35", "h3.23", "h3.84", "h2.17", "h3.69", "h2.16", "h3.74", "h2.13", "h4.6"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — there is NO transform step between the accepted message and `CommitTree` today; the three commit paths are `internal/generate/generate.go` (message accepted in the dedupe loop, then straight to CommitTree), `pkg/stagehand/stagehand.go` `runPipeline`, and `internal/decompose/message.go` `publishCommit` (plus the FR-M11 shortcut in `runSingleShortcut` and the arbiter N+1). WATCH-OUT: `--template` already exists on `config init` (writes the inert reference config) — different command, disambiguate the help text.\n2. INPUT: accepted/cleaned message string at each site; the config-key plumbing pattern from P1.M2.T1.S1.\n3. LOGIC: add `Template` config surface (`[generation].template`, `--template`, `STAGEHAND_TEMPLATE`, `stagehand.template`); HARD error when the resolved value lacks the literal `$msg` (FR-F8); implement `ApplyTemplate(msg, tpl)` invoked after parse/cleanup and BEFORE the duplicate check (§9.7 must judge the final subject as it will land), applied to EVERY commit message in a run (all decompose commits, FR-M11 shortcut, arbiter N+1). Structure the insertion as a single ordered message-finalization pipeline shared by all three paths — this seam is where P1.M5.T1.S1 later inserts the --edit editor gate. Tests: dedupe sees the templated subject; template applied uniformly across a decompose run.\n4. OUTPUT: message-finalization seam (template → dedupe-visible final message) with an explicit ordering contract for P1.M5.T1.S1 (editor slots AFTER template, per FR-E3).\n5. DOCS: [Mode A] docs/cli.md (`--template` row incl. the $msg contract and the hard error), docs/configuration.md (`template` key)."
+                  "dependencies": [
+                    "P1.M2.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — there is NO transform step between the accepted message and `CommitTree` today; the three commit paths are `internal/generate/generate.go` (message accepted in the dedupe loop, then straight to CommitTree), `pkg/stagehand/stagehand.go` `runPipeline`, and `internal/decompose/message.go` `publishCommit` (plus the FR-M11 shortcut in `runSingleShortcut` and the arbiter N+1). WATCH-OUT: `--template` already exists on `config init` (writes the inert reference config) — different command, disambiguate the help text.\n2. INPUT: accepted/cleaned message string at each site; the config-key plumbing pattern from P1.M2.T1.S1.\n3. LOGIC: add `Template` config surface (`[generation].template`, `--template`, `STAGEHAND_TEMPLATE`, `stagehand.template`); HARD error when the resolved value lacks the literal `$msg` (FR-F8); implement `ApplyTemplate(msg, tpl)` invoked after parse/cleanup and BEFORE the duplicate check (§9.7 must judge the final subject as it will land), applied to EVERY commit message in a run (all decompose commits, FR-M11 shortcut, arbiter N+1). Structure the insertion as a single ordered message-finalization pipeline shared by all three paths — this seam is where P1.M5.T1.S1 later inserts the --edit editor gate. Tests: dedupe sees the templated subject; template applied uniformly across a decompose run.\n4. OUTPUT: message-finalization seam (template → dedupe-visible final message) with an explicit ordering contract for P1.M5.T1.S1 (editor slots AFTER template, per FR-E3).\n5. DOCS: [Mode A] docs/cli.md (`--template` row incl. the $msg contract and the hard error), docs/configuration.md (`template` key).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.35",
+                    "h3.23",
+                    "h3.84",
+                    "h2.17",
+                    "h3.69",
+                    "h2.16",
+                    "h3.74",
+                    "h2.13",
+                    "h4.6"
+                  ]
                 }
               ]
             }
@@ -162,8 +241,13 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.9", "h3.36", "h2.28", "h2.19"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §3 (verified, git 2.54) — `git rev-parse --git-path hooks` honors core.hooksPath and linked worktrees but returns a cwd-RELATIVE path (must resolve to absolute); the prepare-commit-msg hook is NOT suppressed by `--no-verify`. Script must be strict POSIX sh for git-for-windows compatibility (Appendix E #15 — verify in-task; no bashisms).\n2. INPUT: `internal/git/git.go` runner seam (`run`); no other dependencies.\n3. LOGIC: add `HooksPath() (string, error)` to the Git interface wrapping `rev-parse --git-path hooks` with absolute-path resolution; temp-repo tests per existing internal/git conventions covering: default layout, core.hooksPath set, invocation from a subdirectory, linked worktree. Define the hook-script template: marker line `# stagehand prepare-commit-msg hook v1`, body `exec stagehand hook exec \"$@\"` (strict variant appends `--strict`), shebang `#!/bin/sh`, mode 0755.\n4. OUTPUT: `HooksPath()` + `hookScript(strict bool) string` consumed by P1.M3.T1.S2.\n5. DOCS: [Mode A] none — no user-facing surface yet; docs ride with P1.M3.T1.S2."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §3 (verified, git 2.54) — `git rev-parse --git-path hooks` honors core.hooksPath and linked worktrees but returns a cwd-RELATIVE path (must resolve to absolute); the prepare-commit-msg hook is NOT suppressed by `--no-verify`. Script must be strict POSIX sh for git-for-windows compatibility (Appendix E #15 — verify in-task; no bashisms).\n2. INPUT: `internal/git/git.go` runner seam (`run`); no other dependencies.\n3. LOGIC: add `HooksPath() (string, error)` to the Git interface wrapping `rev-parse --git-path hooks` with absolute-path resolution; temp-repo tests per existing internal/git conventions covering: default layout, core.hooksPath set, invocation from a subdirectory, linked worktree. Define the hook-script template: marker line `# stagehand prepare-commit-msg hook v1`, body `exec stagehand hook exec \"$@\"` (strict variant appends `--strict`), shebang `#!/bin/sh`, mode 0755.\n4. OUTPUT: `HooksPath()` + `hookScript(strict bool) string` consumed by P1.M3.T1.S2.\n5. DOCS: [Mode A] none — no user-facing surface yet; docs ride with P1.M3.T1.S2.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.36",
+                    "h2.28",
+                    "h2.19"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -171,9 +255,17 @@
                   "title": "internal/hook package + `hook install|uninstall|status` commands",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M3.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.36", "h3.70", "h2.15", "h2.14"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: delta_prd.md R3 — new package `internal/hook/` per PRD §14; foreign-hook refusal has NO --force by design (overwriting someone's hook is exactly the mangling this project refuses, FR-H2); install is marker-gated idempotent rewrite; `install --print` writes the script to stdout instead of disk.\n2. INPUT: `HooksPath()` + `hookScript(strict)` from P1.M3.T1.S1; cobra registration pattern from `internal/cmd/providers.go`; `internal/exitcode` conventions.\n3. LOGIC: `internal/hook/hook.go` — Install: existing file with our marker → rewrite in place; foreign file → exit 1 printing the one-line invocation the user can add manually; missing → write 0755. Uninstall: remove ONLY when the marker is present, refuse otherwise. Status: report none | stagehand (v1) | foreign (FR-H3). Cobra `hook` command group in internal/cmd: `install [--print] [--strict]`, `uninstall`, `status`; per-repo only, never global (FR-H1). Temp-repo tests: idempotent reinstall, foreign refusal (never-clobber invariant), --print bypasses disk, --strict baked into the script body.\n4. OUTPUT: working `stagehand hook install|uninstall|status`; the installed script invokes `stagehand hook exec \"$@\"`, implemented by P1.M3.T2.S1.\n5. DOCS: [Mode A] docs/cli.md — hook command group: install/--print/--strict, uninstall, status, and the foreign-hook policy."
+                  "dependencies": [
+                    "P1.M3.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: delta_prd.md R3 — new package `internal/hook/` per PRD §14; foreign-hook refusal has NO --force by design (overwriting someone's hook is exactly the mangling this project refuses, FR-H2); install is marker-gated idempotent rewrite; `install --print` writes the script to stdout instead of disk.\n2. INPUT: `HooksPath()` + `hookScript(strict)` from P1.M3.T1.S1; cobra registration pattern from `internal/cmd/providers.go`; `internal/exitcode` conventions.\n3. LOGIC: `internal/hook/hook.go` — Install: existing file with our marker → rewrite in place; foreign file → exit 1 printing the one-line invocation the user can add manually; missing → write 0755. Uninstall: remove ONLY when the marker is present, refuse otherwise. Status: report none | stagehand (v1) | foreign (FR-H3). Cobra `hook` command group in internal/cmd: `install [--print] [--strict]`, `uninstall`, `status`; per-repo only, never global (FR-H1). Temp-repo tests: idempotent reinstall, foreign refusal (never-clobber invariant), --print bypasses disk, --strict baked into the script body.\n4. OUTPUT: working `stagehand hook install|uninstall|status`; the installed script invokes `stagehand hook exec \"$@\"`, implemented by P1.M3.T2.S1.\n5. DOCS: [Mode A] docs/cli.md — hook command group: install/--print/--strict, uninstall, status, and the foreign-hook policy.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.36",
+                    "h3.70",
+                    "h2.15",
+                    "h2.14"
+                  ]
                 }
               ]
             },
@@ -190,9 +282,27 @@
                   "title": "`hook exec` runtime: source-gated generation with never-block contract",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M3.T1.S2", "P1.M1.T2.S1", "P1.M2.T1.S3"],
-                  "prd_selectors": ["h2.9", "h3.36", "h3.17", "h3.19", "h3.23", "h3.31", "h3.34", "h3.35", "h3.71", "h2.5", "h3.68", "h2.20", "h3.93"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §3 (verified) — a plain `git commit` invokes prepare-commit-msg with ONLY the msg-file argument (source absent); named sources are message|template|merge|squash|commit; a non-zero exit ABORTS the commit and `--no-verify` does NOT skip this hook — which is why FR-H5's exit-0-on-any-failure is load-bearing.\n2. INPUT: as-built pipeline pieces: `StagedDiff` with exclusions+binary filtering (P1.M1.T2.S1), format/locale-aware prompts (P1.M2.T1.S3), `config.ResolveRoleModel(\"message\", cfg)` (FR-H6), `provider.Render/Execute/ParseOutput`, `generate.ExtractSubject/IsDuplicate`.\n3. LOGIC: `internal/hook/exec.go` + `hook exec <msg-file> [<source> [<sha>]]` cobra command (documented as called-by-git, not by users): exit 0 no-op when source ∈ {message, template, merge, squash, commit} or when the staged diff is empty (FR-H4); otherwise run capture → prompt → generate → duplicate-rejection (message role config + same timeout keys, FR-H6) and write the message at the TOP of <msg-file>, preserving git's comment block beneath; ANY failure (agent missing, timeout, parse/dup exhaustion) → one stderr warning line, msg-file untouched, exit 0; `--strict` (baked by install) inverts to non-zero (FR-H5); NEVER decomposes; NO snapshot/commit-tree/update-ref — git owns this commit. E2E scenarios (internal/e2e): real `git commit` in a temp repo with the stub agent fills the editor message; failure-injection (stub exit 1) still lets the commit proceed; `-m` path no-ops.\n4. OUTPUT: `stagehand hook exec` completing §9.20. Note: the FR-E4 `--edit` usage-error rejection on hook exec is added later by P1.M5.T1.S1.\n5. DOCS: [Mode A] docs/cli.md (`hook exec` reference); docs/how-it-works.md — the FR-H7 FAQ entry (plumbing path = atomic + stage-while-generating but pre-commit hooks bypassed; hook mode = hooks honored but no snapshot guarantees, generation latency inside the commit). README surfacing rides with P1.M7.T1.S1."
+                  "dependencies": [
+                    "P1.M3.T1.S2",
+                    "P1.M1.T2.S1",
+                    "P1.M2.T1.S3"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §3 (verified) — a plain `git commit` invokes prepare-commit-msg with ONLY the msg-file argument (source absent); named sources are message|template|merge|squash|commit; a non-zero exit ABORTS the commit and `--no-verify` does NOT skip this hook — which is why FR-H5's exit-0-on-any-failure is load-bearing.\n2. INPUT: as-built pipeline pieces: `StagedDiff` with exclusions+binary filtering (P1.M1.T2.S1), format/locale-aware prompts (P1.M2.T1.S3), `config.ResolveRoleModel(\"message\", cfg)` (FR-H6), `provider.Render/Execute/ParseOutput`, `generate.ExtractSubject/IsDuplicate`.\n3. LOGIC: `internal/hook/exec.go` + `hook exec <msg-file> [<source> [<sha>]]` cobra command (documented as called-by-git, not by users): exit 0 no-op when source ∈ {message, template, merge, squash, commit} or when the staged diff is empty (FR-H4); otherwise run capture → prompt → generate → duplicate-rejection (message role config + same timeout keys, FR-H6) and write the message at the TOP of <msg-file>, preserving git's comment block beneath; ANY failure (agent missing, timeout, parse/dup exhaustion) → one stderr warning line, msg-file untouched, exit 0; `--strict` (baked by install) inverts to non-zero (FR-H5); NEVER decomposes; NO snapshot/commit-tree/update-ref — git owns this commit. E2E scenarios (internal/e2e): real `git commit` in a temp repo with the stub agent fills the editor message; failure-injection (stub exit 1) still lets the commit proceed; `-m` path no-ops.\n4. OUTPUT: `stagehand hook exec` completing §9.20. Note: the FR-E4 `--edit` usage-error rejection on hook exec is added later by P1.M5.T1.S1.\n5. DOCS: [Mode A] docs/cli.md (`hook exec` reference); docs/how-it-works.md — the FR-H7 FAQ entry (plumbing path = atomic + stage-while-generating but pre-commit hooks bypassed; hook mode = hooks honored but no snapshot guarantees, generation latency inside the commit). README surfacing rides with P1.M7.T1.S1.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.36",
+                    "h3.17",
+                    "h3.19",
+                    "h3.23",
+                    "h3.31",
+                    "h3.34",
+                    "h3.35",
+                    "h3.71",
+                    "h2.5",
+                    "h3.68",
+                    "h2.20",
+                    "h3.93"
+                  ]
                 }
               ]
             }
@@ -219,8 +329,13 @@
                   "status": "Planned",
                   "story_points": 2,
                   "dependencies": [],
-                  "prd_selectors": ["h2.9", "h3.37", "h2.14", "h2.19"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §2 (empirically verified) — yaml.v3 CANNOT guarantee byte-identity outside the edited node (whole-document re-encode normalizes blank lines/comment spacing), so the protocol IS the no-mangle guarantee, not the serializer. For the unified-diff preview, prefer shelling to `git diff --no-index -- <old> <new>` (zero new dependencies, matches the repo's shell-out-to-git ethos) over vendoring a diff library.\n2. INPUT: none (foundational); `internal/ui` for preview output and the y/N confirm; TTY-detection precedent in internal/ui.\n3. LOGIC: `internal/integrate/protocol.go` — a format-agnostic engine over a Target interface (roughly: Parse([]byte) error; Upsert/Remove returning new []byte; Validate([]byte) error; Marker identity), implementing FR-I3 (a)–(g) in order: (a) read + Parse, unparseable file → hard refusal printing the parse error, never written; (b) marker-identified idempotent upsert — replace, never duplicate; (c) unified-diff preview + y/N per file, `--yes` bypass for scripts; (d) backup `<file>.stagehand-backup.<unix-ts>` before modifying; (e) atomic write (temp + rename), re-Parse the written file, on failure restore the backup automatically and report; (f) surgical scope — only the marker-identified entry changes semantically; (g) create-if-missing (file and parent dirs) through the same preview+confirm flow. Remove runs the same protocol deleting only the marker-identified entry. Tests: golden-file round-trips, corrupt-input refusal, backup/restore on injected validation failure, idempotent double-install.\n4. OUTPUT: `protocol.Apply(...)` engine + Target interface consumed by P1.M4.T1.S2 (dispatch) and P1.M4.T2.S1/S2 (targets).\n5. DOCS: [Mode A] none directly — user-facing protocol behavior documented with P1.M4.T1.S2."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §2 (empirically verified) — yaml.v3 CANNOT guarantee byte-identity outside the edited node (whole-document re-encode normalizes blank lines/comment spacing), so the protocol IS the no-mangle guarantee, not the serializer. For the unified-diff preview, prefer shelling to `git diff --no-index -- <old> <new>` (zero new dependencies, matches the repo's shell-out-to-git ethos) over vendoring a diff library.\n2. INPUT: none (foundational); `internal/ui` for preview output and the y/N confirm; TTY-detection precedent in internal/ui.\n3. LOGIC: `internal/integrate/protocol.go` — a format-agnostic engine over a Target interface (roughly: Parse([]byte) error; Upsert/Remove returning new []byte; Validate([]byte) error; Marker identity), implementing FR-I3 (a)–(g) in order: (a) read + Parse, unparseable file → hard refusal printing the parse error, never written; (b) marker-identified idempotent upsert — replace, never duplicate; (c) unified-diff preview + y/N per file, `--yes` bypass for scripts; (d) backup `<file>.stagehand-backup.<unix-ts>` before modifying; (e) atomic write (temp + rename), re-Parse the written file, on failure restore the backup automatically and report; (f) surgical scope — only the marker-identified entry changes semantically; (g) create-if-missing (file and parent dirs) through the same preview+confirm flow. Remove runs the same protocol deleting only the marker-identified entry. Tests: golden-file round-trips, corrupt-input refusal, backup/restore on injected validation failure, idempotent double-install.\n4. OUTPUT: `protocol.Apply(...)` engine + Target interface consumed by P1.M4.T1.S2 (dispatch) and P1.M4.T2.S1/S2 (targets).\n5. DOCS: [Mode A] none directly — user-facing protocol behavior documented with P1.M4.T1.S2.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.37",
+                    "h2.14",
+                    "h2.19"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -228,9 +343,16 @@
                   "title": "`integrate list|install|remove` command surface with detection gating",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M4.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.37", "h3.70", "h2.15"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: delta_prd.md R4 — explicit targets only (no install-everything default); detection-gated: a target whose tool is absent is LISTED but install exits 1 with a note (FR-I2; git-alias requires only git). v2.1 targets are exactly git-alias and lazygit (gitui is blocked upstream — FUTURE_SPEC.md).\n2. INPUT: protocol engine + Target interface from P1.M4.T1.S1; registry pattern precedent in `internal/provider/registry.go`; `internal/exitcode`.\n3. LOGIC: `internal/integrate/integrate.go` — target registry entries {name, tool-detect command, config-path resolver, status probe} and cobra `integrate` group: `list` (table: tool detected on $PATH, resolved config path, status not installed | installed | foreign per FR-I1), `install <target>…`, `remove <target>…` (explicit targets, multiple allowed), `--yes` passthrough to the protocol. Tests with fake targets exercising detection gating and status reporting.\n4. OUTPUT: command surface dispatching to targets registered by P1.M4.T2.S1 and P1.M4.T2.S2.\n5. DOCS: [Mode A] docs/cli.md — integrate command group: targets table, detection gating, and a summary of the no-mangle protocol (preview + confirm, backup, auto-restore)."
+                  "dependencies": [
+                    "P1.M4.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: delta_prd.md R4 — explicit targets only (no install-everything default); detection-gated: a target whose tool is absent is LISTED but install exits 1 with a note (FR-I2; git-alias requires only git). v2.1 targets are exactly git-alias and lazygit (gitui is blocked upstream — FUTURE_SPEC.md).\n2. INPUT: protocol engine + Target interface from P1.M4.T1.S1; registry pattern precedent in `internal/provider/registry.go`; `internal/exitcode`.\n3. LOGIC: `internal/integrate/integrate.go` — target registry entries {name, tool-detect command, config-path resolver, status probe} and cobra `integrate` group: `list` (table: tool detected on $PATH, resolved config path, status not installed | installed | foreign per FR-I1), `install <target>…`, `remove <target>…` (explicit targets, multiple allowed), `--yes` passthrough to the protocol. Tests with fake targets exercising detection gating and status reporting.\n4. OUTPUT: command surface dispatching to targets registered by P1.M4.T2.S1 and P1.M4.T2.S2.\n5. DOCS: [Mode A] docs/cli.md — integrate command group: targets table, detection gating, and a summary of the no-mangle protocol (preview + confirm, backup, auto-restore).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.37",
+                    "h3.70",
+                    "h2.15"
+                  ]
                 }
               ]
             },
@@ -247,9 +369,16 @@
                   "title": "git-alias target",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M4.T1.S2"],
-                  "prd_selectors": ["h2.9", "h3.37", "h3.75", "h2.16"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §7 (verified) — `!` aliases execute as shell commands from the repo toplevel with args appended; read-back via `git config --global --get alias.<name>` prints the stored value INCLUDING the `!` (strip it when comparing whether the alias is ours); exit 1/empty when unset. FR-I4: git itself performs the .gitconfig edit, so the FR-I3 file machinery is unnecessary — but preview + confirm (FR-I3c) still applies.\n2. INPUT: integrate registry from P1.M4.T1.S2; existing `internal/git` exec seam for running `git config`.\n3. LOGIC: target `git-alias`: install shows the exact command `git config --global alias.<name> '!stagehand'` and the resulting usage (`git <name>`), confirms (y/N, `--yes`), and surfaces an existing alias.<name> with a DIFFERENT value before overwriting; `--alias-name <n>` overrides the default name `stagehand`; remove = `git config --global --unset alias.<name>` ONLY when the current value is ours (FR-I6); detection requires only git. Tests against a temp GIT_CONFIG_GLOBAL file (set env so the real global config is never touched).\n4. OUTPUT: `git stagehand` alias managed idempotently via `stagehand integrate install|remove git-alias`.\n5. DOCS: [Mode A] docs/cli.md — git-alias target section incl. `--alias-name` and the conflicting-alias behavior."
+                  "dependencies": [
+                    "P1.M4.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §7 (verified) — `!` aliases execute as shell commands from the repo toplevel with args appended; read-back via `git config --global --get alias.<name>` prints the stored value INCLUDING the `!` (strip it when comparing whether the alias is ours); exit 1/empty when unset. FR-I4: git itself performs the .gitconfig edit, so the FR-I3 file machinery is unnecessary — but preview + confirm (FR-I3c) still applies.\n2. INPUT: integrate registry from P1.M4.T1.S2; existing `internal/git` exec seam for running `git config`.\n3. LOGIC: target `git-alias`: install shows the exact command `git config --global alias.<name> '!stagehand'` and the resulting usage (`git <name>`), confirms (y/N, `--yes`), and surfaces an existing alias.<name> with a DIFFERENT value before overwriting; `--alias-name <n>` overrides the default name `stagehand`; remove = `git config --global --unset alias.<name>` ONLY when the current value is ours (FR-I6); detection requires only git. Tests against a temp GIT_CONFIG_GLOBAL file (set env so the real global config is never touched).\n4. OUTPUT: `git stagehand` alias managed idempotently via `stagehand integrate install|remove git-alias`.\n5. DOCS: [Mode A] docs/cli.md — git-alias target section incl. `--alias-name` and the conflicting-alias behavior.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.37",
+                    "h3.75",
+                    "h2.16"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -257,9 +386,18 @@
                   "title": "lazygit target: comment-preserving customCommands upsert",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M4.T1.S1", "P1.M4.T1.S2"],
-                  "prd_selectors": ["h2.9", "h3.37", "h3.72", "h2.8", "h2.28"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §§1–2 (verified 2026-07-02 against lazygit v0.62.2 + a live yaml.v3 round-trip): the current schema field is `output: 'none'` (NOT the older subprocess/showOutput), `loadingText` is valid, files-panel context is `files`, and `lazygit --print-config-dir` exists (no --config-dir); platform default config paths are listed in the doc. yaml.v3 v3.0.1: node-level upsert into the customCommands sequence works; use `enc.SetIndent(2)`; whole-document re-encode may normalize blank lines/comment spacing — the FR-I3 preview+confirm makes that visible before writing. go.mod has NO yaml dependency yet; gopkg.in/yaml.v3 is archived upstream — pin it and note why.\n2. INPUT: protocol engine (P1.M4.T1.S1) + registry (P1.M4.T1.S2).\n3. LOGIC: add gopkg.in/yaml.v3 to go.mod; implement the `lazygit` Target: locate the config via `lazygit --print-config-dir` when available, else the platform default path; upsert exactly one `customCommands` entry — defaults `key: '<c-a>'` (`--key <k>` override), `context: 'files'`, `command: 'stagehand'`, `output: 'none'`, `loadingText: 'Generating commit message…'`, `description: 'stagehand: AI commit'` — marked with a `# stagehand-integration` comment (LineComment on the entry) for FR-I3b idempotency; Parse/Upsert/Remove/Validate via the yaml.Node API with SetIndent(2); record the schema verification date in a source comment (FR-D5 discipline; re-verify against the current lazygit release in-task per Appendix E #14). Golden-file tests: a hand-maintained commented config round-trips with only the intended node changed; marker replace-not-duplicate; remove restores entry-absence (FR-I6); corrupt YAML → refusal.\n4. OUTPUT: `stagehand integrate install|remove lazygit` end-to-end with uninstall symmetry.\n5. DOCS: [Mode A] docs/cli.md — lazygit target: entry defaults, `--key`, config-file discovery order. README quick-start swap (manual snippet → integrate command) rides with P1.M7.T1.S1."
+                  "dependencies": [
+                    "P1.M4.T1.S1",
+                    "P1.M4.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §§1–2 (verified 2026-07-02 against lazygit v0.62.2 + a live yaml.v3 round-trip): the current schema field is `output: 'none'` (NOT the older subprocess/showOutput), `loadingText` is valid, files-panel context is `files`, and `lazygit --print-config-dir` exists (no --config-dir); platform default config paths are listed in the doc. yaml.v3 v3.0.1: node-level upsert into the customCommands sequence works; use `enc.SetIndent(2)`; whole-document re-encode may normalize blank lines/comment spacing — the FR-I3 preview+confirm makes that visible before writing. go.mod has NO yaml dependency yet; gopkg.in/yaml.v3 is archived upstream — pin it and note why.\n2. INPUT: protocol engine (P1.M4.T1.S1) + registry (P1.M4.T1.S2).\n3. LOGIC: add gopkg.in/yaml.v3 to go.mod; implement the `lazygit` Target: locate the config via `lazygit --print-config-dir` when available, else the platform default path; upsert exactly one `customCommands` entry — defaults `key: '<c-a>'` (`--key <k>` override), `context: 'files'`, `command: 'stagehand'`, `output: 'none'`, `loadingText: 'Generating commit message…'`, `description: 'stagehand: AI commit'` — marked with a `# stagehand-integration` comment (LineComment on the entry) for FR-I3b idempotency; Parse/Upsert/Remove/Validate via the yaml.Node API with SetIndent(2); record the schema verification date in a source comment (FR-D5 discipline; re-verify against the current lazygit release in-task per Appendix E #14). Golden-file tests: a hand-maintained commented config round-trips with only the intended node changed; marker replace-not-duplicate; remove restores entry-absence (FR-I6); corrupt YAML → refusal.\n4. OUTPUT: `stagehand integrate install|remove lazygit` end-to-end with uninstall symmetry.\n5. DOCS: [Mode A] docs/cli.md — lazygit target: entry defaults, `--key`, config-file discovery order. README quick-start swap (manual snippet → integrate command) rides with P1.M7.T1.S1.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.37",
+                    "h3.72",
+                    "h2.8",
+                    "h2.28"
+                  ]
                 }
               ]
             }
@@ -285,9 +423,22 @@
                   "title": "--edit: EDITMSG round-trip inserted at the message-finalization seam",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M2.T2.S2", "P1.M3.T2.S1"],
-                  "prd_selectors": ["h2.9", "h3.38", "h3.63", "h3.64", "h2.13", "h4.5", "h3.23", "h3.36", "h2.8"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §6 (verified) — resolve the editor by shelling to `git var GIT_EDITOR` (git's exact chain GIT_EDITOR → core.editor → VISUAL → EDITOR → vi, a faithful superset of FR-E1's list); the value is shell-interpreted, so invoke via `sh -c '<editor> \"$@\"' -- <file>`, never a bare exec. The message-finalization seam from P1.M2.T2.S2 is the insertion point; the template is applied BEFORE the editor opens so the user edits final text (FR-E3).\n2. INPUT: finalization seam (P1.M2.T2.S2); snapshot data available at each commit site (tree SHA + `DiffTree` name-status) for the commented summary; hook exec command (P1.M3.T2.S1) for the FR-E4 rejection.\n3. LOGIC: add `--edit` (flag only, default false): after duplicate rejection and template, before CommitTree — write the message plus a commented summary (tree SHA, diff-tree --name-status) to `.git/STAGEHAND_EDITMSG`; open the resolved editor; on close strip comment lines and trailing whitespace; empty result → exit 1 \"empty commit message — aborted\" (intentional abort, NOT a rescue: HEAD and index untouched, FR-E1); the edited message is user-authored — bypass the duplicate re-check (FR-E3); decompose mode gates EACH commit's message before its serialized publication, including the FR-M11 shortcut and the arbiter N+1 (FR-E4); `--dry-run` → warn and ignore; `hook exec` → usage error (FR-E4). The snapshot is frozen before the editor opens, so staging the next batch during the edit stays safe (FR-E2). Tests: fake-editor scripts (EDITOR set to a script that rewrites / empties / leaves the file) across single + decompose paths.\n4. OUTPUT: `--edit` across both commit paths; the non-interactive default path is untouched.\n5. DOCS: [Mode A] docs/cli.md (`--edit` row incl. abort semantics), docs/how-it-works.md — the edit-while-staging property (FR-E2 explicitly requires the docs call-out)."
+                  "dependencies": [
+                    "P1.M2.T2.S2",
+                    "P1.M3.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §6 (verified) — resolve the editor by shelling to `git var GIT_EDITOR` (git's exact chain GIT_EDITOR → core.editor → VISUAL → EDITOR → vi, a faithful superset of FR-E1's list); the value is shell-interpreted, so invoke via `sh -c '<editor> \"$@\"' -- <file>`, never a bare exec. The message-finalization seam from P1.M2.T2.S2 is the insertion point; the template is applied BEFORE the editor opens so the user edits final text (FR-E3).\n2. INPUT: finalization seam (P1.M2.T2.S2); snapshot data available at each commit site (tree SHA + `DiffTree` name-status) for the commented summary; hook exec command (P1.M3.T2.S1) for the FR-E4 rejection.\n3. LOGIC: add `--edit` (flag only, default false): after duplicate rejection and template, before CommitTree — write the message plus a commented summary (tree SHA, diff-tree --name-status) to `.git/STAGEHAND_EDITMSG`; open the resolved editor; on close strip comment lines and trailing whitespace; empty result → exit 1 \"empty commit message — aborted\" (intentional abort, NOT a rescue: HEAD and index untouched, FR-E1); the edited message is user-authored — bypass the duplicate re-check (FR-E3); decompose mode gates EACH commit's message before its serialized publication, including the FR-M11 shortcut and the arbiter N+1 (FR-E4); `--dry-run` → warn and ignore; `hook exec` → usage error (FR-E4). The snapshot is frozen before the editor opens, so staging the next batch during the edit stays safe (FR-E2). Tests: fake-editor scripts (EDITOR set to a script that rewrites / empties / leaves the file) across single + decompose paths.\n4. OUTPUT: `--edit` across both commit paths; the non-interactive default path is untouched.\n5. DOCS: [Mode A] docs/cli.md (`--edit` row incl. abort semantics), docs/how-it-works.md — the edit-while-staging property (FR-E2 explicitly requires the docs call-out).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.38",
+                    "h3.63",
+                    "h3.64",
+                    "h2.13",
+                    "h4.5",
+                    "h3.23",
+                    "h3.36",
+                    "h2.8"
+                  ]
                 }
               ]
             },
@@ -305,8 +456,15 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.9", "h3.38", "h3.71", "h2.15", "h2.16", "h3.74"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §8 (empirically verified, git 2.54) — a no-upstream push fails with exit 128 and stderr containing `has no upstream branch` + the `--set-upstream` hint; `push.autoSetupRemote=true` (present in the developer's real global config) masks this, so tests MUST run git with `GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null` and assert on stable substrings, not full text. stagehand never auto-sets upstream (FR-P2).\n2. INPUT: run-outcome points in `internal/cmd/default_action.go` (`runDefault` single-path success, `runDecompose` full-run success incl. arbiter resolution); `internal/exitcode`; `internal/git` (which currently only CAPTURES output — a streaming exec variant is net-new).\n3. LOGIC: add `Push` config surface (`[generation].push`, `--push`, `STAGEHAND_PUSH`, `stagehand.push`, default false); after the ENTIRE run publishes cleanly, run plain `git push` (no arguments) streaming stdout/stderr verbatim to the user (new streaming method on the git runner); never prompts (FR-P1); on push failure the commits stand — show git's stderr verbatim, print the closing note \"commits created; push failed\", exit 1 (FR-P2); skip entirely on --dry-run, on the zero-commits exit-2 path, and on any rescue/CAS abort (FR-P3). E2E scenarios: clean push to a temp bare remote; no-upstream failure; skip-on-dry-run.\n4. OUTPUT: `--push` semantics on both single and decompose paths; exit-code behavior documented.\n5. DOCS: [Mode A] docs/cli.md (`--push` row + failure semantics incl. the no-auto---set-upstream stance), docs/configuration.md (`push` key)."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §8 (empirically verified, git 2.54) — a no-upstream push fails with exit 128 and stderr containing `has no upstream branch` + the `--set-upstream` hint; `push.autoSetupRemote=true` (present in the developer's real global config) masks this, so tests MUST run git with `GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null` and assert on stable substrings, not full text. stagehand never auto-sets upstream (FR-P2).\n2. INPUT: run-outcome points in `internal/cmd/default_action.go` (`runDefault` single-path success, `runDecompose` full-run success incl. arbiter resolution); `internal/exitcode`; `internal/git` (which currently only CAPTURES output — a streaming exec variant is net-new).\n3. LOGIC: add `Push` config surface (`[generation].push`, `--push`, `STAGEHAND_PUSH`, `stagehand.push`, default false); after the ENTIRE run publishes cleanly, run plain `git push` (no arguments) streaming stdout/stderr verbatim to the user (new streaming method on the git runner); never prompts (FR-P1); on push failure the commits stand — show git's stderr verbatim, print the closing note \"commits created; push failed\", exit 1 (FR-P2); skip entirely on --dry-run, on the zero-commits exit-2 path, and on any rescue/CAS abort (FR-P3). E2E scenarios: clean push to a temp bare remote; no-upstream failure; skip-on-dry-run.\n4. OUTPUT: `--push` semantics on both single and decompose paths; exit-code behavior documented.\n5. DOCS: [Mode A] docs/cli.md (`--push` row + failure semantics incl. the no-auto---set-upstream stance), docs/configuration.md (`push` key).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.38",
+                    "h3.71",
+                    "h2.15",
+                    "h2.16",
+                    "h3.74"
+                  ]
                 }
               ]
             }
@@ -333,8 +491,15 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.9", "h3.39", "h3.50", "h2.12", "h3.57", "h2.28"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — Manifest lives in `internal/provider/manifest.go`; ANY field addition must also touch `merge.go` (MergeManifest), `registry.go` (MarshalTOML), `builtin.go` (all 8 built-ins), and `providers/*.toml`, whose parity is asserted by `referencefiles_test.go`. external_deps.md §9: only opencode's `opencode models` is the known listing CLI — populate ONLY where verified against the live CLI in-task (Appendix E #17), record the verification date in a source comment.\n2. INPUT: none — schema change at the root of this milestone.\n3. LOGIC: add optional `ListModelsCommand []string` (`list_models_command`, default empty) to the Manifest struct with override-if-set merge semantics matching the other slice fields; extend MarshalTOML so `providers show` displays it; update all 8 built-ins (empty by default) and the reference TOMLs; verify per-provider listing support against each installed CLI's --help and populate only confirmed entries (expected: opencode → [\"opencode\", \"models\"]).\n4. OUTPUT: `Manifest.ListModelsCommand` consumed by P1.M6.T1.S2; user-defined providers can set it via [provider.<name>] blocks for free (existing DecodeUserOverrides path).\n5. DOCS: [Mode A] docs/providers.md — manifest field reference (field, default, semantics: never an HTTP call)."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — Manifest lives in `internal/provider/manifest.go`; ANY field addition must also touch `merge.go` (MergeManifest), `registry.go` (MarshalTOML), `builtin.go` (all 8 built-ins), and `providers/*.toml`, whose parity is asserted by `referencefiles_test.go`. external_deps.md §9: only opencode's `opencode models` is the known listing CLI — populate ONLY where verified against the live CLI in-task (Appendix E #17), record the verification date in a source comment.\n2. INPUT: none — schema change at the root of this milestone.\n3. LOGIC: add optional `ListModelsCommand []string` (`list_models_command`, default empty) to the Manifest struct with override-if-set merge semantics matching the other slice fields; extend MarshalTOML so `providers show` displays it; update all 8 built-ins (empty by default) and the reference TOMLs; verify per-provider listing support against each installed CLI's --help and populate only confirmed entries (expected: opencode → [\"opencode\", \"models\"]).\n4. OUTPUT: `Manifest.ListModelsCommand` consumed by P1.M6.T1.S2; user-defined providers can set it via [provider.<name>] blocks for free (existing DecodeUserOverrides path).\n5. DOCS: [Mode A] docs/providers.md — manifest field reference (field, default, semantics: never an HTTP call).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.39",
+                    "h3.50",
+                    "h2.12",
+                    "h3.57",
+                    "h2.28"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -342,9 +507,18 @@
                   "title": "`stagehand models [<provider>]` command with curated-table fallback",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M6.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.39", "h3.32", "h3.70", "h2.15", "h3.11"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — the curated FR-D4 per-role tier table ALREADY exists in code as `config.DefaultModelsForProvider(name)` (`internal/config/role_defaults.go`); reuse it for the fallback rather than duplicating the table. Never an HTTP call (§6.2 N2 / FR-L1) — the agent CLI is the only model authority.\n2. INPUT: `Manifest.ListModelsCommand` from P1.M6.T1.S1; `Registry.DefaultProvider(installed)` for the default provider; the executor seam (or a plain exec) for running the argv.\n3. LOGIC: cobra `models [<provider>]` command (default = the resolved default provider; `--all` = every DETECTED provider): when `list_models_command` is non-empty, run the argv (inherited env, bounded timeout) and print its stdout under a provider heading; when absent or the command fails, print the curated per-role table from `DefaultModelsForProvider`, annotated with its verification date and \"consult `<command> --help` for the live list\" (FR-L1 order (a) then (b)); unknown or undetected provider → clear error, nonzero exit. Tests: stub a fake listing binary on PATH; fallback rendering golden test.\n4. OUTPUT: `stagehand models` per §15.3.\n5. DOCS: [Mode A] docs/cli.md — models command section (source order, --all, never-HTTP note)."
+                  "dependencies": [
+                    "P1.M6.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — the curated FR-D4 per-role tier table ALREADY exists in code as `config.DefaultModelsForProvider(name)` (`internal/config/role_defaults.go`); reuse it for the fallback rather than duplicating the table. Never an HTTP call (§6.2 N2 / FR-L1) — the agent CLI is the only model authority.\n2. INPUT: `Manifest.ListModelsCommand` from P1.M6.T1.S1; `Registry.DefaultProvider(installed)` for the default provider; the executor seam (or a plain exec) for running the argv.\n3. LOGIC: cobra `models [<provider>]` command (default = the resolved default provider; `--all` = every DETECTED provider): when `list_models_command` is non-empty, run the argv (inherited env, bounded timeout) and print its stdout under a provider heading; when absent or the command fails, print the curated per-role table from `DefaultModelsForProvider`, annotated with its verification date and \"consult `<command> --help` for the live list\" (FR-L1 order (a) then (b)); unknown or undetected provider → clear error, nonzero exit. Tests: stub a fake listing binary on PATH; fallback rendering golden test.\n4. OUTPUT: `stagehand models` per §15.3.\n5. DOCS: [Mode A] docs/cli.md — models command section (source order, --all, never-HTTP note).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.39",
+                    "h3.32",
+                    "h3.70",
+                    "h2.15",
+                    "h3.11"
+                  ]
                 }
               ]
             },
@@ -362,8 +536,15 @@
                   "status": "Planned",
                   "story_points": 2,
                   "dependencies": [],
-                  "prd_selectors": ["h2.9", "h3.39", "h3.33", "h3.32", "h3.70", "h2.16"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — `runConfigInit` (`internal/cmd/config.go`) + `config.GenerateBootstrapConfig(provider)` (`internal/config/bootstrap.go`) already implement FR-B1; the wizard is a TTY front-end that writes the SAME file shape. FR-D1 detection order lives in `provider.Registry.DefaultProvider` / `preferredBuiltins`. Multi-backend providers (pi, opencode) must PROMPT for the `inference/` model prefix and never guess (FR-D2 / FR-R5b).\n2. INPUT: bootstrap writer + registry detection as above; per-role defaults via `config.DefaultModelsForProvider`; TTY-detection precedent in internal/ui.\n3. LOGIC: add `--interactive` to `config init`: non-TTY → exit 1 pointing at plain `config init` (which MUST stay non-interactive — FR-B3 runs it from post-install scripts); flow: (1) pick a provider from the DETECTED set with the FR-D1 default highlighted; (2) show that provider's per-role model defaults for accept-or-edit per role; (3) for a multi-backend provider, prompt for the inference/ prefix on edited models rather than guessing; (4) write via the same FR-B1 writer; composes with `--force` (and remains mutually sensible with --provider/--template). Tests: script stdin through a reader (answers piped), assert the written TOML equals the equivalent GenerateBootstrapConfig output with edits applied; non-TTY gate test.\n4. OUTPUT: interactive bootstrap per FR-L3 producing an FR-B1-identical config file.\n5. DOCS: [Mode A] docs/cli.md (config init --interactive), docs/configuration.md (interactive bootstrap note alongside the existing config init docs)."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — `runConfigInit` (`internal/cmd/config.go`) + `config.GenerateBootstrapConfig(provider)` (`internal/config/bootstrap.go`) already implement FR-B1; the wizard is a TTY front-end that writes the SAME file shape. FR-D1 detection order lives in `provider.Registry.DefaultProvider` / `preferredBuiltins`. Multi-backend providers (pi, opencode) must PROMPT for the `inference/` model prefix and never guess (FR-D2 / FR-R5b).\n2. INPUT: bootstrap writer + registry detection as above; per-role defaults via `config.DefaultModelsForProvider`; TTY-detection precedent in internal/ui.\n3. LOGIC: add `--interactive` to `config init`: non-TTY → exit 1 pointing at plain `config init` (which MUST stay non-interactive — FR-B3 runs it from post-install scripts); flow: (1) pick a provider from the DETECTED set with the FR-D1 default highlighted; (2) show that provider's per-role model defaults for accept-or-edit per role; (3) for a multi-backend provider, prompt for the inference/ prefix on edited models rather than guessing; (4) write via the same FR-B1 writer; composes with `--force` (and remains mutually sensible with --provider/--template). Tests: script stdin through a reader (answers piped), assert the written TOML equals the equivalent GenerateBootstrapConfig output with edits applied; non-TTY gate test.\n4. OUTPUT: interactive bootstrap per FR-L3 producing an FR-B1-identical config file.\n5. DOCS: [Mode A] docs/cli.md (config init --interactive), docs/configuration.md (interactive bootstrap note alongside the existing config init docs).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.39",
+                    "h3.33",
+                    "h3.32",
+                    "h3.70",
+                    "h2.16"
+                  ]
                 }
               ]
             }
@@ -389,9 +570,40 @@
                   "title": "README + docs index coherence sweep for the six v2.1 capabilities",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T1.S2", "P1.M1.T2.S1", "P1.M2.T1.S1", "P1.M2.T1.S2", "P1.M2.T1.S3", "P1.M2.T2.S1", "P1.M2.T2.S2", "P1.M3.T1.S1", "P1.M3.T1.S2", "P1.M3.T2.S1", "P1.M4.T1.S1", "P1.M4.T1.S2", "P1.M4.T2.S1", "P1.M4.T2.S2", "P1.M5.T1.S1", "P1.M5.T2.S1", "P1.M6.T1.S1", "P1.M6.T1.S2", "P1.M6.T2.S1"],
-                  "prd_selectors": ["h2.9", "h3.98", "h2.21", "h2.5", "h3.43", "h2.6", "h3.36", "h3.37", "h2.8"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §6 — README currently carries a MANUAL lazygit-snippet section and a FAQ; docs/README.md is the docs index; FUTURE_SPEC.md already exists at the repo root (reference it, NEVER author or modify it). All per-feature (Mode-A) docs will already be in place from M1–M6.\n2. INPUT: the six landed features (M1–M6) with their Mode-A docs.\n3. LOGIC: README.md — surface the six v2.1 capabilities (payload exclusions, format/locale/context/template shaping, hook mode, integrate git-alias+lazygit, --edit/--push, models + interactive init) in the hero/features/quick-start sections; replace the manual lazygit snippet with `stagehand integrate install lazygit` (keep the manual YAML as an alternative); ensure the FR-H7 trade-off FAQ entry is present and discoverable from the README FAQ (own entry or link to docs/how-it-works.md's); reference FUTURE_SPEC.md wherever deferred/rejected ideas are mentioned; update the docs/README.md index for new/changed sections. Judge the final wording against the shipped behavior, not this plan.\n4. OUTPUT: changeset-coherent README + docs index; no v2.1 capability missing from the top-level documentation surface.\n5. DOCS: [Mode B] this subtask IS the changeset-level docs work (README.md, docs/README.md)."
+                  "dependencies": [
+                    "P1.M1.T1.S1",
+                    "P1.M1.T1.S2",
+                    "P1.M1.T2.S1",
+                    "P1.M2.T1.S1",
+                    "P1.M2.T1.S2",
+                    "P1.M2.T1.S3",
+                    "P1.M2.T2.S1",
+                    "P1.M2.T2.S2",
+                    "P1.M3.T1.S1",
+                    "P1.M3.T1.S2",
+                    "P1.M3.T2.S1",
+                    "P1.M4.T1.S1",
+                    "P1.M4.T1.S2",
+                    "P1.M4.T2.S1",
+                    "P1.M4.T2.S2",
+                    "P1.M5.T1.S1",
+                    "P1.M5.T2.S1",
+                    "P1.M6.T1.S1",
+                    "P1.M6.T1.S2",
+                    "P1.M6.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §6 — README currently carries a MANUAL lazygit-snippet section and a FAQ; docs/README.md is the docs index; FUTURE_SPEC.md already exists at the repo root (reference it, NEVER author or modify it). All per-feature (Mode-A) docs will already be in place from M1–M6.\n2. INPUT: the six landed features (M1–M6) with their Mode-A docs.\n3. LOGIC: README.md — surface the six v2.1 capabilities (payload exclusions, format/locale/context/template shaping, hook mode, integrate git-alias+lazygit, --edit/--push, models + interactive init) in the hero/features/quick-start sections; replace the manual lazygit snippet with `stagehand integrate install lazygit` (keep the manual YAML as an alternative); ensure the FR-H7 trade-off FAQ entry is present and discoverable from the README FAQ (own entry or link to docs/how-it-works.md's); reference FUTURE_SPEC.md wherever deferred/rejected ideas are mentioned; update the docs/README.md index for new/changed sections. Judge the final wording against the shipped behavior, not this plan.\n4. OUTPUT: changeset-coherent README + docs index; no v2.1 capability missing from the top-level documentation surface.\n5. DOCS: [Mode B] this subtask IS the changeset-level docs work (README.md, docs/README.md).",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.98",
+                    "h2.21",
+                    "h2.5",
+                    "h3.43",
+                    "h2.6",
+                    "h3.36",
+                    "h3.37",
+                    "h2.8"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -399,9 +611,18 @@
                   "title": "Stale-reference sweep and known-stale string fix",
                   "status": "Planned",
                   "story_points": 0.5,
-                  "dependencies": ["P1.M7.T1.S1"],
-                  "prd_selectors": ["h2.9", "h3.43", "h3.41", "h3.33", "h2.28", "h3.11"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §6 item 2 — one CONFIRMED stale string: `internal/cmd/config.go` `exampleConfigTemplate` header still says \"supports config_version = 2\" while `config.CurrentConfigVersion = 3`; fix it. delta_prd.md expects the pre-v3 terminology sweep to come back clean — verify, do not assume.\n2. INPUT: final tree with all v2.1 work and the P1.M7.T1.S1 README sweep landed.\n3. LOGIC: grep-verify across README.md, docs/, and user-facing strings (help text, templates) that no stale claims survive: pre-v3 terminology (`--planner-agent`, `[agent.`-style config blocks), \"config_version = 2\" (fix the exampleConfigTemplate header), superseded non-goal phrasings (\"no hook installer\", \"--edit is deferred/v1.1\"), and any reference presenting COMPETITOR-ANALYSIS.md as an existing repo file (it does not exist). Fix what is found; record a clean result per pattern in the task notes/commit message.\n4. OUTPUT: zero stale references in shipped docs and user-facing strings; the one known-stale template header corrected.\n5. DOCS: [Mode B] rides in this task by definition — this is documentation-correctness work."
+                  "dependencies": [
+                    "P1.M7.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §6 item 2 — one CONFIRMED stale string: `internal/cmd/config.go` `exampleConfigTemplate` header still says \"supports config_version = 2\" while `config.CurrentConfigVersion = 3`; fix it. delta_prd.md expects the pre-v3 terminology sweep to come back clean — verify, do not assume.\n2. INPUT: final tree with all v2.1 work and the P1.M7.T1.S1 README sweep landed.\n3. LOGIC: grep-verify across README.md, docs/, and user-facing strings (help text, templates) that no stale claims survive: pre-v3 terminology (`--planner-agent`, `[agent.`-style config blocks), \"config_version = 2\" (fix the exampleConfigTemplate header), superseded non-goal phrasings (\"no hook installer\", \"--edit is deferred/v1.1\"), and any reference presenting COMPETITOR-ANALYSIS.md as an existing repo file (it does not exist). Fix what is found; record a clean result per pattern in the task notes/commit message.\n4. OUTPUT: zero stale references in shipped docs and user-facing strings; the one known-stale template header corrected.\n5. DOCS: [Mode B] rides in this task by definition — this is documentation-correctness work.",
+                  "prd_selectors": [
+                    "h2.9",
+                    "h3.43",
+                    "h3.41",
+                    "h3.33",
+                    "h2.28",
+                    "h3.11"
+                  ]
                 }
               ]
             }

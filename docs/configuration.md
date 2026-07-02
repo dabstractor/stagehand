@@ -100,6 +100,7 @@ model = "sonnet"
 # [generation] — diff capture and output tuning (commented defaults)
 # [generation]
 # max_diff_bytes        = 300000
+# exclude               = []   # UNIONS across layers — see "Exclusion globs" below
 # ...
 ```
 
@@ -177,7 +178,7 @@ These keys live in `.git/config` (set with `git config --local` or `git config -
 | `stagehand.stripCodeFence` | bool | `git config --get --bool stagehand.stripCodeFence` | Strip ``` fences from agent output (overrides per-provider default) |
 
 > [!NOTE]
-> The git-config layer has **no** per-role keys (`stagehand.role.*`), no `stagehand.commits`, and no `stagehand.max_commits`. Per-role configuration is available via CLI flags (`--planner-provider`, etc.), env vars (`STAGEHAND_PLANNER_*`), and config-file `[role.*]` blocks only. Decompose settings (`--commits`, `--single`, `--no-decompose`) are flag/env only; `--max-commits` also reads from the `[generation]` config-file section.
+> The git-config layer has **no** per-role keys (`stagehand.role.*`), no `stagehand.commits`, and no `stagehand.max_commits`. Per-role configuration is available via CLI flags (`--planner-provider`, etc.), env vars (`STAGEHAND_PLANNER_*`), and config-file `[role.*]` blocks only. Decompose settings (`--commits`, `--single`, `--no-decompose`) are flag/env only; `--max-commits` also reads from the `[generation]` config-file section. There is also no `stagehand.exclude` git-config key and no `STAGEHAND_EXCLUDE` env var (deliberate — see [Exclusion globs](#exclusion-globs-generationexclude) below); exclusions are config-file + `--exclude`/`-x` only.
 
 ### Decompose config keys
 
@@ -188,3 +189,17 @@ These keys live in `.git/config` (set with `git config --local` or `git config -
 | Max commits | `--max-commits <N>` | — | `[generation].max_commits` | `12` | Safety cap on auto-decompose count |
 
 Per-role provider/model overrides (flag > env > `[role.<role>]` config > `[defaults]` > built-in): see [providers.md](providers.md#per-role-default-models-fr-d4) for the compiled-in defaults per provider. Every role (including message) exposes `--<role>-provider`/`--<role>-model`/`--<role>-reasoning` (FR-R3).
+
+### Exclusion globs (`[generation].exclude`)
+
+```toml
+[generation]
+exclude = ["*.min.js", "dist/*"]
+```
+
+`[generation].exclude` (config file, both global and repo-local) and the repeatable `--exclude <glob>` / `-x <glob>` CLI flag (§9.18 FR-X1) exclude matching files' **diff content** from the agent payload — a placeholder line stands in for the diff; the file is still captured and committed normally. Patterns are gitignore-style globs.
+
+> [!IMPORTANT]
+> This is the **one setting in the whole precedence system that UNIONS instead of overriding** (§16.1). Every other list-valued key (e.g. `[generation].binary_extensions`) REPLACES across layers — a higher layer's list wins outright. `exclude` instead **accumulates**: the resolved set is the global file's globs, followed by the repo file's globs, followed by every `--exclude`/`-x` occurrence, in that order. A repo cannot use its local config to un-exclude a glob a user set globally.
+>
+> There is deliberately **no** `STAGEHAND_EXCLUDE` environment variable and **no** `stagehand.exclude` git-config key — a colon/comma-joined env list is a well-known quoting trap for glob patterns containing those characters. Use the config file for persistent excludes and `--exclude`/`-x` for ad-hoc ones.

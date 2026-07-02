@@ -55,6 +55,7 @@ type fileGeneration struct {
 	StripCodeFence      *bool    `toml:"strip_code_fence"`
 	MaxCommits          int      `toml:"max_commits"`       // V2 — safety cap on auto-decompose (§9.14 FR-M4)
 	BinaryExtensions    []string `toml:"binary_extensions"` // V2 — extra non-text exts to filter (§9.1 FR3a)
+	Exclude             []string `toml:"exclude"`           // V2.1 — §9.18 FR-X1 exclusion globs; UNION-merged in overlay()
 }
 
 // ---------------------------------------------------------------------------
@@ -228,6 +229,10 @@ func materialize(fc *fileConfig, timeout time.Duration) *Config {
 	if len(g.BinaryExtensions) > 0 {
 		c.BinaryExtensions = g.BinaryExtensions
 	}
+	// §9.18 FR-X1 — single-file copy (union across layers happens in overlay(), not here).
+	if len(g.Exclude) > 0 {
+		c.Exclude = g.Exclude
+	}
 	// V2 top-level metadata — non-zero copy (the §9.17 advisory is P1.M4.T1's job, not here).
 	if fc.ConfigVersion != 0 {
 		c.ConfigVersion = fc.ConfigVersion
@@ -344,6 +349,12 @@ func overlay(dst, src *Config) {
 	}
 	if len(src.BinaryExtensions) > 0 {
 		dst.BinaryExtensions = src.BinaryExtensions // REPLACE, not append (runtime denylist merge is P2.M1)
+	}
+	// §9.18 FR-X1: exclude UNIONS across layers (global → repo), the ONE list key that accumulates
+	// rather than replaces (§16.1). A repo must not be able to DROP a globally-excluded glob. This is
+	// a DELIBERATE exception to the REPLACE pattern used by BinaryExtensions above.
+	if len(src.Exclude) > 0 {
+		dst.Exclude = append(dst.Exclude, src.Exclude...)
 	}
 }
 

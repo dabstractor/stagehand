@@ -725,6 +725,56 @@ func TestRemapAgentTerminology(t *testing.T) {
 	}
 }
 
+// --- TestMaterializeExclude ---
+
+// TestMaterializeExclude proves the single-file copy of [generation].exclude (P1.M1.T1.S1).
+// materialize() just copies (union across LAYERS happens in overlay(), not here).
+func TestMaterializeExclude(t *testing.T) {
+	body := `
+[generation]
+exclude = ["*.lock"]
+`
+	path := writeTempTOML(t, body)
+	cfg, err := loadTOML(path)
+	if err != nil || cfg == nil {
+		t.Fatalf("loadTOML: cfg=%v err=%v", cfg, err)
+	}
+	if len(cfg.Exclude) != 1 || cfg.Exclude[0] != "*.lock" {
+		t.Errorf("Exclude=%v want [*.lock]", cfg.Exclude)
+	}
+}
+
+// --- TestOverlayExcludeUnion ---
+
+// TestOverlayExcludeUnion is the load-bearing distinction of P1.M1.T1.S1: overlay() must UNION
+// (append) Exclude across layers, unlike BinaryExtensions which REPLACES (see TestOverlay_V2Scalars).
+func TestOverlayExcludeUnion(t *testing.T) {
+	// (a) dst has globs, src adds more → APPEND, not replace.
+	dst := &Config{Exclude: []string{"a"}}
+	src := &Config{Exclude: []string{"b"}}
+	overlay(dst, src)
+	want := []string{"a", "b"}
+	if len(dst.Exclude) != len(want) || dst.Exclude[0] != want[0] || dst.Exclude[1] != want[1] {
+		t.Errorf("Exclude=%v want %v (overlay must UNION, not replace)", dst.Exclude, want)
+	}
+
+	// (b) nil src.Exclude → dst unchanged.
+	dst2 := &Config{Exclude: []string{"a"}}
+	src2 := &Config{Provider: "pi"} // Exclude left nil
+	overlay(dst2, src2)
+	if len(dst2.Exclude) != 1 || dst2.Exclude[0] != "a" {
+		t.Errorf("Exclude=%v want [a] (nil src.Exclude must not clobber)", dst2.Exclude)
+	}
+
+	// (c) BinaryExtensions still REPLACES (regression guard — the two lists must not share behavior).
+	dst3 := &Config{BinaryExtensions: []string{"x"}}
+	src3 := &Config{BinaryExtensions: []string{"y"}}
+	overlay(dst3, src3)
+	if len(dst3.BinaryExtensions) != 1 || dst3.BinaryExtensions[0] != "y" {
+		t.Errorf("BinaryExtensions=%v want [y] (must still REPLACE, not union)", dst3.BinaryExtensions)
+	}
+}
+
 // --- TestOverlayNilSrc ---
 
 func TestOverlayNilSrc(t *testing.T) {

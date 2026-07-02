@@ -34,6 +34,7 @@ With no subcommand, `stagehand` runs the **default action**. The routing depends
 | `--single` | bool | false | — | — | Bypass decomposition; force the single-commit auto-stage-all behavior (alias: `--no-decompose`) |
 | `--no-decompose` | bool | false | — | — | Alias for `--single` |
 | `--max-commits <N>` | int | 12 | — | — | Safety cap on auto-decompose commit count (also `[generation].max_commits` in config) |
+| `--exclude <glob>`, `-x` | string (repeatable) | — | — | — | Exclude matching files from the agent payload (placeholder line instead of the diff; never excluded from the commit itself). Unions with `.stagehandignore` and `[generation].exclude` — repeat the flag to add more than one glob; it does not override the config-file set |
 | `--planner-provider <name>` | string | "" | `STAGEHAND_PLANNER_PROVIDER` | — | Per-role provider override for the decomposition planner |
 | `--planner-model <name>` | string | "" | `STAGEHAND_PLANNER_MODEL` | — | Per-role model override for the decomposition planner |
 | `--stager-provider <name>` | string | "" | `STAGEHAND_STAGER_PROVIDER` | — | Per-role provider override for the (tooled) staging agent |
@@ -155,6 +156,7 @@ Config-backed flags can also be set via environment variables or git-config keys
 | `--single` | — | — |
 | `--no-decompose` | — | — |
 | `--max-commits` | — | — (also `[generation].max_commits` in config) |
+| `--exclude`, `-x` | — (no env var; deliberate — see [configuration.md](configuration.md)) | — (also `[generation].exclude` in config, UNIONS rather than overrides) |
 | `--planner-provider` | `STAGEHAND_PLANNER_PROVIDER` | — |
 | `--planner-model` | `STAGEHAND_PLANNER_MODEL` | — |
 | `--stager-provider` | `STAGEHAND_STAGER_PROVIDER` | — |
