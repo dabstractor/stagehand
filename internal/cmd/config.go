@@ -95,21 +95,23 @@ var configUpgradeCmd = &cobra.Command{
 	Long: `Rewrite an existing Stagehand config file in place so its config_version matches this binary's
 current schema version (` + fmt.Sprintf("`config_version = %d`", config.CurrentConfigVersion) + `).
 
-For v3 configs (schema version 3), this folds the removed default_provider field into the
-model slash-prefix for multi-backend providers (e.g. "zai/glm-5.2"). Loading an older config
-auto-migrates this in memory -- run ` + "`config upgrade`" + ` to persist it to the file.
+For files older than v3 this is more than a version bump: the removed ` + "`default_provider`" + ` field is
+folded into a slash-PREFIX on the affected ` + "`model`" + ` values for multi-backend providers (e.g.
+` + "`model = \"glm-5.2\"`" + ` + ` + "`default_provider = \"zai\"`" + ` becomes ` + "`model = \"zai/glm-5.2\"`" + `),
+the ` + "`default_provider`" + ` line is commented out with a note, and any abandoned ` + "`[agent.*]`" + `
+tables are renamed to ` + "`[provider.*]`" + `. Single-backend providers are left alone (their
+default_provider, if any, is just commented out). Every other line (your values, comments, ordering) is
+preserved. No value is invented: a bare model with no resolvable prefix stays bare.
 
-Only the top-level config_version line is added or updated -- every other line (your values, comments,
-ordering) is preserved byte-for-byte. Running it twice is safe: a file already at the current version is
-left unchanged ("already up to date").
+Loading an OLDER config also auto-migrates it IN MEMORY with a one-time deprecation notice, so the tool works
+immediately — ` + "`config upgrade`" + ` persists that migration to the file so the notice stops.
 
-This is the remediation the load-time advisory points at when a config has no config_version or an older
-one. It targets the file reported by ` + "`stagehand config path`" + ` -- by default the GLOBAL config, but
-the --config flag and STAGEHAND_CONFIG env var ARE honored, so ` + "`--config X config upgrade`" + ` (or
-STAGEHAND_CONFIG=X) upgrades file X instead of the global file.
+Running it twice is safe: a file already at the current version is left unchanged ("already up to date").
 
-If no config file exists, run ` + "`stagehand config init`" + ` first. If the file is not valid TOML, it is
-left untouched and an error is printed.`,
+This targets the file reported by ` + "`stagehand config path`" + ` — by default the GLOBAL config, but the
+--config flag and STAGEHAND_CONFIG env var ARE honored. If no config file exists, run
+` + "`stagehand config init`" + ` first. If the file is not valid TOML, it is left untouched and an error is
+printed.`,
 	Args:          cobra.NoArgs,
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -119,6 +121,22 @@ left untouched and an error is printed.`,
 // configVersionLineRe matches an UNCOMMENTED top-level config_version assignment, capturing the integer
 // value. Anchored at column 0 (a leading '#' is not matched) — commented `# config_version = 2` is ignored.
 var configVersionLineRe = regexp.MustCompile(`^config_version\s*=\s*([0-9]+)`)
+
+// agentHeaderRe captures the name in an `[agent.<name>]` table header (the abandoned intermediate terminology
+// mapped back to `[provider.<name>]` first, per FR-B7).
+var agentHeaderRe = regexp.MustCompile(`^\[agent\.(.+?)\]\s*$`)
+
+// tableHeaderRe captures the dotted path inside a simple `[table]` header (non-comment). Used to track the
+// current section during the rewrite. Does NOT match array-of-tables `[[…]]` (config files don't use those for
+// our sections; a non-match sets section to a non-matching sentinel).
+var tableHeaderRe = regexp.MustCompile(`^\[([a-zA-Z0-9._-]+)\]\s*$`)
+
+// kvStringRe captures an UNCOMMENTED `key = "value"` assignment (key, value). Leading whitespace allowed; a
+// leading `#` fails the `[A-Za-z_]` anchor so comment lines (including the rewrite's own commented-out
+// default_provider) are NOT matched. The value is the first double-quoted string; trailing inline comments
+// are ignored. Used to read model/default_model/default_provider/provider/provider_flag values during the
+// rewrite.
+var kvStringRe = regexp.MustCompile(`^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*=\s*"([^"]*)"`)
 
 func init() {
 	configInitCmd.Flags().String("provider", "", "Target a specific provider instead of auto-detecting")
@@ -168,41 +186,218 @@ func runConfigUpgrade(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// upgradeConfigVersion returns content with the TOP-LEVEL config_version set to version, via a minimal
-// TEXTUAL edit that preserves every other line byte-for-byte (PRD §9.17 FR-B5: "preserving user values …
-// leave all other content unchanged"). It scans only the top-level region (before the first [table] header —
-// config_version is root metadata). Outcomes (D4):
-//   - found with value == version  → content unchanged, changed=false (the "already up to date" path)
-//   - found with value != version  → that ONE line rewritten, changed=true
-//   - not found                    → one `config_version = <version>` line inserted after the leading
-//     comment/blank header block, changed=true
+// upgradeConfigVersion returns content upgraded to `version`. GATED (PRD §9.17 FR-B5/FR-B7):
+//   - cur >= version → (content, false): already current (cur==version) or ahead (cur>version) — no-op.
+//     This is the idempotency / "already up to date" path.
+//   - version >= 3 && cur < 3 → setConfigVersionLine(rewriteV2ToV3(content), version): the on-disk →v3
+//     rewrite (fold default_provider into the model slash-prefix, comment it out, rename [agent.*], then set
+//     config_version=3).
+//   - else (target < 3) → setConfigVersionLine(content, version): the ORIGINAL version-line-only behavior
+//     (forward-compat; not test-exercised today). NOTE: the existing TestUpgradeConfigVersion_* call this with
+//     config.CurrentConfigVersion (=3 after S1) and CLEAN inputs (no default_provider/[agent.*]); they pass
+//     UNCHANGED via the `version>=3 && cur<3` branch because rewriteV2ToV3 is a no-op on clean inputs + the
+//     `cur>=version`→no-op. Keep rewriteV2ToV3 a genuine no-op on default_provider-free input.
 //
-// PURE (no I/O, no error) → fully unit-testable. v2.0 has no removed/renamed keys, so no other line is
-// touched; this function is the single future extension point (add a version-keyed migration for v3+).
+// PURE (no I/O, no error) → fully unit-testable.
 func upgradeConfigVersion(content string, version int) (string, bool) {
-	lines := strings.Split(content, "\n")
-	want := strconv.Itoa(version)
+	cur := parseTopLevelConfigVersion(content)
+	if cur >= version {
+		return content, false // idempotent (cur==version) or ahead (cur>version)
+	}
+	if version >= 3 && cur < 3 {
+		return setConfigVersionLine(rewriteV2ToV3(content), version)
+	}
+	return setConfigVersionLine(content, version)
+}
 
-	// 1. Scan the top-level region for an existing config_version (stop at the first [table] header).
-	for i, line := range lines {
+// parseTopLevelConfigVersion returns the top-level config_version integer (0 if missing, commented, or only
+// present inside a [table]). Scans only the top-level region (before the first [table] header). Extracted from
+// the pre-gate upgradeConfigVersion body.
+func parseTopLevelConfigVersion(content string) int {
+	for _, line := range strings.Split(content, "\n") {
 		if isTableHeader(line) {
-			break // config_version must precede tables; nothing top-level after this is the schema key
+			break // config_version must precede tables
 		}
 		if m := configVersionLineRe.FindStringSubmatch(line); m != nil {
-			if strings.TrimSpace(m[1]) == want {
-				return content, false // already current — byte-identical
+			if n, err := strconv.Atoi(strings.TrimSpace(m[1])); err == nil {
+				return n
 			}
+		}
+	}
+	return 0
+}
+
+// setConfigVersionLine returns content with the TOP-LEVEL config_version set to `version`, via a minimal
+// textual edit that preserves every other line. Found → that ONE line rewritten; not found → one line
+// inserted after the leading comment/blank header block. Always returns changed=true (the caller has already
+// gated on cur<version). Extracted from the pre-gate upgradeConfigVersion body; behavior for target<3 is
+// byte-identical to v2.0.
+func setConfigVersionLine(content string, version int) (string, bool) {
+	lines := strings.Split(content, "\n")
+	want := strconv.Itoa(version)
+	for i, line := range lines {
+		if isTableHeader(line) {
+			break
+		}
+		if configVersionLineRe.FindStringSubmatch(line) != nil {
 			lines[i] = "config_version = " + want
 			return strings.Join(lines, "\n"), true
 		}
 	}
-
-	// 2. No top-level config_version — insert one after the leading comment/blank header block.
 	insertAt := leadingHeaderEnd(lines)
 	ins := append([]string{}, lines[:insertAt]...)
 	ins = append(ins, "config_version = "+want)
 	ins = append(ins, lines[insertAt:]...)
 	return strings.Join(ins, "\n"), true
+}
+
+// rewriteV2ToV3 performs the PRD §9.17 FR-B7 on-disk rewrite on raw TOML TEXT (lines), preserving every line
+// that is not transformed (FR-B5: "preserving user values … leave all other content unchanged"). It does NOT
+// touch config_version (the caller sets that via setConfigVersionLine). IDEMPOTENT + INVENTS NOTHING.
+//
+// Three passes over the lines:
+//  1. agent→provider: rename every `[agent.<name>]` table header → `[provider.<name>]` (FR-B7 "first").
+//     2a. collect: track the current table; record each provider's default_provider (X) + provider_flag, the
+//     global [defaults] provider, and each [role.<r>] provider. Build providerPrefix[name]=X ONLY for
+//     MULTI-BACKEND providers (name=="pi" OR a non-empty provider_flag — mirrors internal/config's
+//     isMultiBackend). Single-backend default_provider is NOT a prefix (FR-B7 "single-backend untouched").
+//     2b. emit: comment out EVERY default_provider (removed in v3); fold the prefix onto default_model
+//     ([provider.<name>]), model ([defaults]), and model ([role.<r>]) when the target provider has a prefix
+//     and the value is bare (!strings.Contains(val,"/")).
+//
+// go-toml re-marshaling is REJECTED here: it drops comments and reorders keys, violating FR-B5's
+// comment-out-with-note + preserve-user-values requirements. A surgical line edit is the only faithful
+// implementation. (internal/config.migrateV2ToV3 is the in-memory STRUCT twin; same FR-B7 mapping, different
+// domain — not reused.)
+func rewriteV2ToV3(content string) string {
+	lines := strings.Split(content, "\n")
+
+	// Pass 1: agent→provider table-header rename.
+	for i, line := range lines {
+		if m := agentHeaderRe.FindStringSubmatch(line); m != nil {
+			lines[i] = "[provider." + m[1] + "]"
+		}
+	}
+
+	// Pass 2a: collect state.
+	rawDP := map[string]string{}        // provider name → default_provider value
+	providerFlag := map[string]string{} // provider name → provider_flag value
+	globalProvider := ""
+	roleProvider := map[string]string{}
+	section := ""
+	for _, line := range lines {
+		if isTableHeader(line) {
+			section = tableSection(line)
+			continue
+		}
+		km := kvStringRe.FindStringSubmatch(line)
+		if km == nil {
+			continue
+		}
+		key, val := km[1], km[2]
+		switch {
+		case strings.HasPrefix(section, "provider."):
+			name := strings.TrimPrefix(section, "provider.")
+			if key == "default_provider" {
+				rawDP[name] = val
+			}
+			if key == "provider_flag" {
+				providerFlag[name] = val
+			}
+		case section == "defaults":
+			if key == "provider" {
+				globalProvider = val
+			}
+		case strings.HasPrefix(section, "role."):
+			if key == "provider" {
+				roleProvider[strings.TrimPrefix(section, "role.")] = val
+			}
+		}
+	}
+	// providerPrefix = X only for multi-backend providers with a non-empty default_provider.
+	providerPrefix := map[string]string{}
+	for name, x := range rawDP {
+		if x != "" && isMultiBackendText(name, providerFlag[name]) {
+			providerPrefix[name] = x
+		}
+	}
+
+	// Pass 2b: emit (fold + comment-out).
+	section = ""
+	for i, line := range lines {
+		if isTableHeader(line) {
+			section = tableSection(line)
+			continue
+		}
+		km := kvStringRe.FindStringSubmatch(line)
+		if km == nil {
+			continue
+		}
+		key, val := km[1], km[2]
+		switch {
+		case strings.HasPrefix(section, "provider."):
+			name := strings.TrimPrefix(section, "provider.")
+			if key == "default_provider" {
+				lines[i] = commentOutWithNote(line, "v3 (FR-B7): removed — inference backend is now a slash-prefix on model")
+			}
+			if key == "default_model" { // raw provider model key is default_model (manifest tag), NOT model
+				if x, ok := providerPrefix[name]; ok && val != "" && !strings.Contains(val, "/") {
+					lines[i] = replaceQuotedValue(line, x+"/"+val)
+				}
+			}
+		case section == "defaults":
+			if key == "model" {
+				if x, ok := providerPrefix[globalProvider]; ok && val != "" && !strings.Contains(val, "/") {
+					lines[i] = replaceQuotedValue(line, x+"/"+val)
+				}
+			}
+		case strings.HasPrefix(section, "role."):
+			if key == "model" {
+				ep := roleProvider[strings.TrimPrefix(section, "role.")]
+				if ep == "" {
+					ep = globalProvider // role inherits the global provider
+				}
+				if x, ok := providerPrefix[ep]; ok && val != "" && !strings.Contains(val, "/") {
+					lines[i] = replaceQuotedValue(line, x+"/"+val)
+				}
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// tableSection returns the dotted path inside a [...] table header (e.g. "provider.pi"), or "" for a header
+// the strict regex doesn't match (so keys under it aren't mis-attributed to a real section).
+func tableSection(line string) string {
+	if m := tableHeaderRe.FindStringSubmatch(line); m != nil {
+		return m[1]
+	}
+	return ""
+}
+
+// isMultiBackendText mirrors internal/config.isMultiBackend for the on-disk rewrite: a provider is
+// multi-backend iff it is the known built-in "pi" OR its block sets a non-empty provider_flag. opencode/agy
+// route via the model slash-prefix WITHOUT provider_flag and never carried a v2 default_provider → not
+// multi-backend here. (FR-B7 "single-backend untouched".)
+func isMultiBackendText(name, providerFlag string) bool {
+	return name == "pi" || providerFlag != ""
+}
+
+// replaceQuotedValue returns line with its FIRST double-quoted string replaced by newVal (preserves the key,
+// spacing, and any trailing inline comment). For our constrained keys (model/default_model) the first quoted
+// string IS the value.
+func replaceQuotedValue(line, newVal string) string {
+	loc := regexp.MustCompile(`"[^"]*"`).FindStringIndex(line)
+	if loc == nil {
+		return line
+	}
+	return line[:loc[0]] + `"` + newVal + `"` + line[loc[1]:]
+}
+
+// commentOutWithNote returns line prefixed with "# " and a trailing note (FR-B5 "commenting out removed/renamed
+// keys with a note"). The line is no longer ACTIVE TOML but remains auditable/reversible.
+func commentOutWithNote(line, note string) string {
+	return "# " + line + "  # " + note
 }
 
 // isTableHeader reports whether line is a TOML [table] / [[array-of-tables]] header (non-comment, col 0).

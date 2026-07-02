@@ -1121,3 +1121,202 @@ func TestConfigUpgrade_ExtraArgsExits1(t *testing.T) {
 		t.Errorf("exitcode.For(err) = %d, want %d (Error)", code, exitcode.Error)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// upgradeConfigVersion — on-disk →v3 rewrite pure unit tests (ADDITIVE)
+// ---------------------------------------------------------------------------
+
+// TestUpgradeConfigVersion_V3Rewrite exercises the on-disk →v3 rewrite via the pure function (target=3).
+// Sub-tests pin each FR-B7 guarantee: fold (provider default_model / global model / per-role model / role
+// inheriting global), single-backend untouched, comment-out, agent rename, idempotency, no-invent, version bump.
+func TestUpgradeConfigVersion_V3Rewrite(t *testing.T) {
+	t.Run("folds provider default_model + comments out default_provider + bumps version", func(t *testing.T) {
+		input := "config_version = 2\n" +
+			"\n" +
+			"[provider.pi]\n" +
+			"default_provider = \"zai\"\n" +
+			"default_model = \"glm-5.2\"\n" +
+			"provider_flag = \"--provider\"\n"
+		got, changed := upgradeConfigVersion(input, 3)
+		if !changed {
+			t.Fatal("changed=false, want true (v2 → v3 rewrite)")
+		}
+		if !strings.Contains(got, "default_model = \"zai/glm-5.2\"") {
+			t.Errorf("default_model not folded:\n%s", got)
+		}
+		if strings.Contains(got, "\ndefault_provider = \"zai\"\n") {
+			t.Errorf("default_provider still active (should be commented out):\n%s", got)
+		}
+		if !strings.Contains(got, "# default_provider = \"zai\"") {
+			t.Errorf("default_provider not commented out with note:\n%s", got)
+		}
+		if !strings.HasPrefix(got, "config_version = 3\n") {
+			t.Errorf("config_version not bumped to 3:\n%s", got)
+		}
+		// The result must be valid TOML.
+		var m map[string]any
+		if err := toml.Unmarshal([]byte(got), &m); err != nil {
+			t.Fatalf("upgraded output is not valid TOML: %v\n%s", err, got)
+		}
+	})
+
+	t.Run("folds global [defaults] model when global provider is multi-backend", func(t *testing.T) {
+		input := "config_version = 2\n" +
+			"[defaults]\n" +
+			"provider = \"pi\"\n" +
+			"model = \"glm-5.2\"\n" +
+			"\n" +
+			"[provider.pi]\n" +
+			"default_provider = \"zai\"\n"
+		got, _ := upgradeConfigVersion(input, 3)
+		if !strings.Contains(got, "model = \"zai/glm-5.2\"") {
+			t.Errorf("global model not folded:\n%s", got)
+		}
+	})
+
+	t.Run("folds per-role model (explicit role provider) and role inheriting global", func(t *testing.T) {
+		input := "config_version = 2\n" +
+			"[defaults]\n" +
+			"provider = \"pi\"\n" +
+			"\n" +
+			"[role.planner]\n" +
+			"provider = \"pi\"\n" +
+			"model = \"glm-5.2\"\n" +
+			"\n" +
+			"[role.message]\n" + // no provider → inherits global pi
+			"model = \"glm-5.2\"\n" +
+			"\n" +
+			"[provider.pi]\n" +
+			"default_provider = \"zai\"\n"
+		got, _ := upgradeConfigVersion(input, 3)
+		// Both role models must be prefixed (one explicit provider, one inherited).
+		if c := strings.Count(got, "model = \"zai/glm-5.2\""); c != 2 {
+			t.Errorf("expected 2 folded role models, got %d:\n%s", c, got)
+		}
+	})
+
+	t.Run("single-backend provider: default_provider commented out, model NOT prefixed", func(t *testing.T) {
+		input := "config_version = 2\n" +
+			"[provider.claude]\n" +
+			"default_provider = \"anthropic\"\n" +
+			"default_model = \"opus\"\n"
+		got, _ := upgradeConfigVersion(input, 3)
+		if !strings.Contains(got, "# default_provider = \"anthropic\"") {
+			t.Errorf("single-backend default_provider not commented out:\n%s", got)
+		}
+		if strings.Contains(got, "\"anthropic/opus\"") {
+			t.Errorf("single-backend model must NOT be prefixed:\n%s", got)
+		}
+		if !strings.Contains(got, "default_model = \"opus\"") {
+			t.Errorf("single-backend default_model must be unchanged:\n%s", got)
+		}
+	})
+
+	t.Run("agent table header renamed to provider", func(t *testing.T) {
+		input := "config_version = 2\n" +
+			"[agent.pi]\n" +
+			"default_provider = \"zai\"\n" +
+			"default_model = \"glm-5.2\"\n"
+		got, _ := upgradeConfigVersion(input, 3)
+		if strings.Contains(got, "[agent.pi]") {
+			t.Errorf("[agent.pi] not renamed:\n%s", got)
+		}
+		if !strings.Contains(got, "[provider.pi]") {
+			t.Errorf("missing [provider.pi]:\n%s", got)
+		}
+		if !strings.Contains(got, "default_model = \"zai/glm-5.2\"") {
+			t.Errorf("default_model not folded after rename:\n%s", got)
+		}
+	})
+
+	t.Run("idempotent: a v3 file is a no-op", func(t *testing.T) {
+		v3 := "config_version = 3\n[provider.pi]\ndefault_model = \"zai/glm-5.2\"\n"
+		got, changed := upgradeConfigVersion(v3, 3)
+		if changed {
+			t.Errorf("a v3 file must be a no-op; got changed=true:\n%s", got)
+		}
+		if got != v3 {
+			t.Errorf("a v3 file must be byte-unchanged; got:\n%s", got)
+		}
+	})
+
+	t.Run("bare pi model with NO default_provider stays bare (no-invent)", func(t *testing.T) {
+		input := "config_version = 2\n[provider.pi]\ndefault_model = \"glm-5.2\"\n"
+		got, _ := upgradeConfigVersion(input, 3)
+		if !strings.Contains(got, "default_model = \"glm-5.2\"") {
+			t.Errorf("a bare model with no default_provider must stay bare:\n%s", got)
+		}
+		if strings.Contains(got, "/glm-5.2\"") {
+			t.Errorf("a prefix was invented (no default_provider to fold):\n%s", got)
+		}
+	})
+}
+
+// TestConfigUpgrade_V2ToV3Rewrite is the COMMAND round-trip: write a v2 file, run `config upgrade`, assert the
+// on-disk result (prefixed model + commented default_provider + config_version=3); re-run → no change.
+// Mirrors the TestConfigUpgrade_AddsVersion harness (temp home + writeConfigFile + Execute).
+func TestConfigUpgrade_V2ToV3Rewrite(t *testing.T) {
+	_, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, nil, origOut, origErr, origRunE)
+
+	_, _, globalDir := setupNoRepo(t)
+	globalPath := filepath.Join(globalDir, "config.toml")
+	v2 := "config_version = 2\n" +
+		"\n" +
+		"[defaults]\n" +
+		"provider = \"pi\"\n" +
+		"model = \"glm-5.2\"\n" +
+		"\n" +
+		"[provider.pi]\n" +
+		"default_provider = \"zai\"\n" +
+		"provider_flag = \"--provider\"\n"
+	writeConfigFile(t, globalDir, "config.toml", v2)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(io.Discard)
+	rootCmd.SetArgs([]string{"config", "upgrade"})
+
+	err := Execute(context.Background())
+	if err != nil {
+		t.Fatalf("config upgrade failed: %v\n%s", err, out.String())
+	}
+	if !strings.Contains(out.String(), "Upgraded config") {
+		t.Errorf("expected upgrade confirmation; got:\n%s", out.String())
+	}
+
+	data, rerr := os.ReadFile(globalPath)
+	if rerr != nil {
+		t.Fatal(rerr)
+	}
+	upgraded := string(data)
+	if !strings.Contains(upgraded, "model = \"zai/glm-5.2\"") {
+		t.Errorf("on-disk global model not folded:\n%s", upgraded)
+	}
+	if !strings.Contains(upgraded, "# default_provider = \"zai\"") {
+		t.Errorf("on-disk default_provider not commented out:\n%s", upgraded)
+	}
+	if !strings.Contains(upgraded, "config_version = 3") {
+		t.Errorf("on-disk config_version not 3:\n%s", upgraded)
+	}
+
+	// Re-run → no change (idempotent).
+	out.Reset()
+	rootCmd.SetArgs(nil)
+	resetFlags(rootCmd.Flags())
+	resetFlags(rootCmd.PersistentFlags())
+
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(io.Discard)
+	rootCmd.SetArgs([]string{"config", "upgrade"})
+	if err2 := Execute(context.Background()); err2 != nil {
+		t.Fatalf("second config upgrade failed: %v\n%s", err2, out.String())
+	}
+	if !strings.Contains(out.String(), "already at version 3") && !strings.Contains(out.String(), "no changes") {
+		t.Errorf("second run should be a no-op; got:\n%s", out.String())
+	}
+	data2, _ := os.ReadFile(globalPath)
+	if string(data2) != upgraded {
+		t.Errorf("second run changed the file (not idempotent)")
+	}
+}

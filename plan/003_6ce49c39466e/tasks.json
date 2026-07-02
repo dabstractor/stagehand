@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Manifest, Render & Config v3 (inference provider in model string + reasoning)",
-      "status": "Planned",
+      "status": "Complete",
       "description": "The headline architectural change. Fold the inference provider into the model string as a slash-prefix (remove the separate default_provider field), add per-role reasoning levels (FR-R6), and migrate config schema v2→v3 (FR-B7). provider reverts to its original meaning: the agent platform (pi, claude, ...). This is foundational — every call path flows through Manifest.Render, so P2/P3/P4 depend on it. Grounded in plan/003_6ce49c39466e/architecture/{system_context.md §1-3, scout_render_callsites.md, scout_config_model.md}.",
       "milestones": [
         {
@@ -117,14 +117,14 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Config v3 migration (FR-B7)",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Bump CurrentConfigVersion to 3 and implement the →v3 rewrite: on load, auto-migrate v2 files in memory (prepend default_provider to the model as a slash-prefix, drop the key); `config upgrade` performs the same rewrite on disk.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Config v3: version bump + in-memory migration + on-disk upgrade",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Makes existing v2 config files load correctly under v3 (models prefixed in memory with a deprecation notice) and gives users a `config upgrade` command to rewrite the file in place.",
               "subtasks": [
                 {
@@ -147,7 +147,7 @@
                   "type": "Subtask",
                   "id": "P1.M3.T1.S2",
                   "title": "`config upgrade` on-disk →v3 rewrite + test fixture updates",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T1.S1"
@@ -189,7 +189,7 @@
                   "type": "Subtask",
                   "id": "P2.M1.T1.S1",
                   "title": "builtinQwenCode() + registry priority insertion + providers/qwen-code.toml",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
