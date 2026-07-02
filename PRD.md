@@ -6,10 +6,10 @@
 | **Language / runtime** | Go (single static binary) |
 | **Status** | v2.0 specification (draft) |
 | **Author** | dustin |
-| **Last updated** | 2026-06-30 |
+| **Last updated** | 2026-07-01 |
 | **Origin** | `commit-pi` / `commit-claude` (zsh), `~/projects/git-scripts` |
 | **Document purpose** | Comprehensive PRD + technical specification. Defines the product surface, architecture, provider model, configuration model, git plumbing, testing, and distribution. Supersedes ad-hoc design discussion. |
-| **This revision** | Promotes **multi-commit decomposition** from the deferred v2 roadmap into the core spec (§13.6), adds **per-role agent/model configuration** (§16.4), adds **binary/non-text filtering** (§9.1), adds the **Antigravity CLI (`agy`)** provider (§12.5.1), adds a **cascading provider priority + tier-based default models** that are **decoupled from the author's z.ai subscription** (§9.16), and adds a **populated config bootstrap + schema versioning** (§9.17). The v1 single-commit core (§9, §13.1–§13.5) is implemented. |
+| **This revision** | Promotes **multi-commit decomposition** from the deferred v2 roadmap into the core spec (§13.6), adds **per-role agent/model configuration** (§16.4), adds **binary/non-text filtering** (§9.1), adds the **Antigravity CLI (`agy`)** provider (§12.5.1), adds a **cascading provider priority + tier-based default models** that are **decoupled from the author's z.ai subscription** (§9.16), and adds a **populated config bootstrap + schema versioning** (§9.17). The v1 single-commit core (§9, §13.1–§13.5) is implemented. **[config v3]** This revision eliminates the overloaded `provider` term (the source of repeated routing bugs): `agent` is the platform, `provider` means ONLY the inference provider, `model` unchanged — each per-role with cascading defaults (§12, §9.15, FR-B7). |
 
 ---
 
@@ -18,7 +18,7 @@
 This is two documents fused into one:
 
 - **Part I — Product Requirements (PRD):** sections 1–10. What we are building, for whom, why it is different, and what is explicitly out of scope. Read this to understand the *why* and the *what*.
-- **Part II — Technical Specification:** sections 11–22. How it is built: package layout, provider manifest schema, git internals, CLI reference, config model, testing, release. Read this to implement it.
+- **Part II — Technical Specification:** sections 11–22. How it is built: package layout, agent manifest schema, git internals, CLI reference, config model, testing, release. Read this to implement it.
 
 Appendices (A–F) contain reference material: full prompt templates, example terminal sessions, and a line-by-line porting map from `commit-pi`.
 
@@ -67,7 +67,7 @@ Stagehand is a generalization of `commit-pi`, a zsh script in the author's `~/pr
 - **It is welded to one agent.** A near-identical `commit-claude` exists as a fork. Every new agent (codex, gemini, opencode, cursor) would require another fork. There is no abstraction.
 - **It is not distributable.** It is zsh, uses zsh-specific array syntax (`${(f)"$()"}`), cannot be `import`ed, has no package-manager story, and is installed by cloning a repo and hand-writing git aliases. That is fine for the author and unacceptable for anyone else.
 
-Stagehand extracts the agent-agnostic kernel (everything except the agent invocation), replaces the agent invocation with a **provider manifest** that normalizes the differences between agents, and packages it as a single Go binary with first-class distribution.
+Stagehand extracts the agent-agnostic kernel (everything except the agent invocation), replaces the agent invocation with an **agent manifest** that normalizes the differences between agents, and packages it as a single Go binary with first-class distribution.
 
 ### 2.2 Why "use your own CLI agent" is the right framing
 
@@ -134,7 +134,7 @@ Stagehand is **not** an AI pair-programmer, a code-reviewer, a PR-description wr
 
 The cell that reads **"Invokes a CLI agent? — No"** for every incumbent is not an oversight on their part. It is a consequence of their architecture: they own the HTTP call to the model, so they can normalize providers, handle retries, and abstract auth. Once you own the HTTP call, you cannot use a coding-plan subscription, because that subscription is not reachable over the public API.
 
-Stagehand inverts the architecture. It does **not** own the model call. It hands the prompt to an external process (the user's agent) and reads its stdout. This is strictly worse for provider normalization (we cannot abstract auth; we cannot retry at the HTTP layer; we are at the mercy of each agent's CLI surface) and strictly better for quota reuse (the agent brings its own auth, its own billing relationship, its own model routing). The provider manifest (§12) exists to make the "strictly worse" part tolerable.
+Stagehand inverts the architecture. It does **not** own the model call. It hands the prompt to an external process (the user's agent) and reads its stdout. This is strictly worse for provider normalization (we cannot abstract auth; we cannot retry at the HTTP layer; we are at the mercy of each agent's CLI surface) and strictly better for quota reuse (the agent brings its own auth, its own billing relationship, its own model routing). The agent manifest (§12) exists to make the "strictly worse" part tolerable.
 
 That trade-off — *give up control of the model call in exchange for access to the user's existing quota* — is the entire product. Every design decision downstream follows from it.
 
@@ -148,7 +148,7 @@ Stagehand's positioning, in priority order:
 2. **Keep staging while it thinks.** Snapshot-based commits mean generation time is no longer dead time. Stage the next batch while the current message generates; the in-flight commit only ever contains what was staged when it started.
 3. **Never corrupt your repo.** A failed generation leaves the repository byte-for-byte unchanged. The index and HEAD are touched only at the final, atomic `update-ref` step, and only if HEAD hasn't moved underneath us.
 4. **Match your project's voice.** Style is learned from the last 20 commits, with an explicit prohibition on reusing their wording, and a hard guarantee that no generated subject duplicates one of the last 50.
-5. **Agent-agnostic by construction.** Switching from Claude Code to pi to Gemini is one config line or one `--provider` flag, not a reinstall. New agents are added by dropping a manifest file, not by forking the tool.
+5. **Agent-agnostic by construction.** Switching from Claude Code to pi to Gemini is one config line or one `--agent` flag, not a reinstall. New agents are added by dropping a manifest file, not by forking the tool.
 6. **Right model for the right job (new).** Commit-message generation, decomposition planning, per-concept staging, and leftover reconciliation are different tasks, so they can be bound to different agents and models — a large-context model for planning, a fast model for messages. One global model still covers everything if you don't care to tune.
 
 The README hero pitch, verbatim candidate:
@@ -204,7 +204,7 @@ A developer who looked at `opencommit`/`aicommits`, saw "paste your OpenAI key,"
 
 ### 7.3 Tertiary persona — "the multi-agent tinkerer"
 
-A developer who runs several agents (pi for open models, Claude Code for hard problems, Gemini for long context) and wants to choose per-repository or per-invocation which one writes commits. The `--provider` flag and per-repo git-config keys (`stagehand.provider`) are for this user.
+A developer who runs several agents (pi for open models, Claude Code for hard problems, Gemini for long context) and wants to choose per-repository or per-invocation which one writes commits. The `--agent`/`--provider` flags and per-repo git-config keys (`stagehand.agent`/`stagehand.provider`) are for this user.
 
 ### 7.4 Anti-persona — "the no-CLI user"
 
@@ -219,13 +219,13 @@ Format: *As a &lt;persona&gt;, I want &lt;capability&gt;, so that &lt;benefit&gt
 - **US1.** As a plan-holder, I want to run `stagehand` and get a commit message generated by my default agent against my existing quota, so that I don't have to configure or pay for an API key.
 - **US2.** As a plan-holder, I want to stage files for the *next* commit while the *current* message is generating, so that generation latency is not dead time.
 - **US3.** As a plan-holder, I want a failed generation to leave my repository completely untouched, so that I never have to recover from a half-committed state.
-- **US4.** As a multi-agent tinkerer, I want to switch agents with `stagehand --provider gemini`, so that I can route commit generation to whichever agent I prefer at the moment.
-- **US5.** As a multi-agent tinkerer, I want a per-repo default (`git config stagehand.provider pi`), so that each repository remembers its preferred agent.
+- **US4.** As a multi-agent tinkerer, I want to switch agents with `stagehand --agent gemini`, so that I can route commit generation to whichever agent I prefer at the moment.
+- **US5.** As a multi-agent tinkerer, I want a per-repo default (`git config stagehand.agent pi`), so that each repository remembers its preferred agent.
 - **US6.** As a plan-holder, I want Stagehand to match my project's commit-message style (length, tone, subject-vs-body), so that generated messages don't stick out in `git log`.
 - **US7.** As a plan-holder, I want Stagehand to guarantee no duplicate subjects, so that `git log` doesn't contain the same line twice.
 - **US8.** As a lazygit user, I want to bind `stagehand` to a key (`<c-a>`) with `output: none`, so that the commit happens silently and I stay in the lazygit UI.
 - **US9.** As a new-user evaluator, I want to run `stagehand --dry-run` to see the generated message without committing, so that I can judge quality before trusting it.
-- **US10.** As a new-user evaluator, I want `stagehand providers list` to show which agents I have installed and which is the default, so that I can understand what will happen before I run it.
+- **US10.** As a new-user evaluator, I want `stagehand agents list` to show which agents I have installed and which is the default, so that I can understand what will happen before I run it.
 - **US11.** As a plan-holder with nothing staged, I want `stagehand` to stage all changes and commit them in one message (v1 behavior), so that I don't have to pre-stage for a quick checkpoint commit.
 - **US12.** As an integration builder, I want a stable Go API (`pkg/stagehand.GenerateCommit`) so that I can embed commit-message generation in a larger tool.
 - **US13.** As a plan-holder with a large, mixed working tree and nothing staged, I want `stagehand` to split my changes into a sequence of logically-coherent commits automatically, so that my history stays clean without manual `git add -p` archaeology.
@@ -278,7 +278,7 @@ Each requirement has an ID (FR-n), a priority (P0 = must for v1, P1 = should for
 ### 9.5 Generation (P0, → G1, G2)
 
 - **FR21.** Resolve the provider (manifest) per the precedence in §9.8.
-- **FR22.** Render the provider's command: base command, model flag + value, system-prompt flag + value (if the provider supports one), provider flag + value (for agents like pi that have sub-providers), bare-mode flags, and the print-mode flag.
+- **FR22.** Render the agent's command: base command, **inference-provider flag + value** (the agent's `--provider`, emitted for multi-backend agents like pi/opencode/agy when an inference provider is resolved — §12), model flag + value, system-prompt flag + value (if the agent supports one), bare-mode flags, and the print-mode flag.
 - **FR23.** Deliver the prompt payload to the agent's stdin (or positional/flag, per the manifest's `prompt_delivery`).
 - **FR24.** Capture the agent's stdout.
 - **FR25.** Impose a configurable generation timeout (default 120s; `STAGEHAND_TIMEOUT` / `--timeout`). On timeout, kill the agent process and enter the rescue path.
@@ -300,10 +300,10 @@ Each requirement has an ID (FR-n), a priority (P0 = must for v1, P1 = should for
 ### 9.8 Configuration & precedence (P0, → G8)
 
 - **FR34.** Precedence, highest to lowest: **CLI flags > environment variables > per-repo git config (`stagehand.*`) > per-repo file (`.stagehand.toml`) > global file (`$XDG_CONFIG_HOME/stagehand/config.toml`) > built-in provider defaults > built-in defaults.**
-- **FR35.** Environment variables use the `STAGEHAND_` prefix (`STAGEHAND_PROVIDER`, `STAGEHAND_MODEL`, `STAGEHAND_TIMEOUT`, `STAGEHAND_CONFIG`, `STAGEHAND_VERBOSE`, `STAGEHAND_NO_COLOR`).
-- **FR36.** Git config keys live under the `stagehand.` section (`stagehand.provider`, `stagehand.model`, `stagehand.timeout`, `stagehand.auto_stage_all`, etc.). Read via `git config --get`.
-- **FR37.** A config file may define provider overrides (`[provider.<name>]`), defaults (`[defaults]`), and generation tuning (`[generation]`).
-- **FR37a. `[provider.<name>]` blocks field-merge across layers.** A `[provider.<name>]` block merges **field-by-field across every config layer** (global → repo file → git config), exactly like scalar fields: a field a higher layer sets overrides that one field only; fields the higher layer omits are inherited from lower layers. A repo `[provider.pi]` setting only `default_model` must **not** erase a `default_provider` set in the global file. (Corrects the v1 "key-level whole-block replace", which silently dropped cross-layer provider pins and caused bare-model misroutes — e.g. `glm-5-turbo` routed to `openrouter` instead of the configured `zai`.) Field-merge onto the *built-in manifest* remains the registry's separate job.
+- **FR35.** Environment variables use the `STAGEHAND_` prefix. The three model-invocation knobs (§12 terminology) are `STAGEHAND_AGENT`, `STAGEHAND_PROVIDER` (the **inference** provider), and `STAGEHAND_MODEL`, each with per-role variants `STAGEHAND_<ROLE>_AGENT` / `_PROVIDER` / `_MODEL`. Others: `STAGEHAND_TIMEOUT`, `STAGEHAND_CONFIG`, `STAGEHAND_VERBOSE`, `STAGEHAND_NO_COLOR`.
+- **FR36.** Git config keys live under the `stagehand.` section (`stagehand.agent`, `stagehand.provider` (inference), `stagehand.model`, `stagehand.timeout`, `stagehand.auto_stage_all`, etc.), with per-role `stagehand.role.<role>.{agent,provider,model}`. Read via `git config --get`.
+- **FR37.** A config file may define agent-platform overrides (`[agent.<name>]`), defaults (`[defaults]`), and generation tuning (`[generation]`).
+- **FR37a. `[agent.<name>]` blocks field-merge across layers.** An `[agent.<name>]` block merges **field-by-field across every config layer** (global → repo file → git config), exactly like scalar fields: a field a higher layer sets overrides that one field only; fields the higher layer omits are inherited from lower layers. A repo `[agent.pi]` setting only `default_model` must **not** erase a `default_provider` set in the global file. (Corrects the v1 "key-level whole-block replace", which silently dropped cross-layer inference-provider pins and caused bare-model misroutes — e.g. `glm-5-turbo` routed to `openrouter` instead of the configured `zai`.) Field-merge onto the *built-in manifest* remains the registry's separate job. (Renamed from `[provider.<name>]` in config v3; see FR-B7.)
 - **FR38.** `stagehand config init` bootstraps a **populated** global config via cascading detection (§9.17, FR-B1); `stagehand config path` prints the resolved config path; `stagehand config upgrade` refreshes an existing config to the current schema version (FR-B5).
 
 ### 9.9 Commit creation (P0, → G3, G4)
@@ -319,11 +319,11 @@ Each requirement has an ID (FR-n), a priority (P0 = must for v1, P1 = should for
 - **FR44.** On rescue, print: a failure notice, the `TREE_SHA`, and the exact manual recovery command (`git commit-tree [-p <PARENT>] -m "…" <TREE> | xargs git update-ref HEAD`).
 - **FR45.** Install a SIGINT/SIGTERM handler that triggers the rescue path if interrupted after the snapshot.
 
-### 9.11 Provider management (P1, → G7)
+### 9.11 Agent management (P1, → G7)
 
-- **FR46.** `stagehand providers list` — list built-in providers, mark which are detected on `$PATH`, show the resolved default.
-- **FR47.** `stagehand providers show <name>` — print the fully-resolved manifest for a provider (built-in merged with user overrides), as TOML.
-- **FR48.** User-defined providers in config files override built-ins of the same name; new names add new providers.
+- **FR46.** `stagehand agents list` — list built-in agents, mark which are detected on `$PATH`, show the resolved default. (Renamed from `providers list` in config v3; `providers` is accepted as a deprecated alias.)
+- **FR47.** `stagehand agents show <name>` — print the fully-resolved manifest for an agent (built-in merged with user overrides), as TOML.
+- **FR48.** User-defined agents in config files override built-ins of the same name; new names add new agents.
 
 ### 9.12 Dry run (P1)
 
@@ -338,6 +338,7 @@ Each requirement has an ID (FR-n), a priority (P0 = must for v1, P1 = should for
 
 - **FR-M1. Trigger.** Decomposition activates **iff** nothing is staged (`HasStagedChanges` false) **and** the working tree has changes. If anything is staged, the single-commit primitive (§13.1–§13.5) runs unchanged; stagehand never re-partitions a hand-staged index.
 - **FR-M2. Modes.** (a) **Auto-decompose (default):** the planner decides the count *and* the partition; if it judges one commit is correct it emits the message in the same call (single-call shortcut, FR-M11). (b) **Forced count** `--commits N` (N ≥ 2): the count question is skipped; the planner only partitions into exactly N. (c) **Single (escape hatch)** `--single` / `--no-decompose` / `--commits 1`: the planner is bypassed entirely; v1 behavior (`git add -A` → one `CommitStaged`).
+- **FR-M2b. One-file short-circuit (auto mode).** In auto-decompose mode, if the working tree has **exactly one** changed file (a single path in `git status --porcelain`), the planner is bypassed entirely: stagehand stages that file, generates one commit message via the message role, and commits — the same outcome as the FR-M11 single shortcut but with **no planner agent call at all**. A single file cannot be sensibly partitioned into multiple commits, so invoking the planner is pure churn; this check is deterministic (changed-path count), not model judgment. An explicit `--commits N` (N ≥ 2) overrides this short-circuit — a forced count is honored even for one file (hunk-level staging may still partition).
 - **FR-M3. Planner agent (bare).** Receives the full working-tree diff snapshot (with binary placeholders per FR3c) plus the style examples from §9.3. Returns a structured partition as JSON (the planner output is structured, so JSON is justified here — unlike free-form commit messages, §17.4): `{"count": N, "single": bool, "commits": [{"title": "…", "description": "what belongs in this commit"}, …], "message"?: "…"}`. `message` is present only when `single == true`.
 - **FR-M4. Safety cap.** Refuse to create more than `max_commits` commits in one run (default 12) unless the user explicitly sets a higher `--commits` / `--max-commits`. Guards against a runaway planner producing dozens of micro-commits.
 - **FR-M5. Stager agent (tooled).** For concept *i*, invoke a **tooled** agent bound to the repo (tools on, git allowed, non-interactive; §12.2 tooled mode) with the concept's title + description as its task. It finds *all* changes related to that concept and stages them (`git add <path>`, and hunk-staging via `git apply --cached` / the agent's patch application). It **must not commit, move refs, or push**; stagehand owns all ref mutations. This is the single exception to stagehand's "agent never touches git" rule, scoped strictly to staging.
@@ -349,19 +350,21 @@ Each requirement has an ID (FR-n), a priority (P0 = must for v1, P1 = should for
 - **FR-M11. Single-call shortcut.** In auto-decompose mode, if the planner returns `single: true`, stagehand uses the planner's `message` directly: `git add -A` → snapshot → `commit-tree` → `update-ref`. No separate message-agent call. If that message fails the duplicate check (§9.7), fall back to the standard message agent to regenerate.
 - **FR-M12. Per-concept failure isolation.** A failed generation for concept *i* enters the rescue path (§18.3) for *that* concept; already-published commits 0..i-1 stand, and remaining staged work is left in the index with manual recovery printed. A CAS failure on commit *i* aborts the run with the §13.5 message; prior commits stand. A stager that exits non-zero is retried once, then treated as empty (FR-M8).
 
-### 9.15 Per-role provider/model configuration (P0, → G12, references §16.4)
+### 9.15 Per-role agent/provider/model configuration (P0, → G12, references §16.4)
 
-- **FR-R1. Roles.** Four agent roles: **planner**, **stager**, **message**, **arbiter** (§13.6.2). Each resolves its provider and model independently.
-- **FR-R2. Global default.** `[defaults].provider` / `[defaults].model` — surfaced as `--provider` / `--model`, `STAGEHAND_PROVIDER` / `STAGEHAND_MODEL`, and `stagehand.provider` / `stagehand.model` — is the fallback applied to **any** role that does not override it. On the single-commit path the only role is `message`, so this is equivalent to v1 (back-compatible).
-- **FR-R3. Per-role overrides.** For each role: `[role.<role>].provider` / `[role.<role>].model` in config; `STAGEHAND_<ROLE>_PROVIDER` / `STAGEHAND_<ROLE>_MODEL` in env; `--<role>-provider` / `--<role>-model` as flags (e.g. `--planner-model`, `--stager-provider`). Precedence (highest wins): flag > env > per-role config > global config > built-in manifest default.
-- **FR-R4. One model for everything.** Setting only the global default (FR-R2) covers all roles. Per-role overrides are opt-in granularity.
-- **FR-R5. Model strings are provider-specific.** Because `gpt-5.4`, `anthropic/claude-sonnet-4`, `gemini-3.5-pro` belong to different agents, a per-role `model` is interpreted by that role's resolved `provider`'s manifest. Switching a role's provider without updating its model is a configuration error stagehand surfaces (not silently ignores).
-- **FR-R5b. Model requires provider for multi-provider agents.** For multi-provider agents (pi, opencode, agy — §12 terminology), a model is *ambiguous* without its provider: the agent would otherwise guess the upstream and guess wrong (a bare `glm-5-turbo` routed to `openrouter` instead of `zai`). Stagehand treats `(provider, model)` as a coupled unit for these agents — it emits `--provider <p>` whenever it emits `--model <m>` (or uses the agent's `provider/model` combined form), and never produces a bare `--model` for a multi-provider agent. For single-backend agents (claude, codex, gemini, cursor), only `--model` is emitted (`provider_flag` empty).
+The three §12 concepts — **agent** (platform), **provider** (inference provider), **model** — are each independently configurable per role, with cascading defaults. This generalizes v1's single `(provider, model)` to a fully per-role, three-dimensional configuration; it also removes the v1–v2 term overload where "provider" meant the platform.
+
+- **FR-R1. Roles.** Four agent roles: **planner**, **stager**, **message**, **arbiter** (§13.6.2). Each resolves its agent, provider, and model independently.
+- **FR-R2. Global default.** `[defaults].agent` / `[defaults].provider` / `[defaults].model` — surfaced as `--agent` / `--provider` / `--model`, `STAGEHAND_AGENT` / `STAGEHAND_PROVIDER` / `STAGEHAND_MODEL`, and `stagehand.agent` / `stagehand.provider` / `stagehand.model` — is the fallback applied to **any** role that does not override that field. On the single-commit path the only active role is `message`, so setting just the global is equivalent to v1 (back-compatible).
+- **FR-R3. Per-role overrides.** For each role and each of the three fields: `[role.<role>].{agent,provider,model}` in config; `STAGEHAND_<ROLE>_{AGENT,PROVIDER,MODEL}` in env; `--<role>-agent` / `--<role>-provider` / `--<role>-model` as flags (e.g. `--planner-model`, `--stager-agent`). **Every role exposes all three flags, including `message`** — no role is a special case that omits a flag (corrects the v2 gap that had no `--message-*` flags). Precedence (highest wins), applied independently per field: flag > env > per-role config > global config > built-in manifest default.
+- **FR-R4. One setting for everything.** Setting only the global default (FR-R2) covers all roles and all three fields. Per-role overrides are opt-in granularity.
+- **FR-R5. Model strings are provider-specific.** Because `gpt-5.4`, `anthropic/claude-sonnet-4`, `gemini-3.5-pro` belong to different inference providers, a per-role `model` is interpreted by that role's resolved **agent**'s manifest and routed by that role's resolved **provider**. Changing a role's agent or provider without updating its model is a configuration error stagehand surfaces (not silently ignores).
+- **FR-R5b. Model requires an inference provider for multi-backend agents.** For multi-backend agents (pi, opencode, agy — §12), a `model` is *ambiguous* without its inference **provider**: the agent would otherwise guess the upstream and guess wrong (a bare `glm-5-turbo` routed to `openrouter` instead of `zai`). Stagehand resolves `(agent, provider, model)` as a coupled unit for these agents — it emits `--provider <p>` whenever it emits `--model <m>` (or uses the agent's `provider/model` combined form), and **never produces a bare `--model` for a multi-backend agent**. A `model` pinned on a multi-backend agent with no resolvable inference provider (neither per-role, nor global, nor the manifest's `default_provider`) is a **hard configuration error** — surfaced with the remediation (set `provider`, the inference provider, via `[defaults]`, `[role.<role>]`, `--provider`, or `STAGEHAND_PROVIDER`) — and **never** silently rendered as an unroutable command that returns empty output. For single-backend agents (claude, codex, gemini, cursor), `provider` is ignored and only `--model` is emitted. **Authoritative enforcement lives at `Render`** (the single command-emission chokepoint shared by every call path — v1 generate and all four decompose roles), so no path can bypass it; `ResolveRoles` reproduces the check earlier for a role-named error on the decompose path.
 
 ### 9.16 Default provider & per-role model defaults (P0, → G12, G14)
 
 - **FR-D1. Cascading provider priority.** The auto-default provider is the highest-priority built-in whose command is found on `$PATH`, in this order: **pi, opencode, cursor, agy, gemini, codex, claude.** (Rationale: open / self-hostable harnesses first; closed subscription CLIs last. This is the maintainer's stated preference and lives in one slice in the registry — trivial to reorder.) User-defined providers (§12.8) are never auto-selected. Implemented as `Registry.DefaultProvider(installed)` over `preferredBuiltins`.
-- **FR-D2. Decoupled from any one subscription.** No built-in default assumes a specific account or backend — notably **pi no longer ships `glm-*` / `zai` as its default** (that was the original author's personal z.ai Max subscription). The shipped pi default routes to a generally-available model the user is likely to already have wired (FR-D4); the personal z.ai/GLM setup becomes a documented *override*, not the default.
+- **FR-D2. Decoupled from any one subscription.** No built-in default assumes a specific account or inference provider — notably **pi does NOT ship `glm-*` / `zai` as its default** (that was the original author's personal z.ai Max subscription), and pi's shipped `default_provider` is **blank** because no single inference provider is correct for every user. The personal z.ai/GLM setup is a documented *override* (`[defaults] provider = "zai"`), not the default. Because pi is multi-backend, a user who pins a `model` on pi MUST also set `provider` (FR-R5b); the bootstrap (FR-B1) surfaces this explicitly rather than guessing a backend.
 - **FR-D3. Universal role→tier strategy.** Out of the box each role is sized to its job: **planner = flagship/smart** (decomposition reasoning), **stager = mid** (reliable tool-use for git staging — deliberately *not* the fastest tier, because tooled staging needs dependable tool calls), **message = fast** (bare text generation — the cheapest tier is ideal), **arbiter = mid** (leftover judgment). Users can override any role (§16.4); these are just the shipped defaults.
 - **FR-D4. Per-provider default-model table.** The bootstrap config (§9.17) materializes one provider's column. Exemplars are current as of 2026-07; **see FR-D5 — they MUST be re-verified at implementation.**
 
@@ -375,17 +378,18 @@ Each requirement has an ID (FR-n), a priority (P0 = must for v1, P1 = should for
 | **codex** | `gpt-5.1-codex-max` | `gpt-5.1-codex-mini` | `gpt-5.4-nano` | `gpt-5.1-codex-mini` |
 | **claude** | `opus` (4.8) | `sonnet` (5) | `haiku` | `sonnet` (5) |
 
-  Notes: pi's exact `default_provider` (whichever of pi's current sub-providers routes to OpenAI — e.g. openrouter/openai — **verify**) and cursor's/codex's exact model tokens are resolved during implementation by reading each CLI's live model list (FR-D5). A provider whose `tooled_flags` is empty (agy and opencode today — §12.5.1.1, Appendix D) cannot serve as the **stager**; for those, the stager role falls back to the next-priority provider that *can*, and the bootstrap config annotates the fallback.
+  Notes: pi's `default_provider` (its default *inference* provider) is intentionally **blank** in the shipped manifest — there is no universally-correct backend for pi, so the user sets `provider` (FR-R5b); the bootstrap must not silently pick one. cursor's/codex's exact model tokens are resolved during implementation by reading each CLI's live model list (FR-D5). A platform whose `tooled_flags` is empty (agy and opencode today — §12.5.1.1, Appendix D) cannot serve as the **stager**; for those, the stager role falls back to the next-priority agent that *can*, and the bootstrap config annotates the fallback.
 - **FR-D5. Research directive (planning / implementation).** Model lineups change fast (Sonnet 5 shipped 2026-07-01; Gemini and OpenAI iterate roughly monthly). The implementing agent MUST verify, per provider, the *current* flagship / mid / fast model names against each provider's live docs / `--help` before pinning any default, and record the verified names + verification date in the manifest source. A periodic refresh process (an automated check against each provider's model list) keeps them current over time — that process is **out of scope for this document** — but the defaults must be authored to be trivially refreshable (one table / one constant set per provider).
 
 ### 9.17 Config bootstrap & versioning (P0, → G8)
 
-- **FR-B1. `config init` writes a populated, working config** (not an inert commented template). It runs cascading detection (FR-D1), writes `[defaults] provider = <detected>`, and writes that provider's `[role.*]` per-role default models (FR-D4) **uncommented** so the tool works immediately. Other *installed* providers are written as commented-out `[role.*]` blocks so switching agents is a one-line uncomment. Parent dirs are created; an existing file is not overwritten unless `--force`. The written path is always printed.
-- **FR-B2.** `config init --provider <name>` targets a specific provider instead of auto-detecting. `config init --force` regenerates (overwrites) an existing file. The v1 "all-commented inert template" behavior is retained behind `config init --template` for users who want the bare reference.
+- **FR-B1. `config init` writes a populated, working config** (not an inert commented template). It runs cascading detection (FR-D1), writes `[defaults] agent = <detected>`, and writes that agent's `[role.*]` per-role default models (FR-D4) **uncommented** so the tool works immediately; for a multi-backend detected agent (pi/opencode/agy) it writes a clearly-commented `[defaults] provider` slot (blank by default — there is no universally-correct inference provider, FR-D2) with guidance, since a pinned model requires one (FR-R5b). Other *installed* agents are written as commented-out `[role.*]` blocks so switching platforms is a one-line uncomment. Parent dirs are created; an existing file is not overwritten unless `--force`. The written path is always printed.
+- **FR-B2.** `config init --agent <name>` targets a specific agent instead of auto-detecting. `config init --force` regenerates (overwrites) an existing file. The v1 "all-commented inert template" behavior is retained behind `config init --template` for users who want the bare reference. (Renamed from `--provider` in config v3; see FR-B7.)
 - **FR-B3. Bootstrap on install, fallback on first run.** Where the install method permits a post-install step (Homebrew `post_install`, the curl\|sh installer, Scoop), stagehand runs the equivalent of `config init` so a config exists immediately after install. First-run fallback: if stagehand starts with no global config and no `STAGEHAND_CONFIG`, it auto-writes the bootstrap config once, prints a notice with the path, and continues — the tool is never "unconfigured."
-- **FR-B4. Config schema version.** Every config file carries `config_version = <int>`; the binary knows `CurrentConfigVersion` (compile-time constant, bumped on any breaking config change). On load: if the file's version is missing or **older**, print a clear warning naming the mismatch and the remediation (`stagehand config upgrade`, or `config init --force`); if **newer**, warn that the file is ahead of the binary. Advisory only — no automatic migration (there are no existing users to migrate).
-- **FR-B5.** `stagehand config upgrade` rewrites an existing config to `CurrentConfigVersion` in place: preserving user values for keys that still exist, commenting out removed/renamed keys with a note. Simple, idempotent, future-extensible.
-- **FR-B6. Help de-duplication.** The `config` and `providers` parent commands must not list their leaf commands twice. The manual "Subcommands:" block is removed from each parent's `Long`; cobra's auto-generated "Available Commands" is the single source. (The v1 `stagehand config` output showed `init`/`path` both in the prose *and* in Available Commands — redundant.)
+- **FR-B4. Config schema version.** Every config file carries `config_version = <int>`; the binary knows `CurrentConfigVersion` (compile-time constant, bumped on any breaking config change). On load: if the file's version is missing or **older**, print a clear warning naming the mismatch and the remediation (`stagehand config upgrade`, or `config init --force`); if **newer**, warn that the file is ahead of the binary. **Config v3** (this revision) is a breaking terminology rename (FR-B7) and is auto-migrated on load for older files.
+- **FR-B5.** `stagehand config upgrade` rewrites an existing config to `CurrentConfigVersion` in place: preserving user values for keys that still exist, commenting out removed/renamed keys with a note. Simple, idempotent, future-extensible. FR-B7 defines the v2→v3 rewrite.
+- **FR-B7. Config v2 → v3 terminology rename (breaking).** v3 eliminates the overloaded `provider` term (§12): the agent platform is `agent` (was `provider`), and `provider` now means the inference provider (was the buried `default_provider`). On load of a `config_version < 3` file, stagehand auto-migrates **in memory** and emits a one-time deprecation notice pointing at `config upgrade`. The mapping: (a) `[defaults] provider = <platform>` → `[defaults] agent = <platform>`; (b) `[role.<role>] provider` → `[role.<role>] agent`; (c) `[provider.<name>]` blocks → `[agent.<name>]` (the `default_provider` field inside is unchanged — it already named the inference provider); (d) the platform-selecting `--provider`/`STAGEHAND_PROVIDER` → `--agent`/`STAGEHAND_AGENT`. **No value is invented:** a v2 file with no inference provider set remains unset (and if a model is pinned on a multi-backend agent, it becomes an FR-R5b error the user resolves by setting `provider`). `config upgrade` performs the same rewrite on disk. Git-config keys follow the same rename (`stagehand.provider`(platform) → `stagehand.agent`); during the transition the loader accepts the v2 key as a deprecated alias for the platform.
+- **FR-B6. Help de-duplication.** The `config` and `agents` parent commands must not list their leaf commands twice. The manual "Subcommands:" block is removed from each parent's `Long`; cobra's auto-generated "Available Commands" is the single source. (The v1 `stagehand config` output showed `init`/`path` both in the prose *and* in Available Commands — redundant.)
 
 ---
 
@@ -520,18 +524,29 @@ Both modes reuse the manifest's command/model/provider/subcommand/print_flag/del
 
 ---
 
-## 12. The provider system
+## 12. The agent system
 
-The provider system is the heart of Stagehand's agent-agnosticism. Its job: given a logical intent ("call an agent with this system prompt and this user payload, bare and ephemeral, with this model"), produce a concrete command line for a specific agent, run it, and parse the result.
+The agent system is the heart of Stagehand's agent-agnosticism. Its job: given a logical intent ("call an agent with this system prompt and this user payload, bare and ephemeral, with this model"), produce a concrete command line for a specific **agent platform**, routing to a specific **inference provider** and **model**, run it, and parse the result.
 
-**Terminology — agent vs. upstream provider.** Stagehand shells out to an **agent** (the CLI: pi, opencode, claude, codex, cursor, gemini, agy). Some agents route to a choice of upstream **provider** — the model backend (zai, anthropic, google, openrouter, …); these are *multi-provider* agents (pi, opencode, agy). Others have a fixed backend (claude→Anthropic, codex→OpenAI, gemini→Google, cursor) — for these the provider concept is meaningless and stagehand never emits a provider flag (their manifest `provider_flag` is empty). **Naming caveat (open issue):** the config section `[provider.<name>]` actually defines an *agent*, while the field `default_provider` names the *upstream provider* — "provider" is overloaded. A schema rename to `[agent.<name>]` is tracked but deferred (breaking change).
+**Terminology — three concepts, never conflated.** Stagehand configures a model invocation with THREE distinct, independently-resolved concepts. Conflating them has been the root cause of repeated routing bugs (a bare `glm-5-turbo` silently routed to `openrouter` instead of `zai`), so this terminology is **normative**, not advisory:
+
+| Concept | What it is | Examples | Config field | Flag | Env | Git key |
+|---|---|---|---|---|---|---|
+| **agent** (platform) | the CLI stagehand shells out to | pi, opencode, claude, codex, cursor, gemini, agy | `agent` | `--agent` | `STAGEHAND_AGENT` | `stagehand.agent` |
+| **provider** (inference provider) | the upstream model backend the agent routes to | zai, openrouter, anthropic, google, openai | `provider` | `--provider` | `STAGEHAND_PROVIDER` | `stagehand.provider` |
+| **model** | the model string, routed by the provider | glm-5.1, gpt-5.4, opus | `model` | `--model` | `STAGEHAND_MODEL` | `stagehand.model` |
+
+- **"provider" means ONLY the inference provider, everywhere.** The config field `provider`, the `--provider` flag, the per-role `[role.<role>].provider`, and the `--provider` flag stagehand *forwards to a multi-backend agent* (e.g. pi's `--provider zai`) are all the SAME concept — the inference provider. An agent platform is NEVER called a "provider."
+- **`agent` selects the platform** (i.e. the manifest: which flags, how to invoke). **`provider` selects the backend** — meaningful only for multi-backend agents (pi, opencode, agy); single-backend agents (claude, codex, gemini, cursor) have a fixed backend, so stagehand ignores `provider` for them and never emits a `--provider` flag (their manifest `provider_flag` is empty). **`model` selects the model**, interpreted by the resolved agent's manifest and routed by the resolved provider.
+- The manifest block is **`[agent.<name>]`** (it defines a platform); inside it, `default_provider` is that platform's default *inference* provider (a fallback, symmetric with `default_model`) and `default_model` is its default model.
+- **INVARIANT (do not regress):** `agent`, `provider`, and `model` are resolved independently per role; no code path may substitute an agent identity for an inference provider or vice versa. This supersedes the former "naming caveat (open issue)" — the rename is no longer deferred; the config v2→v3 migration is §9.17 FR-B7.
 
 ### 12.1 The manifest schema
 
-Each provider is described by a manifest. Manifests are TOML (human-editable, no quoting hell for flag lists). Built-in manifests are compiled into the binary (so the tool works with zero config); user manifests in config files override or extend them.
+Each agent platform is described by a manifest. Manifests are TOML (human-editable, no quoting hell for flag lists). Built-in manifests are compiled into the binary (so the tool works with zero config); user manifests in config files override or extend them.
 
 ```toml
-# A provider manifest. All fields except `name` and `command` are optional
+# An agent manifest. All fields except `name` and `command` are optional
 # with sensible defaults; shown here fully expanded for pi.
 
 name = "pi"
@@ -623,7 +638,7 @@ retry_instruction = "Output ONLY the commit message. No preamble, no markdown, n
 
 ### 12.2 Command rendering algorithm
 
-Given a manifest `m`, a resolved model `model`, a sub-provider `provider`, a system prompt `sys`, a user payload `user`, and a **mode** (`"bare"` | `"tooled"`; default `"bare"`):
+Given a manifest `m`, a resolved model `model`, a resolved inference `provider` (§12 — the value forwarded as the agent's `--provider`), a system prompt `sys`, a user payload `user`, and a **mode** (`"bare"` | `"tooled"`; default `"bare"`):
 
 ```
 args = [m.subcommand...]
@@ -651,7 +666,9 @@ cmd.Env   = os.Environ() + m.env
 
 **Note on system prompt + stdin:** when delivery is `stdin` and a system-prompt flag exists, the system prompt goes via the flag and only the user payload goes via stdin (matching `commit-pi`). If the agent has *no* system-prompt flag (`system_prompt_flag = ""`), the system prompt is prepended to the stdin payload as a fallback.
 
-### 12.3 Built-in provider: pi
+**FR-R5b (enforced at this chokepoint):** if `m.provider_flag` is set (a multi-backend agent) and `model` resolves non-empty while `provider` resolves empty, `Render` returns an error rather than emitting a bare `--model` (§9.15). This is the single command-emission gate every call path flows through, so no path can produce an unroutable command.
+
+### 12.3 Built-in agent: pi
 
 Captured from `pi --help` on the author's machine (2026-06-29). pi is a **harness** that routes to model backends via its own sub-providers, so its `default_model` / `default_provider` are **deliberately empty in the shipped manifest** — they are populated per-role by `config init` (§9.17) from the §9.16 default table, against whichever backend the user has wired. The shipped default does **not** assume the author's personal z.ai/GLM subscription (FR-D2); that is shown as a personal *override* below.
 
@@ -688,7 +705,7 @@ pi --provider <backend> --model <m> --system-prompt "<sys>" \
 
 **Personal-override example (NOT the shipped default).** The original `commit-pi` script — and the author's daily setup — routes pi to z.ai GLM: `default_provider = "zai"`, `default_model = "glm-5-turbo"` (the invocation above with `<backend>=zai`, `<m>=glm-5-turbo`, byte-for-byte the `commit-pi` call). That is the author's *subscription-specific* override, kept here as the reference shape; it is not a default anyone else would inherit.
 
-### 12.4 Built-in provider: Claude Code
+### 12.4 Built-in agent: Claude Code
 
 Captured from `claude --help`.
 
@@ -723,7 +740,7 @@ Notes:
 - `--system-prompt` *replaces* the default; `--append-system-prompt` *adds to* it. We use the replacing form for a clean, bare call. (Configurable: a user who wants CC's default persona retained can switch the flag to `--append-system-prompt`.)
 - `--output-format json` + `json_field = "result"` is an alternative if raw mode proves unreliable with a given model.
 
-### 12.5 Built-in provider: Gemini CLI
+### 12.5 Built-in agent: Gemini CLI
 
 Captured from `gemini --help`.
 
@@ -753,7 +770,7 @@ gemini -m gemini-2.5-pro --approval-mode default "<sys>\n\n<user payload>"
 
 Caveats (to verify at integration time): the `-p/--prompt` flag is deprecated in favor of the positional `query`, and the help notes stdin is appended to the prompt — so `prompt_delivery = "stdin"` may also work and is preferable for large diffs (avoids arg-length limits). The manifest should default to whichever is verified to handle a ~300 KB payload; candidates are `stdin` first, `positional` as fallback. Gemini CLI's lack of a system-prompt flag means the system prompt is prepended to the payload per §12.2.
 
-### 12.5.1 Built-in provider: Antigravity CLI (`agy`) — the Gemini-CLI successor
+### 12.5.1 Built-in agent: Antigravity CLI (`agy`) — the Gemini-CLI successor
 
 Antigravity CLI (`agy`) is Google's terminal coding agent; it **superseded `gemini` (Gemini CLI) on 2026-06-18** and is the Gemini lineage's current surface. It matters to stagehand for the same structural reason every provider does: **the Antigravity coding-plan quota is reachable only through `agy`**, never over the public API. Flag surface below is assembled from Antigravity's published docs and issue tracker (2026-06); it carries the PRD's heaviest `# TO CONFIRM` load of any built-in (see the block beneath the manifest) and should be marked `experimental` until a real end-to-end run clears the items.
 
@@ -797,7 +814,7 @@ agy -m gemini-2.5-pro --approval-mode default -p            < <sys+user payload 
 
 Until items 1–4 clear, `agy` ships `experimental = true` (§12.7.2) with the bare-roles path gated on item 1 and the stager path gated on item 4.
 
-### 12.6 Built-in provider: opencode
+### 12.6 Built-in agent: opencode
 
 Captured from `opencode run --help`.
 
@@ -825,7 +842,7 @@ opencode run -m anthropic/claude-sonnet-4 "<sys>\n\n<user payload>"
 
 Caveats: opencode's `run` subcommand is non-interactive and prints the final message to stdout (good). It has no system-prompt flag; the system prompt is prepended to the payload. For finer control of agent persona, opencode supports `--agent <name>` against a user-defined agent in `opencode.json` — Stagehand can expose this via an `extra_args` passthrough or a dedicated `agent_flag` field in a later revision. `default_model` is intentionally empty: opencode's model space is huge and user-specific, so we require the user to set `model` (via flag/env/config) rather than guess.
 
-### 12.7 Verified providers: Codex, Cursor Agent
+### 12.7 Verified agents: Codex, Cursor Agent
 
 Both were verified against their real `--help` output. They are **not** marked `experimental` — the flag surfaces below are confirmed. Two residual details to confirm at integration time are called out inline; neither blocks the manifest shape.
 
@@ -912,13 +929,13 @@ This is not a defect to paper over — it is the honest cost of supporting heter
 
 We do not pretend to know everything up front. The implementing agent will do its own comprehensive research per task. The contract here is: **the manifest *schema* and the six default manifests are fixed by this document; the exact behavior of each manifest is confirmed by a real end-to-end run during implementation.** Two explicit `# TO CONFIRM` notes are carried above (codex stdout-on-success; cursor `ask`-wins-over-`-p`). Any manifest field that cannot be confirmed is left at a safe default and marked with a `# TO CONFIRM` comment, never silently assumed. The `experimental` flag remains available (see §22.1) for any *future* provider added from docs alone rather than a verified `--help`.
 
-### 12.8 Extensibility: user-defined providers
+### 12.8 Extensibility: user-defined agents
 
-A user can define a provider unknown to Stagehand by dropping a `[provider.<name>]` block into any config file. This is how community support for new agents (or future versions of existing ones) lands without a release:
+A user can define an agent platform unknown to Stagehand by dropping an `[agent.<name>]` block into any config file. This is how community support for new agents (or future versions of existing ones) lands without a release:
 
 ```toml
 # ~/.config/stagehand/config.toml
-[provider.myagent]
+[agent.myagent]
 command = "/opt/myagent/bin/agent"
 prompt_delivery = "stdin"
 print_flag = "--once"
@@ -929,7 +946,7 @@ bare_flags = ["--no-mcp", "--ephemeral"]
 output = "raw"
 ```
 
-Then `stagehand --provider myagent` (or `stagehand.provider = myagent` in git config) uses it. No recompilation.
+Then `stagehand --agent myagent` (or `stagehand.agent = myagent` in git config) uses it. No recompilation.
 
 ### 12.9 Output parsing pipeline (detailed)
 
@@ -1004,7 +1021,7 @@ This is the workflow the author already uses with `commit-pi` and that lazygit's
 - **HEAD moved during generation (user committed elsewhere):** the CAS `update-ref` fails. Stagehand prints: "HEAD moved from <PARENT> to <actual> while generating; aborting to avoid a non-fast-forward. Your generated message was: <msg>. To commit the snapshot manually: `git commit-tree -p <PARENT> -m \"<msg>\" <TREE> | xargs git update-ref HEAD`." Exit non-zero.
 - **Generation timeout / SIGINT:** kill the agent, enter rescue path (print `TREE_SHA` + manual recovery).
 - **Empty diff after auto-stage-all:** exit 2, "nothing to commit."
-- **Agent not on `$PATH`:** `providers list` would have shown it as absent; on direct use, fail fast with "provider 'X' not found: is <command> installed?"
+- **Agent not on `$PATH`:** `agents list` would have shown it as absent; on direct use, fail fast with "agent 'X' not found: is <command> installed?"
 
 ### 13.6 Multi-commit decomposition (the v2 core, now specified)
 
@@ -1026,9 +1043,11 @@ If something is already staged, the single-commit primitive (§13.1–§13.5) ru
 
 `--commits N` is the critical user control: it asserts the answer to "how many commits?" so the planner is never asked to count (it only partitions into N). This both saves a reasoning round-trip and keeps the user in control of commit granularity. `--commits 1` is equivalent to `--single`.
 
+**One-file short-circuit (FR-M2b).** In auto mode, if exactly one file is changed, the planner is skipped entirely — stagehand stages that one file and generates a single commit message directly (no planner round-trip). One file cannot sensibly decompose, so the planner call is pure churn. `--commits N` (N ≥ 2) overrides this and is honored even for a single file.
+
 #### 13.6.2 The four agent roles
 
-Decomposition is a multi-agent pipeline. Each role is a distinct invocation, independently bindable to its own provider and model (§16.4); all default to the global `provider`/`model`.
+Decomposition is a multi-agent pipeline. Each role is a distinct invocation, independently bindable to its own agent, inference provider, and model (§16.4); all default to the global `agent`/`provider`/`model`.
 
 | Role | Mode | Job | Output contract |
 |---|---|---|---|
@@ -1248,7 +1267,8 @@ With no command, runs the default action: commit staged changes (auto-staging al
 
 | Flag | Env | Git config | Default | Description |
 |---|---|---|---|---|
-| `--provider <name>` | `STAGEHAND_PROVIDER` | `stagehand.provider` | auto-detected | Provider/agent to use — **global default for all roles** (§16.4). |
+| `--agent <name>` | `STAGEHAND_AGENT` | `stagehand.agent` | auto-detected | Agent platform to use — **global default for all roles** (§16.4). |
+| `--provider <name>` | `STAGEHAND_PROVIDER` | `stagehand.provider` | — | Inference provider (backend) for multi-backend agents (pi/opencode/agy) — **global default for all roles** (§12, §16.4). |
 | `--model <name>` | `STAGEHAND_MODEL` | `stagehand.model` | per-manifest `default_model` | Model override — **global default for all roles** (§16.4). |
 | `--config <path>` | `STAGEHAND_CONFIG` | — | resolved path | Path to a config file (overrides discovery). |
 | `--timeout <dur>` | `STAGEHAND_TIMEOUT` | `stagehand.timeout` | `120s` | Generation timeout. |
@@ -1268,9 +1288,9 @@ With no command, runs the default action: commit staged changes (auto-staging al
 
 ### 15.3 Subcommands
 
-- **`stagehand providers list`** — List all known providers (built-in + user). Mark detected (on `$PATH`) vs not. Show the resolved default (highest-priority *installed* built-in per FR-D1's order: pi, opencode, cursor, agy, gemini, codex, claude).
-- **`stagehand providers show <name>`** — Print the fully-resolved manifest as TOML.
-- **`stagehand config init`** — Bootstrap a **populated, working** config (auto-detects the default provider and writes its per-role models); `--provider <name>` to target one, `--force` to overwrite, `--template` for the inert reference (§9.17).
+- **`stagehand agents list`** — List all known agents (built-in + user). Mark detected (on `$PATH`) vs not. Show the resolved default (highest-priority *installed* built-in per FR-D1's order: pi, opencode, cursor, agy, gemini, codex, claude).
+- **`stagehand agents show <name>`** — Print the fully-resolved manifest as TOML.
+- **`stagehand config init`** — Bootstrap a **populated, working** config (auto-detects the default agent and writes its per-role models); `--agent <name>` to target one, `--force` to overwrite, `--template` for the inert reference (§9.17).
 - **`stagehand config path`** — Print the resolved global config path.
 - **`stagehand config upgrade`** — Rewrite an existing config to the current schema version in place (§9.17, FR-B5).
 
@@ -1287,14 +1307,18 @@ With no command, runs the default action: commit staged changes (auto-staging al
 ### 15.5 Example invocations
 
 ```bash
-# Default: commit staged changes with the default provider.
+# Default: commit staged changes with the default agent.
 stagehand
 
-# Use a specific agent + model for one commit.
-stagehand --provider claude --model sonnet
+# Use a specific agent + model for one commit (claude is single-backend; no --provider needed).
+stagehand --agent claude --model sonnet
+
+# A multi-backend agent needs its inference provider when a model is pinned (FR-R5b).
+stagehand --agent pi --provider zai --model glm-5.2
 
 # Set a per-repo default (persisted in the repo's git config).
-git config stagehand.provider pi
+git config stagehand.agent pi
+git config stagehand.provider zai
 git config stagehand.model glm-5.2
 
 # Dry run: see what it would write, commit nothing.
@@ -1342,28 +1366,29 @@ stagehand --planner-model gemini-2.5-pro --planner-provider agy
 ### 16.1 Resolution order (FR34), lowest to highest
 
 1. **Built-in defaults** (`internal/config/defaults.go`): timeout 120s, auto_stage_all true, max_diff_bytes 300000, max_md_lines 100, max_duplicate_retries 3, output raw, strip_code_fence true.
-2. **Built-in provider defaults** (`internal/provider/builtin.go`): the manifests in §12.3–12.7.
+2. **Built-in agent defaults** (`internal/provider/builtin.go`): the manifests in §12.3–12.7.
 3. **Global config file** (`$XDG_CONFIG_HOME/stagehand/config.toml`, default `~/.config/stagehand/config.toml`).
 4. **Per-repo config file** (`./.stagehand.toml`, if present; not committed by default — added to a generated `.gitignore` only on `config init` if the user confirms).
 5. **Per-repo git config** (`stagehand.*` keys; read via `git config --get`).
 6. **Environment variables** (`STAGEHAND_*`).
 7. **CLI flags.**
 
-Higher wins. Provider manifests merge field-by-field (a user override that sets only `default_model` leaves all other fields from the built-in manifest intact).
+Higher wins. Agent-platform manifests merge field-by-field (a user override that sets only `default_model` leaves all other fields from the built-in manifest intact).
 
 **`config_version` is metadata, not a precedence layer.** Every config file carries `config_version = <int>`; on load, stagehand compares it to its compile-time `CurrentConfigVersion` and emits an advisory staleness warning (or points to `config upgrade`) per §9.17 FR-B4/B5. It does not participate in value resolution.
 
 ### 16.2 Full config file example
 
 ```toml
-# ~/.config/stagehand/config.toml
+# ~/.config/stagehand/config.toml  (config_version 3)
 
 [defaults]
-provider = "pi"            # default agent
-model   = ""               # "" → use the manifest's default_model
-timeout = "120s"
+agent    = "pi"            # the AGENT PLATFORM (was "provider" in v2)
+provider = "zai"           # the INFERENCE PROVIDER — forwarded as pi's --provider (was [provider.pi] default_provider)
+model    = ""              # "" → use the manifest's default_model
+timeout  = "120s"
 auto_stage_all = true
-verbose = false
+verbose  = false
 
 [generation]
 max_diff_bytes      = 300000
@@ -1375,15 +1400,15 @@ subject_target_chars = 50
 binary_extensions   = []        # extra non-text extensions to filter (FR3a; merges with built-in denylist)
 max_commits         = 12        # safety cap on auto-decompose (FR-M4)
 
-# Override a built-in provider (field-merged with the built-in manifest).
-[provider.pi]
-default_model = "gpt-5.4-mini"        # example: pin pi to a specific model
-default_provider = "openrouter"       # example: route via the user's pi sub-provider
-# tooled_flags (v2) let this provider serve the STAGER role; omit to exclude it.
+# Override a built-in agent platform (field-merged with the built-in manifest).
+[agent.pi]
+default_model = "gpt-5.4-mini"        # the platform's default model
+default_provider = "zai"              # the platform's default INFERENCE provider (fallback; the top-level [defaults] provider above wins)
+# tooled_flags let this platform serve the STAGER role; omit to exclude it.
 # tooled_flags = ["--allowed-tools", "Bash(git:*),Read,Edit", "--approval-mode", "auto"]
 
-# Define a brand-new provider (§12.8).
-[provider.myagent]
+# Define a brand-new agent platform (§12.8).
+[agent.myagent]
 command = "/opt/myagent/bin/agent"
 prompt_delivery = "stdin"
 print_flag = "--once"
@@ -1400,43 +1425,46 @@ For users who prefer to keep config with the repo and don't want a `.stagehand.t
 
 ```ini
 [stagehand]
-    provider = pi
+    agent = pi          # the agent platform
+    provider = zai      # the inference provider
     model = glm-5.2
     timeout = 90
     autoStageAll = true
 ```
 
-Read with `git config --get stagehand.provider`, etc. Booleans via `git config --bool`. This composes naturally with the author's existing `git commit-pi` alias habit and with `git config --local` vs `--global`.
+Read with `git config --get stagehand.agent`, etc. Booleans via `git config --bool`. This composes naturally with the author's existing `git commit-pi` alias habit and with `git config --local` vs `--global`. (v3 rename: `stagehand.provider`(platform)→`stagehand.agent`; see FR-B7.)
 
-### 16.4 Per-role provider/model configuration (v2; → G12, FR-R1–R5)
+### 16.4 Per-role agent/provider/model configuration (v3; → G12, FR-R1–R5)
 
-The four agent roles — **planner, stager, message, arbiter** (§13.6.2) — each resolve their provider and model independently. A single global default covers all of them; per-role tables override it for the roles you care about.
+The four agent roles — **planner, stager, message, arbiter** (§13.6.2) — each resolve their **agent**, **provider**, and **model** independently (the three §12 concepts). A single global default covers all of them; per-role tables override the fields you care about.
 
-**Resolution for a role's provider/model (highest wins):** CLI flag → env → `[role.<role>]` config → `[defaults]` config (the global) → built-in manifest `default_model`. The global is `[defaults].provider` / `[defaults].model` (i.e. `--provider`/`--model`, `STAGEHAND_PROVIDER`/`STAGEHAND_MODEL`). On the single-commit path the only active role is `message`, so setting just the global is exactly equivalent to v1 — back-compatible.
+**Resolution for a role's agent/provider/model (highest wins), applied independently per field:** CLI flag → env → `[role.<role>]` config → `[defaults]` config (the global) → built-in manifest default. The globals are `[defaults].agent` / `[defaults].provider` / `[defaults].model` (i.e. `--agent`/`--provider`/`--model`, `STAGEHAND_AGENT`/`STAGEHAND_PROVIDER`/`STAGEHAND_MODEL`). On the single-commit path the only active role is `message`, so setting just the globals is exactly equivalent to v1 — back-compatible.
 
 ```toml
-# One model for everything: set only [defaults].
+# One setting for everything: set only [defaults].
 [defaults]
-provider = "pi"
+agent    = "pi"
+provider = "zai"        # required when a model is pinned on a multi-backend agent (FR-R5b)
 model    = ""           # → manifest default_model
 
 # Granular: route planning to a large-context agent, leave the rest on the global.
 [role.planner]
-provider = "agy"        # Antigravity quota for the big-context reasoning
+agent    = "agy"        # Antigravity quota for the big-context reasoning
+provider = ""           # agy is single-backend → ignored (omit is equivalent)
 model    = "gemini-2.5-pro"
 
 [role.stager]           # tooled agent that runs git; needs tooled_flags in its manifest
-provider = "agy"
+agent    = "agy"
 model    = "gemini-2.5-pro"
 
-[role.message]          # bare commit-message agent — inherits [defaults] (pi)
+[role.message]          # bare commit-message agent — inherits [defaults] (pi/zai)
 # (omit to inherit)
 
 [role.arbiter]          # bare leftover arbiter — inherits [defaults]
 # (omit to inherit)
 ```
 
-Env: `STAGEHAND_<ROLE>_PROVIDER` / `STAGEHAND_<ROLE>_MODEL` (e.g. `STAGEHAND_PLANNER_MODEL`). Flags: `--<role>-provider` / `--<role>-model`. **Model strings are provider-specific** (FR-R5): a role's `model` is interpreted by *that role's* resolved provider's manifest, so changing a role's provider without updating its model is a configuration error stagehand surfaces rather than silently ignores. A role routed to a provider whose manifest has empty `tooled_flags` cannot serve as the **stager** (it lacks a safe tooled profile); stagehand rejects that combination up front.
+Env: `STAGEHAND_<ROLE>_{AGENT,PROVIDER,MODEL}` (e.g. `STAGEHAND_PLANNER_MODEL`). Flags: `--<role>-agent` / `--<role>-provider` / `--<role>-model` (**all four roles, including `message`**). **Model strings are provider-specific** (FR-R5): a role's `model` is interpreted by *that role's* resolved agent's manifest and routed by its resolved provider, so changing either without updating the model is a configuration error stagehand surfaces rather than silently ignores. A role routed to an agent whose manifest has empty `tooled_flags` cannot serve as the **stager** (it lacks a safe tooled profile); stagehand rejects that combination up front. **A model pinned on a multi-backend agent (pi/opencode/agy) with no resolvable inference provider is a hard error** (FR-R5b) — never silently rendered as a bare `--model`.
 
 ---
 
@@ -1730,7 +1758,7 @@ Semantic versioning. v1.0.0 = feature-complete against this PRD's P0/P1 set. Pro
 3. "Why not opencommit/aicommits?" — the coding-plan paragraph, in 3 sentences.
 4. Install (the four paths above).
 5. Quick start (one `stagehand` invocation).
-6. Configure your agent (`providers list` → set `stagehand.provider`).
+6. Configure your agent (`agents list` → set `stagehand.agent`, and for multi-backend agents `stagehand.provider`).
 7. The snapshot workflow (§13.4 diagram) — the "stage while it thinks" payoff.
 8. Full CLI + config reference (link to docs).
 9. Adding a new agent (§12.8) — the contributor hook.
@@ -1744,7 +1772,7 @@ Semantic versioning. v1.0.0 = feature-complete against this PRD's P0/P1 set. Pro
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Agent CLI surfaces change (flags renamed/removed). | Medium | Medium (a provider breaks). | Manifests are config-overridable without a release; `providers show` aids debugging; pin known-good manifest versions in docs; community can ship fixes. |
+| Agent CLI surfaces change (flags renamed/removed). | Medium | Medium (an agent breaks). | Manifests are config-overridable without a release; `agents show` aids debugging; pin known-good manifest versions in docs; community can ship fixes. |
 | An agent's raw output is unreliable (preambles, fences). | Medium | Low (retry handles it). | Robust parse pipeline + retry; JSON fallback per-provider. |
 | Large diffs exceed an agent's context or arg limits. | Low | Medium. | Diff cap (300 KB default, configurable); stdin delivery avoids arg limits; surface a clear "diff truncated" notice. |
 | `update-ref` CAS semantics misunderstood. | Low | High (data integrity). | Exhaustive tests (§20.2); never use force-update; rescue on failure. |
