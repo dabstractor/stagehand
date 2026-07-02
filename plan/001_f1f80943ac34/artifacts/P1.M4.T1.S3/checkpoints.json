@@ -1,0 +1,171 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1.M4.T1.S3_1782979509873_pre-execution_999c5132",
+      "taskId": "P1.M4.T1.S3",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M4_T1_S3.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T08:05:09.873Z"
+      },
+      "createdAt": "2026-07-02T08:05:09.874Z"
+    },
+    {
+      "id": "P1.M4.T1.S3_1782980167378_coder-response_90906804",
+      "taskId": "P1.M4.T1.S3",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M4_T1_S3.md",
+        "stage": "coder-response",
+        "coderResponse": "All validation gates and final checks pass. The \"forbidden imports\" grep only matched *comment text* (explaining what is NOT imported); the actual import is `import \"strings\"` only. Confirmed:\n\n- **Scope**: only `internal/prompt/payload.go` + `internal/prompt/payload_test.go` added (the other untracked items are PRP/plan artifacts, not source)\n- **go.mod/go.sum**: unchanged\n- **`// Package prompt`**: appears exactly once (in `examples.go`); payload.go uses a file-level comment + plain `package prompt`\n- **Production imports**: stdlib `strings` only — no `fmt`, no `internal/git`, no `internal/config`, no go-git, no testify\n\n## Summary\n\nImplemented **P1.M4.T1.S3** — `internal/prompt/payload.go` + white-box `payload_test.go`:\n\n**payload.go** — third sibling file in the existing `internal/prompt` package:\n- File-level comment (mirroring `system.go`/`internal/git/log.go`, deferring the package doc to `examples.go`)\n- Unexported §17.3 constants committed VERBATIM: `rejectionHeader` (★ two lines, ends with colon ★), `rejectionBulletPrefix = \"- \"`, `rejectionFooter`\n- `AssemblePayload(diff, instruction string, rejected []string) string` — pure builder, **D5 REFERENCE ordering** (diff FIRST): base = `<diff>\\n\\n<instruction>`; retry appends `+ \"\\n\\n\" + rejectionBlock(rejected)` LAST. `len(rejected)==0` covers both `nil` and `[]string{}`\n- `rejectionBlock` helper: `rejectionHeader + \"\\n\" + join(bullets, \"\\n\") + \"\\n\\n\" + rejectionFooter` (one newline to first bullet, blank line before footer)\n- Godoc cites reference_impl.md §3 + §4 D5 (the explicit diff-first decision over-ruling PRD §17.3 prose), PRD §17.3, and decisions.md §3\n\n**payload_test.go** — 7 white-box tests covering all contract scenarios: base diff-first layout (exact `==`), empty-slice==nil, rejection-block-present (slice order, block-after-instruction, exact bytes), single-subject, block-absent-when-empty, exact `rejectionBlock` byte layout, and determinism.\n\n**Validation** — all gates green:\n- `go build`, `go vet`, `gofmt -l` (Level 1) ✅\n- `go test ./internal/prompt/` — 6 new + all S1/S2 tests PASS (Level 2) ✅\n- `go test ./...` — whole module green (Level 3) ✅\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented P1.M4.T1.S3: created internal/prompt/payload.go (file-level comment + plain `package prompt`, stdlib `strings` only) with the unexported §17.3 rejection constants committed VERBATIM and AssemblePayload + rejectionBlock implementing the D5 REFERENCE diff-first ordering (<diff>\\\\n\\\\n<instruction>, rejection block appended LAST on retry; len(rejected)==0 covers nil and empty slice). Created white-box payload_test.go (stdlib testing+strings only) with 7 tests covering base diff-first layout, empty==nil, rejection-block-present/slice-order/after-instruction/exact-bytes, single-subject, block-absent-when-empty, exact rejectionBlock byte layout, and determinism. All validation gates pass: go build/vet/gofmt -l clean; go test ./internal/prompt/ PASS (S1 examples + S2 system tests still green + 6 new payload tests); go test ./... whole-module green. Scope respected: only the two new prompt files created; go.mod/go.sum unchanged; no `go mod tidy`; `// Package prompt` appears exactly once (in examples.go); no go-git/internal-git/internal-config/fmt/testify imports.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented P1.M4.T1.S3: created internal/prompt/payload.go (file-level comment + plain `package prompt`, stdlib `strings` only) with the unexported §17.3 rejection constants committed VERBATIM and AssemblePayload + rejectionBlock implementing the D5 REFERENCE diff-first ordering (<diff>\\n\\n<instruction>, rejection block appended LAST on retry; len(rejected)==0 covers nil and empty slice). Created white-box payload_test.go (stdlib testing+strings only) with 7 tests covering base diff-first layout, empty==nil, rejection-block-present/slice-order/after-instruction/exact-bytes, single-subject, block-absent-when-empty, exact rejectionBlock byte layout, and determinism. All validation gates pass: go build/vet/gofmt -l clean; go test ./internal/prompt/ PASS (S1 examples + S2 system tests still green + 6 new payload tests); go test ./... whole-module green. Scope respected: only the two new prompt files created; go.mod/go.sum unchanged; no `go mod tidy`; `// Package prompt` appears exactly once (in examples.go); no go-git/internal-git/internal-config/fmt/testify imports."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T08:16:07.378Z"
+      },
+      "createdAt": "2026-07-02T08:16:07.378Z"
+    },
+    {
+      "id": "P1.M4.T1.S3_1782980167610_validation-gate-3_d15bdb12",
+      "taskId": "P1.M4.T1.S3",
+      "label": "After validation gate 3",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M4_T1_S3.md",
+        "stage": "validation-gate-3",
+        "coderResponse": "All validation gates and final checks pass. The \"forbidden imports\" grep only matched *comment text* (explaining what is NOT imported); the actual import is `import \"strings\"` only. Confirmed:\n\n- **Scope**: only `internal/prompt/payload.go` + `internal/prompt/payload_test.go` added (the other untracked items are PRP/plan artifacts, not source)\n- **go.mod/go.sum**: unchanged\n- **`// Package prompt`**: appears exactly once (in `examples.go`); payload.go uses a file-level comment + plain `package prompt`\n- **Production imports**: stdlib `strings` only — no `fmt`, no `internal/git`, no `internal/config`, no go-git, no testify\n\n## Summary\n\nImplemented **P1.M4.T1.S3** — `internal/prompt/payload.go` + white-box `payload_test.go`:\n\n**payload.go** — third sibling file in the existing `internal/prompt` package:\n- File-level comment (mirroring `system.go`/`internal/git/log.go`, deferring the package doc to `examples.go`)\n- Unexported §17.3 constants committed VERBATIM: `rejectionHeader` (★ two lines, ends with colon ★), `rejectionBulletPrefix = \"- \"`, `rejectionFooter`\n- `AssemblePayload(diff, instruction string, rejected []string) string` — pure builder, **D5 REFERENCE ordering** (diff FIRST): base = `<diff>\\n\\n<instruction>`; retry appends `+ \"\\n\\n\" + rejectionBlock(rejected)` LAST. `len(rejected)==0` covers both `nil` and `[]string{}`\n- `rejectionBlock` helper: `rejectionHeader + \"\\n\" + join(bullets, \"\\n\") + \"\\n\\n\" + rejectionFooter` (one newline to first bullet, blank line before footer)\n- Godoc cites reference_impl.md §3 + §4 D5 (the explicit diff-first decision over-ruling PRD §17.3 prose), PRD §17.3, and decisions.md §3\n\n**payload_test.go** — 7 white-box tests covering all contract scenarios: base diff-first layout (exact `==`), empty-slice==nil, rejection-block-present (slice order, block-after-instruction, exact bytes), single-subject, block-absent-when-empty, exact `rejectionBlock` byte layout, and determinism.\n\n**Validation** — all gates green:\n- `go build`, `go vet`, `gofmt -l` (Level 1) ✅\n- `go test ./internal/prompt/` — 6 new + all S1/S2 tests PASS (Level 2) ✅\n- `go test ./...` — whole module green (Level 3) ✅\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented P1.M4.T1.S3: created internal/prompt/payload.go (file-level comment + plain `package prompt`, stdlib `strings` only) with the unexported §17.3 rejection constants committed VERBATIM and AssemblePayload + rejectionBlock implementing the D5 REFERENCE diff-first ordering (<diff>\\\\n\\\\n<instruction>, rejection block appended LAST on retry; len(rejected)==0 covers nil and empty slice). Created white-box payload_test.go (stdlib testing+strings only) with 7 tests covering base diff-first layout, empty==nil, rejection-block-present/slice-order/after-instruction/exact-bytes, single-subject, block-absent-when-empty, exact rejectionBlock byte layout, and determinism. All validation gates pass: go build/vet/gofmt -l clean; go test ./internal/prompt/ PASS (S1 examples + S2 system tests still green + 6 new payload tests); go test ./... whole-module green. Scope respected: only the two new prompt files created; go.mod/go.sum unchanged; no `go mod tidy`; `// Package prompt` appears exactly once (in examples.go); no go-git/internal-git/internal-config/fmt/testify imports.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented P1.M4.T1.S3: created internal/prompt/payload.go (file-level comment + plain `package prompt`, stdlib `strings` only) with the unexported §17.3 rejection constants committed VERBATIM and AssemblePayload + rejectionBlock implementing the D5 REFERENCE diff-first ordering (<diff>\\n\\n<instruction>, rejection block appended LAST on retry; len(rejected)==0 covers nil and empty slice). Created white-box payload_test.go (stdlib testing+strings only) with 7 tests covering base diff-first layout, empty==nil, rejection-block-present/slice-order/after-instruction/exact-bytes, single-subject, block-absent-when-empty, exact rejectionBlock byte layout, and determinism. All validation gates pass: go build/vet/gofmt -l clean; go test ./internal/prompt/ PASS (S1 examples + S2 system tests still green + 6 new payload tests); go test ./... whole-module green. Scope respected: only the two new prompt files created; go.mod/go.sum unchanged; no `go mod tidy`; `// Package prompt` appears exactly once (in examples.go); no go-git/internal-git/internal-config/fmt/testify imports."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/prompt/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/prompt/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/prompt/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/prompt/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T08:16:07.610Z"
+      },
+      "createdAt": "2026-07-02T08:16:07.610Z"
+    },
+    {
+      "id": "P1.M4.T1.S3_1782980167611_complete_a6d9060d",
+      "taskId": "P1.M4.T1.S3",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M4_T1_S3.md",
+        "stage": "complete",
+        "coderResponse": "All validation gates and final checks pass. The \"forbidden imports\" grep only matched *comment text* (explaining what is NOT imported); the actual import is `import \"strings\"` only. Confirmed:\n\n- **Scope**: only `internal/prompt/payload.go` + `internal/prompt/payload_test.go` added (the other untracked items are PRP/plan artifacts, not source)\n- **go.mod/go.sum**: unchanged\n- **`// Package prompt`**: appears exactly once (in `examples.go`); payload.go uses a file-level comment + plain `package prompt`\n- **Production imports**: stdlib `strings` only — no `fmt`, no `internal/git`, no `internal/config`, no go-git, no testify\n\n## Summary\n\nImplemented **P1.M4.T1.S3** — `internal/prompt/payload.go` + white-box `payload_test.go`:\n\n**payload.go** — third sibling file in the existing `internal/prompt` package:\n- File-level comment (mirroring `system.go`/`internal/git/log.go`, deferring the package doc to `examples.go`)\n- Unexported §17.3 constants committed VERBATIM: `rejectionHeader` (★ two lines, ends with colon ★), `rejectionBulletPrefix = \"- \"`, `rejectionFooter`\n- `AssemblePayload(diff, instruction string, rejected []string) string` — pure builder, **D5 REFERENCE ordering** (diff FIRST): base = `<diff>\\n\\n<instruction>`; retry appends `+ \"\\n\\n\" + rejectionBlock(rejected)` LAST. `len(rejected)==0` covers both `nil` and `[]string{}`\n- `rejectionBlock` helper: `rejectionHeader + \"\\n\" + join(bullets, \"\\n\") + \"\\n\\n\" + rejectionFooter` (one newline to first bullet, blank line before footer)\n- Godoc cites reference_impl.md §3 + §4 D5 (the explicit diff-first decision over-ruling PRD §17.3 prose), PRD §17.3, and decisions.md §3\n\n**payload_test.go** — 7 white-box tests covering all contract scenarios: base diff-first layout (exact `==`), empty-slice==nil, rejection-block-present (slice order, block-after-instruction, exact bytes), single-subject, block-absent-when-empty, exact `rejectionBlock` byte layout, and determinism.\n\n**Validation** — all gates green:\n- `go build`, `go vet`, `gofmt -l` (Level 1) ✅\n- `go test ./internal/prompt/` — 6 new + all S1/S2 tests PASS (Level 2) ✅\n- `go test ./...` — whole module green (Level 3) ✅\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented P1.M4.T1.S3: created internal/prompt/payload.go (file-level comment + plain `package prompt`, stdlib `strings` only) with the unexported §17.3 rejection constants committed VERBATIM and AssemblePayload + rejectionBlock implementing the D5 REFERENCE diff-first ordering (<diff>\\\\n\\\\n<instruction>, rejection block appended LAST on retry; len(rejected)==0 covers nil and empty slice). Created white-box payload_test.go (stdlib testing+strings only) with 7 tests covering base diff-first layout, empty==nil, rejection-block-present/slice-order/after-instruction/exact-bytes, single-subject, block-absent-when-empty, exact rejectionBlock byte layout, and determinism. All validation gates pass: go build/vet/gofmt -l clean; go test ./internal/prompt/ PASS (S1 examples + S2 system tests still green + 6 new payload tests); go test ./... whole-module green. Scope respected: only the two new prompt files created; go.mod/go.sum unchanged; no `go mod tidy`; `// Package prompt` appears exactly once (in examples.go); no go-git/internal-git/internal-config/fmt/testify imports.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented P1.M4.T1.S3: created internal/prompt/payload.go (file-level comment + plain `package prompt`, stdlib `strings` only) with the unexported §17.3 rejection constants committed VERBATIM and AssemblePayload + rejectionBlock implementing the D5 REFERENCE diff-first ordering (<diff>\\n\\n<instruction>, rejection block appended LAST on retry; len(rejected)==0 covers nil and empty slice). Created white-box payload_test.go (stdlib testing+strings only) with 7 tests covering base diff-first layout, empty==nil, rejection-block-present/slice-order/after-instruction/exact-bytes, single-subject, block-absent-when-empty, exact rejectionBlock byte layout, and determinism. All validation gates pass: go build/vet/gofmt -l clean; go test ./internal/prompt/ PASS (S1 examples + S2 system tests still green + 6 new payload tests); go test ./... whole-module green. Scope respected: only the two new prompt files created; go.mod/go.sum unchanged; no `go mod tidy`; `// Package prompt` appears exactly once (in examples.go); no go-git/internal-git/internal-config/fmt/testify imports."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/prompt/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/prompt/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/prompt/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/prompt/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T08:16:07.611Z"
+      },
+      "createdAt": "2026-07-02T08:16:07.611Z"
+    }
+  ],
+  "lastModified": "2026-07-02T08:16:07.611Z"
+}

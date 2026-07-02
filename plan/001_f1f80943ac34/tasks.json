@@ -272,14 +272,14 @@
           "id": "P1.M4",
           "type": "Milestone",
           "title": "Prompt Construction",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Build internal/prompt: history example fetch + multi-line detection (the awk heuristic), the system-prompt builder (raw-output contract, style learning, anti-reuse), and payload assembly (reference ordering: diff-then-instruction). Decoupled from config — builders take scalar settings. Depends on git history (M3).",
           "tasks": [
             {
               "id": "P1.M4.T1",
               "type": "Task",
               "title": "Prompt construction package (examples, system prompt, payload)",
-              "status": "Planned",
+              "status": "Complete",
               "description": "The three prompt concerns: examples+multiline detection, system-prompt builder, and payload assembly.",
               "subtasks": [
                 {
@@ -308,7 +308,7 @@
                   "id": "P1.M4.T1.S3",
                   "type": "Subtask",
                   "title": "internal/prompt/payload.go — AssemblePayload(diff, instruction, rejected)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: reference_impl.md §3 + D5 (★ byte order is <diff>\\n\\n<instruction>, the REFERENCE ordering, NOT the PRD §17.3 prose which says instruction-then-diff — this is an EXPLICIT FLAGGED DECISION). PRD §17.3.\n2. INPUT: diff string (from git.StagedDiff, P1.M3.T3.S1, passed as a parameter — no import dep).\n3. LOGIC: AssemblePayload(diff, instruction string, rejected []string) string. Base layout: `<diff>\\n\\n<instruction>` (reference ordering — recency of the imperative near generation start). On duplicate-retry (len(rejected)>0): insert the §17.3 rejection block AFTER the instruction and BEFORE the diff — 'IMPORTANT: The following messages were REJECTED because they already exist in git history. You MUST generate something COMPLETELY DIFFERENT:' + a bulleted list of each rejected subject + 'Create an entirely new message with different wording.' — yielding `<diff>\\n\\n<instruction>\\n\\n<rejection block>`. (Preserve diff-first; append rejection block last so the model sees it immediately before generating.) MOCKING: tests — base ordering diff-first; rejection block present with each subject when rejected non-empty; empty rejected → no block; deterministic bytes.\n4. OUTPUT: payload string fed to executor stdin/positional in the generate inner loop (P1.M6.T1.S1)."
