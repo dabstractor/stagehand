@@ -326,6 +326,7 @@ func TestDecompose_SingleShortcut_CleanMessage(t *testing.T) {
 
 	roles := RoleManifests{Planner: plannerM, Message: messageM}
 	deps := dcmDeps(t, repo, roles)
+	deps.Config.Commits = 2 // override FR-M2b one-file short-circuit so the planner path is tested
 
 	result, err := Decompose(context.Background(), deps)
 	if err != nil {
@@ -376,6 +377,7 @@ func TestDecompose_SingleShortcut_DuplicateFallback(t *testing.T) {
 
 	roles := RoleManifests{Planner: plannerM, Message: messageM}
 	deps := dcmDeps(t, repo, roles)
+	deps.Config.Commits = 2 // override FR-M2b one-file short-circuit so the planner+shortcut path is tested
 
 	result, err := Decompose(context.Background(), deps)
 	if err != nil {
@@ -587,6 +589,7 @@ func TestDecompose_StagerMovedHEAD(t *testing.T) {
 	roles.Planner = plannerM
 	roles.Message = messageM
 	deps := dcmDeps(t, repo, roles)
+	deps.Config.Commits = 2 // override FR-M2b one-file short-circuit so the loop path is tested
 
 	// ROGUE seam: stages nothing, instead COMMITS → moves HEAD.
 	deps.stager = func(ctx context.Context, d Deps, concept prompt.PlannerCommit) error {
@@ -625,6 +628,7 @@ func TestDecompose_StagerFreezeViolation(t *testing.T) {
 	roles.Planner = plannerM
 	roles.Message = messageM
 	deps := dcmDeps(t, repo, roles)
+	deps.Config.Commits = 2 // override FR-M2b one-file short-circuit so the loop path is tested
 
 	// ROGUE seam: stages the concept path AND a post-freeze sentinel (simulating `git add -A`
 	// sweeping a concurrent change). The sentinel is written AFTER FreezeWorkingTree captured T_start.
@@ -674,6 +678,7 @@ func TestDecompose_StagerGuardHappyPath(t *testing.T) {
 	roles.Planner = plannerM
 	roles.Message = messageM
 	deps := dcmDeps(t, repo, roles)
+	deps.Config.Commits = 2                                                    // override FR-M2b one-file short-circuit so the loop+stager path is tested
 	deps.stager = dcmStagerSeam(t, repo, map[string][]string{"c1": {"a.txt"}}) // git add only
 
 	result, err := Decompose(context.Background(), deps)
@@ -704,6 +709,7 @@ func TestDecompose_PlannerFailure(t *testing.T) {
 
 	roles := RoleManifests{Planner: plannerM, Message: messageM}
 	deps := dcmDeps(t, repo, roles)
+	deps.Config.Commits = 2 // override FR-M2b one-file short-circuit so the planner is reached
 
 	_, err := Decompose(context.Background(), deps)
 	if err == nil {
@@ -730,6 +736,7 @@ func TestDecompose_SafetyCap(t *testing.T) {
 	repo := t.TempDir()
 	dcmInitRepo(t, repo)
 	dcmWriteFile(t, repo, "a.txt", "a\n")
+	dcmWriteFile(t, repo, "b.txt", "b\n") // 2nd file: bypasses FR-M2b one-file short-circuit (auto mode, count≥2)
 
 	// Planner proposes 20 commits, exceeding MaxCommits (12) — callPlanner enforces the cap.
 	plannerJSON := `{"count":20,"single":false,"commits":[` +
@@ -745,6 +752,8 @@ func TestDecompose_SafetyCap(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected safety-cap error, got nil")
 	}
+	// Note: FR-M2b one-file short-circuit does NOT fire because 2 files ⇒ DiffTreeNames count ≥ 2.
+	// The auto-mode safety cap is still tested (forcedCount==0 inside callPlanner).
 	// The error should mention the cap.
 	if !strings.Contains(err.Error(), "exceeds max_commits") {
 		t.Errorf("error = %v, want safety-cap error mentioning 'exceeds max_commits'", err)
@@ -780,6 +789,7 @@ func TestDecompose_ArbiterSkippedOnCleanTree(t *testing.T) {
 	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
 	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
 	deps := dcmDeps(t, repo, roles)
+	deps.Config.Commits = 2 // override FR-M2b one-file short-circuit so the loop+arbiter path is tested
 	deps.stager = dcmStagerSeam(t, repo, map[string][]string{"c1": {"a.txt"}})
 
 	result, err := Decompose(context.Background(), deps)
@@ -867,6 +877,7 @@ func TestDecompose_ErrorPropagation_Stager(t *testing.T) {
 	repo := t.TempDir()
 	dcmInitRepo(t, repo)
 	dcmWriteFile(t, repo, "a.txt", "a\n")
+	dcmWriteFile(t, repo, "b.txt", "b\n") // 2nd file: bypasses FR-M2b one-file short-circuit (auto mode, count≥2)
 
 	plannerJSON := `{"count":1,"single":false,"commits":[{"title":"c1","description":"a.txt"}]}`
 	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
@@ -913,6 +924,7 @@ func TestDecompose_ErrorPropagation_RescueError(t *testing.T) {
 	// Message stub exits with a non-zero code (no valid output) — triggers RescueError after retries.
 	cfg := config.Defaults()
 	cfg.MaxDuplicateRetries = 0 // no duplicate retries — fail immediately on the first attempt
+	cfg.Commits = 2             // override FR-M2b one-file short-circuit so the loop path is tested
 	messageM := stubtest.Manifest(bin, stubtest.Options{Exit: 1, Out: ""})
 	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
 
@@ -944,6 +956,7 @@ func TestDecompose_UnbornRepo(t *testing.T) {
 	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
 	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM}
 	deps := dcmDeps(t, repo, roles)
+	deps.Config.Commits = 2 // override FR-M2b one-file short-circuit so the loop path is tested
 	deps.stager = dcmStagerSeam(t, repo, map[string][]string{"c1": {"a.txt"}})
 
 	result, err := Decompose(context.Background(), deps)
@@ -1358,6 +1371,7 @@ func TestDecompose_StagerRetryThenSuccess(t *testing.T) {
 	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
 	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM}
 	deps := dcmDeps(t, repo, roles)
+	deps.Config.Commits = 2 // override FR-M2b one-file short-circuit so the loop path is tested
 
 	stagerCalls := 0
 	deps.stager = func(ctx context.Context, d Deps, concept prompt.PlannerCommit) error {
@@ -1385,6 +1399,226 @@ func TestDecompose_StagerRetryThenSuccess(t *testing.T) {
 	}
 	if dcmLogCount(t, repo) != 1 {
 		t.Fatalf("git log count = %d, want 1", dcmLogCount(t, repo))
+	}
+}
+
+// TestDecompose_OneFileShortcut_PlannerBypassed (FR-M2b core test): BORN repo, exactly ONE untracked file,
+// auto mode — the planner is NEVER called (counter absent/"0"), ONE commit lands with the MESSAGE
+// role's subject, and git status is clean (proves the ReadTree index-sync, findings §4).
+func TestDecompose_OneFileShortcut_PlannerBypassed(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+	dcmCommitRaw(t, repo, "initial")            // BORN repo (preRunHEAD set; dup-check vs "initial")
+	dcmWriteFile(t, repo, "only.txt", "only\n") // EXACTLY one untracked file
+
+	// Planner counter-manifest: if called, the counter file appears. It must NOT be called.
+	counterDir := t.TempDir()
+	counterFile := counterDir + "/counter"
+	plannerM := stubtest.Manifest(bin, stubtest.Options{Script: counterDir + "/script.txt", Counter: counterFile})
+	messageM := dcmMessageManifest(t, bin, "feat: add the only file")
+	roles := RoleManifests{Planner: plannerM, Message: messageM}
+	deps := dcmDeps(t, repo, roles) // default config: Commits=0 (auto), Single=false
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(one-file bypass): %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("Commits len = %d, want 1", len(result.Commits))
+	}
+	if result.Commits[0].Subject != "feat: add the only file" {
+		t.Errorf("Subject = %q, want %q", result.Commits[0].Subject, "feat: add the only file")
+	}
+	if result.Amended != 0 {
+		t.Errorf("Amended = %d, want 0", result.Amended)
+	}
+
+	// Verify planner was NEVER called (counter file absent or "0").
+	data, ferr := os.ReadFile(counterFile)
+	if ferr == nil {
+		count := strings.TrimSpace(string(data))
+		if count != "" && count != "0" {
+			t.Errorf("planner call count = %q, want 0 (FR-M2b bypass — planner never invoked)", count)
+		}
+	}
+
+	// Verify git state: 2 commits (initial + 1), clean tree.
+	if dcmLogCount(t, repo) != 2 {
+		t.Fatalf("commit count = %d, want 2 (initial + 1)", dcmLogCount(t, repo))
+	}
+	if status := dcmStatusPorcelain(t, repo); status != "" {
+		t.Errorf("status = %q, want empty (clean — proves ReadTree index-sync)", status)
+	}
+}
+
+// TestDecompose_OneFileShortcut_Unborn (FR-M2b edge): UNBORN repo (no initial commit), one file →
+// short-circuit fires, producing a ROOT commit. Planner is never called. Clean post-state.
+func TestDecompose_OneFileShortcut_Unborn(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)                        // UNBORN (no dcmCommitRaw — no commits)
+	dcmWriteFile(t, repo, "only.txt", "only\n") // ONE untracked file
+
+	// Planner counter-manifest: must NOT be called.
+	counterDir := t.TempDir()
+	counterFile := counterDir + "/counter"
+	plannerM := stubtest.Manifest(bin, stubtest.Options{Script: counterDir + "/script.txt", Counter: counterFile})
+	messageM := dcmMessageManifest(t, bin, "feat: root add")
+	roles := RoleManifests{Planner: plannerM, Message: messageM}
+	deps := dcmDeps(t, repo, roles) // auto mode
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(one-file unborn): %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("Commits len = %d, want 1", len(result.Commits))
+	}
+	if result.Commits[0].Subject != "feat: root add" {
+		t.Errorf("Subject = %q, want %q", result.Commits[0].Subject, "feat: root add")
+	}
+
+	// Verify planner was NEVER called.
+	data, ferr := os.ReadFile(counterFile)
+	if ferr == nil {
+		count := strings.TrimSpace(string(data))
+		if count != "" && count != "0" {
+			t.Errorf("planner call count = %q, want 0 (unborn one-file bypass)", count)
+		}
+	}
+
+	// Verify git state: 1 ROOT commit, clean tree.
+	if dcmLogCount(t, repo) != 1 {
+		t.Fatalf("commit count = %d, want 1 (root commit)", dcmLogCount(t, repo))
+	}
+	if !dcmShaResolves(t, repo, result.Commits[0].SHA) {
+		t.Errorf("Commits[0].SHA %q does not resolve (dangling)", result.Commits[0].SHA)
+	}
+	if status := dcmStatusPorcelain(t, repo); status != "" {
+		t.Errorf("status = %q, want empty (clean)", status)
+	}
+}
+
+// TestDecompose_OneFileShortcut_CommitsOverride (FR-M2b override): --commits 2 with one file →
+// short-circuit is OVERRIDDEN, the planner IS called, the loop runs. Verifies that a forced count
+// is honored even for a single file.
+func TestDecompose_OneFileShortcut_CommitsOverride(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+	dcmCommitRaw(t, repo, "initial")
+	dcmWriteFile(t, repo, "only.txt", "only\n") // ONE untracked file
+
+	// Planner returns a 2-concept plan (if called, succeeds).
+	plannerJSON := `{"count":2,"single":false,"commits":[{"title":"c1","description":"only.txt"},{"title":"c2","description":"leftover"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: c1", "feat: arbiter"})
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+	arbiterM := dcmArbiterManifest(t, bin, `{"target": null}`)
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
+	cfg := config.Defaults()
+	cfg.Commits = 2 // FORCED count ⇒ short-circuit OVERRIDDEN
+	deps := dcmDepsWithConfig(t, repo, roles, cfg)
+	// c1 stages only.txt; c2 stages nothing → empty-skip. The loop runs, proving the planner was called.
+	deps.stager = dcmStagerSeam(t, repo, map[string][]string{"c1": {"only.txt"}, "c2": {}})
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(commits override): %v", err)
+	}
+	// The planner path ran (NOT runOneFileShortcut): at least 1 commit from c1.
+	if len(result.Commits) < 1 {
+		t.Fatalf("Commits len = %d, want ≥1 (planner path ran)", len(result.Commits))
+	}
+	// 2 commits total (initial + c1). The c2 empty-skip means no c2 commit.
+	if dcmLogCount(t, repo) != 2 {
+		t.Fatalf("commit count = %d, want 2 (initial + c1 from planner path)", dcmLogCount(t, repo))
+	}
+}
+
+// TestDecompose_OneFileShortcut_TwoFilesNoBypass (FR-M2b boundary): TWO files → count 2 →
+// the short-circuit threshold (len==1) is NOT met → the planner IS called and the loop runs.
+func TestDecompose_OneFileShortcut_TwoFilesNoBypass(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+	dcmCommitRaw(t, repo, "initial")
+	dcmWriteFile(t, repo, "a.txt", "aaa\n")
+	dcmWriteFile(t, repo, "b.txt", "bbb\n") // TWO files
+
+	plannerJSON := `{"count":2,"single":false,"commits":[{"title":"c1","description":"a.txt"},{"title":"c2","description":"b.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add a", "feat: add b"})
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+	arbiterM := dcmArbiterManifest(t, bin, `{"target": null}`)
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
+	deps := dcmDeps(t, repo, roles) // auto mode (Commits=0), but 2 files ⇒ count 2 ⇒ NO short-circuit
+	deps.stager = dcmStagerSeam(t, repo, map[string][]string{"c1": {"a.txt"}, "c2": {"b.txt"}})
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(two files): %v", err)
+	}
+	// The planner path ran (NOT runOneFileShortcut): 2 commits prove the planner partitioned.
+	if len(result.Commits) != 2 {
+		t.Fatalf("Commits len = %d, want 2 (planner partitioned both files)", len(result.Commits))
+	}
+	// 3 commits total (initial + c1 + c2).
+	if dcmLogCount(t, repo) != 3 {
+		t.Fatalf("commit count = %d, want 3 (initial + c1 + c2)", dcmLogCount(t, repo))
+	}
+}
+
+// TestDecompose_OneFileShortcut_Deletion (FR-M2b edge): single DELETION counts as one changed
+// path → short-circuit fires. DiffTreeNames includes deletions (git diff-tree --name-only).
+func TestDecompose_OneFileShortcut_Deletion(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+
+	// Create a tracked file and commit it.
+	dcmWriteFile(t, repo, "gone.txt", "x\n")
+	dcmStageFile(t, repo, "gone.txt")
+	dcmRunGit(t, repo, "commit", "-m", "initial")
+
+	// Delete the tracked file.
+	dcmRunGit(t, repo, "rm", "gone.txt")
+
+	// Planner counter-manifest: must NOT be called.
+	counterDir := t.TempDir()
+	counterFile := counterDir + "/counter"
+	plannerM := stubtest.Manifest(bin, stubtest.Options{Script: counterDir + "/script.txt", Counter: counterFile})
+	messageM := dcmMessageManifest(t, bin, "chore: remove gone")
+	roles := RoleManifests{Planner: plannerM, Message: messageM}
+	deps := dcmDeps(t, repo, roles) // auto mode
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(one-file deletion): %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("Commits len = %d, want 1", len(result.Commits))
+	}
+	if result.Commits[0].Subject != "chore: remove gone" {
+		t.Errorf("Subject = %q, want %q", result.Commits[0].Subject, "chore: remove gone")
+	}
+
+	// Verify planner was NEVER called.
+	data, ferr := os.ReadFile(counterFile)
+	if ferr == nil {
+		count := strings.TrimSpace(string(data))
+		if count != "" && count != "0" {
+			t.Errorf("planner call count = %q, want 0 (deletion bypass)", count)
+		}
+	}
+
+	// Verify git state: 2 commits (initial + 1 deletion), clean tree.
+	if dcmLogCount(t, repo) != 2 {
+		t.Fatalf("commit count = %d, want 2 (initial + deletion)", dcmLogCount(t, repo))
+	}
+	if status := dcmStatusPorcelain(t, repo); status != "" {
+		t.Errorf("status = %q, want empty (clean)", status)
 	}
 }
 
@@ -1731,6 +1965,7 @@ func TestDecompose_HappyPath_CommitsAccurate(t *testing.T) {
 	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
 	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM}
 	deps := dcmDeps(t, repo, roles)
+	deps.Config.Commits = 2 // override FR-M2b one-file short-circuit so the loop path is tested
 	deps.stager = dcmStagerSeam(t, repo, map[string][]string{"c1": {"a.txt"}})
 
 	result, err := Decompose(context.Background(), deps)

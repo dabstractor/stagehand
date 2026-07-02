@@ -228,7 +228,7 @@
       "type": "Phase",
       "id": "P3",
       "title": "Decompose concurrency hardening (T_start freeze + one-file short-circuit)",
-      "status": "Researching",
+      "status": "Complete",
       "description": "Harden the multi-commit pipeline against concurrent working-tree changes: a start-of-run freeze (T_start) captures the entire working-tree change set as a tree so every stager/planner/arbiter operates strictly on it; freeze enforcement makes any non-T_start content a hard abort; a one-file short-circuit skips the planner for trivial cases. Grounded in system_context.md §5 and scout_decompose_freeze.md.",
       "milestones": [
         {
@@ -287,14 +287,14 @@
           "type": "Milestone",
           "id": "P3.M2",
           "title": "Freeze enforcement & one-file short-circuit",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Defense-in-depth subset verification after each staging step (hard abort on violation) and the deterministic one-file short-circuit that bypasses the planner.",
           "tasks": [
             {
               "type": "Task",
               "id": "P3.M2.T1",
               "title": "Freeze enforcement (subset check) + one-file short-circuit (FR-M2b)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Makes the stager untrusted: verifies each frozen tree is a content-subset of T_start, hard-aborting on any concurrent change or bare add -A. Adds the one-file short-circuit.",
               "subtasks": [
                 {
@@ -318,7 +318,7 @@
                   "type": "Subtask",
                   "id": "P3.M2.T1.S2",
                   "title": "One-file short-circuit (FR-M2b): skip the planner when exactly one file changed",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P3.M1.T1.S2"
@@ -360,7 +360,7 @@
                   "type": "Subtask",
                   "id": "P4.M1.T1.S1",
                   "title": "Progress label: '<Verb> with <model> in <provider>…' (FR51b) across generate + decompose",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S2",

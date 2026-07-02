@@ -1111,7 +1111,8 @@ func TestRouting_DecomposeEntered(t *testing.T) {
 
 	repo := setupStubRepo(t, "feat: decompose routing")
 	writeFile(t, repo, "decompose-me.txt", "changes")
-	// decompose-me.txt is NOT staged — should trigger decompose routing.
+	writeFile(t, repo, "decompose-me-2.txt", "more") // 2nd file: prevents FR-M2b one-file short-circuit
+	// decompose-me.txt + decompose-me-2.txt are NOT staged — should trigger decompose routing.
 
 	var outBuf, errBuf bytes.Buffer
 	rootCmd.SetOut(&outBuf)
@@ -1289,8 +1290,9 @@ tooled_flags = ["--yes"]
 		initRepo(t, repo)
 		chdir(t, repo)
 		commitRaw(t, repo, "initial")
-		// Un-staged file → shouldDecompose routes to decompose path.
+		// Un-staged files → shouldDecompose routes to decompose path.
 		writeFile(t, repo, "dirty.txt", "content")
+		writeFile(t, repo, "dirty2.txt", "content2") // 2nd file: prevents FR-M2b one-file short-circuit
 
 		const decomposeStubOut = `{"count":1,"single":true,"commits":[{"title":"add dirty","description":"dirty.txt"}],"message":"feat: decompose path provider render"}`
 		t.Setenv("STAGEHAND_STUB_OUT", decomposeStubOut)

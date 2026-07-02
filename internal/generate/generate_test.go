@@ -424,7 +424,7 @@ func TestCommitStaged_ResolvesSubProviderFromManifest(t *testing.T) {
 	m.DefaultModel = &dm
 
 	cfg := config.Defaults()
-	cfg.Provider = "pi" // the manifest NAME — the conflation source; must NOT be emitted
+	cfg.Provider = "pi"              // the manifest NAME — the conflation source; must NOT be emitted
 	cfg.Model = "openrouter/gpt-5.4" // slash-prefix model → Render emits --provider openrouter
 
 	var buf bytes.Buffer
