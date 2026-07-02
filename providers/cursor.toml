@@ -1,0 +1,25 @@
+# cursor.toml — reference manifest for the `cursor` coding agent
+# (PRD §12.7, external_deps §B.6/§C.4, Appendix E.4b).
+#
+# Contributor-facing COPY of the manifest compiled into the binary by
+# internal/provider/builtin.go (P1.M2.T3.S1). The tool works with zero config
+# because the built-in is the source of truth; this file is for reference and
+# copy-paste when authoring a [provider.cursor] override (PRD §12.8).
+#
+# TO-CONFIRM (Appendix E.4b / PRD §12.7.2): `--mode ask` is read-only (strongly
+# indicated); the executable is `agent` (some installs expose it as
+# `cursor agent`). There is no system_prompt_flag (system prompt is prepended to
+# the payload).
+name = "cursor"
+detect = "agent"                 # §C.4: executable is `agent`, not `cursor`
+command = "agent"                # §C.4: executable is `agent`, not `cursor`
+prompt_delivery = "positional"   # payload appended as the final positional arg
+print_flag = "-p"                # non-interactive "print and exit" mode
+model_flag = "--model"
+bare_flags = [
+  "--mode",
+  "ask",                         # §C.4: read-only mode (strongly indicated)
+  "--trust",
+]
+output = "raw"
+strip_code_fence = true

@@ -1,0 +1,28 @@
+# codex.toml — reference manifest for the `codex` coding agent
+# (PRD §12.7, external_deps §B.5/§C.2, Appendix E.4a).
+#
+# Contributor-facing COPY of the manifest compiled into the binary by
+# internal/provider/builtin.go (P1.M2.T3.S1). The tool works with zero config
+# because the built-in is the source of truth; this file is for reference and
+# copy-paste when authoring a [provider.codex] override (PRD §12.8).
+#
+# TO-CONFIRM (Appendix E.4a / PRD §12.7.2): prompt delivery is stdin (NOT
+# positional) and the call includes --ephemeral (both are §C.2 corrections).
+# There is no system_prompt_flag (system prompt is prepended to the payload).
+name = "codex"
+detect = "codex"
+command = "codex"
+subcommand = [
+  "exec",                        # inserted between command and flags
+]
+prompt_delivery = "stdin"        # §C.2 correction: positional→stdin
+model_flag = "-m"
+bare_flags = [
+  "--sandbox",
+  "read-only",
+  "--ask-for-approval",
+  "never",
+  "--ephemeral",                 # §C.2 correction: added
+]
+output = "raw"
+strip_code_fence = true

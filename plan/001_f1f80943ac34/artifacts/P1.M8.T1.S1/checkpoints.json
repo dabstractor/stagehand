@@ -1,0 +1,151 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1.M8.T1.S1_1782992490885_pre-execution_2de6c352",
+      "taskId": "P1.M8.T1.S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M8_T1_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T11:41:30.885Z"
+      },
+      "createdAt": "2026-07-02T11:41:30.885Z"
+    },
+    {
+      "id": "P1.M8.T1.S1_1782992794822_coder-response_dd3b8674",
+      "taskId": "P1.M8.T1.S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M8_T1_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "Confirmed — claude decodes to exactly 7 elements (including the two empty-string values). The earlier `5` was just `grep -c` counting lines, not array elements.\n\nAll checks complete. Here's the final summary:\n\n## Implementation Complete ✅\n\n**Files created (7):**\n- `providers/{pi,claude,gemini,opencode,codex,cursor}.toml` — six hand-authored, human-readable reference manifests (Mode A inline docs: header comment + multi-line arrays + per-field comments), zero-value fields omitted for readability, all `[env]` tables omitted.\n- `internal/provider/providers_golden_test.go` — `TestProvidersTOML_MatchBuiltins`, a table-driven golden-equivalence guard reusing `normalizeEmpty` from `builtin_test.go` plus defensive Env normalization.\n\n**Validation gates — all pass:**\n| Level | Command | Result |\n|-------|---------|--------|\n| 1 | `go build ./...` | ✅ OK (gofmt clean) |\n| 2 | `go test ... -run TestProvidersTOML_MatchBuiltins -v` | ✅ 6/6 subtests PASS |\n| 3 | `go test ./...` | ✅ whole suite green |\n| 4 | `go vet ./internal/provider/` | ✅ OK |\n\n**Negative-path guarantee verified:** the test FAILs (never skips) on divergent, malformed, and missing files; restored to green afterward.\n\n**Anti-patterns avoided:** `retry_instruction` only in `pi.toml`; no `[env]` tables; claude's `bare_flags` = 7 elements incl. two `\"\"` values; codex = `stdin` + `--ephemeral`; gemini/cursor = positional; `builtin.go` untouched; files not wired into the runtime loader.\n\n```json\n{\n  \"result\": \"success\",\n  \"message\": \"Shipped six contributor-facing providers/{pi,claude,gemini,opencode,codex,cursor}.toml reference manifests (Mode A inline docs, zero-value fields omitted, no [env] tables) plus internal/provider/providers_golden_test.go with TestProvidersTOML_MatchBuiltins. All four validation gates pass: go build ./..., golden test (6/6 subtests PASS), go test ./... (whole suite green), go vet ./internal/provider/. Negative testing confirmed the test FAILs (not skips) on divergent, malformed, and missing files. Field values transcribed verbatim from internal/provider/builtin.go; builtin.go was not modified. All success criteria and anti-patterns verified (pi is the only file with retry_instruction; claude bare_flags decodes to exactly 7 elements including two empty strings; codex uses stdin + --ephemeral; gemini/cursor use positional delivery).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Shipped six contributor-facing providers/{pi,claude,gemini,opencode,codex,cursor}.toml reference manifests (Mode A inline docs, zero-value fields omitted, no [env] tables) plus internal/provider/providers_golden_test.go with TestProvidersTOML_MatchBuiltins. All four validation gates pass: go build ./..., golden test (6/6 subtests PASS), go test ./... (whole suite green), go vet ./internal/provider/. Negative testing confirmed the test FAILs (not skips) on divergent, malformed, and missing files. Field values transcribed verbatim from internal/provider/builtin.go; builtin.go was not modified. All success criteria and anti-patterns verified (pi is the only file with retry_instruction; claude bare_flags decodes to exactly 7 elements including two empty strings; codex uses stdin + --ephemeral; gemini/cursor use positional delivery)."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T11:46:34.822Z"
+      },
+      "createdAt": "2026-07-02T11:46:34.822Z"
+    },
+    {
+      "id": "P1.M8.T1.S1_1782992797613_validation-gate-4_d303c1b7",
+      "taskId": "P1.M8.T1.S1",
+      "label": "After validation gate 4",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M8_T1_S1.md",
+        "stage": "validation-gate-4",
+        "coderResponse": "Confirmed — claude decodes to exactly 7 elements (including the two empty-string values). The earlier `5` was just `grep -c` counting lines, not array elements.\n\nAll checks complete. Here's the final summary:\n\n## Implementation Complete ✅\n\n**Files created (7):**\n- `providers/{pi,claude,gemini,opencode,codex,cursor}.toml` — six hand-authored, human-readable reference manifests (Mode A inline docs: header comment + multi-line arrays + per-field comments), zero-value fields omitted for readability, all `[env]` tables omitted.\n- `internal/provider/providers_golden_test.go` — `TestProvidersTOML_MatchBuiltins`, a table-driven golden-equivalence guard reusing `normalizeEmpty` from `builtin_test.go` plus defensive Env normalization.\n\n**Validation gates — all pass:**\n| Level | Command | Result |\n|-------|---------|--------|\n| 1 | `go build ./...` | ✅ OK (gofmt clean) |\n| 2 | `go test ... -run TestProvidersTOML_MatchBuiltins -v` | ✅ 6/6 subtests PASS |\n| 3 | `go test ./...` | ✅ whole suite green |\n| 4 | `go vet ./internal/provider/` | ✅ OK |\n\n**Negative-path guarantee verified:** the test FAILs (never skips) on divergent, malformed, and missing files; restored to green afterward.\n\n**Anti-patterns avoided:** `retry_instruction` only in `pi.toml`; no `[env]` tables; claude's `bare_flags` = 7 elements incl. two `\"\"` values; codex = `stdin` + `--ephemeral`; gemini/cursor = positional; `builtin.go` untouched; files not wired into the runtime loader.\n\n```json\n{\n  \"result\": \"success\",\n  \"message\": \"Shipped six contributor-facing providers/{pi,claude,gemini,opencode,codex,cursor}.toml reference manifests (Mode A inline docs, zero-value fields omitted, no [env] tables) plus internal/provider/providers_golden_test.go with TestProvidersTOML_MatchBuiltins. All four validation gates pass: go build ./..., golden test (6/6 subtests PASS), go test ./... (whole suite green), go vet ./internal/provider/. Negative testing confirmed the test FAILs (not skips) on divergent, malformed, and missing files. Field values transcribed verbatim from internal/provider/builtin.go; builtin.go was not modified. All success criteria and anti-patterns verified (pi is the only file with retry_instruction; claude bare_flags decodes to exactly 7 elements including two empty strings; codex uses stdin + --ephemeral; gemini/cursor use positional delivery).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Shipped six contributor-facing providers/{pi,claude,gemini,opencode,codex,cursor}.toml reference manifests (Mode A inline docs, zero-value fields omitted, no [env] tables) plus internal/provider/providers_golden_test.go with TestProvidersTOML_MatchBuiltins. All four validation gates pass: go build ./..., golden test (6/6 subtests PASS), go test ./... (whole suite green), go vet ./internal/provider/. Negative testing confirmed the test FAILs (not skips) on divergent, malformed, and missing files. Field values transcribed verbatim from internal/provider/builtin.go; builtin.go was not modified. All success criteria and anti-patterns verified (pi is the only file with retry_instruction; claude bare_flags decodes to exactly 7 elements including two empty strings; codex uses stdin + --ephemeral; gemini/cursor use positional delivery)."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/provider/ -run TestProvidersTOML_MatchBuiltins -v",
+            "stdout": "=== RUN   TestProvidersTOML_MatchBuiltins\n=== RUN   TestProvidersTOML_MatchBuiltins/claude\n=== RUN   TestProvidersTOML_MatchBuiltins/codex\n=== RUN   TestProvidersTOML_MatchBuiltins/cursor\n=== RUN   TestProvidersTOML_MatchBuiltins/gemini\n=== RUN   TestProvidersTOML_MatchBuiltins/opencode\n=== RUN   TestProvidersTOML_MatchBuiltins/pi\n--- PASS: TestProvidersTOML_MatchBuiltins (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/claude (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/codex (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/cursor (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/gemini (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/opencode (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/pi (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/provider\t0.002s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t2.218s\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 4,
+            "description": "Level 4 gate",
+            "success": true,
+            "command": "go vet ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T11:46:37.613Z"
+      },
+      "createdAt": "2026-07-02T11:46:37.613Z"
+    },
+    {
+      "id": "P1.M8.T1.S1_1782992797615_complete_2b5ffde7",
+      "taskId": "P1.M8.T1.S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M8_T1_S1.md",
+        "stage": "complete",
+        "coderResponse": "Confirmed — claude decodes to exactly 7 elements (including the two empty-string values). The earlier `5` was just `grep -c` counting lines, not array elements.\n\nAll checks complete. Here's the final summary:\n\n## Implementation Complete ✅\n\n**Files created (7):**\n- `providers/{pi,claude,gemini,opencode,codex,cursor}.toml` — six hand-authored, human-readable reference manifests (Mode A inline docs: header comment + multi-line arrays + per-field comments), zero-value fields omitted for readability, all `[env]` tables omitted.\n- `internal/provider/providers_golden_test.go` — `TestProvidersTOML_MatchBuiltins`, a table-driven golden-equivalence guard reusing `normalizeEmpty` from `builtin_test.go` plus defensive Env normalization.\n\n**Validation gates — all pass:**\n| Level | Command | Result |\n|-------|---------|--------|\n| 1 | `go build ./...` | ✅ OK (gofmt clean) |\n| 2 | `go test ... -run TestProvidersTOML_MatchBuiltins -v` | ✅ 6/6 subtests PASS |\n| 3 | `go test ./...` | ✅ whole suite green |\n| 4 | `go vet ./internal/provider/` | ✅ OK |\n\n**Negative-path guarantee verified:** the test FAILs (never skips) on divergent, malformed, and missing files; restored to green afterward.\n\n**Anti-patterns avoided:** `retry_instruction` only in `pi.toml`; no `[env]` tables; claude's `bare_flags` = 7 elements incl. two `\"\"` values; codex = `stdin` + `--ephemeral`; gemini/cursor = positional; `builtin.go` untouched; files not wired into the runtime loader.\n\n```json\n{\n  \"result\": \"success\",\n  \"message\": \"Shipped six contributor-facing providers/{pi,claude,gemini,opencode,codex,cursor}.toml reference manifests (Mode A inline docs, zero-value fields omitted, no [env] tables) plus internal/provider/providers_golden_test.go with TestProvidersTOML_MatchBuiltins. All four validation gates pass: go build ./..., golden test (6/6 subtests PASS), go test ./... (whole suite green), go vet ./internal/provider/. Negative testing confirmed the test FAILs (not skips) on divergent, malformed, and missing files. Field values transcribed verbatim from internal/provider/builtin.go; builtin.go was not modified. All success criteria and anti-patterns verified (pi is the only file with retry_instruction; claude bare_flags decodes to exactly 7 elements including two empty strings; codex uses stdin + --ephemeral; gemini/cursor use positional delivery).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Shipped six contributor-facing providers/{pi,claude,gemini,opencode,codex,cursor}.toml reference manifests (Mode A inline docs, zero-value fields omitted, no [env] tables) plus internal/provider/providers_golden_test.go with TestProvidersTOML_MatchBuiltins. All four validation gates pass: go build ./..., golden test (6/6 subtests PASS), go test ./... (whole suite green), go vet ./internal/provider/. Negative testing confirmed the test FAILs (not skips) on divergent, malformed, and missing files. Field values transcribed verbatim from internal/provider/builtin.go; builtin.go was not modified. All success criteria and anti-patterns verified (pi is the only file with retry_instruction; claude bare_flags decodes to exactly 7 elements including two empty strings; codex uses stdin + --ephemeral; gemini/cursor use positional delivery)."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/provider/ -run TestProvidersTOML_MatchBuiltins -v",
+            "stdout": "=== RUN   TestProvidersTOML_MatchBuiltins\n=== RUN   TestProvidersTOML_MatchBuiltins/claude\n=== RUN   TestProvidersTOML_MatchBuiltins/codex\n=== RUN   TestProvidersTOML_MatchBuiltins/cursor\n=== RUN   TestProvidersTOML_MatchBuiltins/gemini\n=== RUN   TestProvidersTOML_MatchBuiltins/opencode\n=== RUN   TestProvidersTOML_MatchBuiltins/pi\n--- PASS: TestProvidersTOML_MatchBuiltins (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/claude (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/codex (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/cursor (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/gemini (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/opencode (0.00s)\n    --- PASS: TestProvidersTOML_MatchBuiltins/pi (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/provider\t0.002s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t2.218s\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 4,
+            "description": "Level 4 gate",
+            "success": true,
+            "command": "go vet ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T11:46:37.615Z"
+      },
+      "createdAt": "2026-07-02T11:46:37.615Z"
+    }
+  ],
+  "lastModified": "2026-07-02T11:46:37.615Z"
+}

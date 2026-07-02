@@ -1,0 +1,30 @@
+# claude.toml — reference manifest for the `claude` coding agent
+# (PRD §12.4, external_deps §B.2/§C.1).
+#
+# Contributor-facing COPY of the manifest compiled into the binary by
+# internal/provider/builtin.go (P1.M2.T3.S1). The tool works with zero config
+# because the built-in is the source of truth; this file is for reference and
+# copy-paste when authoring a [provider.claude] override (PRD §12.8).
+#
+# TO-CONFIRM: none.
+# Note (§C.1): the bare set encodes 5 logical flags as a 7-element slice because
+# --setting-sources and --tools each take an empty-string value; both empty
+# elements are significant and MUST be kept. `--system-prompt` REPLACES the
+# default persona — use `--append-system-prompt` if you want to ADD to it.
+name = "claude"
+detect = "claude"
+command = "claude"
+prompt_delivery = "stdin"        # pipe payload via stdin
+print_flag = "-p"                # non-interactive "print and exit" mode
+model_flag = "--model"
+default_model = "sonnet"         # commit-claude default
+system_prompt_flag = "--system-prompt"
+bare_flags = [
+  "--setting-sources", "",       # empty-string value is significant
+  "--tools", "",                 # empty-string value is significant
+  "--disable-slash-commands",
+  "--no-chrome",
+  "--no-session-persistence",
+]
+output = "raw"
+strip_code_fence = true

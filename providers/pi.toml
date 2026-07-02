@@ -1,0 +1,33 @@
+# pi.toml — reference manifest for the `pi` coding agent
+# (PRD §12.3, external_deps §B.1).
+#
+# Contributor-facing COPY of the manifest compiled into the binary by
+# internal/provider/builtin.go (P1.M2.T3.S1). The tool works with zero config
+# because the built-in is the source of truth; this file is for reference and
+# copy-paste when authoring a [provider.pi] override (PRD §12.8).
+#
+# TO-CONFIRM: none — fully verified against `pi --help` (v0.80.2); byte-identical
+# to the proven `commit-pi` invocation.
+name = "pi"                   # provider identifier (PRD §12.1)
+detect = "pi"                 # command looked up on $PATH to detect install
+command = "pi"                # executable run by the executor
+prompt_delivery = "stdin"     # pipe payload via stdin (avoids arg-length limits)
+print_flag = "-p"             # non-interactive "print and exit" mode
+model_flag = "--model"
+default_model = "glm-5-turbo" # commit-pi default; user-config dependent
+system_prompt_flag = "--system-prompt"
+provider_flag = "--provider"  # selects a sub-provider backend (e.g. GLM)
+default_provider = ""         # user sets e.g. "zai" for GLM
+bare_flags = [
+  "--no-tools",
+  "--no-extensions",
+  "--no-skills",
+  "--no-prompt-templates",
+  "--no-context-files",
+  "--no-session",
+]
+output = "raw"                # stdout (cleaned) IS the commit message
+strip_code_fence = true       # drop a single ```/~~~ fence layer if present
+# Retry message prepended to the payload on a parse-retry (PRD §12.1). pi is the
+# ONLY built-in provider with a non-empty retry_instruction.
+retry_instruction = "Output ONLY the commit message. No preamble, no markdown, no quotes."

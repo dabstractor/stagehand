@@ -1,0 +1,24 @@
+# gemini.toml — reference manifest for the `gemini` coding agent
+# (PRD §12.5, external_deps §B.3/§C.3, Appendix E.1).
+#
+# Contributor-facing COPY of the manifest compiled into the binary by
+# internal/provider/builtin.go (P1.M2.T3.S1). The tool works with zero config
+# because the built-in is the source of truth; this file is for reference and
+# copy-paste when authoring a [provider.gemini] override (PRD §12.8).
+#
+# TO-CONFIRM (Appendix E.1): prompt delivery — positional is the current
+# default; stdin is preferred-if-verified at integration time. The `-p` flag is
+# DEPRECATED and must NOT be used, so print_flag is omitted. There is no
+# system_prompt_flag: the system prompt is prepended to the payload instead.
+name = "gemini"
+detect = "gemini"
+command = "gemini"
+prompt_delivery = "positional"   # payload appended as the final positional arg
+model_flag = "-m"
+default_model = "gemini-2.5-pro"
+bare_flags = [
+  "--approval-mode",
+  "default",
+]
+output = "raw"
+strip_code_fence = true

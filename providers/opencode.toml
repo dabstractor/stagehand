@@ -1,0 +1,23 @@
+# opencode.toml — reference manifest for the `opencode` coding agent
+# (PRD §12.6, external_deps §B.4).
+#
+# Contributor-facing COPY of the manifest compiled into the binary by
+# internal/provider/builtin.go (P1.M2.T3.S1). The tool works with zero config
+# because the built-in is the source of truth; this file is for reference and
+# copy-paste when authoring a [provider.opencode] override (PRD §12.8).
+#
+# TO-CONFIRM: none.
+# Note: opencode models are namespaced — the user must set the model as
+# `provider/model` (e.g. `anthropic/claude-sonnet-4`), so default_model is empty.
+# There is no system_prompt_flag (system prompt is prepended to the payload) and
+# no bare_flags (the built-in's bare_flags is nil → omitted entirely).
+name = "opencode"
+detect = "opencode"
+command = "opencode"
+subcommand = [
+  "run",                         # inserted between command and flags
+]
+prompt_delivery = "positional"   # payload appended as the final positional arg
+model_flag = "-m"
+output = "raw"
+strip_code_fence = true
