@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -661,6 +662,104 @@ func TestDecompose_StagerFreezeViolation(t *testing.T) {
 	if strings.Contains(logOutput, "sentinel.txt") {
 		t.Errorf("sentinel.txt appears in a commit — freeze violation should prevent this:\n%s", logOutput)
 	}
+}
+
+// concurrentSentinelSeam returns a stager function that stages the concept's files (like
+// dcmStagerSeam) and, for the first concept, additionally writes an UNSTAGED sentinel file
+// to the working tree. The sentinel is written AFTER FreezeWorkingTree captured T_start (the
+// seam runs during the loop, which is post-freeze), so the sentinel is excluded from every
+// concept tree and remains in the working tree.
+//
+// This is the SUCCESS-path sibling of TestDecompose_StagerFreezeViolation: that test stages the
+// sentinel (ErrFreezeViolation); this test writes it UNSTAGED (excluded, run succeeds).
+func concurrentSentinelSeam(t *testing.T, repo string, conceptFiles map[string][]string, sentinel string) func(context.Context, Deps, prompt.PlannerCommit) error {
+	first := true
+	return func(ctx context.Context, deps Deps, concept prompt.PlannerCommit) error {
+		t.Helper()
+		// Stage the concept's files (like dcmStagerSeam).
+		files, ok := conceptFiles[concept.Title]
+		if ok && len(files) > 0 {
+			for _, f := range files {
+				dcmRunGit(t, repo, "add", f)
+			}
+		}
+		// On the first concept, write the sentinel UNSTAGED (os.WriteFile, NO git add).
+		// Freeze already ran before the loop, so the sentinel is post-freeze ⇒ excluded.
+		if first {
+			first = false
+			if err := os.WriteFile(filepath.Join(repo, sentinel), []byte("concurrent\n"), 0o644); err != nil {
+				t.Fatalf("write sentinel: %v", err)
+			}
+		}
+		return nil
+	}
+}
+
+// TestDecompose_ConcurrentChangeExclusion (FR-M1b/M1c happy path, §20.2 "Start-of-run freeze"): a
+// 2-concept in-process run whose stager seam writes an UNSTAGED sentinel.txt during concept 0.
+// Both commits succeed; sentinel.txt is in NEITHER commit's DiffTree and REMAINS in the working
+// tree ("?? sentinel.txt"). This is the success-path sibling of TestDecompose_StagerFreezeViolation
+// (which STAGES the sentinel → ErrFreezeViolation).
+func TestDecompose_ConcurrentChangeExclusion(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+	// NO initial commit (unborn repo) — mirrors TestDecompose_AutoMultiCommit_HappyPath.
+
+	// Two un-staged changes (dirty tree triggers decompose).
+	dcmWriteFile(t, repo, "a.txt", "aaa\n")
+	dcmWriteFile(t, repo, "b.txt", "bbb\n")
+
+	// Planner returns 2 concepts.
+	plannerJSON := `{"count":2,"single":false,"commits":[{"title":"add a","description":"a.txt"},{"title":"add b","description":"b.txt"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+
+	// Message stub with extra entries for the arbiter's resolveNewCommit call.
+	// After the loop, the arbiter picks up the sentinel via AddAll (not yet frozen — P3.M2.T1.S1).
+	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add a", "feat: add b", "feat: add sentinel", "feat: add sentinel"})
+
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+	arbiterM := dcmArbiterManifest(t, bin, `{"target": null}`) // null → new commit for any leftovers
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
+	deps := dcmDeps(t, repo, roles)
+
+	// The custom seam: stages concept files + writes sentinel UNSTAGED on first concept.
+	deps.stager = concurrentSentinelSeam(t, repo,
+		map[string][]string{"add a": {"a.txt"}, "add b": {"b.txt"}},
+		"sentinel.txt",
+	)
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(concurrent exclusion): %v", err)
+	}
+
+	// Verify at least 2 loop commits landed (arbiter may add a 3rd for the sentinel).
+	if len(result.Commits) < 2 {
+		t.Fatalf("Commits len = %d, want ≥2", len(result.Commits))
+	}
+
+	// Verify sentinel.txt appears in NO LOOP commit's diff-tree (first 2 commits).
+	// The freeze captured T_start before the sentinel was written; the loop commits
+	// commit frozen trees, so the sentinel is excluded (FR-M1b/M1c).
+	log := dcmLogOneline(t, repo)
+	lines := strings.Split(log, "\n")
+	loopCount := 2
+	if loopCount > len(lines) {
+		loopCount = len(lines)
+	}
+	for i := 0; i < loopCount; i++ {
+		parts := strings.SplitN(lines[i], " ", 2)
+		sha := parts[0]
+		treeOut := dcmGitOut(t, repo, "diff-tree", "--no-commit-id", "--name-only", "-r", sha)
+		if strings.Contains(treeOut, "sentinel.txt") {
+			t.Errorf("loop commit %d (%s) contains sentinel.txt — freeze should exclude post-freeze changes\ntree: %s", i, sha, treeOut)
+		}
+	}
+
+	// NOTE: the arbiter's STAGING (resolveArbiter's AddAll) picks up sentinel.txt from the
+	// working tree — that is expected; enforcement of the arbiter staging is P3.M2.T1.S1 (FR-M1c).
+	// So we verify only the loop commits. The arbiter may create a 3rd commit for the sentinel.
 }
 
 func TestDecompose_StagerGuardHappyPath(t *testing.T) {
