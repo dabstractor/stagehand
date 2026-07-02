@@ -1,0 +1,125 @@
+{
+  "taskId": "P1.M6.T2.S1",
+  "taskHash": "ccb5ef8eb74276f6694aebfd08b89cd853d7a6ab5814b6484004a2e5eab4b68c",
+  "createdAt": 1782988024341,
+  "accessedAt": 1782988024341,
+  "version": "1.0",
+  "prp": {
+    "taskId": "P1.M6.T2.S1",
+    "objective": "Create internal/generate/signal.go implementing the PRD §18.4 / reference_impl.md §1 signal contract for the snapshot-based atomic-commit pipeline: installSignalHandler(ctxCancel, rescueFn) arms a SIGINT/SIGTERM handler (post-snapshot) that cancels the executor context (process-group kill via Setpgid + grace SIGKILL), runs the rescue render if a snapshot was taken, and exits with ui.ExitRescue (3); restoreSignalHandler() resets SIGINT/SIGTERM to default and is called by CommitStaged immediately BEFORE UpdateRefCAS so a last-instant Ctrl-C is not mistaken for a failure. Deliver the file fully self-contained and unit/integration-tested, plus the two CommitStaged wiring call-sites applied only if generate.go already exists. This is a stdlib-only Go task (no testify), package generate, following the conventions of rescue.go/dedupe.go.",
+    "context": "## Goal\n\n**Feature Goal**: A tested, self-contained `internal/generate/signal.go` that implements the SIGINT/SIGTERM → cancel-and-rescue contract (PRD §18.4) for the atomic-commit pipeline, with the rescue-armed window open only between WriteTree and UpdateRefCAS.\n\n**Deliverable**: `internal/generate/signal.go` exposing `installSignalHandler(ctxCancel, rescueFn func())` and `restoreSignalHandler()`, a testable pure core `handleSignal(...) int`, and an injectable `exit` seam; plus `internal/generate/signal_test.go` (pure unit tests + subprocess re-exec integration tests). The two wiring call-sites in `generate.go`'s CommitStaged are applied only if CommitStaged already exists at implementation time; otherwise the exact snippet is documented for P1.M6.T1.S1.\n\n**Success Definition**: `go build`, `go vet`, `gofmt`, and `go test ./internal/generate/` all pass; a real SIGINT to a handler-armed process prints the §18.3 rescue block (with the frozen TREE_SHA) and exits 3; after restoreSignalHandler(), a SIGINT during a mocked update-ref does NOT print rescue and the path completes (exit != 3).\n\n## Why\n\n- **Safety invariant (PRD §18.1)**: the repo's refs/index change only at the final UpdateRefCAS. A Ctrl-C after the snapshot must NOT corrupt that — it must kill the agent cleanly and tell the user how to recover (rescue), without ever force-touching HEAD.\n- **Defensibility**: process-group kill + grace SIGKILL + restore-before-commit is explicitly NEW PRD work (reference_impl.md §7 — \"reference just trap'd\"; §18.4) that hardens the proven shell pipeline.\n- **Quota-not-wasted**: the rescue render (P1.M6.T1.S3) runs on the signal path so the user's spent agent quota is recoverable via the printed manual commit-tree command.\n\n## What\n\n### User-visible behavior\n- After the index is snapshotted (write-tree) and before generation, a SIGINT/SIGTERM: (1) cancels the executor context → Executor.Run SIGTERM-then-SIGKILLs the agent's whole process group; (2) prints the §18.3 rescue block (tree SHA + manual recovery command) to stderr; (3) exits 3 (ui.ExitRescue).\n- A SIGINT/SIGTERM BEFORE the snapshot uses Go's default disposition (exit 130) — no handler is armed yet (this realizes PRD §18.4 step 2's \"else just exit\").\n- restoreSignalHandler() is called immediately BEFORE UpdateRefCAS: a Ctrl-C during the final atomic ref update is NOT mistaken for a generation failure (no rescue block; default disposition).\n\n### Success Criteria\n- [ ] installSignalHandler arms SIGINT+SIGTERM; on receipt it calls ctxCancel, then rescueFn, then exits ui.ExitRescue (3).\n- [ ] restoreSignalHandler stops notification and resets SIGINT/SIGTERM to default (signal.Stop + signal.Reset).\n- [ ] Ordering: restoreSignalHandler is invoked immediately BEFORE git.UpdateRefCAS (NOT after — see Gotcha #1).\n- [ ] Pure core handleSignal is unit-testable with NO os.Exit (returns the exit code).\n- [ ] Subprocess integration test: real SIGINT → rescue block printed with tree + exit code 3.\n- [ ] Subprocess integration test: after restore, SIGINT during mocked update-ref → NO rescue block, exit code != 3.\n\n## All Needed Context\n\n### Documentation & References\n```yaml\n# MUST READ\n- file: internal/generate/rescue.go\n  why: Rescue(out, tree, parent, candidate) is the pure render fn the signal handler calls; confirms candidate=\"\" on the SIGINT/SIGTERM path and that Rescue never os.Exit (the handler does).\n  pattern: package-level doc comment style; Rescue is PURE RENDER — exit/loop-control is the CALLER's job.\n  gotcha: candidate MUST be \"\" on the signal path; Rescue writes via out.Progressf (stderr ALWAYS, FR51).\n- file: internal/provider/executor.go\n  why: Executor.Run(ctx, ...) observes ctx.Done() and SIGTERM+SIGKILLs the agent process group (Setpgid). The ctxCancel passed to installSignalHandler is THIS context's cancel func.\n  pattern: ctx parameter is the cancellation seam; doc comment says the signal handler (M6.T2.S1) hands the cancel func in. No stored context / public Cancel accessor.\n  gotcha: SIGTERM first, then 2s grace, then SIGKILL on the group (kill(-pgid)).\n- file: internal/ui/exitcode.go\n  why: ui.ExitRescue == 3 (PRD §15.4 / P1.M1.T2.S1). The handler exits with this constant; do NOT hardcode 3.\n  pattern: import \"github.com/dustin/stagehand/internal/ui\"; return ui.ExitRescue from handleSignal.\n- file: internal/generate/rescue_test.go\n  why: House test conventions — package generate white-box; stdlib bytes/io/strings/testing + internal/ui ONLY (NO testify); ui.NewOutput(io.Discard, &stderr, false, true) (noColor=true so out.Red is a no-op); containsAll helper; t.Run table-driven subtests.\n  pattern: construct *ui.Output via the exported NewOutput (fields unexported); assert substring presence/absence with strings.Contains.\n- file: internal/provider/executor_test.go\n  why: The closest analog — REAL-process, timing-sensitive tests (TestRun_CancelReturnsCanceled, TestRun_GraceSIGKILLOnIgnoredTERM). Establishes that this codebase tests cancellation with real binaries/timing, not mocks.\n  pattern: inline Manifest/Executor literals; go func(){ time.Sleep; cancel() }(); assert errors.Is + timing bounds.\n- file: plan/001_f1f80943ac34/architecture/reference_impl.md\n  section: §1 step 2-3 (trap installed after write-tree), §5 (trap - INT TERM), §7 (signal handling is NEW PRD work)\n  why: The behavioral baseline being ported; §7 confirms process-group signal handling is new vs the reference.\n- file: plan/001_f1f80943ac34/architecture/decisions.md\n  section: §3 (CommitStaged pseudocode — COMMIT block)\n  why: Shows where install (after WriteTree) and restore (before UpdateRefCAS) sit in the orchestrator.\n  gotcha: The §3 pseudocode lists the restore COMMENT after the UpdateRefCAS line — that line-POSITION is WRONG; the comment TEXT and the work-item contract say BEFORE UpdateRefCAS. Follow BEFORE.\n- file: PRD.md\n  section: §18.2 (failure-mode table: SIGINT/SIGTERM post-snapshot → rescue, exit 3), §18.3 (rescue block), §18.4 (signal handling: Notify SIGINT+SIGTERM; cancel+kill group; rescue if snapshot taken; restore before update-ref)\n  why: The governing product spec for this task.\n\n```\n\n### Current codebase tree (relevant)\n```bash\ninternal/generate/\n  dedupe.go            # sibling — defers package doc to generate.go\n  dedupe_test.go       # sibling test conventions\n  rescue.go            # Rescue(out, tree, parent, candidate) PURE RENDER (P1.M6.T1.S3)\n  rescue_test.go       # package generate white-box; ui.NewOutput; containsAll\ninternal/ui/\n  exitcode.go          # ExitSuccess=0 ExitError=1 ExitNothingToCommit=2 ExitRescue=3 ExitTimeout=124\n  output.go            # NewOutput(stdout,stderr,verbose,noColor); Progressf (stderr); Red(s)\ninternal/provider/\n  executor.go          # Executor.Run(ctx,...) — ctx.Done() → SIGTERM+SIGKILL group (Setpgid)\n  executor_test.go     # REAL-process/timing test conventions\ninternal/git/\n  plumbing.go          # RevParseHEAD / WriteTree / CommitTree / UpdateRefCAS(ref,new,expected)\ncmd/stagehand/main.go  # os.Exit(1) on cobra error (direct os.Exit style; no signal handling yet)\n\n```\n\n### Desired codebase tree with files to be added\n```bash\ninternal/generate/\n  signal.go            # NEW — installSignalHandler / restoreSignalHandler / handleSignal + exit seam\n  signal_test.go       # NEW — pure unit tests + subprocess re-exec integration tests\n  generate.go          # (owned by P1.M6.T1.S1) — IF it exists, add the 2 wiring call-sites; else document\n\n```\n\n### Known Gotchas of our codebase & Library Quirks\n```go\n\n```\n\n## Implementation Blueprint\n\n### signal.go structure (package generate, plain `package generate` line — generate.go owns the // Package doc comment, mirroring rescue.go/dedupe.go)\n```go\npackage generate\nimport (\n\t\"os\"\n\t\"os/signal\"\n\t\"syscall\"\n\t\"github.com/dustin/stagehand/internal/ui\"\n)\nvar exit = os.Exit\nvar commitSignals = []os.Signal{syscall.SIGINT, syscall.SIGTERM}\nvar (\n\tactiveCh  chan os.Signal\n)\nfunc installSignalHandler(ctxCancel, rescueFn func()) {\n\tch := make(chan os.Signal, 1)\n\tsignal.Notify(ch, commitSignals...)\n\tactiveCh = ch\n\tgo func() {\n\t\t<-ch\n\t\texit(handleSignal(ctxCancel, rescueFn))\n\t}()\n}\nfunc handleSignal(ctxCancel, rescueFn func()) int {\n\tctxCancel()\n\tif rescueFn != nil {\n\t\trescueFn()\n\t}\n\treturn ui.ExitRescue\n}\nfunc restoreSignalHandler() {\n\tif activeCh != nil {\n\t\tsignal.Stop(activeCh)\n\t\tactiveCh = nil\n\t}\n\tsignal.Reset(commitSignals...)\n}\n\n```\n\n### CommitStaged wiring (P1.M6.T1.S1) — apply ONLY if generate.go already exists\n```go\ninstallSignalHandler(cancel, func() {\n\tif treeSHA != \"\" {           \n\t\tRescue(out, treeSHA, parentSHA, \"\") \n\t}\n})\nrestoreSignalHandler()\n\n```\n\n## Validation Loop\n\n### Level 1 — Syntax & Style (after creating signal.go)\n```bash\ngo build ./internal/generate/\ngo vet ./internal/generate/\n# gofmt: empty output == formatted\ntest -z \"$(gofmt -l internal/generate/)\"\n\n```\n\n### Level 2 — Unit Tests (pure core, no os.Exit)\n```bash\ngo test ./internal/generate/ -run HandleSignal -v\n\n```\n\n### Level 3 — Integration Tests (real SIGINT + subprocess exit-code; restore path)\n```bash\ngo test ./internal/generate/ -run Signal -v\n\n```\n\n### Level 4 — Full package regression (rescue/dedupe unaffected)\n```bash\ngo test ./internal/generate/\n\n```\n\n## Final Validation Checklist\n- [ ] signal.go builds, vets, and is gofmt-clean.\n- [ ] handleSignal unit test: ctxCancel called, rescueFn called, returns ui.ExitRescue (3) — no os.Exit.\n- [ ] handleSignal(nil,nil) does not panic (nil-guards).\n- [ ] Subprocess test: real SIGINT to handler-armed process → stderr contains the §18.3 rescue block + frozen TREE_SHA; exit code == 3.\n- [ ] Subprocess test: after restoreSignalHandler(), a SIGINT during a mocked update-ref → stderr has NO rescue block; exit code != 3.\n- [ ] restoreSignalHandler uses BOTH signal.Stop and signal.Reset.\n- [ ] Ordering documented + implemented: restore BEFORE UpdateRefCAS (Gotcha #1).\n- [ ] No testify; stdlib + internal/ui only; package generate white-box.\n- [ ] generate.go untouched unless CommitStaged already exists (scope boundary — do NOT stub CommitStaged).\n- [ ] Docs: task has no Mode-A DOCS line; defers to Mode-B changeset-level doc sync in M8.\n\n## Anti-Patterns to Avoid\n- ❌ Don't hardcode exit code 3 — use ui.ExitRescue.\n- ❌ Don't os.Exit inside handleSignal (breaks unit tests) — keep the pure core exit-free; exit via the seam in the goroutine.\n- ❌ Don't restore AFTER UpdateRefCAS (Gotcha #1 — work-item + PRD §18.4 say BEFORE).\n- ❌ Don't gate TREE inside the handler with extra params — signature is fixed; gate inside the rescueFn closure.\n- ❌ Don't arm the handler before WriteTree (pre-snapshot SIGINT must use Go default → exit 130).\n- ❌ Don't create a stub CommitStaged in this task (that is P1.M6.T1.S1).\n- ❌ Don't add testify or external deps (codebase is stdlib-only).\n",
+    "implementationSteps": [
+      "CREATE internal/generate/signal.go (package generate; plain package line — generate.go owns the // Package doc comment like rescue.go/dedupe.go). Imports: os, os/signal, syscall, github.com/dustin/stagehand/internal/ui. Add the `var exit = os.Exit` injectable seam, `var commitSignals = []os.Signal{syscall.SIGINT, syscall.SIGTERM}`, and package-private `var activeCh chan os.Signal` (one active handler at a time).",
+      "In signal.go IMPLEMENT installSignalHandler(ctxCancel, rescueFn func()): make a buffered chan os.Signal(1); signal.Notify(ch, commitSignals...); store ch in activeCh; launch a goroutine that blocks on <-ch then does exit(handleSignal(ctxCancel, rescueFn)). Document: armed post-snapshot (after WriteTree, before generation) per PRD §18.4 / reference_impl.md §1.",
+      "In signal.go IMPLEMENT the pure core handleSignal(ctxCancel, rescueFn func()) int with NO os.Exit: call ctxCancel(); if rescueFn != nil { rescueFn() }; return ui.ExitRescue. This is the unit-testable seam (ctxCancel/rescueFn are caller closures; TREE gating lives in rescueFn).",
+      "In signal.go IMPLEMENT restoreSignalHandler(): if activeCh != nil { signal.Stop(activeCh); activeCh = nil }; then signal.Reset(commitSignals...). Document it is called by CommitStaged immediately BEFORE git.UpdateRefCAS (Gotcha #1) so a last-instant Ctrl-C is not mistaken for a failure.",
+      "CREATE internal/generate/signal_test.go (package generate white-box; stdlib bytes/io/os/os/exec/strings/testing + internal/ui ONLY; no testify). Add pure unit tests for handleSignal: (a) ctxCancel called + rescueFn called + returns ui.ExitRescue; (b) handleSignal(nil,nil) does not panic.",
+      "In signal_test.go ADD subprocess re-exec integration tests using the canonical Go pattern (child mode gated by an env var like STAGEHAND_SIGNAL_TEST). Test 1 (rescue on signal): child installs handler with a rescueFn writing the §18.3 block to os.Stderr then blocks; parent execs os.Args[0] -test.run with the env, sends SIGINT, asserts exit code == 3 AND stderr contains the rescue block + frozen TREE_SHA (use ui.NewOutput + Rescue, or a fake rescueFn — assert substring presence).",
+      "In signal_test.go ADD Test 2 (restore before update-ref): child installs handler, calls restoreSignalHandler(), runs a mocked update-ref (print a sentinel), exits 0; parent sends SIGINT during the mock; assert stderr has NO rescue block AND exit code != 3 (proves restore worked — default disposition, no rescue).",
+      "WIRE INTO CommitStaged ONLY IF internal/generate/generate.go already exists at implementation time: after WriteTree add installSignalHandler(cancel, func(){ if treeSHA != \"\" { Rescue(out, treeSHA, parentSHA, \"\") } }); immediately BEFORE g.UpdateRefCAS add restoreSignalHandler(). IF generate.go does NOT exist yet (P1.M6.T1.S1 not built), leave signal.go self-contained and document the exact 2-call-site snippet in a code comment / this PRP for T1.S1 — DO NOT create a stub CommitStaged (scope boundary).",
+      "RUN validation gates in order: go build ./internal/generate/ ; go vet ./internal/generate/ ; test -z \"$(gofmt -l internal/generate/)\" ; go test ./internal/generate/ -run HandleSignal -v ; go test ./internal/generate/ -run Signal -v ; go test ./internal/generate/. Fix any failure before declaring done.",
+      "Docs: this task has no Mode-A per-item DOCS line; it defers to the Mode-B changeset-level doc sync performed in M8. No doc file edit is required in this task."
+    ],
+    "validationGates": [
+      {
+        "level": 1,
+        "description": "Level 1 gate",
+        "command": "go build ./internal/generate/",
+        "manual": false
+      },
+      {
+        "level": 1,
+        "description": "Level 1 gate",
+        "command": "go vet ./internal/generate/",
+        "manual": false
+      },
+      {
+        "level": 1,
+        "description": "Level 1 gate",
+        "command": "test -z \"$(gofmt -l internal/generate/)\"",
+        "manual": false
+      },
+      {
+        "level": 2,
+        "description": "Level 2 gate",
+        "command": "go test ./internal/generate/ -run HandleSignal -v",
+        "manual": false
+      },
+      {
+        "level": 3,
+        "description": "Level 3 gate",
+        "command": "go test ./internal/generate/ -run Signal -v",
+        "manual": false
+      },
+      {
+        "level": 4,
+        "description": "Level 4 gate",
+        "command": "go test ./internal/generate/",
+        "manual": false
+      }
+    ],
+    "successCriteria": [
+      {
+        "description": "internal/generate/signal.go exposes installSignalHandler(ctxCancel, rescueFn func()), restoreSignalHandler(), and a pure core handleSignal(...) int with an injectable `var exit = os.Exit` seam.",
+        "satisfied": false
+      },
+      {
+        "description": "On SIGINT/SIGTERM the handler calls ctxCancel, then rescueFn, then exits ui.ExitRescue (3) — using the constant, not a hardcoded integer.",
+        "satisfied": false
+      },
+      {
+        "description": "restoreSignalHandler() calls BOTH signal.Stop and signal.Reset to fully restore the default SIGINT/SIGTERM disposition (matches `trap - INT TERM`).",
+        "satisfied": false
+      },
+      {
+        "description": "CommitStaged wiring restores the handler IMMEDIATELY BEFORE git.UpdateRefCAS (NOT after) — per the work-item contract and PRD §18.4 step 3; reference_impl.md §1 / decisions.md §3 line-positions are documented as superseded.",
+        "satisfied": false
+      },
+      {
+        "description": "handleSignal is unit-tested with NO os.Exit (asserts ctxCancel + rescueFn invoked and returns ui.ExitRescue); handleSignal(nil,nil) does not panic.",
+        "satisfied": false
+      },
+      {
+        "description": "A subprocess integration test proves a real SIGINT to a handler-armed process prints the §18.3 rescue block (containing the frozen TREE_SHA) and exits 3.",
+        "satisfied": false
+      },
+      {
+        "description": "A subprocess integration test proves that after restoreSignalHandler(), a SIGINT during a mocked update-ref does NOT print rescue and the path completes (exit code != 3).",
+        "satisfied": false
+      },
+      {
+        "description": "go build, go vet, gofmt, and go test ./internal/generate/ all pass; no testify / external deps added; signal.go uses a plain `package generate` line (generate.go owns the package doc comment).",
+        "satisfied": false
+      },
+      {
+        "description": "Scope respected: generate.go is left untouched unless CommitStaged (P1.M6.T1.S1) already exists; no stub CommitStaged is created in this task.",
+        "satisfied": false
+      },
+      {
+        "description": "Docs: task has no Mode-A DOCS line; defers to Mode-B changeset-level doc sync in M8 — no doc file edit required here.",
+        "satisfied": false
+      }
+    ],
+    "references": [
+      "internal/generate/rescue.go — Rescue(out, tree, parent, candidate) PURE RENDER; candidate=\"\" on signal path; Rescue never os.Exit",
+      "internal/generate/rescue_test.go — package generate white-box test conventions; ui.NewOutput(io.Discard,&stderr,false,true); containsAll helper",
+      "internal/provider/executor.go — Executor.Run(ctx,...) ctx.Done() → SIGTERM+SIGKILL process group (Setpgid); ctx parameter is the cancel seam",
+      "internal/provider/executor_test.go — REAL-process/timing test conventions (TestRun_CancelReturnsCanceled, TestRun_GraceSIGKILLOnIgnoredTERM)",
+      "internal/ui/exitcode.go — ui.ExitRescue == 3 (PRD §15.4 / P1.M1.T2.S1)",
+      "internal/ui/output.go — NewOutput(stdout,stderr,verbose,noColor); Progressf (stderr ALWAYS, FR51); Red(s)",
+      "internal/git/plumbing.go — RevParseHEAD / WriteTree / CommitTree / UpdateRefCAS(ref,new,expected)",
+      "plan/001_f1f80943ac34/architecture/reference_impl.md §1 (trap after write-tree), §5 (trap - INT TERM), §7 (signal handling is NEW PRD work)",
+      "plan/001_f1f80943ac34/architecture/decisions.md §3 (CommitStaged pseudocode COMMIT block; restore comment text says BEFORE update-ref)",
+      "PRD.md §18.2 (SIGINT/SIGTERM post-snapshot → rescue, exit 3), §18.3 (rescue block), §18.4 (Notify SIGINT+SIGTERM; cancel+kill group; rescue if snapshot taken; restore before update-ref)",
+      "https://pkg.go.dev/os/signal#Notify — signal.Notify on SIGINT/SIGTERM",
+      "https://pkg.go.dev/os/signal#Reset — signal.Reset restores default disposition",
+      "https://pkg.go.dev/os/signal#Stop — signal.Stop stops delivery to the channel"
+    ]
+  },
+  "compressionLevel": "standard",
+  "inputTokens": 3738,
+  "outputTokens": 2754,
+  "compressionRatio": 1.3572984749455337,
+  "originalSize": 10800,
+  "compressedSize": 10800
+}

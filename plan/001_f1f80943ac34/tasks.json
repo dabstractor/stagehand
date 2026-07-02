@@ -449,14 +449,14 @@
               "id": "P1.M6.T2",
               "type": "Task",
               "title": "Signal handling & timeout integration",
-              "status": "Planned",
+              "status": "Complete",
               "description": "SIGINT/SIGTERM → cancel the executor context (process-group kill) + run rescue if the snapshot was taken; restore the default handler before the final update-ref (matches commit-pi's `trap - INT TERM`).",
               "subtasks": [
                 {
                   "id": "P1.M6.T2.S1",
                   "type": "Subtask",
                   "title": "internal/generate/signal.go — signal.Notify → rescue; restore before commit",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M6.T1.S3",

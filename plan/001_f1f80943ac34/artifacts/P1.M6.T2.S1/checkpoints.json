@@ -1,0 +1,191 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1.M6.T2.S1_1782988024344_pre-execution_8f007ffb",
+      "taskId": "P1.M6.T2.S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M6_T2_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T10:27:04.344Z"
+      },
+      "createdAt": "2026-07-02T10:27:04.344Z"
+    },
+    {
+      "id": "P1.M6.T2.S1_1782988628004_coder-response_40b7bbbc",
+      "taskId": "P1.M6.T2.S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M6_T2_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "Both files are clean. The PRP is fully implemented and validated.\n\n## Summary\n\nImplemented **P1.M6.T2.S1** — the SIGINT/SIGTERM → cancel-and-rescue signal handler for the atomic-commit pipeline.\n\n### Files created\n\n**`internal/generate/signal.go`** (stdlib + `internal/ui` only, plain `package generate` line — `generate.go` owns the package doc per `rescue.go`/`dedupe.go` convention):\n- `var exit = os.Exit` — injectable exit seam\n- `var commitSignals = []os.Signal{syscall.SIGINT, syscall.SIGTERM}` — frozen set\n- `var activeCh chan os.Signal` — one-active-handler tracker\n- `installSignalHandler(ctxCancel, rescueFn func())` — buffered(1) `signal.Notify` + goroutine that calls `exit(handleSignal(...))`; armed post-snapshot (after `WriteTree`, before generation) per PRD §18.4\n- `handleSignal(ctxCancel, rescueFn func()) int` — **pure, os.Exit-free core** with nil-guards on both args; returns `ui.ExitRescue` (the constant, not `3`)\n- `restoreSignalHandler()` — calls **both** `signal.Stop(activeCh)` and `signal.Reset(commitSignals...)`; documented as called immediately **BEFORE** `git.UpdateRefCAS` (Gotcha #1)\n- Documented the exact 2-call-site CommitStaged wiring snippet for P1.M6.T1.S1 (since `generate.go` doesn't exist yet — scope boundary respected, no stub created)\n\n**`internal/generate/signal_test.go`** (white-box `package generate`; reuses `containsAll` from `rescue_test.go`):\n- Pure unit tests: cancel→rescue→`ExitRescue` ordering, `handleSignal(nil,nil)` no-panic, partial-nil guards, restore clears `activeCh`\n- Subprocess re-exec integration tests via `STAGEHAND_SIGNAL_TEST` env (parent/child `READY` handshake over stdout for flake-free timing):\n  - `TestSignal_RescueOnSIGINT` — real SIGINT → §18.3 rescue block with frozen `TREE_SHA` + exit `3`\n  - `TestSignal_RestoreBeforeUpdateRef` — after restore, SIGINT during mock update-ref → **no** rescue block + killed by SIGINT (exit 130, ≠ 3)\n\n### Validation gates (all pass)\n- L1: `go build`, `go vet`, `gofmt` clean ✓\n- L2: `go test -run HandleSignal` ✓\n- L3: `go test -run Signal` (incl. subprocess) ✓ — verified non-flaky over 5 runs\n- L4: `go test ./internal/generate/` full package (rescue/dedupe unaffected) ✓\n- Full module `go build ./...` ✓; LSP clean ✓\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/generate/signal.go with installSignalHandler/restoreSignalHandler + pure handleSignal (nil-guarded, returns ui.ExitRescue via an injectable exit seam) and internal/generate/signal_test.go (pure unit tests + subprocess re-exec integration tests). restoreSignalHandler uses BOTH signal.Stop and signal.Reset. All six validation gates pass: go build, go vet, gofmt clean, go test -run HandleSignal, go test -run Signal (real SIGINT → rescue block with frozen TREE_SHA + exit 3; post-restore SIGINT → no rescue + default disposition 130), and full package go test ./internal/generate/ (no regression to rescue/dedupe). Scope respected: generate.go does not exist, so no CommitStaged stub was created — the exact two-call-site wiring is documented in a code comment for P1.M6.T1.S1. No testify/external deps; stdlib + internal/ui only; plain package generate line.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/generate/signal.go with installSignalHandler/restoreSignalHandler + pure handleSignal (nil-guarded, returns ui.ExitRescue via an injectable exit seam) and internal/generate/signal_test.go (pure unit tests + subprocess re-exec integration tests). restoreSignalHandler uses BOTH signal.Stop and signal.Reset. All six validation gates pass: go build, go vet, gofmt clean, go test -run HandleSignal, go test -run Signal (real SIGINT → rescue block with frozen TREE_SHA + exit 3; post-restore SIGINT → no rescue + default disposition 130), and full package go test ./internal/generate/ (no regression to rescue/dedupe). Scope respected: generate.go does not exist, so no CommitStaged stub was created — the exact two-call-site wiring is documented in a code comment for P1.M6.T1.S1. No testify/external deps; stdlib + internal/ui only; plain package generate line."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T10:37:08.004Z"
+      },
+      "createdAt": "2026-07-02T10:37:08.004Z"
+    },
+    {
+      "id": "P1.M6.T2.S1_1782988628224_validation-gate-4_daf0ada6",
+      "taskId": "P1.M6.T2.S1",
+      "label": "After validation gate 4",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M6_T2_S1.md",
+        "stage": "validation-gate-4",
+        "coderResponse": "Both files are clean. The PRP is fully implemented and validated.\n\n## Summary\n\nImplemented **P1.M6.T2.S1** — the SIGINT/SIGTERM → cancel-and-rescue signal handler for the atomic-commit pipeline.\n\n### Files created\n\n**`internal/generate/signal.go`** (stdlib + `internal/ui` only, plain `package generate` line — `generate.go` owns the package doc per `rescue.go`/`dedupe.go` convention):\n- `var exit = os.Exit` — injectable exit seam\n- `var commitSignals = []os.Signal{syscall.SIGINT, syscall.SIGTERM}` — frozen set\n- `var activeCh chan os.Signal` — one-active-handler tracker\n- `installSignalHandler(ctxCancel, rescueFn func())` — buffered(1) `signal.Notify` + goroutine that calls `exit(handleSignal(...))`; armed post-snapshot (after `WriteTree`, before generation) per PRD §18.4\n- `handleSignal(ctxCancel, rescueFn func()) int` — **pure, os.Exit-free core** with nil-guards on both args; returns `ui.ExitRescue` (the constant, not `3`)\n- `restoreSignalHandler()` — calls **both** `signal.Stop(activeCh)` and `signal.Reset(commitSignals...)`; documented as called immediately **BEFORE** `git.UpdateRefCAS` (Gotcha #1)\n- Documented the exact 2-call-site CommitStaged wiring snippet for P1.M6.T1.S1 (since `generate.go` doesn't exist yet — scope boundary respected, no stub created)\n\n**`internal/generate/signal_test.go`** (white-box `package generate`; reuses `containsAll` from `rescue_test.go`):\n- Pure unit tests: cancel→rescue→`ExitRescue` ordering, `handleSignal(nil,nil)` no-panic, partial-nil guards, restore clears `activeCh`\n- Subprocess re-exec integration tests via `STAGEHAND_SIGNAL_TEST` env (parent/child `READY` handshake over stdout for flake-free timing):\n  - `TestSignal_RescueOnSIGINT` — real SIGINT → §18.3 rescue block with frozen `TREE_SHA` + exit `3`\n  - `TestSignal_RestoreBeforeUpdateRef` — after restore, SIGINT during mock update-ref → **no** rescue block + killed by SIGINT (exit 130, ≠ 3)\n\n### Validation gates (all pass)\n- L1: `go build`, `go vet`, `gofmt` clean ✓\n- L2: `go test -run HandleSignal` ✓\n- L3: `go test -run Signal` (incl. subprocess) ✓ — verified non-flaky over 5 runs\n- L4: `go test ./internal/generate/` full package (rescue/dedupe unaffected) ✓\n- Full module `go build ./...` ✓; LSP clean ✓\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/generate/signal.go with installSignalHandler/restoreSignalHandler + pure handleSignal (nil-guarded, returns ui.ExitRescue via an injectable exit seam) and internal/generate/signal_test.go (pure unit tests + subprocess re-exec integration tests). restoreSignalHandler uses BOTH signal.Stop and signal.Reset. All six validation gates pass: go build, go vet, gofmt clean, go test -run HandleSignal, go test -run Signal (real SIGINT → rescue block with frozen TREE_SHA + exit 3; post-restore SIGINT → no rescue + default disposition 130), and full package go test ./internal/generate/ (no regression to rescue/dedupe). Scope respected: generate.go does not exist, so no CommitStaged stub was created — the exact two-call-site wiring is documented in a code comment for P1.M6.T1.S1. No testify/external deps; stdlib + internal/ui only; plain package generate line.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/generate/signal.go with installSignalHandler/restoreSignalHandler + pure handleSignal (nil-guarded, returns ui.ExitRescue via an injectable exit seam) and internal/generate/signal_test.go (pure unit tests + subprocess re-exec integration tests). restoreSignalHandler uses BOTH signal.Stop and signal.Reset. All six validation gates pass: go build, go vet, gofmt clean, go test -run HandleSignal, go test -run Signal (real SIGINT → rescue block with frozen TREE_SHA + exit 3; post-restore SIGINT → no rescue + default disposition 130), and full package go test ./internal/generate/ (no regression to rescue/dedupe). Scope respected: generate.go does not exist, so no CommitStaged stub was created — the exact two-call-site wiring is documented in a code comment for P1.M6.T1.S1. No testify/external deps; stdlib + internal/ui only; plain package generate line."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/generate/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/generate/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/generate/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/generate/ -run HandleSignal -v",
+            "stdout": "=== RUN   TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue\n--- PASS: TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue (0.00s)\n=== RUN   TestHandleSignal_NilArgsDoNotPanic\n--- PASS: TestHandleSignal_NilArgsDoNotPanic (0.00s)\n=== RUN   TestHandleSignal_PartialNilArgs\n=== RUN   TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels\n=== RUN   TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues\n--- PASS: TestHandleSignal_PartialNilArgs (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./internal/generate/ -run Signal -v",
+            "stdout": "=== RUN   TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue\n--- PASS: TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue (0.00s)\n=== RUN   TestHandleSignal_NilArgsDoNotPanic\n--- PASS: TestHandleSignal_NilArgsDoNotPanic (0.00s)\n=== RUN   TestHandleSignal_PartialNilArgs\n=== RUN   TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels\n=== RUN   TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues\n--- PASS: TestHandleSignal_PartialNilArgs (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues (0.00s)\n=== RUN   TestRestoreSignalHandler_RestoresDefaultDisposition\n--- PASS: TestRestoreSignalHandler_RestoresDefaultDisposition (0.00s)\n=== RUN   TestSignal_RescueOnSIGINT\n--- PASS: TestSignal_RescueOnSIGINT (0.00s)\n=== RUN   TestSignal_RestoreBeforeUpdateRef\n--- PASS: TestSignal_RestoreBeforeUpdateRef (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 4,
+            "description": "Level 4 gate",
+            "success": true,
+            "command": "go test ./internal/generate/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T10:37:08.223Z"
+      },
+      "createdAt": "2026-07-02T10:37:08.224Z"
+    },
+    {
+      "id": "P1.M6.T2.S1_1782988628225_complete_dc26202b",
+      "taskId": "P1.M6.T2.S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M6_T2_S1.md",
+        "stage": "complete",
+        "coderResponse": "Both files are clean. The PRP is fully implemented and validated.\n\n## Summary\n\nImplemented **P1.M6.T2.S1** — the SIGINT/SIGTERM → cancel-and-rescue signal handler for the atomic-commit pipeline.\n\n### Files created\n\n**`internal/generate/signal.go`** (stdlib + `internal/ui` only, plain `package generate` line — `generate.go` owns the package doc per `rescue.go`/`dedupe.go` convention):\n- `var exit = os.Exit` — injectable exit seam\n- `var commitSignals = []os.Signal{syscall.SIGINT, syscall.SIGTERM}` — frozen set\n- `var activeCh chan os.Signal` — one-active-handler tracker\n- `installSignalHandler(ctxCancel, rescueFn func())` — buffered(1) `signal.Notify` + goroutine that calls `exit(handleSignal(...))`; armed post-snapshot (after `WriteTree`, before generation) per PRD §18.4\n- `handleSignal(ctxCancel, rescueFn func()) int` — **pure, os.Exit-free core** with nil-guards on both args; returns `ui.ExitRescue` (the constant, not `3`)\n- `restoreSignalHandler()` — calls **both** `signal.Stop(activeCh)` and `signal.Reset(commitSignals...)`; documented as called immediately **BEFORE** `git.UpdateRefCAS` (Gotcha #1)\n- Documented the exact 2-call-site CommitStaged wiring snippet for P1.M6.T1.S1 (since `generate.go` doesn't exist yet — scope boundary respected, no stub created)\n\n**`internal/generate/signal_test.go`** (white-box `package generate`; reuses `containsAll` from `rescue_test.go`):\n- Pure unit tests: cancel→rescue→`ExitRescue` ordering, `handleSignal(nil,nil)` no-panic, partial-nil guards, restore clears `activeCh`\n- Subprocess re-exec integration tests via `STAGEHAND_SIGNAL_TEST` env (parent/child `READY` handshake over stdout for flake-free timing):\n  - `TestSignal_RescueOnSIGINT` — real SIGINT → §18.3 rescue block with frozen `TREE_SHA` + exit `3`\n  - `TestSignal_RestoreBeforeUpdateRef` — after restore, SIGINT during mock update-ref → **no** rescue block + killed by SIGINT (exit 130, ≠ 3)\n\n### Validation gates (all pass)\n- L1: `go build`, `go vet`, `gofmt` clean ✓\n- L2: `go test -run HandleSignal` ✓\n- L3: `go test -run Signal` (incl. subprocess) ✓ — verified non-flaky over 5 runs\n- L4: `go test ./internal/generate/` full package (rescue/dedupe unaffected) ✓\n- Full module `go build ./...` ✓; LSP clean ✓\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/generate/signal.go with installSignalHandler/restoreSignalHandler + pure handleSignal (nil-guarded, returns ui.ExitRescue via an injectable exit seam) and internal/generate/signal_test.go (pure unit tests + subprocess re-exec integration tests). restoreSignalHandler uses BOTH signal.Stop and signal.Reset. All six validation gates pass: go build, go vet, gofmt clean, go test -run HandleSignal, go test -run Signal (real SIGINT → rescue block with frozen TREE_SHA + exit 3; post-restore SIGINT → no rescue + default disposition 130), and full package go test ./internal/generate/ (no regression to rescue/dedupe). Scope respected: generate.go does not exist, so no CommitStaged stub was created — the exact two-call-site wiring is documented in a code comment for P1.M6.T1.S1. No testify/external deps; stdlib + internal/ui only; plain package generate line.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/generate/signal.go with installSignalHandler/restoreSignalHandler + pure handleSignal (nil-guarded, returns ui.ExitRescue via an injectable exit seam) and internal/generate/signal_test.go (pure unit tests + subprocess re-exec integration tests). restoreSignalHandler uses BOTH signal.Stop and signal.Reset. All six validation gates pass: go build, go vet, gofmt clean, go test -run HandleSignal, go test -run Signal (real SIGINT → rescue block with frozen TREE_SHA + exit 3; post-restore SIGINT → no rescue + default disposition 130), and full package go test ./internal/generate/ (no regression to rescue/dedupe). Scope respected: generate.go does not exist, so no CommitStaged stub was created — the exact two-call-site wiring is documented in a code comment for P1.M6.T1.S1. No testify/external deps; stdlib + internal/ui only; plain package generate line."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/generate/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/generate/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/generate/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/generate/ -run HandleSignal -v",
+            "stdout": "=== RUN   TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue\n--- PASS: TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue (0.00s)\n=== RUN   TestHandleSignal_NilArgsDoNotPanic\n--- PASS: TestHandleSignal_NilArgsDoNotPanic (0.00s)\n=== RUN   TestHandleSignal_PartialNilArgs\n=== RUN   TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels\n=== RUN   TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues\n--- PASS: TestHandleSignal_PartialNilArgs (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./internal/generate/ -run Signal -v",
+            "stdout": "=== RUN   TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue\n--- PASS: TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue (0.00s)\n=== RUN   TestHandleSignal_NilArgsDoNotPanic\n--- PASS: TestHandleSignal_NilArgsDoNotPanic (0.00s)\n=== RUN   TestHandleSignal_PartialNilArgs\n=== RUN   TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels\n=== RUN   TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues\n--- PASS: TestHandleSignal_PartialNilArgs (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues (0.00s)\n=== RUN   TestRestoreSignalHandler_RestoresDefaultDisposition\n--- PASS: TestRestoreSignalHandler_RestoresDefaultDisposition (0.00s)\n=== RUN   TestSignal_RescueOnSIGINT\n--- PASS: TestSignal_RescueOnSIGINT (0.00s)\n=== RUN   TestSignal_RestoreBeforeUpdateRef\n--- PASS: TestSignal_RestoreBeforeUpdateRef (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 4,
+            "description": "Level 4 gate",
+            "success": true,
+            "command": "go test ./internal/generate/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T10:37:08.225Z"
+      },
+      "createdAt": "2026-07-02T10:37:08.225Z"
+    }
+  ],
+  "lastModified": "2026-07-02T10:37:08.225Z"
+}

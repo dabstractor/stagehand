@@ -1,0 +1,62 @@
+[
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go build ./internal/generate/",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go vet ./internal/generate/",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "test -z \"$(gofmt -l internal/generate/)\"",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 2,
+    "description": "Level 2 gate",
+    "success": true,
+    "command": "go test ./internal/generate/ -run HandleSignal -v",
+    "stdout": "=== RUN   TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue\n--- PASS: TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue (0.00s)\n=== RUN   TestHandleSignal_NilArgsDoNotPanic\n--- PASS: TestHandleSignal_NilArgsDoNotPanic (0.00s)\n=== RUN   TestHandleSignal_PartialNilArgs\n=== RUN   TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels\n=== RUN   TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues\n--- PASS: TestHandleSignal_PartialNilArgs (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 3,
+    "description": "Level 3 gate",
+    "success": true,
+    "command": "go test ./internal/generate/ -run Signal -v",
+    "stdout": "=== RUN   TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue\n--- PASS: TestHandleSignal_CallsCancelAndRescueThenReturnsExitRescue (0.00s)\n=== RUN   TestHandleSignal_NilArgsDoNotPanic\n--- PASS: TestHandleSignal_NilArgsDoNotPanic (0.00s)\n=== RUN   TestHandleSignal_PartialNilArgs\n=== RUN   TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels\n=== RUN   TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues\n--- PASS: TestHandleSignal_PartialNilArgs (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_rescueFn_still_cancels (0.00s)\n    --- PASS: TestHandleSignal_PartialNilArgs/nil_ctxCancel_still_rescues (0.00s)\n=== RUN   TestRestoreSignalHandler_RestoresDefaultDisposition\n--- PASS: TestRestoreSignalHandler_RestoresDefaultDisposition (0.00s)\n=== RUN   TestSignal_RescueOnSIGINT\n--- PASS: TestSignal_RescueOnSIGINT (0.00s)\n=== RUN   TestSignal_RestoreBeforeUpdateRef\n--- PASS: TestSignal_RestoreBeforeUpdateRef (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 4,
+    "description": "Level 4 gate",
+    "success": true,
+    "command": "go test ./internal/generate/",
+    "stdout": "ok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  }
+]
