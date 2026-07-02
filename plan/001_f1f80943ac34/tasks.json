@@ -328,14 +328,14 @@
               "id": "P1.M5.T1",
               "type": "Task",
               "title": "Config struct & defaults",
-              "status": "Planned",
+              "status": "Complete",
               "description": "The Config type carrying all resolved settings + ProviderOverrides, and the built-in default values (PRD §16.1).",
               "subtasks": [
                 {
                   "id": "P1.M5.T1.S1",
                   "type": "Subtask",
                   "title": "internal/config/config.go Config + internal/config/defaults.go",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S1"
