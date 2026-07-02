@@ -321,7 +321,7 @@
           "id": "P1.M5",
           "type": "Milestone",
           "title": "Configuration Model",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Build internal/config: the Config struct + built-in defaults, the source loaders (global+repo TOML via go-toml/v2, repo git-config via `git config`), and Load() implementing the full precedence chain (FR34) with field-by-field provider-override merge. Imports provider.Manifest (M2) for provider overrides — registry does NOT import config (no cycle).",
           "tasks": [
             {
@@ -368,14 +368,14 @@
               "id": "P1.M5.T3",
               "type": "Task",
               "title": "Load() precedence resolution + provider override merge",
-              "status": "Planned",
+              "status": "Complete",
               "description": "The single Load() entry point applying the FR34 precedence chain and field-merging provider overrides into built-in manifests via the registry.",
               "subtasks": [
                 {
                   "id": "P1.M5.T3.S1",
                   "type": "Subtask",
                   "title": "internal/config Load() — precedence chain + provider field-merge + trust notice",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M5.T1.S1",

@@ -1,0 +1,211 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1.M5.T3.S1_1782984662089_pre-execution_ef4b7fe0",
+      "taskId": "P1.M5.T3.S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M5_T3_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T09:31:02.089Z"
+      },
+      "createdAt": "2026-07-02T09:31:02.089Z"
+    },
+    {
+      "id": "P1.M5.T3.S1_1782985438616_coder-response_012d7c45",
+      "taskId": "P1.M5.T3.S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M5_T3_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "All deliverables are in place and every validation gate passes. Implementation complete.\n\n## Summary\n\nI implemented **PRP P1.M5.T3.S1** — the keystone `config.Load()` entry point that resolves the full FR34 precedence chain.\n\n### Deliverables created\n\n1. **`internal/config/load.go`** — plain `package config` line (config.go keeps the doc). Exports:\n   - `Flags{Env, Flag FlagsLayer}` + `FlagsLayer` (6 pointer fields, the `STAGEHAND_*` surface)\n   - `Load(flags Flags, repoDir string) (cfg Config, reg *provider.Registry, trustNotice string, err error)` — applies the 7-layer chain (Default → global file → repo file → git-config → env → flag), per-key shallow-merges `ProviderOverrides`, builds the registry via `provider.NewRegistry(provider.Builtins(), cfg.ProviderOverrides)`, and emits the exact §19 trust notice gated to repo-local sources.\n   - Helpers: `resolvedConfigPath` (flag>env), `applyOverlay`, `applyFlagsLayer`, `mergeProviderOverrides`, `overlayHasContent`.\n   - Imports **only** `fmt`, `time`, `internal/provider` — no `internal/git` (one-way edge preserved).\n\n2. **`internal/config/load_test.go`** — white-box (`package config`), reuses `file_test.go` helpers (no testify). 12 tests covering: defaults-only, full precedence chain (each level beats below), flag>env, provider field-merge over built-ins, per-key shallow merge, all four trust-notice scenarios, `--config` discovery override (incl. flag>env path and git-config still applying), present-but-zero, and ConfigPath diagnostics.\n\n3. **`docs/CONFIGURATION.md`** — Mode A config-reference surface: 7-level precedence, 6 env vars (FR35), `stagehand.*` git-config keys (§16.3 + `--bool` note), `.stagehand.toml` keys (§16.2 golden), field-merge rule, §19 trust notice.\n\n### Validation results\n- **L1**: `go build`/`go vet`/`gofmt -l` all clean\n- **L2/L3**: `go test ./internal/config/ -v` and `go test ./...` all green (no regressions)\n- **L4**: exact §19 trust-notice string present; no `internal/git` substring; imports only fmt/time/provider; docs exists with all 6 sections\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented P1.M5.T3.S1 config.Load(). Created internal/config/load.go (Flags/FlagsLayer + Load applying the full FR34 chain, per-key shallow provider-override merge, registry built via NewRegistry(Builtins(), overrides), §19 repo-local trust notice; plain package line; imports only fmt/time/internal/provider — no internal/git). Created internal/config/load_test.go (white-box, 12 tests reusing file_test.go helpers covering precedence, flag>env, field-merge, per-key shallow merge, all trust-notice scenarios, --config discovery override, present-but-zero, ConfigPath). Created docs/CONFIGURATION.md (Mode A: 7-level precedence, 6 STAGEHAND_* env vars, stagehand.* git-config keys, .stagehand.toml keys, field-merge rule, §19 notice). All gates pass: go build/vet/gofmt clean, go test ./internal/config/ -v green, go test ./... green (no regressions), exact trust-notice string present, no internal/git import.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented P1.M5.T3.S1 config.Load(). Created internal/config/load.go (Flags/FlagsLayer + Load applying the full FR34 chain, per-key shallow provider-override merge, registry built via NewRegistry(Builtins(), overrides), §19 repo-local trust notice; plain package line; imports only fmt/time/internal/provider — no internal/git). Created internal/config/load_test.go (white-box, 12 tests reusing file_test.go helpers covering precedence, flag>env, field-merge, per-key shallow merge, all trust-notice scenarios, --config discovery override, present-but-zero, ConfigPath). Created docs/CONFIGURATION.md (Mode A: 7-level precedence, 6 STAGEHAND_* env vars, stagehand.* git-config keys, .stagehand.toml keys, field-merge rule, §19 notice). All gates pass: go build/vet/gofmt clean, go test ./internal/config/ -v green, go test ./... green (no regressions), exact trust-notice string present, no internal/git import."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T09:43:58.616Z"
+      },
+      "createdAt": "2026-07-02T09:43:58.616Z"
+    },
+    {
+      "id": "P1.M5.T3.S1_1782985440300_validation-gate-4_01d8c98e",
+      "taskId": "P1.M5.T3.S1",
+      "label": "After validation gate 4",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M5_T3_S1.md",
+        "stage": "validation-gate-4",
+        "coderResponse": "All deliverables are in place and every validation gate passes. Implementation complete.\n\n## Summary\n\nI implemented **PRP P1.M5.T3.S1** — the keystone `config.Load()` entry point that resolves the full FR34 precedence chain.\n\n### Deliverables created\n\n1. **`internal/config/load.go`** — plain `package config` line (config.go keeps the doc). Exports:\n   - `Flags{Env, Flag FlagsLayer}` + `FlagsLayer` (6 pointer fields, the `STAGEHAND_*` surface)\n   - `Load(flags Flags, repoDir string) (cfg Config, reg *provider.Registry, trustNotice string, err error)` — applies the 7-layer chain (Default → global file → repo file → git-config → env → flag), per-key shallow-merges `ProviderOverrides`, builds the registry via `provider.NewRegistry(provider.Builtins(), cfg.ProviderOverrides)`, and emits the exact §19 trust notice gated to repo-local sources.\n   - Helpers: `resolvedConfigPath` (flag>env), `applyOverlay`, `applyFlagsLayer`, `mergeProviderOverrides`, `overlayHasContent`.\n   - Imports **only** `fmt`, `time`, `internal/provider` — no `internal/git` (one-way edge preserved).\n\n2. **`internal/config/load_test.go`** — white-box (`package config`), reuses `file_test.go` helpers (no testify). 12 tests covering: defaults-only, full precedence chain (each level beats below), flag>env, provider field-merge over built-ins, per-key shallow merge, all four trust-notice scenarios, `--config` discovery override (incl. flag>env path and git-config still applying), present-but-zero, and ConfigPath diagnostics.\n\n3. **`docs/CONFIGURATION.md`** — Mode A config-reference surface: 7-level precedence, 6 env vars (FR35), `stagehand.*` git-config keys (§16.3 + `--bool` note), `.stagehand.toml` keys (§16.2 golden), field-merge rule, §19 trust notice.\n\n### Validation results\n- **L1**: `go build`/`go vet`/`gofmt -l` all clean\n- **L2/L3**: `go test ./internal/config/ -v` and `go test ./...` all green (no regressions)\n- **L4**: exact §19 trust-notice string present; no `internal/git` substring; imports only fmt/time/provider; docs exists with all 6 sections\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented P1.M5.T3.S1 config.Load(). Created internal/config/load.go (Flags/FlagsLayer + Load applying the full FR34 chain, per-key shallow provider-override merge, registry built via NewRegistry(Builtins(), overrides), §19 repo-local trust notice; plain package line; imports only fmt/time/internal/provider — no internal/git). Created internal/config/load_test.go (white-box, 12 tests reusing file_test.go helpers covering precedence, flag>env, field-merge, per-key shallow merge, all trust-notice scenarios, --config discovery override, present-but-zero, ConfigPath). Created docs/CONFIGURATION.md (Mode A: 7-level precedence, 6 STAGEHAND_* env vars, stagehand.* git-config keys, .stagehand.toml keys, field-merge rule, §19 notice). All gates pass: go build/vet/gofmt clean, go test ./internal/config/ -v green, go test ./... green (no regressions), exact trust-notice string present, no internal/git import.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented P1.M5.T3.S1 config.Load(). Created internal/config/load.go (Flags/FlagsLayer + Load applying the full FR34 chain, per-key shallow provider-override merge, registry built via NewRegistry(Builtins(), overrides), §19 repo-local trust notice; plain package line; imports only fmt/time/internal/provider — no internal/git). Created internal/config/load_test.go (white-box, 12 tests reusing file_test.go helpers covering precedence, flag>env, field-merge, per-key shallow merge, all trust-notice scenarios, --config discovery override, present-but-zero, ConfigPath). Created docs/CONFIGURATION.md (Mode A: 7-level precedence, 6 STAGEHAND_* env vars, stagehand.* git-config keys, .stagehand.toml keys, field-merge rule, §19 notice). All gates pass: go build/vet/gofmt clean, go test ./internal/config/ -v green, go test ./... green (no regressions), exact trust-notice string present, no internal/git import."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "gofmt -l ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/config/ -v",
+            "stdout": "=== RUN   TestConfig_RoundTrip_Populated\n--- PASS: TestConfig_RoundTrip_Populated (0.00s)\n=== RUN   TestDefault_ExactTable\n--- PASS: TestDefault_ExactTable (0.00s)\n=== RUN   TestDefault_ProviderOverridesEmpty\n--- PASS: TestDefault_ProviderOverridesEmpty (0.00s)\n=== RUN   TestGlobalConfigPath_HonorsXDG\n--- PASS: TestGlobalConfigPath_HonorsXDG (0.00s)\n=== RUN   TestGlobalConfigPath_HomeFallback\n--- PASS: TestGlobalConfigPath_HomeFallback (0.00s)\n=== RUN   TestGlobalConfigPath_BothEmptyErrors\n--- PASS: TestGlobalConfigPath_BothEmptyErrors (0.00s)\n=== RUN   TestParseFile_Golden162\n--- PASS: TestParseFile_Golden162 (0.00s)\n=== RUN   TestParseFile_MissingFileIsNotError\n--- PASS: TestParseFile_MissingFileIsNotError (0.00s)\n=== RUN   TestParseFile_MalformedIsError\n--- PASS: TestParseFile_MalformedIsError (0.00s)\n=== RUN   TestParseFile_TimeoutBareSeconds\n--- PASS: TestParseFile_TimeoutBareSeconds (0.00s)\n=== RUN   TestReadRepoFile_MissingIsNotError\n--- PASS: TestReadRepoFile_MissingIsNotError (0.00s)\n=== RUN   TestReadRepoFile_Loads\n--- PASS: TestReadRepoFile_Loads (0.00s)\n=== RUN   TestReadRepoFile_EmptyDirInheritsCWD\n--- PASS: TestReadRepoFile_EmptyDirInheritsCWD (0.00s)\n=== RUN   TestReadGlobalFile_ViaXDG\n--- PASS: TestReadGlobalFile_ViaXDG (0.00s)\n=== RUN   TestReadGlobalFile_MissingIsNotError\n--- PASS: TestReadGlobalFile_MissingIsNotError (0.00s)\n=== RUN   TestReadGitConfig_EmptyRepoIsNotError\n--- PASS: TestReadGitConfig_EmptyRepoIsNotError (0.03s)\n=== RUN   TestReadGitConfig_SetsScalars\n--- PASS: TestReadGitConfig_SetsScalars (0.03s)\n=== RUN   TestReadGitConfig_BoolTrueAndFalse\n=== RUN   TestReadGitConfig_BoolTrueAndFalse/true\n=== RUN   TestReadGitConfig_BoolTrueAndFalse/false\n--- PASS: TestReadGitConfig_BoolTrueAndFalse (0.06s)\n    --- PASS: TestReadGitConfig_BoolTrueAndFalse/true (0.02s)\n    --- PASS: TestReadGitConfig_BoolTrueAndFalse/false (0.04s)\n=== RUN   TestReadGitConfig_TimeoutBareSeconds\n--- PASS: TestReadGitConfig_TimeoutBareSeconds (0.02s)\n=== RUN   TestReadGitConfig_AllBoolKeys\n--- PASS: TestReadGitConfig_AllBoolKeys (0.02s)\n=== RUN   TestLoad_DefaultsOnly\n--- PASS: TestLoad_DefaultsOnly (0.03s)\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow/flag_beats_env_beats_git_beats_repo_beats_global\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow/env_beats_git_beats_repo_beats_global\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow/git_beats_repo_beats_global_(no_env/flag)\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow/repo_file_beats_global\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow/global_beats_default\n--- PASS: TestLoad_Precedence_EachLevelBeatsBelow (0.08s)\n    --- PASS: TestLoad_Precedence_EachLevelBeatsBelow/flag_beats_env_beats_git_beats_repo_beats_global (0.03s)\n    --- PASS: TestLoad_Precedence_EachLevelBeatsBelow/env_beats_git_beats_repo_beats_global (0.01s)\n    --- PASS: TestLoad_Precedence_EachLevelBeatsBelow/git_beats_repo_beats_global_(no_env/flag) (0.01s)\n    --- PASS: TestLoad_Precedence_EachLevelBeatsBelow/repo_file_beats_global (0.01s)\n    --- PASS: TestLoad_Precedence_EachLevelBeatsBelow/global_beats_default (0.01s)\n=== RUN   TestLoad_FlagBeatsEnv\n--- PASS: TestLoad_FlagBeatsEnv (0.01s)\n=== RUN   TestLoad_ProviderFieldMerge\n--- PASS: TestLoad_ProviderFieldMerge (0.01s)\n=== RUN   TestLoad_ProviderOverrides_PerKeyShallowMerge\n--- PASS: TestLoad_ProviderOverrides_PerKeyShallowMerge (0.01s)\n=== RUN   TestLoad_TrustNotice_RepoFile\n--- PASS: TestLoad_TrustNotice_RepoFile (0.01s)\n=== RUN   TestLoad_TrustNotice_GitConfig\n=== RUN   TestLoad_TrustNotice_GitConfig/set_fires_notice\n=== RUN   TestLoad_TrustNotice_GitConfig/unset_no_notice\n--- PASS: TestLoad_TrustNotice_GitConfig (0.05s)\n    --- PASS: TestLoad_TrustNotice_GitConfig/set_fires_notice (0.02s)\n    --- PASS: TestLoad_TrustNotice_GitConfig/unset_no_notice (0.03s)\n=== RUN   TestLoad_TrustNotice_NotGlobalNorEnvNorFlag\n=== RUN   TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/global_file\n=== RUN   TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/env\n=== RUN   TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/flag\n--- PASS: TestLoad_TrustNotice_NotGlobalNorEnvNorFlag (0.06s)\n    --- PASS: TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/global_file (0.02s)\n    --- PASS: TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/env (0.02s)\n    --- PASS: TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/flag (0.02s)\n=== RUN   TestLoad_TrustNotice_HigherLayerKeepsNotice\n--- PASS: TestLoad_TrustNotice_HigherLayerKeepsNotice (0.03s)\n=== RUN   TestLoad_ConfigFlagOverridesDiscovery\n=== RUN   TestLoad_ConfigFlagOverridesDiscovery/explicit_file_replaces_global+repo;_no_notice\n=== RUN   TestLoad_ConfigFlagOverridesDiscovery/flag_ConfigPath_wins_over_env_ConfigPath\n=== RUN   TestLoad_ConfigFlagOverridesDiscovery/git-config_still_applies_and_can_notify\n--- PASS: TestLoad_ConfigFlagOverridesDiscovery (0.04s)\n    --- PASS: TestLoad_ConfigFlagOverridesDiscovery/explicit_file_replaces_global+repo;_no_notice (0.01s)\n    --- PASS: TestLoad_ConfigFlagOverridesDiscovery/flag_ConfigPath_wins_over_env_ConfigPath (0.01s)\n    --- PASS: TestLoad_ConfigFlagOverridesDiscovery/git-config_still_applies_and_can_notify (0.01s)\n=== RUN   TestLoad_PresentButZero\n--- PASS: TestLoad_PresentButZero (0.01s)\n=== RUN   TestLoad_ConfigPathRecordedForGlobal\n=== RUN   TestLoad_ConfigPathRecordedForGlobal/present\n=== RUN   TestLoad_ConfigPathRecordedForGlobal/absent\n--- PASS: TestLoad_ConfigPathRecordedForGlobal (0.02s)\n    --- PASS: TestLoad_ConfigPathRecordedForGlobal/present (0.01s)\n    --- PASS: TestLoad_ConfigPathRecordedForGlobal/absent (0.01s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/config\t0.530s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/config\t0.645s\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 4,
+            "description": "Level 4 gate",
+            "success": true,
+            "command": "grep -q 'stagehand: repo-local config changed provider to' internal/config/load.go",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 4,
+            "description": "Level 4 gate",
+            "success": true,
+            "command": "! grep -q internal/git internal/config/load.go",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T09:44:00.300Z"
+      },
+      "createdAt": "2026-07-02T09:44:00.300Z"
+    },
+    {
+      "id": "P1.M5.T3.S1_1782985440301_complete_ce77d16a",
+      "taskId": "P1.M5.T3.S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M5_T3_S1.md",
+        "stage": "complete",
+        "coderResponse": "All deliverables are in place and every validation gate passes. Implementation complete.\n\n## Summary\n\nI implemented **PRP P1.M5.T3.S1** — the keystone `config.Load()` entry point that resolves the full FR34 precedence chain.\n\n### Deliverables created\n\n1. **`internal/config/load.go`** — plain `package config` line (config.go keeps the doc). Exports:\n   - `Flags{Env, Flag FlagsLayer}` + `FlagsLayer` (6 pointer fields, the `STAGEHAND_*` surface)\n   - `Load(flags Flags, repoDir string) (cfg Config, reg *provider.Registry, trustNotice string, err error)` — applies the 7-layer chain (Default → global file → repo file → git-config → env → flag), per-key shallow-merges `ProviderOverrides`, builds the registry via `provider.NewRegistry(provider.Builtins(), cfg.ProviderOverrides)`, and emits the exact §19 trust notice gated to repo-local sources.\n   - Helpers: `resolvedConfigPath` (flag>env), `applyOverlay`, `applyFlagsLayer`, `mergeProviderOverrides`, `overlayHasContent`.\n   - Imports **only** `fmt`, `time`, `internal/provider` — no `internal/git` (one-way edge preserved).\n\n2. **`internal/config/load_test.go`** — white-box (`package config`), reuses `file_test.go` helpers (no testify). 12 tests covering: defaults-only, full precedence chain (each level beats below), flag>env, provider field-merge over built-ins, per-key shallow merge, all four trust-notice scenarios, `--config` discovery override (incl. flag>env path and git-config still applying), present-but-zero, and ConfigPath diagnostics.\n\n3. **`docs/CONFIGURATION.md`** — Mode A config-reference surface: 7-level precedence, 6 env vars (FR35), `stagehand.*` git-config keys (§16.3 + `--bool` note), `.stagehand.toml` keys (§16.2 golden), field-merge rule, §19 trust notice.\n\n### Validation results\n- **L1**: `go build`/`go vet`/`gofmt -l` all clean\n- **L2/L3**: `go test ./internal/config/ -v` and `go test ./...` all green (no regressions)\n- **L4**: exact §19 trust-notice string present; no `internal/git` substring; imports only fmt/time/provider; docs exists with all 6 sections\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented P1.M5.T3.S1 config.Load(). Created internal/config/load.go (Flags/FlagsLayer + Load applying the full FR34 chain, per-key shallow provider-override merge, registry built via NewRegistry(Builtins(), overrides), §19 repo-local trust notice; plain package line; imports only fmt/time/internal/provider — no internal/git). Created internal/config/load_test.go (white-box, 12 tests reusing file_test.go helpers covering precedence, flag>env, field-merge, per-key shallow merge, all trust-notice scenarios, --config discovery override, present-but-zero, ConfigPath). Created docs/CONFIGURATION.md (Mode A: 7-level precedence, 6 STAGEHAND_* env vars, stagehand.* git-config keys, .stagehand.toml keys, field-merge rule, §19 notice). All gates pass: go build/vet/gofmt clean, go test ./internal/config/ -v green, go test ./... green (no regressions), exact trust-notice string present, no internal/git import.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented P1.M5.T3.S1 config.Load(). Created internal/config/load.go (Flags/FlagsLayer + Load applying the full FR34 chain, per-key shallow provider-override merge, registry built via NewRegistry(Builtins(), overrides), §19 repo-local trust notice; plain package line; imports only fmt/time/internal/provider — no internal/git). Created internal/config/load_test.go (white-box, 12 tests reusing file_test.go helpers covering precedence, flag>env, field-merge, per-key shallow merge, all trust-notice scenarios, --config discovery override, present-but-zero, ConfigPath). Created docs/CONFIGURATION.md (Mode A: 7-level precedence, 6 STAGEHAND_* env vars, stagehand.* git-config keys, .stagehand.toml keys, field-merge rule, §19 notice). All gates pass: go build/vet/gofmt clean, go test ./internal/config/ -v green, go test ./... green (no regressions), exact trust-notice string present, no internal/git import."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "gofmt -l ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/config/ -v",
+            "stdout": "=== RUN   TestConfig_RoundTrip_Populated\n--- PASS: TestConfig_RoundTrip_Populated (0.00s)\n=== RUN   TestDefault_ExactTable\n--- PASS: TestDefault_ExactTable (0.00s)\n=== RUN   TestDefault_ProviderOverridesEmpty\n--- PASS: TestDefault_ProviderOverridesEmpty (0.00s)\n=== RUN   TestGlobalConfigPath_HonorsXDG\n--- PASS: TestGlobalConfigPath_HonorsXDG (0.00s)\n=== RUN   TestGlobalConfigPath_HomeFallback\n--- PASS: TestGlobalConfigPath_HomeFallback (0.00s)\n=== RUN   TestGlobalConfigPath_BothEmptyErrors\n--- PASS: TestGlobalConfigPath_BothEmptyErrors (0.00s)\n=== RUN   TestParseFile_Golden162\n--- PASS: TestParseFile_Golden162 (0.00s)\n=== RUN   TestParseFile_MissingFileIsNotError\n--- PASS: TestParseFile_MissingFileIsNotError (0.00s)\n=== RUN   TestParseFile_MalformedIsError\n--- PASS: TestParseFile_MalformedIsError (0.00s)\n=== RUN   TestParseFile_TimeoutBareSeconds\n--- PASS: TestParseFile_TimeoutBareSeconds (0.00s)\n=== RUN   TestReadRepoFile_MissingIsNotError\n--- PASS: TestReadRepoFile_MissingIsNotError (0.00s)\n=== RUN   TestReadRepoFile_Loads\n--- PASS: TestReadRepoFile_Loads (0.00s)\n=== RUN   TestReadRepoFile_EmptyDirInheritsCWD\n--- PASS: TestReadRepoFile_EmptyDirInheritsCWD (0.00s)\n=== RUN   TestReadGlobalFile_ViaXDG\n--- PASS: TestReadGlobalFile_ViaXDG (0.00s)\n=== RUN   TestReadGlobalFile_MissingIsNotError\n--- PASS: TestReadGlobalFile_MissingIsNotError (0.00s)\n=== RUN   TestReadGitConfig_EmptyRepoIsNotError\n--- PASS: TestReadGitConfig_EmptyRepoIsNotError (0.03s)\n=== RUN   TestReadGitConfig_SetsScalars\n--- PASS: TestReadGitConfig_SetsScalars (0.03s)\n=== RUN   TestReadGitConfig_BoolTrueAndFalse\n=== RUN   TestReadGitConfig_BoolTrueAndFalse/true\n=== RUN   TestReadGitConfig_BoolTrueAndFalse/false\n--- PASS: TestReadGitConfig_BoolTrueAndFalse (0.06s)\n    --- PASS: TestReadGitConfig_BoolTrueAndFalse/true (0.02s)\n    --- PASS: TestReadGitConfig_BoolTrueAndFalse/false (0.04s)\n=== RUN   TestReadGitConfig_TimeoutBareSeconds\n--- PASS: TestReadGitConfig_TimeoutBareSeconds (0.02s)\n=== RUN   TestReadGitConfig_AllBoolKeys\n--- PASS: TestReadGitConfig_AllBoolKeys (0.02s)\n=== RUN   TestLoad_DefaultsOnly\n--- PASS: TestLoad_DefaultsOnly (0.03s)\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow/flag_beats_env_beats_git_beats_repo_beats_global\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow/env_beats_git_beats_repo_beats_global\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow/git_beats_repo_beats_global_(no_env/flag)\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow/repo_file_beats_global\n=== RUN   TestLoad_Precedence_EachLevelBeatsBelow/global_beats_default\n--- PASS: TestLoad_Precedence_EachLevelBeatsBelow (0.08s)\n    --- PASS: TestLoad_Precedence_EachLevelBeatsBelow/flag_beats_env_beats_git_beats_repo_beats_global (0.03s)\n    --- PASS: TestLoad_Precedence_EachLevelBeatsBelow/env_beats_git_beats_repo_beats_global (0.01s)\n    --- PASS: TestLoad_Precedence_EachLevelBeatsBelow/git_beats_repo_beats_global_(no_env/flag) (0.01s)\n    --- PASS: TestLoad_Precedence_EachLevelBeatsBelow/repo_file_beats_global (0.01s)\n    --- PASS: TestLoad_Precedence_EachLevelBeatsBelow/global_beats_default (0.01s)\n=== RUN   TestLoad_FlagBeatsEnv\n--- PASS: TestLoad_FlagBeatsEnv (0.01s)\n=== RUN   TestLoad_ProviderFieldMerge\n--- PASS: TestLoad_ProviderFieldMerge (0.01s)\n=== RUN   TestLoad_ProviderOverrides_PerKeyShallowMerge\n--- PASS: TestLoad_ProviderOverrides_PerKeyShallowMerge (0.01s)\n=== RUN   TestLoad_TrustNotice_RepoFile\n--- PASS: TestLoad_TrustNotice_RepoFile (0.01s)\n=== RUN   TestLoad_TrustNotice_GitConfig\n=== RUN   TestLoad_TrustNotice_GitConfig/set_fires_notice\n=== RUN   TestLoad_TrustNotice_GitConfig/unset_no_notice\n--- PASS: TestLoad_TrustNotice_GitConfig (0.05s)\n    --- PASS: TestLoad_TrustNotice_GitConfig/set_fires_notice (0.02s)\n    --- PASS: TestLoad_TrustNotice_GitConfig/unset_no_notice (0.03s)\n=== RUN   TestLoad_TrustNotice_NotGlobalNorEnvNorFlag\n=== RUN   TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/global_file\n=== RUN   TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/env\n=== RUN   TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/flag\n--- PASS: TestLoad_TrustNotice_NotGlobalNorEnvNorFlag (0.06s)\n    --- PASS: TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/global_file (0.02s)\n    --- PASS: TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/env (0.02s)\n    --- PASS: TestLoad_TrustNotice_NotGlobalNorEnvNorFlag/flag (0.02s)\n=== RUN   TestLoad_TrustNotice_HigherLayerKeepsNotice\n--- PASS: TestLoad_TrustNotice_HigherLayerKeepsNotice (0.03s)\n=== RUN   TestLoad_ConfigFlagOverridesDiscovery\n=== RUN   TestLoad_ConfigFlagOverridesDiscovery/explicit_file_replaces_global+repo;_no_notice\n=== RUN   TestLoad_ConfigFlagOverridesDiscovery/flag_ConfigPath_wins_over_env_ConfigPath\n=== RUN   TestLoad_ConfigFlagOverridesDiscovery/git-config_still_applies_and_can_notify\n--- PASS: TestLoad_ConfigFlagOverridesDiscovery (0.04s)\n    --- PASS: TestLoad_ConfigFlagOverridesDiscovery/explicit_file_replaces_global+repo;_no_notice (0.01s)\n    --- PASS: TestLoad_ConfigFlagOverridesDiscovery/flag_ConfigPath_wins_over_env_ConfigPath (0.01s)\n    --- PASS: TestLoad_ConfigFlagOverridesDiscovery/git-config_still_applies_and_can_notify (0.01s)\n=== RUN   TestLoad_PresentButZero\n--- PASS: TestLoad_PresentButZero (0.01s)\n=== RUN   TestLoad_ConfigPathRecordedForGlobal\n=== RUN   TestLoad_ConfigPathRecordedForGlobal/present\n=== RUN   TestLoad_ConfigPathRecordedForGlobal/absent\n--- PASS: TestLoad_ConfigPathRecordedForGlobal (0.02s)\n    --- PASS: TestLoad_ConfigPathRecordedForGlobal/present (0.01s)\n    --- PASS: TestLoad_ConfigPathRecordedForGlobal/absent (0.01s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/config\t0.530s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/config\t0.645s\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 4,
+            "description": "Level 4 gate",
+            "success": true,
+            "command": "grep -q 'stagehand: repo-local config changed provider to' internal/config/load.go",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 4,
+            "description": "Level 4 gate",
+            "success": true,
+            "command": "! grep -q internal/git internal/config/load.go",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T09:44:00.301Z"
+      },
+      "createdAt": "2026-07-02T09:44:00.301Z"
+    }
+  ],
+  "lastModified": "2026-07-02T09:44:00.301Z"
+}
