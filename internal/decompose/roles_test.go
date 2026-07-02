@@ -213,6 +213,73 @@ func TestResolveRoles_StagerFallback_PiNotInstalled_FallsToClaude(t *testing.T) 
 }
 
 // ---------------------------------------------------------------------------
+// TestResolveRoles_StagerFallback_ToPi_MultiProviderModel
+// ---------------------------------------------------------------------------
+
+func TestResolveRoles_StagerFallback_ToPi_MultiProviderModel(t *testing.T) {
+	// Stager is set to gemini (TooledFlags nil → cannot stage); fallback to pi (first
+	// tooled-capable installed). Pi is multi-provider (ProviderFlag="--provider").
+	// Tests two sub-cases via subtests:
+	//   - bare model from the old provider's config → cleared (invalid on pi)
+	//   - no explicit model → roleDefaults["pi"]["stager"] bare default also skipped
+	// In both cases mdl must remain "" so the manifest DefaultModel resolves it.
+
+	tests := []struct {
+		name     string
+		stagerRC config.RoleConfig
+	}{
+		{
+			name:     "bare_model_from_old_provider",
+			stagerRC: config.RoleConfig{Provider: "gemini", Model: "gemini-2.5-pro"},
+		},
+		{
+			name:     "no_explicit_model",
+			stagerRC: config.RoleConfig{Provider: "gemini"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := bogusRegistry(t, []string{"gemini", "pi"})
+
+			cfg := config.Config{
+				Provider: "gemini",
+				Roles: map[string]config.RoleConfig{
+					"stager": tc.stagerRC,
+				},
+			}
+
+			rm, rmodels, err := ResolveRoles(cfg, reg)
+			if err != nil {
+				t.Fatalf("ResolveRoles: %v", err)
+			}
+
+			// Stager should have fallen back to pi.
+			if rm.Stager.Name != "pi" {
+				t.Errorf("Stager manifest.Name = %q, want pi", rm.Stager.Name)
+			}
+			if rmodels.Stager.Provider != "pi" {
+				t.Errorf("Stager provider = %q, want pi", rmodels.Stager.Provider)
+			}
+
+			// mdl must be "" — bare models are cleared when falling back to a
+			// multi-provider agent (FR-R5b violation avoided).
+			if rmodels.Stager.Model != "" {
+				t.Errorf("Stager model = %q, want empty string (bare model cleared for multi-provider pi)", rmodels.Stager.Model)
+			}
+
+			// Other roles should remain gemini (global default).
+			for _, role := range []string{"planner", "message", "arbiter"} {
+				rc := roleModel(rmodels, role)
+				if rc.Provider != "gemini" {
+					t.Errorf("role %q provider = %q, want gemini", role, rc.Provider)
+				}
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
 // TestResolveRoles_NoStagerCapable
 // ---------------------------------------------------------------------------
 

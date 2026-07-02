@@ -135,9 +135,18 @@ func ResolveRoles(cfg config.Config, reg *provider.Registry) (RoleManifests, Rol
 			}
 			prov = fb
 			m = fbm
-			// Models are provider-specific (FR-R5). Switch to the fallback provider's stager model.
+			// Models are provider-specific (FR-R5). The old provider's model (user-configured
+			// or default-table) may be bare and invalid on the new multi-provider fallback target.
+			// Clear a bare model when falling back to a multi-provider agent, then apply the
+			// default-table model for the fallback provider only if it is FR-R5b-compatible.
+			if isMultiProvider(m) && mdl != "" && !strings.Contains(mdl, "/") {
+				mdl = "" // bare model from old provider — invalid on multi-provider fallback
+			}
 			if col := config.DefaultModelsForProvider(fb); col != nil {
-				mdl = col["stager"] // e.g. "gpt-5.4-mini" for pi; "" if absent → manifest DefaultModel
+				candidate := col["stager"]
+				if candidate != "" && !(isMultiProvider(m) && !strings.Contains(candidate, "/")) {
+					mdl = candidate
+				}
 			}
 		}
 

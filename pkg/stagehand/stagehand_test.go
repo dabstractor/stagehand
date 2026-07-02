@@ -1073,9 +1073,11 @@ func TestDecompose_Count1Delegates(t *testing.T) {
 }
 
 // TestDecompose_MultiEntry_RoleError verifies that the multi-commit path is entered (not the
-// Single/Count==1 short-circuit). On systems with a tooled-capable provider installed, the stager
-// fallback succeeds and the planner fails (stub can't produce a valid plan); on systems without
-// one, ResolveRoles fails at the stager. Either error proves the multi-commit path was entered.
+// Single/Count==1 short-circuit). Provider is pinned to "stub" so the test is deterministic
+// regardless of host-installed agents (avoids the FR-M2b one-file short-circuit succeeding with
+// a real agent). Stub has no TooledFlags, so the stager fallback fires; with no tooled provider
+// installed in the stub-only fixture, ResolveRoles fails at the stager. Either that or the
+// planner fails — both prove the multi-commit path was entered.
 func TestDecompose_MultiEntry_RoleError(t *testing.T) {
 	setupTestRepo(t, stubtest.Options{Out: "feat: x"})
 	repoDir, _ := os.Getwd()
@@ -1084,7 +1086,9 @@ func TestDecompose_MultiEntry_RoleError(t *testing.T) {
 	writeFile(t, repoDir, "b.txt", "un-staged change\n")
 	// Do NOT stageFile — the multi-commit path requires nothing staged.
 
-	res, err := Decompose(context.Background(), DecomposeOptions{})
+	res, err := Decompose(context.Background(), DecomposeOptions{
+		Options: Options{Provider: "stub"}, // pin to stub — deterministic across all hosts
+	})
 	if err == nil {
 		t.Fatal("expected error (multi-commit path: ResolveRoles stager or planner failure), got nil")
 	}
