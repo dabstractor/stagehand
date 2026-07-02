@@ -199,14 +199,14 @@
               "id": "P1.M3.T2",
               "type": "Task",
               "title": "Plumbing primitives (atomicity)",
-              "status": "Planned",
+              "status": "Complete",
               "description": "The git plumbing that underpins snapshot-based atomic commits: RevParseHEAD, WriteTree, CommitTree, UpdateRefCAS — the §18.1 safety invariant rests on these.",
               "subtasks": [
                 {
                   "id": "P1.M3.T2.S1",
                   "type": "Subtask",
                   "title": "internal/git/plumbing.go — RevParseHEAD, WriteTree, CommitTree, UpdateRefCAS",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M3.T1.S1"
