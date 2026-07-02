@@ -1,0 +1,13 @@
+h1.0 Bug Fix Requirements
+ h2.0 Overview
+ h2.1 Critical Issues (Must Fix)
+ h2.2 Major Issues (Should Fix)
+  h3.0 Issue 1: The FR-R6 reasoning feature ships completely inert — no provider defines reasoning_levels
+  h3.1 Issue 2: Per-role message overrides (--message-model/--message-provider/--message-reasoning, [role.message]) are silently ignored on the single-commit path
+  h3.2 Issue 3: The FR-M11 planner-single shortcut leaves git status in a broken/inconsistent state (missing index sync)
+ h2.3 Minor Issues (Nice to Fix)
+  h3.3 Issue 4: Bootstrap config header omits the STAGEHAND_REASONING / STAGEHAND_<ROLE>_REASONING env vars
+  h3.4 Issue 5: In-memory v2→v3 migration is a no-op for abandoned [agent.*] terminology
+ h2.4 Testing Summary
+---
+code:2 para:11 list:3

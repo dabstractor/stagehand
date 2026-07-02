@@ -1,0 +1,210 @@
+{
+  "backlog": [
+    {
+      "type": "Phase",
+      "id": "P1",
+      "title": "v3 Changeset Validation Bugfixes",
+      "status": "Researching",
+      "description": "Fix the 5 issues (3 Major, 2 Minor) found during end-to-end validation of the v3 changeset. Issue 1: FR-R6 reasoning feature ships inert (no provider populates ReasoningLevels). Issue 2: per-role message overrides are silently dropped on the single-commit path. Issue 3: the FR-M11 planner-single shortcut leaves git status dirty (missing index sync). Issue 4: bootstrap config header omits reasoning env vars. Issue 5: in-memory v2→v3 migration is a no-op for abandoned [agent.*] terminology.",
+      "milestones": [
+        {
+          "type": "Milestone",
+          "id": "P1.M1",
+          "title": "Issue 1 — Populate FR-R6 reasoning_levels in built-in providers",
+          "status": "Planned",
+          "description": "The FR-R6 reasoning feature ships completely inert because all 8 built-in providers leave ReasoningLevels nil, making Render's reasoning-token branch (render.go:126) dead code. Populate the verified reasoning tokens for the two providers that support a thinking-effort control (pi: --thinking, claude: --effort). The config plumbing, Render guard, and defaultRoleReasoning are all correct — only the manifest data table is missing.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M1.T1",
+              "title": "Populate ReasoningLevels for pi and claude built-in providers",
+              "status": "Planned",
+              "description": "Add verified ReasoningLevels map literals to builtinPi() and builtinClaude() in internal/provider/builtin.go so that Render(model, sys, payload, reasoning) appends the provider's thinking-effort tokens when a reasoning level resolves. Leave genuinely non-reasoning providers (gemini, agy, qwen-code, opencode, codex, cursor) nil — FR-R6 permits an honest per-provider no-op.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T1.S1",
+                  "title": "Populate claude ReasoningLevels with verified --effort tokens",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.2", "h3.0", "h2.4", "code.0"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Verified via `claude --help` on this machine (architecture/external_deps.md): claude uses `--effort <level>` with values low|medium|high — NOT the `--thinking-effort` the PRD Suggested Fix guessed. The Render guard at render.go:126 (`if reasoning != \"\" && len(r.ReasoningLevels[reasoning]) > 0`) is CORRECT and needs no change — only the manifest data is missing. Resolve() (manifest.go:163) explicitly leaves ReasoningLevels as-is (nil stays nil), and Validate() imposes no constraint on it.\n2. INPUT: The `builtinClaude()` constructor at `internal/provider/builtin.go:89` returns a Manifest with ReasoningLevels currently nil. The struct field is `ReasoningLevels map[string][]string` (manifest.go:89). The comment at line 135 currently lists 'ReasoningLevels: nil (absent in §12.4)'.\n3. LOGIC: Add a `ReasoningLevels: map[string][]string{...}` literal to the claude Manifest struct, inserting it after the `TooledFlags` block and before the `Output:` field (around current line 134). The map must be: `{\"high\": {\"--effort\", \"high\"}, \"medium\": {\"--effort\", \"medium\"}, \"low\": {\"--effort\", \"low\"}}`. Update the trailing comment (line 135) to remove 'ReasoningLevels' from the nil list and note it is now populated per verified `claude --help`. TEST (implicit TDD): add a test in internal/provider/builtin_test.go (or render_test.go) asserting `BuiltinManifests()[\"claude\"].ReasoningLevels[\"high\"]` is non-empty AND that `claudeManifest.Render(\"sonnet\", \"\", \"\", \"high\")` produces a CmdSpec whose Args contain the consecutive tokens `--effort` then `high`. Pattern: see render_test.go:387 TestRender_ReasoningTokensAppended (but use the REAL built-in manifest, not a synthetic one). Also assert Render with reasoning=\"off\" or \"\" appends nothing (no-op).\n4. OUTPUT: The claude built-in manifest now emits `--effort <level>` tokens on Render when reasoning is high/medium/low. Consumed by the planner path (planner.go:99) and the single-commit message path (after Issue 2 fix).\n5. DOCS: [Mode A] Update docs/providers.md line 35 (the reasoning_levels table description that currently says 'nil (none)' for all providers) to note claude now populates high/medium/low. This rides WITH the work — do not create a separate docs subtask."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T1.S2",
+                  "title": "Populate pi ReasoningLevels with verified --thinking tokens",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.2", "h3.0", "h2.4", "code.0"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Verified via `pi --help` on this machine (architecture/external_deps.md): pi uses `--thinking <level>` with values off|minimal|low|medium|high|xhigh. This resolves the long-standing TODO(FR-D5) at builtin.go:52-55. The Render guard at render.go:126 and the config defaultRoleReasoning (planner=high, roles.go:7-11) are CORRECT — only the manifest data is missing.\n2. INPUT: The `builtinPi()` constructor at `internal/provider/builtin.go:41` returns a Manifest with ReasoningLevels nil, carrying a TODO comment at lines 52-55: 'ReasoningLevels: nil — TODO(FR-D5): populate reasoning_levels tokens once verified'. The struct field is `ReasoningLevels map[string][]string` (manifest.go:89).\n3. LOGIC: Remove the TODO comment (lines 52-55) and add a `ReasoningLevels: map[string][]string{...}` literal to the pi Manifest struct, inserting it after the `BareFlags` block (around line 61, before the TooledFlags comment). The map must be: `{\"high\": {\"--thinking\", \"high\"}, \"medium\": {\"--thinking\", \"medium\"}, \"low\": {\"--thinking\", \"low\"}}`. NOTE: pi's `--thinking` also accepts 'minimal' and 'xhigh' but stagehand's level set is off|low|medium|high — map only the overlapping levels; 'off' is the natural zero-value no-op (not in the map). TEST (implicit TDD): add a test asserting `BuiltinManifests()[\"pi\"].ReasoningLevels[\"high\"]` is non-empty AND that `piManifest.Render(\"zai/glm-5.2\", \"\", \"\", \"high\")` produces Args containing `--thinking` then `high`. Also verify reasoning=\"medium\"/\"low\" produce the matching tokens, and reasoning=\"off\"/\"\" produce nothing.\n4. OUTPUT: The pi built-in manifest now emits `--thinking <level>` tokens on Render when reasoning resolves. The shipped default `planner = high` (roles.go defaultRoleReasoning) now has an observable effect on the planner path.\n5. DOCS: [Mode A] Update docs/providers.md to note pi now populates reasoning_levels (alongside the claude update from P1.M1.T1.S1). This rides WITH the work — do not create a separate docs subtask."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M2",
+          "title": "Issue 2 — Resolve message role on the single-commit path",
+          "status": "Planned",
+          "description": "Per-role message overrides (--message-model / --message-provider / --message-reasoning, [role.message]) are silently ignored on the single-commit path. Both entry points (generate.CommitStaged at generate.go:196 and pkg/stagehand.runPipeline at stagehand.go:467) pass the global cfg.Model/cfg.Reasoning directly to Render, bypassing config.ResolveRoleModel(\"message\"). Additionally, buildDeps (stagehand.go:316) selects the manifest from the global cfg.Provider, so --message-provider picks the wrong manifest. The multi-commit path resolves correctly (message.go:103). Fix all three fields (provider, model, reasoning) on the single path.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M2.T1",
+              "title": "Resolve message model and reasoning in single-commit Render calls",
+              "status": "Planned",
+              "description": "Thread config.ResolveRoleModel(\"message\", cfg) into both single-commit Render call sites so that --message-model and --message-reasoning (and [role.message] model/reasoning) drive the generated commit instead of the global defaults. When no message override is set, ResolveRoleModel returns (cfg.Provider, cfg.Model, cfg.Reasoning) — identical to current behavior (back-compatible).",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M2.T1.S1",
+                  "title": "Fix generate.CommitStaged and runPipeline to use ResolveRoleModel(\"message\")",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.2", "h3.1", "h2.4", "code.1"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The bug is at two call sites: `internal/generate/generate.go:196` (`deps.Manifest.Render(cfg.Model, sysPrompt, payload, cfg.Reasoning)`) inside CommitStaged, and `pkg/stagehand/stagehand.go:467` (identical call) inside runPipeline. The reference pattern is `internal/decompose/message.go:103`: `_, mdl, rsn := config.ResolveRoleModel(\"message\", deps.Config)` then `Render(mdl, ..., rsn)`. Both packages already import `github.com/dustin/stagehand/internal/config` (generate.go:12, stagehand.go:16) — no new imports needed. ResolveRoleModel (roles.go:41) returns (provider, model, reasoning); when no message override it returns (cfg.Provider, cfg.Model, cfg.Reasoning) — back-compatible.\n2. INPUT: `cfg config.Config` (already received by both functions) which carries `cfg.Roles[\"message\"]` populated by the loaders (load.go setRoleModel/setRoleReasoning). The `config.ResolveRoleModel` function (roles.go:41).\n3. LOGIC: (A) In generate.go CommitStaged: before the dedupe loop (around line 194), add `_, msgModel, msgReasoning := config.ResolveRoleModel(\"message\", cfg)`. Change line 196 to `deps.Manifest.Render(msgModel, sysPrompt, payload, msgReasoning)`. (B) In stagehand.go runPipeline: before the loop (around line 446), add `msgProv, msgModel, msgReasoning := config.ResolveRoleModel(\"message\", cfg)`. Change line 467 to use msgModel/msgReasoning. ALSO update the `model` local var (currently `model := cfg.Model; if model == \"\" { model = *resolved.DefaultModel }` at lines 446-448) to use msgModel (apply the same DefaultModel fallback to msgModel). Update `Result.Model` at lines 520 and 555 to use the resolved model. The resolved provider (msgProv) is handled separately by P1.M2.T2.S1 (buildDeps manifest selection). TEST (implicit TDD): create a stub Manifest whose Render records the received (model, reasoning). Set `cfg.Roles[\"message\"] = config.RoleConfig{Model: \"haiku\", Reasoning: \"high\"}` with `cfg.Model == \"\"`/`cfg.Reasoning == \"\"`. Run CommitStaged and assert the stub received model=\"haiku\", reasoning=\"high\". Repeat for runPipeline (dryRun path) asserting Result.Model == \"haiku\". Then assert the no-override case (cfg.Roles empty) still passes cfg.Model — regression-safe.\n4. OUTPUT: --message-model / --message-reasoning / [role.message] model|reasoning now drive the single-commit path's Render. Consumed by both CommitStaged and runPipeline.\n5. DOCS: none — no user-facing/config/API surface change beyond fixing the already-documented FR-R3 behavior. (README/cli.md already document these flags; they simply start working.)"
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P1.M2.T2",
+              "title": "Resolve message provider for manifest selection on the single path",
+              "status": "Planned",
+              "description": "buildDeps (stagehand.go:316) selects the provider manifest from the global cfg.Provider, so --message-provider (and [role.message] provider) selects the wrong manifest. Since buildDeps is called ONLY from GenerateCommit (the single-commit entry point, confirmed by grep), resolve the message role's provider there for manifest selection. When no message-provider override, ResolveRoleModel returns cfg.Provider — back-compatible.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M2.T2.S1",
+                  "title": "Use message role's provider in buildDeps for manifest selection",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M2.T1.S1"],
+                  "prd_selectors": ["h2.2", "h3.1", "h2.4", "code.1"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: `buildDeps` (pkg/stagehand/stagehand.go:316) is called ONLY from `GenerateCommit` at stagehand.go:136 — confirmed by grep (the decompose multi-commit path uses `decompose.ResolveRoles` instead, per decompose/roles.go:8). The single-commit path's only active role IS \"message\", so resolving the message provider here is semantically correct. buildDeps currently uses `name := cfg.Provider; if name == \"\" { /* auto-detect via registry */ }`. ResolveRoleModel(\"message\", cfg) returns cfg.Provider when there's no message override (or \"\" → auto-detect). `config` is already imported at stagehand.go:16.\n2. INPUT: `cfg config.Config` (received by buildDeps), `config.ResolveRoleModel` (roles.go:41). The existing registry auto-detect logic (stagehand.go:322-335) that handles name==\"\".\n3. LOGIC: At the top of the provider-name resolution block in buildDeps (around line 322), replace `name := cfg.Provider` with `msgProvider, _, _ := config.ResolveRoleModel(\"message\", cfg); name := msgProvider`. The existing `if name == \"\"` auto-detect block still applies when both the message role and global provider are empty. The rest of buildDeps (reg.Get(name), Validate, IsInstalled, Output/StripCodeFence bridge) is unchanged and now operates on the message-resolved provider. TEST (implicit TDD): construct a cfg with `cfg.Provider = \"pi\"` and `cfg.Roles[\"message\"] = config.RoleConfig{Provider: \"claude\"}` (simulating --message-provider claude). Call buildDeps and assert the returned deps.Manifest.Name == \"claude\". Then assert the no-override case (cfg.Roles empty) still selects \"pi\". Mock/stub: buildDeps uses provider.NewRegistry(overrides) and reg.IsInstalled (exec.LookPath) — the test must either install a real binary or use a test double; check how stagehand_test.go existing tests handle buildDeps installation checks (they may use a provider that is or is not on PATH).\n4. OUTPUT: --message-provider / [role.message] provider now selects the correct manifest on the single-commit path. Combined with P1.M2.T1.S1, all three message-role fields (provider/model/reasoning) are honored.\n5. DOCS: none — no user-facing/config/API surface change beyond fixing the already-documented FR-R3 behavior."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M3",
+          "title": "Issue 3 — Add index-sync to runSingleShortcut (FR-M11 planner-single)",
+          "status": "Planned",
+          "description": "The FR-M11 planner-single shortcut (runSingleShortcut, decompose.go:316) commits the frozen T_start directly via publishCommit but never re-syncs the index, leaving HEAD.tree==tStart while index==baseTree. This causes git status to report the just-committed files as staged-deletions + untracked, violating the §20.2 loop-index-cleanliness invariant. The sibling runOneFileShortcut already fixed this exact bug (decompose.go:294-300, 'CRITICAL (findings §4)'). Mirror that fix.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M3.T1",
+              "title": "Add ReadTree index-sync to runSingleShortcut after publishCommit",
+              "status": "Planned",
+              "description": "Insert the same index-sync (ReadTree of the committed tree) that runOneFileShortcut uses (decompose.go:294-300) into runSingleShortcut (decompose.go:316-341), immediately after publishCommit succeeds and before buildCommitResult. This is a 4-line insertion mirroring the established fix pattern. Success-only (on publish error we return early).",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T1.S1",
+                  "title": "Add ReadTree(treePrime) index-sync + regression test asserting clean git status",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.2", "h3.2", "h2.4", "code.2", "list.3"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: `runSingleShortcut` (internal/decompose/decompose.go:316-341) commits `treePrime` (== tStart, assigned line 319, never reassigned) via `publishCommit` (line 332) then goes straight to `buildCommitResult` (line 337) — NO index sync. `publishCommit` (message.go:197) does CommitTree + UpdateRefCAS (touches HEAD only, NOT index). `FreezeWorkingTree` (git.go:1223) reset the index to baseTree. So after success: HEAD.tree==tStart but index==baseTree ⇒ dirty `git status`. The sibling `runOneFileShortcut` (decompose.go:280-314) fixed this at lines 294-300 with `deps.Git.ReadTree(ctx, tStart)` wrapped in an ErrDecomposeFailed error. `ReadTree` (git.go:131) replaces the index with the tree's contents (MUTATES index only). `ErrDecomposeFailed` is in scope (decompose.go:28). `fmt` is already imported. `treePrime == tStart` so ReadTree(treePrime) is identical to the reference fix.\n2. INPUT: The `runSingleShortcut` function at decompose.go:316. The `deps.Git.ReadTree(ctx, tree string) error` primitive (git.go:131). The `treePrime` local variable (line 319). The `ErrDecomposeFailed` sentinel error (decompose.go:28).\n3. LOGIC: Insert the following block between decompose.go lines 336 (after the publishCommit error-return block closes) and 337 (before `cr, err := buildCommitResult(...)`): `if err := deps.Git.ReadTree(ctx, treePrime); err != nil { return DecomposeResult{}, fmt.Errorf(\"%w: single-shortcut index sync: %w\", ErrDecomposeFailed, err) }` with a comment mirroring runOneFileShortcut's 'CRITICAL (findings §4)' explanation. TEST (implicit TDD): add `TestDecompose_SingleShortcut_CleanStatus` in decompose_test.go (the existing `TestDecompose_SingleShortcut_CleanMessage` at line 314 uses an UNBORN repo and does NOT assert git status — it misses this bug). The new test must use a BORN repo (has an initial commit) with 2+ un-staged files, run Decompose in auto mode with a planner stub returning `{\"single\":true,\"message\":\"feat: add a and b\"}`, then assert `dcmStatusPorcelain(t, repo) == \"\"` using the existing helper (decompose_test.go:111). Mirror `TestDecompose_OneFileShortcut_PlannerBypassed` (decompose_test.go:1507) which asserts the same `dcmStatusPorcelain == \"\"` at line 1549. The assertion MUST fail before the fix (index==baseTree ≠ HEAD.tree) and pass after.\n4. OUTPUT: After a successful planner-single decompose run, `git status --porcelain` is empty — the §20.2 loop-index-cleanliness invariant holds. The index matches HEAD.tree.\n5. DOCS: none — internal fix enforcing an existing documented invariant (§20.2); no config/API/flag surface change."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M4",
+          "title": "Issue 4 — Add reasoning env vars to bootstrap config header",
+          "status": "Planned",
+          "description": "The bootstrapHeader constant (bootstrap.go:194-252) documents 11 STAGEHAND_* env vars but omits the 5 reasoning env vars (STAGEHAND_REASONING + 4 STAGEHAND_<ROLE>_REASONING) that ARE read by loadEnv (load.go:181,212) and documented in docs/cli.md. CORRECTION: STAGEHAND_MAX_COMMITS is NOT an env var (no LookupEnv in code; docs/cli.md shows '—') — it must NOT be added.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M4.T1",
+              "title": "Add the 5 reasoning env vars to the bootstrapHeader constant",
+              "status": "Planned",
+              "description": "Add STAGEHAND_REASONING (global) and the STAGEHAND_<ROLE>_REASONING shorthand (per-role) to the bootstrapHeader env-var block, matching the existing _PROVIDER / _MODEL shorthand style. Do NOT add STAGEHAND_MAX_COMMITS (it is not an env var).",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M4.T1.S1",
+                  "title": "Add reasoning env vars to bootstrapHeader + update test",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.3", "h3.3", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The `bootstrapHeader` constant (internal/config/bootstrap.go:194-252) emits a raw string consumed by `buildBootstrapConfig` (bootstrap.go ~line 167). The env-var block lists STAGEHAND_PROVIDER, _MODEL, _TIMEOUT, _CONFIG, _VERBOSE, _NO_COLOR, the 4× _<ROLE>_PROVIDER/_MODEL, and STAGEHAND_COMMITS. The 5 MISSING env vars are all real, read by loadEnv (load.go:181 global STAGEHAND_REASONING, load.go:212 per-role STAGEHAND_<ROLE>_REASONING loop over roleNames={planner,stager,message,arbiter}), and documented at docs/cli.md:43-49 + docs/configuration.md:152-156. CRITICAL CORRECTION: STAGEHAND_MAX_COMMITS is NOT an env var — no os.LookupEnv in load.go; docs/cli.md:36,157 show '—' for the env column — do NOT add it.\n2. INPUT: The `bootstrapHeader` raw-string constant in bootstrap.go.\n3. LOGIC: Inside the bootstrapHeader raw string, insert two lines after the per-role `_PROVIDER / _MODEL` block (after the `STAGEHAND_ARBITER_PROVIDER / _MODEL` line) and before `STAGEHAND_COMMITS`. Add: `#   STAGEHAND_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)` and `#   STAGEHAND_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)`. This matches the existing `_PROVIDER / _MODEL` shorthand style (one line covers all four roles). TEST (implicit TDD): in bootstrap_test.go, add/extend a test asserting the output of buildBootstrapConfig (or the header constant) contains the strings 'STAGEHAND_REASONING' and 'STAGEHAND_<ROLE>_REASONING'. Check existing bootstrap_test.go for the pattern it uses to validate the header content.\n4. OUTPUT: The generated config header now documents all reasoning env vars, consistent with docs/cli.md and docs/configuration.md.\n5. DOCS: none — the bootstrapHeader IS the documentation; updating it IS the work. (This is a header-only consistency fix.)"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M5",
+          "title": "Issue 5 — Defense-in-depth agent→provider migration in loadTOML",
+          "status": "Planned",
+          "description": "The in-memory v2→v3 migration (migrateV2ToV3, migrate.go:35) documents the [agent.*]→[provider.*] remap as an intentional no-op: fileConfig has no Agent field and go-toml/v2 silently drops unknown [agent.*] tables. A v2 file using the abandoned agent terminology loses its provider block on load (only the on-disk `config upgrade` command rewrites it). Add a defense-in-depth textual remap in loadTOML so in-memory load also handles it.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M5.T1",
+              "title": "Add textual [agent.*]→[provider.*] remap before typed decode in loadTOML",
+              "status": "Planned",
+              "description": "Add a pre-decode text transformation in loadTOML (file.go:124) that remaps the abandoned agent terminology to provider before toml.Unmarshal, so a v2 file with [agent.X] tables / [defaults] agent = X loads with the provider block preserved. This is defense-in-depth — the canonical migration remains the on-disk `config upgrade` command.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M5.T1.S1",
+                  "title": "Add agent→provider textual remap in loadTOML + migration test",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.3", "h3.4", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: `loadTOML` (internal/config/file.go:124-150) reads the file bytes into `data`, then calls `toml.Unmarshal(data, &fc)` where `fc` is a `fileConfig` (file.go:30-36). fileConfig has NO `Agent` field (fields: ConfigVersion, Defaults, Generation, Role, Provider). go-toml/v2 (`github.com/pelletier/go-toml/v2`, imported at file.go:11) silently drops unknown tables/keys — so `[agent.pi]` and `[defaults] agent = \"pi\"` are lost. `migrateV2ToV3` (migrate.go:35-89) documents this as a no-op at lines ~42-45. The on-disk `config upgrade` command handles it but in-memory load does not. PRD suggested fix: 'have loadTOML/migrateV2ToV3 detect and remap [agent.*] textually before the typed decode.'\n2. INPUT: The raw TOML `data []byte` in loadTOML (file.go:128), before the `toml.Unmarshal(data, &fc)` call at line 136. The `strings` package (check if already imported in file.go; if not, add it).\n3. LOGIC: Add a helper `remapAgentTerminology(data []byte) []byte` that performs targeted string replacements on the raw TOML text BEFORE the typed decode: (a) replace `[agent.` → `[provider.` (handles `[agent.pi]` table headers); (b) replace `\"agent\"` top-level/defaults key — handle `[defaults]` table's `agent =` → `provider =` (be careful to only remap the key name, not arbitrary occurrences of 'agent' inside values/comments; use a line-oriented approach: for lines matching `^\\s*agent\\s*=`, replace the key `agent` with `provider`). Call `data = remapAgentTerminology(data)` in loadTOML before the unmarshal. ALTERNATIVE (cleaner, typed): add `Agent map[string]map[string]any` to fileConfig and `Agent string` to fileDefaults, then remap in materialize() — the implementing agent may choose this if the text approach proves fragile, but the text approach is what the PRD requests and is simpler. The remap must be idempotent (running it on an already-provider file is a no-op — `[provider.` is untouched, and `provider =` is untouched). TEST (implicit TDD): write a v2 TOML fixture string containing `[defaults]\\nagent = \"pi\"\\n` and `[agent.pi]\\ndefault_model = \"glm-5.2\"\\n` with `config_version = 2`. Write it to a temp file, call loadTOML, and assert `cfg.Provider == \"pi\"` AND `cfg.Providers[\"pi\"]` is non-empty (currently both are lost). Also assert that a normal `[provider.pi]` file is unaffected (idempotency/regression).\n4. OUTPUT: A v2 config file using the abandoned agent terminology loads with the provider block preserved in memory (cfg.Provider / cfg.Providers populated), without requiring the user to run `config upgrade` first.\n5. DOCS: [Mode A] Update the migrateV2ToV3 doc comment (migrate.go:35-45) to reflect that the agent→provider remap is now handled textually in loadTOML (no longer a pure no-op). This rides WITH the work — do not create a separate docs subtask."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M6",
+          "title": "Sync changeset-level documentation",
+          "status": "Planned",
+          "description": "Mode B catch-all: sweep the overview/cross-cutting documentation files (README.md, docs/cli.md, docs/providers.md) to reflect the changeset delta — primarily that the FR-R6 reasoning feature now has an observable effect for pi (--thinking) and claude (--effort). Per-role docs and per-file docs touched by individual subtasks were handled Mode-A inline (docs/providers.md reasoning table). This task handles the whole-feature/overview surface.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M6.T1",
+              "title": "Sync README.md, docs/cli.md, and docs/providers.md for the reasoning + message-role + bootstrap changeset",
+              "status": "Planned",
+              "description": "Update the cross-cutting documentation that summarizes the changeset as a coherent delta: README.md reasoning example (now actually works for pi/claude), docs/cli.md --reasoning flag descriptions, and docs/providers.md provider table.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M6.T1.S1",
+                  "title": "Update README.md and docs/cli.md to scope --reasoning and note activation",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T1.S2", "P1.M2.T1.S1", "P1.M2.T2.S1", "P1.M3.T1.S1", "P1.M4.T1.S1"],
+                  "prd_selectors": ["h2.2", "h3.0", "h3.1", "h3.2", "h2.3", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: README.md:121-122 advertises `stagehand --reasoning high` ('Use reasoning for deeper analysis on the planner'). docs/cli.md:43 documents `--reasoning <level>` with default '(off; planner: high)'. Before this changeset, these claims were inert for every provider. After P1.M1.T1.S1/S2, reasoning now emits real tokens for claude (--effort) and pi (--thinking). The PRD Issue 1 Suggested Fix says: 'Update the README so --reasoning high only promises an effect where it has one.'\n2. INPUT: The completed implementing subtasks (P1.M1.T1.S1 claude, P1.M1.T1.S2 pi, P1.M2.T1.S1 message role, P1.M2.T2.S1 message provider, P1.M3.T1.S1 index sync, P1.M4.T1.S1 bootstrap header). docs/providers.md (partially updated by P1.M1.T1.S1/S2 Mode A). The verified tokens from architecture/external_deps.md.\n3. LOGIC: (A) README.md:121-122 — keep the `stagehand --reasoning high` example but add a note that the effect is provider-dependent (pi: --thinking, claude: --effort; other providers: graceful no-op). Do NOT remove the example — it now works for pi/claude. (B) docs/cli.md:43 — the `--reasoning` flag table row and default description '(off; planner: high)' are now accurate (planner=high now has effect on pi/claude); optionally add a note about provider-dependent support. (C) docs/providers.md — ensure the provider table / reasoning_levels description is consistent with the Mode A updates from P1.M1.T1.S1/S2 (claude --effort, pi --thinking; others nil/no-op). (D) Verify no doc claims --thinking-effort (the PRD's wrong guess) — use --effort for claude. TEST: no unit test — documentation-only. Verify by reading the updated sections for consistency with the verified tokens.\n4. OUTPUT: README.md, docs/cli.md, and docs/providers.md coherently describe the now-functional reasoning feature with correct provider-scoped claims. No stale or incorrect flag names remain.\n5. DOCS: This IS the changeset-level documentation task (Mode B)."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
