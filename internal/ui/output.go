@@ -99,7 +99,10 @@ func (u *UI) colorize(code, s string) string {
 }
 
 // Progress writes a progress line to STDERR with the Appendix-B "↳ " prefix (FR51: stdout stays clean
-// for piping). Example: Progress("Generating with pi (glm-5.2)…") -> "↳ Generating with pi (glm-5.2)…\n".
+// for piping). Callers build the body via ProgressLabel (FR51b):
+//
+//	u.Progress(ui.ProgressLabel("Generating", "sonnet", "claude"))
+//	// → stderr: "↳ Generating with sonnet in claude…\n"
 func (u *UI) Progress(msg string) {
 	fmt.Fprintln(u.stderr, progressPrefix+msg)
 }
@@ -109,6 +112,31 @@ func (u *UI) Progress(msg string) {
 // on stdout via the caller's print path.)
 func (u *UI) Success(msg string) {
 	fmt.Fprintln(u.stderr, u.Green(progressPrefix+msg))
+}
+
+// invocation renders the FR51b "<model> in <provider>" core (shared by ProgressLabel and VerboseRoles).
+// provider=="" ⇒ "" (nothing resolved); model=="" ⇒ "<provider>" alone (the provider's own default);
+// else "<model> in <provider>". The model string already carries the inference backend (FR-R5b), so
+// it is printed VERBATIM — no special formatting or splitting.
+func invocation(model, provider string) string {
+	if provider == "" {
+		return ""
+	}
+	if model != "" {
+		return model + " in " + provider
+	}
+	return provider
+}
+
+// ProgressLabel builds the FR51b progress-line body (without the "↳ " prefix — Progress adds that):
+// "<verb>…" when nothing is resolved (provider==""), else "<verb> with <invocation>…". Pure (no I/O),
+// trivially unit-testable. The main label omits reasoning (FR51b); reasoning appears only in the
+// --verbose four-role enumeration via VerboseRoles.
+func ProgressLabel(verb, model, provider string) string {
+	if inv := invocation(model, provider); inv != "" {
+		return verb + " with " + inv + "…"
+	}
+	return verb + "…"
 }
 
 // Error writes an error notice to STDERR in red (when color). Example: Error("generation failed").

@@ -346,21 +346,21 @@
           "type": "Milestone",
           "id": "P4.M1",
           "title": "Progress label & end-to-end scenario harness",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Surfaces the resolved invocation in the progress line and adds the throwaway-repo E2E harness that catches the behaviors only manifest against a real repo.",
           "tasks": [
             {
               "type": "Task",
               "id": "P4.M1.T1",
               "title": "FR51b progress label + §20.5 E2E harness",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Renames the progress line to name the resolved model/provider, and builds the E2E scenario harness covering the must-cover set.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P4.M1.T1.S1",
                   "title": "Progress label: '<Verb> with <model> in <provider>…' (FR51b) across generate + decompose",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S2",
@@ -376,7 +376,7 @@
                   "type": "Subtask",
                   "id": "P4.M1.T1.S2",
                   "title": "End-to-end scenario harness (§20.5) — throwaway-repo regression net for concurrency/routing invariants",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P3.M2.T1.S2",

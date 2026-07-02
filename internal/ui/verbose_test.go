@@ -6,6 +6,75 @@ import (
 	"testing"
 )
 
+func TestVerboseRoles_On(t *testing.T) {
+	var buf bytes.Buffer
+	v := NewVerbose(&buf, true)
+	v.VerboseRoles([]RoleLine{
+		{Name: "planner", Model: "p", Provider: "pi", Reasoning: "high"},
+		{Name: "stager", Model: "s", Provider: "pi", Reasoning: ""},
+		{Name: "message", Model: "m", Provider: "pi", Reasoning: ""},
+		{Name: "arbiter", Model: "a", Provider: "pi", Reasoning: ""},
+	})
+	got := buf.String()
+	// Planner line: %-8s pads "planner" (7 chars) → "planner " + space = two spaces before invocation.
+	if !strings.Contains(got, "DEBUG: planner  p in pi (reasoning: high)\n") {
+		t.Errorf("planner line missing or wrong; got %q", got)
+	}
+	// Stager line: no reasoning suffix.
+	if !strings.Contains(got, "DEBUG: stager   s in pi\n") {
+		t.Errorf("stager line missing or wrong; got %q", got)
+	}
+	if !strings.Contains(got, "DEBUG: message  m in pi\n") {
+		t.Errorf("message line missing or wrong; got %q", got)
+	}
+	if !strings.Contains(got, "DEBUG: arbiter  a in pi\n") {
+		t.Errorf("arbiter line missing or wrong; got %q", got)
+	}
+	// Must have exactly 4 lines.
+	if count := strings.Count(got, "\n"); count != 4 {
+		t.Errorf("got %d lines, want 4; got %q", count, got)
+	}
+}
+
+func TestVerboseRoles_Off(t *testing.T) {
+	var buf bytes.Buffer
+	v := NewVerbose(&buf, false)
+	v.VerboseRoles([]RoleLine{
+		{Name: "planner", Model: "p", Provider: "pi", Reasoning: "high"},
+	})
+	if buf.Len() != 0 {
+		t.Errorf("off: wrote %q, want zero bytes", buf.String())
+	}
+}
+
+func TestVerboseRoles_NilSafe(t *testing.T) {
+	var v *Verbose = nil
+	v.VerboseRoles([]RoleLine{
+		{Name: "planner", Model: "p", Provider: "pi", Reasoning: "high"},
+	}) // must not panic
+}
+
+func TestReasoningSuffix(t *testing.T) {
+	tests := []struct {
+		level string
+		want  string
+	}{
+		{"", ""},
+		{"off", ""},
+		{"low", " (reasoning: low)"},
+		{"medium", " (reasoning: medium)"},
+		{"high", " (reasoning: high)"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.level, func(t *testing.T) {
+			got := reasoningSuffix(tc.level)
+			if got != tc.want {
+				t.Errorf("reasoningSuffix(%q) = %q, want %q", tc.level, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestVerbose_CommandWhenOn(t *testing.T) {
 	var buf bytes.Buffer
 	v := NewVerbose(&buf, true)

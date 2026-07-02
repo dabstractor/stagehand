@@ -124,27 +124,33 @@ func runDefault(cmd *cobra.Command, args []string) error {
 	// Provider/Model/Timeout/VerboseOn below re-assert the Options>everything precedence (redundant
 	// for the CLI path, mandatory for the standalone-library Options.Config==nil contract).
 
-	// Validate the provider before printing the progress label (Issue 7: avoid optimistically
-	// announcing an invalid provider). This mirrors the same resolution logic as
-	// pkg/stagehand.buildDeps but is intentionally lightweight — just the existence check.
+	// FR51b: validate the provider + resolve the invocation label. Build the registry once;
+	// surface DecodeUserOverrides errors (was ignored before — consistent with runDecompose).
+	overrides, oerr := provider.DecodeUserOverrides(cfg.Providers)
+	if oerr != nil {
+		return exitcode.New(exitcode.Error, fmt.Errorf("provider overrides: %w", oerr))
+	}
+	reg := provider.NewRegistry(overrides)
+
+	// FR51b: resolve the message role's provider (auto-detect mirrors pkg/stagehand.buildDeps) so
+	// the label names the resolved invocation even when --provider is unset.
+	labelProvider := cfg.Provider
+	if labelProvider == "" {
+		var installed []string
+		for _, m := range reg.List() {
+			if reg.IsInstalled(m) {
+				installed = append(installed, m.Name)
+			}
+		}
+		labelProvider = reg.DefaultProvider(installed)
+	}
+	// Validate an EXPLICIT provider (autodetect is validated inside GenerateCommit/buildDeps).
 	if cfg.Provider != "" {
-		overrides, _ := provider.DecodeUserOverrides(cfg.Providers)
-		reg := provider.NewRegistry(overrides)
 		if _, ok := reg.Get(cfg.Provider); !ok {
 			return exitcode.New(exitcode.Error, fmt.Errorf("unknown provider %q", cfg.Provider))
 		}
 	}
-
-	// Build the progress label now that the provider is validated.
-	label := "Generating"
-	if cfg.Provider != "" {
-		label += " with " + cfg.Provider
-		if cfg.Model != "" {
-			label += " (" + cfg.Model + ")"
-		}
-	}
-	label += "…"
-	u.Progress(label)
+	u.Progress(ui.ProgressLabel("Generating", cfg.Model, labelProvider))
 
 	res, err := stagehand.GenerateCommit(ctx, stagehand.Options{
 		Config:    cfg,
@@ -273,25 +279,28 @@ func runDecompose(ctx context.Context, stdout, stderr io.Writer, u *ui.UI, cfg *
 		return exitcode.New(exitcode.Error, fmt.Errorf("decompose: provider overrides: %w", err))
 	}
 	reg := provider.NewRegistry(overrides)
-	roleManifests, _, err := decompose.ResolveRoles(*cfg, reg) // RoleModels (2nd) unused by CLI
+	roleManifests, roleModels, err := decompose.ResolveRoles(*cfg, reg)
 	if err != nil {
 		return exitcode.New(exitcode.Error, fmt.Errorf("decompose: %w", err))
 	}
+	verbose := ui.NewVerbose(stderr, cfg.Verbose)
+	// FR51b: --verbose enumerates all four roles (planner/stager/message/arbiter).
+	verbose.VerboseRoles([]ui.RoleLine{
+		{Name: "planner", Model: roleModels.Planner.Model, Provider: roleModels.Planner.Provider, Reasoning: roleModels.Planner.Reasoning},
+		{Name: "stager", Model: roleModels.Stager.Model, Provider: roleModels.Stager.Provider, Reasoning: roleModels.Stager.Reasoning},
+		{Name: "message", Model: roleModels.Message.Model, Provider: roleModels.Message.Provider, Reasoning: roleModels.Message.Reasoning},
+		{Name: "arbiter", Model: roleModels.Arbiter.Model, Provider: roleModels.Arbiter.Provider, Reasoning: roleModels.Arbiter.Reasoning},
+	})
+	// FR51b: main line surfaces the PLANNER role's resolved invocation.
+	u.Progress(ui.ProgressLabel("Decomposing", roleModels.Planner.Model, roleModels.Planner.Provider))
 	deps := decompose.Deps{
 		Git:      g,
 		Registry: reg,
 		Config:   *cfg,
 		Roles:    roleManifests,
-		Verbose:  ui.NewVerbose(stderr, cfg.Verbose),
+		Verbose:  verbose,
 		Out:      stderr, // the loop prints §18.3 rescue + §13.5 CAS here (P3.M4.T1.S2)
 	}
-	// Optional progress label (UX consistency with the single path); best-effort, non-essential.
-	label := "Decomposing"
-	if cfg.Provider != "" {
-		label += " with " + cfg.Provider
-	}
-	label += "…"
-	u.Progress(label)
 
 	res, derr := decompose.Decompose(ctx, deps)
 	for _, c := range res.Commits { // print landed commits (success AND FR-M12 partial)

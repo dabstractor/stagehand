@@ -236,6 +236,33 @@ func TestProgress_PrefixAndStream(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestProgressLabel — FR51b byte-exact format (pure function, no I/O)
+// ---------------------------------------------------------------------------
+
+func TestProgressLabel(t *testing.T) {
+	tests := []struct {
+		name                  string
+		verb, model, provider string
+		want                  string
+	}{
+		{"model+provider", "Generating", "sonnet", "claude", "Generating with sonnet in claude…"},
+		{"slash-prefixed model", "Generating", "zai/glm-5.2", "pi", "Generating with zai/glm-5.2 in pi…"},
+		{"model empty → provider alone", "Generating", "", "claude", "Generating with claude…"},
+		{"provider empty → minimal", "Generating", "sonnet", "", "Generating…"},
+		{"both empty", "Generating", "", "", "Generating…"},
+		{"decompose", "Decomposing", "anthropic/claude-sonnet-4", "opencode", "Decomposing with anthropic/claude-sonnet-4 in opencode…"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ProgressLabel(tc.verb, tc.model, tc.provider)
+			if got != tc.want {
+				t.Errorf("ProgressLabel(%q, %q, %q) = %q, want %q", tc.verb, tc.model, tc.provider, got, tc.want)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
 // TestIsTerminal_Pipe — pipe reader is NOT a terminal
 // ---------------------------------------------------------------------------
 

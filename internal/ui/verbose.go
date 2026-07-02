@@ -71,3 +71,32 @@ func (v *Verbose) VerboseRetry(attempt int, reason string) {
 	}
 	fmt.Fprintf(v.w, "DEBUG: attempt %d: %s\n", attempt, reason)
 }
+
+// RoleLine is one role's resolved (provider, model, reasoning) for the --verbose four-role roster
+// (PRD §9.13 FR51b). The caller maps config.RoleConfig → RoleLine at the decompose call site.
+type RoleLine struct {
+	Name      string // "planner" | "stager" | "message" | "arbiter"
+	Model     string
+	Provider  string
+	Reasoning string // off|low|medium|high; "" ⇒ off (no suffix)
+}
+
+// reasoningSuffix returns " (reasoning: <level>)" for low/medium/high; empty for ""/"off"/unknown.
+func reasoningSuffix(level string) string {
+	switch level {
+	case "low", "medium", "high":
+		return " (reasoning: " + level + ")"
+	}
+	return ""
+}
+
+// VerboseRoles prints the four-role roster (one "DEBUG:" line each) when verbose is on. No-op when
+// v==nil, v.w==nil, or !v.on (same guard idiom as VerboseCommand/VerboseRawOutput/VerboseRetry).
+func (v *Verbose) VerboseRoles(roles []RoleLine) {
+	if v == nil || v.w == nil || !v.on {
+		return
+	}
+	for _, r := range roles {
+		fmt.Fprintf(v.w, "DEBUG: %-8s %s%s\n", r.Name, invocation(r.Model, r.Provider), reasoningSuffix(r.Reasoning))
+	}
+}

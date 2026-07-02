@@ -1323,3 +1323,120 @@ tooled_flags = ["--yes"]
 		}
 	})
 }
+
+// ---------------------------------------------------------------------------
+// TestProgressLabel_GenerateVisible — generate path shows FR51b label in stderr
+// ---------------------------------------------------------------------------
+
+func TestProgressLabel_GenerateVisible(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	repo := setupStubRepo(t, "feat: label test")
+	writeFile(t, repo, "new.txt", "content")
+	stageFile(t, repo, "new.txt")
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub", "--model", "glm-5.2"})
+
+	err := Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Execute err=%v, want nil", err)
+	}
+
+	// FR51b: stderr shows "↳ Generating with glm-5.2 in stub…"
+	if !strings.Contains(errBuf.String(), "↳ Generating with glm-5.2 in stub…") {
+		t.Errorf("stderr = %q, want to contain FR51b label '↳ Generating with glm-5.2 in stub…'", errBuf.String())
+	}
+	// stdout must not contain the progress prefix.
+	if strings.Contains(outBuf.String(), "↳ ") {
+		t.Errorf("stdout = %q, must NOT contain '↳ ' (progress goes to stderr)", outBuf.String())
+	}
+}
+
+// TestProgressLabel_GenerateVisible_NoModel proves the model-empty edge: when no --model is set,
+// the label is "↳ Generating with <provider>…".
+func TestProgressLabel_GenerateVisible_NoModel(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	repo := setupStubRepo(t, "feat: no model")
+	writeFile(t, repo, "new.txt", "content")
+	stageFile(t, repo, "new.txt")
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub"})
+
+	err := Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Execute err=%v, want nil", err)
+	}
+
+	// FR51b: model empty → "↳ Generating with stub…"
+	if !strings.Contains(errBuf.String(), "↳ Generating with stub…") {
+		t.Errorf("stderr = %q, want to contain '↳ Generating with stub…'", errBuf.String())
+	}
+}
+
+// TestProgressLabel_DecomposeMainLineVisible proves the decompose path emits the FR51b main
+// label on stderr BEFORE Decompose runs (so it is present even though Decompose may error on a
+// bare stub stager).
+func TestProgressLabel_DecomposeMainLineVisible(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	repo := setupStubRepo(t, "feat: decompose label")
+	// Leave un-staged dirty files → triggers decompose routing.
+	writeFile(t, repo, "dirty.txt", "changes")
+	writeFile(t, repo, "dirty2.txt", "more")
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub"})
+
+	err := Execute(context.Background())
+	if err == nil {
+		t.Fatal("Execute err=nil, want error (bare stub stager cannot decompose)")
+	}
+
+	// FR51b: the main decompose label was printed BEFORE Decompose ran.
+	if !strings.Contains(errBuf.String(), "↳ Decomposing with ") {
+		t.Errorf("stderr = %q, want to contain '↳ Decomposing with '", errBuf.String())
+	}
+}
+
+// TestProgressLabel_DecomposeVerboseRoles proves the --verbose decompose path emits the four-role
+// DEBUG roster lines BEFORE Decompose runs.
+func TestProgressLabel_DecomposeVerboseRoles(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	repo := setupStubRepo(t, "feat: verbose roles")
+	// Leave un-staged dirty files → triggers decompose routing.
+	writeFile(t, repo, "dirty.txt", "changes")
+	writeFile(t, repo, "dirty2.txt", "more")
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub", "-v"})
+
+	_ = Execute(context.Background()) // may error (bare stub stager) — that's fine
+
+	stderr := errBuf.String()
+	// FR51b: all four roles must appear in the verbose roster.
+	for _, role := range []string{"planner", "stager", "message", "arbiter"} {
+		if !strings.Contains(stderr, "DEBUG: "+role) {
+			t.Errorf("stderr missing 'DEBUG: %s'; got %q", role, stderr)
+		}
+	}
+	// Planner line must carry the reasoning suffix (shipped default = high).
+	if !strings.Contains(stderr, "(reasoning: high)") {
+		t.Errorf("stderr missing '(reasoning: high)' on planner line; got %q", stderr)
+	}
+}
