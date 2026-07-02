@@ -534,7 +534,7 @@ func TestResolveRoles_PerRoleOverrides(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// TestResolveRoles_ReasoningShippedDefault
+// TestResolveRoles_NoShippedReasoningDefault
 // ---------------------------------------------------------------------------
 
 func TestResolveRoles_NoShippedReasoningDefault(t *testing.T) {

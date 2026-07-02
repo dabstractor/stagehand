@@ -18,7 +18,7 @@
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Flip shipped reasoning default to off for all roles",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Remove the defaultRoleReasoning map (which contained {\"planner\": \"high\"}) from internal/config/roles.go, eliminate the shipped-default fallback branch in ResolveRoleModel, update the doc comments in config.go/roles.go that cite 'planner=high', update all test assertions that expected the old shipped default, and update the user-facing flag-help/doc surfaces. Per §3 (IMPLICIT TDD), tests are updated WITH the code change — the safest path is: remove the map entry, run go test ./..., and fix every failing assertion the tests enumerate.",
               "subtasks": [
                 {
@@ -42,7 +42,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": "Update downstream test assertions + user-facing surfaces (decompose roles_test, default_action_test, root.go flag help, pkg/stagehand comment, docs/cli.md)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
@@ -63,14 +63,14 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "config init emits uncommented reasoning = \"off\" in [defaults] (FR-B1)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "The config init bootstrap config generator now writes an UNCOMMENTED reasoning = \"off\" line in the [defaults] section, immediately after the provider line, so the field is discoverable and obviously opt-in in the generated file. Previously reasoning was either absent or commented out.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Add uncommented reasoning = \"off\" to bootstrap config [defaults] + test + docs/configuration.md",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/004_136878664597/architecture/system_context.md §3 (Change B) and architecture critical_findings.md. The bootstrap config writer is internal/config/bootstrap.go function buildBootstrapConfig (lines ~78–160). The [defaults] section is written at lines ~119–128: it writes `provider = \"<target>\"` uncommented, then `# model`, `# timeout`, `# auto_stage_all`, `# verbose` as commented lines. FR-B1 requires reasoning to be uncommented and set to \"off\" so the field is discoverable. The test is in bootstrap_test.go function TestBuildBootstrapConfig_Pi (~line 26).\n2. INPUT: The existing buildBootstrapConfig function and its [defaults] writer in bootstrap.go. The existing TestBuildBootstrapConfig_Pi in bootstrap_test.go. The docs/configuration.md config example (lines ~77–83) which currently has reasoning COMMENTED with text 'planner defaults to high'.\n3. LOGIC: (a) In bootstrap.go buildBootstrapConfig, after the `b.WriteString` for the provider line (line ~124) and before the commented `# model` line, insert: `b.WriteString(\"reasoning = \\\"off\\\"   # off|low|medium|high; off by default for every role (FR-R6) — opt in per role below\\n\")`. This writes an UNCOMMENTED line so the generated config visibly exposes the reasoning field. (b) In bootstrap_test.go TestBuildBootstrapConfig_Pi, add an assertion after the existing `provider = \"pi\"` check: `if !strings.Contains(content, \"reasoning = \\\"off\\\"\") { t.Error(\"missing uncommented reasoning = \\\"off\\\" in [defaults]\") }`. (c) In docs/configuration.md (~line 77–83): move reasoning from commented (`# reasoning = \"off\"`) to uncommented with updated comment text '# off|low|medium|high; off by default for every role (FR-R6)'.\n4. OUTPUT: `stagehand config init` produces a config file with an uncommented `reasoning = \"off\"` under [defaults]. The bootstrap test asserts this. docs/configuration.md matches. go test ./internal/config/ is green.\n5. DOCS: [Mode A] The inline comment on the emitted reasoning line in bootstrap.go, and the docs/configuration.md config example, ride WITH the work.",
