@@ -65,7 +65,7 @@
           "id": "P1.M2",
           "type": "Milestone",
           "title": "Provider System",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Build internal/provider: the Manifest type + command renderer (§12.1-12.2), the robust output parser (§12.9), six verified built-in manifests (external_deps.md §B, 4 corrections), the registry with field-by-field override merge + PATH detection, and the executor (subprocess run with timeout + process-group kill). Owns the canonical Manifest type that config (M5) imports. Self-contained; no import cycle.",
           "tasks": [
             {
@@ -141,14 +141,14 @@
               "id": "P1.M2.T4",
               "type": "Task",
               "title": "Executor (subprocess run + timeout + process-group kill)",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Run a rendered provider command: feed stdin, capture stdout, enforce a timeout, and kill the whole process group on cancel/timeout (§12.2, §18.4, FR24-FR25).",
               "subtasks": [
                 {
                   "id": "P1.M2.T4.S1",
                   "type": "Subtask",
                   "title": "internal/provider/executor.go — Executor.Run(ctx, m, model, provider, sys, payload)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M2.T1.S1"

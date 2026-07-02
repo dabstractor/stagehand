@@ -1,0 +1,171 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1.M2.T4.S1_1782969259201_pre-execution_f9b0a452",
+      "taskId": "P1.M2.T4.S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T4_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T05:14:19.201Z"
+      },
+      "createdAt": "2026-07-02T05:14:19.201Z"
+    },
+    {
+      "id": "P1.M2.T4.S1_1782969807090_coder-response_cef7f0e9",
+      "taskId": "P1.M2.T4.S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T4_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "All gates pass deterministically. The implementation is complete.\n\n## Summary\n\nI implemented **PRP P1.M2.T4.S1** — the subprocess executor that turns a resolved provider intent into a real, timeout-enforced, process-group-isolated agent run.\n\n### Files created (scope respected — only these two)\n\n**`internal/provider/executor.go`** — plain `package provider` (the `// Package provider` doc stays once in `manifest.go`):\n- `Executor{Dir string}` struct + `NewExecutor(dir)` constructor.\n- `Run(ctx, m Manifest, model, provider, sys, payload) (string, error)` — the full render→exec→timeout→group-kill flow:\n  - Resolves `DefaultModel`/`DefaultProvider` defaults *before* `m.Render` (Render is pure).\n  - Builds `exec.Command(m.Command, r.Args...)` — **no `sh -c`** (§19); sets `cmd.Dir`, `cmd.Stdin` (only when `DeliverViaStdin`), `cmd.Env = append(os.Environ(), r.Env...)`, `cmd.SysProcAttr{Setpgid: true}`.\n  - `Start` + goroutine-on-`Wait` + `select{done, ctx.Done()}`; captures stdout (FR24) and stderr.\n  - On `ctx.Done()`: SIGTERM the whole group (`Kill(-pgid, …)`), 2s grace, then SIGKILL; returns `*TimeoutError` (DeadlineExceeded) or `ctx.Err()` (Canceled).\n  - Non-zero exit → `*AgentError{Name, Command, Code, Stderr}`.\n- Typed errors `TimeoutError` (`Unwrap → context.DeadlineExceeded`) and `AgentError`, plus `exitCodeOf`/`excerpt` helpers.\n- Godoc cites PRD §18.4, FR24, FR25, §19 and documents the `ctx`-parameter-as-signal-handler-seam.\n\n**`internal/provider/executor_test.go`** — `package provider`, stdlib `testing`, real host binaries (`/bin/echo|cat|sh|sleep|pwd`) as fake agents. All 10 contract tests pass.\n\n### One deviation from the enumerated import list\nThe PRP's import list omitted `\"os\"`, but the verified pseudocode uses `os.Environ()` (PRD §12.2). I added `\"os\"` (stdlib) — the \"stdlib-only / no new module deps / no `go.mod` change\" constraint is fully satisfied.\n\n### Validation (all green, deterministic)\n- I empirically confirmed the trickiest behavior on-host first: `sh -c 'trap \"\" TERM; sleep 30'` survives SIGTERM (ignored dispositions inherit across `exec`) and **requires** the 2s-grace SIGKILL — elapsed 2.08s, matching the research note.\n- `go build`, `go vet`, `gofmt -l` (clean), `go test ./internal/provider/`, and `go test ./...` all pass; existing manifest/parse/builtin/registry/ui tests untouched.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/provider/executor.go (Executor{Dir} + NewExecutor + Run with render→exec→timeout→process-group-kill + TimeoutError + AgentError) and executor_test.go (10 stdlib tests using real /bin/echo|cat|sh|sleep|pwd). Run resolves DefaultModel/DefaultProvider before the pure Render, execs m.Command with Render's []string (no sh -c, §19), sets Dir/Stdin(via DeliverViaStdin)/Env(append os.Environ)/SysProcAttr{Setpgid:true}, uses Start+goroutine-Wait+select(done vs ctx.Done); on ctx.Done it SIGTERMs the whole group (-pgid), escalates to SIGKILL after a 2s grace, drains the goroutine, and returns *TimeoutError (DeadlineExceeded) or ctx.Err() (Canceled); clean exit returns captured stdout (FR24); non-zero exit returns *AgentError{Name,Command,Code,Stderr}. TimeoutError.Unwrap→context.DeadlineExceeded. All 5 validation gates pass deterministically (build, vet, gofmt clean, provider tests, go test ./...); go.mod/go.sum untouched and no other files modified. Added the stdlib 'os' import required by os.Environ() (the PRP's enumerated import list omitted it but the verified pseudocode and PRD §12.2 require it). Empirically verified the grace-SIGKILL path on-host (2.08s) before writing its timing-sensitive test.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/provider/executor.go (Executor{Dir} + NewExecutor + Run with render→exec→timeout→process-group-kill + TimeoutError + AgentError) and executor_test.go (10 stdlib tests using real /bin/echo|cat|sh|sleep|pwd). Run resolves DefaultModel/DefaultProvider before the pure Render, execs m.Command with Render's []string (no sh -c, §19), sets Dir/Stdin(via DeliverViaStdin)/Env(append os.Environ)/SysProcAttr{Setpgid:true}, uses Start+goroutine-Wait+select(done vs ctx.Done); on ctx.Done it SIGTERMs the whole group (-pgid), escalates to SIGKILL after a 2s grace, drains the goroutine, and returns *TimeoutError (DeadlineExceeded) or ctx.Err() (Canceled); clean exit returns captured stdout (FR24); non-zero exit returns *AgentError{Name,Command,Code,Stderr}. TimeoutError.Unwrap→context.DeadlineExceeded. All 5 validation gates pass deterministically (build, vet, gofmt clean, provider tests, go test ./...); go.mod/go.sum untouched and no other files modified. Added the stdlib 'os' import required by os.Environ() (the PRP's enumerated import list omitted it but the verified pseudocode and PRD §12.2 require it). Empirically verified the grace-SIGKILL path on-host (2.08s) before writing its timing-sensitive test."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T05:23:27.090Z"
+      },
+      "createdAt": "2026-07-02T05:23:27.090Z"
+    },
+    {
+      "id": "P1.M2.T4.S1_1782969809641_validation-gate-2_a52edaf4",
+      "taskId": "P1.M2.T4.S1",
+      "label": "After validation gate 2",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T4_S1.md",
+        "stage": "validation-gate-2",
+        "coderResponse": "All gates pass deterministically. The implementation is complete.\n\n## Summary\n\nI implemented **PRP P1.M2.T4.S1** — the subprocess executor that turns a resolved provider intent into a real, timeout-enforced, process-group-isolated agent run.\n\n### Files created (scope respected — only these two)\n\n**`internal/provider/executor.go`** — plain `package provider` (the `// Package provider` doc stays once in `manifest.go`):\n- `Executor{Dir string}` struct + `NewExecutor(dir)` constructor.\n- `Run(ctx, m Manifest, model, provider, sys, payload) (string, error)` — the full render→exec→timeout→group-kill flow:\n  - Resolves `DefaultModel`/`DefaultProvider` defaults *before* `m.Render` (Render is pure).\n  - Builds `exec.Command(m.Command, r.Args...)` — **no `sh -c`** (§19); sets `cmd.Dir`, `cmd.Stdin` (only when `DeliverViaStdin`), `cmd.Env = append(os.Environ(), r.Env...)`, `cmd.SysProcAttr{Setpgid: true}`.\n  - `Start` + goroutine-on-`Wait` + `select{done, ctx.Done()}`; captures stdout (FR24) and stderr.\n  - On `ctx.Done()`: SIGTERM the whole group (`Kill(-pgid, …)`), 2s grace, then SIGKILL; returns `*TimeoutError` (DeadlineExceeded) or `ctx.Err()` (Canceled).\n  - Non-zero exit → `*AgentError{Name, Command, Code, Stderr}`.\n- Typed errors `TimeoutError` (`Unwrap → context.DeadlineExceeded`) and `AgentError`, plus `exitCodeOf`/`excerpt` helpers.\n- Godoc cites PRD §18.4, FR24, FR25, §19 and documents the `ctx`-parameter-as-signal-handler-seam.\n\n**`internal/provider/executor_test.go`** — `package provider`, stdlib `testing`, real host binaries (`/bin/echo|cat|sh|sleep|pwd`) as fake agents. All 10 contract tests pass.\n\n### One deviation from the enumerated import list\nThe PRP's import list omitted `\"os\"`, but the verified pseudocode uses `os.Environ()` (PRD §12.2). I added `\"os\"` (stdlib) — the \"stdlib-only / no new module deps / no `go.mod` change\" constraint is fully satisfied.\n\n### Validation (all green, deterministic)\n- I empirically confirmed the trickiest behavior on-host first: `sh -c 'trap \"\" TERM; sleep 30'` survives SIGTERM (ignored dispositions inherit across `exec`) and **requires** the 2s-grace SIGKILL — elapsed 2.08s, matching the research note.\n- `go build`, `go vet`, `gofmt -l` (clean), `go test ./internal/provider/`, and `go test ./...` all pass; existing manifest/parse/builtin/registry/ui tests untouched.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/provider/executor.go (Executor{Dir} + NewExecutor + Run with render→exec→timeout→process-group-kill + TimeoutError + AgentError) and executor_test.go (10 stdlib tests using real /bin/echo|cat|sh|sleep|pwd). Run resolves DefaultModel/DefaultProvider before the pure Render, execs m.Command with Render's []string (no sh -c, §19), sets Dir/Stdin(via DeliverViaStdin)/Env(append os.Environ)/SysProcAttr{Setpgid:true}, uses Start+goroutine-Wait+select(done vs ctx.Done); on ctx.Done it SIGTERMs the whole group (-pgid), escalates to SIGKILL after a 2s grace, drains the goroutine, and returns *TimeoutError (DeadlineExceeded) or ctx.Err() (Canceled); clean exit returns captured stdout (FR24); non-zero exit returns *AgentError{Name,Command,Code,Stderr}. TimeoutError.Unwrap→context.DeadlineExceeded. All 5 validation gates pass deterministically (build, vet, gofmt clean, provider tests, go test ./...); go.mod/go.sum untouched and no other files modified. Added the stdlib 'os' import required by os.Environ() (the PRP's enumerated import list omitted it but the verified pseudocode and PRD §12.2 require it). Empirically verified the grace-SIGKILL path on-host (2.08s) before writing its timing-sensitive test.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/provider/executor.go (Executor{Dir} + NewExecutor + Run with render→exec→timeout→process-group-kill + TimeoutError + AgentError) and executor_test.go (10 stdlib tests using real /bin/echo|cat|sh|sleep|pwd). Run resolves DefaultModel/DefaultProvider before the pure Render, execs m.Command with Render's []string (no sh -c, §19), sets Dir/Stdin(via DeliverViaStdin)/Env(append os.Environ)/SysProcAttr{Setpgid:true}, uses Start+goroutine-Wait+select(done vs ctx.Done); on ctx.Done it SIGTERMs the whole group (-pgid), escalates to SIGKILL after a 2s grace, drains the goroutine, and returns *TimeoutError (DeadlineExceeded) or ctx.Err() (Canceled); clean exit returns captured stdout (FR24); non-zero exit returns *AgentError{Name,Command,Code,Stderr}. TimeoutError.Unwrap→context.DeadlineExceeded. All 5 validation gates pass deterministically (build, vet, gofmt clean, provider tests, go test ./...); go.mod/go.sum untouched and no other files modified. Added the stdlib 'os' import required by os.Environ() (the PRP's enumerated import list omitted it but the verified pseudocode and PRD §12.2 require it). Empirically verified the grace-SIGKILL path on-host (2.08s) before writing its timing-sensitive test."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/provider/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/provider/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/provider\t2.213s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T05:23:29.641Z"
+      },
+      "createdAt": "2026-07-02T05:23:29.641Z"
+    },
+    {
+      "id": "P1.M2.T4.S1_1782969809643_complete_38f9f05f",
+      "taskId": "P1.M2.T4.S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T4_S1.md",
+        "stage": "complete",
+        "coderResponse": "All gates pass deterministically. The implementation is complete.\n\n## Summary\n\nI implemented **PRP P1.M2.T4.S1** — the subprocess executor that turns a resolved provider intent into a real, timeout-enforced, process-group-isolated agent run.\n\n### Files created (scope respected — only these two)\n\n**`internal/provider/executor.go`** — plain `package provider` (the `// Package provider` doc stays once in `manifest.go`):\n- `Executor{Dir string}` struct + `NewExecutor(dir)` constructor.\n- `Run(ctx, m Manifest, model, provider, sys, payload) (string, error)` — the full render→exec→timeout→group-kill flow:\n  - Resolves `DefaultModel`/`DefaultProvider` defaults *before* `m.Render` (Render is pure).\n  - Builds `exec.Command(m.Command, r.Args...)` — **no `sh -c`** (§19); sets `cmd.Dir`, `cmd.Stdin` (only when `DeliverViaStdin`), `cmd.Env = append(os.Environ(), r.Env...)`, `cmd.SysProcAttr{Setpgid: true}`.\n  - `Start` + goroutine-on-`Wait` + `select{done, ctx.Done()}`; captures stdout (FR24) and stderr.\n  - On `ctx.Done()`: SIGTERM the whole group (`Kill(-pgid, …)`), 2s grace, then SIGKILL; returns `*TimeoutError` (DeadlineExceeded) or `ctx.Err()` (Canceled).\n  - Non-zero exit → `*AgentError{Name, Command, Code, Stderr}`.\n- Typed errors `TimeoutError` (`Unwrap → context.DeadlineExceeded`) and `AgentError`, plus `exitCodeOf`/`excerpt` helpers.\n- Godoc cites PRD §18.4, FR24, FR25, §19 and documents the `ctx`-parameter-as-signal-handler-seam.\n\n**`internal/provider/executor_test.go`** — `package provider`, stdlib `testing`, real host binaries (`/bin/echo|cat|sh|sleep|pwd`) as fake agents. All 10 contract tests pass.\n\n### One deviation from the enumerated import list\nThe PRP's import list omitted `\"os\"`, but the verified pseudocode uses `os.Environ()` (PRD §12.2). I added `\"os\"` (stdlib) — the \"stdlib-only / no new module deps / no `go.mod` change\" constraint is fully satisfied.\n\n### Validation (all green, deterministic)\n- I empirically confirmed the trickiest behavior on-host first: `sh -c 'trap \"\" TERM; sleep 30'` survives SIGTERM (ignored dispositions inherit across `exec`) and **requires** the 2s-grace SIGKILL — elapsed 2.08s, matching the research note.\n- `go build`, `go vet`, `gofmt -l` (clean), `go test ./internal/provider/`, and `go test ./...` all pass; existing manifest/parse/builtin/registry/ui tests untouched.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/provider/executor.go (Executor{Dir} + NewExecutor + Run with render→exec→timeout→process-group-kill + TimeoutError + AgentError) and executor_test.go (10 stdlib tests using real /bin/echo|cat|sh|sleep|pwd). Run resolves DefaultModel/DefaultProvider before the pure Render, execs m.Command with Render's []string (no sh -c, §19), sets Dir/Stdin(via DeliverViaStdin)/Env(append os.Environ)/SysProcAttr{Setpgid:true}, uses Start+goroutine-Wait+select(done vs ctx.Done); on ctx.Done it SIGTERMs the whole group (-pgid), escalates to SIGKILL after a 2s grace, drains the goroutine, and returns *TimeoutError (DeadlineExceeded) or ctx.Err() (Canceled); clean exit returns captured stdout (FR24); non-zero exit returns *AgentError{Name,Command,Code,Stderr}. TimeoutError.Unwrap→context.DeadlineExceeded. All 5 validation gates pass deterministically (build, vet, gofmt clean, provider tests, go test ./...); go.mod/go.sum untouched and no other files modified. Added the stdlib 'os' import required by os.Environ() (the PRP's enumerated import list omitted it but the verified pseudocode and PRD §12.2 require it). Empirically verified the grace-SIGKILL path on-host (2.08s) before writing its timing-sensitive test.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/provider/executor.go (Executor{Dir} + NewExecutor + Run with render→exec→timeout→process-group-kill + TimeoutError + AgentError) and executor_test.go (10 stdlib tests using real /bin/echo|cat|sh|sleep|pwd). Run resolves DefaultModel/DefaultProvider before the pure Render, execs m.Command with Render's []string (no sh -c, §19), sets Dir/Stdin(via DeliverViaStdin)/Env(append os.Environ)/SysProcAttr{Setpgid:true}, uses Start+goroutine-Wait+select(done vs ctx.Done); on ctx.Done it SIGTERMs the whole group (-pgid), escalates to SIGKILL after a 2s grace, drains the goroutine, and returns *TimeoutError (DeadlineExceeded) or ctx.Err() (Canceled); clean exit returns captured stdout (FR24); non-zero exit returns *AgentError{Name,Command,Code,Stderr}. TimeoutError.Unwrap→context.DeadlineExceeded. All 5 validation gates pass deterministically (build, vet, gofmt clean, provider tests, go test ./...); go.mod/go.sum untouched and no other files modified. Added the stdlib 'os' import required by os.Environ() (the PRP's enumerated import list omitted it but the verified pseudocode and PRD §12.2 require it). Empirically verified the grace-SIGKILL path on-host (2.08s) before writing its timing-sensitive test."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/provider/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/provider/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/provider\t2.213s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T05:23:29.643Z"
+      },
+      "createdAt": "2026-07-02T05:23:29.643Z"
+    }
+  ],
+  "lastModified": "2026-07-02T05:23:29.643Z"
+}
