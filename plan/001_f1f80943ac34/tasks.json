@@ -286,7 +286,7 @@
                   "id": "P1.M4.T1.S1",
                   "type": "Subtask",
                   "title": "internal/prompt/examples.go — history examples + multi-line detection",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T4.S1"

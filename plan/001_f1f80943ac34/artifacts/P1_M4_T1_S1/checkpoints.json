@@ -1,0 +1,171 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1_M4_T1_S1_1782976634818_pre-execution_fa021d0a",
+      "taskId": "P1_M4_T1_S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M4_T1_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T07:17:14.818Z"
+      },
+      "createdAt": "2026-07-02T07:17:14.818Z"
+    },
+    {
+      "id": "P1_M4_T1_S1_1782977144790_coder-response_20b2beae",
+      "taskId": "P1_M4_T1_S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M4_T1_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "The implementation is complete and matches the blueprint exactly. All validation gates pass.\n\n## Summary\n\nI implemented **P1.M4.T1_S1** — the first file of the NEW `internal/prompt` package — creating two files:\n\n**`internal/prompt/examples.go`** (production code):\n- OWNS the `// Package prompt` doc (appears exactly once, mirroring `internal/git/git.go`'s convention)\n- Imports stdlib `strings` ONLY — **no** `internal/git` in production (decoupled via the `HistoryReader` interface, which `*git.Git` satisfies structurally)\n- Exports `HistoryReader` interface, `DefaultExampleCount = 20`; unexported `exampleLineCap = 100`\n- `FetchExamples(g, n)` — gates on `CommitCount` (`count<=1` ⇒ `([],false,nil)` non-error FR39 path; errors propagated, not swallowed), computes `hasMultiline` over **all** groups **pre-cap**, then builds newest-first whole-message examples with the 100-line whole-message cap\n- `splitExampleGroups(raw)` — ports the `sed '/^$/d'` + awk `---` split, keeps non-blank lines **verbatim**, and **flushes the final group** — the deliberate fix for the reference awk's END-block bug so a multi-line *oldest* commit is detected\n\n**`internal/prompt/examples_test.go`** (white-box `package prompt`, stdlib `testing`):\n- All 7 MOCKING scenarios via a `fakeReader`: new-repo, single-line→false, multi-line-any-group→true, **★ awk-bug-fix last-group ★**, blank-line trimming, 100-line cap, error propagation\n- Plus a real-git (git 2.54) integration test through a real `*git.Git` (test-only `internal/git` import, no cycle): single-line→false, then add one multi-line commit→true; `t.Skip`s cleanly if the git binary is absent\n\n**One issue found and fixed during validation:** the integration test's `seedGitRepo` helper initially reused filename `file0.txt` across its two calls on the same repo with identical content → \"nothing to commit\". Fixed by adding a `start` offset so append-calls get distinct files.\n\n**Validation gates (all green):**\n- Level 1: `go build`/`go vet ./internal/prompt/` clean; `gofmt -l` empty\n- Level 2: `go test ./internal/prompt/` — all 9 tests PASS (incl. real-git)\n- Level 3: `go test ./...` (uncached) + `go vet ./...` — whole module green; git/ui/provider unaffected\n\n**Scope boundaries verified:** only `examples.go` + `examples_test.go` created; no `system.go`/`payload.go` (S2/S3); go.mod/go.sum/Makefile/main.go untouched; no `go mod tidy`; package doc exactly once; no go-git.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/prompt/examples.go and internal/prompt/examples_test.go — the first file of the NEW internal/prompt package. FetchExamples ports reference_impl.md §6's awk heuristic (history-example fetch + multi-line detection) faithfully, with the deliberate fix that the final/oldest group IS flushed+checked (the reference awk's END-block bug). Decoupled from git via a HistoryReader interface (*git.Git satisfies structurally; production imports stdlib 'strings' only). All validation gates pass: go build/vet/gofmt clean on ./internal/prompt/; all 9 unit/integration tests PASS including a real-git temp-repo test (single-line→false, then one multi-line commit→true); whole-module go test ./... green (git/ui/provider unaffected). One bug found during Level 2 and fixed: the seedGitRepo helper reused an identical file0.txt across its two append calls, causing 'nothing to commit' — resolved with a start-offset so appended commits get distinct files. Scope boundaries respected: only the 2 prompt files created; no system.go/payload.go (S2/S3); go.mod/go.sum/Makefile/main.go unchanged; no go mod tidy; // Package prompt doc appears exactly once; no go-git; no import cycle (git imports no prompt).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/prompt/examples.go and internal/prompt/examples_test.go — the first file of the NEW internal/prompt package. FetchExamples ports reference_impl.md §6's awk heuristic (history-example fetch + multi-line detection) faithfully, with the deliberate fix that the final/oldest group IS flushed+checked (the reference awk's END-block bug). Decoupled from git via a HistoryReader interface (*git.Git satisfies structurally; production imports stdlib 'strings' only). All validation gates pass: go build/vet/gofmt clean on ./internal/prompt/; all 9 unit/integration tests PASS including a real-git temp-repo test (single-line→false, then one multi-line commit→true); whole-module go test ./... green (git/ui/provider unaffected). One bug found during Level 2 and fixed: the seedGitRepo helper reused an identical file0.txt across its two append calls, causing 'nothing to commit' — resolved with a start-offset so appended commits get distinct files. Scope boundaries respected: only the 2 prompt files created; no system.go/payload.go (S2/S3); go.mod/go.sum/Makefile/main.go unchanged; no go mod tidy; // Package prompt doc appears exactly once; no go-git; no import cycle (git imports no prompt)."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T07:25:44.790Z"
+      },
+      "createdAt": "2026-07-02T07:25:44.790Z"
+    },
+    {
+      "id": "P1_M4_T1_S1_1782977145183_validation-gate-3_6bfa3680",
+      "taskId": "P1_M4_T1_S1",
+      "label": "After validation gate 3",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M4_T1_S1.md",
+        "stage": "validation-gate-3",
+        "coderResponse": "The implementation is complete and matches the blueprint exactly. All validation gates pass.\n\n## Summary\n\nI implemented **P1.M4.T1_S1** — the first file of the NEW `internal/prompt` package — creating two files:\n\n**`internal/prompt/examples.go`** (production code):\n- OWNS the `// Package prompt` doc (appears exactly once, mirroring `internal/git/git.go`'s convention)\n- Imports stdlib `strings` ONLY — **no** `internal/git` in production (decoupled via the `HistoryReader` interface, which `*git.Git` satisfies structurally)\n- Exports `HistoryReader` interface, `DefaultExampleCount = 20`; unexported `exampleLineCap = 100`\n- `FetchExamples(g, n)` — gates on `CommitCount` (`count<=1` ⇒ `([],false,nil)` non-error FR39 path; errors propagated, not swallowed), computes `hasMultiline` over **all** groups **pre-cap**, then builds newest-first whole-message examples with the 100-line whole-message cap\n- `splitExampleGroups(raw)` — ports the `sed '/^$/d'` + awk `---` split, keeps non-blank lines **verbatim**, and **flushes the final group** — the deliberate fix for the reference awk's END-block bug so a multi-line *oldest* commit is detected\n\n**`internal/prompt/examples_test.go`** (white-box `package prompt`, stdlib `testing`):\n- All 7 MOCKING scenarios via a `fakeReader`: new-repo, single-line→false, multi-line-any-group→true, **★ awk-bug-fix last-group ★**, blank-line trimming, 100-line cap, error propagation\n- Plus a real-git (git 2.54) integration test through a real `*git.Git` (test-only `internal/git` import, no cycle): single-line→false, then add one multi-line commit→true; `t.Skip`s cleanly if the git binary is absent\n\n**One issue found and fixed during validation:** the integration test's `seedGitRepo` helper initially reused filename `file0.txt` across its two calls on the same repo with identical content → \"nothing to commit\". Fixed by adding a `start` offset so append-calls get distinct files.\n\n**Validation gates (all green):**\n- Level 1: `go build`/`go vet ./internal/prompt/` clean; `gofmt -l` empty\n- Level 2: `go test ./internal/prompt/` — all 9 tests PASS (incl. real-git)\n- Level 3: `go test ./...` (uncached) + `go vet ./...` — whole module green; git/ui/provider unaffected\n\n**Scope boundaries verified:** only `examples.go` + `examples_test.go` created; no `system.go`/`payload.go` (S2/S3); go.mod/go.sum/Makefile/main.go untouched; no `go mod tidy`; package doc exactly once; no go-git.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/prompt/examples.go and internal/prompt/examples_test.go — the first file of the NEW internal/prompt package. FetchExamples ports reference_impl.md §6's awk heuristic (history-example fetch + multi-line detection) faithfully, with the deliberate fix that the final/oldest group IS flushed+checked (the reference awk's END-block bug). Decoupled from git via a HistoryReader interface (*git.Git satisfies structurally; production imports stdlib 'strings' only). All validation gates pass: go build/vet/gofmt clean on ./internal/prompt/; all 9 unit/integration tests PASS including a real-git temp-repo test (single-line→false, then one multi-line commit→true); whole-module go test ./... green (git/ui/provider unaffected). One bug found during Level 2 and fixed: the seedGitRepo helper reused an identical file0.txt across its two append calls, causing 'nothing to commit' — resolved with a start-offset so appended commits get distinct files. Scope boundaries respected: only the 2 prompt files created; no system.go/payload.go (S2/S3); go.mod/go.sum/Makefile/main.go unchanged; no go mod tidy; // Package prompt doc appears exactly once; no go-git; no import cycle (git imports no prompt).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/prompt/examples.go and internal/prompt/examples_test.go — the first file of the NEW internal/prompt package. FetchExamples ports reference_impl.md §6's awk heuristic (history-example fetch + multi-line detection) faithfully, with the deliberate fix that the final/oldest group IS flushed+checked (the reference awk's END-block bug). Decoupled from git via a HistoryReader interface (*git.Git satisfies structurally; production imports stdlib 'strings' only). All validation gates pass: go build/vet/gofmt clean on ./internal/prompt/; all 9 unit/integration tests PASS including a real-git temp-repo test (single-line→false, then one multi-line commit→true); whole-module go test ./... green (git/ui/provider unaffected). One bug found during Level 2 and fixed: the seedGitRepo helper reused an identical file0.txt across its two append calls, causing 'nothing to commit' — resolved with a start-offset so appended commits get distinct files. Scope boundaries respected: only the 2 prompt files created; no system.go/payload.go (S2/S3); go.mod/go.sum/Makefile/main.go unchanged; no go mod tidy; // Package prompt doc appears exactly once; no go-git; no import cycle (git imports no prompt)."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/prompt/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/prompt/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/prompt/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/prompt/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/prompt\t0.049s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T07:25:45.183Z"
+      },
+      "createdAt": "2026-07-02T07:25:45.183Z"
+    },
+    {
+      "id": "P1_M4_T1_S1_1782977145184_complete_e1199841",
+      "taskId": "P1_M4_T1_S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M4_T1_S1.md",
+        "stage": "complete",
+        "coderResponse": "The implementation is complete and matches the blueprint exactly. All validation gates pass.\n\n## Summary\n\nI implemented **P1.M4.T1_S1** — the first file of the NEW `internal/prompt` package — creating two files:\n\n**`internal/prompt/examples.go`** (production code):\n- OWNS the `// Package prompt` doc (appears exactly once, mirroring `internal/git/git.go`'s convention)\n- Imports stdlib `strings` ONLY — **no** `internal/git` in production (decoupled via the `HistoryReader` interface, which `*git.Git` satisfies structurally)\n- Exports `HistoryReader` interface, `DefaultExampleCount = 20`; unexported `exampleLineCap = 100`\n- `FetchExamples(g, n)` — gates on `CommitCount` (`count<=1` ⇒ `([],false,nil)` non-error FR39 path; errors propagated, not swallowed), computes `hasMultiline` over **all** groups **pre-cap**, then builds newest-first whole-message examples with the 100-line whole-message cap\n- `splitExampleGroups(raw)` — ports the `sed '/^$/d'` + awk `---` split, keeps non-blank lines **verbatim**, and **flushes the final group** — the deliberate fix for the reference awk's END-block bug so a multi-line *oldest* commit is detected\n\n**`internal/prompt/examples_test.go`** (white-box `package prompt`, stdlib `testing`):\n- All 7 MOCKING scenarios via a `fakeReader`: new-repo, single-line→false, multi-line-any-group→true, **★ awk-bug-fix last-group ★**, blank-line trimming, 100-line cap, error propagation\n- Plus a real-git (git 2.54) integration test through a real `*git.Git` (test-only `internal/git` import, no cycle): single-line→false, then add one multi-line commit→true; `t.Skip`s cleanly if the git binary is absent\n\n**One issue found and fixed during validation:** the integration test's `seedGitRepo` helper initially reused filename `file0.txt` across its two calls on the same repo with identical content → \"nothing to commit\". Fixed by adding a `start` offset so append-calls get distinct files.\n\n**Validation gates (all green):**\n- Level 1: `go build`/`go vet ./internal/prompt/` clean; `gofmt -l` empty\n- Level 2: `go test ./internal/prompt/` — all 9 tests PASS (incl. real-git)\n- Level 3: `go test ./...` (uncached) + `go vet ./...` — whole module green; git/ui/provider unaffected\n\n**Scope boundaries verified:** only `examples.go` + `examples_test.go` created; no `system.go`/`payload.go` (S2/S3); go.mod/go.sum/Makefile/main.go untouched; no `go mod tidy`; package doc exactly once; no go-git.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/prompt/examples.go and internal/prompt/examples_test.go — the first file of the NEW internal/prompt package. FetchExamples ports reference_impl.md §6's awk heuristic (history-example fetch + multi-line detection) faithfully, with the deliberate fix that the final/oldest group IS flushed+checked (the reference awk's END-block bug). Decoupled from git via a HistoryReader interface (*git.Git satisfies structurally; production imports stdlib 'strings' only). All validation gates pass: go build/vet/gofmt clean on ./internal/prompt/; all 9 unit/integration tests PASS including a real-git temp-repo test (single-line→false, then one multi-line commit→true); whole-module go test ./... green (git/ui/provider unaffected). One bug found during Level 2 and fixed: the seedGitRepo helper reused an identical file0.txt across its two append calls, causing 'nothing to commit' — resolved with a start-offset so appended commits get distinct files. Scope boundaries respected: only the 2 prompt files created; no system.go/payload.go (S2/S3); go.mod/go.sum/Makefile/main.go unchanged; no go mod tidy; // Package prompt doc appears exactly once; no go-git; no import cycle (git imports no prompt).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/prompt/examples.go and internal/prompt/examples_test.go — the first file of the NEW internal/prompt package. FetchExamples ports reference_impl.md §6's awk heuristic (history-example fetch + multi-line detection) faithfully, with the deliberate fix that the final/oldest group IS flushed+checked (the reference awk's END-block bug). Decoupled from git via a HistoryReader interface (*git.Git satisfies structurally; production imports stdlib 'strings' only). All validation gates pass: go build/vet/gofmt clean on ./internal/prompt/; all 9 unit/integration tests PASS including a real-git temp-repo test (single-line→false, then one multi-line commit→true); whole-module go test ./... green (git/ui/provider unaffected). One bug found during Level 2 and fixed: the seedGitRepo helper reused an identical file0.txt across its two append calls, causing 'nothing to commit' — resolved with a start-offset so appended commits get distinct files. Scope boundaries respected: only the 2 prompt files created; no system.go/payload.go (S2/S3); go.mod/go.sum/Makefile/main.go unchanged; no go mod tidy; // Package prompt doc appears exactly once; no go-git; no import cycle (git imports no prompt)."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/prompt/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/prompt/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/prompt/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/prompt/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/prompt\t0.049s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T07:25:45.184Z"
+      },
+      "createdAt": "2026-07-02T07:25:45.184Z"
+    }
+  ],
+  "lastModified": "2026-07-02T07:25:45.184Z"
+}
