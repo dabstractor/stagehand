@@ -163,7 +163,7 @@
           "id": "P1.M3",
           "type": "Milestone",
           "title": "Git Plumbing",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Build internal/git: a thin wrapper over the real git binary (no go-git, PRD §22.3), a temp-repo test harness, the atomicity primitives (write-tree/commit-tree/update-ref CAS), diff capture with caps+exclusions, history queries, and staging primitives. All tested against a real git binary + temp repos.",
           "tasks": [
             {
@@ -239,7 +239,7 @@
               "id": "P1.M3.T4",
               "type": "Task",
               "title": "History queries & staging primitives",
-              "status": "Planned",
+              "status": "Complete",
               "description": "CommitCount / RecentMessages / RecentSubjects (style examples + dedupe set) and HasStagedChanges / AddAll (CLI staging path).",
               "subtasks": [
                 {
@@ -257,7 +257,7 @@
                   "id": "P1.M3.T4.S2",
                   "type": "Subtask",
                   "title": "internal/git/stage.go — HasStagedChanges, AddAll",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 0.5,
                   "dependencies": [
                     "P1.M3.T1.S1"

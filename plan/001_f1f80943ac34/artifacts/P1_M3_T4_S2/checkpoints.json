@@ -1,0 +1,171 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1_M3_T4_S2_1782975195783_pre-execution_4d034ff8",
+      "taskId": "P1_M3_T4_S2",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M3_T4_S2.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T06:53:15.783Z"
+      },
+      "createdAt": "2026-07-02T06:53:15.783Z"
+    },
+    {
+      "id": "P1_M3_T4_S2_1782975497912_coder-response_8e8c911c",
+      "taskId": "P1_M3_T4_S2",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M3_T4_S2.md",
+        "stage": "coder-response",
+        "coderResponse": "All checks pass. Implementation complete.\n\n## Summary\n\nI implemented **PRP P1.M3.T4.S2** by creating two new files in the existing `internal/git` package:\n\n**`internal/git/stage.go`** — two thin staging primitives over the shipped `(g *Git) run(args ...string)` seam:\n- `HasStagedChanges() (bool, error)` — runs `git diff --cached --quiet` with the **corrected, empirically-verified** exit-code semantics (exit 0→clean=`false`, exit 1→staged=`true` via `errors.As` into `*ExitError{Code==1}`, any other non-zero→error). No unborn-repo special-casing needed.\n- `AddAll() error` — runs `git add -A` (returns nil on success incl. nothing-to-stage, typed `*ExitError` on failure).\n- Plain `package git` line (git.go owns the `// Package git` doc); imports only stdlib `errors`.\n\n**`internal/git/stage_test.go`** — white-box `package git`, stdlib `testing` only, composing the S2 harness (`newTempRepo`/`seedCommits`/`writeFileStage`/`mustRun`), driving real git 2.54.0. Six behavior-per-function tests covering: clean index→false, staged file→true (on unborn repo), modified+staged tracked file→true, non-repo→typed `*ExitError` (no exit-code pinning), AddAll stages new+modified+deleted (A/M/D via `--name-status`), AddAll on clean repo→nil.\n\n**One issue caught & fixed during validation**: `go vet` flagged a `t.Errorf` call with an argument but no format directive — corrected to `t.Error`.\n\n**Validation gates (all pass):**\n| Gate | Result |\n|---|---|\n| L1 `go build ./internal/git/` | ✓ exit 0 |\n| L2 `go vet ./internal/git/` | ✓ clean |\n| L3 `gofmt -l internal/git/` | ✓ empty |\n| L4 `go test ./internal/git/` | ✓ PASS (6 new + all existing) |\n| L5 `go test ./...` | ✓ whole-module green; Makefile `test` green |\n\n**Scope boundaries respected**: only the 2 new files created; no shipped files modified; go.mod/go.sum untouched; `// Package git` appears exactly once (git.go); stdlib-only imports; no go-git/testify; no `go mod tidy`; no staging POLICY (CLI layer = P1.M7.T2). Mode A docs satisfied — both methods carry godoc citing PRD §22.3/§19, FR5/FR16/FR20, decisions.md §1.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Created internal/git/stage.go (HasStagedChanges/AddAll primitives over the shipped g.run seam with the CORRECTED exit-code semantics: exit 0→false/clean, exit 1→true/staged via errors.As, other→error) and internal/git/stage_test.go (white-box package git, stdlib testing only, 6 behavior-per-function tests composing the S2 harness against real git 2.54.0). All 5 validation gates pass: go build OK, go vet clean (after fixing a vet-flagged format-string bug), gofmt clean, go test ./internal/git/ PASS (6 new + existing S1/S2/T2/T3/log), go test ./... whole-module green. Scope honored: only 2 new files, no shipped file modified, go.mod/go.sum untouched, '// Package git' doc appears exactly once in git.go, stdlib-only imports (errors in stage.go; errors/os/path/filepath/strings/testing in test), no go-git/testify, no go mod tidy, no staging POLICY (CLI layer P1.M7.T2). Mode A godoc on both methods cites PRD §22.3/§19, FR5/FR16/FR20, decisions.md §1.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Created internal/git/stage.go (HasStagedChanges/AddAll primitives over the shipped g.run seam with the CORRECTED exit-code semantics: exit 0→false/clean, exit 1→true/staged via errors.As, other→error) and internal/git/stage_test.go (white-box package git, stdlib testing only, 6 behavior-per-function tests composing the S2 harness against real git 2.54.0). All 5 validation gates pass: go build OK, go vet clean (after fixing a vet-flagged format-string bug), gofmt clean, go test ./internal/git/ PASS (6 new + existing S1/S2/T2/T3/log), go test ./... whole-module green. Scope honored: only 2 new files, no shipped file modified, go.mod/go.sum untouched, '// Package git' doc appears exactly once in git.go, stdlib-only imports (errors in stage.go; errors/os/path/filepath/strings/testing in test), no go-git/testify, no go mod tidy, no staging POLICY (CLI layer P1.M7.T2). Mode A godoc on both methods cites PRD §22.3/§19, FR5/FR16/FR20, decisions.md §1."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T06:58:17.912Z"
+      },
+      "createdAt": "2026-07-02T06:58:17.912Z"
+    },
+    {
+      "id": "P1_M3_T4_S2_1782975498729_validation-gate-2_ecf57f83",
+      "taskId": "P1_M3_T4_S2",
+      "label": "After validation gate 2",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M3_T4_S2.md",
+        "stage": "validation-gate-2",
+        "coderResponse": "All checks pass. Implementation complete.\n\n## Summary\n\nI implemented **PRP P1.M3.T4.S2** by creating two new files in the existing `internal/git` package:\n\n**`internal/git/stage.go`** — two thin staging primitives over the shipped `(g *Git) run(args ...string)` seam:\n- `HasStagedChanges() (bool, error)` — runs `git diff --cached --quiet` with the **corrected, empirically-verified** exit-code semantics (exit 0→clean=`false`, exit 1→staged=`true` via `errors.As` into `*ExitError{Code==1}`, any other non-zero→error). No unborn-repo special-casing needed.\n- `AddAll() error` — runs `git add -A` (returns nil on success incl. nothing-to-stage, typed `*ExitError` on failure).\n- Plain `package git` line (git.go owns the `// Package git` doc); imports only stdlib `errors`.\n\n**`internal/git/stage_test.go`** — white-box `package git`, stdlib `testing` only, composing the S2 harness (`newTempRepo`/`seedCommits`/`writeFileStage`/`mustRun`), driving real git 2.54.0. Six behavior-per-function tests covering: clean index→false, staged file→true (on unborn repo), modified+staged tracked file→true, non-repo→typed `*ExitError` (no exit-code pinning), AddAll stages new+modified+deleted (A/M/D via `--name-status`), AddAll on clean repo→nil.\n\n**One issue caught & fixed during validation**: `go vet` flagged a `t.Errorf` call with an argument but no format directive — corrected to `t.Error`.\n\n**Validation gates (all pass):**\n| Gate | Result |\n|---|---|\n| L1 `go build ./internal/git/` | ✓ exit 0 |\n| L2 `go vet ./internal/git/` | ✓ clean |\n| L3 `gofmt -l internal/git/` | ✓ empty |\n| L4 `go test ./internal/git/` | ✓ PASS (6 new + all existing) |\n| L5 `go test ./...` | ✓ whole-module green; Makefile `test` green |\n\n**Scope boundaries respected**: only the 2 new files created; no shipped files modified; go.mod/go.sum untouched; `// Package git` appears exactly once (git.go); stdlib-only imports; no go-git/testify; no `go mod tidy`; no staging POLICY (CLI layer = P1.M7.T2). Mode A docs satisfied — both methods carry godoc citing PRD §22.3/§19, FR5/FR16/FR20, decisions.md §1.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Created internal/git/stage.go (HasStagedChanges/AddAll primitives over the shipped g.run seam with the CORRECTED exit-code semantics: exit 0→false/clean, exit 1→true/staged via errors.As, other→error) and internal/git/stage_test.go (white-box package git, stdlib testing only, 6 behavior-per-function tests composing the S2 harness against real git 2.54.0). All 5 validation gates pass: go build OK, go vet clean (after fixing a vet-flagged format-string bug), gofmt clean, go test ./internal/git/ PASS (6 new + existing S1/S2/T2/T3/log), go test ./... whole-module green. Scope honored: only 2 new files, no shipped file modified, go.mod/go.sum untouched, '// Package git' doc appears exactly once in git.go, stdlib-only imports (errors in stage.go; errors/os/path/filepath/strings/testing in test), no go-git/testify, no go mod tidy, no staging POLICY (CLI layer P1.M7.T2). Mode A godoc on both methods cites PRD §22.3/§19, FR5/FR16/FR20, decisions.md §1.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Created internal/git/stage.go (HasStagedChanges/AddAll primitives over the shipped g.run seam with the CORRECTED exit-code semantics: exit 0→false/clean, exit 1→true/staged via errors.As, other→error) and internal/git/stage_test.go (white-box package git, stdlib testing only, 6 behavior-per-function tests composing the S2 harness against real git 2.54.0). All 5 validation gates pass: go build OK, go vet clean (after fixing a vet-flagged format-string bug), gofmt clean, go test ./internal/git/ PASS (6 new + existing S1/S2/T2/T3/log), go test ./... whole-module green. Scope honored: only 2 new files, no shipped file modified, go.mod/go.sum untouched, '// Package git' doc appears exactly once in git.go, stdlib-only imports (errors in stage.go; errors/os/path/filepath/strings/testing in test), no go-git/testify, no go mod tidy, no staging POLICY (CLI layer P1.M7.T2). Mode A godoc on both methods cites PRD §22.3/§19, FR5/FR16/FR20, decisions.md §1."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/git/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/git/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/git/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/git/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/git\t0.539s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T06:58:18.729Z"
+      },
+      "createdAt": "2026-07-02T06:58:18.729Z"
+    },
+    {
+      "id": "P1_M3_T4_S2_1782975498730_complete_5ba1f572",
+      "taskId": "P1_M3_T4_S2",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M3_T4_S2.md",
+        "stage": "complete",
+        "coderResponse": "All checks pass. Implementation complete.\n\n## Summary\n\nI implemented **PRP P1.M3.T4.S2** by creating two new files in the existing `internal/git` package:\n\n**`internal/git/stage.go`** — two thin staging primitives over the shipped `(g *Git) run(args ...string)` seam:\n- `HasStagedChanges() (bool, error)` — runs `git diff --cached --quiet` with the **corrected, empirically-verified** exit-code semantics (exit 0→clean=`false`, exit 1→staged=`true` via `errors.As` into `*ExitError{Code==1}`, any other non-zero→error). No unborn-repo special-casing needed.\n- `AddAll() error` — runs `git add -A` (returns nil on success incl. nothing-to-stage, typed `*ExitError` on failure).\n- Plain `package git` line (git.go owns the `// Package git` doc); imports only stdlib `errors`.\n\n**`internal/git/stage_test.go`** — white-box `package git`, stdlib `testing` only, composing the S2 harness (`newTempRepo`/`seedCommits`/`writeFileStage`/`mustRun`), driving real git 2.54.0. Six behavior-per-function tests covering: clean index→false, staged file→true (on unborn repo), modified+staged tracked file→true, non-repo→typed `*ExitError` (no exit-code pinning), AddAll stages new+modified+deleted (A/M/D via `--name-status`), AddAll on clean repo→nil.\n\n**One issue caught & fixed during validation**: `go vet` flagged a `t.Errorf` call with an argument but no format directive — corrected to `t.Error`.\n\n**Validation gates (all pass):**\n| Gate | Result |\n|---|---|\n| L1 `go build ./internal/git/` | ✓ exit 0 |\n| L2 `go vet ./internal/git/` | ✓ clean |\n| L3 `gofmt -l internal/git/` | ✓ empty |\n| L4 `go test ./internal/git/` | ✓ PASS (6 new + all existing) |\n| L5 `go test ./...` | ✓ whole-module green; Makefile `test` green |\n\n**Scope boundaries respected**: only the 2 new files created; no shipped files modified; go.mod/go.sum untouched; `// Package git` appears exactly once (git.go); stdlib-only imports; no go-git/testify; no `go mod tidy`; no staging POLICY (CLI layer = P1.M7.T2). Mode A docs satisfied — both methods carry godoc citing PRD §22.3/§19, FR5/FR16/FR20, decisions.md §1.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Created internal/git/stage.go (HasStagedChanges/AddAll primitives over the shipped g.run seam with the CORRECTED exit-code semantics: exit 0→false/clean, exit 1→true/staged via errors.As, other→error) and internal/git/stage_test.go (white-box package git, stdlib testing only, 6 behavior-per-function tests composing the S2 harness against real git 2.54.0). All 5 validation gates pass: go build OK, go vet clean (after fixing a vet-flagged format-string bug), gofmt clean, go test ./internal/git/ PASS (6 new + existing S1/S2/T2/T3/log), go test ./... whole-module green. Scope honored: only 2 new files, no shipped file modified, go.mod/go.sum untouched, '// Package git' doc appears exactly once in git.go, stdlib-only imports (errors in stage.go; errors/os/path/filepath/strings/testing in test), no go-git/testify, no go mod tidy, no staging POLICY (CLI layer P1.M7.T2). Mode A godoc on both methods cites PRD §22.3/§19, FR5/FR16/FR20, decisions.md §1.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Created internal/git/stage.go (HasStagedChanges/AddAll primitives over the shipped g.run seam with the CORRECTED exit-code semantics: exit 0→false/clean, exit 1→true/staged via errors.As, other→error) and internal/git/stage_test.go (white-box package git, stdlib testing only, 6 behavior-per-function tests composing the S2 harness against real git 2.54.0). All 5 validation gates pass: go build OK, go vet clean (after fixing a vet-flagged format-string bug), gofmt clean, go test ./internal/git/ PASS (6 new + existing S1/S2/T2/T3/log), go test ./... whole-module green. Scope honored: only 2 new files, no shipped file modified, go.mod/go.sum untouched, '// Package git' doc appears exactly once in git.go, stdlib-only imports (errors in stage.go; errors/os/path/filepath/strings/testing in test), no go-git/testify, no go mod tidy, no staging POLICY (CLI layer P1.M7.T2). Mode A godoc on both methods cites PRD §22.3/§19, FR5/FR16/FR20, decisions.md §1."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/git/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/git/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/git/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/git/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/git\t0.539s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T06:58:18.730Z"
+      },
+      "createdAt": "2026-07-02T06:58:18.730Z"
+    }
+  ],
+  "lastModified": "2026-07-02T06:58:18.730Z"
+}
