@@ -488,7 +488,7 @@
                   "id": "P1.M6.T3.S2",
                   "type": "Subtask",
                   "title": "internal/generate/integration_test.go — end-to-end flow (temp-repo + stub)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M6.T1.S1",
@@ -500,7 +500,7 @@
                   "id": "P1.M6.T3.S3",
                   "type": "Subtask",
                   "title": "internal/generate/invariants_test.go — safety property tests (§18.1)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M6.T3.S2"
@@ -529,7 +529,7 @@
                   "id": "P1.M7.T1.S1",
                   "type": "Subtask",
                   "title": "pkg/stagehand/stagehand.go — GenerateCommit(ctx, opts) (Result, error)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M6.T1.S1"
@@ -549,7 +549,7 @@
                   "id": "P1.M7.T2.S1",
                   "type": "Subtask",
                   "title": "cmd/stagehand — cobra root + global flags + default Run + exit codes",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M7.T1.S1",
@@ -564,7 +564,7 @@
                   "id": "P1.M7.T2.S2",
                   "type": "Subtask",
                   "title": "maybeAutoStage — auto-stage-all & nothing-staged CLI path",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M7.T2.S1",
@@ -585,7 +585,7 @@
                   "id": "P1.M7.T3.S1",
                   "type": "Subtask",
                   "title": "providers list / show subcommands (FR46-FR48)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T3.S2",

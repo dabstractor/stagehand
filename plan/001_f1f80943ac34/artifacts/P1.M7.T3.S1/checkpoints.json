@@ -1,0 +1,191 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1.M7.T3.S1_1782990430371_pre-execution_657ddb7f",
+      "taskId": "P1.M7.T3.S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M7_T3_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T11:07:10.371Z"
+      },
+      "createdAt": "2026-07-02T11:07:10.371Z"
+    },
+    {
+      "id": "P1.M7.T3.S1_1782990791999_coder-response_7ecf9c4d",
+      "taskId": "P1.M7.T3.S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M7_T3_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "All deliverables complete and every validation gate passes. Here's the summary.\n\n## Result\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented P1.M7.T3.S1 — the `stagehand providers` command tree (FR46–FR48, US10). Three files added, zero edits to existing code:\\n\\n**1. cmd/stagehand/providers.go** (package main)\\n- `newProvidersCmd()` builds the `providers` parent with `list` + `show` children.\\n- Self-registers via `init() { rootCmd.AddCommand(...) }` → main.go untouched (verified: 0 matches for providers/AddCommand/init), so no conflict with sibling P1.M7.T2.S1.\\n- `providers list` (FR46, cobra.NoArgs): resolves cfg+reg via `config.Load(config.Flags{}, \\\"\\\")`, detects via `reg.Detect()`, auto-resolves the default (cfg.Provider or first detected in sorted List() order; model cfg.Model or manifest DefaultModel), renders via the pure `renderProvidersList`.\\n- `providers show <name>` (FR47, cobra.ExactArgs(1)): looks up the fully-resolved manifest via `reg.Get` and encodes it as TOML with `toml.NewEncoder`. Unknown name → `fmt.Errorf(\\\"unknown provider %q: ...\\\")` → exit 1.\\n- Imports ONLY fmt/io, cobra, go-toml/v2, internal/{config,provider} — NO internal/git, NO internal/generate (verified).\\n\\n**2. cmd/stagehand/providers_test.go** (package main, white-box, no testify)\\n- `manifestEqual` helper normalizes nil-vs-empty for Subcommand/BareFlags/Env (go-toml/v2 encodes nil slices/maps as `[]`/`{}` → non-nil empty on decode) then reflect.DeepEqual.\\n- 7 tests, all passing: TestProvidersList_DetectedAndDefault (MOCKING: 6 builtins + fabricated `not detected` + default line), TestProvidersList_DefaultMarkerOnDefault, TestProvidersList_NoneDetected, TestProvidersShow_RoundTripsToSameManifest (all six builtins round-trip), TestProvidersShow_OverrideReflected (override + surviving built-in bare_flags), TestProvidersShow_UnknownErrors (mentions 'unknown provider'), TestProvidersCmd_Registered (tree wired onto rootCmd).\\n\\n**3. docs/PROVIDERS.md** (Mode A reference surface): documents list/show output formats, a worked `show pi` TOML example, the FR48 field-merge note, the six built-in providers, and cross-links CONFIGURATION.md.\\n\\n**Validation gates — all green:** L1 gofmt clean, L2 go vet clean, L3 go build clean, L4 `go test ./cmd/stagehand/ -run TestProviders -v` 7/7 PASS, L5 `go test ./...` all packages green, L6 `go run ./cmd/stagehand providers show pi` prints valid TOML exit 0. End-to-end override via a repo-local `.stagehand.toml` confirmed: `default_model` overridden while `bare_flags` survived the field-merge (FR48).\"\n}\n```\n\n**Note on scope (not an issue):** The `STAGEHAND_PROVIDER`/`STAGEHAND_MODEL`/`STAGEHAND_CONFIG` environment-variable layer is intentionally **not** wired by this task — per the PRP, it passes `config.Flags{}` (file/git-config precedence only) and the env+flag layers belong to the sibling task P1.M7.T2.S1. The unit test proves the registry-level field-merge, and an end-to-end run via a repo-local `.stagehand.toml` (which IS in today's precedence chain) confirmed the override is reflected through the real `config.Load` → `show`/`list` path.",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented P1.M7.T3.S1 — the `stagehand providers` command tree (FR46–FR48, US10). Three files added, zero edits to existing code:\n\n**1. cmd/stagehand/providers.go** (package main)\n- `newProvidersCmd()` builds the `providers` parent with `list` + `show` children.\n- Self-registers via `init() { rootCmd.AddCommand(...) }` → main.go untouched (verified: 0 matches for providers/AddCommand/init), so no conflict with sibling P1.M7.T2.S1.\n- `providers list` (FR46, cobra.NoArgs): resolves cfg+reg via `config.Load(config.Flags{}, \"\")`, detects via `reg.Detect()`, auto-resolves the default (cfg.Provider or first detected in sorted List() order; model cfg.Model or manifest DefaultModel), renders via the pure `renderProvidersList`.\n- `providers show <name>` (FR47, cobra.ExactArgs(1)): looks up the fully-resolved manifest via `reg.Get` and encodes it as TOML with `toml.NewEncoder`. Unknown name → `fmt.Errorf(\"unknown provider %q: ...\")` → exit 1.\n- Imports ONLY fmt/io, cobra, go-toml/v2, internal/{config,provider} — NO internal/git, NO internal/generate (verified).\n\n**2. cmd/stagehand/providers_test.go** (package main, white-box, no testify)\n- `manifestEqual` helper normalizes nil-vs-empty for Subcommand/BareFlags/Env (go-toml/v2 encodes nil slices/maps as `[]`/`{}` → non-nil empty on decode) then reflect.DeepEqual.\n- 7 tests, all passing: TestProvidersList_DetectedAndDefault (MOCKING: 6 builtins + fabricated `not detected` + default line), TestProvidersList_DefaultMarkerOnDefault, TestProvidersList_NoneDetected, TestProvidersShow_RoundTripsToSameManifest (all six builtins round-trip), TestProvidersShow_OverrideReflected (override + surviving built-in bare_flags), TestProvidersShow_UnknownErrors (mentions 'unknown provider'), TestProvidersCmd_Registered (tree wired onto rootCmd).\n\n**3. docs/PROVIDERS.md** (Mode A reference surface): documents list/show output formats, a worked `show pi` TOML example, the FR48 field-merge note, the six built-in providers, and cross-links CONFIGURATION.md.\n\n**Validation gates — all green:** L1 gofmt clean, L2 go vet clean, L3 go build clean, L4 `go test ./cmd/stagehand/ -run TestProviders -v` 7/7 PASS, L5 `go test ./...` all packages green, L6 `go run ./cmd/stagehand providers show pi` prints valid TOML exit 0. End-to-end override via a repo-local `.stagehand.toml` confirmed: `default_model` overridden while `bare_flags` survived the field-merge (FR48)."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T11:13:11.999Z"
+      },
+      "createdAt": "2026-07-02T11:13:12.000Z"
+    },
+    {
+      "id": "P1.M7.T3.S1_1782990792448_validation-gate-1_a1000d10",
+      "taskId": "P1.M7.T3.S1",
+      "label": "After validation gate 1",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M7_T3_S1.md",
+        "stage": "validation-gate-1",
+        "coderResponse": "All deliverables complete and every validation gate passes. Here's the summary.\n\n## Result\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented P1.M7.T3.S1 — the `stagehand providers` command tree (FR46–FR48, US10). Three files added, zero edits to existing code:\\n\\n**1. cmd/stagehand/providers.go** (package main)\\n- `newProvidersCmd()` builds the `providers` parent with `list` + `show` children.\\n- Self-registers via `init() { rootCmd.AddCommand(...) }` → main.go untouched (verified: 0 matches for providers/AddCommand/init), so no conflict with sibling P1.M7.T2.S1.\\n- `providers list` (FR46, cobra.NoArgs): resolves cfg+reg via `config.Load(config.Flags{}, \\\"\\\")`, detects via `reg.Detect()`, auto-resolves the default (cfg.Provider or first detected in sorted List() order; model cfg.Model or manifest DefaultModel), renders via the pure `renderProvidersList`.\\n- `providers show <name>` (FR47, cobra.ExactArgs(1)): looks up the fully-resolved manifest via `reg.Get` and encodes it as TOML with `toml.NewEncoder`. Unknown name → `fmt.Errorf(\\\"unknown provider %q: ...\\\")` → exit 1.\\n- Imports ONLY fmt/io, cobra, go-toml/v2, internal/{config,provider} — NO internal/git, NO internal/generate (verified).\\n\\n**2. cmd/stagehand/providers_test.go** (package main, white-box, no testify)\\n- `manifestEqual` helper normalizes nil-vs-empty for Subcommand/BareFlags/Env (go-toml/v2 encodes nil slices/maps as `[]`/`{}` → non-nil empty on decode) then reflect.DeepEqual.\\n- 7 tests, all passing: TestProvidersList_DetectedAndDefault (MOCKING: 6 builtins + fabricated `not detected` + default line), TestProvidersList_DefaultMarkerOnDefault, TestProvidersList_NoneDetected, TestProvidersShow_RoundTripsToSameManifest (all six builtins round-trip), TestProvidersShow_OverrideReflected (override + surviving built-in bare_flags), TestProvidersShow_UnknownErrors (mentions 'unknown provider'), TestProvidersCmd_Registered (tree wired onto rootCmd).\\n\\n**3. docs/PROVIDERS.md** (Mode A reference surface): documents list/show output formats, a worked `show pi` TOML example, the FR48 field-merge note, the six built-in providers, and cross-links CONFIGURATION.md.\\n\\n**Validation gates — all green:** L1 gofmt clean, L2 go vet clean, L3 go build clean, L4 `go test ./cmd/stagehand/ -run TestProviders -v` 7/7 PASS, L5 `go test ./...` all packages green, L6 `go run ./cmd/stagehand providers show pi` prints valid TOML exit 0. End-to-end override via a repo-local `.stagehand.toml` confirmed: `default_model` overridden while `bare_flags` survived the field-merge (FR48).\"\n}\n```\n\n**Note on scope (not an issue):** The `STAGEHAND_PROVIDER`/`STAGEHAND_MODEL`/`STAGEHAND_CONFIG` environment-variable layer is intentionally **not** wired by this task — per the PRP, it passes `config.Flags{}` (file/git-config precedence only) and the env+flag layers belong to the sibling task P1.M7.T2.S1. The unit test proves the registry-level field-merge, and an end-to-end run via a repo-local `.stagehand.toml` (which IS in today's precedence chain) confirmed the override is reflected through the real `config.Load` → `show`/`list` path.",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented P1.M7.T3.S1 — the `stagehand providers` command tree (FR46–FR48, US10). Three files added, zero edits to existing code:\n\n**1. cmd/stagehand/providers.go** (package main)\n- `newProvidersCmd()` builds the `providers` parent with `list` + `show` children.\n- Self-registers via `init() { rootCmd.AddCommand(...) }` → main.go untouched (verified: 0 matches for providers/AddCommand/init), so no conflict with sibling P1.M7.T2.S1.\n- `providers list` (FR46, cobra.NoArgs): resolves cfg+reg via `config.Load(config.Flags{}, \"\")`, detects via `reg.Detect()`, auto-resolves the default (cfg.Provider or first detected in sorted List() order; model cfg.Model or manifest DefaultModel), renders via the pure `renderProvidersList`.\n- `providers show <name>` (FR47, cobra.ExactArgs(1)): looks up the fully-resolved manifest via `reg.Get` and encodes it as TOML with `toml.NewEncoder`. Unknown name → `fmt.Errorf(\"unknown provider %q: ...\")` → exit 1.\n- Imports ONLY fmt/io, cobra, go-toml/v2, internal/{config,provider} — NO internal/git, NO internal/generate (verified).\n\n**2. cmd/stagehand/providers_test.go** (package main, white-box, no testify)\n- `manifestEqual` helper normalizes nil-vs-empty for Subcommand/BareFlags/Env (go-toml/v2 encodes nil slices/maps as `[]`/`{}` → non-nil empty on decode) then reflect.DeepEqual.\n- 7 tests, all passing: TestProvidersList_DetectedAndDefault (MOCKING: 6 builtins + fabricated `not detected` + default line), TestProvidersList_DefaultMarkerOnDefault, TestProvidersList_NoneDetected, TestProvidersShow_RoundTripsToSameManifest (all six builtins round-trip), TestProvidersShow_OverrideReflected (override + surviving built-in bare_flags), TestProvidersShow_UnknownErrors (mentions 'unknown provider'), TestProvidersCmd_Registered (tree wired onto rootCmd).\n\n**3. docs/PROVIDERS.md** (Mode A reference surface): documents list/show output formats, a worked `show pi` TOML example, the FR48 field-merge note, the six built-in providers, and cross-links CONFIGURATION.md.\n\n**Validation gates — all green:** L1 gofmt clean, L2 go vet clean, L3 go build clean, L4 `go test ./cmd/stagehand/ -run TestProviders -v` 7/7 PASS, L5 `go test ./...` all packages green, L6 `go run ./cmd/stagehand providers show pi` prints valid TOML exit 0. End-to-end override via a repo-local `.stagehand.toml` confirmed: `default_model` overridden while `bare_flags` survived the field-merge (FR48)."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "gofmt -l cmd/stagehand/providers.go cmd/stagehand/providers_test.go",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./cmd/stagehand/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./cmd/stagehand/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/ -run TestProviders -v",
+            "stdout": "=== RUN   TestProvidersList_DetectedAndDefault\n--- PASS: TestProvidersList_DetectedAndDefault (0.00s)\n=== RUN   TestProvidersList_DefaultMarkerOnDefault\n--- PASS: TestProvidersList_DefaultMarkerOnDefault (0.00s)\n=== RUN   TestProvidersList_NoneDetected\n--- PASS: TestProvidersList_NoneDetected (0.00s)\n=== RUN   TestProvidersShow_RoundTripsToSameManifest\n--- PASS: TestProvidersShow_RoundTripsToSameManifest (0.00s)\n=== RUN   TestProvidersShow_OverrideReflected\n--- PASS: TestProvidersShow_OverrideReflected (0.00s)\n=== RUN   TestProvidersShow_UnknownErrors\n--- PASS: TestProvidersShow_UnknownErrors (0.00s)\n=== RUN   TestProvidersCmd_Registered\n--- PASS: TestProvidersCmd_Registered (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go run ./cmd/stagehand providers show pi",
+            "stdout": "name = 'pi'\ndetect = 'pi'\ncommand = 'pi'\nsubcommand = []\nprompt_delivery = 'stdin'\nprompt_flag = ''\nprint_flag = '-p'\nmodel_flag = '--model'\ndefault_model = 'glm-5-turbo'\nsystem_prompt_flag = '--system-prompt'\nprovider_flag = '--provider'\ndefault_provider = ''\nbare_flags = ['--no-tools', '--no-extensions', '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-session']\noutput = 'raw'\njson_field = ''\nstrip_code_fence = true\nretry_instruction = 'Output ONLY the commit message. No preamble, no markdown, no quotes.'\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T11:13:12.448Z"
+      },
+      "createdAt": "2026-07-02T11:13:12.448Z"
+    },
+    {
+      "id": "P1.M7.T3.S1_1782990792451_complete_253370e3",
+      "taskId": "P1.M7.T3.S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M7_T3_S1.md",
+        "stage": "complete",
+        "coderResponse": "All deliverables complete and every validation gate passes. Here's the summary.\n\n## Result\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented P1.M7.T3.S1 — the `stagehand providers` command tree (FR46–FR48, US10). Three files added, zero edits to existing code:\\n\\n**1. cmd/stagehand/providers.go** (package main)\\n- `newProvidersCmd()` builds the `providers` parent with `list` + `show` children.\\n- Self-registers via `init() { rootCmd.AddCommand(...) }` → main.go untouched (verified: 0 matches for providers/AddCommand/init), so no conflict with sibling P1.M7.T2.S1.\\n- `providers list` (FR46, cobra.NoArgs): resolves cfg+reg via `config.Load(config.Flags{}, \\\"\\\")`, detects via `reg.Detect()`, auto-resolves the default (cfg.Provider or first detected in sorted List() order; model cfg.Model or manifest DefaultModel), renders via the pure `renderProvidersList`.\\n- `providers show <name>` (FR47, cobra.ExactArgs(1)): looks up the fully-resolved manifest via `reg.Get` and encodes it as TOML with `toml.NewEncoder`. Unknown name → `fmt.Errorf(\\\"unknown provider %q: ...\\\")` → exit 1.\\n- Imports ONLY fmt/io, cobra, go-toml/v2, internal/{config,provider} — NO internal/git, NO internal/generate (verified).\\n\\n**2. cmd/stagehand/providers_test.go** (package main, white-box, no testify)\\n- `manifestEqual` helper normalizes nil-vs-empty for Subcommand/BareFlags/Env (go-toml/v2 encodes nil slices/maps as `[]`/`{}` → non-nil empty on decode) then reflect.DeepEqual.\\n- 7 tests, all passing: TestProvidersList_DetectedAndDefault (MOCKING: 6 builtins + fabricated `not detected` + default line), TestProvidersList_DefaultMarkerOnDefault, TestProvidersList_NoneDetected, TestProvidersShow_RoundTripsToSameManifest (all six builtins round-trip), TestProvidersShow_OverrideReflected (override + surviving built-in bare_flags), TestProvidersShow_UnknownErrors (mentions 'unknown provider'), TestProvidersCmd_Registered (tree wired onto rootCmd).\\n\\n**3. docs/PROVIDERS.md** (Mode A reference surface): documents list/show output formats, a worked `show pi` TOML example, the FR48 field-merge note, the six built-in providers, and cross-links CONFIGURATION.md.\\n\\n**Validation gates — all green:** L1 gofmt clean, L2 go vet clean, L3 go build clean, L4 `go test ./cmd/stagehand/ -run TestProviders -v` 7/7 PASS, L5 `go test ./...` all packages green, L6 `go run ./cmd/stagehand providers show pi` prints valid TOML exit 0. End-to-end override via a repo-local `.stagehand.toml` confirmed: `default_model` overridden while `bare_flags` survived the field-merge (FR48).\"\n}\n```\n\n**Note on scope (not an issue):** The `STAGEHAND_PROVIDER`/`STAGEHAND_MODEL`/`STAGEHAND_CONFIG` environment-variable layer is intentionally **not** wired by this task — per the PRP, it passes `config.Flags{}` (file/git-config precedence only) and the env+flag layers belong to the sibling task P1.M7.T2.S1. The unit test proves the registry-level field-merge, and an end-to-end run via a repo-local `.stagehand.toml` (which IS in today's precedence chain) confirmed the override is reflected through the real `config.Load` → `show`/`list` path.",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented P1.M7.T3.S1 — the `stagehand providers` command tree (FR46–FR48, US10). Three files added, zero edits to existing code:\n\n**1. cmd/stagehand/providers.go** (package main)\n- `newProvidersCmd()` builds the `providers` parent with `list` + `show` children.\n- Self-registers via `init() { rootCmd.AddCommand(...) }` → main.go untouched (verified: 0 matches for providers/AddCommand/init), so no conflict with sibling P1.M7.T2.S1.\n- `providers list` (FR46, cobra.NoArgs): resolves cfg+reg via `config.Load(config.Flags{}, \"\")`, detects via `reg.Detect()`, auto-resolves the default (cfg.Provider or first detected in sorted List() order; model cfg.Model or manifest DefaultModel), renders via the pure `renderProvidersList`.\n- `providers show <name>` (FR47, cobra.ExactArgs(1)): looks up the fully-resolved manifest via `reg.Get` and encodes it as TOML with `toml.NewEncoder`. Unknown name → `fmt.Errorf(\"unknown provider %q: ...\")` → exit 1.\n- Imports ONLY fmt/io, cobra, go-toml/v2, internal/{config,provider} — NO internal/git, NO internal/generate (verified).\n\n**2. cmd/stagehand/providers_test.go** (package main, white-box, no testify)\n- `manifestEqual` helper normalizes nil-vs-empty for Subcommand/BareFlags/Env (go-toml/v2 encodes nil slices/maps as `[]`/`{}` → non-nil empty on decode) then reflect.DeepEqual.\n- 7 tests, all passing: TestProvidersList_DetectedAndDefault (MOCKING: 6 builtins + fabricated `not detected` + default line), TestProvidersList_DefaultMarkerOnDefault, TestProvidersList_NoneDetected, TestProvidersShow_RoundTripsToSameManifest (all six builtins round-trip), TestProvidersShow_OverrideReflected (override + surviving built-in bare_flags), TestProvidersShow_UnknownErrors (mentions 'unknown provider'), TestProvidersCmd_Registered (tree wired onto rootCmd).\n\n**3. docs/PROVIDERS.md** (Mode A reference surface): documents list/show output formats, a worked `show pi` TOML example, the FR48 field-merge note, the six built-in providers, and cross-links CONFIGURATION.md.\n\n**Validation gates — all green:** L1 gofmt clean, L2 go vet clean, L3 go build clean, L4 `go test ./cmd/stagehand/ -run TestProviders -v` 7/7 PASS, L5 `go test ./...` all packages green, L6 `go run ./cmd/stagehand providers show pi` prints valid TOML exit 0. End-to-end override via a repo-local `.stagehand.toml` confirmed: `default_model` overridden while `bare_flags` survived the field-merge (FR48)."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "gofmt -l cmd/stagehand/providers.go cmd/stagehand/providers_test.go",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./cmd/stagehand/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./cmd/stagehand/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/ -run TestProviders -v",
+            "stdout": "=== RUN   TestProvidersList_DetectedAndDefault\n--- PASS: TestProvidersList_DetectedAndDefault (0.00s)\n=== RUN   TestProvidersList_DefaultMarkerOnDefault\n--- PASS: TestProvidersList_DefaultMarkerOnDefault (0.00s)\n=== RUN   TestProvidersList_NoneDetected\n--- PASS: TestProvidersList_NoneDetected (0.00s)\n=== RUN   TestProvidersShow_RoundTripsToSameManifest\n--- PASS: TestProvidersShow_RoundTripsToSameManifest (0.00s)\n=== RUN   TestProvidersShow_OverrideReflected\n--- PASS: TestProvidersShow_OverrideReflected (0.00s)\n=== RUN   TestProvidersShow_UnknownErrors\n--- PASS: TestProvidersShow_UnknownErrors (0.00s)\n=== RUN   TestProvidersCmd_Registered\n--- PASS: TestProvidersCmd_Registered (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go run ./cmd/stagehand providers show pi",
+            "stdout": "name = 'pi'\ndetect = 'pi'\ncommand = 'pi'\nsubcommand = []\nprompt_delivery = 'stdin'\nprompt_flag = ''\nprint_flag = '-p'\nmodel_flag = '--model'\ndefault_model = 'glm-5-turbo'\nsystem_prompt_flag = '--system-prompt'\nprovider_flag = '--provider'\ndefault_provider = ''\nbare_flags = ['--no-tools', '--no-extensions', '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-session']\noutput = 'raw'\njson_field = ''\nstrip_code_fence = true\nretry_instruction = 'Output ONLY the commit message. No preamble, no markdown, no quotes.'\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T11:13:12.451Z"
+      },
+      "createdAt": "2026-07-02T11:13:12.451Z"
+    }
+  ],
+  "lastModified": "2026-07-02T11:13:12.451Z"
+}
