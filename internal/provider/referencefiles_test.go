@@ -10,7 +10,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// providerFiles — the 7 shipped reference manifests (PRD §14 + §12.5.1), each decode-parity-checked against its
+// providerFiles — the 8 shipped reference manifests (PRD §14 + §12.5.1 + §12.5.2), each decode-parity-checked against its
 // compiled-in built-in. repoPath is relative to the repo root (providers/<name>.toml).
 var providerFiles = []struct {
 	name     string
@@ -23,6 +23,7 @@ var providerFiles = []struct {
 	{"codex", "providers/codex.toml"},
 	{"cursor", "providers/cursor.toml"},
 	{"agy", "providers/agy.toml"},
+	{"qwen-code", "providers/qwen-code.toml"},
 }
 
 // repoRoot returns the repository root directory (two levels up from this file:

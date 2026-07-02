@@ -13,7 +13,7 @@ import (
 // pi first. DefaultProvider returns the first name in this list that the caller reports installed.
 // It MUST stay in sync with BuiltinManifests() keys — a test (TestPreferredBuiltins_MatchesBuiltinKeys)
 // enforces this. Only built-in names are candidates; user-defined §12.8 providers are never auto-selected.
-var preferredBuiltins = []string{"pi", "opencode", "cursor", "agy", "gemini", "codex", "claude"}
+var preferredBuiltins = []string{"pi", "opencode", "cursor", "agy", "gemini", "qwen-code", "codex", "claude"}
 
 // Registry holds the fully-merged provider manifests: the built-in defaults (BuiltinManifests, P1.M2.T2)
 // overlaid field-by-field with user overrides via MergeManifest (S2) per PRD §16.1/§12.8. Brand-new §12.8
@@ -33,7 +33,7 @@ type Registry struct {
 // Name (the [provider.<name>] body carries no "name" key). userOverrides are EXPECTED to be decoded
 // Manifests — use DecodeUserOverrides to bridge from config.Providers (raw map). No Validate/Resolve.
 func NewRegistry(userOverrides map[string]Manifest) *Registry {
-	manifests := make(map[string]Manifest, len(userOverrides)+7) // built-ins + overrides headroom
+	manifests := make(map[string]Manifest, len(userOverrides)+8) // built-ins + overrides headroom
 	// Seed with a FRESH copy of the built-ins (BuiltinManifests constructs fresh each call; copying
 	// localizes the no-shared-mutation guarantee).
 	for name, m := range BuiltinManifests() {

@@ -126,6 +126,25 @@ strip_code_fence = true
 // cursorTOML — PRD §12.7 cursor VERBATIM (no revision). Decoding it must match builtinCursor().
 // Note: detect/command = "agent" (≠ name "cursor"); subcommand = [] decodes to a NON-NIL empty slice
 // (FINDING D) — builtinCursor sets Subcommand: []string{}.
+
+// qwenCodeTOML — PRD §12.5.2 (experimental=true, # TO CONFIRM FR-D5). Decoding it must match builtinQwenCode().
+const qwenCodeTOML = `name = "qwen-code"
+detect = "qwen-code"
+command = "qwen-code"
+prompt_delivery = "stdin"
+print_flag = "-p"
+model_flag = "-m"
+default_model = "qwen3-coder-plus"
+system_prompt_flag = ""
+provider_flag = ""
+bare_flags = [
+  "--approval-mode", "default",
+]
+output = "raw"
+strip_code_fence = true
+experimental = true
+`
+
 const agyTOML = `name = "agy"
 detect = "agy"
 command = "agy"
@@ -193,10 +212,10 @@ func renderArgs(m Manifest, provider, model, sys string) []string {
 
 func TestBuiltinManifests_KeysAndCount(t *testing.T) {
 	m := BuiltinManifests()
-	if len(m) != 7 {
-		t.Fatalf("BuiltinManifests() returned %d keys, want 7", len(m))
+	if len(m) != 8 {
+		t.Fatalf("BuiltinManifests() returned %d keys, want 8", len(m))
 	}
-	for _, k := range []string{"pi", "claude", "gemini", "opencode", "codex", "cursor", "agy"} {
+	for _, k := range []string{"pi", "claude", "gemini", "opencode", "codex", "cursor", "agy", "qwen-code"} {
 		if _, ok := m[k]; !ok {
 			t.Errorf("missing key %q", k)
 		}
@@ -352,11 +371,12 @@ func TestBuiltinManifests_DecodeParity(t *testing.T) {
 	}{
 		{"pi", builtinPi(), piTOML},
 		{"claude", builtinClaude(), claudeTOML},
-		{"gemini", builtinGemini(), geminiTOML},       // geminiTOML = §12.5 with stdin revision
-		{"opencode", builtinOpenCode(), opencodeTOML}, // opencodeTOML = verbatim §12.6
-		{"codex", builtinCodex(), codexTOML},          // codexTOML = §12.7 codex with BOTH revisions
-		{"cursor", builtinCursor(), cursorTOML},       // cursorTOML = verbatim §12.7 cursor
-		{"agy", builtinAgy(), agyTOML},                // agyTOML = §12.5.1 (experimental=true)
+		{"gemini", builtinGemini(), geminiTOML},        // geminiTOML = §12.5 with stdin revision
+		{"opencode", builtinOpenCode(), opencodeTOML},  // opencodeTOML = verbatim §12.6
+		{"codex", builtinCodex(), codexTOML},           // codexTOML = §12.7 codex with BOTH revisions
+		{"cursor", builtinCursor(), cursorTOML},        // cursorTOML = verbatim §12.7 cursor
+		{"agy", builtinAgy(), agyTOML},                 // agyTOML = §12.5.1 (experimental=true)
+		{"qwen-code", builtinQwenCode(), qwenCodeTOML}, // qwenCodeTOML = §12.5.2 (experimental=true)
 	} {
 		var decoded Manifest
 		if err := toml.Unmarshal([]byte(tc.toml), &decoded); err != nil {
@@ -713,6 +733,63 @@ func TestBuiltinManifests_RenderedCommand_Agy(t *testing.T) {
 	}
 	if !reflect.DeepEqual(argv, want) {
 		t.Errorf("agy rendered argv:\n got %v\nwant %v", argv, want)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Test: QwenCodeFields — every qwen-code field asserted (experimental=true, nil tooled_flags)
+// ---------------------------------------------------------------------------
+
+func TestBuiltinManifests_QwenCodeFields(t *testing.T) {
+	m := builtinQwenCode()
+	assertStr(t, "Detect", m.Detect, "qwen-code")
+	assertStr(t, "Command", m.Command, "qwen-code")
+	assertStr(t, "PromptDelivery", m.PromptDelivery, "stdin")
+	assertStr(t, "PrintFlag", m.PrintFlag, "-p")
+	assertStr(t, "ModelFlag", m.ModelFlag, "-m")
+	assertStr(t, "DefaultModel", m.DefaultModel, "qwen3-coder-plus") // # TO CONFIRM FR-D5
+	assertStr(t, "SystemPromptFlag", m.SystemPromptFlag, "")         // NON-NIL explicit empty (prepend)
+	assertStr(t, "ProviderFlag", m.ProviderFlag, "")                 // NON-NIL explicit empty (single-backend)
+	wantBare := []string{"--approval-mode", "default"}
+	if !reflect.DeepEqual(m.BareFlags, wantBare) {
+		t.Errorf("BareFlags = %v, want %v", m.BareFlags, wantBare)
+	}
+	assertStr(t, "Output", m.Output, "raw")
+	if m.StripCodeFence == nil || *m.StripCodeFence != true {
+		t.Errorf("StripCodeFence = %v, want non-nil true", m.StripCodeFence)
+	}
+	if m.Experimental == nil || *m.Experimental != true {
+		t.Errorf("Experimental = %v, want non-nil true (§12.5.2 ships experimental)", m.Experimental)
+	}
+	if m.TooledFlags != nil {
+		t.Errorf("TooledFlags = %v, want nil (cannot stager until verified)", m.TooledFlags)
+	}
+	if m.Subcommand != nil {
+		t.Errorf("Subcommand = %v, want nil", m.Subcommand)
+	}
+	assertNilStr(t, "PromptFlag", m.PromptFlag)
+	assertNilStr(t, "JsonField", m.JsonField)
+	assertNilStr(t, "RetryInstruction", m.RetryInstruction)
+	if m.Env != nil {
+		t.Errorf("Env = %v, want nil", m.Env)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Test: RenderedCommand_QwenCode — stdin delivery: argv has NO payload (piped);
+//       sys prepended to stdin payload; print_flag "-p" last.
+// ---------------------------------------------------------------------------
+
+func TestBuiltinManifests_RenderedCommand_QwenCode(t *testing.T) {
+	argv := renderArgs(builtinQwenCode(), "", "", "<sys>") // model="" → default qwen3-coder-plus
+	want := []string{
+		"qwen-code", "-m", "qwen3-coder-plus",
+		"--approval-mode", "default",
+		"-p", // print_flag LAST per §12.2
+		// stdin delivery: "<sys>\n\n<user payload>" piped to stdin (NOT in argv). No sys/provider flag.
+	}
+	if !reflect.DeepEqual(argv, want) {
+		t.Errorf("qwen-code rendered argv:\n got %v\nwant %v", argv, want)
 	}
 }
 

@@ -168,28 +168,28 @@
       "type": "Phase",
       "id": "P2",
       "title": "qwen-code provider + model-token refresh",
-      "status": "Planned",
+      "status": "Ready",
       "description": "Add the qwen-code built-in (single-backend Gemini-CLI fork for Qwen3-Coder, experimental), insert it into the cascading provider priority, and refresh the per-provider default model tokens to current per FR-D5. Depends on P1 (uses the v3 manifest schema: no DefaultProvider, has ReasoningLevels). Grounded in system_context.md §4.",
       "milestones": [
         {
           "type": "Milestone",
           "id": "P2.M1",
           "title": "qwen-code built-in + tier table + model-token refresh",
-          "status": "Planned",
+          "status": "Ready",
           "description": "Registers qwen-code at the correct FR-D1 priority, gives it a complete per-role tier row, and refreshes all providers' default model tokens to current values.",
           "tasks": [
             {
               "type": "Task",
               "id": "P2.M1.T1",
               "title": "qwen-code provider registration + token refresh + docs",
-              "status": "Planned",
+              "status": "Ready",
               "description": "Adds the qwen-code manifest, inserts it into preferredBuiltins, refreshes model tokens, and updates docs.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P2.M1.T1.S1",
                   "title": "builtinQwenCode() + registry priority insertion + providers/qwen-code.toml",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
@@ -206,7 +206,7 @@
                   "type": "Subtask",
                   "id": "P2.M1.T1.S2",
                   "title": "qwen-code tier row (FR-D4) + model-token refresh (FR-D5) + docs/providers.md",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P2.M1.T1.S1"
@@ -249,7 +249,7 @@
                   "type": "Subtask",
                   "id": "P3.M1.T1.S1",
                   "title": "git.Git freeze primitives: FreezeWorkingTree (capture T_start) + DiffTreeNames (subset path-set)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_decompose_freeze.md §(a)/(e). The git.Git interface (git.go:59-210) has AddAll (git.go:840), WriteTree (git.go:337), ReadTree (git.go:944 — REPLACES the index with a tree's contents), EmptyTreeSHA (git.go:500). There is NO reset/restore-index helper; the index has ONLY three mutators (AddAll, Add, ReadTree). Existing test pattern: internal/git tests create a temp repo with real git.\n2. INPUT: the git.Git interface + *gitRunner impl (internal/git/git.go).\n3. LOGIC: Add TWO new git.Git methods, each with a matching *gitRunner impl + a temp-repo test: (a) a freeze capture — e.g. FreezeWorkingTree(ctx, baseTree string) (tStart string, err error): internally AddAll → WriteTree (T_start) → ReadTree(baseTree) to reset the index back to the clean base so the per-concept stager starts clean. Handle the unborn case (baseTree = EmptyTreeSHA). The caller supplies baseTree (HEAD^{tree} or EmptyTreeSHA) since the orchestrator already derives it. (b) a changed-path-set for subset enforcement — e.g. DiffTreeNames(ctx, treeA, treeB string) ([]string, error) via `git diff-tree -r --name-only --no-commit-id <treeA> <treeB>` (sorted, deduped). Add BOTH to the interface declaration AND the impl. Keep them shell-free ([]string args, never sh -c — §19).\n4. OUTPUT: two new git primitives enabling T_start capture + path/content subset verification, each tested against a real temp repo.\n5. DOCS: [Mode A] git.Git interface doc comments for the new methods (freeze semantics: T_start is the immutable record of the working-tree change set at run start).",

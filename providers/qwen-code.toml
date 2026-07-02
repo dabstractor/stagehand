@@ -1,0 +1,83 @@
+# ============================================================================
+# qwen-code — reference manifest for the `qwen-code` built-in provider (PRD §12.5.2)
+# ============================================================================
+#
+# WHAT THIS FILE IS
+#   Human-readable REFERENCE DOCUMENTATION for the `qwen-code` provider. It mirrors the
+#   compiled-in manifest `builtinQwenCode()` in internal/provider/builtin.go BYTE-FOR-BYTE
+#   (modulo comments). It is NOT loaded at runtime — built-ins are compiled into
+#   the Go binary. (The config loader reads .stagehand.toml, not this directory.)
+#
+# HOW TO USE IT AS A CONFIG OVERRIDE (PRD §12.8)
+#   To override the built-in qwen-code (or define a variant), copy the FIELD lines below
+#   (NOT this header) into your config file and wrap them in a `[provider.qwen-code]`
+#   table, then DELETE the `name = "qwen-code"` line — the table key supplies the name.
+#   Change only the fields you want; fields you omit inherit the built-in's value.
+#       # ~/.config/stagehand/config.toml  (or a repo-local .stagehand.toml)
+#       [provider.qwen-code]
+#       default_model = "qwen3-coder-flash"  # e.g. override only the model
+#
+# RENDERED COMMAND (PRD §12.5.2)
+#   qwen-code -m qwen3-coder-plus --approval-mode default -p < "<sys>\n\n<user payload>"
+#   (stdin delivery; qwen-code appends stdin to the prompt)
+#   # TO CONFIRM: exact model flag token, default model token, reasoning levels, approval-mode
+#   gemini-equivalence — see FR-D5 (refreshed by S2, P2.M1.T1.S2).
+#
+# BACKEND: DashScope (Alibaba Cloud Model Studio). Reached via DASHSCOPE_API_KEY or
+#   `qwen-code login` (free coding-plan quota). Single-backend — no sub-provider concept.
+#
+# EXPERIMENTAL (§12.5.2/§12.7.2): qwen-code ships experimental — its flag surface is assembled
+#   from documentation only (NOT yet `--help`-verified). The exact default model token
+#   (qwen3-coder-plus et al.), reasoning_levels mapping, and gemini-equivalent approval mode
+#   are `# TO CONFIRM` per FR-D5. The FR-D5 token refresh + the per-role FR-D4 tier row are
+#   S2 (P2.M1.T1.S2).
+#
+# STAGER: qwen-code cannot serve as a stager — TooledFlags is intentionally nil.
+#   RenderTooled errors on nil tooled_flags. This won't change until the scoped,
+#   non-interactive, git-scoped tool combo is verified (FR-D4 fallback).
+#
+# TOOLS-DISABLE CATEGORY (§12.7.1): READ-ONLY CONSTRAINT — qwen-code has NO global
+#   tool-disable switch; `--approval-mode default` constrains it to a read-only,
+#   never-ask profile (don't auto-run tools, never prompt).
+# ============================================================================
+
+# --- identity / discovery ---
+name = "qwen-code"              # identity; the value you pass to --provider.
+detect = "qwen-code"             # command looked up on $PATH to decide "installed".
+command = "qwen-code"            # the executable to run (exec.LookPath; may be absolute).
+
+# --- prompt delivery ---
+prompt_delivery = "stdin"        # qwen-code reads stdin; appended to the prompt.
+
+# --- non-interactive mode ---
+print_flag = "-p"                # non-interactive print mode flag.
+
+# --- model ---
+model_flag = "-m"                # the model-selection flag.
+default_model = "qwen3-coder-plus"  # model used if the user specifies none. # TO CONFIRM per FR-D5 (S2 owns the refresh)
+
+# --- system prompt ---
+system_prompt_flag = ""         # NON-NIL empty: qwen-code has NO system-prompt flag — the system prompt
+                                 # is PREPENDED to the payload (§12.2 fallback).
+
+# --- sub-provider ---
+provider_flag = ""              # NON-NIL empty: qwen-code is single-backend (Qwen/DashScope).
+# default_provider is ABSENT (nil) — qwen-code has no sub-provider, so the key is omitted.
+
+# --- bare mode (§12.7.1: read-only constraint) ---
+bare_flags = [                   # appended VERBATIM to enforce a read-only, never-ask profile.
+  "--approval-mode", "default", # read-only, never-ask (don't auto-run tools). # TO CONFIRM gemini-equivalent
+]
+
+# --- output ---
+output = "raw"                   # cleaned stdout IS the commit message (DEFAULT).
+strip_code_fence = true          # strip one layer of ``` / ~~~ if the agent wraps the output.
+
+# --- experimental ---
+experimental = true              # ships experimental (docs-sourced, not --help-verified; §12.5.2/§12.7.2).
+
+# --- absent fields (PRD §12.1) ---
+# tooled_flags, subcommand, prompt_flag, default_provider, json_field, retry_instruction,
+# reasoning_levels, and [env] are NOT set for qwen-code and therefore omitted above.
+# tooled_flags is intentionally nil — qwen-code cannot serve as a stager until verified (FR-D4 fallback).
+# reasoning_levels is `# TO CONFIRM per FR-D5` (S2 owns the refresh — leave nil).

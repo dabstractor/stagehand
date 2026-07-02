@@ -30,7 +30,7 @@ func TestPreferredBuiltins_MatchesBuiltinKeys(t *testing.T) {
 		t.Errorf("pi must be first; got %v", preferredBuiltins)
 	}
 	// Exact FR-D1 order assertion (§9.16 FR-D1: open/self-hostable first, closed last).
-	wantOrder := []string{"pi", "opencode", "cursor", "agy", "gemini", "codex", "claude"}
+	wantOrder := []string{"pi", "opencode", "cursor", "agy", "gemini", "qwen-code", "codex", "claude"}
 	if !reflect.DeepEqual(preferredBuiltins, wantOrder) {
 		t.Errorf("preferredBuiltins order = %v, want FR-D1 %v", preferredBuiltins, wantOrder)
 	}

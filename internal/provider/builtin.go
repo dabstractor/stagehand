@@ -13,16 +13,17 @@ package provider
 // The full §12.7 set: pi + claude (the "explicit tool-disable switch" pair, S1), gemini + opencode
 // (read-only constraint, S2), codex + cursor (read-only constraint, S3 — codex's two revisions
 // resolve the external_deps.md §codex discrepancy), and §12.5.1 agy (experimental — the Gemini-CLI
-// successor). All seven providers are now present.
+// successor). All eight providers are now present (pi, claude, gemini, opencode, codex, cursor, agy, qwen-code).
 func BuiltinManifests() map[string]Manifest {
 	return map[string]Manifest{
-		"pi":       builtinPi(),
-		"claude":   builtinClaude(),
-		"gemini":   builtinGemini(),
-		"opencode": builtinOpenCode(),
-		"codex":    builtinCodex(),
-		"cursor":   builtinCursor(),
-		"agy":      builtinAgy(),
+		"pi":        builtinPi(),
+		"claude":    builtinClaude(),
+		"gemini":    builtinGemini(),
+		"opencode":  builtinOpenCode(),
+		"codex":     builtinCodex(),
+		"cursor":    builtinCursor(),
+		"agy":       builtinAgy(),
+		"qwen-code": builtinQwenCode(),
 	}
 }
 
@@ -202,6 +203,50 @@ func builtinAgy() Manifest {
 		Experimental:   boolPtr(true), // §12.5.1.1 ships experimental (non-TTY stdout drop, issue #76)
 		// TooledFlags: nil — agy cannot serve as a stager until §12.5.1.1 item 4 is verified.
 		// Subcommand, PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent, like gemini).
+	}
+}
+
+// builtinQwenCode returns the qwen-code (Alibaba/Qwen) manifest per PRD §12.5.2. qwen-code
+// (npm @qwen-code/qwen-code; GitHub QwenLM/qwen-code) is a FORK of Google's Gemini CLI tuned for the
+// Qwen3-Coder family, reached via Alibaba Cloud Model Studio / DashScope (DASHSCOPE_API_KEY, or
+// `qwen-code login` for the free coding-plan quota). It is SINGLE-BACKEND (Qwen/DashScope), so
+// provider_flag is empty and a bare model is used. Its flag surface mirrors gemini/agy (§12.5/§12.5.1)
+// EXACTLY: stdin delivery, -m model, --approval-mode default (read-only), no first-class system-prompt
+// flag → sys is PREPENDED to the payload (§12.2).
+//
+// Flag surface assembled from qwen-code's docs (NOT yet `--help`-verified) → ships Experimental=true
+// (§12.7.2) until a real end-to-end run clears it. Marked `# TO CONFIRM` per FR-D5: the exact default
+// model token (qwen3-coder-plus et al.), the model-flag token, the reasoning_levels mapping, and the
+// gemini-equivalent approval mode. The FR-D5 token refresh + the per-role FR-D4 tier row are S2
+// (P2.M1.T1.S2); this manifest ships a correct, documented, experimental PLACEHOLDER.
+//
+// STAGER: TooledFlags is intentionally nil — qwen-code CANNOT serve as a stager until the scoped,
+// non-interactive, git-scoped tool combo is verified (FR-D4 fallback). RenderTooled errors on nil tooled_flags.
+//
+// NOTE: (1) PrintFlag="-p" (NON-NIL). (2) SystemPromptFlag/ProviderFlag are strPtr("") — NON-NIL empty:
+// no sys flag (sys prepended, §12.2), single-backend (no sub-provider). (3) Experimental=boolPtr(true).
+// (4) DefaultModel="qwen3-coder-plus" (# TO CONFIRM FR-D5). (5) Subcommand/PromptFlag/JsonField/
+// RetryInstruction/Env/TooledFlags/ReasoningLevels are nil (absent, like agy). qwen-code is the
+// gemini-lineage twin of agy, differing in Name/Detect/Command + DefaultModel + the Qwen/DashScope context.
+func builtinQwenCode() Manifest {
+	return Manifest{
+		Name:             "qwen-code",
+		Detect:           strPtr("qwen-code"),
+		Command:          strPtr("qwen-code"),
+		PromptDelivery:   strPtr("stdin"),
+		PrintFlag:        strPtr("-p"),
+		ModelFlag:        strPtr("-m"),
+		DefaultModel:     strPtr("qwen3-coder-plus"), // # TO CONFIRM per FR-D5 (S2 owns the refresh)
+		SystemPromptFlag: strPtr(""),                 // NON-NIL empty — no sys flag; sys prepended to payload (§12.2)
+		ProviderFlag:     strPtr(""),                 // NON-NIL empty — single-backend (Qwen/DashScope)
+		BareFlags: []string{
+			"--approval-mode", "default", // read-only, never-ask profile (don't auto-run tools). # TO CONFIRM gemini-equivalent
+		},
+		Output:         strPtr("raw"),
+		StripCodeFence: boolPtr(true),
+		Experimental:   boolPtr(true), // §12.5.2/§12.7.2 ships experimental (docs-sourced, not --help-verified)
+		// TooledFlags: nil — qwen-code cannot stager until the scoped tool combo is verified (FR-D4 fallback).
+		// Subcommand, PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent, like agy).
 	}
 }
 
