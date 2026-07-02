@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "v3 Changeset Validation Bugfixes",
-      "status": "Planned",
+      "status": "Researching",
       "description": "Fix the 5 issues (3 Major, 2 Minor) found during end-to-end validation of the v3 changeset. Issue 1: FR-R6 reasoning feature ships inert (no provider populates ReasoningLevels). Issue 2: per-role message overrides are silently dropped on the single-commit path. Issue 3: the FR-M11 planner-single shortcut leaves git status dirty (missing index sync). Issue 4: bootstrap config header omits reasoning env vars. Issue 5: in-memory v2→v3 migration is a no-op for abandoned [agent.*] terminology.",
       "milestones": [
         {
@@ -184,21 +184,21 @@
           "type": "Milestone",
           "id": "P1.M5",
           "title": "Issue 5 — Defense-in-depth agent→provider migration in loadTOML",
-          "status": "Researching",
+          "status": "Complete",
           "description": "The in-memory v2→v3 migration (migrateV2ToV3, migrate.go:35) documents the [agent.*]→[provider.*] remap as an intentional no-op: fileConfig has no Agent field and go-toml/v2 silently drops unknown [agent.*] tables. A v2 file using the abandoned agent terminology loses its provider block on load (only the on-disk `config upgrade` command rewrites it). Add a defense-in-depth textual remap in loadTOML so in-memory load also handles it.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M5.T1",
               "title": "Add textual [agent.*]→[provider.*] remap before typed decode in loadTOML",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Add a pre-decode text transformation in loadTOML (file.go:124) that remaps the abandoned agent terminology to provider before toml.Unmarshal, so a v2 file with [agent.X] tables / [defaults] agent = X loads with the provider block preserved. This is defense-in-depth — the canonical migration remains the on-disk `config upgrade` command.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M5.T1.S1",
                   "title": "Add agent→provider textual remap in loadTOML + migration test",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: `loadTOML` (internal/config/file.go:124-150) reads the file bytes into `data`, then calls `toml.Unmarshal(data, &fc)` where `fc` is a `fileConfig` (file.go:30-36). fileConfig has NO `Agent` field (fields: ConfigVersion, Defaults, Generation, Role, Provider). go-toml/v2 (`github.com/pelletier/go-toml/v2`, imported at file.go:11) silently drops unknown tables/keys — so `[agent.pi]` and `[defaults] agent = \"pi\"` are lost. `migrateV2ToV3` (migrate.go:35-89) documents this as a no-op at lines ~42-45. The on-disk `config upgrade` command handles it but in-memory load does not. PRD suggested fix: 'have loadTOML/migrateV2ToV3 detect and remap [agent.*] textually before the typed decode.'\n2. INPUT: The raw TOML `data []byte` in loadTOML (file.go:128), before the `toml.Unmarshal(data, &fc)` call at line 136. The `strings` package (check if already imported in file.go; if not, add it).\n3. LOGIC: Add a helper `remapAgentTerminology(data []byte) []byte` that performs targeted string replacements on the raw TOML text BEFORE the typed decode: (a) replace `[agent.` → `[provider.` (handles `[agent.pi]` table headers); (b) replace `\"agent\"` top-level/defaults key — handle `[defaults]` table's `agent =` → `provider =` (be careful to only remap the key name, not arbitrary occurrences of 'agent' inside values/comments; use a line-oriented approach: for lines matching `^\\s*agent\\s*=`, replace the key `agent` with `provider`). Call `data = remapAgentTerminology(data)` in loadTOML before the unmarshal. ALTERNATIVE (cleaner, typed): add `Agent map[string]map[string]any` to fileConfig and `Agent string` to fileDefaults, then remap in materialize() — the implementing agent may choose this if the text approach proves fragile, but the text approach is what the PRD requests and is simpler. The remap must be idempotent (running it on an already-provider file is a no-op — `[provider.` is untouched, and `provider =` is untouched). TEST (implicit TDD): write a v2 TOML fixture string containing `[defaults]\\nagent = \"pi\"\\n` and `[agent.pi]\\ndefault_model = \"glm-5.2\"\\n` with `config_version = 2`. Write it to a temp file, call loadTOML, and assert `cfg.Provider == \"pi\"` AND `cfg.Providers[\"pi\"]` is non-empty (currently both are lost). Also assert that a normal `[provider.pi]` file is unaffected (idempotency/regression).\n4. OUTPUT: A v2 config file using the abandoned agent terminology loads with the provider block preserved in memory (cfg.Provider / cfg.Providers populated), without requiring the user to run `config upgrade` first.\n5. DOCS: [Mode A] Update the migrateV2ToV3 doc comment (migrate.go:35-45) to reflect that the agent→provider remap is now handled textually in loadTOML (no longer a pure no-op). This rides WITH the work — do not create a separate docs subtask.",
@@ -216,21 +216,21 @@
           "type": "Milestone",
           "id": "P1.M6",
           "title": "Sync changeset-level documentation",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Mode B catch-all: sweep the overview/cross-cutting documentation files (README.md, docs/cli.md, docs/providers.md) to reflect the changeset delta — primarily that the FR-R6 reasoning feature now has an observable effect for pi (--thinking) and claude (--effort). Per-role docs and per-file docs touched by individual subtasks were handled Mode-A inline (docs/providers.md reasoning table). This task handles the whole-feature/overview surface.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M6.T1",
               "title": "Sync README.md, docs/cli.md, and docs/providers.md for the reasoning + message-role + bootstrap changeset",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Update the cross-cutting documentation that summarizes the changeset as a coherent delta: README.md reasoning example (now actually works for pi/claude), docs/cli.md --reasoning flag descriptions, and docs/providers.md provider table.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M6.T1.S1",
                   "title": "Update README.md and docs/cli.md to scope --reasoning and note activation",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",

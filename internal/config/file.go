@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/pelletier/go-toml/v2"
@@ -114,6 +116,27 @@ func ResolveConfigPath(flagConfig string) string {
 func repoLocalConfigPath() string { return ".stagehand.toml" }
 
 // ---------------------------------------------------------------------------
+// Defense-in-depth agent→provider textual remap (PRD §9.17 FR-B7 "first")
+// ---------------------------------------------------------------------------
+
+// agentKeyRe matches a bare `agent =` KEY at line start (after optional indent) — the abandoned
+// intermediate terminology's defaults key. Line-oriented (multiline); captures indent + the ws+'='
+// so the rewrite preserves them. Does NOT match comments, values, or [agent.*] headers.
+var agentKeyRe = regexp.MustCompile(`(?m)^(\s*)agent(\s*=)`)
+
+// remapAgentTerminology defense-in-depth-remaps the abandoned intermediate agent/[agent.*]
+// terminology to provider/[provider.*] in raw TOML text BEFORE the typed decode (PRD §9.17 FR-B7
+// "first"). Two transforms: (a) [agent. → [provider. table headers; (b) a bare `agent =` key →
+// `provider =` (line-oriented, key name only). Pure + idempotent (a no-op on provider-terminology
+// files). fileConfig has no Agent field, so without this go-toml silently drops [agent.*] tables.
+func remapAgentTerminology(data []byte) []byte {
+	s := string(data)
+	s = strings.ReplaceAll(s, "[agent.", "[provider.")     // (a) table headers
+	s = agentKeyRe.ReplaceAllString(s, "${1}provider${2}") // (b) bare key, key-name only
+	return []byte(s)
+}
+
+// ---------------------------------------------------------------------------
 // loadTOML — decode a §16.2 TOML file into a partial *Config
 // ---------------------------------------------------------------------------
 
@@ -129,6 +152,11 @@ func loadTOML(path string) (*Config, error) {
 		}
 		return nil, fmt.Errorf("read config %s: %w", path, err)
 	}
+
+	// Defense-in-depth (PRD §9.17 FR-B7): remap abandoned [agent.*]/agent terminology → provider
+	// BEFORE the typed decode, so a v2 file using the old terminology loads with its provider block
+	// preserved (otherwise go-toml silently drops [agent.*] — fileConfig has no Agent field).
+	data = remapAgentTerminology(data)
 
 	var fc fileConfig
 	if err := toml.Unmarshal(data, &fc); err != nil {

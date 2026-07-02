@@ -28,14 +28,14 @@ var v2MultiBackendBuiltins = map[string]bool{"pi": true}
 // default_provider field (removed in P1.M1.T1.S1) — so go-toml would SILENTLY DROP the value. The fold must
 // happen first, while default_provider is still in the raw map.
 //
-// AGENT TERMINOLOGY (FR-B7 "first map agent/[agent.*] → provider/[provider.*]"): a NO-OP in memory.
-// fileConfig (file.go) decodes only the [provider] table (no Agent field) and toml.Unmarshal silently DROPS
-// unknown [agent.*] tables — so no agent-keyed data ever reaches the typed Config. The real textual rewrite
-// is the on-disk `config upgrade` command's job (P1.M3.T1.S2), which reads raw TOML where [agent.*] survive.
+// AGENT TERMINOLOGY (FR-B7 "first map agent/[agent.*] → provider/[provider.*]"): handled
+// UPSTREAM in loadTOML, which calls remapAgentTerminology on the raw TOML text BEFORE the typed
+// decode — so agent-keyed data reaches the typed Config already remapped to provider. This
+// function therefore needs no agent logic; it only folds default_provider (below). The on-disk
+// `config upgrade` command (P1.M3.T1.S2) performs the same remap when persisting to the file.
 func migrateV2ToV3(cfg *Config) {
-	// (0) agent→provider: documented no-op (no agent data reaches cfg — see doc comment).
-	// fileConfig has NO Agent field; loadTOML uses toml.Unmarshal which silently drops unknown
-	// [agent.*] tables. The real [agent.*]→[provider.*] rewrite is S2's on-disk config upgrade.
+	// (0) agent→provider: handled UPSTREAM by loadTOML's remapAgentTerminology (before decode), so
+	// cfg already uses provider terminology here. No agent-specific work in this function.
 
 	// (1) Collect the default_provider prefix per multi-backend provider; drop the dead key; fold the
 	// provider's own raw default_model.

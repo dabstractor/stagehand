@@ -659,6 +659,72 @@ func TestOverlay_V2Scalars(t *testing.T) {
 	}
 }
 
+// --- TestLoadTOML_AgentTerminologyRemapped ---
+
+// TestLoadTOML_AgentTerminologyRemapped proves that a v2 config using the abandoned intermediate
+// agent/[agent.*] terminology loads with its provider block preserved in memory (cfg.Provider +
+// cfg.Providers["pi"] populated) WITHOUT requiring the on-disk `config upgrade`.
+func TestLoadTOML_AgentTerminologyRemapped(t *testing.T) {
+	body := `
+config_version = 2
+
+[defaults]
+agent = "pi"
+
+[agent.pi]
+default_model = "glm-5.2"
+`
+	path := writeTempTOML(t, body)
+	cfg, err := loadTOML(path)
+	if err != nil || cfg == nil {
+		t.Fatalf("loadTOML: cfg=%v err=%v", cfg, err)
+	}
+	if cfg.Provider != "pi" {
+		t.Errorf("Provider=%q want \"pi\" (agent→provider remap lost the default)", cfg.Provider)
+	}
+	m, ok := cfg.Providers["pi"]
+	if !ok {
+		t.Fatalf("Providers[\"pi\"] missing (agent→provider remap lost the [agent.pi] block)")
+	}
+	if m["default_model"] != "glm-5.2" {
+		t.Errorf("pi.default_model=%v want glm-5.2", m["default_model"])
+	}
+}
+
+// --- TestRemapAgentTerminology ---
+
+// TestRemapAgentTerminology is a focused table-driven helper unit test for remapAgentTerminology.
+// Pins idempotency (already-provider + double-run) and key-name-only precision (comments, values,
+// prefixed keys untouched).
+func TestRemapAgentTerminology(t *testing.T) {
+	tests := []struct{ name, in, want string }{
+		{"table header", "[agent.pi]", "[provider.pi]"},
+		{"key spaced", `agent = "pi"`, `provider = "pi"`},
+		{"key tight", `agent="pi"`, `provider="pi"`},
+		{"indented key", "  agent = \"pi\"", "  provider = \"pi\""},
+		{"comment untouched", "# agent = keep", "# agent = keep"},
+		{"value untouched", `model = "agent"`, `model = "agent"`},
+		{"prefixed key untouched", "my_agent = \"x\"", "my_agent = \"x\""},
+		{"already-provider idempotent", "[provider.pi]\nprovider = \"pi\"", "[provider.pi]\nprovider = \"pi\""},
+		{"header + key together", "[agent.pi]\nagent = \"pi\"", "[provider.pi]\nprovider = \"pi\""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := string(remapAgentTerminology([]byte(tc.in)))
+			if got != tc.want {
+				t.Errorf("remapAgentTerminology(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+	// double-run idempotency: remap(remap(x)) == remap(x) on a mixed input
+	mixed := "[agent.pi]\nagent = \"pi\"\nmodel = \"agent\"\n"
+	once := string(remapAgentTerminology([]byte(mixed)))
+	twice := string(remapAgentTerminology([]byte(once)))
+	if twice != once {
+		t.Errorf("remap not idempotent on mixed input:\n once=%q\n twice=%q", once, twice)
+	}
+}
+
 // --- TestOverlayNilSrc ---
 
 func TestOverlayNilSrc(t *testing.T) {
