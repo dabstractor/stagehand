@@ -58,7 +58,7 @@ var ErrPlannerFailed = errors.New("decompose: planner failed")
 // killed). On the retry, PlannerRetryInstruction is prepended to the payload.
 func callPlanner(ctx context.Context, deps Deps, forcedCount int, isUnborn bool) (prompt.PlannerOutput, error) {
 	// 1. Derive the <role> model — Deps has no Models field. (Provider is the manifest name; it is NOT
-	// passed to Render — Render resolves the sub-provider from the manifest's DefaultProvider.)
+	// passed to Render — v3 FR-R5b folds the inference backend into the model slash-prefix.)
 	_, mdl := config.ResolveRoleModel("planner", deps.Config)
 
 	// 2. Capture the working-tree diff (caps from cfg).
@@ -89,13 +89,11 @@ func callPlanner(ctx context.Context, deps Deps, forcedCount int, isUnborn bool)
 			deps.Verbose.VerboseRetry(attempt, "planner output unparseable or contract-invalid")
 		}
 
-		// Pass "" for the sub-provider: ResolveRoleModel returns the manifest/agent NAME (the registry
-		// key, e.g. "pi"), NOT the upstream backend. Render resolves the real sub-provider from the
-		// manifest's merged DefaultProvider (FR37a) — emitting "--provider <DefaultProvider>", or
-		// omitting --provider when DefaultProvider is unset (pi's shipped default, §12.3). Same fix as
-		// generate.go (P1.M1.T1.S1). The prov return of ResolveRoleModel is still used correctly by
-		// ResolveRoles (reg.Get) — only this Render call stops using it.
-		spec, rerr := deps.Roles.Planner.Render(mdl, "", sysPrompt, payload, provider.RenderBare)
+		// v3 FR-R5b: the inference provider is the model slash-prefix ("inference/model"),
+		// which Render splits into --provider <inference>. P1.M2 wires real per-role reasoning.
+		// (Old: prov from ResolveRoleModel was the manifest name, NOT the upstream backend —
+		// the provider param has been folded into the model slash-prefix; DefaultProvider removed.)
+		spec, rerr := deps.Roles.Planner.Render(mdl, sysPrompt, payload, "", provider.RenderBare)
 		if rerr != nil {
 			return prompt.PlannerOutput{}, fmt.Errorf("%w: render: %w", ErrPlannerFailed, rerr)
 		}

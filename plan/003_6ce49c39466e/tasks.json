@@ -11,35 +11,49 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Render chokepoint & Manifest schema v3",
-          "status": "Planned",
+          "status": "Ready",
           "description": "The keystone atomic change: remove DefaultProvider from the Manifest, add a ReasoningLevels table, change Manifest.Render's signature (drop the dead provider param, add reasoning), implement the model slash-prefix split with a hard error on a bare model (FR-R5b), and emit reasoning tokens. Updates all 8 built-ins and the 6 non-test call sites.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Manifest v3 struct + Render signature + built-ins + call sites",
-              "status": "Planned",
+              "status": "Ready",
               "description": "The single command-emission chokepoint every call path flows through. Removes the dead provider param, folds the inference backend into a model slash-prefix, enforces FR-R5b at Render, and adds reasoning-token emission. Must leave the tree compiling (reasoning=\"\" temporarily at call sites until P1.M2 wires real values).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T1.S1",
                   "title": "Manifest v3 schema + Render signature keystone (remove DefaultProvider, add ReasoningLevels, model-prefix fold, reasoning emit)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [],
-                  "prd_selectors": ["h2.12", "h3.43", "h3.44", "h3.45", "h3.31", "h3.32", "h3.60"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/003_6ce49c39466e/architecture/{system_context.md §1, scout_render_callsites.md, scout_config_model.md}. The Render `provider` param is the literal `\"\"` at EVERY non-test call site (render.go:196/461/98/129/97/86) — it is dead; Render resolves the backend internally from DefaultProvider. Removing it is low-risk. DefaultProvider is set non-nil-`\"\"` only for pi (builtin.go:50); consumed at render.go:113-139 + decompose/roles.go:182-187.\n2. INPUT: the existing Manifest struct (internal/provider/manifest.go:54-62), Render (render.go:124), the 8 builtins (builtin.go:17-26), merge.go MergeManifest, and the 6 non-test Render call sites in scout_render_callsites.md §A.\n3. LOGIC: (a) Manifest: REMOVE `DefaultProvider *string`; ADD `ReasoningLevels map[string][]string` (toml:\"reasoning_levels\", decodes a [reasoning_levels] subtable). Update Resolve() (drop DefaultProvider default; nil-safe ReasoningLevels — empty/nil map ok), Validate(), MergeManifest (merge.go: drop the DefaultProvider field-merge line; add ReasoningLevels merge per the existing map policy). (b) Render NEW signature: `Render(model, sysPrompt, userPayload, reasoning string, mode ...RenderMode) (*CmdSpec, error)`. Implement: if `*r.ProviderFlag != \"\"` && model != \"\": split model on first `/` → append (provider_flag, prefix) then (model_flag, rest); if model is non-empty but has NO `/` → RETURN ERROR `model %q on %s must be inference/model, e.g. zai/glm-5.2`. Providers without provider_flag (opencode + all single-backend) pass model verbatim. Append m.reasoning_levels[reasoning] after the model flag when non-empty (absent/empty tokens ⇒ silent no-op, NEVER an error — graceful per FR-R6). (c) Update the 8 builtins: drop DefaultProvider from all; populate ReasoningLevels for pi/claude with thinking-effort tokens (verify per FR-D5 — leave `# TO CONFIRM` if unsure); gemini/agy/codex/cursor/opencode leave nil. (d) Update the 6 non-test call sites to the new arity, passing reasoning=\"\" TEMPORARILY (P1.M2 wires real values). (e) Remove `default_provider` from providers/pi.toml:52 (Mode A doc). Mock nothing — pure refactor; provider.Execute + CmdSpec are UNCHANGED.\n4. OUTPUT: a compiling tree where Render's single chokepoint enforces FR-R5b via the model prefix and emits reasoning tokens; the DefaultProvider field is gone. CmdSpec unchanged so the executor needs no edits.\n5. DOCS: [Mode A] update doc comments on Manifest.Render + the Manifest struct fields; remove default_provider from providers/*.toml (pi.toml:52). This rides WITH the work — no separate docs subtask."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/003_6ce49c39466e/architecture/{system_context.md §1, scout_render_callsites.md, scout_config_model.md}. The Render `provider` param is the literal `\"\"` at EVERY non-test call site (render.go:196/461/98/129/97/86) — it is dead; Render resolves the backend internally from DefaultProvider. Removing it is low-risk. DefaultProvider is set non-nil-`\"\"` only for pi (builtin.go:50); consumed at render.go:113-139 + decompose/roles.go:182-187.\n2. INPUT: the existing Manifest struct (internal/provider/manifest.go:54-62), Render (render.go:124), the 8 builtins (builtin.go:17-26), merge.go MergeManifest, and the 6 non-test Render call sites in scout_render_callsites.md §A.\n3. LOGIC: (a) Manifest: REMOVE `DefaultProvider *string`; ADD `ReasoningLevels map[string][]string` (toml:\"reasoning_levels\", decodes a [reasoning_levels] subtable). Update Resolve() (drop DefaultProvider default; nil-safe ReasoningLevels — empty/nil map ok), Validate(), MergeManifest (merge.go: drop the DefaultProvider field-merge line; add ReasoningLevels merge per the existing map policy). (b) Render NEW signature: `Render(model, sysPrompt, userPayload, reasoning string, mode ...RenderMode) (*CmdSpec, error)`. Implement: if `*r.ProviderFlag != \"\"` && model != \"\": split model on first `/` → append (provider_flag, prefix) then (model_flag, rest); if model is non-empty but has NO `/` → RETURN ERROR `model %q on %s must be inference/model, e.g. zai/glm-5.2`. Providers without provider_flag (opencode + all single-backend) pass model verbatim. Append m.reasoning_levels[reasoning] after the model flag when non-empty (absent/empty tokens ⇒ silent no-op, NEVER an error — graceful per FR-R6). (c) Update the 8 builtins: drop DefaultProvider from all; populate ReasoningLevels for pi/claude with thinking-effort tokens (verify per FR-D5 — leave `# TO CONFIRM` if unsure); gemini/agy/codex/cursor/opencode leave nil. (d) Update the 6 non-test call sites to the new arity, passing reasoning=\"\" TEMPORARILY (P1.M2 wires real values). (e) Remove `default_provider` from providers/pi.toml:52 (Mode A doc). Mock nothing — pure refactor; provider.Execute + CmdSpec are UNCHANGED.\n4. OUTPUT: a compiling tree where Render's single chokepoint enforces FR-R5b via the model prefix and emits reasoning tokens; the DefaultProvider field is gone. CmdSpec unchanged so the executor needs no edits.\n5. DOCS: [Mode A] update doc comments on Manifest.Render + the Manifest struct fields; remove default_provider from providers/*.toml (pi.toml:52). This rides WITH the work — no separate docs subtask.",
+                  "prd_selectors": [
+                    "h2.12",
+                    "h3.43",
+                    "h3.44",
+                    "h3.45",
+                    "h3.31",
+                    "h3.32",
+                    "h3.60"
+                  ]
                 },
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": "Rewrite the ~41 Render test call sites + FR-R5b (model-prefix) + reasoning render tests",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h3.44", "h3.31", "h3.43"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_render_callsites.md §E enumerates ~41 Render test call sites: render_test.go (~22), builtin_test.go (2), realagent_test.go (1), stubtest_test.go (~10). The v1 4-arg calls Render(model, \"\", sys, user) become 4-arg Render(model, sys, user, reasoning) — same arity, reordered.\n2. INPUT: P1.M1.T1.S1's new Render signature `Render(model, sysPrompt, userPayload, reasoning string, mode ...RenderMode)`.\n3. LOGIC: Mechanically rewrite every test call site to the new arity (drop the literal `\"\"` provider arg; insert the reasoning arg — use \"off\" for existing cases). Rewrite the FR-R5b tests: assert Render(\"zai/glm-5.2\", sys, user, \"off\") on pi ⇒ Args contains `--provider zai --model glm-5.2`; assert Render(\"glm-5.2\", ...) on pi ⇒ returns an ERROR (bare model on a provider_flag provider). Single-backend (claude/gemini) pass model verbatim (no --provider). Add reasoning-token render tests: a manifest with reasoning_levels.high=[\"--thinking\",\"high\"] ⇒ those tokens appended when reasoning=\"high\"; reasoning=\"off\" or a nil table ⇒ no tokens, no error. Verify the tooled-mode path (RenderTooled) still works with reasoning.\n4. OUTPUT: all internal/provider + stubtest tests green against the v3 Render.\n5. DOCS: none — test-only."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_render_callsites.md §E enumerates ~41 Render test call sites: render_test.go (~22), builtin_test.go (2), realagent_test.go (1), stubtest_test.go (~10). The v1 4-arg calls Render(model, \"\", sys, user) become 4-arg Render(model, sys, user, reasoning) — same arity, reordered.\n2. INPUT: P1.M1.T1.S1's new Render signature `Render(model, sysPrompt, userPayload, reasoning string, mode ...RenderMode)`.\n3. LOGIC: Mechanically rewrite every test call site to the new arity (drop the literal `\"\"` provider arg; insert the reasoning arg — use \"off\" for existing cases). Rewrite the FR-R5b tests: assert Render(\"zai/glm-5.2\", sys, user, \"off\") on pi ⇒ Args contains `--provider zai --model glm-5.2`; assert Render(\"glm-5.2\", ...) on pi ⇒ returns an ERROR (bare model on a provider_flag provider). Single-backend (claude/gemini) pass model verbatim (no --provider). Add reasoning-token render tests: a manifest with reasoning_levels.high=[\"--thinking\",\"high\"] ⇒ those tokens appended when reasoning=\"high\"; reasoning=\"off\" or a nil table ⇒ no tokens, no error. Verify the tooled-mode path (RenderTooled) still works with reasoning.\n4. OUTPUT: all internal/provider + stubtest tests green against the v3 Render.\n5. DOCS: none — test-only.",
+                  "prd_selectors": [
+                    "h3.44",
+                    "h3.31",
+                    "h3.43"
+                  ]
                 }
               ]
             }
@@ -63,11 +77,20 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Config reasoning field: RoleConfig.Reasoning + global default + file/overlay/env/flag plumbing",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h2.16", "h3.31", "h3.66", "h3.67", "h3.69", "h3.62"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_config_model.md §(b)/(h). root.go:108-133 registers flags — NOTE there are NO message-* flags today (a v2 gap to correct). load.go:190-194 (env per-role loop) + load.go:243-252 (flag per-role loop) + setRoleProvider/setRoleModel (load.go:33-52) are the patterns to mirror.\n2. INPUT: P1.M1.T1.S1 (Render takes a reasoning param). RoleConfig (config.go:43-46), ResolveRoleModel (roles.go:28, 2-return), file.go (fileRoleConfig:21, materialize:202-208, overlay role field-merge:284-296, fileDefaults), load.go (loadEnv/loadFlags), root.go (flag registration).\n3. LOGIC: (a) Add `Reasoning string` (toml:\"reasoning\") to RoleConfig + a global `Reasoning` field on Config (analogous to Provider/Model in [defaults]); Defaults() sets it \"\". (b) Thread Reasoning through fileRoleConfig (file.go:21), materialize (file.go:202-208), the overlay role field-merge (file.go:284-296), and fileDefaults (global default). (c) Change ResolveRoleModel to return (provider, model, reasoning) — applied per-field like provider/model; a role absent from cfg.Roles inherits the global Reasoning. (d) Add setRoleReasoning; wire STAGEHAND_<ROLE>_REASONING (load.go:190-194) and --<role>-reasoning (load.go:243-252) for ALL FOUR roles; add --reasoning global + STAGEHAND_REASONING. (e) Register <role>-reasoning flags in root.go for ALL four roles INCLUDING message. (f) Apply shipped role defaults as a role-resolution fallback layer: planner=high, stager=message=arbiter=off (a defaultRoleReasoning map; off is the natural zero value so only planner=high needs an explicit default). (g) Update the single-commit path (generate.go) to read a global reasoning.\n4. OUTPUT: reasoning flows end-to-end through config into the resolved (provider, model, reasoning) per role; every role exposes --<role>-reasoning incl. message.\n5. DOCS: [Mode A] RoleConfig comment + CLI flag help text (--reasoning, --<role>-reasoning). Rides WITH the work."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_config_model.md §(b)/(h). root.go:108-133 registers flags — NOTE there are NO message-* flags today (a v2 gap to correct). load.go:190-194 (env per-role loop) + load.go:243-252 (flag per-role loop) + setRoleProvider/setRoleModel (load.go:33-52) are the patterns to mirror.\n2. INPUT: P1.M1.T1.S1 (Render takes a reasoning param). RoleConfig (config.go:43-46), ResolveRoleModel (roles.go:28, 2-return), file.go (fileRoleConfig:21, materialize:202-208, overlay role field-merge:284-296, fileDefaults), load.go (loadEnv/loadFlags), root.go (flag registration).\n3. LOGIC: (a) Add `Reasoning string` (toml:\"reasoning\") to RoleConfig + a global `Reasoning` field on Config (analogous to Provider/Model in [defaults]); Defaults() sets it \"\". (b) Thread Reasoning through fileRoleConfig (file.go:21), materialize (file.go:202-208), the overlay role field-merge (file.go:284-296), and fileDefaults (global default). (c) Change ResolveRoleModel to return (provider, model, reasoning) — applied per-field like provider/model; a role absent from cfg.Roles inherits the global Reasoning. (d) Add setRoleReasoning; wire STAGEHAND_<ROLE>_REASONING (load.go:190-194) and --<role>-reasoning (load.go:243-252) for ALL FOUR roles; add --reasoning global + STAGEHAND_REASONING. (e) Register <role>-reasoning flags in root.go for ALL four roles INCLUDING message. (f) Apply shipped role defaults as a role-resolution fallback layer: planner=high, stager=message=arbiter=off (a defaultRoleReasoning map; off is the natural zero value so only planner=high needs an explicit default). (g) Update the single-commit path (generate.go) to read a global reasoning.\n4. OUTPUT: reasoning flows end-to-end through config into the resolved (provider, model, reasoning) per role; every role exposes --<role>-reasoning incl. message.\n5. DOCS: [Mode A] RoleConfig comment + CLI flag help text (--reasoning, --<role>-reasoning). Rides WITH the work.",
+                  "prd_selectors": [
+                    "h2.16",
+                    "h3.31",
+                    "h3.66",
+                    "h3.67",
+                    "h3.69",
+                    "h3.62"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -75,9 +98,16 @@
                   "title": "ResolveRoles v3: model-prefix FR-R5b guard + RoleModels.Reasoning + 4 decompose callers + pkg/stagehand RoleModel",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M2.T1.S1"],
-                  "prd_selectors": ["h3.31", "h3.44", "h3.60", "h3.69"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_config_model.md §(c) lists the 4 decompose ResolveRoleModel callers (planner.go:62, message.go:103, arbiter.go:82, stager.go:78) and roles.go:96. scout_render_callsites.md §A #3-#6 are the decompose Render call sites. decompose/roles.go:182-187 is the current inferenceProvider guard reading *m.Resolve().DefaultProvider — REMOVED in P1.M1.T1.S1, so this subtask MUST replace it.\n2. INPUT: P1.M1.T1.S1 (Render v3, no DefaultProvider) + P1.M2.T1.S1 (ResolveRoleModel 3-return, RoleConfig.Reasoning). decompose/roles.go (ResolveRoles, isMultiProvider, inferenceProvider, RoleModels, setRole), the 4 decompose Render callers, pkg/stagehand (RoleModel:64, applyRoleOverride:274, DecomposeOptions:76).\n3. LOGIC: (a) Rework decompose/roles.go: REMOVE inferenceProvider(m); the FR-R5b guard becomes 'model pinned on a provider_flag provider must contain a /' — check the MODEL string (mdl) when isMultiProvider(m) is true, emit a role-named error `model %q on %s must be inference/model, e.g. zai/glm-5.2`. isMultiProvider stays. (b) RoleModels / RoleConfig carry Reasoning; ResolveRoles resolves + returns the 3-tuple per role (use the new ResolveRoleModel). (c) Update the 4 decompose Render callers (planner.go:98, message.go:129, arbiter.go:97, stager.go:86) to pass the resolved reasoning (no longer the temporary \"\"). (d) pkg/stagehand: add Reasoning to public RoleModel (stagehand.go:64 — additive, zero-value ⇒ off, backward compatible); thread through applyRoleOverride (stagehand.go:274) and DecomposeOptions. (e) Verify the generate single-commit path passes global reasoning.\n4. OUTPUT: every Render call site passes a real resolved reasoning; FR-R5b is enforced via the model-prefix at BOTH ResolveRoles (role-named) and Render (authoritative chokepoint).\n5. DOCS: [Mode A] decompose/roles.go doc comments; pkg/stagehand RoleModel/DecomposeOptions doc. Rides WITH the work."
+                  "dependencies": [
+                    "P1.M2.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_config_model.md §(c) lists the 4 decompose ResolveRoleModel callers (planner.go:62, message.go:103, arbiter.go:82, stager.go:78) and roles.go:96. scout_render_callsites.md §A #3-#6 are the decompose Render call sites. decompose/roles.go:182-187 is the current inferenceProvider guard reading *m.Resolve().DefaultProvider — REMOVED in P1.M1.T1.S1, so this subtask MUST replace it.\n2. INPUT: P1.M1.T1.S1 (Render v3, no DefaultProvider) + P1.M2.T1.S1 (ResolveRoleModel 3-return, RoleConfig.Reasoning). decompose/roles.go (ResolveRoles, isMultiProvider, inferenceProvider, RoleModels, setRole), the 4 decompose Render callers, pkg/stagehand (RoleModel:64, applyRoleOverride:274, DecomposeOptions:76).\n3. LOGIC: (a) Rework decompose/roles.go: REMOVE inferenceProvider(m); the FR-R5b guard becomes 'model pinned on a provider_flag provider must contain a /' — check the MODEL string (mdl) when isMultiProvider(m) is true, emit a role-named error `model %q on %s must be inference/model, e.g. zai/glm-5.2`. isMultiProvider stays. (b) RoleModels / RoleConfig carry Reasoning; ResolveRoles resolves + returns the 3-tuple per role (use the new ResolveRoleModel). (c) Update the 4 decompose Render callers (planner.go:98, message.go:129, arbiter.go:97, stager.go:86) to pass the resolved reasoning (no longer the temporary \"\"). (d) pkg/stagehand: add Reasoning to public RoleModel (stagehand.go:64 — additive, zero-value ⇒ off, backward compatible); thread through applyRoleOverride (stagehand.go:274) and DecomposeOptions. (e) Verify the generate single-commit path passes global reasoning.\n4. OUTPUT: every Render call site passes a real resolved reasoning; FR-R5b is enforced via the model-prefix at BOTH ResolveRoles (role-named) and Render (authoritative chokepoint).\n5. DOCS: [Mode A] decompose/roles.go doc comments; pkg/stagehand RoleModel/DecomposeOptions doc. Rides WITH the work.",
+                  "prd_selectors": [
+                    "h3.31",
+                    "h3.44",
+                    "h3.60",
+                    "h3.69"
+                  ]
                 }
               ]
             }
@@ -103,9 +133,15 @@
                   "title": "CurrentConfigVersion → 3 + in-memory auto-migration on load (FR-B7)",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h3.33", "h3.66", "h3.67"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_config_model.md §(d) maps config_version read/compare/write. The load-time advisory (load.go:259 configVersionNotice; impl load.go:265-285) is the migration trigger. Config.Providers is a raw map[string]map[string]any (config.go:100) carrying default_provider as a raw entry — migration reads/rewrites it BEFORE provider.DecodeUserOverrides (which unmarshals into Manifest and would now silently drop the removed field).\n2. INPUT: P1.M1.T1.S1 (DefaultProvider removed from Manifest). Config (config.go:13 CurrentConfigVersion), Load (load.go:64-127), configVersionNotice (load.go:265-285).\n3. LOGIC: (a) Bump CurrentConfigVersion to 3 (config.go:13). (b) Add an in-memory migration step in Load triggered when the resolved ConfigVersion < 3: first map abandoned agent/[agent.*] terminology → provider/[provider.*]; then for each MULTI-BACKEND provider (the built-in/merged manifest has provider_flag set) prepend its former default_provider value to its model → `model=\"Y\"` + `default_provider=\"X\"` ⇒ `model=\"X/Y\"`. Apply to: global Config.Model, per-role Config.Roles[r].Model, AND the raw Config.Providers[name] map (rewrite the \"model\" entry, delete the \"default_provider\" key). (c) Emit a ONE-TIME deprecation notice pointing at `config upgrade`. (d) NO value invented: a pi model with no resolvable prefix stays bare → becomes an FR-R5b error the user resolves. Single-backend providers are untouched.\n4. OUTPUT: v2 config files load correctly under v3 (models prefixed in memory); a one-time deprecation notice is shown.\n5. DOCS: [Mode A] internal/config comments documenting the →v3 migration; config upgrade --help text."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_config_model.md §(d) maps config_version read/compare/write. The load-time advisory (load.go:259 configVersionNotice; impl load.go:265-285) is the migration trigger. Config.Providers is a raw map[string]map[string]any (config.go:100) carrying default_provider as a raw entry — migration reads/rewrites it BEFORE provider.DecodeUserOverrides (which unmarshals into Manifest and would now silently drop the removed field).\n2. INPUT: P1.M1.T1.S1 (DefaultProvider removed from Manifest). Config (config.go:13 CurrentConfigVersion), Load (load.go:64-127), configVersionNotice (load.go:265-285).\n3. LOGIC: (a) Bump CurrentConfigVersion to 3 (config.go:13). (b) Add an in-memory migration step in Load triggered when the resolved ConfigVersion < 3: first map abandoned agent/[agent.*] terminology → provider/[provider.*]; then for each MULTI-BACKEND provider (the built-in/merged manifest has provider_flag set) prepend its former default_provider value to its model → `model=\"Y\"` + `default_provider=\"X\"` ⇒ `model=\"X/Y\"`. Apply to: global Config.Model, per-role Config.Roles[r].Model, AND the raw Config.Providers[name] map (rewrite the \"model\" entry, delete the \"default_provider\" key). (c) Emit a ONE-TIME deprecation notice pointing at `config upgrade`. (d) NO value invented: a pi model with no resolvable prefix stays bare → becomes an FR-R5b error the user resolves. Single-backend providers are untouched.\n4. OUTPUT: v2 config files load correctly under v3 (models prefixed in memory); a one-time deprecation notice is shown.\n5. DOCS: [Mode A] internal/config comments documenting the →v3 migration; config upgrade --help text.",
+                  "prd_selectors": [
+                    "h3.33",
+                    "h3.66",
+                    "h3.67"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -113,9 +149,14 @@
                   "title": "`config upgrade` on-disk →v3 rewrite + test fixture updates",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M3.T1.S1"],
-                  "prd_selectors": ["h3.33", "h3.67"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_config_model.md §(d) — upgradeConfigVersion (internal/cmd/config.go:178-204) is currently a PURE TEXTUAL version bump (a regex line edit). Many test fixtures hardcode config_version = 2 (config_test.go ~L162/180/218/223/287/340/764/808-916/986/1013/1030; default_action_test.go:1203).\n2. INPUT: P1.M3.T1.S1 (the →v3 rewrite rules). The config upgrade command (internal/cmd/config.go: runConfigUpgrade / upgradeConfigVersion:178-204).\n3. LOGIC: (a) Extend upgradeConfigVersion to perform the →v3 rewrite ON DISK (not just bump the version): within each [provider.<name>] block carrying default_provider, prepend that value to the provider's model fields (and to per-role [role.*] models / [defaults] model when they target that provider) and DELETE the default_provider line; map agent/[agent.*] → provider/[provider.*]; bump config_version to 3. Make it IDEMPOTENT (a v3 file is a no-op; preserve user values, comment-out removed keys with a note per FR-B5). (b) Update the config_version=2 test fixtures → 3 across config_test.go and default_action_test.go. (c) Add v2→v3 migration tests (round-trip: write a v2 file, upgrade, assert the prefixed model + dropped key + bumped version).\n4. OUTPUT: `stagehand config upgrade` rewrites an existing file to v3 in place, preserving user values; idempotent.\n5. DOCS: [Mode A] config upgrade command Long/help text describing the →v3 rewrite."
+                  "dependencies": [
+                    "P1.M3.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_config_model.md §(d) — upgradeConfigVersion (internal/cmd/config.go:178-204) is currently a PURE TEXTUAL version bump (a regex line edit). Many test fixtures hardcode config_version = 2 (config_test.go ~L162/180/218/223/287/340/764/808-916/986/1013/1030; default_action_test.go:1203).\n2. INPUT: P1.M3.T1.S1 (the →v3 rewrite rules). The config upgrade command (internal/cmd/config.go: runConfigUpgrade / upgradeConfigVersion:178-204).\n3. LOGIC: (a) Extend upgradeConfigVersion to perform the →v3 rewrite ON DISK (not just bump the version): within each [provider.<name>] block carrying default_provider, prepend that value to the provider's model fields (and to per-role [role.*] models / [defaults] model when they target that provider) and DELETE the default_provider line; map agent/[agent.*] → provider/[provider.*]; bump config_version to 3. Make it IDEMPOTENT (a v3 file is a no-op; preserve user values, comment-out removed keys with a note per FR-B5). (b) Update the config_version=2 test fixtures → 3 across config_test.go and default_action_test.go. (c) Add v2→v3 migration tests (round-trip: write a v2 file, upgrade, assert the prefixed model + dropped key + bumped version).\n4. OUTPUT: `stagehand config upgrade` rewrites an existing file to v3 in place, preserving user values; idempotent.\n5. DOCS: [Mode A] config upgrade command Long/help text describing the →v3 rewrite.",
+                  "prd_selectors": [
+                    "h3.33",
+                    "h3.67"
+                  ]
                 }
               ]
             }
@@ -150,9 +191,16 @@
                   "title": "builtinQwenCode() + registry priority insertion + providers/qwen-code.toml",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h2.12", "h3.49", "h3.32", "h3.43"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD §12.5.2 — qwen-code (npm @qwen-code/qwen-code; GitHub QwenLM/qwen-code) is a single-backend Gemini-CLI FORK tuned for the Qwen3-Coder family, reached via DashScope (DASHSCOPE_API_KEY or `qwen-code login`). It mirrors the gemini/agy flag surface exactly (-m/--model, --approval-mode, -p/--prompt, stdin delivery, no first-class system-prompt flag → prepend). preferredBuiltins (registry.go:16) currently is [pi, opencode, cursor, agy, gemini, codex, claude] — qwen-code is absent. TestPreferredBuiltins_MatchesBuiltinKeys (registry_test.go:15) asserts order incl a wantOrder slice.\n2. INPUT: P1.M1.T1.S1 (v3 manifest schema: no DefaultProvider, has ReasoningLevels). The builtin registry (builtin.go:17-26 builtinFuncs), preferredBuiltins (registry.go:16), builtinGemini()/builtinAgy() (builtin.go:146/184) as the mirror templates.\n3. LOGIC: (a) Add builtinQwenCode() mirroring builtinAgy(): Name 'qwen-code', detect/command 'qwen-code', prompt_delivery 'stdin', print_flag '-p', model_flag '-m', system_prompt_flag '' (prepend), provider_flag '' (single-backend), experimental=boolPtr(true), default_model 'qwen3-coder-plus' (# TO CONFIRM per FR-D5), bare_flags ['--approval-mode','default']. Register in builtinFuncs (builtin.go). (b) Insert 'qwen-code' into preferredBuiltins (registry.go:16) between 'gemini' and 'codex' → [pi, opencode, cursor, agy, gemini, qwen-code, codex, claude] (FR-D1). (c) Create providers/qwen-code.toml mirroring the manifest, noting experimental + DashScope + # TO CONFIRM tokens. (d) Update TestPreferredBuiltins_MatchesBuiltinKeys wantOrder (registry_test.go) + the builtin-keys count assertion.\n4. OUTPUT: qwen-code is a registered experimental built-in at the correct priority; `stagehand providers list` shows it; the order test passes.\n5. DOCS: [Mode A] providers/qwen-code.toml (note experimental + DashScope); builtin.go doc comment for builtinQwenCode."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD §12.5.2 — qwen-code (npm @qwen-code/qwen-code; GitHub QwenLM/qwen-code) is a single-backend Gemini-CLI FORK tuned for the Qwen3-Coder family, reached via DashScope (DASHSCOPE_API_KEY or `qwen-code login`). It mirrors the gemini/agy flag surface exactly (-m/--model, --approval-mode, -p/--prompt, stdin delivery, no first-class system-prompt flag → prepend). preferredBuiltins (registry.go:16) currently is [pi, opencode, cursor, agy, gemini, codex, claude] — qwen-code is absent. TestPreferredBuiltins_MatchesBuiltinKeys (registry_test.go:15) asserts order incl a wantOrder slice.\n2. INPUT: P1.M1.T1.S1 (v3 manifest schema: no DefaultProvider, has ReasoningLevels). The builtin registry (builtin.go:17-26 builtinFuncs), preferredBuiltins (registry.go:16), builtinGemini()/builtinAgy() (builtin.go:146/184) as the mirror templates.\n3. LOGIC: (a) Add builtinQwenCode() mirroring builtinAgy(): Name 'qwen-code', detect/command 'qwen-code', prompt_delivery 'stdin', print_flag '-p', model_flag '-m', system_prompt_flag '' (prepend), provider_flag '' (single-backend), experimental=boolPtr(true), default_model 'qwen3-coder-plus' (# TO CONFIRM per FR-D5), bare_flags ['--approval-mode','default']. Register in builtinFuncs (builtin.go). (b) Insert 'qwen-code' into preferredBuiltins (registry.go:16) between 'gemini' and 'codex' → [pi, opencode, cursor, agy, gemini, qwen-code, codex, claude] (FR-D1). (c) Create providers/qwen-code.toml mirroring the manifest, noting experimental + DashScope + # TO CONFIRM tokens. (d) Update TestPreferredBuiltins_MatchesBuiltinKeys wantOrder (registry_test.go) + the builtin-keys count assertion.\n4. OUTPUT: qwen-code is a registered experimental built-in at the correct priority; `stagehand providers list` shows it; the order test passes.\n5. DOCS: [Mode A] providers/qwen-code.toml (note experimental + DashScope); builtin.go doc comment for builtinQwenCode.",
+                  "prd_selectors": [
+                    "h2.12",
+                    "h3.49",
+                    "h3.32",
+                    "h3.43"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -160,9 +208,15 @@
                   "title": "qwen-code tier row (FR-D4) + model-token refresh (FR-D5) + docs/providers.md",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P2.M1.T1.S1"],
-                  "prd_selectors": ["h3.32", "h3.49", "h3.43"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD §9.16 FR-D3/D4/D5 — tier-based per-role defaults (planner=smart/flagship, stager=mid, message=fast/cheapest-free-tier-eligible, arbiter=mid). Model tokens change fast (Sonnet 5 shipped 2026-07-01); the implementing agent MUST verify current names per provider per FR-D5 and record verified names + date. role_defaults.go:32-87 is DefaultModelsForProvider; builtin.go default_model fields; providers/*.toml.\n2. INPUT: P2.M1.T1.S1 (qwen-code registered). role_defaults.go (DefaultModelsForProvider table), builtin.go (default_model per provider), providers/*.toml, docs/providers.md.\n3. LOGIC: (a) Add the qwen-code row to DefaultModelsForProvider (role_defaults.go) per FR-D4 (planner qwen3-coder-plus, stager qwen3-coder-flash, message qwen3-coder-flash, arbiter qwen3-coder-plus — # TO CONFIRM per FR-D5). (b) Refresh model tokens to CURRENT per FR-D5 across builtin.go default_model + matching providers/*.toml: agy/gemini flagship → gemini-3.1-pro, message → gemini-3.1-flash-lite, stager/arbiter → gemini-3.5-flash; claude (opus 4.8 / sonnet 5 / haiku); codex (gpt-5.1-codex-max etc.); pi stays blank (FR-D2). Record verified names + verification date in the manifest source comments. Keep # TO CONFIRM discipline where a live lookup is still needed (cursor/codex exact tokens). (c) FR-D3 rationale note: the message tier is the cheapest / free-tier-eligible model.\n4. OUTPUT: per-provider default models are current as of implementation; qwen-code has a complete tier row.\n5. DOCS: [Mode A] docs/providers.md reference table (add the qwen-code row, note experimental + DashScope; refresh the refreshed tokens). Appendix D lives in PRD.md (read-only)."
+                  "dependencies": [
+                    "P2.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD §9.16 FR-D3/D4/D5 — tier-based per-role defaults (planner=smart/flagship, stager=mid, message=fast/cheapest-free-tier-eligible, arbiter=mid). Model tokens change fast (Sonnet 5 shipped 2026-07-01); the implementing agent MUST verify current names per provider per FR-D5 and record verified names + date. role_defaults.go:32-87 is DefaultModelsForProvider; builtin.go default_model fields; providers/*.toml.\n2. INPUT: P2.M1.T1.S1 (qwen-code registered). role_defaults.go (DefaultModelsForProvider table), builtin.go (default_model per provider), providers/*.toml, docs/providers.md.\n3. LOGIC: (a) Add the qwen-code row to DefaultModelsForProvider (role_defaults.go) per FR-D4 (planner qwen3-coder-plus, stager qwen3-coder-flash, message qwen3-coder-flash, arbiter qwen3-coder-plus — # TO CONFIRM per FR-D5). (b) Refresh model tokens to CURRENT per FR-D5 across builtin.go default_model + matching providers/*.toml: agy/gemini flagship → gemini-3.1-pro, message → gemini-3.1-flash-lite, stager/arbiter → gemini-3.5-flash; claude (opus 4.8 / sonnet 5 / haiku); codex (gpt-5.1-codex-max etc.); pi stays blank (FR-D2). Record verified names + verification date in the manifest source comments. Keep # TO CONFIRM discipline where a live lookup is still needed (cursor/codex exact tokens). (c) FR-D3 rationale note: the message tier is the cheapest / free-tier-eligible model.\n4. OUTPUT: per-provider default models are current as of implementation; qwen-code has a complete tier row.\n5. DOCS: [Mode A] docs/providers.md reference table (add the qwen-code row, note experimental + DashScope; refresh the refreshed tokens). Appendix D lives in PRD.md (read-only).",
+                  "prd_selectors": [
+                    "h3.32",
+                    "h3.49",
+                    "h3.43"
+                  ]
                 }
               ]
             }
@@ -198,8 +252,13 @@
                   "status": "Planned",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.13", "h3.59", "h3.30", "h3.82"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_decompose_freeze.md §(a)/(e). The git.Git interface (git.go:59-210) has AddAll (git.go:840), WriteTree (git.go:337), ReadTree (git.go:944 — REPLACES the index with a tree's contents), EmptyTreeSHA (git.go:500). There is NO reset/restore-index helper; the index has ONLY three mutators (AddAll, Add, ReadTree). Existing test pattern: internal/git tests create a temp repo with real git.\n2. INPUT: the git.Git interface + *gitRunner impl (internal/git/git.go).\n3. LOGIC: Add TWO new git.Git methods, each with a matching *gitRunner impl + a temp-repo test: (a) a freeze capture — e.g. FreezeWorkingTree(ctx, baseTree string) (tStart string, err error): internally AddAll → WriteTree (T_start) → ReadTree(baseTree) to reset the index back to the clean base so the per-concept stager starts clean. Handle the unborn case (baseTree = EmptyTreeSHA). The caller supplies baseTree (HEAD^{tree} or EmptyTreeSHA) since the orchestrator already derives it. (b) a changed-path-set for subset enforcement — e.g. DiffTreeNames(ctx, treeA, treeB string) ([]string, error) via `git diff-tree -r --name-only --no-commit-id <treeA> <treeB>` (sorted, deduped). Add BOTH to the interface declaration AND the impl. Keep them shell-free ([]string args, never sh -c — §19).\n4. OUTPUT: two new git primitives enabling T_start capture + path/content subset verification, each tested against a real temp repo.\n5. DOCS: [Mode A] git.Git interface doc comments for the new methods (freeze semantics: T_start is the immutable record of the working-tree change set at run start)."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_decompose_freeze.md §(a)/(e). The git.Git interface (git.go:59-210) has AddAll (git.go:840), WriteTree (git.go:337), ReadTree (git.go:944 — REPLACES the index with a tree's contents), EmptyTreeSHA (git.go:500). There is NO reset/restore-index helper; the index has ONLY three mutators (AddAll, Add, ReadTree). Existing test pattern: internal/git tests create a temp repo with real git.\n2. INPUT: the git.Git interface + *gitRunner impl (internal/git/git.go).\n3. LOGIC: Add TWO new git.Git methods, each with a matching *gitRunner impl + a temp-repo test: (a) a freeze capture — e.g. FreezeWorkingTree(ctx, baseTree string) (tStart string, err error): internally AddAll → WriteTree (T_start) → ReadTree(baseTree) to reset the index back to the clean base so the per-concept stager starts clean. Handle the unborn case (baseTree = EmptyTreeSHA). The caller supplies baseTree (HEAD^{tree} or EmptyTreeSHA) since the orchestrator already derives it. (b) a changed-path-set for subset enforcement — e.g. DiffTreeNames(ctx, treeA, treeB string) ([]string, error) via `git diff-tree -r --name-only --no-commit-id <treeA> <treeB>` (sorted, deduped). Add BOTH to the interface declaration AND the impl. Keep them shell-free ([]string args, never sh -c — §19).\n4. OUTPUT: two new git primitives enabling T_start capture + path/content subset verification, each tested against a real temp repo.\n5. DOCS: [Mode A] git.Git interface doc comments for the new methods (freeze semantics: T_start is the immutable record of the working-tree change set at run start).",
+                  "prd_selectors": [
+                    "h2.13",
+                    "h3.59",
+                    "h3.30",
+                    "h3.82"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -207,9 +266,18 @@
                   "title": "Wire T_start into the Decompose orchestrator (planner/stagers/arbiter/shortcuts draw from T_start)",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P3.M1.T1.S1", "P1.M2.T1.S2"],
-                  "prd_selectors": ["h2.13", "h3.59", "h3.30", "h3.17", "h3.82"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_decompose_freeze.md §(b). Insert T_start capture AFTER baseTree/preRunHEAD derivation (decompose.go:152-158) and BEFORE callPlanner (decompose.go:150). baseTree (HEAD^{tree}) ≠ T_start (the working-tree change set) — KEEP prevTree:=baseTree (decompose.go:291) unchanged. The planner currently diffs via WorkingTreeDiff (planner.go:70). runSingleShortcut (decompose.go:229) currently does AddAll→WriteTree.\n2. INPUT: P3.M1.T1.S1 (FreezeWorkingTree/DiffTreeNames) + P1.M2.T1.S2 (decompose callers use v3 render). The Decompose orchestrator (decompose.go:139), callPlanner (planner.go), runLoop (decompose.go:287), runSingleShortcut (decompose.go:229), runArbiterPhase (decompose.go:456, WorkingTreeDiff at :462).\n3. LOGIC: (a) Capture T_start immediately after baseTree/preRunHEAD derivation (FreezeWorkingTree(ctx, baseTree)); the index is left clean (reset to baseTree) so the per-concept stager starts clean. (b) The planner diffs T_start (a tree-to-tree diff: baseTree → T_start, with binary placeholders per FR3c) — NOT a fresh WorkingTreeDiff of the live tree. (c) Per-concept loop: stagers stage content drawn strictly from T_start (the working tree is the frozen snapshot's source; the freeze invariant ensures no concurrent changes reach it). (d) runSingleShortcut and the arbiter's leftover staging draw from T_start, not a live re-read. Thread T_start + baseTree through Deps/closures as needed.\n4. OUTPUT: a decompose run commits EXACTLY the working-tree state as it existed when the run began; files created/modified after T_start is captured are invisible to every commit.\n5. DOCS: [Mode A] decompose.go doc comment documenting the T_start freeze boundary (FR-M1b: the run owns the freeze, not the stager)."
+                  "dependencies": [
+                    "P3.M1.T1.S1",
+                    "P1.M2.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_decompose_freeze.md §(b). Insert T_start capture AFTER baseTree/preRunHEAD derivation (decompose.go:152-158) and BEFORE callPlanner (decompose.go:150). baseTree (HEAD^{tree}) ≠ T_start (the working-tree change set) — KEEP prevTree:=baseTree (decompose.go:291) unchanged. The planner currently diffs via WorkingTreeDiff (planner.go:70). runSingleShortcut (decompose.go:229) currently does AddAll→WriteTree.\n2. INPUT: P3.M1.T1.S1 (FreezeWorkingTree/DiffTreeNames) + P1.M2.T1.S2 (decompose callers use v3 render). The Decompose orchestrator (decompose.go:139), callPlanner (planner.go), runLoop (decompose.go:287), runSingleShortcut (decompose.go:229), runArbiterPhase (decompose.go:456, WorkingTreeDiff at :462).\n3. LOGIC: (a) Capture T_start immediately after baseTree/preRunHEAD derivation (FreezeWorkingTree(ctx, baseTree)); the index is left clean (reset to baseTree) so the per-concept stager starts clean. (b) The planner diffs T_start (a tree-to-tree diff: baseTree → T_start, with binary placeholders per FR3c) — NOT a fresh WorkingTreeDiff of the live tree. (c) Per-concept loop: stagers stage content drawn strictly from T_start (the working tree is the frozen snapshot's source; the freeze invariant ensures no concurrent changes reach it). (d) runSingleShortcut and the arbiter's leftover staging draw from T_start, not a live re-read. Thread T_start + baseTree through Deps/closures as needed.\n4. OUTPUT: a decompose run commits EXACTLY the working-tree state as it existed when the run began; files created/modified after T_start is captured are invisible to every commit.\n5. DOCS: [Mode A] decompose.go doc comment documenting the T_start freeze boundary (FR-M1b: the run owns the freeze, not the stager).",
+                  "prd_selectors": [
+                    "h2.13",
+                    "h3.59",
+                    "h3.30",
+                    "h3.17",
+                    "h3.82"
+                  ]
                 }
               ]
             }
@@ -235,9 +303,16 @@
                   "title": "Freeze enforcement: verify tree[i] is a content-subset of T_start after each staging step (hard abort on violation, FR-M1c)",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P3.M1.T1.S2"],
-                  "prd_selectors": ["h3.59", "h3.30", "h3.82", "h3.91"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_decompose_freeze.md §(c)/(d). freezeSnapshot (stager.go:108) is the per-concept WriteTree wrapper; the orchestrator calls it after invokeStagerRetry (decompose.go:386). FR-M1c: the stager is an EXTERNAL agent running git against the live tree — do NOT trust it. The orchestrator owns the freeze boundary (mirroring the HEAD-movement guard, §19). ErrStagerMovedHEAD (stager.go) is the existing hard-abort precedent.\n2. INPUT: P3.M1.T1.S2 (T_start captured + threaded) + P3.M1.T1.S1 (DiffTreeNames).\n3. LOGIC: After each staging step (invokeStagerRetry → freezeSnapshot → tree[i]), VERIFY tree[i] is a CONTENT-SUBSET of T_start: every path changed in diff(baseTree, tree[i]) must be present in diff(baseTree, T_start) AND agree on blob content (tree[i]'s blob == T_start's blob for that path). Implement via DiffTreeNames(baseTree, tree[i]) ⊆ DiffTreeNames(baseTree, T_start) for the path check, plus a content check (e.g. `git diff tree[i] T_start -- <tree[i] changed paths>` is empty ⇒ tree[i]'s changes are all traceable to T_start). Any deviation — a concurrent working-tree change the stager swept in, OR a stager that ran a bare `git add -A` staging a path/content not in T_start — is a HARD ABORT: new sentinel ErrFreezeViolation (NON-RESCUE; already-landed commits 0..i-1 stand, mirroring the HEAD-movement guard philosophy). The orchestrator owns the freeze boundary, NOT the stager.\n4. OUTPUT: a concurrent change or mis-behaving stager can NEVER enter a commit; the run aborts cleanly with already-landed commits intact. Covered by the §20.2 'start-of-run freeze' invariant test.\n5. DOCS: [Mode A] decompose.go/stager.go doc comment (FR-M1c enforcement: the orchestrator owns the freeze boundary)."
+                  "dependencies": [
+                    "P3.M1.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_decompose_freeze.md §(c)/(d). freezeSnapshot (stager.go:108) is the per-concept WriteTree wrapper; the orchestrator calls it after invokeStagerRetry (decompose.go:386). FR-M1c: the stager is an EXTERNAL agent running git against the live tree — do NOT trust it. The orchestrator owns the freeze boundary (mirroring the HEAD-movement guard, §19). ErrStagerMovedHEAD (stager.go) is the existing hard-abort precedent.\n2. INPUT: P3.M1.T1.S2 (T_start captured + threaded) + P3.M1.T1.S1 (DiffTreeNames).\n3. LOGIC: After each staging step (invokeStagerRetry → freezeSnapshot → tree[i]), VERIFY tree[i] is a CONTENT-SUBSET of T_start: every path changed in diff(baseTree, tree[i]) must be present in diff(baseTree, T_start) AND agree on blob content (tree[i]'s blob == T_start's blob for that path). Implement via DiffTreeNames(baseTree, tree[i]) ⊆ DiffTreeNames(baseTree, T_start) for the path check, plus a content check (e.g. `git diff tree[i] T_start -- <tree[i] changed paths>` is empty ⇒ tree[i]'s changes are all traceable to T_start). Any deviation — a concurrent working-tree change the stager swept in, OR a stager that ran a bare `git add -A` staging a path/content not in T_start — is a HARD ABORT: new sentinel ErrFreezeViolation (NON-RESCUE; already-landed commits 0..i-1 stand, mirroring the HEAD-movement guard philosophy). The orchestrator owns the freeze boundary, NOT the stager.\n4. OUTPUT: a concurrent change or mis-behaving stager can NEVER enter a commit; the run aborts cleanly with already-landed commits intact. Covered by the §20.2 'start-of-run freeze' invariant test.\n5. DOCS: [Mode A] decompose.go/stager.go doc comment (FR-M1c enforcement: the orchestrator owns the freeze boundary).",
+                  "prd_selectors": [
+                    "h3.59",
+                    "h3.30",
+                    "h3.82",
+                    "h3.91"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -245,9 +320,14 @@
                   "title": "One-file short-circuit (FR-M2b): skip the planner when exactly one file changed",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P3.M1.T1.S2"],
-                  "prd_selectors": ["h3.59", "h3.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_decompose_freeze.md §(b) one-file insertion point (decompose.go:~148, before callPlanner). FR-M2b: deterministic (changed-path COUNT), not model judgment. StatusPorcelain (git.go:1058) includes untracked (??); use the T_start changed-path count (DiffTreeNames(baseTree, T_start)) so the short-circuit matches exactly what the run would commit.\n2. INPUT: P3.M1.T1.S2 (T_start captured + clean index). The Decompose mode routing (decompose.go:143-176).\n3. LOGIC: In AUTO mode (Config.Commits == 0 AND not Single), AFTER T_start capture, if the T_start changed-path count (DiffTreeNames(baseTree, T_start)) is EXACTLY 1: bypass the planner ENTIRELY — stage that one file's T_start content (Add the single T_start path), generate one message via the MESSAGE role, publish via commit-tree + update-ref. ZERO planner agent call (the same outcome as the FR-M11 single shortcut but with NO planner round-trip). An explicit --commits N (N≥2) OVERRIDES this short-circuit — a forced count is honored even for a single file (hunk-level staging may still partition). Insert before callPlanner.\n4. OUTPUT: a single-file change becomes one commit with no planner round-trip; --commits N≥2 still partitions.\n5. DOCS: [Mode A] decompose.go comment (FR-M2b: deterministic single-file short-circuit)."
+                  "dependencies": [
+                    "P3.M1.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: scout_decompose_freeze.md §(b) one-file insertion point (decompose.go:~148, before callPlanner). FR-M2b: deterministic (changed-path COUNT), not model judgment. StatusPorcelain (git.go:1058) includes untracked (??); use the T_start changed-path count (DiffTreeNames(baseTree, T_start)) so the short-circuit matches exactly what the run would commit.\n2. INPUT: P3.M1.T1.S2 (T_start captured + clean index). The Decompose mode routing (decompose.go:143-176).\n3. LOGIC: In AUTO mode (Config.Commits == 0 AND not Single), AFTER T_start capture, if the T_start changed-path count (DiffTreeNames(baseTree, T_start)) is EXACTLY 1: bypass the planner ENTIRELY — stage that one file's T_start content (Add the single T_start path), generate one message via the MESSAGE role, publish via commit-tree + update-ref. ZERO planner agent call (the same outcome as the FR-M11 single shortcut but with NO planner round-trip). An explicit --commits N (N≥2) OVERRIDES this short-circuit — a forced count is honored even for a single file (hunk-level staging may still partition). Insert before callPlanner.\n4. OUTPUT: a single-file change becomes one commit with no planner round-trip; --commits N≥2 still partitions.\n5. DOCS: [Mode A] decompose.go comment (FR-M2b: deterministic single-file short-circuit).",
+                  "prd_selectors": [
+                    "h3.59",
+                    "h3.30"
+                  ]
                 }
               ]
             }
@@ -282,9 +362,15 @@
                   "title": "Progress label: '<Verb> with <model> in <provider>…' (FR51b) across generate + decompose",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M2.T1.S2", "P1.M1.T1.S1"],
-                  "prd_selectors": ["h3.29", "h2.15"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD §9.13 FR51b. ui.Progress (output.go) takes a free string and prefixes it with '↳ ' to stderr. The model string already carries the inference prefix (FR-R5b), so no special formatting is needed. Call sites: generate (message role) and decompose (planner role surfaced on the main line; --verbose prints all four roles).\n2. INPUT: P1.M2.T1.S2 (resolved provider/model/reasoning per role). The ui package (output.go Progress), the generate progress call site, the decompose progress call site(s).\n3. LOGIC: (a) Add a formatting helper (in ui or at the call site) that builds '<Verb> with <model> in <provider>…' — e.g. 'Generating with zai/glm-5.2 in pi…', 'Generating with sonnet in claude…', 'Decomposing with anthropic/claude-sonnet-4 in opencode…'. When model is empty (the provider's own default), show '<provider>' alone. (b) Single-commit path (generate) surfaces the MESSAGE role's resolved config; verb 'Generating'. (c) Decompose surfaces the PLANNER role's resolved config on the main progress line (verb 'Decomposing'); --verbose prints all four roles (planner/stager/message/arbiter) with their resolved provider/model/reasoning.\n4. OUTPUT: progress lines name the resolved invocation; --verbose enumerates all four decompose roles.\n5. DOCS: [Mode A] ui.Progress doc comment with the FR51b example. Rides WITH the work."
+                  "dependencies": [
+                    "P1.M2.T1.S2",
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD §9.13 FR51b. ui.Progress (output.go) takes a free string and prefixes it with '↳ ' to stderr. The model string already carries the inference prefix (FR-R5b), so no special formatting is needed. Call sites: generate (message role) and decompose (planner role surfaced on the main line; --verbose prints all four roles).\n2. INPUT: P1.M2.T1.S2 (resolved provider/model/reasoning per role). The ui package (output.go Progress), the generate progress call site, the decompose progress call site(s).\n3. LOGIC: (a) Add a formatting helper (in ui or at the call site) that builds '<Verb> with <model> in <provider>…' — e.g. 'Generating with zai/glm-5.2 in pi…', 'Generating with sonnet in claude…', 'Decomposing with anthropic/claude-sonnet-4 in opencode…'. When model is empty (the provider's own default), show '<provider>' alone. (b) Single-commit path (generate) surfaces the MESSAGE role's resolved config; verb 'Generating'. (c) Decompose surfaces the PLANNER role's resolved config on the main progress line (verb 'Decomposing'); --verbose prints all four roles (planner/stager/message/arbiter) with their resolved provider/model/reasoning.\n4. OUTPUT: progress lines name the resolved invocation; --verbose enumerates all four decompose roles.\n5. DOCS: [Mode A] ui.Progress doc comment with the FR51b example. Rides WITH the work.",
+                  "prd_selectors": [
+                    "h3.29",
+                    "h2.15"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -292,9 +378,18 @@
                   "title": "End-to-end scenario harness (§20.5) — throwaway-repo regression net for concurrency/routing invariants",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P3.M2.T1.S2", "P1.M3.T1.S2", "P2.M1.T1.S2"],
-                  "prd_selectors": ["h2.20", "h3.85", "h3.82", "h3.81"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD §20.5. The concurrency/routing invariants are easy to specify, easy to regress, and — per the §G bug history — easy to break SILENTLY (unit tests with stub agents cannot reach them). internal/git tests use real git in a temp repo; internal/stubtest provides a stub agent (cmd/stubagent). The v2 decompose suite is internal/decompose/decompose_test.go.\n2. INPUT: P3.M2.T1.S2 (freeze + short-circuit), P1.M3.T1.S2 (migration), P2.M1.T1.S2 (qwen-code). The internal/stubtest stub agent + the v2 decompose stub suite.\n3. LOGIC: Build a //go:build e2e throwaway-repo harness: per scenario, `git init` a temp repo → seed known content → run stagehand (real agent where STAGEHAND_RUN_REAL=1, else the stub) → assert the resulting history. MUST-COVER set: (1) nothing staged + N unrelated files → N commits (auto AND --commits N); (2) exactly one file → single commit, NO planner call (FR-M2b); (3) a file created/modified by a concurrent process mid-run → excluded from EVERY commit, left in the working tree (FR-M1b/M1c); (4) a model pinned on a multi-backend agent with no inference-provider prefix → HARD ERROR, not empty output (FR-R5b); (5) arbiter reconciliation (new commit / tip amend / mid-chain rebuild); (6) rescue mid-loop; (7) CAS abort (HEAD moved concurrently). ALSO extend the v2 stub decompose suite (internal/decompose/decompose_test.go) with the concurrent-change-exclusion assertion (write a sentinel file mid-run, assert it lands in no commit and remains in the working tree).\n4. OUTPUT: a regression net for the behaviors that only manifest against a real repo; every bug found in the wild becomes a scenario here.\n5. DOCS: none — test-only."
+                  "dependencies": [
+                    "P3.M2.T1.S2",
+                    "P1.M3.T1.S2",
+                    "P2.M1.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD §20.5. The concurrency/routing invariants are easy to specify, easy to regress, and — per the §G bug history — easy to break SILENTLY (unit tests with stub agents cannot reach them). internal/git tests use real git in a temp repo; internal/stubtest provides a stub agent (cmd/stubagent). The v2 decompose suite is internal/decompose/decompose_test.go.\n2. INPUT: P3.M2.T1.S2 (freeze + short-circuit), P1.M3.T1.S2 (migration), P2.M1.T1.S2 (qwen-code). The internal/stubtest stub agent + the v2 decompose stub suite.\n3. LOGIC: Build a //go:build e2e throwaway-repo harness: per scenario, `git init` a temp repo → seed known content → run stagehand (real agent where STAGEHAND_RUN_REAL=1, else the stub) → assert the resulting history. MUST-COVER set: (1) nothing staged + N unrelated files → N commits (auto AND --commits N); (2) exactly one file → single commit, NO planner call (FR-M2b); (3) a file created/modified by a concurrent process mid-run → excluded from EVERY commit, left in the working tree (FR-M1b/M1c); (4) a model pinned on a multi-backend agent with no inference-provider prefix → HARD ERROR, not empty output (FR-R5b); (5) arbiter reconciliation (new commit / tip amend / mid-chain rebuild); (6) rescue mid-loop; (7) CAS abort (HEAD moved concurrently). ALSO extend the v2 stub decompose suite (internal/decompose/decompose_test.go) with the concurrent-change-exclusion assertion (write a sentinel file mid-run, assert it lands in no commit and remains in the working tree).\n4. OUTPUT: a regression net for the behaviors that only manifest against a real repo; every bug found in the wild becomes a scenario here.\n5. DOCS: none — test-only.",
+                  "prd_selectors": [
+                    "h2.20",
+                    "h3.85",
+                    "h3.82",
+                    "h3.81"
+                  ]
                 }
               ]
             }
@@ -320,9 +415,33 @@
                   "title": "Sync README.md + docs/{providers,configuration}.md to the v3 changeset; reconcile agent→provider terminology drift",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T1.S2", "P1.M2.T1.S1", "P1.M2.T1.S2", "P1.M3.T1.S1", "P1.M3.T1.S2", "P2.M1.T1.S1", "P2.M1.T1.S2", "P3.M1.T1.S1", "P3.M1.T1.S2", "P3.M2.T1.S1", "P3.M2.T1.S2", "P4.M1.T1.S1", "P4.M1.T1.S2"],
-                  "prd_selectors": ["h2.5", "h2.21", "h3.69", "h3.67", "h3.31", "h3.32", "h3.49", "h3.90"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: delta_prd.md §2 (Mode B). The v3 model-prefix terminology, the reasoning feature, and the qwen-code provider change the user-visible surface. The PRD §16.4 CLI example uses `--planner-agent agy` and `agent = \"pi\"` / `agent = \"agy\"` — but FR-R3/FR-B7 and the §12 terminology table all standardize on `provider` (the `agent`/`[agent.*]` terminology is the abandoned intermediate that FR-B7 maps BACK to provider). README.md is the marketing surface (PRD §21.5 structure).\n2. INPUT: ALL implementing subtasks (P1.M1.T1.S1 → P4.M1.T1.S2). README.md, docs/providers.md, docs/configuration.md, docs/cli.md.\n3. LOGIC: (a) README.md — update the hero/quick-start config examples to use the model-prefix form (model = \"zai/glm-5.2\" for multi-backend providers, bare model for single-backend), add --reasoning to the quick-start, and add qwen-code to the provider list. (b) Reconcile the §16.4 terminology drift in any README/docs examples: agent/[agent.*] → provider/[provider.*]; --planner-agent → --planner-provider. (c) docs/providers.md + docs/configuration.md — sync the provider list (add qwen-code, mark experimental), the model-prefix config surface, and the reasoning surface so the shipped docs are self-consistent. (d) Verify NO doc still references default_provider as a live field (it is removed in v3). Verify the §13.4 stage-while-generating + decompose descriptions still match the T_start freeze behavior where relevant.\n4. OUTPUT: README + docs reflect the v3 changeset coherently and are self-consistent (no agent terminology, no default_provider).\n5. DOCS: this IS the documentation task (Mode B changeset-level sync)."
+                  "dependencies": [
+                    "P1.M1.T1.S1",
+                    "P1.M1.T1.S2",
+                    "P1.M2.T1.S1",
+                    "P1.M2.T1.S2",
+                    "P1.M3.T1.S1",
+                    "P1.M3.T1.S2",
+                    "P2.M1.T1.S1",
+                    "P2.M1.T1.S2",
+                    "P3.M1.T1.S1",
+                    "P3.M1.T1.S2",
+                    "P3.M2.T1.S1",
+                    "P3.M2.T1.S2",
+                    "P4.M1.T1.S1",
+                    "P4.M1.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: delta_prd.md §2 (Mode B). The v3 model-prefix terminology, the reasoning feature, and the qwen-code provider change the user-visible surface. The PRD §16.4 CLI example uses `--planner-agent agy` and `agent = \"pi\"` / `agent = \"agy\"` — but FR-R3/FR-B7 and the §12 terminology table all standardize on `provider` (the `agent`/`[agent.*]` terminology is the abandoned intermediate that FR-B7 maps BACK to provider). README.md is the marketing surface (PRD §21.5 structure).\n2. INPUT: ALL implementing subtasks (P1.M1.T1.S1 → P4.M1.T1.S2). README.md, docs/providers.md, docs/configuration.md, docs/cli.md.\n3. LOGIC: (a) README.md — update the hero/quick-start config examples to use the model-prefix form (model = \"zai/glm-5.2\" for multi-backend providers, bare model for single-backend), add --reasoning to the quick-start, and add qwen-code to the provider list. (b) Reconcile the §16.4 terminology drift in any README/docs examples: agent/[agent.*] → provider/[provider.*]; --planner-agent → --planner-provider. (c) docs/providers.md + docs/configuration.md — sync the provider list (add qwen-code, mark experimental), the model-prefix config surface, and the reasoning surface so the shipped docs are self-consistent. (d) Verify NO doc still references default_provider as a live field (it is removed in v3). Verify the §13.4 stage-while-generating + decompose descriptions still match the T_start freeze behavior where relevant.\n4. OUTPUT: README + docs reflect the v3 changeset coherently and are self-consistent (no agent terminology, no default_provider).\n5. DOCS: this IS the documentation task (Mode B changeset-level sync).",
+                  "prd_selectors": [
+                    "h2.5",
+                    "h2.21",
+                    "h3.69",
+                    "h3.67",
+                    "h3.31",
+                    "h3.32",
+                    "h3.49",
+                    "h3.90"
+                  ]
                 }
               ]
             }

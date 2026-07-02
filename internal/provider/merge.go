@@ -56,9 +56,7 @@ func MergeManifest(base, override Manifest) Manifest {
 	if override.ProviderFlag != nil {
 		out.ProviderFlag = override.ProviderFlag
 	}
-	if override.DefaultProvider != nil {
-		out.DefaultProvider = override.DefaultProvider
-	}
+
 	if override.Output != nil {
 		out.Output = override.Output
 	}
@@ -99,6 +97,20 @@ func MergeManifest(base, override Manifest) Manifest {
 			merged[k] = v
 		}
 		out.Env = merged
+	}
+
+	// --- regime 3 (cont): ReasoningLevels map — key-by-key merge into a FRESH map ---
+	// CRITICAL: out.ReasoningLevels currently ALIASES base.ReasoningLevels (out := base copied the map header).
+	// We MUST allocate a fresh map; mutating out.ReasoningLevels in place would corrupt the caller's base.
+	if len(override.ReasoningLevels) > 0 {
+		merged := make(map[string][]string, len(base.ReasoningLevels)+len(override.ReasoningLevels))
+		for k, v := range base.ReasoningLevels {
+			merged[k] = v
+		}
+		for k, v := range override.ReasoningLevels {
+			merged[k] = v // override key wins; wholesale slice replacement per key
+		}
+		out.ReasoningLevels = merged
 	}
 
 	// Name: NOT merged — out.Name == base.Name (the struct copy). The registry sets the final Name.

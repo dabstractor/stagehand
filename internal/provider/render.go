@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 // CmdSpec is the fully-specified subprocess invocation produced by Manifest.Render (PRD §12.2). It is
@@ -45,7 +46,7 @@ const (
 	RenderTooled RenderMode = "tooled"
 )
 
-// Render turns a provider Manifest + a (model, provider, sysPrompt, userPayload) tuple into a CmdSpec
+// Render turns a provider Manifest + a (model, sysPrompt, userPayload, reasoning) tuple into a CmdSpec
 // per PRD §12.2 "Command rendering algorithm". It is the bridge "logical intent → concrete argv".
 //
 // Lifecycle: Render calls m.Validate() (returns its error — covers "Validate prompt_delivery mode" +
@@ -53,20 +54,25 @@ const (
 // untouched). This makes Render robust to a caller that obtained the manifest from Registry.Get and
 // skipped Validate/Resolve (the registry stores merged-but-unresolved manifests per P1.M2.T3).
 //
-// Token order (§12.2 — AUTHORITATIVE; the §12.3–§12.7 narrative "Rendered:" blocks are illustrative):
+// Token order (§12.2 v3 — AUTHORITATIVE; the §12.3–§12.7 narrative "Rendered:" blocks are illustrative):
 //
 //	args = [subcommand...]
-//	+ (provider_flag, provider)        if provider_flag != "" && provider != ""
-//	+ (model_flag,    model)           if model_flag    != "" && model    != ""
-//	+ (system_prompt_flag, sys)        if system_prompt_flag != "" && sys != ""
+//	+ (--provider, <inference>)          if provider_flag != "" && model contains "/" (FR-R5b fold)
+//	+ (model_flag,    model)              if model_flag    != "" && model    != ""
+//	+ reasoning_level_tokens...          if reasoning != "" && ReasoningLevels[reasoning] non-empty (FR-R6)
+//	+ (system_prompt_flag, sys)          if system_prompt_flag != "" && sys != ""
 //	+ (mode==tooled ? tooled_flags : bare_flags)...    # §11.5/§12.2 mode ternary; default bare
-//	+ print_flag                       if print_flag != ""        // ALWAYS LAST (after flags)
-//	+ payload                          per prompt_delivery switch (positional/flag only)
+//	+ print_flag                         if print_flag != ""        // ALWAYS LAST (after flags)
+//	+ payload                            per prompt_delivery switch (positional/flag only)
 //
-// model/provider default to the resolved manifest's DefaultModel/DefaultProvider when the param is ""
-// (mirrors the renderArgs test scaffolding; honors a §12.8 user manifest's default_provider;
-// pi's default is now "" per FR-D2, so a bare pi render emits no --model until config supplies one).
-// An explicit non-empty param always wins.
+// The inference provider is folded into the model slash-prefix (FR-R5b): a provider_flag provider (pi)
+// takes "inference/model" — the prefix before "/" becomes the --provider value, the rest is the model.
+// A bare model (no "/") on such a provider is a HARD ERROR. Providers without a provider_flag (opencode,
+// claude, single-backend) pass the model VERBATIM — opencode's "openai/gpt-5.4" is its own combined form.
+//
+// Reasoning tokens (FR-R6): if the reasoning param matches a key in ReasoningLevels and the value is
+// non-empty, those tokens are appended after the model flag. Absent level, nil map, or empty token list
+// ⇒ SILENT no-op — NEVER an error.
 //
 // System-prompt + payload (§12.2 "Note on system prompt + stdin"): when system_prompt_flag != "" the
 // sys prompt is emitted via the flag and the payload is just the user payload; when system_prompt_flag
@@ -80,46 +86,47 @@ const (
 // the stager role, §11.5). `RenderTooled` on a manifest with nil/empty `TooledFlags` returns an
 // error — that provider cannot serve as a stager (§12.1). The variadic default keeps every v1 caller
 // unchanged.
-func (m Manifest) Render(model, provider, sysPrompt, userPayload string, mode ...RenderMode) (*CmdSpec, error) {
+func (m Manifest) Render(model, sysPrompt, userPayload, reasoning string, mode ...RenderMode) (*CmdSpec, error) {
 	if err := m.Validate(); err != nil {
 		return nil, fmt.Errorf("provider render %q: %w", m.Name, err)
 	}
 	r := m.Resolve() // safe `*r.X` deref for every pointer; copy — caller's m untouched
 
-	// model/provider default fallback (param "" → manifest default). Explicit non-empty wins.
+	// model default fallback (param "" → manifest default). Explicit non-empty wins.
 	modelToUse := model
 	if modelToUse == "" {
 		modelToUse = *r.DefaultModel
-	}
-	providerToUse := provider
-	if providerToUse == "" {
-		providerToUse = *r.DefaultProvider
-	}
-
-	// FR-R5b backstop: a multi-provider agent (one with a provider_flag, e.g. pi) must NEVER receive a
-	// bare --model. The inference provider is the manifest's default_provider (what a user sets via
-	// [provider.<name>] default_provider); when a model IS pinned but no inference provider resolves,
-	// the agent would guess the upstream and guess wrong (e.g. a bare glm-5.2 routed to the wrong
-	// backend → empty output). Reject here so EVERY call path (v1 generate + all four decompose roles,
-	// all of which pass "" for the provider param and rely on default_provider) fails loudly instead of
-	// emitting an unroutable command. Exempt: single-backend agents (claude/codex/gemini/cursor) and
-	// combined-form agents (opencode/agy, no provider_flag — the provider lives in the model string).
-	if *r.ProviderFlag != "" && modelToUse != "" && providerToUse == "" {
-		return nil, fmt.Errorf(
-			"provider render %q: model %q requires an inference provider; set [provider.%s] default_provider "+
-				"(e.g. \"zai\", \"openrouter\") so the model routes correctly",
-			m.Name, modelToUse, m.Name)
 	}
 
 	// §12.2 token order. append(nil, x...) is safe for absent slices (Subcommand/BareFlags nil → no-op).
 	args := make([]string, 0, 16)
 	args = append(args, r.Subcommand...)
-	if *r.ProviderFlag != "" && providerToUse != "" {
-		args = append(args, *r.ProviderFlag, providerToUse)
+
+	// FR-R5b: a provider with a provider_flag (pi — the only one) takes "inference/model". Split the
+	// slash-prefix → --provider <prefix>; the rest is the model. A bare model (no "/") on such a provider
+	// is a HARD ERROR — never a silent bare --model that routes wrong. Providers without a provider_flag
+	// (opencode + all single-backend) pass the model VERBATIM (opencode's "openai/gpt-5.4" is its own
+	// combined form — do NOT split it).
+	if *r.ProviderFlag != "" && modelToUse != "" {
+		if i := strings.Index(modelToUse, "/"); i >= 0 {
+			args = append(args, *r.ProviderFlag, modelToUse[:i])
+			modelToUse = modelToUse[i+1:]
+		} else {
+			return nil, fmt.Errorf(
+				"provider render %q: model %q on %s must be inference/model, e.g. \"zai/glm-5.2\"",
+				m.Name, modelToUse, m.Name)
+		}
 	}
 	if *r.ModelFlag != "" && modelToUse != "" {
 		args = append(args, *r.ModelFlag, modelToUse)
 	}
+
+	// FR-R6: append the resolved reasoning level's tokens if the manifest declares them. Absent level,
+	// nil map, or empty token list ⇒ SILENT no-op (provider/model lacks reasoning control) — never an error.
+	if reasoning != "" && len(r.ReasoningLevels[reasoning]) > 0 {
+		args = append(args, r.ReasoningLevels[reasoning]...)
+	}
+
 	if *r.SystemPromptFlag != "" && sysPrompt != "" {
 		args = append(args, *r.SystemPromptFlag, sysPrompt)
 	}

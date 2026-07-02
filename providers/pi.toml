@@ -49,8 +49,8 @@ system_prompt_flag = "--system-prompt"  # pi supports a first-class system promp
 
 # --- sub-provider ---
 provider_flag = "--provider"        # pi routes to backends: zai | anthropic | google | ...
-default_provider = ""               # NON-NIL empty: do NOT add --provider unless the user configures
-                                    # one (e.g. set "zai" for GLM). pi's own default provider is "google".
+# default_provider removed in v3: the inference backend is now the slash-prefix on the model
+# (e.g. "zai/glm-5.2" → --provider zai --model glm-5.2). FR-R5b enforces this at Render.
 
 # --- bare mode (§12.7.1: explicit tool-disable switch) ---
 bare_flags = [                      # appended VERBATIM to make the call bare + ephemeral.

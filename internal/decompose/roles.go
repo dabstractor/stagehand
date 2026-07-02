@@ -140,20 +140,9 @@ func ResolveRoles(cfg config.Config, reg *provider.Registry) (RoleManifests, Rol
 			}
 		}
 
-		// FR-R5b: a model pinned on a multi-provider agent (pi) is ambiguous unless an inference provider
-		// is resolved. The inference provider is the manifest's default_provider (what Render forwards as
-		// the agent's --provider), sourced from [provider.<agent>] default_provider — NOT the agent name
-		// in cfg.Provider. The prior guard keyed off cfg.Provider and was defeated the moment the
-		// bootstrap set provider="pi" (the normal case), letting a bare --model slip through to Render.
-		// This catches it early with a role-named message; Render is the authoritative backstop for any
-		// path that bypasses ResolveRoles (v1 generate). isMultiProvider excludes opencode/agy (no
-		// provider_flag — they carry the provider in the model string, the FR-R5b "combined form").
-		if mdl != "" && isMultiProvider(m) && inferenceProvider(m) == "" {
-			return RoleManifests{}, RoleModels{}, fmt.Errorf(
-				"role %q: model %q is set but agent %q has no inference provider; set "+
-					"[provider.%s] default_provider (e.g. \"zai\", \"openrouter\") so the model routes correctly",
-				role, mdl, prov, prov)
-		}
+		// TODO(P1.M2.T1.S2): re-add the role-named FR-R5b guard using the model slash-prefix
+		// (a bare model on a provider_flag agent ⇒ error). Render now enforces FR-R5b at the
+		// chokepoint for ALL paths (including decompose).
 
 		setRole(&rm, &rmodels, role, m, prov, mdl)
 	}
@@ -182,13 +171,8 @@ func isMultiProvider(m provider.Manifest) bool {
 	return m.ProviderFlag != nil && *m.ProviderFlag != ""
 }
 
-// inferenceProvider returns the manifest's resolved inference (upstream) provider — the value Render
-// forwards as the agent's --provider, sourced from [provider.<name>] default_provider. Empty means
-// "unset": the agent would guess the upstream, which FR-R5b forbids when a model is pinned. Resolve()
-// is nil-safe (fills a nil DefaultProvider with ""). Used by the FR-R5b guard in ResolveRoles.
-func inferenceProvider(m provider.Manifest) string {
-	return *m.Resolve().DefaultProvider
-}
+// TODO(P1.M2.T1.S2): re-add inferenceProvider if needed for the model-prefix guard.
+// (DefaultProvider field removed in v3; Render enforces FR-R5b at the chokepoint.)
 
 // setRole assigns the resolved manifest and RoleConfig to the correct struct field for the given role.
 // A 4-case switch (no reflection — vet-friendly, clear, fast).

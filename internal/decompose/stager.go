@@ -74,16 +74,17 @@ var ErrStagerMovedHEAD = errors.New("decompose: stager moved HEAD")
 // NO output parse: the stager has no JSON contract; the exit code is the signal.
 func stageConcept(ctx context.Context, deps Deps, concept prompt.PlannerCommit) error {
 	// 1. Derive the <role> model — Deps has no Models field. (Provider is the manifest name; it is NOT
-	// passed to Render — Render resolves the sub-provider from the manifest's DefaultProvider.)
+	// passed to Render — v3 FR-R5b folds the inference backend into the model slash-prefix.)
 	_, mdl := config.ResolveRoleModel("stager", deps.Config)
 
 	// 2. Build the §17.6 stager task from the concept's title + description.
 	task := prompt.BuildStagerTask(concept.Title, concept.Description)
 
-	// Pass "" for the sub-provider (see note above); ResolveRoleModel's prov is the manifest name,
-	// not the backend. The SECOND "" is the empty system prompt (pre-existing — the task IS the
-	// payload). Same fix as generate.go (P1.M1.T1.S1).
-	spec, rerr := deps.Roles.Stager.Render(mdl, "", "", task, provider.RenderTooled)
+	// v3 FR-R5b: the inference provider is the model slash-prefix ("inference/model"),
+	// which Render splits into --provider <inference>. P1.M2 wires real per-role reasoning.
+	// (Old: prov from ResolveRoleModel was the manifest name, NOT the upstream backend —
+	// the provider param has been folded into the model slash-prefix; DefaultProvider removed.)
+	spec, rerr := deps.Roles.Stager.Render(mdl, "", task, "", provider.RenderTooled)
 	if rerr != nil {
 		return fmt.Errorf("%w: render: %v", ErrStagerFailed, rerr)
 	}

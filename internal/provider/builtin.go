@@ -33,9 +33,11 @@ func BuiltinManifests() map[string]Manifest {
 // (provider=zai, model=glm-5-turbo) is a documented PERSONAL OVERRIDE, not the shipped default —
 // see TestBuiltinManifests_RenderedCommand_Pi_PersonalOverride.
 //
-// NOTE the explicit-empty DefaultProvider: §12.3 WRITES `default_provider = ""` (non-nil *""), meaning
-// "do not add --provider unless the user configures one." This is NOT the same as a nil DefaultProvider
-// (absent key) — the decode-parity test enforces the distinction.
+// NOTE: ReasoningLevels is nil (absent) in the shipped default. FR-D5 requires verification
+// before populating — FR-R6 makes nil a graceful no-op, and S1's call sites pass reasoning="".
+// Per FR-D2 (PRD §9.16/§12.3), the shipped pi default is DECOUPLED from any one subscription:
+// default_model is "". config init fills per-role models from the FR-D4 table; the user/config
+// picks the backend (inference provider) via the model slash-prefix (v3 FR-R5b).
 func builtinPi() Manifest {
 	return Manifest{
 		Name:             "pi",
@@ -47,7 +49,9 @@ func builtinPi() Manifest {
 		DefaultModel:     strPtr(""), // FR-D2: was glm-5-turbo; decoupled from any one subscription
 		SystemPromptFlag: strPtr("--system-prompt"),
 		ProviderFlag:     strPtr("--provider"),
-		DefaultProvider:  strPtr(""), // §12.3 explicit empty (NON-NIL) — user sets e.g. "zai"
+		// ReasoningLevels: nil — TODO(FR-D5): populate reasoning_levels tokens once verified
+		// (e.g. claude --thinking-effort low|medium|high; verify per provider's --help/docs).
+		// nil is safe: FR-R6 makes it a graceful no-op (call sites pass reasoning="" in S1).
 		BareFlags: []string{
 			"--no-tools",
 			"--no-extensions",
@@ -92,8 +96,8 @@ func builtinPi() Manifest {
 // settings via `--setting-sources ""`; `--no-session-persistence` makes it ephemeral (valid only with -p).
 //
 // NOTE: (1) ProviderFlag is strPtr("") — §12.4 WRITES `provider_flag = "" # n/a` (non-nil empty); the
-// §12.2 renderer's `if provider_flag and provider` is therefore false → no --provider emitted (claude has
-// no sub-provider concept). (2) DefaultProvider is NIL — §12.4 OMITS the key entirely (do NOT set it).
+// §12.2 renderer's model-prefix fold (FR-R5b) does NOT split for provider_flag="" (claude has
+// no sub-provider concept). (2) ReasoningLevels is nil — §12.4 OMITS the key entirely.
 // (3) BareFlags has TWO "" value tokens (the args to --tools / --setting-sources) — do NOT drop them.
 func builtinClaude() Manifest {
 	return Manifest{
@@ -127,7 +131,7 @@ func builtinClaude() Manifest {
 		},
 		Output:         strPtr("raw"),
 		StripCodeFence: boolPtr(true),
-		// Subcommand, PromptFlag, JsonField, RetryInstruction, Env, DefaultProvider: nil (absent in §12.4).
+		// Subcommand, PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent in §12.4).
 	}
 }
 
@@ -139,7 +143,7 @@ func builtinClaude() Manifest {
 //
 // NOTE: (1) PrintFlag/SystemPromptFlag/ProviderFlag are strPtr("") — §12.5 WRITES them "" (NON-NIL empty):
 // no print flag (positional/stdin implies one-shot), no sys-prompt flag (sys PREPENDED to the payload per
-// §12.2), no sub-provider. (2) DefaultProvider is NIL — §12.5 OMITS the key (do NOT set it). (3) The sys
+// §12.2), no sub-provider. (2) ReasoningLevels is nil — §12.5 OMITS the key. (3) The sys
 // prompt is prepended to the payload (no --system-prompt flag exists on gemini-cli).
 func builtinGemini() Manifest {
 	return Manifest{
@@ -157,7 +161,7 @@ func builtinGemini() Manifest {
 		},
 		Output:         strPtr("raw"),
 		StripCodeFence: boolPtr(true),
-		// Subcommand, PromptFlag, DefaultProvider, JsonField, RetryInstruction, Env: nil (absent in §12.5).
+		// Subcommand, PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent in §12.5).
 	}
 }
 
@@ -177,7 +181,7 @@ func builtinGemini() Manifest {
 // NOTE: (1) PrintFlag="-p" (NON-NIL). (2) SystemPromptFlag/ProviderFlag are strPtr("") — §12.5.1 WRITES
 // them "" (NON-NIL empty): no sys flag (sys prepended, §12.2), no sub-provider. (3) default_model is
 // "gemini-2.5-pro" (agy runs the Gemini family). (4) Experimental=boolPtr(true) (ships experimental).
-// (5) Subcommand/PromptFlag/DefaultProvider/JsonField/RetryInstruction/Env/TooledFlags are nil (absent,
+// (5) Subcommand/PromptFlag/JsonField/RetryInstruction/Env/TooledFlags/ReasoningLevels are nil (absent,
 // like gemini). agy is the Gemini-lineage twin of gemini, differing in default_model + Experimental.
 func builtinAgy() Manifest {
 	return Manifest{
@@ -197,7 +201,7 @@ func builtinAgy() Manifest {
 		StripCodeFence: boolPtr(true),
 		Experimental:   boolPtr(true), // §12.5.1.1 ships experimental (non-TTY stdout drop, issue #76)
 		// TooledFlags: nil — agy cannot serve as a stager until §12.5.1.1 item 4 is verified.
-		// Subcommand, PromptFlag, DefaultProvider, JsonField, RetryInstruction, Env: nil (absent, like gemini).
+		// Subcommand, PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent, like gemini).
 	}
 }
 
@@ -211,7 +215,7 @@ func builtinAgy() Manifest {
 // empty): `run` is already non-interactive (no print flag), user MUST set model (no single sensible
 // default — model space is huge), no sys-prompt flag (sys prepended), provider is part of the model string.
 // (3) BareFlags = []string{} — §12.6 writes bare_flags = []; a present empty array decodes NON-NIL empty
-// (FINDING D). (4) DefaultProvider is NIL — §12.6 OMITS the key.
+// (FINDING D). (4) ReasoningLevels is nil — §12.6 OMITS the key.
 func builtinOpenCode() Manifest {
 	return Manifest{
 		Name:             "opencode",
@@ -227,7 +231,7 @@ func builtinOpenCode() Manifest {
 		BareFlags:        []string{}, // §12.6 `bare_flags = []` → NON-NIL empty slice (FINDING D); do NOT omit
 		Output:           strPtr("raw"),
 		StripCodeFence:   boolPtr(true),
-		// PromptFlag, DefaultProvider, JsonField, RetryInstruction, Env: nil (absent in §12.6).
+		// PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent in §12.6).
 	}
 }
 
@@ -247,7 +251,7 @@ func builtinOpenCode() Manifest {
 // NOTE: (1) Subcommand=["exec"] (§12.7 subcommand = ["exec"] → NON-NIL 1-element). (2) PrintFlag/
 // DefaultModel/SystemPromptFlag/ProviderFlag are strPtr("") — §12.7 WRITES them "" (NON-NIL empty): exec
 // is already non-interactive (no print flag), model comes from ~/.codex/config.toml (no default), no
-// sys-prompt flag (sys PREPENDED to the payload per §12.2), no sub-provider. (3) DefaultProvider is NIL
+// sys-prompt flag (sys PREPENDED to the payload per §12.2), no sub-provider. (3) ReasoningLevels is nil
 // — §12.7 OMITS the key. (4) The sys prompt is prepended (no --system-prompt flag on codex exec).
 //
 // TO CONFIRM (integration): that `codex exec` writes the assistant's final answer to stdout and exits 0
@@ -271,7 +275,7 @@ func builtinCodex() Manifest {
 		},
 		Output:         strPtr("raw"),
 		StripCodeFence: boolPtr(true),
-		// PromptFlag, DefaultProvider, JsonField, RetryInstruction, Env: nil (absent in §12.7).
+		// PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent in §12.7).
 	}
 }
 
@@ -285,7 +289,7 @@ func builtinCodex() Manifest {
 // Subcommand = []string{} — §12.7 writes subcommand = []; a present empty array decodes NON-NIL empty
 // (FINDING D); write it explicitly (do NOT omit → nil). (3) DefaultModel/SystemPromptFlag/ProviderFlag
 // are strPtr("") — §12.7 WRITES them "" (NON-NIL empty): cursor has per-account model availability (no
-// single default), no sys-prompt flag (sys prepended), no sub-provider. (4) DefaultProvider is NIL —
+// single default), no sys-prompt flag (sys prepended), no sub-provider. (4) ReasoningLevels is nil —
 // §12.7 OMITS the key. (5) The sys prompt is prepended (no --system-prompt flag on agent).
 //
 // TO CONFIRM (integration): that `--mode ask` wins over `-p`'s default full-tools profile — i.e. the
@@ -309,6 +313,6 @@ func builtinCursor() Manifest {
 		},
 		Output:         strPtr("raw"),
 		StripCodeFence: boolPtr(true),
-		// PromptFlag, DefaultProvider, JsonField, RetryInstruction, Env: nil (absent in §12.7).
+		// PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent in §12.7).
 	}
 }

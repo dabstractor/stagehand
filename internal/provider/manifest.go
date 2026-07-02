@@ -55,8 +55,7 @@ type Manifest struct {
 	SystemPromptFlag *string `toml:"system_prompt_flag"` // nil/"" => prepend sys to payload (§12.2).
 
 	// --- sub-provider (§12.1) ---
-	ProviderFlag    *string `toml:"provider_flag"`
-	DefaultProvider *string `toml:"default_provider"` // e.g. "zai" for pi; nil/"" => omit.
+	ProviderFlag *string `toml:"provider_flag"`
 
 	// --- bare mode (§12.1) ---
 	BareFlags []string `toml:"bare_flags"` // appended verbatim; nil => none.
@@ -82,6 +81,12 @@ type Manifest struct {
 
 	// --- environment (§12.1) ---
 	Env map[string]string `toml:"env"` // set ONLY for the subprocess; nil => none.
+
+	// --- reasoning levels (v3; FR-R6) ---
+	// Per-level flag tokens appended at Render to express reasoning/thinking effort (off|low|medium|high).
+	// nil/empty ⇒ graceful no-op (provider/model lacks reasoning control) — NEVER an error. Decoded from
+	// the [reasoning_levels] subtable. Map regime (like Env): nil is the natural "absent" sentinel.
+	ReasoningLevels map[string][]string `toml:"reasoning_levels"`
 }
 
 // Validate checks the merged manifest's required fields and enum members (PRD §12.1). It is
@@ -156,9 +161,7 @@ func (m Manifest) Resolve() Manifest {
 	if out.ProviderFlag == nil {
 		out.ProviderFlag = strPtr("")
 	}
-	if out.DefaultProvider == nil {
-		out.DefaultProvider = strPtr("")
-	}
+
 	if out.Output == nil {
 		out.Output = strPtr(DefaultOutput)
 	}
@@ -174,7 +177,7 @@ func (m Manifest) Resolve() Manifest {
 	if out.RetryInstruction == nil {
 		out.RetryInstruction = strPtr(DefaultRetryInstruction)
 	}
-	// Subcommand / BareFlags / TooledFlags / Env: left as-is (nil stays nil).
+	// Subcommand / BareFlags / TooledFlags / Env / ReasoningLevels: left as-is (nil stays nil).
 	return out
 }
 
