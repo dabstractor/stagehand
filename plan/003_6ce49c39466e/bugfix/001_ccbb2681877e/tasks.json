@@ -118,21 +118,21 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Issue 3 — Add index-sync to runSingleShortcut (FR-M11 planner-single)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "The FR-M11 planner-single shortcut (runSingleShortcut, decompose.go:316) commits the frozen T_start directly via publishCommit but never re-syncs the index, leaving HEAD.tree==tStart while index==baseTree. This causes git status to report the just-committed files as staged-deletions + untracked, violating the §20.2 loop-index-cleanliness invariant. The sibling runOneFileShortcut already fixed this exact bug (decompose.go:294-300, 'CRITICAL (findings §4)'). Mirror that fix.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Add ReadTree index-sync to runSingleShortcut after publishCommit",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Insert the same index-sync (ReadTree of the committed tree) that runOneFileShortcut uses (decompose.go:294-300) into runSingleShortcut (decompose.go:316-341), immediately after publishCommit succeeds and before buildCommitResult. This is a 4-line insertion mirroring the established fix pattern. Success-only (on publish error we return early).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T1.S1",
                   "title": "Add ReadTree(treePrime) index-sync + regression test asserting clean git status",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: `runSingleShortcut` (internal/decompose/decompose.go:316-341) commits `treePrime` (== tStart, assigned line 319, never reassigned) via `publishCommit` (line 332) then goes straight to `buildCommitResult` (line 337) — NO index sync. `publishCommit` (message.go:197) does CommitTree + UpdateRefCAS (touches HEAD only, NOT index). `FreezeWorkingTree` (git.go:1223) reset the index to baseTree. So after success: HEAD.tree==tStart but index==baseTree ⇒ dirty `git status`. The sibling `runOneFileShortcut` (decompose.go:280-314) fixed this at lines 294-300 with `deps.Git.ReadTree(ctx, tStart)` wrapped in an ErrDecomposeFailed error. `ReadTree` (git.go:131) replaces the index with the tree's contents (MUTATES index only). `ErrDecomposeFailed` is in scope (decompose.go:28). `fmt` is already imported. `treePrime == tStart` so ReadTree(treePrime) is identical to the reference fix.\n2. INPUT: The `runSingleShortcut` function at decompose.go:316. The `deps.Git.ReadTree(ctx, tree string) error` primitive (git.go:131). The `treePrime` local variable (line 319). The `ErrDecomposeFailed` sentinel error (decompose.go:28).\n3. LOGIC: Insert the following block between decompose.go lines 336 (after the publishCommit error-return block closes) and 337 (before `cr, err := buildCommitResult(...)`): `if err := deps.Git.ReadTree(ctx, treePrime); err != nil { return DecomposeResult{}, fmt.Errorf(\"%w: single-shortcut index sync: %w\", ErrDecomposeFailed, err) }` with a comment mirroring runOneFileShortcut's 'CRITICAL (findings §4)' explanation. TEST (implicit TDD): add `TestDecompose_SingleShortcut_CleanStatus` in decompose_test.go (the existing `TestDecompose_SingleShortcut_CleanMessage` at line 314 uses an UNBORN repo and does NOT assert git status — it misses this bug). The new test must use a BORN repo (has an initial commit) with 2+ un-staged files, run Decompose in auto mode with a planner stub returning `{\"single\":true,\"message\":\"feat: add a and b\"}`, then assert `dcmStatusPorcelain(t, repo) == \"\"` using the existing helper (decompose_test.go:111). Mirror `TestDecompose_OneFileShortcut_PlannerBypassed` (decompose_test.go:1507) which asserts the same `dcmStatusPorcelain == \"\"` at line 1549. The assertion MUST fail before the fix (index==baseTree ≠ HEAD.tree) and pass after.\n4. OUTPUT: After a successful planner-single decompose run, `git status --porcelain` is empty — the §20.2 loop-index-cleanliness invariant holds. The index matches HEAD.tree.\n5. DOCS: none — internal fix enforcing an existing documented invariant (§20.2); no config/API/flag surface change.",
@@ -152,21 +152,21 @@
           "type": "Milestone",
           "id": "P1.M4",
           "title": "Issue 4 — Add reasoning env vars to bootstrap config header",
-          "status": "Planned",
+          "status": "Researching",
           "description": "The bootstrapHeader constant (bootstrap.go:194-252) documents 11 STAGEHAND_* env vars but omits the 5 reasoning env vars (STAGEHAND_REASONING + 4 STAGEHAND_<ROLE>_REASONING) that ARE read by loadEnv (load.go:181,212) and documented in docs/cli.md. CORRECTION: STAGEHAND_MAX_COMMITS is NOT an env var (no LookupEnv in code; docs/cli.md shows '—') — it must NOT be added.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M4.T1",
               "title": "Add the 5 reasoning env vars to the bootstrapHeader constant",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add STAGEHAND_REASONING (global) and the STAGEHAND_<ROLE>_REASONING shorthand (per-role) to the bootstrapHeader env-var block, matching the existing _PROVIDER / _MODEL shorthand style. Do NOT add STAGEHAND_MAX_COMMITS (it is not an env var).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T1.S1",
                   "title": "Add reasoning env vars to bootstrapHeader + update test",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The `bootstrapHeader` constant (internal/config/bootstrap.go:194-252) emits a raw string consumed by `buildBootstrapConfig` (bootstrap.go ~line 167). The env-var block lists STAGEHAND_PROVIDER, _MODEL, _TIMEOUT, _CONFIG, _VERBOSE, _NO_COLOR, the 4× _<ROLE>_PROVIDER/_MODEL, and STAGEHAND_COMMITS. The 5 MISSING env vars are all real, read by loadEnv (load.go:181 global STAGEHAND_REASONING, load.go:212 per-role STAGEHAND_<ROLE>_REASONING loop over roleNames={planner,stager,message,arbiter}), and documented at docs/cli.md:43-49 + docs/configuration.md:152-156. CRITICAL CORRECTION: STAGEHAND_MAX_COMMITS is NOT an env var — no os.LookupEnv in load.go; docs/cli.md:36,157 show '—' for the env column — do NOT add it.\n2. INPUT: The `bootstrapHeader` raw-string constant in bootstrap.go.\n3. LOGIC: Inside the bootstrapHeader raw string, insert two lines after the per-role `_PROVIDER / _MODEL` block (after the `STAGEHAND_ARBITER_PROVIDER / _MODEL` line) and before `STAGEHAND_COMMITS`. Add: `#   STAGEHAND_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)` and `#   STAGEHAND_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)`. This matches the existing `_PROVIDER / _MODEL` shorthand style (one line covers all four roles). TEST (implicit TDD): in bootstrap_test.go, add/extend a test asserting the output of buildBootstrapConfig (or the header constant) contains the strings 'STAGEHAND_REASONING' and 'STAGEHAND_<ROLE>_REASONING'. Check existing bootstrap_test.go for the pattern it uses to validate the header content.\n4. OUTPUT: The generated config header now documents all reasoning env vars, consistent with docs/cli.md and docs/configuration.md.\n5. DOCS: none — the bootstrapHeader IS the documentation; updating it IS the work. (This is a header-only consistency fix.)",

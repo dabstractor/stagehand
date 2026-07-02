@@ -333,6 +333,17 @@ func runSingleShortcut(ctx context.Context, deps Deps, plannerMsg, preRunHEAD st
 	if err != nil {
 		return DecomposeResult{}, err
 	}
+
+	// CRITICAL (findings §4): sync the index to the committed tree so `git status` is clean. The freeze
+	// reset index→baseTree; committing treePrime (== tStart) directly would otherwise leave
+	// index==baseTree ≠ HEAD.tree==treePrime ⇒ `git status` shows the just-committed files as staged
+	// deletions + untracked (Issue 3). ReadTree(treePrime) ⇒ index==treePrime==HEAD.tree ⇒ clean. Mirrors
+	// runOneFileShortcut's sync. Success-only: on a publish error we returned above (the rescue recipe uses
+	// the tree SHA, not the index).
+	if err := deps.Git.ReadTree(ctx, treePrime); err != nil {
+		return DecomposeResult{}, fmt.Errorf("%w: single-shortcut index sync: %w", ErrDecomposeFailed, err)
+	}
+
 	cr, err := buildCommitResult(ctx, deps, newSHA, msg, isUnborn)
 	if err != nil {
 		return DecomposeResult{}, err

@@ -355,6 +355,59 @@ func TestDecompose_SingleShortcut_CleanMessage(t *testing.T) {
 	// If file doesn't exist, the message agent was never called — correct.
 }
 
+// TestDecompose_SingleShortcut_CleanStatus (Issue 3 regression): BORN repo, TWO un-staged files,
+// auto mode — the planner IS called and returns single:true → runSingleShortcut fires.
+// Asserts git status is clean (proves the ReadTree(treePrime) index-sync, findings §4).
+// MUST FAIL before the fix (status non-empty: "D  a.txt\nD  b.txt\n?? a.txt\n?? b.txt")
+// and PASS after.
+func TestDecompose_SingleShortcut_CleanStatus(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+	dcmCommitRaw(t, repo, "initial")          // BORN repo (preRunHEAD set; baseTree = HEAD^{tree})
+	dcmWriteFile(t, repo, "a.txt", "a\n")      // 2 un-staged files ⇒ FR-M2b one-file short-circuit does NOT fire
+	dcmWriteFile(t, repo, "b.txt", "b\n")      //   ⇒ planner is invoked in auto mode
+
+	// Planner returns FR-M11 single:true + a message ⇒ routes to runSingleShortcut.
+	plannerJSON := `{"count":1,"single":true,"commits":[{"title":"add a and b","description":"a.txt + b.txt"}],"message":"feat: add a and b"}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+
+	// Message counter stub — must NOT be called (single:true uses the planner's message verbatim).
+	counterDir := t.TempDir()
+	counterFile := counterDir + "/counter"
+	messageM := stubtest.Manifest(bin, stubtest.Options{Script: counterDir + "/script.txt", Counter: counterFile})
+
+	roles := RoleManifests{Planner: plannerM, Message: messageM}
+	deps := dcmDeps(t, repo, roles) // default: Commits=0 (auto), Single=false
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(single-shortcut clean status): %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("Commits len = %d, want 1", len(result.Commits))
+	}
+	if result.Commits[0].Subject != "feat: add a and b" {
+		t.Errorf("Subject = %q, want %q", result.Commits[0].Subject, "feat: add a and b")
+	}
+	if dcmLogCount(t, repo) != 2 {
+		t.Fatalf("commit count = %d, want 2 (initial + 1)", dcmLogCount(t, repo))
+	}
+
+	// Message agent must NOT have been called (single:true → planner message verbatim).
+	if data, ferr := os.ReadFile(counterFile); ferr == nil {
+		if count := strings.TrimSpace(string(data)); count != "" && count != "0" {
+			t.Errorf("message agent call count = %q, want 0", count)
+		}
+	}
+
+	// §20.2 loop-index-cleanliness invariant: clean tree after a fully-successful run.
+	// BEFORE the fix this is non-empty ("D  a.txt\nD  b.txt\n?? a.txt\n?? b.txt"); AFTER it is "".
+	if status := dcmStatusPorcelain(t, repo); status != "" {
+		t.Errorf("status = %q, want empty (clean — proves ReadTree(treePrime) index-sync)", status)
+	}
+}
+
 func TestDecompose_SingleShortcut_DuplicateFallback(t *testing.T) {
 	bin := stubtest.Build(t)
 	repo := t.TempDir()
