@@ -1,0 +1,151 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1.M2.T3.S2_1782968301503_pre-execution_91166680",
+      "taskId": "P1.M2.T3.S2",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T3_S2.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T04:58:21.503Z"
+      },
+      "createdAt": "2026-07-02T04:58:21.503Z"
+    },
+    {
+      "id": "P1.M2.T3.S2_1782968613357_coder-response_ba583e1a",
+      "taskId": "P1.M2.T3.S2",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T3_S2.md",
+        "stage": "coder-response",
+        "coderResponse": "All validation gates pass. The only `internal/config` reference in `registry.go` is inside a documentation comment describing the invariant — the actual import block contains exactly `os/exec` and `sort`.\n\n## Summary\n\n**Files created:**\n- `internal/provider/registry.go` — `package provider`, imports only `os/exec` + `sort`. Defines `Registry{merged map[string]Manifest}`, `NewRegistry`, `Get`, `List`, `Detect`, plus `mergeManifest`/`cloneManifest` helpers.\n- `internal/provider/registry_test.go` — white-box `package provider`, 9 tests reusing the existing `contains` helper.\n\n**Validation gates (all green):**\n| Level | Command | Result |\n|-------|---------|--------|\n| 1 | `gofmt -l registry.go registry_test.go` | clean (no files) |\n| 2 | `go vet ./internal/provider/` | clean |\n| 3 | `go test ./internal/provider/ -run TestRegistry -v` | 9/9 PASS |\n| 4 | `go test ./...` | all packages green |\n\n**Key contract decisions honored:**\n- **Field-by-field merge** (decisions.md §6): override `{DefaultModel:\"x\"}` over `pi` preserves the 6-element `BareFlags`, `PrintFlag`, `ModelFlag`, `PromptDelivery`.\n- **Wholesale slice/map replace** (not deep-merge): `BareFlags` and `Env` are replaced entirely when non-empty; `Env` is never recursively merged.\n- **Defensive copying**: `cloneManifest` deep-copies `Subcommand`/`BareFlags` via `append([]string(nil), s...)` and `Env` via a fresh map — verified by mutation tests (mutating the override slice/map after construction does not change `Get`).\n- **No import cycle**: overrides are constructor-injected as `map[string]Manifest`; zero `internal/config` import.\n- **`Detect` fallback**: probes `Detect`, falling back to `Command` when empty via `exec.LookPath`; both-empty ⇒ `false`.\n- **New names used as-is** (FR48): unknown override names are added via `cloneManifest(ov)` without forcing `Name=key`.\n- **Bool limitation documented**: `StripCodeFence` can be flipped `true` but not `false`-over-`true` (zero-value limitation noted in code).\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/provider/registry.go and registry_test.go per P1.M2.T3.S2. The Registry precomputes a field-by-field merge of built-in manifests with user overrides (decisions.md §6), exposes Get/List/Detect (FR46-FR48), and detects installed agents via exec.LookPath (Detect-or-Command fallback). cloneManifest deep-copies slices/maps; mergeManifest applies non-empty scalars, replaces slices/Env wholesale, and only sets StripCodeFence true. All 4 acceptance scenarios plus 5 edge cases pass; gofmt, go vet, and the full go test ./... suite are green. Imports are exactly os/exec and sort — no internal/config edge, preserving the no-import-cycle invariant.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/provider/registry.go and registry_test.go per P1.M2.T3.S2. The Registry precomputes a field-by-field merge of built-in manifests with user overrides (decisions.md §6), exposes Get/List/Detect (FR46-FR48), and detects installed agents via exec.LookPath (Detect-or-Command fallback). cloneManifest deep-copies slices/maps; mergeManifest applies non-empty scalars, replaces slices/Env wholesale, and only sets StripCodeFence true. All 4 acceptance scenarios plus 5 edge cases pass; gofmt, go vet, and the full go test ./... suite are green. Imports are exactly os/exec and sort — no internal/config edge, preserving the no-import-cycle invariant."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T05:03:33.357Z"
+      },
+      "createdAt": "2026-07-02T05:03:33.357Z"
+    },
+    {
+      "id": "P1.M2.T3.S2_1782968613667_validation-gate-1_d359cdbc",
+      "taskId": "P1.M2.T3.S2",
+      "label": "After validation gate 1",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T3_S2.md",
+        "stage": "validation-gate-1",
+        "coderResponse": "All validation gates pass. The only `internal/config` reference in `registry.go` is inside a documentation comment describing the invariant — the actual import block contains exactly `os/exec` and `sort`.\n\n## Summary\n\n**Files created:**\n- `internal/provider/registry.go` — `package provider`, imports only `os/exec` + `sort`. Defines `Registry{merged map[string]Manifest}`, `NewRegistry`, `Get`, `List`, `Detect`, plus `mergeManifest`/`cloneManifest` helpers.\n- `internal/provider/registry_test.go` — white-box `package provider`, 9 tests reusing the existing `contains` helper.\n\n**Validation gates (all green):**\n| Level | Command | Result |\n|-------|---------|--------|\n| 1 | `gofmt -l registry.go registry_test.go` | clean (no files) |\n| 2 | `go vet ./internal/provider/` | clean |\n| 3 | `go test ./internal/provider/ -run TestRegistry -v` | 9/9 PASS |\n| 4 | `go test ./...` | all packages green |\n\n**Key contract decisions honored:**\n- **Field-by-field merge** (decisions.md §6): override `{DefaultModel:\"x\"}` over `pi` preserves the 6-element `BareFlags`, `PrintFlag`, `ModelFlag`, `PromptDelivery`.\n- **Wholesale slice/map replace** (not deep-merge): `BareFlags` and `Env` are replaced entirely when non-empty; `Env` is never recursively merged.\n- **Defensive copying**: `cloneManifest` deep-copies `Subcommand`/`BareFlags` via `append([]string(nil), s...)` and `Env` via a fresh map — verified by mutation tests (mutating the override slice/map after construction does not change `Get`).\n- **No import cycle**: overrides are constructor-injected as `map[string]Manifest`; zero `internal/config` import.\n- **`Detect` fallback**: probes `Detect`, falling back to `Command` when empty via `exec.LookPath`; both-empty ⇒ `false`.\n- **New names used as-is** (FR48): unknown override names are added via `cloneManifest(ov)` without forcing `Name=key`.\n- **Bool limitation documented**: `StripCodeFence` can be flipped `true` but not `false`-over-`true` (zero-value limitation noted in code).\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/provider/registry.go and registry_test.go per P1.M2.T3.S2. The Registry precomputes a field-by-field merge of built-in manifests with user overrides (decisions.md §6), exposes Get/List/Detect (FR46-FR48), and detects installed agents via exec.LookPath (Detect-or-Command fallback). cloneManifest deep-copies slices/maps; mergeManifest applies non-empty scalars, replaces slices/Env wholesale, and only sets StripCodeFence true. All 4 acceptance scenarios plus 5 edge cases pass; gofmt, go vet, and the full go test ./... suite are green. Imports are exactly os/exec and sort — no internal/config edge, preserving the no-import-cycle invariant.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/provider/registry.go and registry_test.go per P1.M2.T3.S2. The Registry precomputes a field-by-field merge of built-in manifests with user overrides (decisions.md §6), exposes Get/List/Detect (FR46-FR48), and detects installed agents via exec.LookPath (Detect-or-Command fallback). cloneManifest deep-copies slices/maps; mergeManifest applies non-empty scalars, replaces slices/Env wholesale, and only sets StripCodeFence true. All 4 acceptance scenarios plus 5 edge cases pass; gofmt, go vet, and the full go test ./... suite are green. Imports are exactly os/exec and sort — no internal/config edge, preserving the no-import-cycle invariant."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "gofmt -l internal/provider/registry.go internal/provider/registry_test.go",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go test ./internal/provider/ -run TestRegistry -v",
+            "stdout": "=== RUN   TestRegistry_MergeDefaultModelKeepsBareFlags\n--- PASS: TestRegistry_MergeDefaultModelKeepsBareFlags (0.00s)\n=== RUN   TestRegistry_MergeBareFlagsReplaces\n--- PASS: TestRegistry_MergeBareFlagsReplaces (0.00s)\n=== RUN   TestRegistry_NewNameResolves\n--- PASS: TestRegistry_NewNameResolves (0.00s)\n=== RUN   TestRegistry_Detect\n--- PASS: TestRegistry_Detect (0.00s)\n=== RUN   TestRegistry_GetUnknownReturnsFalse\n--- PASS: TestRegistry_GetUnknownReturnsFalse (0.00s)\n=== RUN   TestRegistry_ListSortedAndUnion\n--- PASS: TestRegistry_ListSortedAndUnion (0.00s)\n=== RUN   TestRegistry_EnvReplaceWholesale\n--- PASS: TestRegistry_EnvReplaceWholesale (0.00s)\n=== RUN   TestRegistry_NewRegistryDoesNotMutateBuiltins\n--- PASS: TestRegistry_NewRegistryDoesNotMutateBuiltins (0.00s)\n=== RUN   TestRegistry_DetectUsesCommandWhenDetectEmpty\n--- PASS: TestRegistry_DetectUsesCommandWhenDetectEmpty (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/provider\t0.002s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/provider\t0.003s\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T05:03:33.667Z"
+      },
+      "createdAt": "2026-07-02T05:03:33.667Z"
+    },
+    {
+      "id": "P1.M2.T3.S2_1782968613668_complete_00f846a6",
+      "taskId": "P1.M2.T3.S2",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T3_S2.md",
+        "stage": "complete",
+        "coderResponse": "All validation gates pass. The only `internal/config` reference in `registry.go` is inside a documentation comment describing the invariant — the actual import block contains exactly `os/exec` and `sort`.\n\n## Summary\n\n**Files created:**\n- `internal/provider/registry.go` — `package provider`, imports only `os/exec` + `sort`. Defines `Registry{merged map[string]Manifest}`, `NewRegistry`, `Get`, `List`, `Detect`, plus `mergeManifest`/`cloneManifest` helpers.\n- `internal/provider/registry_test.go` — white-box `package provider`, 9 tests reusing the existing `contains` helper.\n\n**Validation gates (all green):**\n| Level | Command | Result |\n|-------|---------|--------|\n| 1 | `gofmt -l registry.go registry_test.go` | clean (no files) |\n| 2 | `go vet ./internal/provider/` | clean |\n| 3 | `go test ./internal/provider/ -run TestRegistry -v` | 9/9 PASS |\n| 4 | `go test ./...` | all packages green |\n\n**Key contract decisions honored:**\n- **Field-by-field merge** (decisions.md §6): override `{DefaultModel:\"x\"}` over `pi` preserves the 6-element `BareFlags`, `PrintFlag`, `ModelFlag`, `PromptDelivery`.\n- **Wholesale slice/map replace** (not deep-merge): `BareFlags` and `Env` are replaced entirely when non-empty; `Env` is never recursively merged.\n- **Defensive copying**: `cloneManifest` deep-copies `Subcommand`/`BareFlags` via `append([]string(nil), s...)` and `Env` via a fresh map — verified by mutation tests (mutating the override slice/map after construction does not change `Get`).\n- **No import cycle**: overrides are constructor-injected as `map[string]Manifest`; zero `internal/config` import.\n- **`Detect` fallback**: probes `Detect`, falling back to `Command` when empty via `exec.LookPath`; both-empty ⇒ `false`.\n- **New names used as-is** (FR48): unknown override names are added via `cloneManifest(ov)` without forcing `Name=key`.\n- **Bool limitation documented**: `StripCodeFence` can be flipped `true` but not `false`-over-`true` (zero-value limitation noted in code).\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Implemented internal/provider/registry.go and registry_test.go per P1.M2.T3.S2. The Registry precomputes a field-by-field merge of built-in manifests with user overrides (decisions.md §6), exposes Get/List/Detect (FR46-FR48), and detects installed agents via exec.LookPath (Detect-or-Command fallback). cloneManifest deep-copies slices/maps; mergeManifest applies non-empty scalars, replaces slices/Env wholesale, and only sets StripCodeFence true. All 4 acceptance scenarios plus 5 edge cases pass; gofmt, go vet, and the full go test ./... suite are green. Imports are exactly os/exec and sort — no internal/config edge, preserving the no-import-cycle invariant.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Implemented internal/provider/registry.go and registry_test.go per P1.M2.T3.S2. The Registry precomputes a field-by-field merge of built-in manifests with user overrides (decisions.md §6), exposes Get/List/Detect (FR46-FR48), and detects installed agents via exec.LookPath (Detect-or-Command fallback). cloneManifest deep-copies slices/maps; mergeManifest applies non-empty scalars, replaces slices/Env wholesale, and only sets StripCodeFence true. All 4 acceptance scenarios plus 5 edge cases pass; gofmt, go vet, and the full go test ./... suite are green. Imports are exactly os/exec and sort — no internal/config edge, preserving the no-import-cycle invariant."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "gofmt -l internal/provider/registry.go internal/provider/registry_test.go",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go test ./internal/provider/ -run TestRegistry -v",
+            "stdout": "=== RUN   TestRegistry_MergeDefaultModelKeepsBareFlags\n--- PASS: TestRegistry_MergeDefaultModelKeepsBareFlags (0.00s)\n=== RUN   TestRegistry_MergeBareFlagsReplaces\n--- PASS: TestRegistry_MergeBareFlagsReplaces (0.00s)\n=== RUN   TestRegistry_NewNameResolves\n--- PASS: TestRegistry_NewNameResolves (0.00s)\n=== RUN   TestRegistry_Detect\n--- PASS: TestRegistry_Detect (0.00s)\n=== RUN   TestRegistry_GetUnknownReturnsFalse\n--- PASS: TestRegistry_GetUnknownReturnsFalse (0.00s)\n=== RUN   TestRegistry_ListSortedAndUnion\n--- PASS: TestRegistry_ListSortedAndUnion (0.00s)\n=== RUN   TestRegistry_EnvReplaceWholesale\n--- PASS: TestRegistry_EnvReplaceWholesale (0.00s)\n=== RUN   TestRegistry_NewRegistryDoesNotMutateBuiltins\n--- PASS: TestRegistry_NewRegistryDoesNotMutateBuiltins (0.00s)\n=== RUN   TestRegistry_DetectUsesCommandWhenDetectEmpty\n--- PASS: TestRegistry_DetectUsesCommandWhenDetectEmpty (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/provider\t0.002s\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/provider\t0.003s\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T05:03:33.668Z"
+      },
+      "createdAt": "2026-07-02T05:03:33.668Z"
+    }
+  ],
+  "lastModified": "2026-07-02T05:03:33.668Z"
+}

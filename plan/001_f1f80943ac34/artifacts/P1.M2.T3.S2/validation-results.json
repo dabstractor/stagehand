@@ -1,0 +1,42 @@
+[
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "gofmt -l internal/provider/registry.go internal/provider/registry_test.go",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go vet ./internal/provider/",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go test ./internal/provider/ -run TestRegistry -v",
+    "stdout": "=== RUN   TestRegistry_MergeDefaultModelKeepsBareFlags\n--- PASS: TestRegistry_MergeDefaultModelKeepsBareFlags (0.00s)\n=== RUN   TestRegistry_MergeBareFlagsReplaces\n--- PASS: TestRegistry_MergeBareFlagsReplaces (0.00s)\n=== RUN   TestRegistry_NewNameResolves\n--- PASS: TestRegistry_NewNameResolves (0.00s)\n=== RUN   TestRegistry_Detect\n--- PASS: TestRegistry_Detect (0.00s)\n=== RUN   TestRegistry_GetUnknownReturnsFalse\n--- PASS: TestRegistry_GetUnknownReturnsFalse (0.00s)\n=== RUN   TestRegistry_ListSortedAndUnion\n--- PASS: TestRegistry_ListSortedAndUnion (0.00s)\n=== RUN   TestRegistry_EnvReplaceWholesale\n--- PASS: TestRegistry_EnvReplaceWholesale (0.00s)\n=== RUN   TestRegistry_NewRegistryDoesNotMutateBuiltins\n--- PASS: TestRegistry_NewRegistryDoesNotMutateBuiltins (0.00s)\n=== RUN   TestRegistry_DetectUsesCommandWhenDetectEmpty\n--- PASS: TestRegistry_DetectUsesCommandWhenDetectEmpty (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/provider\t0.002s\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go test ./...",
+    "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/provider\t0.003s\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  }
+]

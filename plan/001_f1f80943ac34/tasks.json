@@ -110,7 +110,7 @@
               "id": "P1.M2.T3",
               "type": "Task",
               "title": "Built-in manifests & registry",
-              "status": "Planned",
+              "status": "Complete",
               "description": "The six compiled-in provider manifests (with the four corrections vs PRD text) and a registry that merges user overrides field-by-field and detects installed agents on PATH.",
               "subtasks": [
                 {
@@ -128,7 +128,7 @@
                   "id": "P1.M2.T3.S2",
                   "type": "Subtask",
                   "title": "internal/provider/registry.go — override merge + PATH detect",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T3.S1"
