@@ -207,6 +207,55 @@ type Git interface {
 	// returns (nil, nil) — the 128-as-non-error convention shared with RevParseHEAD / RecentSubjects /
 	// CommitCount. Any other non-zero exit is a real error.
 	LogRange(ctx context.Context, baseSHA string) ([]LogEntry, error)
+
+	// FreezeWorkingTree captures T_start — the immutable tree object recording the ENTIRE working-tree
+	// change set (every modified/added/deleted/untracked path AND its byte content) at the instant the
+	// run begins (PRD §13.6.1 FR-M1b: "the first action on activation is to freeze the entire working-tree
+	// change set into T_start"). It orchestrates three existing primitives in this exact order:
+	//
+	//	1. AddAll  — stages the full working-tree change set into the index (git add -A).
+	//	2. WriteTree — snapshots the index into the immutable tree object T_start (git write-tree).
+	//	3. ReadTree(baseTree) — REPLACES the index with baseTree's contents (git read-tree), resetting it
+	//	   to the clean base so the per-concept stager starts from a known-clean index state.
+	//
+	// The caller supplies baseTree (HEAD^{tree} via RevParseTree, or EmptyTreeSHA for an unborn repo) —
+	// the orchestrator already derives it, so FreezeWorkingTree does not re-derive it.
+	//
+	// INDEX-RESET SEMANTICS: after FreezeWorkingTree returns, the INDEX == baseTree (ReadTree replaced
+	// it), but the working-tree files on disk are UNCHANGED (read-tree only rewrites .git/index). So
+	// `git status` shows the user's changes as UNSTAGED relative to the reset index — this is CORRECT and
+	// DESIRED: T_start is the frozen immutable record; the stager then `git add`s from the working tree
+	// into the clean (base-matching) index. FreezeWorkingTree does NOT snapshot or restore the working
+	// tree (it does not need to). Defense-in-depth (FR-M1c: verify tree[i] ⊆ T_start) is the caller's job.
+	//
+	// UNBORN CASE (baseTree == EmptyTreeSHA): AddAll stages all untracked files; WriteTree makes T_start
+	// (a root tree holding them); ReadTree(EmptyTreeSHA) resets the index to EMPTY. The untracked files
+	// reappear in `git status` (unstaged). EmptyTreeSHA is a valid read-tree target (verified).
+	//
+	// FreezeWorkingTree MUTATES THE INDEX (transitively, via AddAll + ReadTree) but touches NO ref — refs
+	// move ONLY at UpdateRefCAS (PRD §18.1). Partial failure: if ReadTree fails after WriteTree succeeds,
+	// the index is left STAGED (holding the full change set) and T_start is discarded — the caller owns
+	// recovery (mirrors runSingleShortcut's mid-sequence failure handling). WriteTree's "unresolved merge
+	// conflicts" special-case (its own error) propagates AS-IS.
+	FreezeWorkingTree(ctx context.Context, baseTree string) (tStart string, err error)
+
+	// DiffTreeNames returns the SORTED, DEDUPED list of paths that differ between two tree SHAs via
+	// `git diff-tree -r --name-only --no-commit-id <treeA> <treeB>`. It is the path-set primitive for
+	// freeze enforcement (PRD §13.6.1 FR-M1c: "after each staging step, stagehand verifies the resulting
+	// tree is a subset of T_start — only paths present in T_start") — the enforcement layer computes
+	// DiffTreeNames(prevTree, tree[i]) and checks it is a subset of DiffTreeNames(baseTree, tStart). It is
+	// also reusable for FR-M9's arbiter file-lists and FR-M8's empty-skip (tree[i]==tree[i-1] ⇔ empty set).
+	//
+	// `-r` recurses into subdirectories (lists individual files, not subtrees); `--name-only` emits just
+	// the path (no status code); `--no-commit-id` suppresses the commit-SHA header line (safe even when
+	// the args are trees, which emit no SHA anyway). For the unborn-repo base case the caller passes
+	// EmptyTreeSHA as treeA (DiffTreeNames is NOT unborn-aware — like TreeDiff, the caller resolves trees).
+	// Identical trees (treeA == treeB) ⇒ empty stdout ⇒ returns (nil, nil) (a nil slice, len 0).
+	//
+	// `git diff-tree` (without --quiet) exits 0 whether or not there are changes; exit 128 means a bad or
+	// unresolvable tree SHA — a REAL error (NOT an unborn signal: branch on code != 0, never on code ==
+	// 128; never use --quiet). Read-only with respect to refs and the index (PRD §18.1).
+	DiffTreeNames(ctx context.Context, treeA, treeB string) (paths []string, err error)
 }
 
 // gitRunner is the production Git implementation. It wraps exec.CommandContext for the real git
@@ -1075,6 +1124,7 @@ func (g *gitRunner) StatusPorcelain(ctx context.Context) (string, error) {
 // (working-tree-vs-index), never `git diff --cached` and never `git diff HEAD`. Every `git diff`
 // invocation uses the simple exit-code branch (code != 0 → error); exit 128 = a bad pathspec or
 // corrupt repo = a real error (NOT an unborn signal). Empty diffArgs (no tree positionals).
+// WorkingTreeDiff captures the working-tree diff (PRD §13.6.5 — the tooled stager source).
 func (g *gitRunner) WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions) (string, error) {
 	maxMDLines := opts.MaxMDLines
 	if maxMDLines <= 0 {
@@ -1165,4 +1215,53 @@ func (g *gitRunner) WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions)
 	b.WriteString(nmDiff)
 
 	return b.String(), nil
+}
+
+// FreezeWorkingTree captures T_start by staging everything, snapshotting the index, then resetting the
+// index to the clean base (PRD §13.6.1 FR-M1b). It is a thin orchestration of AddAll + WriteTree +
+// ReadTree — see the interface doc comment for the full semantics. It issues NO git command of its own.
+func (g *gitRunner) FreezeWorkingTree(ctx context.Context, baseTree string) (string, error) {
+	// 1. Stage the full working-tree change set (modifications, additions/untracked, AND deletions).
+	if err := g.AddAll(ctx); err != nil {
+		return "", err // AddAll's own error (incl. "git binary not found", context.Canceled) — UNWRAPPED.
+	}
+	// 2. Freeze the index into the immutable tree object T_start.
+	tStart, err := g.WriteTree(ctx)
+	if err != nil {
+		return "", err // WriteTree's own error (incl. "unresolved merge conflicts") — UNWRAPPED.
+	}
+	// 3. Reset the index to the clean base so the per-concept stager starts clean.
+	if err := g.ReadTree(ctx, baseTree); err != nil {
+		return "", err // ReadTree's own error ("git read-tree: failed") — UNWRAPPED. (Index left staged.)
+	}
+	return tStart, nil
+}
+
+// DiffTreeNames returns the sorted, deduped changed-path set between two trees (PRD §13.6.1 FR-M1c).
+// See the interface doc comment for the full contract. It runs `git diff-tree -r --name-only
+// --no-commit-id <treeA> <treeB>`, parses stdout into a sorted, deduped []string (nil if identical).
+func (g *gitRunner) DiffTreeNames(ctx context.Context, treeA, treeB string) ([]string, error) {
+	stdout, stderr, code, err := g.run(ctx, g.workDir,
+		"diff-tree", "-r", "--name-only", "--no-commit-id", treeA, treeB)
+	if err != nil {
+		return nil, err // git binary missing / context cancelled / start failure (run sets code=-1) — UNWRAPPED
+	}
+	if code != 0 {
+		return nil, fmt.Errorf("git diff-tree: failed (exit %d): %s", code, strings.TrimSpace(stderr))
+	}
+	var paths []string
+	for _, line := range strings.Split(stdout, "\n") {
+		if p := strings.TrimSpace(line); p != "" {
+			paths = append(paths, p)
+		}
+	}
+	sort.Strings(paths) // tree-walk order is NOT alphabetical — the contract mandates sorted output
+	// Dedupe adjacent equal entries (defensive: a single tree-pair diff lists each path once).
+	out := paths[:0]
+	for i, p := range paths {
+		if i == 0 || p != paths[i-1] {
+			out = append(out, p)
+		}
+	}
+	return out, nil // nil if stdout was empty (identical trees); out aliases paths (same backing array)
 }
