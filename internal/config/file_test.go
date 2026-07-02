@@ -631,7 +631,7 @@ func TestOverlayRolesFieldMerge(t *testing.T) {
 // BinaryExtensions — mirrors TestOverlayPartial.
 func TestOverlay_V2Scalars(t *testing.T) {
 	// (a) src sets all three → overridden.
-	dst := Defaults() // ConfigVersion=2, MaxCommits=12, BinaryExtensions=nil
+	dst := Defaults() // ConfigVersion=0, MaxCommits=12, BinaryExtensions=nil
 	src := &Config{ConfigVersion: 3, MaxCommits: 7, BinaryExtensions: []string{"x", "y"}}
 	overlay(&dst, src)
 	if dst.ConfigVersion != 3 {

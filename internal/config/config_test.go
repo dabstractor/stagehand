@@ -68,8 +68,8 @@ func TestDefaults(t *testing.T) {
 	if c.ConfigVersion != 0 {
 		t.Errorf("ConfigVersion = %d, want 0 (Defaults leaves it unset; the advisory compares it)", c.ConfigVersion)
 	}
-	if CurrentConfigVersion != 2 {
-		t.Errorf("CurrentConfigVersion = %d, want 2", CurrentConfigVersion)
+	if CurrentConfigVersion != 3 {
+		t.Errorf("CurrentConfigVersion = %d, want 3", CurrentConfigVersion)
 	}
 }
 

@@ -148,8 +148,18 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 		cfg.Single = true
 	}
 
-	// Emit config_version advisory (PRD §9.17 FR-B4) — after all overlays, happy path only.
-	if msg := configVersionNotice(fileLoaded, cfg.ConfigVersion); msg != "" {
+	// v3 in-memory migration (PRD §9.17 FR-B7): when a loaded file predates v3, fold any v2
+	// default_provider into the model slash-prefix BEFORE the caller's provider.DecodeUserOverrides
+	// (which would silently drop the now-removed field). Idempotent; invents nothing. The in-memory
+	// Config is then v3-shaped (ConfigVersion set to current). One-time deprecation notice below.
+	if fileLoaded && cfg.ConfigVersion < CurrentConfigVersion {
+		orig := cfg.ConfigVersion
+		migrateV2ToV3(&cfg)
+		cfg.ConfigVersion = CurrentConfigVersion
+		fmt.Fprint(noticeOut, migrationNotice(orig))
+	} else if msg := configVersionNotice(fileLoaded, cfg.ConfigVersion); msg != "" {
+		// version > current (ahead) — the only remaining live configVersionNotice case in Load
+		// (version==current ⇒ ""; the older/missing cases are handled by the migration branch above).
 		fmt.Fprint(noticeOut, msg)
 	}
 

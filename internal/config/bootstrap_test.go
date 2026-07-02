@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -15,9 +16,9 @@ import (
 func TestBuildBootstrapConfig_Pi(t *testing.T) {
 	content := buildBootstrapConfig("pi", []string{"pi"})
 
-	// config_version = 2 uncommented
-	if !strings.Contains(content, "config_version = 2") {
-		t.Error("missing config_version = 2")
+	// config_version = 3 uncommented (CurrentConfigVersion)
+	if !strings.Contains(content, fmt.Sprintf("config_version = %d", CurrentConfigVersion)) {
+		t.Errorf("missing config_version = %d", CurrentConfigVersion)
 	}
 
 	// provider = "pi" uncommented
@@ -156,9 +157,9 @@ func TestGenerateBootstrapConfig_AutoDetectPi(t *testing.T) {
 		t.Fatalf("GenerateBootstrapConfig(\"\") produced invalid TOML: %v", err)
 	}
 
-	// config_version = 2
-	if cv, ok := m["config_version"]; !ok || cv != int64(2) {
-		t.Errorf("config_version = %v, want 2", cv)
+	// config_version = 3 (CurrentConfigVersion)
+	if cv, ok := m["config_version"]; !ok || cv != int64(CurrentConfigVersion) {
+		t.Errorf("config_version = %v, want %d", cv, CurrentConfigVersion)
 	}
 }
 

@@ -177,7 +177,7 @@ func TestConfigUpgrade_ConfigFlag_UpgradesOverride_NotGlobal(t *testing.T) {
 
 	// The override file must be upgraded
 	data, _ := os.ReadFile(override)
-	if !strings.Contains(string(data), "config_version = 2") {
+	if !strings.Contains(string(data), "config_version = 3") {
 		t.Errorf("override file not upgraded; got:\n%s", data)
 	}
 	if !strings.Contains(string(data), "provider = \"pi\"") {
@@ -215,13 +215,13 @@ func TestConfigInit_ConfigFlag_WritesOverride(t *testing.T) {
 		t.Errorf("stdout = %q, want to contain 'Wrote config to'", out.String())
 	}
 
-	// The override file must exist and contain config_version = 2
+	// The override file must exist and contain config_version = 3
 	data, err := os.ReadFile(override)
 	if err != nil {
 		t.Fatalf("cannot read override config at %s: %v", override, err)
 	}
-	if !strings.Contains(string(data), "config_version = 2") {
-		t.Errorf("override config missing 'config_version = 2'; got:\n%s", data)
+	if !strings.Contains(string(data), "config_version = 3") {
+		t.Errorf("override config missing 'config_version = 3'; got:\n%s", data)
 	}
 }
 
@@ -284,9 +284,9 @@ func TestConfigInit_Populated_WritesWorkingConfig(t *testing.T) {
 
 	content := string(data)
 
-	// Must have uncommented config_version = 2
-	if !strings.Contains(content, "config_version = 2") {
-		t.Error("populated config missing uncommented config_version = 2")
+	// Must have uncommented config_version = 3
+	if !strings.Contains(content, "config_version = 3") {
+		t.Error("populated config missing uncommented config_version = 3")
 	}
 
 	// Must have an uncommented [defaults] section with provider = "..."
@@ -337,8 +337,8 @@ func TestConfigInit_ProviderPin_ExactOutput(t *testing.T) {
 	content := string(data)
 
 	// config_version uncommented
-	if !strings.Contains(content, "config_version = 2") {
-		t.Error("missing uncommented config_version = 2")
+	if !strings.Contains(content, "config_version = 3") {
+		t.Error("missing uncommented config_version = 3")
 	}
 
 	// [defaults] provider = "pi"
@@ -761,8 +761,8 @@ func TestConfigLifecycle_InitThenUpgrade(t *testing.T) {
 		t.Fatalf("read written config: %v", err)
 	}
 	content := string(data)
-	if !strings.Contains(content, "config_version = 2") {
-		t.Errorf("populated config missing 'config_version = 2' (GenerateBootstrapConfig must write CurrentConfigVersion);\ngot:\n%s", content)
+	if !strings.Contains(content, "config_version = 3") {
+		t.Errorf("populated config missing 'config_version = 3' (GenerateBootstrapConfig must write CurrentConfigVersion);\ngot:\n%s", content)
 	}
 	// populated (NOT inert): it has at least one uncommented [defaults] or [role. block
 	if !strings.Contains(content, "[defaults]") && !strings.Contains(content, "[role.") {
@@ -807,13 +807,13 @@ func assertContains(t *testing.T, content string, substrs ...string) {
 
 func TestUpgradeConfigVersion_NoVersion_Inserts(t *testing.T) {
 	input := "# comment\n[defaults]\nprovider = \"pi\"\n"
-	result, changed := upgradeConfigVersion(input, 2)
+	result, changed := upgradeConfigVersion(input, config.CurrentConfigVersion)
 	if !changed {
 		t.Fatal("expected changed=true")
 	}
-	// config_version = 2 must be present before the table
-	if !strings.Contains(result, "config_version = 2") {
-		t.Error("missing config_version = 2")
+	// config_version = 3 must be present before the table
+	if !strings.Contains(result, "config_version = 3") {
+		t.Error("missing config_version = 3")
 	}
 	// Other lines must be byte-identical
 	if !strings.Contains(result, "[defaults]\nprovider = \"pi\"\n") {
@@ -823,7 +823,7 @@ func TestUpgradeConfigVersion_NoVersion_Inserts(t *testing.T) {
 	lines := strings.Split(result, "\n")
 	var versionIdx, tableIdx int
 	for i, l := range lines {
-		if l == "config_version = 2" {
+		if l == "config_version = 3" {
 			versionIdx = i
 		}
 		if l == "[defaults]" {
@@ -843,12 +843,12 @@ func TestUpgradeConfigVersion_NoVersion_Inserts(t *testing.T) {
 
 func TestUpgradeConfigVersion_OlderVersion_Updates(t *testing.T) {
 	input := "config_version = 1\n[defaults]\nprovider = \"pi\"\n"
-	result, changed := upgradeConfigVersion(input, 2)
+	result, changed := upgradeConfigVersion(input, config.CurrentConfigVersion)
 	if !changed {
 		t.Fatal("expected changed=true")
 	}
-	if !strings.HasPrefix(result, "config_version = 2\n") {
-		t.Errorf("first line = %q, want config_version = 2", strings.Split(result, "\n")[0])
+	if !strings.HasPrefix(result, "config_version = 3\n") {
+		t.Errorf("first line = %q, want config_version = 3", strings.Split(result, "\n")[0])
 	}
 	// Other lines preserved
 	if !strings.Contains(result, "[defaults]\nprovider = \"pi\"\n") {
@@ -857,8 +857,8 @@ func TestUpgradeConfigVersion_OlderVersion_Updates(t *testing.T) {
 }
 
 func TestUpgradeConfigVersion_CurrentVersion_NoChange(t *testing.T) {
-	input := "config_version = 2\n[defaults]\nprovider = \"pi\"\n"
-	result, changed := upgradeConfigVersion(input, 2)
+	input := "config_version = 3\n[defaults]\nprovider = \"pi\"\n"
+	result, changed := upgradeConfigVersion(input, config.CurrentConfigVersion)
 	if changed {
 		t.Fatal("expected changed=false (already current)")
 	}
@@ -870,12 +870,12 @@ func TestUpgradeConfigVersion_CurrentVersion_NoChange(t *testing.T) {
 
 func TestUpgradeConfigVersion_CommentedVersionIgnored(t *testing.T) {
 	input := "# config_version = 1\n[defaults]\nprovider = \"pi\"\n"
-	result, changed := upgradeConfigVersion(input, 2)
+	result, changed := upgradeConfigVersion(input, config.CurrentConfigVersion)
 	if !changed {
 		t.Fatal("expected changed=true (commented version is not the schema key)")
 	}
-	if !strings.Contains(result, "config_version = 2") {
-		t.Error("missing inserted config_version = 2")
+	if !strings.Contains(result, "config_version = 3") {
+		t.Error("missing inserted config_version = 3")
 	}
 	// The original comment is preserved
 	if !strings.Contains(result, "# config_version = 1") {
@@ -885,35 +885,35 @@ func TestUpgradeConfigVersion_CommentedVersionIgnored(t *testing.T) {
 
 func TestUpgradeConfigVersion_VersionInTableNotMatched(t *testing.T) {
 	input := "[defaults]\nconfig_version = 1\nprovider = \"pi\"\n"
-	result, changed := upgradeConfigVersion(input, 2)
+	result, changed := upgradeConfigVersion(input, config.CurrentConfigVersion)
 	if !changed {
 		t.Fatal("expected changed=true (config_version after table is not top-level)")
 	}
 	// Should have inserted a top-level config_version
-	if !strings.Contains(result, "config_version = 2") {
-		t.Error("missing inserted config_version = 2")
+	if !strings.Contains(result, "config_version = 3") {
+		t.Error("missing inserted config_version = 3")
 	}
 	// The old line inside [defaults] is preserved
 	if !strings.Contains(result, "config_version = 1") {
 		t.Error("config_version inside table should be preserved")
 	}
-	// The result must be valid TOML with root config_version = 2
+	// The result must be valid TOML with root config_version = 3
 	var m map[string]any
 	if err := toml.Unmarshal([]byte(result), &m); err != nil {
 		t.Fatalf("result is not valid TOML: %v", err)
 	}
-	if cv, ok := m["config_version"]; !ok || cv != int64(2) {
-		t.Errorf("root config_version = %v, want 2", cv)
+	if cv, ok := m["config_version"]; !ok || cv != int64(config.CurrentConfigVersion) {
+		t.Errorf("root config_version = %v, want %d", cv, config.CurrentConfigVersion)
 	}
 }
 
 func TestUpgradeConfigVersion_Idempotent(t *testing.T) {
 	input := "[defaults]\nprovider = \"pi\"\n"
-	result1, changed1 := upgradeConfigVersion(input, 2)
+	result1, changed1 := upgradeConfigVersion(input, config.CurrentConfigVersion)
 	if !changed1 {
 		t.Fatal("first call should change")
 	}
-	result2, changed2 := upgradeConfigVersion(result1, 2)
+	result2, changed2 := upgradeConfigVersion(result1, config.CurrentConfigVersion)
 	if changed2 {
 		t.Fatal("second call should NOT change (idempotent)")
 	}
@@ -970,8 +970,8 @@ func TestConfigUpgrade_AddsVersion(t *testing.T) {
 
 	data, _ := os.ReadFile(config.GlobalConfigPath())
 	content := string(data)
-	if !strings.Contains(content, "config_version = 2") {
-		t.Error("missing config_version = 2")
+	if !strings.Contains(content, "config_version = 3") {
+		t.Error("missing config_version = 3")
 	}
 	if !strings.Contains(content, "provider = \"pi\"") {
 		t.Error("user value 'provider = pi' not preserved")
@@ -983,7 +983,7 @@ func TestConfigUpgrade_AlreadyCurrent(t *testing.T) {
 	defer restoreRootState(t, nil, origOut, origErr, origRunE)
 
 	_, _, globalDir := setupNoRepo(t)
-	writeConfigFile(t, globalDir, "config.toml", "config_version = 2\n[defaults]\nprovider = \"pi\"\n")
+	writeConfigFile(t, globalDir, "config.toml", "config_version = 3\n[defaults]\nprovider = \"pi\"\n")
 	preContent, _ := os.ReadFile(config.GlobalConfigPath())
 
 	var out bytes.Buffer
@@ -1027,8 +1027,8 @@ func TestConfigUpgrade_OlderUpdated(t *testing.T) {
 
 	data, _ := os.ReadFile(config.GlobalConfigPath())
 	content := string(data)
-	if !strings.Contains(content, "config_version = 2") {
-		t.Error("missing config_version = 2")
+	if !strings.Contains(content, "config_version = 3") {
+		t.Error("missing config_version = 3")
 	}
 	if !strings.Contains(content, "max_md_lines = 7") {
 		t.Error("max_md_lines = 7 not preserved")

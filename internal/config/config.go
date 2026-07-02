@@ -10,12 +10,12 @@ func strPtr(s string) *string { return &s }
 
 // CurrentConfigVersion is the config-schema version this binary understands (PRD §9.17 FR-B4).
 // Bumped on any breaking config change. On load, stagehand compares a config file's
-// config_version to this constant and emits an advisory staleness ("older") or ahead
-// ("newer") warning pointing at `config upgrade` / `config init --force`; it is advisory
-// only — no automatic migration (there are no existing users to migrate).
-// config_version is metadata, NOT a precedence layer (PRD §16.1). v2 = per-role models +
-// multi-commit decomposition + binary filtering.
-const CurrentConfigVersion = 2
+// config_version to this constant: older files are auto-migrated in memory (FR-B7) with
+// a one-time deprecation notice pointing at `config upgrade`; ahead files emit an advisory.
+// config_version is metadata, NOT a precedence layer (PRD §16.1). v3 = inference provider
+// folded into model slash-prefix (FR-B7, FR-R5b); v2 = per-role models + multi-commit
+// decomposition + binary filtering.
+const CurrentConfigVersion = 3
 
 // RoleConfig holds a per-role provider/model/reasoning override (PRD §16.4, §9.15 FR-R1–R6).
 // A role is one of "planner", "stager", "message", "arbiter" (§13.6.2). Any field "" ⇒

@@ -95,12 +95,16 @@ var configUpgradeCmd = &cobra.Command{
 	Long: `Rewrite an existing Stagehand config file in place so its config_version matches this binary's
 current schema version (` + fmt.Sprintf("`config_version = %d`", config.CurrentConfigVersion) + `).
 
-Only the top-level config_version line is added or updated — every other line (your values, comments,
+For v3 configs (schema version 3), this folds the removed default_provider field into the
+model slash-prefix for multi-backend providers (e.g. "zai/glm-5.2"). Loading an older config
+auto-migrates this in memory -- run ` + "`config upgrade`" + ` to persist it to the file.
+
+Only the top-level config_version line is added or updated -- every other line (your values, comments,
 ordering) is preserved byte-for-byte. Running it twice is safe: a file already at the current version is
 left unchanged ("already up to date").
 
 This is the remediation the load-time advisory points at when a config has no config_version or an older
-one. It targets the file reported by ` + "`stagehand config path`" + ` — by default the GLOBAL config, but
+one. It targets the file reported by ` + "`stagehand config path`" + ` -- by default the GLOBAL config, but
 the --config flag and STAGEHAND_CONFIG env var ARE honored, so ` + "`--config X config upgrade`" + ` (or
 STAGEHAND_CONFIG=X) upgrades file X instead of the global file.
 

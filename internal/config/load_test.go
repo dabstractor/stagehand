@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -989,8 +990,8 @@ func TestConfigVersionNotice(t *testing.T) {
 		{"no file, version current", false, CurrentConfigVersion, true, nil},
 		{"file loaded, current version", true, CurrentConfigVersion, true, nil},
 		{"file loaded, missing (0)", true, 0, false, []string{"has no config_version", "config upgrade", "config init --force"}},
-		{"file loaded, older (1)", true, 1, false, []string{"schema version 1", "current is 2", "config upgrade", "config init --force"}},
-		{"file loaded, ahead (3)", true, 3, false, []string{"schema version 3", "supports up to 2", "config init --force"}},
+		{"file loaded, older (1)", true, 1, false, []string{"schema version 1", "current is 3", "config upgrade", "config init --force"}},
+		{"file loaded, ahead (4)", true, 4, false, []string{"schema version 4", "supports up to 3", "config init --force"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1035,15 +1036,17 @@ func TestLoad_ConfigVersionAdvisory_Older(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load err=%v", err)
 	}
-	if cfg.ConfigVersion != 1 {
-		t.Errorf("ConfigVersion=%d want 1", cfg.ConfigVersion)
+	// After migration, ConfigVersion is set to CurrentConfigVersion (3)
+	if cfg.ConfigVersion != CurrentConfigVersion {
+		t.Errorf("ConfigVersion=%d want %d (post-migration)", cfg.ConfigVersion, CurrentConfigVersion)
 	}
 	got := buf.String()
+	// Migration notice (not the old configVersionNotice)
 	if !strings.Contains(got, "schema version 1") {
 		t.Errorf("advisory = %q, want to contain 'schema version 1'", got)
 	}
-	if !strings.Contains(got, "current is 2") {
-		t.Errorf("advisory = %q, want to contain 'current is 2'", got)
+	if !strings.Contains(got, "auto-migrated in memory") {
+		t.Errorf("advisory = %q, want to contain 'auto-migrated in memory' (migration notice)", got)
 	}
 	if !strings.Contains(got, "config upgrade") {
 		t.Errorf("advisory = %q, want to contain 'config upgrade'", got)
@@ -1064,12 +1067,17 @@ func TestLoad_ConfigVersionAdvisory_Missing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load err=%v", err)
 	}
-	if cfg.ConfigVersion != 0 {
-		t.Errorf("ConfigVersion=%d want 0", cfg.ConfigVersion)
+	// After migration (version 0 < CurrentConfigVersion), ConfigVersion is set to 3
+	if cfg.ConfigVersion != CurrentConfigVersion {
+		t.Errorf("ConfigVersion=%d want %d (post-migration)", cfg.ConfigVersion, CurrentConfigVersion)
 	}
 	got := buf.String()
+	// Migration notice for version 0 (no config_version)
 	if !strings.Contains(got, "has no config_version") {
 		t.Errorf("advisory = %q, want to contain 'has no config_version'", got)
+	}
+	if !strings.Contains(got, "auto-migrated in memory") {
+		t.Errorf("advisory = %q, want to contain 'auto-migrated in memory' (migration notice)", got)
 	}
 	if !strings.Contains(got, "config upgrade") {
 		t.Errorf("advisory = %q, want to contain 'config upgrade'", got)
@@ -1077,29 +1085,6 @@ func TestLoad_ConfigVersionAdvisory_Missing(t *testing.T) {
 }
 
 func TestLoad_ConfigVersionAdvisory_Current(t *testing.T) {
-	_, repo, globalDir := loadEnvSetup(t)
-	chdir(t, repo)
-	writeConfigFile(t, globalDir, "config.toml", "config_version = 2\n")
-
-	origNoticeOut := noticeOut
-	var buf strings.Builder
-	noticeOut = &buf
-	defer func() { noticeOut = origNoticeOut }()
-
-	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
-	if err != nil {
-		t.Fatalf("Load err=%v", err)
-	}
-	if cfg.ConfigVersion != 2 {
-		t.Errorf("ConfigVersion=%d want 2", cfg.ConfigVersion)
-	}
-	got := buf.String()
-	if got != "" {
-		t.Errorf("advisory = %q, want empty (current version)", got)
-	}
-}
-
-func TestLoad_ConfigVersionAdvisory_Newer(t *testing.T) {
 	_, repo, globalDir := loadEnvSetup(t)
 	chdir(t, repo)
 	writeConfigFile(t, globalDir, "config.toml", "config_version = 3\n")
@@ -1117,11 +1102,34 @@ func TestLoad_ConfigVersionAdvisory_Newer(t *testing.T) {
 		t.Errorf("ConfigVersion=%d want 3", cfg.ConfigVersion)
 	}
 	got := buf.String()
-	if !strings.Contains(got, "schema version 3") {
-		t.Errorf("advisory = %q, want to contain 'schema version 3'", got)
+	if got != "" {
+		t.Errorf("advisory = %q, want empty (current version)", got)
 	}
-	if !strings.Contains(got, "supports up to 2") {
-		t.Errorf("advisory = %q, want to contain 'supports up to 2'", got)
+}
+
+func TestLoad_ConfigVersionAdvisory_Newer(t *testing.T) {
+	_, repo, globalDir := loadEnvSetup(t)
+	chdir(t, repo)
+	writeConfigFile(t, globalDir, "config.toml", "config_version = 4\n")
+
+	origNoticeOut := noticeOut
+	var buf strings.Builder
+	noticeOut = &buf
+	defer func() { noticeOut = origNoticeOut }()
+
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	if cfg.ConfigVersion != 4 {
+		t.Errorf("ConfigVersion=%d want 4", cfg.ConfigVersion)
+	}
+	got := buf.String()
+	if !strings.Contains(got, "schema version 4") {
+		t.Errorf("advisory = %q, want to contain 'schema version 4'", got)
+	}
+	if !strings.Contains(got, "supports up to 3") {
+		t.Errorf("advisory = %q, want to contain 'supports up to 3'", got)
 	}
 }
 
@@ -1194,9 +1202,9 @@ func TestLoad_FirstRun_BootstrapsConfig(t *testing.T) {
 		t.Errorf("ConfigVersion=%d, want %d (bootstrap writes current)", cfg.ConfigVersion, CurrentConfigVersion)
 	}
 
-	// The written file must contain config_version = 2
-	if !strings.Contains(string(data), "config_version = 2") {
-		t.Error("bootstrap config missing config_version = 2")
+	// The written file must contain config_version = 3
+	if !strings.Contains(string(data), fmt.Sprintf("config_version = %d", CurrentConfigVersion)) {
+		t.Errorf("bootstrap config missing config_version = %d", CurrentConfigVersion)
 	}
 
 	// Re-loading should find the file (no error, no new notice)
