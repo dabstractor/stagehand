@@ -5,115 +5,12 @@ import (
 	"testing"
 )
 
-// sixBuiltinManifests returns the six provider manifests from
-// external_deps.md §B.1–B.6 (with the four §C corrections applied: codex
-// prompt_delivery="stdin" + --ephemeral; claude's five bare_flags). These are
-// the oracle for the golden table; the executor/builtin.go task (M2.T3.S1)
-// will own them, but asserting Render against them here is the contract test.
+// sixBuiltinManifests delegates to the production Builtins() (M2.T3.S1), the
+// single source of truth for the six §B.1–B.6 manifests (with the four §C
+// corrections applied). The golden Render table below exercises those exact
+// production manifests rather than a hand-maintained duplicate.
 func sixBuiltinManifests() map[string]Manifest {
-	return map[string]Manifest{
-		"pi": {
-			Name:             "pi",
-			Detect:           "pi",
-			Command:          "pi",
-			PromptDelivery:   DeliveryStdin,
-			PrintFlag:        "-p",
-			ModelFlag:        "--model",
-			DefaultModel:     "glm-5-turbo",
-			SystemPromptFlag: "--system-prompt",
-			ProviderFlag:     "--provider",
-			DefaultProvider:  "",
-			BareFlags: []string{
-				"--no-tools", "--no-extensions", "--no-skills",
-				"--no-prompt-templates", "--no-context-files", "--no-session",
-			},
-			Output:           OutputRaw,
-			StripCodeFence:   true,
-			RetryInstruction: "Output ONLY the commit message. No preamble, no markdown, no quotes.",
-		},
-		"claude": {
-			Name:             "claude",
-			Detect:           "claude",
-			Command:          "claude",
-			PromptDelivery:   DeliveryStdin,
-			PrintFlag:        "-p",
-			ModelFlag:        "--model",
-			DefaultModel:     "sonnet",
-			SystemPromptFlag: "--system-prompt",
-			ProviderFlag:     "",
-			// Five bare flags (§C correction #1); note the empty-string values
-			// after --setting-sources and --tools, which Render must keep.
-			BareFlags: []string{
-				"--setting-sources", "",
-				"--tools", "",
-				"--disable-slash-commands", "--no-chrome", "--no-session-persistence",
-			},
-			Output:         OutputRaw,
-			StripCodeFence: true,
-		},
-		"gemini": {
-			Name:             "gemini",
-			Detect:           "gemini",
-			Command:          "gemini",
-			PromptDelivery:   DeliveryPositional,
-			PrintFlag:        "",
-			ModelFlag:        "-m",
-			DefaultModel:     "gemini-2.5-pro",
-			SystemPromptFlag: "", // none → prepend to payload
-			ProviderFlag:     "",
-			BareFlags:        []string{"--approval-mode", "default"},
-			Output:           OutputRaw,
-			StripCodeFence:   true,
-		},
-		"opencode": {
-			Name:             "opencode",
-			Detect:           "opencode",
-			Command:          "opencode",
-			Subcommand:       []string{"run"},
-			PromptDelivery:   DeliveryPositional,
-			PrintFlag:        "",
-			ModelFlag:        "-m",
-			DefaultModel:     "",
-			SystemPromptFlag: "", // none → prepend to payload
-			ProviderFlag:     "",
-			BareFlags:        nil,
-			Output:           OutputRaw,
-			StripCodeFence:   true,
-		},
-		"codex": {
-			Name:             "codex",
-			Detect:           "codex",
-			Command:          "codex",
-			Subcommand:       []string{"exec"},
-			PromptDelivery:   DeliveryStdin, // §C correction #2: positional→stdin
-			PrintFlag:        "",
-			ModelFlag:        "-m",
-			DefaultModel:     "",
-			SystemPromptFlag: "", // none → prepend to payload
-			ProviderFlag:     "",
-			BareFlags: []string{
-				"--sandbox", "read-only",
-				"--ask-for-approval", "never",
-				"--ephemeral", // §C correction #2: added
-			},
-			Output:         OutputRaw,
-			StripCodeFence: true,
-		},
-		"cursor": {
-			Name:             "cursor",
-			Detect:           "agent",
-			Command:          "agent",
-			PromptDelivery:   DeliveryPositional,
-			PrintFlag:        "-p",
-			ModelFlag:        "--model",
-			DefaultModel:     "",
-			SystemPromptFlag: "", // none → prepend to payload
-			ProviderFlag:     "",
-			BareFlags:        []string{"--mode", "ask", "--trust"},
-			Output:           OutputRaw,
-			StripCodeFence:   true,
-		},
-	}
+	return Builtins()
 }
 
 // assertRendered compares a *Rendered against the byte-exact expectation. The

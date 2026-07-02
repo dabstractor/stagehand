@@ -1,0 +1,191 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1_M2_T3_S1_1782967369091_pre-execution_54ae8147",
+      "taskId": "P1_M2_T3_S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T3_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T04:42:49.091Z"
+      },
+      "createdAt": "2026-07-02T04:42:49.091Z"
+    },
+    {
+      "id": "P1_M2_T3_S1_1782967798504_coder-response_8ce1007f",
+      "taskId": "P1_M2_T3_S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T3_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "All validation gates pass and scope boundaries are respected. The implementation is complete.\n\n## Summary\n\nExecuted PRP **P1_M2_T3_S1** — the six compiled-in provider manifests as production data.\n\n**Files created:**\n- `internal/provider/builtin.go` — plain `package provider` line, **no imports**, `func Builtins() map[string]Manifest` returning a fresh 6-key map (pi, claude, gemini, opencode, codex, cursor) byte-identical to the §B manifests with the four §C corrections (claude 7-element/5-flag `BareFlags`; codex `stdin` + `--ephemeral`; gemini positional/empty print; cursor `agent`). Mode-A godoc lists the six providers, notes live-help verification, and points to PRD §12.8.\n- `internal/provider/builtin_test.go` — 4 tests: `KeysAndCount`, `MatchesOracle` (independent literal, not derived from the now-delegating helper), `TOMLRoundTrip` (with nil/empty normalization + idempotency check, handling the go-toml nil→`[]string{}` quirk), and `SpotChecks` (the §C corrections).\n\n**Files modified:**\n- `manifest_test.go` — `sixBuiltinManifests()` body → `return Builtins()` (DRY single source of truth; the Render golden table still passes unchanged).\n- `go.mod` — via `go mod tidy`, go-toml/v2 + cobra now direct; mousetrap/pflag indirect.\n\n**Validation (all green):** build ✓, vet ✓ (no duplicate package comment), gofmt clean ✓, tidy idempotent ✓, `go test ./internal/provider/` ✓ (including all Builtins subtests + the full existing Render golden table via the delegated helper), `go test ./...` ✓. Scope verified: `go.sum`, `manifest.go`, `parse.go`, `parse_test.go`, `main.go`, `Makefile` all untouched; no README/docs/providers TOML created; `// Package provider` appears exactly once (in manifest.go).\n\n**One fix during validation:** the original mutation-leak check assigned to a map-indexed struct field (`a[\"pi\"].DefaultModel = ...`), which Go correctly rejects as non-addressable — `go vet` caught it. Fixed by copying to a local, mutating, and writing back.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"P1_M2_T3_S1 complete. Created internal/provider/builtin.go (Builtins() map[string]Manifest, no imports, plain package line, Mode-A godoc, six §B manifests with four §C corrections) and internal/provider/builtin_test.go (4 tests: keys/count, independent-oracle equality, TOML round-trip with nil/empty normalization, §C spot-checks). Refactored manifest_test.go:sixBuiltinManifests() to delegate to Builtins() (the Render golden table passes unchanged). go mod tidy flipped go-toml/v2 + cobra to direct requires (mousetrap/pflag indirect; go.sum unchanged). All 6 validation gates pass: go build, go vet (no duplicate package comment), gofmt clean, tidy idempotent, go test ./internal/provider/ (all Builtins subtests + full Render golden table green), go test ./... green. One vet-caught fix: map-indexed struct field was not addressable; replaced with copy/mutate/write-back. Scope verified: go.sum, manifest.go, parse.go, parse_test.go, main.go, Makefile untouched; no README/docs/providers TOML; 'Package provider' doc appears exactly once in manifest.go.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "P1_M2_T3_S1 complete. Created internal/provider/builtin.go (Builtins() map[string]Manifest, no imports, plain package line, Mode-A godoc, six §B manifests with four §C corrections) and internal/provider/builtin_test.go (4 tests: keys/count, independent-oracle equality, TOML round-trip with nil/empty normalization, §C spot-checks). Refactored manifest_test.go:sixBuiltinManifests() to delegate to Builtins() (the Render golden table passes unchanged). go mod tidy flipped go-toml/v2 + cobra to direct requires (mousetrap/pflag indirect; go.sum unchanged). All 6 validation gates pass: go build, go vet (no duplicate package comment), gofmt clean, tidy idempotent, go test ./internal/provider/ (all Builtins subtests + full Render golden table green), go test ./... green. One vet-caught fix: map-indexed struct field was not addressable; replaced with copy/mutate/write-back. Scope verified: go.sum, manifest.go, parse.go, parse_test.go, main.go, Makefile untouched; no README/docs/providers TOML; 'Package provider' doc appears exactly once in manifest.go."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T04:49:58.504Z"
+      },
+      "createdAt": "2026-07-02T04:49:58.505Z"
+    },
+    {
+      "id": "P1_M2_T3_S1_1782967798795_validation-gate-2_e65e8ce2",
+      "taskId": "P1_M2_T3_S1",
+      "label": "After validation gate 2",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T3_S1.md",
+        "stage": "validation-gate-2",
+        "coderResponse": "All validation gates pass and scope boundaries are respected. The implementation is complete.\n\n## Summary\n\nExecuted PRP **P1_M2_T3_S1** — the six compiled-in provider manifests as production data.\n\n**Files created:**\n- `internal/provider/builtin.go` — plain `package provider` line, **no imports**, `func Builtins() map[string]Manifest` returning a fresh 6-key map (pi, claude, gemini, opencode, codex, cursor) byte-identical to the §B manifests with the four §C corrections (claude 7-element/5-flag `BareFlags`; codex `stdin` + `--ephemeral`; gemini positional/empty print; cursor `agent`). Mode-A godoc lists the six providers, notes live-help verification, and points to PRD §12.8.\n- `internal/provider/builtin_test.go` — 4 tests: `KeysAndCount`, `MatchesOracle` (independent literal, not derived from the now-delegating helper), `TOMLRoundTrip` (with nil/empty normalization + idempotency check, handling the go-toml nil→`[]string{}` quirk), and `SpotChecks` (the §C corrections).\n\n**Files modified:**\n- `manifest_test.go` — `sixBuiltinManifests()` body → `return Builtins()` (DRY single source of truth; the Render golden table still passes unchanged).\n- `go.mod` — via `go mod tidy`, go-toml/v2 + cobra now direct; mousetrap/pflag indirect.\n\n**Validation (all green):** build ✓, vet ✓ (no duplicate package comment), gofmt clean ✓, tidy idempotent ✓, `go test ./internal/provider/` ✓ (including all Builtins subtests + the full existing Render golden table via the delegated helper), `go test ./...` ✓. Scope verified: `go.sum`, `manifest.go`, `parse.go`, `parse_test.go`, `main.go`, `Makefile` all untouched; no README/docs/providers TOML created; `// Package provider` appears exactly once (in manifest.go).\n\n**One fix during validation:** the original mutation-leak check assigned to a map-indexed struct field (`a[\"pi\"].DefaultModel = ...`), which Go correctly rejects as non-addressable — `go vet` caught it. Fixed by copying to a local, mutating, and writing back.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"P1_M2_T3_S1 complete. Created internal/provider/builtin.go (Builtins() map[string]Manifest, no imports, plain package line, Mode-A godoc, six §B manifests with four §C corrections) and internal/provider/builtin_test.go (4 tests: keys/count, independent-oracle equality, TOML round-trip with nil/empty normalization, §C spot-checks). Refactored manifest_test.go:sixBuiltinManifests() to delegate to Builtins() (the Render golden table passes unchanged). go mod tidy flipped go-toml/v2 + cobra to direct requires (mousetrap/pflag indirect; go.sum unchanged). All 6 validation gates pass: go build, go vet (no duplicate package comment), gofmt clean, tidy idempotent, go test ./internal/provider/ (all Builtins subtests + full Render golden table green), go test ./... green. One vet-caught fix: map-indexed struct field was not addressable; replaced with copy/mutate/write-back. Scope verified: go.sum, manifest.go, parse.go, parse_test.go, main.go, Makefile untouched; no README/docs/providers TOML; 'Package provider' doc appears exactly once in manifest.go.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "P1_M2_T3_S1 complete. Created internal/provider/builtin.go (Builtins() map[string]Manifest, no imports, plain package line, Mode-A godoc, six §B manifests with four §C corrections) and internal/provider/builtin_test.go (4 tests: keys/count, independent-oracle equality, TOML round-trip with nil/empty normalization, §C spot-checks). Refactored manifest_test.go:sixBuiltinManifests() to delegate to Builtins() (the Render golden table passes unchanged). go mod tidy flipped go-toml/v2 + cobra to direct requires (mousetrap/pflag indirect; go.sum unchanged). All 6 validation gates pass: go build, go vet (no duplicate package comment), gofmt clean, tidy idempotent, go test ./internal/provider/ (all Builtins subtests + full Render golden table green), go test ./... green. One vet-caught fix: map-indexed struct field was not addressable; replaced with copy/mutate/write-back. Scope verified: go.sum, manifest.go, parse.go, parse_test.go, main.go, Makefile untouched; no README/docs/providers TOML; 'Package provider' doc appears exactly once in manifest.go."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/provider/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go mod tidy",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/provider/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T04:49:58.795Z"
+      },
+      "createdAt": "2026-07-02T04:49:58.795Z"
+    },
+    {
+      "id": "P1_M2_T3_S1_1782967798799_complete_12340b58",
+      "taskId": "P1_M2_T3_S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M2_T3_S1.md",
+        "stage": "complete",
+        "coderResponse": "All validation gates pass and scope boundaries are respected. The implementation is complete.\n\n## Summary\n\nExecuted PRP **P1_M2_T3_S1** — the six compiled-in provider manifests as production data.\n\n**Files created:**\n- `internal/provider/builtin.go` — plain `package provider` line, **no imports**, `func Builtins() map[string]Manifest` returning a fresh 6-key map (pi, claude, gemini, opencode, codex, cursor) byte-identical to the §B manifests with the four §C corrections (claude 7-element/5-flag `BareFlags`; codex `stdin` + `--ephemeral`; gemini positional/empty print; cursor `agent`). Mode-A godoc lists the six providers, notes live-help verification, and points to PRD §12.8.\n- `internal/provider/builtin_test.go` — 4 tests: `KeysAndCount`, `MatchesOracle` (independent literal, not derived from the now-delegating helper), `TOMLRoundTrip` (with nil/empty normalization + idempotency check, handling the go-toml nil→`[]string{}` quirk), and `SpotChecks` (the §C corrections).\n\n**Files modified:**\n- `manifest_test.go` — `sixBuiltinManifests()` body → `return Builtins()` (DRY single source of truth; the Render golden table still passes unchanged).\n- `go.mod` — via `go mod tidy`, go-toml/v2 + cobra now direct; mousetrap/pflag indirect.\n\n**Validation (all green):** build ✓, vet ✓ (no duplicate package comment), gofmt clean ✓, tidy idempotent ✓, `go test ./internal/provider/` ✓ (including all Builtins subtests + the full existing Render golden table via the delegated helper), `go test ./...` ✓. Scope verified: `go.sum`, `manifest.go`, `parse.go`, `parse_test.go`, `main.go`, `Makefile` all untouched; no README/docs/providers TOML created; `// Package provider` appears exactly once (in manifest.go).\n\n**One fix during validation:** the original mutation-leak check assigned to a map-indexed struct field (`a[\"pi\"].DefaultModel = ...`), which Go correctly rejects as non-addressable — `go vet` caught it. Fixed by copying to a local, mutating, and writing back.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"P1_M2_T3_S1 complete. Created internal/provider/builtin.go (Builtins() map[string]Manifest, no imports, plain package line, Mode-A godoc, six §B manifests with four §C corrections) and internal/provider/builtin_test.go (4 tests: keys/count, independent-oracle equality, TOML round-trip with nil/empty normalization, §C spot-checks). Refactored manifest_test.go:sixBuiltinManifests() to delegate to Builtins() (the Render golden table passes unchanged). go mod tidy flipped go-toml/v2 + cobra to direct requires (mousetrap/pflag indirect; go.sum unchanged). All 6 validation gates pass: go build, go vet (no duplicate package comment), gofmt clean, tidy idempotent, go test ./internal/provider/ (all Builtins subtests + full Render golden table green), go test ./... green. One vet-caught fix: map-indexed struct field was not addressable; replaced with copy/mutate/write-back. Scope verified: go.sum, manifest.go, parse.go, parse_test.go, main.go, Makefile untouched; no README/docs/providers TOML; 'Package provider' doc appears exactly once in manifest.go.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "P1_M2_T3_S1 complete. Created internal/provider/builtin.go (Builtins() map[string]Manifest, no imports, plain package line, Mode-A godoc, six §B manifests with four §C corrections) and internal/provider/builtin_test.go (4 tests: keys/count, independent-oracle equality, TOML round-trip with nil/empty normalization, §C spot-checks). Refactored manifest_test.go:sixBuiltinManifests() to delegate to Builtins() (the Render golden table passes unchanged). go mod tidy flipped go-toml/v2 + cobra to direct requires (mousetrap/pflag indirect; go.sum unchanged). All 6 validation gates pass: go build, go vet (no duplicate package comment), gofmt clean, tidy idempotent, go test ./internal/provider/ (all Builtins subtests + full Render golden table green), go test ./... green. One vet-caught fix: map-indexed struct field was not addressable; replaced with copy/mutate/write-back. Scope verified: go.sum, manifest.go, parse.go, parse_test.go, main.go, Makefile untouched; no README/docs/providers TOML; 'Package provider' doc appears exactly once in manifest.go."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/provider/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/provider/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go mod tidy",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/provider/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T04:49:58.799Z"
+      },
+      "createdAt": "2026-07-02T04:49:58.799Z"
+    }
+  ],
+  "lastModified": "2026-07-02T04:49:58.799Z"
+}
