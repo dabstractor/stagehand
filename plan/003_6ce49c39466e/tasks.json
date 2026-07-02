@@ -11,14 +11,14 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Render chokepoint & Manifest schema v3",
-          "status": "Ready",
+          "status": "Complete",
           "description": "The keystone atomic change: remove DefaultProvider from the Manifest, add a ReasoningLevels table, change Manifest.Render's signature (drop the dead provider param, add reasoning), implement the model slash-prefix split with a hard error on a bare model (FR-R5b), and emit reasoning tokens. Updates all 8 built-ins and the 6 non-test call sites.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Manifest v3 struct + Render signature + built-ins + call sites",
-              "status": "Ready",
+              "status": "Complete",
               "description": "The single command-emission chokepoint every call path flows through. Removes the dead provider param, folds the inference backend into a model slash-prefix, enforces FR-R5b at Render, and adds reasoning-token emission. Must leave the tree compiling (reasoning=\"\" temporarily at call sites until P1.M2 wires real values).",
               "subtasks": [
                 {
@@ -43,7 +43,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": "Rewrite the ~41 Render test call sites + FR-R5b (model-prefix) + reasoning render tests",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
@@ -77,7 +77,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Config reasoning field: RoleConfig.Reasoning + global default + file/overlay/env/flag plumbing",
-                  "status": "Researching",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"

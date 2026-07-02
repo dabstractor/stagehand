@@ -232,14 +232,6 @@ func TestBuiltinManifests_PiFields(t *testing.T) {
 	assertStr(t, "SystemPromptFlag", m.SystemPromptFlag, "--system-prompt")
 	assertStr(t, "ProviderFlag", m.ProviderFlag, "--provider")
 
-	// DefaultProvider: NON-NIL empty (§12.3 writes default_provider = "")
-	if m.DefaultProvider == nil {
-		t.Fatal("DefaultProvider = nil, want non-nil *\"\" (explicit empty)")
-	}
-	if *m.DefaultProvider != "" {
-		t.Errorf("DefaultProvider = %q, want \"\"", *m.DefaultProvider)
-	}
-
 	// BareFlags: 6 tokens in order
 	wantBare := []string{
 		"--no-tools", "--no-extensions", "--no-skills",
@@ -278,7 +270,7 @@ func TestBuiltinManifests_PiFields(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // Test 4: ClaudeFields — every claude field asserted (explicit-empty ProviderFlag,
-//         nil DefaultProvider, two "" bare-flag tokens)
+//         two "" bare-flag tokens)
 // ---------------------------------------------------------------------------
 
 func TestBuiltinManifests_ClaudeFields(t *testing.T) {
@@ -299,9 +291,6 @@ func TestBuiltinManifests_ClaudeFields(t *testing.T) {
 	if *m.ProviderFlag != "" {
 		t.Errorf("ProviderFlag = %q, want \"\"", *m.ProviderFlag)
 	}
-
-	// DefaultProvider: NIL (§12.4 OMITS the key)
-	assertNilStr(t, "DefaultProvider", m.DefaultProvider)
 
 	// BareFlags: 5 tokens, TWO of them "" (the value args to --tools and --setting-sources)
 	wantBare := []string{
@@ -455,7 +444,6 @@ func TestBuiltinManifests_GeminiFields(t *testing.T) {
 	assertStr(t, "DefaultModel", m.DefaultModel, "gemini-2.5-pro")
 	assertStr(t, "SystemPromptFlag", m.SystemPromptFlag, "") // NON-NIL explicit empty (prepend)
 	assertStr(t, "ProviderFlag", m.ProviderFlag, "")         // NON-NIL explicit empty
-	assertNilStr(t, "DefaultProvider", m.DefaultProvider)    // ABSENT in §12.5 → nil
 	wantBare := []string{"--approval-mode", "default"}
 	if !reflect.DeepEqual(m.BareFlags, wantBare) {
 		t.Errorf("BareFlags = %v, want %v", m.BareFlags, wantBare)
@@ -494,7 +482,6 @@ func TestBuiltinManifests_OpenCodeFields(t *testing.T) {
 	assertStr(t, "DefaultModel", m.DefaultModel, "")         // NON-NIL explicit empty (user must set)
 	assertStr(t, "SystemPromptFlag", m.SystemPromptFlag, "") // NON-NIL explicit empty (prepend)
 	assertStr(t, "ProviderFlag", m.ProviderFlag, "")         // NON-NIL explicit empty
-	assertNilStr(t, "DefaultProvider", m.DefaultProvider)    // ABSENT → nil
 	// BareFlags: §12.6 writes bare_flags = [] → NON-NIL empty slice (FINDING D). Assert BOTH non-nil AND len 0.
 	if m.BareFlags == nil {
 		t.Fatal("BareFlags = nil, want NON-NIL empty []string{} (§12.6 bare_flags = [] per FINDING D)")
@@ -566,7 +553,7 @@ func TestBuiltinManifests_CodexFields(t *testing.T) {
 	assertStr(t, "DefaultModel", m.DefaultModel, "")              // NON-NIL explicit empty (model from ~/.codex/config.toml)
 	assertStr(t, "SystemPromptFlag", m.SystemPromptFlag, "")      // NON-NIL explicit empty (prepend)
 	assertStr(t, "ProviderFlag", m.ProviderFlag, "")              // NON-NIL explicit empty
-	assertNilStr(t, "DefaultProvider", m.DefaultProvider)         // ABSENT in §12.7 → nil
+	assertStr(t, "ProviderFlag", m.ProviderFlag, "")              // NON-NIL explicit empty
 	wantBare := []string{"--sandbox", "read-only", "--ephemeral"} // REVISED #2
 	if !reflect.DeepEqual(m.BareFlags, wantBare) {
 		t.Errorf("BareFlags = %v, want %v", m.BareFlags, wantBare)
@@ -610,7 +597,7 @@ func TestBuiltinManifests_CursorFields(t *testing.T) {
 	assertStr(t, "DefaultModel", m.DefaultModel, "")         // NON-NIL explicit empty (user must set)
 	assertStr(t, "SystemPromptFlag", m.SystemPromptFlag, "") // NON-NIL explicit empty (prepend)
 	assertStr(t, "ProviderFlag", m.ProviderFlag, "")         // NON-NIL explicit empty
-	assertNilStr(t, "DefaultProvider", m.DefaultProvider)    // ABSENT → nil
+	assertStr(t, "ProviderFlag", m.ProviderFlag, "")         // NON-NIL explicit empty
 	wantBare := []string{"--mode", "ask", "--trust"}
 	if !reflect.DeepEqual(m.BareFlags, wantBare) {
 		t.Errorf("BareFlags = %v, want %v", m.BareFlags, wantBare)
@@ -682,7 +669,7 @@ func TestBuiltinManifests_AgyFields(t *testing.T) {
 	assertStr(t, "DefaultModel", m.DefaultModel, "gemini-2.5-pro")
 	assertStr(t, "SystemPromptFlag", m.SystemPromptFlag, "") // NON-NIL explicit empty (prepend)
 	assertStr(t, "ProviderFlag", m.ProviderFlag, "")         // NON-NIL explicit empty
-	assertNilStr(t, "DefaultProvider", m.DefaultProvider)    // ABSENT → nil
+	assertStr(t, "ProviderFlag", m.ProviderFlag, "")         // NON-NIL explicit empty
 	wantBare := []string{"--approval-mode", "default"}
 	if !reflect.DeepEqual(m.BareFlags, wantBare) {
 		t.Errorf("BareFlags = %v, want %v", m.BareFlags, wantBare)
@@ -736,7 +723,7 @@ func TestBuiltinManifests_RenderedCommand_Agy(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBuiltinManifests_RenderedCommand_Pi_Tooled(t *testing.T) {
-	spec, err := builtinPi().Render("glm-5-turbo", "zai", "<sys>", "<user>", RenderTooled)
+	spec, err := builtinPi().Render("zai/glm-5-turbo", "<sys>", "<user>", "off", RenderTooled)
 	if err != nil {
 		t.Fatalf("pi tooled render error: %v", err)
 	}
@@ -763,7 +750,7 @@ func TestBuiltinManifests_RenderedCommand_Pi_Tooled(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBuiltinManifests_RenderedCommand_Claude_Tooled(t *testing.T) {
-	spec, err := builtinClaude().Render("sonnet", "", "<sys>", "<user>", RenderTooled)
+	spec, err := builtinClaude().Render("sonnet", "<sys>", "<user>", "off", RenderTooled)
 	if err != nil {
 		t.Fatalf("claude tooled render error: %v", err)
 	}

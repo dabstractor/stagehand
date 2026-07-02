@@ -19,7 +19,7 @@ func sampleBase() Manifest {
 		DefaultModel:     strPtr("glm-5-turbo"),
 		SystemPromptFlag: strPtr("--system-prompt"),
 		ProviderFlag:     strPtr("--provider"),
-		DefaultProvider:  strPtr(""),
+
 		Output:           strPtr("raw"),
 		JsonField:        strPtr(""),
 		StripCodeFence:   boolPtr(true),
@@ -60,7 +60,6 @@ func TestMergeManifest_PartialOverride_OnlyTouchedFieldChanges(t *testing.T) {
 		{"ModelFlag", merged.ModelFlag, base.ModelFlag},
 		{"SystemPromptFlag", merged.SystemPromptFlag, base.SystemPromptFlag},
 		{"ProviderFlag", merged.ProviderFlag, base.ProviderFlag},
-		{"DefaultProvider", merged.DefaultProvider, base.DefaultProvider},
 		{"Output", merged.Output, base.Output},
 		{"JsonField", merged.JsonField, base.JsonField},
 		{"RetryInstruction", merged.RetryInstruction, base.RetryInstruction},

@@ -12,7 +12,7 @@ import (
 // ---------------------------------------------------------------------------
 
 // dualModeManifest returns a minimal manifest with BOTH BareFlags and TooledFlags set,
-// used by the 5 new Render-mode tests.
+// used by the Render-mode tests.
 func dualModeManifest() Manifest {
 	return Manifest{
 		Name:        "dual",
@@ -38,35 +38,34 @@ func TestRender_GoldenPerProvider(t *testing.T) {
 		name      string
 		m         Manifest
 		model     string
-		provider  string
 		wantCmd   string
 		wantArgs  []string
 		wantStdin string
 	}{
-		{"pi", pi, "", "", "pi", // FR-D2: shipped default — no --model/--provider
+		{"pi", pi, "", "pi", // FR-D2: shipped default — no --model/--provider
 			[]string{"--system-prompt", "<sys>",
 				"--no-tools", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files", "--no-session", "-p"},
 			"<user>"}, // stdin; sys via flag → only user via stdin
-		{"claude", claude, "sonnet", "", "claude",
+		{"claude", claude, "sonnet", "claude",
 			[]string{"--model", "sonnet", "--system-prompt", "<sys>",
 				"--tools", "", "--setting-sources", "", "--no-session-persistence", "-p"}, // -p LAST
 			"<user>"},
-		{"gemini", gemini, "", "", "gemini",
+		{"gemini", gemini, "", "gemini",
 			[]string{"-m", "gemini-2.5-pro", "--approval-mode", "default"},
 			"<sys>\n\n<user>"}, // stdin; no sys flag → sys PREPENDED
-		{"opencode", opencode, "anthropic/claude-sonnet-4", "", "opencode",
+		{"opencode", opencode, "anthropic/claude-sonnet-4", "opencode",
 			[]string{"run", "-m", "anthropic/claude-sonnet-4", "<sys>\n\n<user>"}, // positional → payload trailing
 			""},
-		{"codex", codex, "gpt-5", "", "codex",
+		{"codex", codex, "gpt-5", "codex",
 			[]string{"exec", "-m", "gpt-5", "--sandbox", "read-only", "--ephemeral"},
 			"<sys>\n\n<user>"}, // stdin (REVISED builtin); no sys flag → PREPENDED
-		{"cursor", cursor, "gpt-5", "", "agent", // Command="agent" (≠ Name "cursor")
+		{"cursor", cursor, "gpt-5", "agent", // Command="agent" (≠ Name "cursor")
 			[]string{"--model", "gpt-5", "--mode", "ask", "--trust", "-p", "<sys>\n\n<user>"}, // -p LAST; positional
 			""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			spec, err := tc.m.Render(tc.model, tc.provider, "<sys>", "<user>")
+			spec, err := tc.m.Render(tc.model, "<sys>", "<user>", "off")
 			if err != nil {
 				t.Fatalf("%s: Render error: %v", tc.name, err)
 			}
@@ -85,11 +84,11 @@ func TestRender_GoldenPerProvider(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // Test 2 (THE headline): pi is byte-for-byte the commit-pi invocation
-// (FR-D2: this is now the PERSONAL OVERRIDE path — explicit model+provider).
+// (FR-R5b: model-prefix fold — the inference provider is now the slash-prefix on model).
 // ---------------------------------------------------------------------------
 
 func TestRender_Pi_ByteForByteCommitPi(t *testing.T) {
-	spec, err := builtinPi().Render("glm-5-turbo", "zai", "<sys>", "<user>") // explicit personal override
+	spec, err := builtinPi().Render("zai/glm-5-turbo", "<sys>", "<user>", "off") // model-prefix fold: "zai/glm-5-turbo" → --provider zai --model glm-5-turbo
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -109,17 +108,17 @@ func TestRender_Pi_ByteForByteCommitPi(t *testing.T) {
 
 func TestRender_SystemPromptPrependFallback(t *testing.T) {
 	// gemini has NO sys flag (SystemPromptFlag resolves to "") → sys prepended to stdin payload.
-	got, _ := builtinGemini().Render("", "", "SYS", "USER")
+	got, _ := builtinGemini().Render("", "SYS", "USER", "off")
 	if got.Stdin != "SYS\n\nUSER" {
 		t.Errorf("gemini prepend: Stdin = %q, want SYS\\n\\nUSER", got.Stdin)
 	}
 	// pi HAS a sys flag → sys via flag, payload = user only.
-	got2, _ := builtinPi().Render("", "zai", "SYS", "USER")
+	got2, _ := builtinPi().Render("", "SYS", "USER", "off")
 	if got2.Stdin != "USER" {
 		t.Errorf("pi (sys flag): Stdin = %q, want USER", got2.Stdin)
 	}
 	// Empty sys + no flag → no prepend (no leading newlines).
-	got3, _ := builtinGemini().Render("", "", "", "USER")
+	got3, _ := builtinGemini().Render("", "", "USER", "off")
 	if got3.Stdin != "USER" {
 		t.Errorf("empty sys: Stdin = %q, want USER", got3.Stdin)
 	}
@@ -132,42 +131,37 @@ func TestRender_SystemPromptPrependFallback(t *testing.T) {
 
 func TestRender_ModelDefaultFallback(t *testing.T) {
 	// claude: model="" → DefaultModel="sonnet"
-	byDefault, _ := builtinClaude().Render("", "", "", "")
+	byDefault, _ := builtinClaude().Render("", "", "", "off")
 	if !containsPair(byDefault.Args, "--model", "sonnet") {
 		t.Errorf("claude model default not applied: %v", byDefault.Args)
 	}
 	// claude: explicit model wins over default
-	explicit, _ := builtinClaude().Render("custom-model", "", "", "")
+	explicit, _ := builtinClaude().Render("custom-model", "", "", "off")
 	if !containsPair(explicit.Args, "--model", "custom-model") {
 		t.Errorf("claude explicit model lost: %v", explicit.Args)
 	}
 	// pi (FR-D2: empty default) emits NO --model
-	piNoModel, _ := builtinPi().Render("", "", "", "")
+	piNoModel, _ := builtinPi().Render("", "", "", "off")
 	if containsToken(piNoModel.Args, "--model") {
 		t.Errorf("pi should emit no --model by default (FR-D2): %v", piNoModel.Args)
 	}
 }
 
 // ---------------------------------------------------------------------------
-// Test 5: provider default fallback: provider="" → DefaultProvider (all
-// built-ins "" → no --provider); a §12.8 default honored.
+// Test 5: FR-R5b model-prefix fold — pi (provider_flag) splits "backend/model";
+// opencode (no provider_flag) passes model VERBATIM.
 // ---------------------------------------------------------------------------
 
-func TestRender_ProviderDefaultFallback(t *testing.T) {
-	got, _ := builtinPi().Render("", "", "", "USER") // provider="" → DefaultProvider="" → no --provider
-	for i, a := range got.Args {
-		if a == "--provider" {
-			t.Errorf("unexpected --provider at %d: %v", i, got.Args)
-		}
+func TestRender_ModelPrefixFold(t *testing.T) {
+	// pi + "zai/glm-5.2" (provider_flag="--provider") → fold to --provider zai --model glm-5.2
+	s, _ := builtinPi().Render("zai/glm-5.2", "<sys>", "<user>", "off")
+	if !containsPair(s.Args, "--provider", "zai") || !containsPair(s.Args, "--model", "glm-5.2") || containsToken(s.Args, "zai/glm-5.2") {
+		t.Errorf("fold: %v", s.Args)
 	}
-	// A §12.8 user manifest with default_provider="zai" + provider_flag → honored when caller passes "".
-	user := Manifest{Name: "test", Command: strPtr("agent"), ProviderFlag: strPtr("--provider"), DefaultProvider: strPtr("zai")}
-	got2, err := user.Render("", "", "", "USER")
-	if err != nil {
-		t.Fatalf("Render: %v", err)
-	}
-	if !containsPair(got2.Args, "--provider", "zai") {
-		t.Errorf("default_provider not honored: %v", got2.Args)
+	// opencode (no provider_flag) + "openai/gpt-5.4" → VERBATIM, NOT split
+	o, _ := builtinOpenCode().Render("openai/gpt-5.4", "<sys>", "<user>", "off")
+	if !containsPair(o.Args, "-m", "openai/gpt-5.4") || containsToken(o.Args, "--provider") {
+		t.Errorf("opencode should pass model verbatim (no --provider): %v", o.Args)
 	}
 }
 
@@ -179,7 +173,7 @@ func TestRender_ProviderDefaultFallback(t *testing.T) {
 func TestRender_Env(t *testing.T) {
 	osEnvLen := len(os.Environ())
 	m := Manifest{Name: "test", Command: strPtr("pi"), Env: map[string]string{"PI_OFFLINE": "1", "DEBUG": "x"}}
-	spec, err := m.Render("", "", "", "USER")
+	spec, err := m.Render("", "", "USER", "off")
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -204,7 +198,7 @@ func TestRender_Env(t *testing.T) {
 
 func TestRender_FlagDelivery(t *testing.T) {
 	m := Manifest{Name: "test", Command: strPtr("agent"), PromptDelivery: strPtr("flag"), PromptFlag: strPtr("--prompt")}
-	spec, _ := m.Render("", "", "", "PAYLOAD")
+	spec, _ := m.Render("", "", "PAYLOAD", "off")
 	if !containsPair(spec.Args, "--prompt", "PAYLOAD") {
 		t.Errorf("flag delivery: %v", spec.Args)
 	}
@@ -219,59 +213,53 @@ func TestRender_FlagDelivery(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRender_ValidateErrors(t *testing.T) {
-	if _, err := (Manifest{}).Render("", "", "", "U"); err == nil {
+	if _, err := (Manifest{}).Render("", "", "U", "off"); err == nil {
 		t.Error("want error for empty manifest (no command)")
 	}
-	if _, err := (Manifest{Name: "x", Command: strPtr("pi"), PromptDelivery: strPtr("bogus")}).Render("", "", "", "U"); err == nil {
+	if _, err := (Manifest{Name: "x", Command: strPtr("pi"), PromptDelivery: strPtr("bogus")}).Render("", "", "U", "off"); err == nil {
 		t.Error("want error for invalid prompt_delivery")
 	}
 }
 
 // ---------------------------------------------------------------------------
-// Test 8b: FR-R5b backstop — Render NEVER emits a bare --model for a multi-provider agent.
-// This is the single chokepoint every call path (v1 generate + all four decompose roles) flows
-// through; all pass "" for the provider param and rely on the manifest's default_provider. A pinned
-// model with no inference provider is rejected here so no path can emit an unroutable command.
-// Exempt: no model, or a single-backend / combined-form agent (no provider_flag).
+// Test 8b: FR-R5b v3 matrix — model-prefix fold + no-slash error + verbatim exemptions.
+// Render is the single chokepoint enforcing the contract: a provider_flag provider (pi) splits
+// "backend/model" → --provider <backend> --model <rest>; a bare model (no "/") is a HARD ERROR.
+// Providers without a provider_flag (claude, opencode) pass the model VERBATIM.
 // ---------------------------------------------------------------------------
 
 func TestRender_FR5b_RejectsBareModelOnMultiProvider(t *testing.T) {
-	pi := builtinPi() // ProviderFlag="--provider", DefaultProvider="" (shipped)
+	pi := builtinPi() // ProviderFlag="--provider"
 
-	// Pinned model + NO inference provider → ERROR (the bug: was silently `pi --model glm-5.2`).
-	if _, err := pi.Render("glm-5.2", "", "<sys>", "<user>"); err == nil {
-		t.Fatal("Render accepted a bare --model on pi (no inference provider); want FR-R5b error")
+	// (1) bare model, no slash → ERROR
+	if _, err := pi.Render("glm-5.2", "<sys>", "<user>", "off"); err == nil {
+		t.Fatal("want no-slash error")
 	}
 
-	// Same via the manifest default_model path (param "" → DefaultModel) when DefaultModel is set:
-	// build a pi-shaped manifest with a default_model but no default_provider.
+	// (2) default_model path, no slash → ERROR (pi-shaped manifest with DefaultModel set)
 	m := Manifest{
 		Name: "pi", Command: strPtr("pi"), PromptDelivery: strPtr("stdin"),
 		ProviderFlag: strPtr("--provider"), ModelFlag: strPtr("--model"),
-		DefaultModel: strPtr("glm-5.2"), DefaultProvider: strPtr(""),
+		DefaultModel: strPtr("glm-5.2"),
 	}
-	if _, err := m.Render("", "", "<sys>", "<user>"); err == nil {
-		t.Fatal("Render accepted a bare default_model on a multi-provider agent; want FR-R5b error")
-	}
-
-	// Inference provider supplied as the Render param → OK, emits --provider.
-	spec, err := pi.Render("glm-5.2", "zai", "<sys>", "<user>")
-	if err != nil {
-		t.Fatalf("Render with explicit provider: %v", err)
-	}
-	if !containsPair(spec.Args, "--provider", "zai") || !containsPair(spec.Args, "--model", "glm-5.2") {
-		t.Errorf("want --provider zai + --model glm-5.2; got %v", spec.Args)
+	if _, err := m.Render("", "<sys>", "<user>", "off"); err == nil {
+		t.Fatal("want no-slash error on default_model")
 	}
 
-	// No model at all → OK (pi picks its own backend default; the shipped, blank-model path).
-	if _, err := pi.Render("", "", "<sys>", "<user>"); err != nil {
-		t.Errorf("Render with no model should be allowed (pi picks its own default): %v", err)
+	// (3) fold success: "zai/glm-5.2" → --provider zai --model glm-5.2
+	s, err := pi.Render("zai/glm-5.2", "<sys>", "<user>", "off")
+	if err != nil || !containsPair(s.Args, "--provider", "zai") || !containsPair(s.Args, "--model", "glm-5.2") {
+		t.Errorf("fold: err=%v args=%v", err, s.Args)
 	}
 
-	// Single-backend agent (claude, no provider_flag) + model + no provider → OK.
-	claude := builtinClaude()
-	if _, err := claude.Render("sonnet", "", "<sys>", "<user>"); err != nil {
-		t.Errorf("claude (single-backend) should allow a bare --model: %v", err)
+	// (4) no model → OK (skips the split)
+	if _, err := pi.Render("", "<sys>", "<user>", "off"); err != nil {
+		t.Errorf("no model should be OK: %v", err)
+	}
+
+	// (5) single-backend (claude) + bare model → OK (verbatim, no provider_flag)
+	if _, err := builtinClaude().Render("sonnet", "<sys>", "<user>", "off"); err != nil {
+		t.Errorf("claude bare model should be OK: %v", err)
 	}
 }
 
@@ -283,7 +271,7 @@ func TestRender_FR5b_RejectsBareModelOnMultiProvider(t *testing.T) {
 func TestRender_DoesNotMutateManifest(t *testing.T) {
 	m := builtinPi()
 	origSys := m.SystemPromptFlag
-	_, _ = m.Render("", "zai", "<sys>", "<user>")
+	_, _ = m.Render("", "<sys>", "<user>", "off")
 	if m.SystemPromptFlag != origSys {
 		t.Errorf("Render mutated SystemPromptFlag: %v vs %v", m.SystemPromptFlag, origSys)
 	}
@@ -297,7 +285,7 @@ func TestRender_DoesNotMutateManifest(t *testing.T) {
 func TestRender_CompatWithRenderArgs(t *testing.T) {
 	// renderArgs returns Command as element[0]; CmdSpec splits Command out. Same tokens, same order.
 	flags := renderArgs(builtinCodex(), "", "gpt-5", "<sys>")
-	spec, _ := builtinCodex().Render("gpt-5", "", "<sys>", "<user>")
+	spec, _ := builtinCodex().Render("gpt-5", "<sys>", "<user>", "off")
 	if spec.Command != flags[0] {
 		t.Errorf("Command mismatch: %q vs %q", spec.Command, flags[0])
 	}
@@ -312,7 +300,7 @@ func TestRender_CompatWithRenderArgs(t *testing.T) {
 
 func TestRender_DefaultModeIsBare(t *testing.T) {
 	m := dualModeManifest()
-	spec, err := m.Render("", "", "", "U")
+	spec, err := m.Render("", "", "U", "off")
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
@@ -331,8 +319,8 @@ func TestRender_DefaultModeIsBare(t *testing.T) {
 
 func TestRender_ExplicitBareMode(t *testing.T) {
 	m := dualModeManifest()
-	specDefault, _ := m.Render("", "", "", "U")
-	specBare, _ := m.Render("", "", "", "U", RenderBare)
+	specDefault, _ := m.Render("", "", "U", "off")
+	specBare, _ := m.Render("", "", "U", "off", RenderBare)
 	if !reflect.DeepEqual(specDefault.Args, specBare.Args) {
 		t.Errorf("explicit bare differs from default:\n default=%v\n bare   =%v", specDefault.Args, specBare.Args)
 	}
@@ -347,7 +335,7 @@ func TestRender_ExplicitBareMode(t *testing.T) {
 
 func TestRender_TooledModeAppendsTooledFlags(t *testing.T) {
 	m := dualModeManifest()
-	spec, err := m.Render("", "", "", "U", RenderTooled)
+	spec, err := m.Render("", "", "U", "off", RenderTooled)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
@@ -365,7 +353,7 @@ func TestRender_TooledModeAppendsTooledFlags(t *testing.T) {
 
 func TestRender_TooledModeEmptyFlagsErrors(t *testing.T) {
 	bareOnly := Manifest{Name: "stager", Command: strPtr("agent"), BareFlags: []string{"--no-tools"}} // TooledFlags nil
-	_, err := bareOnly.Render("", "", "", "U", RenderTooled)
+	_, err := bareOnly.Render("", "", "U", "off", RenderTooled)
 	if err == nil {
 		t.Fatal("expected error for tooled mode with nil TooledFlags, got nil")
 	}
@@ -383,13 +371,61 @@ func TestRender_TooledModeEmptyFlagsErrors(t *testing.T) {
 
 func TestRender_AllGoldenProvidersStillBareDefault(t *testing.T) {
 	for _, b := range []Manifest{builtinPi(), builtinClaude(), builtinGemini(), builtinOpenCode(), builtinCodex(), builtinCursor()} {
-		spec, err := b.Render("", "", "<sys>", "<user>") // no mode
+		spec, err := b.Render("", "<sys>", "<user>", "off") // no mode
 		if err != nil {
 			t.Errorf("provider %q: no-mode Render error: %v", b.Name, err)
 		}
 		if spec.Command == "" {
 			t.Errorf("provider %q: empty Command", b.Name)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Test 16: FR-R6 — reasoning tokens appended when declared (incl. tooled mode);
+//           absent level / nil table → silent no-op, never an error.
+// ---------------------------------------------------------------------------
+
+func TestRender_ReasoningTokensAppended(t *testing.T) {
+	m := Manifest{Name: "r", Command: strPtr("agent"), ModelFlag: strPtr("--model"),
+		ReasoningLevels: map[string][]string{"high": {"--thinking", "high"}}}
+	// declared level → tokens appended after the model flag
+	s, err := m.Render("m", "", "", "high")
+	if err != nil {
+		t.Fatalf("high: %v", err)
+	}
+	if !containsPair(s.Args, "--thinking", "high") {
+		t.Errorf("reasoning tokens missing: %v", s.Args)
+	}
+	// "off" → no tokens, no error (off has no entry → nil slice → len 0)
+	so, _ := m.Render("m", "", "", "off")
+	if containsToken(so.Args, "--thinking") {
+		t.Errorf("off should append no tokens: %v", so.Args)
+	}
+	// undeclared level → silent no-op, NEVER an error
+	if _, err := m.Render("m", "", "", "medium"); err != nil {
+		t.Errorf("undeclared level errored: %v", err)
+	}
+}
+
+func TestRender_ReasoningNilTableNoOp(t *testing.T) {
+	// nil ReasoningLevels + any level → no-op, no error (FR-R6 graceful; nil map reads are safe)
+	m := Manifest{Name: "n", Command: strPtr("agent"), ModelFlag: strPtr("--model")}
+	if _, err := m.Render("m", "", "", "high"); err != nil {
+		t.Errorf("nil table + high errored: %v", err)
+	}
+}
+
+func TestRender_ReasoningTooledMode(t *testing.T) {
+	// reasoning tokens append in TOOLED mode too (RenderTooled path)
+	m := dualModeManifest()
+	m.ReasoningLevels = map[string][]string{"high": {"--reason", "high"}}
+	s, err := m.Render("", "", "U", "high", RenderTooled)
+	if err != nil {
+		t.Fatalf("tooled+reasoning: %v", err)
+	}
+	if !containsPair(s.Args, "--reason", "high") {
+		t.Errorf("reasoning tokens missing in tooled mode: %v", s.Args)
 	}
 }
 

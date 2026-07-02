@@ -67,11 +67,6 @@ func TestUnmarshal_FullManifest(t *testing.T) {
 
 	// Sub-provider
 	assertStr(t, "ProviderFlag", m.ProviderFlag, "--provider")
-	// DefaultProvider absent → nil
-	if m.DefaultProvider != nil {
-		t.Errorf("DefaultProvider = %q, want nil", *m.DefaultProvider)
-	}
-
 	// Bare flags
 	wantBare := []string{"--no-tools", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files", "--no-session"}
 	if len(m.BareFlags) != len(wantBare) {
@@ -136,7 +131,6 @@ bare_flags = ["a"]
 	assertNilStr(t, "DefaultModel", m.DefaultModel)
 	assertNilStr(t, "SystemPromptFlag", m.SystemPromptFlag)
 	assertNilStr(t, "ProviderFlag", m.ProviderFlag)
-	assertNilStr(t, "DefaultProvider", m.DefaultProvider)
 	assertNilStr(t, "Output", m.Output)
 	assertNilStr(t, "JsonField", m.JsonField)
 	if m.StripCodeFence != nil {
@@ -391,7 +385,6 @@ func TestResolve_OptionalStringsBecomeEmpty(t *testing.T) {
 		{"DefaultModel", r.DefaultModel},
 		{"SystemPromptFlag", r.SystemPromptFlag},
 		{"ProviderFlag", r.ProviderFlag},
-		{"DefaultProvider", r.DefaultProvider},
 		{"JsonField", r.JsonField},
 	} {
 		if field.ptr == nil {

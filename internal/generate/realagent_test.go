@@ -75,7 +75,7 @@ func realConfig(name string) config.Config {
 // cfg, provider param "" (the inference provider comes from m.DefaultProvider — never cfg.Provider).
 func logResolvedCommand(t *testing.T, name string, m provider.Manifest, cfg config.Config) {
 	t.Helper()
-	spec, err := m.Render(cfg.Model, "", "<system prompt>", "<staged diff>")
+	spec, err := m.Render(cfg.Model, "<system prompt>", "<staged diff>", "off")
 	if err != nil {
 		t.Logf("[%s] render error (manifest may be invalid): %v", name, err)
 		return
@@ -123,8 +123,13 @@ func TestRealAgents(t *testing.T) {
 			// it into cfg.Provider (as prior code did) is the agent/model-provider conflation FR-R5b now
 			// rejects at Render. DefaultProvider is nil on the pure built-in; set it only when non-empty.
 			if inf := envOr("STAGEHAND_REAL_INFERENCE_"+strings.ToUpper(name), realDefaults[name].inference); inf != "" {
-				ip := inf
-				m.DefaultProvider = &ip
+				// v3 FR-R5b: fold the inference provider into the model slash-prefix.
+				// cfg.Model may already contain a prefix from env override; only prepend if absent.
+				if cfg.Model == "" {
+					cfg.Model = inf + "/" + realDefaults[name].model
+				} else if !strings.Contains(cfg.Model, "/") {
+					cfg.Model = inf + "/" + cfg.Model
+				}
 			}
 
 			logResolvedCommand(t, name, m, cfg)

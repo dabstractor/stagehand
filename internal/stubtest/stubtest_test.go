@@ -15,7 +15,7 @@ import (
 func TestStub_EchoSuccess(t *testing.T) {
 	bin := Build(t)
 	m := Manifest(bin, Options{Out: "feat: add x"})
-	spec, err := m.Render("", "", "", "fake prompt payload")
+	spec, err := m.Render("", "", "fake prompt payload", "off")
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestStub_MultilineOut(t *testing.T) {
 	bin := Build(t)
 	want := "subject\n\nbody line"
 	m := Manifest(bin, Options{Out: want})
-	spec, err := m.Render("", "", "", "payload")
+	spec, err := m.Render("", "", "payload", "off")
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestStub_MultilineOut(t *testing.T) {
 func TestStub_NonZeroExit(t *testing.T) {
 	bin := Build(t)
 	m := Manifest(bin, Options{Out: "", Exit: 1})
-	spec, err := m.Render("", "", "", "payload")
+	spec, err := m.Render("", "", "payload", "off")
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestStub_NonZeroExit(t *testing.T) {
 func TestStub_TimeoutKilled(t *testing.T) {
 	bin := Build(t)
 	m := Manifest(bin, Options{Out: "", SleepMS: 2000})
-	spec, err := m.Render("", "", "", "payload")
+	spec, err := m.Render("", "", "payload", "off")
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestStub_TimeoutKilled(t *testing.T) {
 func TestStub_StderrCapture(t *testing.T) {
 	bin := Build(t)
 	m := Manifest(bin, Options{Out: "", Stderr: "boom"})
-	spec, err := m.Render("", "", "", "payload")
+	spec, err := m.Render("", "", "payload", "off")
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestStub_StderrCapture(t *testing.T) {
 func TestStub_DrainStdinNoDeadlock(t *testing.T) {
 	bin := Build(t)
 	m := Manifest(bin, Options{Out: "ok", SleepMS: 500})
-	spec, err := m.Render("", "", "", "payload")
+	spec, err := m.Render("", "", "payload", "off")
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestStub_ScriptCallVarying(t *testing.T) {
 	m := NewScript(t, bin, []string{"feat: dup", "feat: fresh"})
 
 	// Call 1: first response.
-	spec, err := m.Render("", "", "", "payload1")
+	spec, err := m.Render("", "", "payload1", "off")
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestStub_ScriptCallVarying(t *testing.T) {
 	}
 
 	// Call 2: second response.
-	spec2, err2 := m.Render("", "", "", "payload2")
+	spec2, err2 := m.Render("", "", "payload2", "off")
 	if err2 != nil {
 		t.Fatalf("Render: %v", err2)
 	}
@@ -150,7 +150,7 @@ func TestStub_ScriptCallVarying(t *testing.T) {
 	}
 
 	// Call 3: clamps to last.
-	spec3, err3 := m.Render("", "", "", "payload3")
+	spec3, err3 := m.Render("", "", "payload3", "off")
 	if err3 != nil {
 		t.Fatalf("Render: %v", err3)
 	}
@@ -168,7 +168,7 @@ func TestStub_ScriptBlankIsParseFailure(t *testing.T) {
 	m := NewScript(t, bin, []string{"", "feat: good"})
 
 	// Call 1: blank → empty stdout → ParseOutput ok=false.
-	spec, err := m.Render("", "", "", "payload1")
+	spec, err := m.Render("", "", "payload1", "off")
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestStub_ScriptBlankIsParseFailure(t *testing.T) {
 	}
 
 	// Call 2: the good response.
-	spec, err2 := m.Render("", "", "", "payload2")
+	spec, err2 := m.Render("", "", "payload2", "off")
 	if err2 != nil {
 		t.Fatalf("Render: %v", err2)
 	}
