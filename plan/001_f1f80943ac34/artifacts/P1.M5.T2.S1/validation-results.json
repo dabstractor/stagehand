@@ -1,0 +1,52 @@
+[
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go build ./internal/config/",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "gofmt -l ./internal/config/",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go vet ./internal/config/",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 2,
+    "description": "Level 2 gate",
+    "success": true,
+    "command": "go test ./internal/config/ -v",
+    "stdout": "=== RUN   TestConfig_RoundTrip_Populated\n--- PASS: TestConfig_RoundTrip_Populated (0.00s)\n=== RUN   TestDefault_ExactTable\n--- PASS: TestDefault_ExactTable (0.00s)\n=== RUN   TestDefault_ProviderOverridesEmpty\n--- PASS: TestDefault_ProviderOverridesEmpty (0.00s)\n=== RUN   TestGlobalConfigPath_HonorsXDG\n--- PASS: TestGlobalConfigPath_HonorsXDG (0.00s)\n=== RUN   TestGlobalConfigPath_HomeFallback\n--- PASS: TestGlobalConfigPath_HomeFallback (0.00s)\n=== RUN   TestGlobalConfigPath_BothEmptyErrors\n--- PASS: TestGlobalConfigPath_BothEmptyErrors (0.00s)\n=== RUN   TestParseFile_Golden162\n--- PASS: TestParseFile_Golden162 (0.00s)\n=== RUN   TestParseFile_MissingFileIsNotError\n--- PASS: TestParseFile_MissingFileIsNotError (0.00s)\n=== RUN   TestParseFile_MalformedIsError\n--- PASS: TestParseFile_MalformedIsError (0.00s)\n=== RUN   TestParseFile_TimeoutBareSeconds\n--- PASS: TestParseFile_TimeoutBareSeconds (0.00s)\n=== RUN   TestReadRepoFile_MissingIsNotError\n--- PASS: TestReadRepoFile_MissingIsNotError (0.00s)\n=== RUN   TestReadRepoFile_Loads\n--- PASS: TestReadRepoFile_Loads (0.00s)\n=== RUN   TestReadRepoFile_EmptyDirInheritsCWD\n--- PASS: TestReadRepoFile_EmptyDirInheritsCWD (0.00s)\n=== RUN   TestReadGlobalFile_ViaXDG\n--- PASS: TestReadGlobalFile_ViaXDG (0.00s)\n=== RUN   TestReadGlobalFile_MissingIsNotError\n--- PASS: TestReadGlobalFile_MissingIsNotError (0.00s)\n=== RUN   TestReadGitConfig_EmptyRepoIsNotError\n--- PASS: TestReadGitConfig_EmptyRepoIsNotError (0.02s)\n=== RUN   TestReadGitConfig_SetsScalars\n--- PASS: TestReadGitConfig_SetsScalars (0.02s)\n=== RUN   TestReadGitConfig_BoolTrueAndFalse\n=== RUN   TestReadGitConfig_BoolTrueAndFalse/true\n=== RUN   TestReadGitConfig_BoolTrueAndFalse/false\n--- PASS: TestReadGitConfig_BoolTrueAndFalse (0.04s)\n    --- PASS: TestReadGitConfig_BoolTrueAndFalse/true (0.03s)\n    --- PASS: TestReadGitConfig_BoolTrueAndFalse/false (0.01s)\n=== RUN   TestReadGitConfig_TimeoutBareSeconds\n--- PASS: TestReadGitConfig_TimeoutBareSeconds (0.02s)\n=== RUN   TestReadGitConfig_AllBoolKeys\n--- PASS: TestReadGitConfig_AllBoolKeys (0.03s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 3,
+    "description": "Level 3 gate",
+    "success": true,
+    "command": "go test ./...",
+    "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  }
+]

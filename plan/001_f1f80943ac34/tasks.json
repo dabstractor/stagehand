@@ -348,14 +348,14 @@
               "id": "P1.M5.T2",
               "type": "Task",
               "title": "Source loaders (TOML files + git-config)",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Read each config source into a partial overlay without mutating a base: global file, repo file (go-toml/v2), and repo git-config (`git config --get`).",
               "subtasks": [
                 {
                   "id": "P1.M5.T2.S1",
                   "type": "Subtask",
                   "title": "internal/config/file.go — global+repo TOML + git-config readers",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M5.T1.S1"

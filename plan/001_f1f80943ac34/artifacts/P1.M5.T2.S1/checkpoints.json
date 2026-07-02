@@ -1,0 +1,171 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1.M5.T2.S1_1782982245209_pre-execution_6cb64a00",
+      "taskId": "P1.M5.T2.S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M5_T2_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-02T08:50:45.209Z"
+      },
+      "createdAt": "2026-07-02T08:50:45.209Z"
+    },
+    {
+      "id": "P1.M5.T2.S1_1782983843107_coder-response_3232d64b",
+      "taskId": "P1.M5.T2.S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M5_T2_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "All validation gates pass and every constraint is satisfied. Here's the complete verification summary:\n\n## Validation Results\n\n| Gate | Command | Result |\n|------|---------|--------|\n| Level 1 | `go build ./internal/config/` | ✅ clean |\n| Level 2 | `gofmt -l ./internal/config/` | ✅ no output |\n| Level 3 | `go vet ./internal/config/` | ✅ clean |\n| Level 4 | `go test ./internal/config/ -v` | ✅ 22/22 PASS |\n| Level 5 | `go test ./...` | ✅ all packages green |\n\n## Final Validation Checklist\n\n- ✅ `go build`, `go vet`, `gofmt -l` all clean\n- ✅ **Golden §16.2 parse** (`TestParseFile_Golden162`) asserts `model`→non-nil `\"\"` and `verbose`→non-nil `false` (the present-but-zero distinction), plus `pi` (glm-5.2/zai) and `myagent` (full manifest incl. `BareFlags [--no-mcp, --ephemeral]`)\n- ✅ Missing-file and unset-git-key return nil error (exit-1 = unset, not error)\n- ✅ Malformed TOML returns a non-nil error\n- ✅ `config → provider` is the **only** internal import edge; no `internal/git` import (matches are doc-comment references only); `readGitConfig` uses `os/exec` directly\n- ✅ `GlobalConfigPath()` is the only exported symbol; `overlay`/DTOs/`parseFile`/`readGlobalFile`/`readRepoFile`/`readGitConfig` are all package-private\n- ✅ go-toml/v2 pointer-presence semantics confirmed live (present zero value → non-nil pointer; absent key/table → nil)\n\n## Key design points verified\n\n- **Overlay uses pointers** so `nil` = \"not set by this source\" is distinguishable from a present zero value (verified the linchpin go-toml/v2 behavior with a throwaway program before trusting it).\n- **`readGitConfig`** builds commands as `[]string` (no `sh -c`, §19), uses `--bool` for the 4 bool keys, treats `*exec.ExitError` exit code 1 as unset (skip → nil pointer), other non-zero as error.\n- **`parseDuration`** accepts both `\"120s\"` (TOML) and bare `\"90\"` (git-config §16.3) via the `time.ParseDuration` → `strconv.Atoi(TrimSuffix \"s\")` fallback.\n- **`GlobalConfigPath()`** honors `XDG_CONFIG_HOME` then `$HOME/.config`, errors when both empty, and deliberately avoids `os.UserConfigDir` (macOS divergence).\n\nThe implementation in `internal/config/file.go` + `internal/config/file_test.go` fully satisfies PRP P1.M5.T2.S1, ready for the `Load()` merger in T3.S1.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PRP P1.M5.T2.S1 implemented and fully validated. internal/config/file.go defines the overlay type, fileDTO/defaultsDTO/generationDTO TOML DTOs, the exported GlobalConfigPath(), and the package-private parseFile/readGlobalFile/readRepoFile/readGitConfig. file_test.go is a white-box test (stdlib + internal/provider only, no testify). All 5 validation gates pass: go build clean, gofmt -l clean, go vet clean, go test ./internal/config/ -v (22 tests PASS), and go test ./... green. The golden §16.2 parse asserts model->non-nil '' and verbose->non-nil false (present-but-zero distinction), plus pi (glm-5.2/zai) and myagent overrides. Missing files/unset git keys return nil error; malformed TOML returns a non-nil error. The config->provider import is the only new internal edge; internal/git is NOT imported (readGitConfig uses os/exec directly). go-toml/v2 pointer-presence semantics were verified live before relying on them.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PRP P1.M5.T2.S1 implemented and fully validated. internal/config/file.go defines the overlay type, fileDTO/defaultsDTO/generationDTO TOML DTOs, the exported GlobalConfigPath(), and the package-private parseFile/readGlobalFile/readRepoFile/readGitConfig. file_test.go is a white-box test (stdlib + internal/provider only, no testify). All 5 validation gates pass: go build clean, gofmt -l clean, go vet clean, go test ./internal/config/ -v (22 tests PASS), and go test ./... green. The golden §16.2 parse asserts model->non-nil '' and verbose->non-nil false (present-but-zero distinction), plus pi (glm-5.2/zai) and myagent overrides. Missing files/unset git keys return nil error; malformed TOML returns a non-nil error. The config->provider import is the only new internal edge; internal/git is NOT imported (readGitConfig uses os/exec directly). go-toml/v2 pointer-presence semantics were verified live before relying on them."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-02T09:17:23.107Z"
+      },
+      "createdAt": "2026-07-02T09:17:23.108Z"
+    },
+    {
+      "id": "P1.M5.T2.S1_1782983843367_validation-gate-3_18de3a82",
+      "taskId": "P1.M5.T2.S1",
+      "label": "After validation gate 3",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M5_T2_S1.md",
+        "stage": "validation-gate-3",
+        "coderResponse": "All validation gates pass and every constraint is satisfied. Here's the complete verification summary:\n\n## Validation Results\n\n| Gate | Command | Result |\n|------|---------|--------|\n| Level 1 | `go build ./internal/config/` | ✅ clean |\n| Level 2 | `gofmt -l ./internal/config/` | ✅ no output |\n| Level 3 | `go vet ./internal/config/` | ✅ clean |\n| Level 4 | `go test ./internal/config/ -v` | ✅ 22/22 PASS |\n| Level 5 | `go test ./...` | ✅ all packages green |\n\n## Final Validation Checklist\n\n- ✅ `go build`, `go vet`, `gofmt -l` all clean\n- ✅ **Golden §16.2 parse** (`TestParseFile_Golden162`) asserts `model`→non-nil `\"\"` and `verbose`→non-nil `false` (the present-but-zero distinction), plus `pi` (glm-5.2/zai) and `myagent` (full manifest incl. `BareFlags [--no-mcp, --ephemeral]`)\n- ✅ Missing-file and unset-git-key return nil error (exit-1 = unset, not error)\n- ✅ Malformed TOML returns a non-nil error\n- ✅ `config → provider` is the **only** internal import edge; no `internal/git` import (matches are doc-comment references only); `readGitConfig` uses `os/exec` directly\n- ✅ `GlobalConfigPath()` is the only exported symbol; `overlay`/DTOs/`parseFile`/`readGlobalFile`/`readRepoFile`/`readGitConfig` are all package-private\n- ✅ go-toml/v2 pointer-presence semantics confirmed live (present zero value → non-nil pointer; absent key/table → nil)\n\n## Key design points verified\n\n- **Overlay uses pointers** so `nil` = \"not set by this source\" is distinguishable from a present zero value (verified the linchpin go-toml/v2 behavior with a throwaway program before trusting it).\n- **`readGitConfig`** builds commands as `[]string` (no `sh -c`, §19), uses `--bool` for the 4 bool keys, treats `*exec.ExitError` exit code 1 as unset (skip → nil pointer), other non-zero as error.\n- **`parseDuration`** accepts both `\"120s\"` (TOML) and bare `\"90\"` (git-config §16.3) via the `time.ParseDuration` → `strconv.Atoi(TrimSuffix \"s\")` fallback.\n- **`GlobalConfigPath()`** honors `XDG_CONFIG_HOME` then `$HOME/.config`, errors when both empty, and deliberately avoids `os.UserConfigDir` (macOS divergence).\n\nThe implementation in `internal/config/file.go` + `internal/config/file_test.go` fully satisfies PRP P1.M5.T2.S1, ready for the `Load()` merger in T3.S1.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PRP P1.M5.T2.S1 implemented and fully validated. internal/config/file.go defines the overlay type, fileDTO/defaultsDTO/generationDTO TOML DTOs, the exported GlobalConfigPath(), and the package-private parseFile/readGlobalFile/readRepoFile/readGitConfig. file_test.go is a white-box test (stdlib + internal/provider only, no testify). All 5 validation gates pass: go build clean, gofmt -l clean, go vet clean, go test ./internal/config/ -v (22 tests PASS), and go test ./... green. The golden §16.2 parse asserts model->non-nil '' and verbose->non-nil false (present-but-zero distinction), plus pi (glm-5.2/zai) and myagent overrides. Missing files/unset git keys return nil error; malformed TOML returns a non-nil error. The config->provider import is the only new internal edge; internal/git is NOT imported (readGitConfig uses os/exec directly). go-toml/v2 pointer-presence semantics were verified live before relying on them.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PRP P1.M5.T2.S1 implemented and fully validated. internal/config/file.go defines the overlay type, fileDTO/defaultsDTO/generationDTO TOML DTOs, the exported GlobalConfigPath(), and the package-private parseFile/readGlobalFile/readRepoFile/readGitConfig. file_test.go is a white-box test (stdlib + internal/provider only, no testify). All 5 validation gates pass: go build clean, gofmt -l clean, go vet clean, go test ./internal/config/ -v (22 tests PASS), and go test ./... green. The golden §16.2 parse asserts model->non-nil '' and verbose->non-nil false (present-but-zero distinction), plus pi (glm-5.2/zai) and myagent overrides. Missing files/unset git keys return nil error; malformed TOML returns a non-nil error. The config->provider import is the only new internal edge; internal/git is NOT imported (readGitConfig uses os/exec directly). go-toml/v2 pointer-presence semantics were verified live before relying on them."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "gofmt -l ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/config/ -v",
+            "stdout": "=== RUN   TestConfig_RoundTrip_Populated\n--- PASS: TestConfig_RoundTrip_Populated (0.00s)\n=== RUN   TestDefault_ExactTable\n--- PASS: TestDefault_ExactTable (0.00s)\n=== RUN   TestDefault_ProviderOverridesEmpty\n--- PASS: TestDefault_ProviderOverridesEmpty (0.00s)\n=== RUN   TestGlobalConfigPath_HonorsXDG\n--- PASS: TestGlobalConfigPath_HonorsXDG (0.00s)\n=== RUN   TestGlobalConfigPath_HomeFallback\n--- PASS: TestGlobalConfigPath_HomeFallback (0.00s)\n=== RUN   TestGlobalConfigPath_BothEmptyErrors\n--- PASS: TestGlobalConfigPath_BothEmptyErrors (0.00s)\n=== RUN   TestParseFile_Golden162\n--- PASS: TestParseFile_Golden162 (0.00s)\n=== RUN   TestParseFile_MissingFileIsNotError\n--- PASS: TestParseFile_MissingFileIsNotError (0.00s)\n=== RUN   TestParseFile_MalformedIsError\n--- PASS: TestParseFile_MalformedIsError (0.00s)\n=== RUN   TestParseFile_TimeoutBareSeconds\n--- PASS: TestParseFile_TimeoutBareSeconds (0.00s)\n=== RUN   TestReadRepoFile_MissingIsNotError\n--- PASS: TestReadRepoFile_MissingIsNotError (0.00s)\n=== RUN   TestReadRepoFile_Loads\n--- PASS: TestReadRepoFile_Loads (0.00s)\n=== RUN   TestReadRepoFile_EmptyDirInheritsCWD\n--- PASS: TestReadRepoFile_EmptyDirInheritsCWD (0.00s)\n=== RUN   TestReadGlobalFile_ViaXDG\n--- PASS: TestReadGlobalFile_ViaXDG (0.00s)\n=== RUN   TestReadGlobalFile_MissingIsNotError\n--- PASS: TestReadGlobalFile_MissingIsNotError (0.00s)\n=== RUN   TestReadGitConfig_EmptyRepoIsNotError\n--- PASS: TestReadGitConfig_EmptyRepoIsNotError (0.02s)\n=== RUN   TestReadGitConfig_SetsScalars\n--- PASS: TestReadGitConfig_SetsScalars (0.02s)\n=== RUN   TestReadGitConfig_BoolTrueAndFalse\n=== RUN   TestReadGitConfig_BoolTrueAndFalse/true\n=== RUN   TestReadGitConfig_BoolTrueAndFalse/false\n--- PASS: TestReadGitConfig_BoolTrueAndFalse (0.04s)\n    --- PASS: TestReadGitConfig_BoolTrueAndFalse/true (0.03s)\n    --- PASS: TestReadGitConfig_BoolTrueAndFalse/false (0.01s)\n=== RUN   TestReadGitConfig_TimeoutBareSeconds\n--- PASS: TestReadGitConfig_TimeoutBareSeconds (0.02s)\n=== RUN   TestReadGitConfig_AllBoolKeys\n--- PASS: TestReadGitConfig_AllBoolKeys (0.03s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T09:17:23.367Z"
+      },
+      "createdAt": "2026-07-02T09:17:23.367Z"
+    },
+    {
+      "id": "P1.M5.T2.S1_1782983843369_complete_e0aa0604",
+      "taskId": "P1.M5.T2.S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M5_T2_S1.md",
+        "stage": "complete",
+        "coderResponse": "All validation gates pass and every constraint is satisfied. Here's the complete verification summary:\n\n## Validation Results\n\n| Gate | Command | Result |\n|------|---------|--------|\n| Level 1 | `go build ./internal/config/` | ✅ clean |\n| Level 2 | `gofmt -l ./internal/config/` | ✅ no output |\n| Level 3 | `go vet ./internal/config/` | ✅ clean |\n| Level 4 | `go test ./internal/config/ -v` | ✅ 22/22 PASS |\n| Level 5 | `go test ./...` | ✅ all packages green |\n\n## Final Validation Checklist\n\n- ✅ `go build`, `go vet`, `gofmt -l` all clean\n- ✅ **Golden §16.2 parse** (`TestParseFile_Golden162`) asserts `model`→non-nil `\"\"` and `verbose`→non-nil `false` (the present-but-zero distinction), plus `pi` (glm-5.2/zai) and `myagent` (full manifest incl. `BareFlags [--no-mcp, --ephemeral]`)\n- ✅ Missing-file and unset-git-key return nil error (exit-1 = unset, not error)\n- ✅ Malformed TOML returns a non-nil error\n- ✅ `config → provider` is the **only** internal import edge; no `internal/git` import (matches are doc-comment references only); `readGitConfig` uses `os/exec` directly\n- ✅ `GlobalConfigPath()` is the only exported symbol; `overlay`/DTOs/`parseFile`/`readGlobalFile`/`readRepoFile`/`readGitConfig` are all package-private\n- ✅ go-toml/v2 pointer-presence semantics confirmed live (present zero value → non-nil pointer; absent key/table → nil)\n\n## Key design points verified\n\n- **Overlay uses pointers** so `nil` = \"not set by this source\" is distinguishable from a present zero value (verified the linchpin go-toml/v2 behavior with a throwaway program before trusting it).\n- **`readGitConfig`** builds commands as `[]string` (no `sh -c`, §19), uses `--bool` for the 4 bool keys, treats `*exec.ExitError` exit code 1 as unset (skip → nil pointer), other non-zero as error.\n- **`parseDuration`** accepts both `\"120s\"` (TOML) and bare `\"90\"` (git-config §16.3) via the `time.ParseDuration` → `strconv.Atoi(TrimSuffix \"s\")` fallback.\n- **`GlobalConfigPath()`** honors `XDG_CONFIG_HOME` then `$HOME/.config`, errors when both empty, and deliberately avoids `os.UserConfigDir` (macOS divergence).\n\nThe implementation in `internal/config/file.go` + `internal/config/file_test.go` fully satisfies PRP P1.M5.T2.S1, ready for the `Load()` merger in T3.S1.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PRP P1.M5.T2.S1 implemented and fully validated. internal/config/file.go defines the overlay type, fileDTO/defaultsDTO/generationDTO TOML DTOs, the exported GlobalConfigPath(), and the package-private parseFile/readGlobalFile/readRepoFile/readGitConfig. file_test.go is a white-box test (stdlib + internal/provider only, no testify). All 5 validation gates pass: go build clean, gofmt -l clean, go vet clean, go test ./internal/config/ -v (22 tests PASS), and go test ./... green. The golden §16.2 parse asserts model->non-nil '' and verbose->non-nil false (present-but-zero distinction), plus pi (glm-5.2/zai) and myagent overrides. Missing files/unset git keys return nil error; malformed TOML returns a non-nil error. The config->provider import is the only new internal edge; internal/git is NOT imported (readGitConfig uses os/exec directly). go-toml/v2 pointer-presence semantics were verified live before relying on them.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PRP P1.M5.T2.S1 implemented and fully validated. internal/config/file.go defines the overlay type, fileDTO/defaultsDTO/generationDTO TOML DTOs, the exported GlobalConfigPath(), and the package-private parseFile/readGlobalFile/readRepoFile/readGitConfig. file_test.go is a white-box test (stdlib + internal/provider only, no testify). All 5 validation gates pass: go build clean, gofmt -l clean, go vet clean, go test ./internal/config/ -v (22 tests PASS), and go test ./... green. The golden §16.2 parse asserts model->non-nil '' and verbose->non-nil false (present-but-zero distinction), plus pi (glm-5.2/zai) and myagent overrides. Missing files/unset git keys return nil error; malformed TOML returns a non-nil error. The config->provider import is the only new internal edge; internal/git is NOT imported (readGitConfig uses os/exec directly). go-toml/v2 pointer-presence semantics were verified live before relying on them."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "gofmt -l ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/config/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/config/ -v",
+            "stdout": "=== RUN   TestConfig_RoundTrip_Populated\n--- PASS: TestConfig_RoundTrip_Populated (0.00s)\n=== RUN   TestDefault_ExactTable\n--- PASS: TestDefault_ExactTable (0.00s)\n=== RUN   TestDefault_ProviderOverridesEmpty\n--- PASS: TestDefault_ProviderOverridesEmpty (0.00s)\n=== RUN   TestGlobalConfigPath_HonorsXDG\n--- PASS: TestGlobalConfigPath_HonorsXDG (0.00s)\n=== RUN   TestGlobalConfigPath_HomeFallback\n--- PASS: TestGlobalConfigPath_HomeFallback (0.00s)\n=== RUN   TestGlobalConfigPath_BothEmptyErrors\n--- PASS: TestGlobalConfigPath_BothEmptyErrors (0.00s)\n=== RUN   TestParseFile_Golden162\n--- PASS: TestParseFile_Golden162 (0.00s)\n=== RUN   TestParseFile_MissingFileIsNotError\n--- PASS: TestParseFile_MissingFileIsNotError (0.00s)\n=== RUN   TestParseFile_MalformedIsError\n--- PASS: TestParseFile_MalformedIsError (0.00s)\n=== RUN   TestParseFile_TimeoutBareSeconds\n--- PASS: TestParseFile_TimeoutBareSeconds (0.00s)\n=== RUN   TestReadRepoFile_MissingIsNotError\n--- PASS: TestReadRepoFile_MissingIsNotError (0.00s)\n=== RUN   TestReadRepoFile_Loads\n--- PASS: TestReadRepoFile_Loads (0.00s)\n=== RUN   TestReadRepoFile_EmptyDirInheritsCWD\n--- PASS: TestReadRepoFile_EmptyDirInheritsCWD (0.00s)\n=== RUN   TestReadGlobalFile_ViaXDG\n--- PASS: TestReadGlobalFile_ViaXDG (0.00s)\n=== RUN   TestReadGlobalFile_MissingIsNotError\n--- PASS: TestReadGlobalFile_MissingIsNotError (0.00s)\n=== RUN   TestReadGitConfig_EmptyRepoIsNotError\n--- PASS: TestReadGitConfig_EmptyRepoIsNotError (0.02s)\n=== RUN   TestReadGitConfig_SetsScalars\n--- PASS: TestReadGitConfig_SetsScalars (0.02s)\n=== RUN   TestReadGitConfig_BoolTrueAndFalse\n=== RUN   TestReadGitConfig_BoolTrueAndFalse/true\n=== RUN   TestReadGitConfig_BoolTrueAndFalse/false\n--- PASS: TestReadGitConfig_BoolTrueAndFalse (0.04s)\n    --- PASS: TestReadGitConfig_BoolTrueAndFalse/true (0.03s)\n    --- PASS: TestReadGitConfig_BoolTrueAndFalse/false (0.01s)\n=== RUN   TestReadGitConfig_TimeoutBareSeconds\n--- PASS: TestReadGitConfig_TimeoutBareSeconds (0.02s)\n=== RUN   TestReadGitConfig_AllBoolKeys\n--- PASS: TestReadGitConfig_AllBoolKeys (0.03s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "?   \tgithub.com/dustin/stagehand/cmd/stagehand\t[no test files]\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-02T09:17:23.369Z"
+      },
+      "createdAt": "2026-07-02T09:17:23.369Z"
+    }
+  ],
+  "lastModified": "2026-07-02T09:17:23.369Z"
+}
