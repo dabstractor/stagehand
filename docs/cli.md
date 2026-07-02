@@ -40,6 +40,13 @@ With no subcommand, `stagehand` runs the **default action**. The routing depends
 | `--stager-model <name>` | string | "" | `STAGEHAND_STAGER_MODEL` | — | Per-role model override for the (tooled) staging agent |
 | `--arbiter-provider <name>` | string | "" | `STAGEHAND_ARBITER_PROVIDER` | — | Per-role provider override for the leftover arbiter |
 | `--arbiter-model <name>` | string | "" | `STAGEHAND_ARBITER_MODEL` | — | Per-role model override for the leftover arbiter |
+| `--reasoning <level>` | string | "" (off; planner: high) | `STAGEHAND_REASONING` | `stagehand.reasoning` | Global reasoning effort: off|low|medium|high |
+| `--planner-reasoning <level>` | string | "" | `STAGEHAND_PLANNER_REASONING` | — | Per-role reasoning for the planner |
+| `--stager-reasoning <level>` | string | "" | `STAGEHAND_STAGER_REASONING` | — | Per-role reasoning for the stager |
+| `--message-provider <name>` | string | "" | `STAGEHAND_MESSAGE_PROVIDER` | — | Per-role provider override for the message composer |
+| `--message-model <name>` | string | "" | `STAGEHAND_MESSAGE_MODEL` | — | Per-role model override for the message composer |
+| `--message-reasoning <level>` | string | "" | `STAGEHAND_MESSAGE_REASONING` | — | Per-role reasoning for the message composer |
+| `--arbiter-reasoning <level>` | string | "" | `STAGEHAND_ARBITER_REASONING` | — | Per-role reasoning for the arbiter |
 | `--version` | — | — | — | — | Print the build version (`"dev"` for a local build; the release tag for a released binary) |
 | `--help`, `-h` | — | — | — | — | Print help |
 
@@ -61,7 +68,7 @@ opencode  ✓
 pi        ✓         (default)
 ```
 
-`✓` = the provider's command is found on `$PATH`. `(default)` marks the provider selected by auto-detection (first installed built-in in preference order: pi, opencode, cursor, agy, gemini, codex, claude).
+`✓` = the provider's command is found on `$PATH`. `(default)` marks the provider selected by auto-detection (first installed built-in in preference order: pi, opencode, cursor, agy, gemini, qwen-code, codex, claude).
 
 ### `providers show <name>`
 
@@ -73,7 +80,7 @@ stagehand providers show pi
 
 ### `config init`
 
-Bootstrap a **populated, working config** to the resolved config path (override-aware: honors `--config` / `STAGEHAND_CONFIG`, defaulting to the global path). Auto-detects the highest-priority installed built-in agent (order: pi, opencode, cursor, agy, gemini, codex, claude) and writes `config_version = 2`, `[defaults] provider = "<detected>"`, and that provider's per-role model defaults — EXCEPT for **pi** (the default), whose per-role models are left EMPTY so pi picks its own backend model (set `[provider.pi] default_provider` to pin a specific backend). Other detected providers get their per-role models UNCOMMENTED. Other installed providers appear as commented-out `[role.*]` blocks. If no agent is detected, defaults to `"pi"`. Creates parent directories as needed. **Refuses to overwrite** an existing file (exit 1) unless `--force` is passed:
+Bootstrap a **populated, working config** to the resolved config path (override-aware: honors `--config` / `STAGEHAND_CONFIG`, defaulting to the global path). Auto-detects the highest-priority installed built-in agent (order: pi, opencode, cursor, agy, gemini, qwen-code, codex, claude) and writes `config_version = 3`, `[defaults] provider = "<detected>"`, and that provider's per-role model defaults — EXCEPT for **pi** (the default), whose per-role models are left EMPTY so pi picks its own backend model (set the model with an inference-provider prefix (e.g. model = "zai/glm-5.2") to pin a backend (FR-R5b)). Other detected providers get their per-role models UNCOMMENTED. Other installed providers appear as commented-out `[role.*]` blocks. If no agent is detected, defaults to `"pi"`. Creates parent directories as needed. **Refuses to overwrite** an existing file (exit 1) unless `--force` is passed:
 
 ```bash
 stagehand config init
@@ -97,12 +104,12 @@ stagehand config init --template
 
 ### `config upgrade`
 
-Upgrade an existing config's `config_version` to the current schema version (2) in place. Every line except the top-level `config_version` is preserved byte-for-byte. Idempotent — running it twice leaves the file unchanged. No flags.
+Upgrade an existing config's `config_version` to the current schema version (3) in place. For multi-backend providers, the former `default_provider` is folded into a slash-prefix on the model (`default_provider = "X"` + `model = "Y"` → `model = "X/Y"`) and the `default_provider` key is deleted. Every other line is preserved. Idempotent — running it twice leaves the file unchanged. No flags.
 
 ```bash
 stagehand config upgrade
-# Already at version 2 →  "Config at ~/.config/stagehand/config.toml is already at version 2 (no changes)."
-# Upgraded from v1  →  "Upgraded config at ~/.config/stagehand/config.toml to version 2."
+# Already at version 3 →  "Config at ~/.config/stagehand/config.toml is already at version 3 (no changes)."
+# Upgraded from v1  →  "Upgraded config at ~/.config/stagehand/config.toml to version 3."
 # No file          →  "no config file at <path> (run 'stagehand config init' first)"  (exit 1)
 ```
 
@@ -154,9 +161,13 @@ Config-backed flags can also be set via environment variables or git-config keys
 | `--stager-model` | `STAGEHAND_STAGER_MODEL` | — |
 | `--arbiter-provider` | `STAGEHAND_ARBITER_PROVIDER` | — |
 | `--arbiter-model` | `STAGEHAND_ARBITER_MODEL` | — |
-
-> [!NOTE]
-> The **message role** has no CLI flag (`--message-provider`/`--message-model` do not exist). It is reachable via `STAGEHAND_MESSAGE_PROVIDER`/`STAGEHAND_MESSAGE_MODEL` env vars and the `[role.message]` config block only. When unset, it inherits the global `--provider`/`--model`.
+| `--reasoning` | `STAGEHAND_REASONING` | `stagehand.reasoning` |
+| `--planner-reasoning` | `STAGEHAND_PLANNER_REASONING` | — |
+| `--stager-reasoning` | `STAGEHAND_STAGER_REASONING` | — |
+| `--message-provider` | `STAGEHAND_MESSAGE_PROVIDER` | — |
+| `--message-model` | `STAGEHAND_MESSAGE_MODEL` | — |
+| `--message-reasoning` | `STAGEHAND_MESSAGE_REASONING` | — |
+| `--arbiter-reasoning` | `STAGEHAND_ARBITER_REASONING` | — |
 
 ## Examples
 
@@ -197,6 +208,9 @@ stagehand --single
 
 # Route planning to a bigger model
 stagehand --planner-provider claude --planner-model opus
+
+# Use reasoning for deeper analysis
+stagehand --reasoning high
 
 # Per-repo per-role config (.stagehand.toml)
 # [role.planner]

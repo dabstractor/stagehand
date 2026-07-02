@@ -106,6 +106,12 @@ Decompose activates when **nothing is staged**, **auto-stage-all is on** (the de
 
 **Serialized publication.** Even though generation overlaps, `commit-tree` + `update-ref` are serialized per concept (CAS). If `HEAD` moved externally, the CAS fails and prior commits stand.
 
+**Start-of-run freeze (T_start).** The instant decomposition activates, the entire working-tree change set (every modified/added/deleted/untracked path and its byte content) is captured as an immutable tree object T_start. The planner partitions T_start's diff (never a fresh re-read of the live tree); every stager, the arbiter's leftover staging, and the one-file/single shortcuts stage content drawn strictly from T_start. A file created or modified after T_start is captured is invisible to the run.
+
+**Freeze enforcement.** Because the stager is an external agent running `git` against the live tree, after each staging step stagehand verifies the resulting tree is a content-subset of T_start (only T_start paths, T_start content). Any deviation — a concurrent change swept in, or a stager that ran a bare `git add -A` — is a hard abort (non-rescue; already-landed commits stand per FR-M12).
+
+**One-file short-circuit.** In auto-decompose, if exactly one path changed, the planner is bypassed entirely: stage that file's T_start content, generate one message, create one commit (FR-M2b). Deterministic, not model judgment. `--commits N` (N≥2) overrides this shortcut.
+
 **Arbiter leftover reconciliation.** After all N concepts are committed, if `git status --porcelain` shows remaining changes, the arbiter decides whether they belong to an existing commit (amend) or warrant a new (N+1)th commit.
 
 ### Safety
@@ -115,6 +121,7 @@ The same snapshot-based safety invariants from the single-commit path apply to e
 - **Atomic and safe** — `update-ref CAS` is the only ref mutation per commit; stagehand owns all `commit-tree`, `update-ref`, and `push` operations. The stager is the ONE role that touches the index. Its scoping differs by provider: claude is structurally constrained to a staging-only git allowlist (`git add`/`apply`/`status`/`diff`); pi is constrained instructionally (its task prompt) plus a HEAD-movement guard that aborts the run if the stager moves a ref. See [providers.md](providers.md#tooled-mode-and-the-stager-role).
 - **Frozen content** — `tree[i]` captures exactly what was staged at `write-tree` time. Nothing added afterward can affect it.
 - **No index resets** — the index accumulates across concepts. After the final commit, HEAD.tree == tree[N-1] == full accumulated index, so the index is clean relative to HEAD.
+- **Start-of-run freeze** — T_start captures the full working-tree change set at decompose activation; concurrent edits never enter any commit. Each staging step is verified as a content-subset of T_start.
 
 See [configuration.md](configuration.md) for per-role model configuration and [cli.md](cli.md) for the decompose and per-role flags.
 

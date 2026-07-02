@@ -37,9 +37,9 @@ func TestBuildBootstrapConfig_Pi(t *testing.T) {
 		t.Errorf("pi bootstrap must not ship un-routable gpt-5.4* models; got:\n%s", content)
 	}
 
-	// Sub-provider annotation present
-	if !strings.Contains(content, "requires a default_provider (sub-provider)") {
-		t.Error("pi bootstrap missing the sub-provider annotation")
+	// Multi-backend model-prefix annotation present
+	if !strings.Contains(content, "prefix the model with your inference backend") {
+		t.Error("pi bootstrap missing the model-prefix annotation")
 	}
 
 	// pi IS stager-capable — no fallback annotation

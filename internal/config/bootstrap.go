@@ -130,8 +130,9 @@ func buildBootstrapConfig(target string, installed []string) string {
 	models := DefaultModelsForProvider(target) // non-nil (target is a validated built-in)
 	piBlanked := target == "pi"
 	if piBlanked {
-		// pi’s gpt-5.4* models require a sub-provider (default_provider) to route; the bootstrap
-		// writes none (Appendix E #12 open). Blank them so pi picks its own backend default.
+		// pi is a multi-backend provider: the model must carry the inference backend as a
+		// slash-prefix (FR-R5b). The bootstrap writes per-role models blank so the user supplies
+		// their own backend/model.
 		for role := range models {
 			models[role] = ""
 		}
@@ -145,9 +146,9 @@ func buildBootstrapConfig(target string, installed []string) string {
 
 	fmt.Fprintf(&b, "\n# --- per-role models for the default provider %q (PRD §16.4, §9.15) ---\n", target)
 	if piBlanked {
-		b.WriteString("# NOTE: pi requires a default_provider (sub-provider) to route models. The shipped per-role\n")
-		b.WriteString("# models are empty so pi picks its own backend default; set [provider.pi] default_provider\n")
-		b.WriteString("# and compatible per-role models to pin a specific backend.\n")
+		b.WriteString("# NOTE: pi is a multi-backend provider — prefix the model with your inference backend,\n")
+		b.WriteString("# e.g. model = \"zai/glm-5.2\". A bare model (no '/') on pi is a config error (FR-R5b).\n")
+		b.WriteString("# The shipped per-role models are empty so you can supply your own backend/model.\n")
 	}
 
 	// planner — inherits [defaults] provider

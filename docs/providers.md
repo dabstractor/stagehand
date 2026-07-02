@@ -1,6 +1,6 @@
 # Provider manifests
 
-Full reference for Stagehand's provider manifest system: the 18-field schema, command-rendering algorithm, the 8 built-in providers, the tools-disable asymmetry, adding a new agent, and output parsing. Matches the Go source in `internal/provider/` and the shipped `providers/*.toml` files.
+Full reference for Stagehand's provider manifest system: the 19-field schema, command-rendering algorithm, the 8 built-in providers, the tools-disable asymmetry, adding a new agent, and output parsing. Matches the Go source in `internal/provider/` and the shipped `providers/*.toml` files.
 
 ## What a manifest is
 
@@ -25,7 +25,6 @@ Each manifest has 18 fields (matching the TOML tags in `internal/provider/manife
 | `default_model` | string | `""` | Model used when the user specifies none. |
 | `system_prompt_flag` | string | `""` | Flag for the system prompt. When `""`, the system prompt is prepended to the payload instead. |
 | `provider_flag` | string | `""` | Flag for sub-provider selection (e.g. `"--provider"`). |
-| `default_provider` | string | `""` | Default sub-provider when the user specifies none. |
 | `bare_flags` | list of string | `[]` (none) | Extra flags appended verbatim before `print_flag` in bare mode. |
 | `tooled_flags` | list of string | `nil` (none) | Flags for tooled/stager mode — tools ON, git-scoped, non-interactive. `nil`/empty ⇒ not stager-capable. |
 | `output` | string | `"raw"` | Agent output mode: `"raw"` or `"json"`. |
@@ -33,6 +32,8 @@ Each manifest has 18 fields (matching the TOML tags in `internal/provider/manife
 | `strip_code_fence` | bool | `true` | Strip one layer of `` ``` `` / `~~~` fences from agent output. |
 | `retry_instruction` | string | `"Output ONLY the commit message. No preamble, no markdown, no quotes."` | Prepended to the payload on a parse-failure retry. |
 | `env` | table | `nil` (none) | Environment variables set only for the subprocess (as `KEY=VAL`). |
+| `reasoning_levels` | table | nil (none) | Per-level reasoning-effort token lists (off/low/medium/high); nil/empty ⇒ graceful no-op (FR-R6). Appended after the model flag at render. |
+| `experimental` | bool | false | Marks a provider experimental (agy, qwen-code) — surfaced in `providers list`/`show`. Absent/false ⇒ stable. |
 
 ## Command rendering
 
@@ -55,7 +56,9 @@ When `system_prompt_flag` is empty, the system prompt is **prepended** to the pa
 
 In **tooled mode** (the stager role), `tooled_flags` replaces `bare_flags`; tooled mode with empty `tooled_flags` errors — that provider cannot serve as a stager.
 
-## The 7 built-in providers
+For a multi-backend provider (one whose manifest sets `provider_flag` — pi today), the model is `inference/model` (e.g. `zai/glm-5.2`): Render splits it on the first `/` and emits `--provider <prefix> --model <rest>` (FR-R5b). A model with no `/` on such a provider is a HARD configuration error, never a silent bare `--model`. Single-backend providers take the model verbatim. When a `reasoning` level resolves to a non-empty token list in `reasoning_levels`, those tokens are appended after the model flag (FR-R6); absent/empty ⇒ silent no-op.
+
+## The 8 built-in providers
 
 Auto-detection order (first installed = default): **pi, opencode, cursor, agy, gemini, qwen-code, codex, claude**. User-defined providers are never auto-selected.
 
@@ -68,6 +71,7 @@ Auto-detection order (first installed = default): **pi, opencode, cursor, agy, g
 | `codex` | stdin | (none) | `-m` | (user must set) | (prepended) | Read-only constraint (`--sandbox read-only --ephemeral`) | — no |
 | `cursor` | positional | `-p` | `--model` | (user must set) | (prepended) | Read-only constraint (`--mode ask --trust`) | — no |
 | `agy` | stdin | `-p` | `-m` | `gemini-3.1-pro` | (prepended) | Read-only constraint (`--approval-mode default`) | — no |
+| `qwen-code` | stdin | `-p` | `-m` | `qwen3-coder-plus` ⚠️ | (prepended) | Read-only constraint (`--approval-mode default`) | — no ⚠️ |
 
 Note: cursor is the only provider where `detect` and `command` differ from `name` — the binary is `agent`, not `cursor`. `agy` is **experimental** (PRD §12.5.1) due to a non-TTY stdout drop bug (issue #76) and cannot serve as a stager (empty `tooled_flags`). `qwen-code` is **experimental** (PRD §12.5.2) — a Gemini-CLI fork for Qwen3-Coder via DashScope — and cannot serve as a stager (empty `tooled_flags`).
 
@@ -106,7 +110,7 @@ Out of the box, each agent role is assigned a model sized to its job (PRD §9.16
 | **message** | fast | Commit-message generation is a short-text task — the cheapest/fastest tier suffices. |
 | **arbiter** | mid | Needs reasoning to evaluate diffs, but not the flagship — mid-tier balances quality and cost. |
 
-The compiled-in per-provider table (PRD §9.16 FR-D4) lives in `internal/config/role_defaults.go`. The config bootstrap (`config init`) uses these defaults — EXCEPT for **pi**, whose per-role models are written EMPTY (pi needs a `default_provider` to route its `gpt-5.4*` models; see [configuration.md](configuration.md)). The pi row below is the compiled-in default, not the bootstrap output. Model names are 2026-07 baselines — FR-D5 mandates periodic re-verification per provider.
+The compiled-in per-provider table (PRD §9.16 FR-D4) lives in `internal/config/role_defaults.go`. The config bootstrap (`config init`) uses these defaults — EXCEPT for **pi**, whose per-role models are written EMPTY (pi needs an inference-provider prefix on the model, FR-R5b; its shipped per-role models are blank so you supply backend/model, e.g. `zai/gpt-5.4`). The pi row below is the compiled-in default, not the bootstrap output. Model names are 2026-07 baselines — FR-D5 mandates periodic re-verification per provider.
 
 | Provider | planner | stager | message | arbiter |
 |----------|---------|--------|---------|--------|

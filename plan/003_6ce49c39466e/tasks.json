@@ -339,7 +339,7 @@
       "type": "Phase",
       "id": "P4",
       "title": "Integration: progress label, E2E harness, changeset-level documentation",
-      "status": "Ready",
+      "status": "Complete",
       "description": "Integrates the v3 changeset: the FR51b progress label, the §20.5 end-to-end scenario harness (the regression net for the concurrency/routing invariants), and the Mode-B changeset-level documentation sync. Depends on P1, P2, P3. Grounded in system_context.md §6/§8.",
       "milestones": [
         {
@@ -399,21 +399,21 @@
           "type": "Milestone",
           "id": "P4.M2",
           "title": "Sync changeset-level documentation (Mode B)",
-          "status": "Ready",
+          "status": "Complete",
           "description": "Final catch-all that prevents a coherent v3 changeset from shipping with stale README/overview docs. Updates README, docs/providers.md, docs/configuration.md, and reconciles the §16.4 agent→provider terminology drift. Runs LAST (depends on every implementing subtask).",
           "tasks": [
             {
               "type": "Task",
               "id": "P4.M2.T1",
               "title": "Sync changeset-level documentation (README + docs) — depends on all implementing subtasks",
-              "status": "Ready",
+              "status": "Complete",
               "description": "Mode-B changeset-level doc sync: README config examples (model-prefix, --reasoning, qwen-code), provider/config docs, and the agent→provider terminology reconciliation.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P4.M2.T1.S1",
                   "title": "Sync README.md + docs/{providers,configuration}.md to the v3 changeset; reconcile agent→provider terminology drift",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",

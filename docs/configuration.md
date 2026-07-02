@@ -12,7 +12,7 @@ repo-local .stagehand.toml  >  global config file  >  provider defaults  >  buil
 From lowest to highest:
 
 1. **Built-in defaults** — hardcoded in `config.Defaults()` (Layer 1).
-2. **Provider defaults** — the manifest's `default_model`, `default_provider`, etc. (Layer 2).
+2. **Provider defaults** — the manifest's `default_model`, `provider_flag`, etc. (Layer 2).
 3. **Global config file** — `$XDG_CONFIG_HOME/stagehand/config.toml` (Layer 3).
 4. **Repo-local `.stagehand.toml`** — `./.stagehand.toml` in the repo root (Layer 4).
 5. **Repo git config** — `stagehand.*` keys in `.git/config` (Layer 5).
@@ -34,8 +34,8 @@ Use `stagehand config path` to print the resolved config path (override-aware: h
 
 `stagehand config init` writes a **populated, working config** to the global path by default. It:
 
-1. Runs cascading provider detection (highest-priority installed built-in, in order: pi, opencode, cursor, agy, gemini, codex, claude).
-2. Writes `[defaults] provider = "<detected>"` and that provider's per-role model defaults UNCOMMENTED (from the FR-D4 table) — EXCEPT for **pi**, whose per-role models are left EMPTY (pi needs a `default_provider` sub-provider to route its `gpt-5.4*` models; the bootstrap writes none, so pi picks its own backend default). Set `[provider.pi] default_provider` to pin a backend.
+1. Runs cascading provider detection (highest-priority installed built-in, in order: pi, opencode, cursor, agy, gemini, qwen-code, codex, claude).
+2. Writes `[defaults] provider = "<detected>"` and that provider's per-role model defaults UNCOMMENTED (from the FR-D4 table) — EXCEPT for **pi**, whose per-role models are left EMPTY (pi is a multi-backend provider; set the model with an inference-provider prefix, e.g. `model = "zai/glm-5.2"`, FR-R5b). Pi's shipped per-role models are blank so you supply your own backend/model.
 3. Writes other installed providers as commented-out `[role.*]` blocks (one-line uncomment to route a role to a different agent).
 4. If no agent is detected, defaults to `"pi"` with an annotation.
 
@@ -51,17 +51,17 @@ If a config file already exists, it is NOT overwritten unless `--force` is passe
 
 ### Schema versioning (`config upgrade`)
 
-`stagehand config upgrade` rewrites an existing config's top-level `config_version` line to the current schema version (2) in place — every other line is preserved byte-for-byte. Idempotent: running it twice leaves the file unchanged. No flags.
+`stagehand config upgrade` rewrites an existing config's top-level `config_version` line to the current schema version (3) in place — For multi-backend providers, the former `default_provider` is folded into a slash-prefix on the model and the key is deleted. Every other line is preserved. Idempotent: running it twice leaves the file unchanged. No flags.
 
 ```text
 $ stagehand config upgrade
-# Already at version 2 →  "Config at <path> is already at version 2 (no changes)."
-# Upgraded from v1  →  "Upgraded config at <path> to version 2."
+# Already at version 3 →  "Config at <path> is already at version 3 (no changes)."
+# Upgraded from v1  →  "Upgraded config at <path> to version 3."
 # No file          →  "no config file at <path> (run 'stagehand config init' first)"  (exit 1)
 # Not valid TOML   →  "config <path> is not valid TOML: <err>"  (exit 1, file untouched)
 ```
 
-At load time, if `config_version` is missing or older, stagehand prints an advisory to stderr pointing at `config upgrade` (or `config init --force` to regenerate). The current schema (version 2) includes per-role models, multi-commit decomposition, and binary filtering.
+At load time, if `config_version` is missing or older, stagehand prints an advisory to stderr pointing at `config upgrade` (or `config init --force` to regenerate). The current schema (version 3) includes per-role models, reasoning levels (FR-R6), the inference-provider model-prefix (FR-R5b), multi-commit decomposition, and binary filtering.
 
 > [!NOTE]
 > Point discovery at a specific file with `--config <path>` (or the `STAGEHAND_CONFIG` env var). It overrides global and repo-local file discovery and is honored by every command — including the default commit action **and the `config init`, `config path`, and `config upgrade` subcommands** (e.g. `stagehand --config X config upgrade` upgrades file `X`; `config path` prints the resolved path) — so a provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` directly. A missing explicit path (typo'd `--config` or `STAGEHAND_CONFIG`) fails fast with exit 1; only the discovery default tolerates a missing global file.
@@ -73,7 +73,7 @@ The config file uses TOML with several section groups. By default, `config init`
 **Populated config** (default `config init` output):
 
 ```toml
-config_version = 2
+config_version = 3
 
 [defaults]
 provider = "claude"
@@ -81,6 +81,7 @@ provider = "claude"
 # timeout        = "120s"
 # auto_stage_all = true
 # verbose        = false
+# reasoning       = "off"  # off|low|medium|high; planner defaults to high (FR-R6)
 
 # --- per-role models for the default provider "claude" (PRD §16.4, §9.15) ---
 
@@ -144,10 +145,15 @@ All `STAGEHAND_*` variables override the config file and are overridden by CLI f
 | `STAGEHAND_PLANNER_MODEL` | `--planner-model` | Per-role: planner model | `STAGEHAND_PLANNER_MODEL=opus stagehand` |
 | `STAGEHAND_STAGER_PROVIDER` | `--stager-provider` | Per-role: stager provider | `STAGEHAND_STAGER_PROVIDER=pi stagehand` |
 | `STAGEHAND_STAGER_MODEL` | `--stager-model` | Per-role: stager model | `STAGEHAND_STAGER_MODEL=gpt-5.4-mini stagehand` |
-| `STAGEHAND_MESSAGE_PROVIDER` | *(no flag)* | Per-role: message provider (env + config only) | `STAGEHAND_MESSAGE_PROVIDER=claude stagehand` |
-| `STAGEHAND_MESSAGE_MODEL` | *(no flag)* | Per-role: message model (env + config only) | `STAGEHAND_MESSAGE_MODEL=haiku stagehand` |
+| `STAGEHAND_MESSAGE_PROVIDER` | `--message-provider` | Per-role: message provider (env + config only) | `STAGEHAND_MESSAGE_PROVIDER=claude stagehand` |
+| `STAGEHAND_MESSAGE_MODEL` | `--message-model` | Per-role: message model (env + config only) | `STAGEHAND_MESSAGE_MODEL=haiku stagehand` |
 | `STAGEHAND_ARBITER_PROVIDER` | `--arbiter-provider` | Per-role: arbiter provider | `STAGEHAND_ARBITER_PROVIDER=claude stagehand` |
 | `STAGEHAND_ARBITER_MODEL` | `--arbiter-model` | Per-role: arbiter model | `STAGEHAND_ARBITER_MODEL=sonnet stagehand` |
+| `STAGEHAND_REASONING` | `--reasoning` | Global reasoning effort: off|low|medium|high | `STAGEHAND_REASONING=high stagehand` |
+| `STAGEHAND_PLANNER_REASONING` | `--planner-reasoning` | Per-role: planner reasoning | `STAGEHAND_PLANNER_REASONING=high stagehand` |
+| `STAGEHAND_STAGER_REASONING` | `--stager-reasoning` | Per-role: stager reasoning | `STAGEHAND_STAGER_REASONING=low stagehand` |
+| `STAGEHAND_MESSAGE_REASONING` | `--message-reasoning` | Per-role: message reasoning | `STAGEHAND_MESSAGE_REASONING=low stagehand` |
+| `STAGEHAND_ARBITER_REASONING` | `--arbiter-reasoning` | Per-role: arbiter reasoning | `STAGEHAND_ARBITER_REASONING=low stagehand` |
 
 ## Git-config keys
 
@@ -181,4 +187,4 @@ These keys live in `.git/config` (set with `git config --local` or `git config -
 | Single-commit | `--single` / `--no-decompose` | — | — | `false` | Bypass decompose → v1 single-commit |
 | Max commits | `--max-commits <N>` | — | `[generation].max_commits` | `12` | Safety cap on auto-decompose count |
 
-Per-role provider/model overrides (flag > env > `[role.<role>]` config > `[defaults]` > built-in): see [providers.md](providers.md#per-role-default-models-fr-d4) for the compiled-in defaults per provider. The message role has no CLI flag — it is reachable via `STAGEHAND_MESSAGE_PROVIDER`/`STAGEHAND_MESSAGE_MODEL` and `[role.message]` only (inherits the global `--provider`/`--model` if unset).
+Per-role provider/model overrides (flag > env > `[role.<role>]` config > `[defaults]` > built-in): see [providers.md](providers.md#per-role-default-models-fr-d4) for the compiled-in defaults per provider. Every role (including message) exposes `--<role>-provider`/`--<role>-model`/`--<role>-reasoning` (FR-R3).

@@ -29,6 +29,9 @@ Thumbs.db
 *.swo
 *~
 
+# pi subagent run artifacts (ephemeral; regenerates each run)
+.pi-subagents/
+
 # Go build / test artifacts (Stagehand)
 /bin/
 *.test

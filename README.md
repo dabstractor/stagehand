@@ -1,7 +1,7 @@
 # Stagehand
 
 > **Stagehand writes your commit messages using the AI agent you already pay for.**
-> No API key. No per-token billing. It shells out to Claude Code, Codex, Gemini CLI, pi, opencode, agy, or Cursor — whatever you already have installed — and spends your existing coding-plan quota instead. Stage while it thinks; it commits only what was staged when it started, atomically, and can never corrupt your repo. With a dirty working tree and nothing staged, it automatically decomposes your changes into a sequence of logically-coherent commits.
+> No API key. No per-token billing. It shells out to Claude Code, Codex, Gemini CLI, pi, opencode, agy, qwen-code, or Cursor — whatever you already have installed — and spends your existing coding-plan quota instead. Stage while it thinks; it commits only what was staged when it started, atomically, and can never corrupt your repo. With a dirty working tree and nothing staged, it automatically decomposes your changes into a sequence of logically-coherent commits.
 
 A snapshot-based AI commit message generator that uses YOUR local CLI agent.
 
@@ -55,7 +55,7 @@ Antigravity, Cursor, gemini-cli) or by incentive (Z.ai). Opencode is the outlier
 
 ## Install
 
-**Prerequisite:** a coding-agent CLI already installed and on `$PATH` (pi, Claude Code, Gemini CLI, opencode, Codex, or Cursor).
+**Prerequisite:** a coding-agent CLI already installed and on `$PATH` (pi, Claude Code, Gemini CLI, opencode, Codex, Cursor, agy, or qwen-code).
 
 > [!NOTE]
 > Stagehand is pre-release and still being tested locally — **build from source** is the only working install method today. The package-managed channels below are coming with the first public release.
@@ -111,12 +111,15 @@ stagehand --dry-run
 
 ### Multi-commit decomposition
 
-With a dirty working tree and nothing staged, `stagehand` automatically decomposes your changes into a sequence of logically-coherent commits using a four-role agent pipeline (planner → stager → message → arbiter). Each concept becomes its own commit. The stager is constrained to staging operations: claude via a staging-only git allowlist (`git add`/`apply`/`status`/`diff`); pi instructionally (its task prompt) plus a HEAD-movement guard that aborts the run if the stager moves a ref. Either way, Stagehand owns every commit via git plumbing.
+With a dirty working tree and nothing staged, `stagehand` automatically decomposes your changes into a sequence of logically-coherent commits using a four-role agent pipeline (planner → stager → message → arbiter). Each concept becomes its own commit. A start-of-run freeze (T_start) captures your entire change set up front, so files you change mid-run are excluded from every commit — the run only ever commits what existed when it started. The stager is constrained to staging operations: claude via a staging-only git allowlist (`git add`/`apply`/`status`/`diff`); pi instructionally (its task prompt) plus a HEAD-movement guard that aborts the run if the stager moves a ref. Either way, Stagehand owns every commit via git plumbing.
 
 ```bash
 # Auto-decompose — planner decides the count and grouping
 stagehand
 # Decomposes into N commits automatically
+
+# Use reasoning for deeper analysis on the planner
+stagehand --reasoning high
 
 # Force exactly 3 commits
 stagehand --commits 3
@@ -145,7 +148,7 @@ See [How Stagehand works — Multi-commit decomposition](docs/how-it-works.md#mu
 
 ## Configure your agent
 
-Stagehand auto-detects which agents are installed and uses the first one it finds (in preference order: pi, opencode, cursor, agy, gemini, codex, claude). To see what's detected:
+Stagehand auto-detects which agents are installed and uses the first one it finds (in preference order: pi, opencode, cursor, agy, gemini, qwen-code, codex, claude). To see what's detected:
 
 ```bash
 $ stagehand providers list
@@ -164,19 +167,22 @@ pi        ✓         (default)
 Set a per-repo default with git config:
 
 ```bash
-git config stagehand.provider pi
-# Optionally pin a model (overrides the per-provider default):
+git config stagehand.provider claude
+# Optionally pin a model (single-backend providers use a bare model):
 git config stagehand.model sonnet
+
+# For pi (multi-backend), prefix the model with the inference backend:
+git config stagehand.provider pi
+git config stagehand.model zai/glm-5.2
 ```
 
 > [!NOTE]
-> `pi` is a multi-provider agent: the `--provider` flag it receives selects a *backend*
-> (`zai`, `openrouter`, `anthropic`, …). That backend comes from `[provider.pi] default_provider`
-> in your config — **not** the manifest name. If `default_provider` is unset, pi is invoked with
-> no `--provider` and routes the model on its own default backend. See
-> [Provider manifests](docs/providers.md) for the full schema.
+> `pi` is a multi-backend provider: the inference backend is a slash-prefix on the model
+> (`zai/glm-5.2`). A bare model (no `/`) on pi is a config error (FR-R5b). Set
+> `git config stagehand.model zai/glm-5.2` (or `[defaults] model = "zai/glm-5.2"` in your config).
+> See [Provider manifests](docs/providers.md) for the full schema.
 
-Or bootstrap a **populated, working config** (auto-detects your agent and writes per-role model defaults — for **pi**, the default, per-role models are left empty so pi picks its own backend model; set `[provider.pi] default_provider` to pin a specific backend):
+Or bootstrap a **populated, working config** (auto-detects your agent and writes per-role model defaults — for **pi**, the default, per-role models are left empty so you can supply your own inference-backend/model prefix; set `model = "zai/glm-5.2"` to pin a specific backend):
 
 ```bash
 stagehand config init
@@ -284,7 +290,7 @@ It learns from the last 20 commits in your repo, with a prohibition on reusing t
 
 ### Which agents are supported?
 
-Seven built-ins are auto-detected: **pi**, **opencode**, **cursor**, **agy** *(experimental)*, **gemini**, **codex**, **claude**. Any agent with a non-interactive CLI interface can be added via a `[provider.<name>]` manifest — see [Adding a new agent](#adding-a-new-agent).
+Eight built-ins are auto-detected: **pi**, **opencode**, **cursor**, **agy** *(experimental)*, **gemini**, **qwen-code** *(experimental)*, **codex**, **claude**. Any agent with a non-interactive CLI interface can be added via a `[provider.<name>]` manifest — see [Adding a new agent](#adding-a-new-agent).
 
 ### How do I see what command it runs?
 
