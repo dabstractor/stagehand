@@ -72,14 +72,14 @@
               "id": "P1.M2.T1",
               "type": "Task",
               "title": "Manifest type & command rendering",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Define the Manifest struct (PRD §12.1 schema) and the Render algorithm (§12.2) that turns a logical intent into an exec.Cmd arg slice + stdin payload, with the system-prompt-via-stdin fallback.",
               "subtasks": [
                 {
                   "id": "P1.M2.T1.S1",
                   "type": "Subtask",
                   "title": "internal/provider/manifest.go — Manifest struct + Render(model,provider,sys,user)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: external_deps.md §B + decisions.md §5 define the exact rendering algorithm; §19 mandates NO sh -c (direct exec.Command with []string).\n2. INPUT: None (foundational type).\n3. LOGIC: Manifest struct with ALL §12.1 fields: Name, Detect, Command, Subcommand []string, PromptDelivery (stdin|positional|flag), PromptFlag, PrintFlag, ModelFlag, DefaultModel, SystemPromptFlag, ProviderFlag, DefaultProvider, BareFlags []string, Output (raw|json), JSONField, StripCodeFence bool, RetryInstruction string, Env map[string]string. Render(model, provider, sys, user string) (*Rendered, error) implementing §12.2 byte-exactly: args = Subcommand; if ProviderFlag!=\"\"&&provider!=\"\" args+=ProviderFlag,provider; if ModelFlag!=\"\"&&model!=\"\" args+=ModelFlag,model; if SystemPromptFlag!=\"\"&&sys!=\"\" args+=SystemPromptFlag,sys; args+=BareFlags; if PrintFlag!=\"\" args+=PrintFlag. Delivery switch: stdin→StdinPayload set (system_prompt_flag==\"\"? prepend sys+\"\\n\\n\"+user : user); positional→args+=user; flag→args+=PromptFlag,user. Rendered{Args []string, StdinPayload string, DeliverViaStdin bool, Env []string}. MOCKING: golden-table tests — for each of pi/claude/gemini/opencode/codex/cursor (from external_deps §B.1-B.6 rendered lines as oracle) assert arg ORDER and StdinPayload byte-exact; cover stdin-vs-positional, with/without system_prompt_flag (fallback prepend), with/without provider+model.\n4. OUTPUT: provider.Manifest + Rendered consumed by executor (M2.T4.S1), built-ins (M2.T3.S1), and config override merge (M5.T3.S1). DOCS: Mode A — godoc on the schema fields citing PRD §12.1."
