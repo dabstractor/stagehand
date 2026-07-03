@@ -1,0 +1,191 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "P1.M6.T3.S2_1783047829438_pre-execution_9a91962f",
+      "taskId": "P1.M6.T3.S2",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M6_T3_S2.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-03T03:03:49.438Z"
+      },
+      "createdAt": "2026-07-03T03:03:49.438Z"
+    },
+    {
+      "id": "P1.M6.T3.S2_1783048452110_coder-response_dbdd66ab",
+      "taskId": "P1.M6.T3.S2",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M6_T3_S2.md",
+        "stage": "coder-response",
+        "coderResponse": "All validation gates pass and no shipped files were modified. Here's the final result.\n\n## Summary\n\nI implemented **`internal/generate/integration_test.go`** — the PRD §20.1 layer-3 end-to-end integration suite for `generate.CommitStaged`.\n\n### What was built\n- **White-box `package generate`** — so it can name the package-private `gitClient`/`runner` interfaces and compose the in-package stub helpers (`BuildStubBinary`/`NewStubManifest`/`StubConfig`/`StubResponse`).\n- **Raw-git bootstrap helpers** (`gitRun`/`newTempRepo`/`writeStage`/`seedCommit`) — Decision A: the `internal/git` harness is white-box `package git` (unreachable), and `*git.Git` exposes only plumbing, so bootstrap drives the REAL git binary via `os/exec`, mirroring `gittestutil_test.go` conventions exactly.\n- **`e2eDeps`** — wires the REAL `*git.Git` + REAL `*provider.Executor` + stub Manifest + `config.Default()`.\n- **`headMoverRunner`** decorator — Decision C: advances HEAD deterministically during `Run` via plumbing on `HEAD^{tree}` (never `git commit --allow-empty`).\n- **All 7 contract paths** asserting against REAL git (`cat-file`/`log %B`/`rev-parse`/`diff --cached`): SUCCESS, DUP-RETRY-THEN-SUCCESS, PARSE-FAIL-THEN-RESCUE (Decision D: `Emit:\"\"`, since non-empty parses `ok=true`), TIMEOUT, CAS-FAILURE, ROOT-COMMIT, NOTHING-STAGED.\n\n### Validation gates (all pass)\n| Level | Gate | Result |\n|-------|------|--------|\n| 1a | `go build ./internal/generate/` | ✅ |\n| 1b | `go vet ./internal/generate/` | ✅ |\n| 1c | `gofmt` clean | ✅ |\n| 2 | `go build ./internal/generate/testdata/stubagent` | ✅ |\n| 3 | `go test -run Integration -v` | ✅ **7/7** |\n| 4 | `go test ./...` | ✅ all packages |\n\n### Notes\n- The only fix during validation: the NOTHING-STAGED \"no dangling tree\" assertion originally compared against the empty-tree SHA, but the seeded repo's index reflects HEAD (not empty). Corrected to assert `write-tree == HEAD^{tree}` (no *new* snapshot tree created — the meaningful invariant).\n- No shipped files modified (`git diff` empty); only the new test file added.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Created internal/generate/integration_test.go (white-box `package generate`) — the PRD §20.1 layer-3 e2e suite wiring the REAL *git.Git + REAL *provider.Executor + stub Manifest into CommitStaged across all 7 contract paths (SUCCESS, DUP-RETRY-THEN-SUCCESS, PARSE-FAIL-THEN-RESCUE, TIMEOUT, CAS-FAILURE, ROOT-COMMIT, NOTHING-STAGED), asserting every outcome against REAL git plumbing. All validation gates pass: go build/vet/gofmt clean, stubagent builds, `go test -run Integration -v` → 7/7 subtests, and `go test ./...` → all packages green. No shipped files modified. Two key design decisions honored in code with dense comments: the deterministic headMoverRunner decorator advances HEAD via plumbing on HEAD^{tree} (never `git commit --allow-empty`), and PARSE-FAIL uses Emit=\\\"\\\" (parseOutput returns ok=true for any non-empty raw string). One correction during validation: the NOTHING-STAGED 'no dangling tree' assertion was fixed to compare write-tree against HEAD^{tree} (the seeded repo's index reflects HEAD, not the empty-tree SHA).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Created internal/generate/integration_test.go (white-box `package generate`) — the PRD §20.1 layer-3 e2e suite wiring the REAL *git.Git + REAL *provider.Executor + stub Manifest into CommitStaged across all 7 contract paths (SUCCESS, DUP-RETRY-THEN-SUCCESS, PARSE-FAIL-THEN-RESCUE, TIMEOUT, CAS-FAILURE, ROOT-COMMIT, NOTHING-STAGED), asserting every outcome against REAL git plumbing. All validation gates pass: go build/vet/gofmt clean, stubagent builds, `go test -run Integration -v` → 7/7 subtests, and `go test ./...` → all packages green. No shipped files modified. Two key design decisions honored in code with dense comments: the deterministic headMoverRunner decorator advances HEAD via plumbing on HEAD^{tree} (never `git commit --allow-empty`), and PARSE-FAIL uses Emit=\"\" (parseOutput returns ok=true for any non-empty raw string). One correction during validation: the NOTHING-STAGED 'no dangling tree' assertion was fixed to compare write-tree against HEAD^{tree} (the seeded repo's index reflects HEAD, not the empty-tree SHA)."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-03T03:14:12.110Z"
+      },
+      "createdAt": "2026-07-03T03:14:12.111Z"
+    },
+    {
+      "id": "P1.M6.T3.S2_1783048452547_validation-gate-4_cf3b2740",
+      "taskId": "P1.M6.T3.S2",
+      "label": "After validation gate 4",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M6_T3_S2.md",
+        "stage": "validation-gate-4",
+        "coderResponse": "All validation gates pass and no shipped files were modified. Here's the final result.\n\n## Summary\n\nI implemented **`internal/generate/integration_test.go`** — the PRD §20.1 layer-3 end-to-end integration suite for `generate.CommitStaged`.\n\n### What was built\n- **White-box `package generate`** — so it can name the package-private `gitClient`/`runner` interfaces and compose the in-package stub helpers (`BuildStubBinary`/`NewStubManifest`/`StubConfig`/`StubResponse`).\n- **Raw-git bootstrap helpers** (`gitRun`/`newTempRepo`/`writeStage`/`seedCommit`) — Decision A: the `internal/git` harness is white-box `package git` (unreachable), and `*git.Git` exposes only plumbing, so bootstrap drives the REAL git binary via `os/exec`, mirroring `gittestutil_test.go` conventions exactly.\n- **`e2eDeps`** — wires the REAL `*git.Git` + REAL `*provider.Executor` + stub Manifest + `config.Default()`.\n- **`headMoverRunner`** decorator — Decision C: advances HEAD deterministically during `Run` via plumbing on `HEAD^{tree}` (never `git commit --allow-empty`).\n- **All 7 contract paths** asserting against REAL git (`cat-file`/`log %B`/`rev-parse`/`diff --cached`): SUCCESS, DUP-RETRY-THEN-SUCCESS, PARSE-FAIL-THEN-RESCUE (Decision D: `Emit:\"\"`, since non-empty parses `ok=true`), TIMEOUT, CAS-FAILURE, ROOT-COMMIT, NOTHING-STAGED.\n\n### Validation gates (all pass)\n| Level | Gate | Result |\n|-------|------|--------|\n| 1a | `go build ./internal/generate/` | ✅ |\n| 1b | `go vet ./internal/generate/` | ✅ |\n| 1c | `gofmt` clean | ✅ |\n| 2 | `go build ./internal/generate/testdata/stubagent` | ✅ |\n| 3 | `go test -run Integration -v` | ✅ **7/7** |\n| 4 | `go test ./...` | ✅ all packages |\n\n### Notes\n- The only fix during validation: the NOTHING-STAGED \"no dangling tree\" assertion originally compared against the empty-tree SHA, but the seeded repo's index reflects HEAD (not empty). Corrected to assert `write-tree == HEAD^{tree}` (no *new* snapshot tree created — the meaningful invariant).\n- No shipped files modified (`git diff` empty); only the new test file added.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Created internal/generate/integration_test.go (white-box `package generate`) — the PRD §20.1 layer-3 e2e suite wiring the REAL *git.Git + REAL *provider.Executor + stub Manifest into CommitStaged across all 7 contract paths (SUCCESS, DUP-RETRY-THEN-SUCCESS, PARSE-FAIL-THEN-RESCUE, TIMEOUT, CAS-FAILURE, ROOT-COMMIT, NOTHING-STAGED), asserting every outcome against REAL git plumbing. All validation gates pass: go build/vet/gofmt clean, stubagent builds, `go test -run Integration -v` → 7/7 subtests, and `go test ./...` → all packages green. No shipped files modified. Two key design decisions honored in code with dense comments: the deterministic headMoverRunner decorator advances HEAD via plumbing on HEAD^{tree} (never `git commit --allow-empty`), and PARSE-FAIL uses Emit=\\\"\\\" (parseOutput returns ok=true for any non-empty raw string). One correction during validation: the NOTHING-STAGED 'no dangling tree' assertion was fixed to compare write-tree against HEAD^{tree} (the seeded repo's index reflects HEAD, not the empty-tree SHA).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Created internal/generate/integration_test.go (white-box `package generate`) — the PRD §20.1 layer-3 e2e suite wiring the REAL *git.Git + REAL *provider.Executor + stub Manifest into CommitStaged across all 7 contract paths (SUCCESS, DUP-RETRY-THEN-SUCCESS, PARSE-FAIL-THEN-RESCUE, TIMEOUT, CAS-FAILURE, ROOT-COMMIT, NOTHING-STAGED), asserting every outcome against REAL git plumbing. All validation gates pass: go build/vet/gofmt clean, stubagent builds, `go test -run Integration -v` → 7/7 subtests, and `go test ./...` → all packages green. No shipped files modified. Two key design decisions honored in code with dense comments: the deterministic headMoverRunner decorator advances HEAD via plumbing on HEAD^{tree} (never `git commit --allow-empty`), and PARSE-FAIL uses Emit=\"\" (parseOutput returns ok=true for any non-empty raw string). One correction during validation: the NOTHING-STAGED 'no dangling tree' assertion was fixed to compare write-tree against HEAD^{tree} (the seeded repo's index reflects HEAD, not the empty-tree SHA)."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/generate/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/generate/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/generate/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go build ./internal/generate/testdata/stubagent",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./internal/generate/ -run Integration -v",
+            "stdout": "=== RUN   TestIntegration_Success\n--- PASS: TestIntegration_Success (0.29s)\n=== RUN   TestIntegration_DupRetryThenSuccess\n--- PASS: TestIntegration_DupRetryThenSuccess (0.10s)\n=== RUN   TestIntegration_ParseFailThenRescue\n--- PASS: TestIntegration_ParseFailThenRescue (0.10s)\n=== RUN   TestIntegration_Timeout\n--- PASS: TestIntegration_Timeout (0.55s)\n=== RUN   TestIntegration_HeadMovedCASFailure\n--- PASS: TestIntegration_HeadMovedCASFailure (0.12s)\n=== RUN   TestIntegration_RootCommit\n--- PASS: TestIntegration_RootCommit (0.09s)\n=== RUN   TestIntegration_NothingStaged\n--- PASS: TestIntegration_NothingStaged (0.02s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 4,
+            "description": "Level 4 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T03:14:12.547Z"
+      },
+      "createdAt": "2026-07-03T03:14:12.547Z"
+    },
+    {
+      "id": "P1.M6.T3.S2_1783048452548_complete_55d42469",
+      "taskId": "P1.M6.T3.S2",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/P1_M6_T3_S2.md",
+        "stage": "complete",
+        "coderResponse": "All validation gates pass and no shipped files were modified. Here's the final result.\n\n## Summary\n\nI implemented **`internal/generate/integration_test.go`** — the PRD §20.1 layer-3 end-to-end integration suite for `generate.CommitStaged`.\n\n### What was built\n- **White-box `package generate`** — so it can name the package-private `gitClient`/`runner` interfaces and compose the in-package stub helpers (`BuildStubBinary`/`NewStubManifest`/`StubConfig`/`StubResponse`).\n- **Raw-git bootstrap helpers** (`gitRun`/`newTempRepo`/`writeStage`/`seedCommit`) — Decision A: the `internal/git` harness is white-box `package git` (unreachable), and `*git.Git` exposes only plumbing, so bootstrap drives the REAL git binary via `os/exec`, mirroring `gittestutil_test.go` conventions exactly.\n- **`e2eDeps`** — wires the REAL `*git.Git` + REAL `*provider.Executor` + stub Manifest + `config.Default()`.\n- **`headMoverRunner`** decorator — Decision C: advances HEAD deterministically during `Run` via plumbing on `HEAD^{tree}` (never `git commit --allow-empty`).\n- **All 7 contract paths** asserting against REAL git (`cat-file`/`log %B`/`rev-parse`/`diff --cached`): SUCCESS, DUP-RETRY-THEN-SUCCESS, PARSE-FAIL-THEN-RESCUE (Decision D: `Emit:\"\"`, since non-empty parses `ok=true`), TIMEOUT, CAS-FAILURE, ROOT-COMMIT, NOTHING-STAGED.\n\n### Validation gates (all pass)\n| Level | Gate | Result |\n|-------|------|--------|\n| 1a | `go build ./internal/generate/` | ✅ |\n| 1b | `go vet ./internal/generate/` | ✅ |\n| 1c | `gofmt` clean | ✅ |\n| 2 | `go build ./internal/generate/testdata/stubagent` | ✅ |\n| 3 | `go test -run Integration -v` | ✅ **7/7** |\n| 4 | `go test ./...` | ✅ all packages |\n\n### Notes\n- The only fix during validation: the NOTHING-STAGED \"no dangling tree\" assertion originally compared against the empty-tree SHA, but the seeded repo's index reflects HEAD (not empty). Corrected to assert `write-tree == HEAD^{tree}` (no *new* snapshot tree created — the meaningful invariant).\n- No shipped files modified (`git diff` empty); only the new test file added.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"Created internal/generate/integration_test.go (white-box `package generate`) — the PRD §20.1 layer-3 e2e suite wiring the REAL *git.Git + REAL *provider.Executor + stub Manifest into CommitStaged across all 7 contract paths (SUCCESS, DUP-RETRY-THEN-SUCCESS, PARSE-FAIL-THEN-RESCUE, TIMEOUT, CAS-FAILURE, ROOT-COMMIT, NOTHING-STAGED), asserting every outcome against REAL git plumbing. All validation gates pass: go build/vet/gofmt clean, stubagent builds, `go test -run Integration -v` → 7/7 subtests, and `go test ./...` → all packages green. No shipped files modified. Two key design decisions honored in code with dense comments: the deterministic headMoverRunner decorator advances HEAD via plumbing on HEAD^{tree} (never `git commit --allow-empty`), and PARSE-FAIL uses Emit=\\\"\\\" (parseOutput returns ok=true for any non-empty raw string). One correction during validation: the NOTHING-STAGED 'no dangling tree' assertion was fixed to compare write-tree against HEAD^{tree} (the seeded repo's index reflects HEAD, not the empty-tree SHA).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "Created internal/generate/integration_test.go (white-box `package generate`) — the PRD §20.1 layer-3 e2e suite wiring the REAL *git.Git + REAL *provider.Executor + stub Manifest into CommitStaged across all 7 contract paths (SUCCESS, DUP-RETRY-THEN-SUCCESS, PARSE-FAIL-THEN-RESCUE, TIMEOUT, CAS-FAILURE, ROOT-COMMIT, NOTHING-STAGED), asserting every outcome against REAL git plumbing. All validation gates pass: go build/vet/gofmt clean, stubagent builds, `go test -run Integration -v` → 7/7 subtests, and `go test ./...` → all packages green. No shipped files modified. Two key design decisions honored in code with dense comments: the deterministic headMoverRunner decorator advances HEAD via plumbing on HEAD^{tree} (never `git commit --allow-empty`), and PARSE-FAIL uses Emit=\"\" (parseOutput returns ok=true for any non-empty raw string). One correction during validation: the NOTHING-STAGED 'no dangling tree' assertion was fixed to compare write-tree against HEAD^{tree} (the seeded repo's index reflects HEAD, not the empty-tree SHA)."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./internal/generate/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./internal/generate/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l internal/generate/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go build ./internal/generate/testdata/stubagent",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./internal/generate/ -run Integration -v",
+            "stdout": "=== RUN   TestIntegration_Success\n--- PASS: TestIntegration_Success (0.29s)\n=== RUN   TestIntegration_DupRetryThenSuccess\n--- PASS: TestIntegration_DupRetryThenSuccess (0.10s)\n=== RUN   TestIntegration_ParseFailThenRescue\n--- PASS: TestIntegration_ParseFailThenRescue (0.10s)\n=== RUN   TestIntegration_Timeout\n--- PASS: TestIntegration_Timeout (0.55s)\n=== RUN   TestIntegration_HeadMovedCASFailure\n--- PASS: TestIntegration_HeadMovedCASFailure (0.12s)\n=== RUN   TestIntegration_RootCommit\n--- PASS: TestIntegration_RootCommit (0.09s)\n=== RUN   TestIntegration_NothingStaged\n--- PASS: TestIntegration_NothingStaged (0.02s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 4,
+            "description": "Level 4 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T03:14:12.548Z"
+      },
+      "createdAt": "2026-07-03T03:14:12.548Z"
+    }
+  ],
+  "lastModified": "2026-07-03T03:14:12.548Z"
+}

@@ -488,7 +488,7 @@
                   "id": "P1.M6.T3.S2",
                   "type": "Subtask",
                   "title": "internal/generate/integration_test.go — end-to-end flow (temp-repo + stub)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M6.T1.S1",

@@ -1,0 +1,62 @@
+[
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go build ./internal/generate/",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go vet ./internal/generate/",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "test -z \"$(gofmt -l internal/generate/)\"",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 2,
+    "description": "Level 2 gate",
+    "success": true,
+    "command": "go build ./internal/generate/testdata/stubagent",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 3,
+    "description": "Level 3 gate",
+    "success": true,
+    "command": "go test ./internal/generate/ -run Integration -v",
+    "stdout": "=== RUN   TestIntegration_Success\n--- PASS: TestIntegration_Success (0.29s)\n=== RUN   TestIntegration_DupRetryThenSuccess\n--- PASS: TestIntegration_DupRetryThenSuccess (0.10s)\n=== RUN   TestIntegration_ParseFailThenRescue\n--- PASS: TestIntegration_ParseFailThenRescue (0.10s)\n=== RUN   TestIntegration_Timeout\n--- PASS: TestIntegration_Timeout (0.55s)\n=== RUN   TestIntegration_HeadMovedCASFailure\n--- PASS: TestIntegration_HeadMovedCASFailure (0.12s)\n=== RUN   TestIntegration_RootCommit\n--- PASS: TestIntegration_RootCommit (0.09s)\n=== RUN   TestIntegration_NothingStaged\n--- PASS: TestIntegration_NothingStaged (0.02s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 4,
+    "description": "Level 4 gate",
+    "success": true,
+    "command": "go test ./...",
+    "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  }
+]
