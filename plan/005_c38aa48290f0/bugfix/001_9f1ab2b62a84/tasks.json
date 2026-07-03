@@ -4,14 +4,14 @@
       "type": "Phase",
       "id": "P1",
       "title": "v2.1 Validation Bug Fixes",
-      "status": "Planned",
+      "status": "Researching",
       "description": "Fix the 1 Major + 3 Minor issues discovered during creative end-to-end validation of the v2.1 'competitor feature parity + tool integrations' delta (§9.18–§9.23). All four fixes are independent, localized code changes grounded in the existing codebase architecture. The changes restore the no-mangle guarantee for lazygit (Issue 1), silence misleading hook-exec output (Issue 2), complete the reference config template (Issue 3), and fix TTY detection for /dev/null (Issue 4).",
       "milestones": [
         {
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Fix Four Validation Issues",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Implement and test the four bug fixes. Each task is an independent, self-contained fix with its own TDD cycle. Issues 1-4 touch disjoint files and have no inter-dependencies, so they can be developed in any order.",
           "tasks": [
             {
@@ -90,14 +90,14 @@
               "type": "Task",
               "id": "P1.M1.T4",
               "title": "Fix IsTerminal /dev/null misfire with true isatty ioctl (Issue 4 — Minor)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "ui.IsTerminal uses stat.Mode() & os.ModeCharDevice, which treats /dev/null (a char device) as a terminal. Replace with a true isatty ioctl probe using stdlib syscall, following the project's existing platform-specific file pattern (procgroup_unix.go / procgroup_windows.go).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T4.S1",
                   "title": "Replace char-device heuristic with platform-specific isatty ioctl probe",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/005_c38aa48290f0/bugfix/001_9f1ab2b62a84/architecture/issue_analysis.md §Issue 4, system_context.md, and external_deps.md. The current IsTerminal (internal/ui/output.go ~lines 25-30) tests `stat.Mode() & os.ModeCharDevice != 0`. /dev/null IS a char device → returns true. The code comment says 'NOT a true isatty ioctl'. The project is DELIBERATELY dep-free (NO golang.org/x/term or golang.org/x/sys) and uses stdlib syscall for platform-specific code (see internal/provider/procgroup_unix.go with `//go:build !windows`, procgroup_windows.go with `//go:build windows`, signal_unix.go/signal_windows.go). Supported platforms: linux, darwin, windows (all × amd64/arm64, CGO_ENABLED=0). Key syscall facts: Linux has `syscall.TCGETS` and `syscall.SYS_IOCTL`; Darwin has `syscall.TIOCGETA` and `syscall.SYS_IOCTL`; Windows uses `syscall.NewLazyDLL(\"kernel32.dll\")` (same pattern as procgroup_windows.go line ~15).\n2. INPUT: The existing IsTerminal(f *os.File) bool function in internal/ui/output.go. Its callers pass os.Stdin or os.Stdout. The function must remain `func IsTerminal(f *os.File) bool` (stable signature — callers depend on it).\n3. LOGIC: Create platform-specific isatty implementation files in internal/ui/, following the procgroup pattern:\n   (a) internal/ui/isatty_linux.go (`//go:build linux`): Define `const ioctlReadTermios = syscall.TCGETS` and `func isTerminalFd(fd uintptr) bool` that calls `syscall.Syscall6(syscall.SYS_IOCTL, fd, uintptr(ioctlReadTermios), uintptr(unsafe.Pointer(&buf)), 0, 0, 0)` where buf is `[128]byte` (portable raw buffer — avoids syscall.Termios struct-layout differences). Return true iff errno == 0.\n   (b) internal/ui/isatty_darwin.go (`//go:build darwin`): Same as linux but `const ioctlReadTermios = syscall.TIOCGETA`.\n   (c) internal/ui/isatty_windows.go (`//go:build windows`): Use `syscall.NewLazyDLL(\"kernel32.dll\").NewProc(\"GetConsoleMode\")` — call it with the fd as handle; return true iff it succeeds (GetConsoleMode returns nonzero on a console handle). /dev/null doesn't exist on Windows (NUL is not a char device), so the current behavior is less broken, but GetConsoleMode is still more correct.\n   (d) internal/ui/isatty_other.go (`//go:build !linux && !darwin && !windows`): Fallback for unexpected platforms — return the old char-device heuristic `(stat.Mode() & os.ModeCharDevice) != 0` so the build never breaks on an untested GOOS. This is the safe default.\n   (e) Update IsTerminal in output.go: replace the body with `return isTerminalFd(f.Fd())` and update the doc comment to reflect the true ioctl probe (remove the 'NOT a true isatty ioctl' note; note the platform files).\n   CRITICAL: `import \"unsafe\"` is needed in the unix files. `import \"syscall\"` in all platform files. The `unsafe.Pointer(&buf)` is the standard Go pattern for ioctl (used by golang.org/x/term internally).\n4. OUTPUT: IsTerminal now returns false for /dev/null, pipes, files, and redirects; returns true only for real terminals/ptys. No signature change. All callers benefit automatically (config_init_interactive.go TTY gate, integrate DefaultConfirm auto-decline, color resolution in hookexec.go and default_action.go).\n5. MOCKING: Tests open /dev/null directly via os.Open(\"/dev/null\") and call IsTerminal. On non-unix test runners, skip the /dev/null test (use `runtime.GOOS` guard or check file existence). The existing TestIsTerminal_Pipe (output_test.go ~line 269) must still pass (pipes are not terminals). For the Windows path, testing requires a Windows CI runner; the /dev/null test is Unix-only.\n6. TESTS (TDD):\n   - Add TestIsTerminal_DevNull: open /dev/null (`f, _ := os.Open(\"/dev/null\")`), assert `!IsTerminal(f)`. Guard with `if runtime.GOOS == \"windows\" { t.Skip() }` since /dev/null is Unix-only. Also check `os.Stat` to confirm it IS a char device (proving the old heuristic would have misfired).\n   - Verify TestIsTerminal_Pipe still passes (pipe reader/writer → false).\n   - Add TestIsTerminal_RealStdinConsistency: if os.Stdin is a pipe in the test env (CI), IsTerminal(os.Stdin) should return false (already covered conceptually by the pipe test).\n7. DOCS: none — no user-facing/config/API surface change. IsTerminal's signature is unchanged; the behavior fix makes the documented FR-L3 TTY gate and FR-I3c DefaultConfirm auto-decline work correctly for the /dev/null case.",
@@ -114,14 +114,14 @@
               "type": "Task",
               "id": "P1.M1.T5",
               "title": "Sync changeset-level documentation",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Final documentation sweep to ensure README.md and any overview docs accurately reflect the changeset. Per SOW §5 Mode B: cross-cutting docs that only make sense once the whole change is in place.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T5.S1",
                   "title": "Verify README.md and overview docs reflect the four fixes",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",

@@ -17,17 +17,20 @@ const (
 // progressPrefix is the Appendix-B "↳" glyph (U+21B3) + one space, prefixing every progress line.
 const progressPrefix = "↳ "
 
-// IsTerminal reports whether f is a terminal (character device). Stdlib-only TTY heuristic: a real
-// terminal/pty is a char device; a pipe, file, or redirect is not. Sufficient for FR51 color gating.
-// stat-error → false (treat as non-TTY → color off → the safe default). NOT a true isatty ioctl;
-// --no-color / NO_COLOR remain the authoritative overrides. Signature is stable for a future
-// golang.org/x/term swap (out of v1 scope — project stays dep-free; see procgroup_windows.go).
+// IsTerminal reports whether f is a real terminal/pty (true isatty probe). Returns false for
+// /dev/null, pipes, files, and redirects — delegating to the platform-specific isTerminalFd:
+//
+//   - linux:   ioctl(TCGETS) succeeds iff terminal
+//   - darwin:  ioctl(TIOCGETA) succeeds iff terminal
+//   - windows: GetConsoleMode returns nonzero iff console handle
+//   - other:   legacy char-device heuristic (safe fallback; see isatty_other.go)
+//
+// stat/ioctl errors → false (treat as non-TTY → the safe default). --no-color / NO_COLOR remain
+// the authoritative overrides (see ResolveColor). Signature is stable; all callers (config init
+// --interactive, integrate DefaultConfirm, hook exec / default-action color resolution) benefit
+// automatically.
 func IsTerminal(f *os.File) bool {
-	stat, err := f.Stat()
-	if err != nil {
-		return false
-	}
-	return (stat.Mode() & os.ModeCharDevice) != 0
+	return isTerminalFd(f.Fd())
 }
 
 // noColorEnvSet reports whether the NO_COLOR convention (https://no-color.org) disables color: the var

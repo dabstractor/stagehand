@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -279,6 +280,35 @@ func TestIsTerminal_Pipe(t *testing.T) {
 	}
 	if IsTerminal(w) {
 		t.Error("IsTerminal(pipe writer) = true, want false")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestIsTerminal_DevNull — /dev/null is NOT a terminal (true isatty probe rejects it)
+// ---------------------------------------------------------------------------
+
+func TestIsTerminal_DevNull(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("/dev/null is a Unix path; Windows uses NUL and is exercised on a Windows CI runner")
+	}
+	f, err := os.Open("/dev/null")
+	if err != nil {
+		t.Fatalf("os.Open(/dev/null): %v", err)
+	}
+	defer f.Close()
+
+	if IsTerminal(f) {
+		t.Error("IsTerminal(/dev/null) = true, want false (true isatty probe must reject a char device that is not a tty)")
+	}
+
+	// Belt-and-suspenders: PROVE /dev/null IS a char device — i.e. the OLD heuristic would have misfired.
+	// If this ever fails, the regression premise changed on this OS; investigate rather than weaken the test.
+	st, err := os.Stat("/dev/null")
+	if err != nil {
+		t.Fatalf("os.Stat(/dev/null): %v", err)
+	}
+	if (st.Mode() & os.ModeCharDevice) == 0 {
+		t.Error("/dev/null is unexpectedly NOT a char device on this OS — the Issue-4 regression premise is invalid")
 	}
 }
 
