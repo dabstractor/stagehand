@@ -105,7 +105,7 @@
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "Format modes and locale",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Config surface, the compiled-in gitmoji table, and format-aware prompt scaffolds applied everywhere a message is produced (FR-F1–F6).",
               "subtasks": [
                 {
@@ -130,7 +130,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S2",
                   "title": "Compiled-in gitmoji reference table",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 0.5,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/external_deps.md §5 (verified 2026-07-02) — canonical source is carloscuesta/gitmoji `packages/gitmojis/src/gitmojis.json` (raw GitHub URL in the doc), currently 75 entries; stable fields emoji/code/description/name. Compiled into the binary; NO network fetch, ever (FR-F3). Appendix E #16 requires re-verifying currency at implementation time.\n2. INPUT: none — leaf data subtask.\n3. LOGIC: author `internal/prompt/gitmoji.go` with a Go constant table (emoji + description, keep `name` as the stable key); header comment records the source URL, entry count, and verification date (FR-D5 discipline). Re-check the upstream JSON during implementation and update count/date if drifted. Unit test asserts non-empty, unique emojis, and that every entry has emoji+description.\n4. OUTPUT: `prompt.GitmojiTable` (or equivalent) rendered into the gitmoji format scaffold by P1.M2.T1.S3.\n5. DOCS: [Mode A] none — internal constant; user-facing gitmoji docs ride with P1.M2.T1.S3.",
@@ -146,7 +146,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S3",
                   "title": "Format-mode prompt scaffolds + locale line, applied everywhere a message is produced",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M2.T1.S1",
