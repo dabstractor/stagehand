@@ -523,9 +523,9 @@ const exampleConfigTemplate = `# Stagehand configuration file (PRD §16.2).
 # ---------------------------------------------------------------------------
 # config_version — schema version (PRD §9.17 FR-B4). Top-level metadata, NOT a [defaults] key and
 # NOT a precedence layer (§16.1): it never overrides another field; it only tells stagehand which
-# schema the file was written for. This binary supports config_version = 2.
+# schema the file was written for. This binary supports config_version = 3.
 # ---------------------------------------------------------------------------
-# config_version = 2
+# config_version = 3
 #
 # On load, if this is missing/older than the binary's version, stagehand prints an advisory and
 # points you at the remediation; it NEVER auto-migrates your file (no behavior change, just a
