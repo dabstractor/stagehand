@@ -646,7 +646,7 @@
                   "id": "P1.M8.T2.S1",
                   "type": "Subtask",
                   "title": ".goreleaser.yaml + install.sh",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M7.T2.S1"

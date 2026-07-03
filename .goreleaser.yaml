@@ -1,0 +1,85 @@
+# .goreleaser.yaml — stagehand release config (PRD §21.2).
+# Validated against goreleaser v2.9.0 (the last release whose `brews` Formula
+# support is not deprecated; >= v2.10 hard-deprecates Formula in favor of the
+# macOS-only `homebrew_casks`, which is wrong for a cross-platform CLI).
+version: 2
+
+project_name: stagehand
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: stagehand
+    main: ./cmd/stagehand
+    binary: stagehand
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - ids: [stagehand]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [LICENSE*, README*]
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-dev"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude: ["^docs:", "^test:", "^chore:", "Merge pull request", "Merge branch"]
+
+release:
+  github:
+    owner: dustin
+    name: stagehand
+
+brews:
+  - name: stagehand
+    repository:
+      owner: dustin
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/dustin/stagehand"
+    description: "Conventional, AI-friendly Git commits staged from natural language."
+    license: MIT
+    directory: Formula
+    install: |
+      bin.install "stagehand"
+    test: |
+      system "#{bin}/stagehand", "--version"
+
+scoops:
+  - name: stagehand
+    repository:
+      owner: dustin
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/dustin/stagehand"
+    description: "Conventional, AI-friendly Git commits staged from natural language."
+    license: MIT
+
+aurs:
+  - name: stagehand-bin
+    homepage: "https://github.com/dustin/stagehand"
+    description: "Conventional, AI-friendly Git commits staged from natural language."
+    maintainers: ["Dustin <dustin@example.com>"]
+    license: MIT
+    private_key: "{{ .Env.AUR_KEY }}"
+    git_url: "ssh://aur@aur.archlinux.org/stagehand-bin.git"
+    provides: [stagehand]

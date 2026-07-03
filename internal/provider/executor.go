@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -99,7 +98,7 @@ func (e *Executor) Run(ctx context.Context, m Manifest, model, provider, sys, pa
 	cmd.Env = append(os.Environ(), r.Env...)
 	// Setpgid makes the agent a process-group leader (PGID == PID) so a single
 	// kill(-pgid) fells the agent and all its children (PRD §18.4).
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	applyProcessGroup(cmd) // Setpgid on Unix; no-op on Windows (PRD §18.4 + §21.2)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -131,11 +130,11 @@ func (e *Executor) Run(ctx context.Context, m Manifest, model, provider, sys, pa
 		// SIGTERM the whole group; then, if it has not exited within a grace
 		// period, escalate to SIGKILL (§18.4). Always drain `done` so the
 		// Wait goroutine never leaks.
-		_ = syscall.Kill(-pgid, syscall.SIGTERM)
+		terminateGroup(pgid, false) // SIGTERM the whole group
 		select {
 		case <-done:
 		case <-time.After(2 * time.Second):
-			_ = syscall.Kill(-pgid, syscall.SIGKILL)
+			terminateGroup(pgid, true) // escalate to SIGKILL
 			<-done
 		}
 		if cause == context.DeadlineExceeded {
