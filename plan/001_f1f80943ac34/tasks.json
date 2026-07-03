@@ -699,7 +699,7 @@
                   "id": "P1.M8.T4.S1",
                   "type": "Subtask",
                   "title": "README.md — §21.5 marketing surface",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M7.T2.S1",

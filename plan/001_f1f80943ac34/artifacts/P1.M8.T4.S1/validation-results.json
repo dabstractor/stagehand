@@ -1,0 +1,122 @@
+[
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "grep -q 'Stagehand writes your commit messages using the AI agent you already pay for' README.md",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "grep -q 'git config stagehand.provider' README.md",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "test -f docs/CONFIGURATION.md",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "./bin/stagehand providers list",
+    "stdout": "PROVIDER       STATUS         DEFAULT MODEL\nclaude          detected       sonnet\ncodex           detected       (unset)\ncursor          detected       (unset)\ngemini          detected       gemini-2.5-pro\nopencode        detected       (unset)\npi              detected       glm-5-turbo (default)\n\ndefault provider: pi (model: zai/glm-4.5-air)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "./bin/stagehand config path",
+    "stdout": "/home/dustin/.config/stagehand/config.toml\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "./bin/stagehand --version",
+    "stdout": "stagehand version 5e2fd64\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 2,
+    "description": "Level 2 gate",
+    "success": true,
+    "command": "grep -q 'brew install dustin/tap/stagehand' README.md",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 3,
+    "description": "Level 3 gate",
+    "success": true,
+    "command": "grep -q 'go install github.com/dustin/stagehand/cmd/stagehand@latest' README.md",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 4,
+    "description": "Level 4 gate",
+    "success": true,
+    "command": "grep -q 'raw/main/install.sh' README.md",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 4,
+    "description": "Level 4 gate",
+    "success": true,
+    "command": "grep -qi 'not for you' README.md",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 4,
+    "description": "Level 4 gate",
+    "success": true,
+    "command": "grep -qi 'opencommit' README.md",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 5,
+    "description": "Level 5 gate",
+    "success": true,
+    "command": "grep -qi 'scoop install dustin/stagehand' README.md",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  }
+]
