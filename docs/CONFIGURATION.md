@@ -7,11 +7,7 @@ the layers, the environment variables, the `git config` keys, and the
 [`config.Load`](../internal/config/load.go) and consumed read-only by every
 downstream package.
 
-> **Cross-reference.** The CLI flag reference (the `--provider`, `--model`,
-> `--config`, `--timeout`, `--verbose`/`-v`, `--no-color` flags, plus the
-> `--all`/`--no-auto-stage` action flags) is documented in this same file by
-> the CLI task (P1.M7.T2.S1). This document owns everything *below* the CLI
-> flag layer.
+> **Cross-reference.** The CLI flag reference lives in [§8 CLI flags](#8-cli-flags-prd-152) below, and the exit codes in [§9 Exit codes](#9-exit-codes-prd-154). This document owns everything *below* the CLI flag layer.
 
 ## 1. Precedence order (FR34)
 
@@ -251,3 +247,60 @@ fully-documented config for first-time setup:
 > tables here, run `stagehand config init` and read the file — the key tables
 > in [§4](#4-stagehandtoml-keys-162) and the defaults in [§1](#1-precedence-order-fr34)
 > cover the same surface.
+
+## 8. CLI flags (PRD §15.2)
+
+The default action `stagehand [flags]` and the `providers` / `config` subcommands
+all honor these **persistent global flags**. They are registered on the root
+command, so they are available everywhere. A CLI flag always beats its matching
+environment variable (flag > env > git-config > file > default — see [§1](#1-precedence-order-fr34)).
+
+`--all`, `--no-auto-stage`, and `--dry-run` are **action flags**: they do *not*
+flow into the resolved `Config` (they have no config field); they are read
+straight off the CLI to decide staging policy and whether to commit. `--version`
+is handled by cobra's built-in `Version` field (no manual flag), and `--help` / `-h`
+is cobra's built-in.
+
+| Flag | Shorthand | Env | Git config | Default | Description |
+| --- | --- | --- | --- | --- | --- |
+| `--provider <name>` | | `STAGEHAND_PROVIDER` | `stagehand.provider` | auto-detected | Provider/agent to use. |
+| `--model <name>` | | `STAGEHAND_MODEL` | `stagehand.model` | per-manifest `default_model` | Model override. |
+| `--config <path>` | | `STAGEHAND_CONFIG` | — | resolved path | Path to a config file (overrides discovery). |
+| `--timeout <dur>` | | `STAGEHAND_TIMEOUT` | `stagehand.timeout` | `120s` | Generation timeout (`90`, `90s`, `2m`). A flag value of `0` means "use the config default". |
+| `--all` | `-a` | — | — | `false` | `git add -A` before snapshotting, even if something is already staged (FR20). |
+| `--no-auto-stage` | | — | — | `false` | If nothing is staged, exit 2 instead of auto-staging (FR19). |
+| `--dry-run` | | — | — | `false` | Generate and print the message; do not commit (FR49). |
+| `--verbose` | `-v` | `STAGEHAND_VERBOSE` | — | `false` | Print the resolved command, raw agent output, and retries (FR50). |
+| `--no-color` | | `STAGEHAND_NO_COLOR` | — | TTY-aware | Disable color. Also respects `NO_COLOR` (any non-empty value). Note the **underscore** in `STAGEHAND_NO_COLOR` (FR51). |
+| `--version` | | — | — | — | Print `stagehand version <v>` and exit 0 (cobra `Version` field). |
+| `--help` | `-h` | — | — | — | Print help and exit 0 (cobra built-in). |
+
+> **Env booleans.** `STAGEHAND_VERBOSE` and `STAGEHAND_NO_COLOR` use the
+> `1` / `true` / `yes` convention (case-insensitive). A *present* env var —
+> even one parsing to `false` — still counts as "set" and overrides a lower
+> layer's `true` (the present-but-zero rule, [§1](#1-precedence-order-fr34)).
+>
+> **Verbose v1 gap.** `stagehand.GenerateCommit` constructs its own output sink
+> with verbose disabled, so the full FR50 agent trace (resolved command / raw
+> agent stdout / each retry) is not yet observable through the *generate* step in
+> v1. The `--verbose` flag is wired into the resolved config and gates the CLI's
+> own progress lines today; full FR50 verbose tracing is a follow-up. The
+> `--dry-run` message and the FR42 success block are always printed to stdout by
+> the generate pipeline (never re-printed by the CLI), so stdout stays
+> byte-clean for piping (e.g. `stagehand --dry-run --no-color | tee /tmp/msg.txt`).
+
+## 9. Exit codes (PRD §15.4)
+
+Every `stagehand` run exits with exactly one of these codes, so scripts,
+pre-commit hooks, and `lazygit` integrations can branch reliably. The CLI maps
+the shipped sentinel errors from `pkg/stagehand` (`ErrNothingToCommit`,
+`ErrRescue`, `ErrHeadMoved`) to these codes via the `ui.Exit*` constants
+(never hardcoded integers).
+
+| Code | Constant | Meaning |
+| --- | --- | --- |
+| `0` | `ExitSuccess` | Success — a commit was created, or a dry-run message was printed. |
+| `1` | `ExitError` | General error — generation failed, parse failed after retries, agent/provider missing on `$PATH`, a CAS conflict, or `ErrHeadMoved`. |
+| `2` | `ExitNothingToCommit` | Nothing to commit — a clean tree after auto-staging, or nothing staged with `--no-auto-stage` (FR17/FR19). |
+| `3` | `ExitRescue` | Rescue condition — a snapshot was taken but no commit was created; manual recovery instructions were printed to stderr (§9.10 / Appendix B.5). |
+| `124` | `ExitTimeout` | *Reserved.* Generation exceeded `--timeout`. In v1 a per-invocation timeout is enforced *inside* the generate pipeline, which collapses a timeout into the rescue path (`ErrRescue` → exit 3, per the snapshot-rescue contract in §18.2 / decisions.md §3) so a user's spent agent quota is always recoverable. `124` is reserved for a future CLI-level deadline and is not returned today.

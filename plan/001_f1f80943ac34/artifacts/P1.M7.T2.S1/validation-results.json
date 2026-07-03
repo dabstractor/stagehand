@@ -1,0 +1,42 @@
+[
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go build ./cmd/stagehand/",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 2,
+    "description": "Level 2 gate",
+    "success": true,
+    "command": "go vet ./cmd/stagehand/",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 3,
+    "description": "Level 3 gate",
+    "success": true,
+    "command": "go test ./cmd/stagehand/ -v",
+    "stdout": "=== RUN   TestConfigPath_PrintsXDG\n--- PASS: TestConfigPath_PrintsXDG (0.00s)\n=== RUN   TestConfigPath_HomeFallback\n--- PASS: TestConfigPath_HomeFallback (0.00s)\n=== RUN   TestConfigPath_ErrorsWhenUnset\n--- PASS: TestConfigPath_ErrorsWhenUnset (0.00s)\n=== RUN   TestConfigInit_WritesValidDefaults\n--- PASS: TestConfigInit_WritesValidDefaults (0.00s)\n=== RUN   TestConfigInit_NoClobber\n--- PASS: TestConfigInit_NoClobber (0.00s)\n=== RUN   TestConfigInit_ForceOverwrites\n--- PASS: TestConfigInit_ForceOverwrites (0.00s)\n=== RUN   TestOfferGitignore_Yes\n--- PASS: TestOfferGitignore_Yes (0.00s)\n=== RUN   TestOfferGitignore_No\n--- PASS: TestOfferGitignore_No (0.00s)\n=== RUN   TestOfferGitignore_NoGitDir\n--- PASS: TestOfferGitignore_NoGitDir (0.00s)\n=== RUN   TestConfigCmd_Registered\n--- PASS: TestConfigCmd_Registered (0.00s)\n=== RUN   TestProvidersList_DetectedAndDefault\n--- PASS: TestProvidersList_DetectedAndDefault (0.00s)\n=== RUN   TestProvidersList_DefaultMarkerOnDefault\n--- PASS: TestProvidersList_DefaultMarkerOnDefault (0.00s)\n=== RUN   TestProvidersList_NoneDetected\n--- PASS: TestProvidersList_NoneDetected (0.00s)\n=== RUN   TestProvidersShow_RoundTripsToSameManifest\n--- PASS: TestProvidersShow_RoundTripsToSameManifest (0.00s)\n=== RUN   TestProvidersShow_OverrideReflected\n--- PASS: TestProvidersShow_OverrideReflected (0.00s)\n=== RUN   TestProvidersShow_UnknownErrors\n--- PASS: TestProvidersShow_UnknownErrors (0.00s)\n=== RUN   TestProvidersCmd_Registered\n--- PASS: TestProvidersCmd_Registered (0.00s)\n=== RUN   TestBuildFlags_FlagOverEnv\n--- PASS: TestBuildFlags_FlagOverEnv (0.01s)\n=== RUN   TestBuildFlags_PresentButZero\n--- PASS: TestBuildFlags_PresentButZero (0.03s)\n=== RUN   TestBuildFlags_EnvAbsent\n--- PASS: TestBuildFlags_EnvAbsent (0.00s)\n=== RUN   TestBuildFlags_EnvTimeoutParsed\n=== RUN   TestBuildFlags_EnvTimeoutParsed/valid\n=== RUN   TestBuildFlags_EnvTimeoutParsed/invalid\n--- PASS: TestBuildFlags_EnvTimeoutParsed (0.00s)\n    --- PASS: TestBuildFlags_EnvTimeoutParsed/valid (0.00s)\n    --- PASS: TestBuildFlags_EnvTimeoutParsed/invalid (0.00s)\n=== RUN   TestResolveAndCheckProvider_MissingFriendlyMsg\n--- PASS: TestResolveAndCheckProvider_MissingFriendlyMsg (0.00s)\n=== RUN   TestResolveAndCheckProvider_FirstDetected\n--- PASS: TestResolveAndCheckProvider_FirstDetected (0.00s)\n=== RUN   TestResolveAndCheckProvider_NoneDetected\n--- PASS: TestResolveAndCheckProvider_NoneDetected (0.00s)\n=== RUN   TestMapErrorToExitCode\n=== RUN   TestMapErrorToExitCode/nil\n=== RUN   TestMapErrorToExitCode/ErrNothingToCommit\n=== RUN   TestMapErrorToExitCode/ErrRescue\n=== RUN   TestMapErrorToExitCode/ErrHeadMoved\n=== RUN   TestMapErrorToExitCode/arbitrary\n=== RUN   TestMapErrorToExitCode/wrapped-rescue\n--- PASS: TestMapErrorToExitCode (0.00s)\n    --- PASS: TestMapErrorToExitCode/nil (0.00s)\n    --- PASS: TestMapErrorToExitCode/ErrNothingToCommit (0.00s)\n    --- PASS: TestMapErrorToExitCode/ErrRescue (0.00s)\n    --- PASS: TestMapErrorToExitCode/ErrHeadMoved (0.00s)\n    --- PASS: TestMapErrorToExitCode/arbitrary (0.00s)\n    --- PASS: TestMapErrorToExitCode/wrapped-rescue (0.00s)\n=== RUN   TestMaybeAutoStage_NothingStagedNoAutoStageExit2\n--- PASS: TestMaybeAutoStage_NothingStagedNoAutoStageExit2 (0.00s)\n=== RUN   TestMaybeAutoStage_AutoStagesThenClean\n--- PASS: TestMaybeAutoStage_AutoStagesThenClean (0.00s)\n=== RUN   TestMaybeAutoStage_AllFlagForcesAdd\n--- PASS: TestMaybeAutoStage_AllFlagForcesAdd (0.00s)\n=== RUN   TestMaybeAutoStage_StagedNoAllProceeds\n--- PASS: TestMaybeAutoStage_StagedNoAllProceeds (0.00s)\n=== RUN   TestBuildOptions_DryRunWired\n=== RUN   TestBuildOptions_DryRunWired/dry-run\n=== RUN   TestBuildOptions_DryRunWired/commit\n--- PASS: TestBuildOptions_DryRunWired (0.00s)\n    --- PASS: TestBuildOptions_DryRunWired/dry-run (0.00s)\n    --- PASS: TestBuildOptions_DryRunWired/commit (0.00s)\n=== RUN   TestVersionShortCircuit\n--- PASS: TestVersionShortCircuit (0.00s)\n=== RUN   TestPersistentFlags_Registered\n--- PASS: TestPersistentFlags_Registered (0.00s)\n=== RUN   TestRootCmdLongSet\n--- PASS: TestRootCmdLongSet (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 4,
+    "description": "Level 4 gate",
+    "success": true,
+    "command": "go test ./...",
+    "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  }
+]
