@@ -128,13 +128,12 @@ func runHookExec(cmd *cobra.Command, args []string) error {
 	// Best-effort progress line (stderr; the message itself goes to msgFile, never stdout).
 	labelProvider := name
 	u := ui.New(cmd.OutOrStdout(), stderr, ui.ResolveColor(cfg.NoColor, ui.IsTerminal(os.Stdout)))
-	u.Progress(ui.ProgressLabel("Generating", msgModel, labelProvider))
-
 	if rerr := hook.Run(ctx, generate.Deps{
 		Git:      g,
 		Manifest: m,
 		Verbose:  verbose,
 		Excludes: excludes,
+		Progress: func() { u.Progress(ui.ProgressLabel("Generating", msgModel, labelProvider)) },
 	}, *cfg, msgFile, source); rerr != nil && !errors.Is(rerr, hook.ErrNoOp) {
 		return neverBlock(rerr) // generation failure → never-block (or strict abort)
 	}

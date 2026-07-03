@@ -114,6 +114,11 @@ func Run(ctx context.Context, deps generate.Deps, cfg config.Config, msgFile, so
 		return ErrNoOp
 	}
 
+	// Progress: generation is about to run (both no-op gates passed). Nil-safe; CommitStaged leaves it nil.
+	if deps.Progress != nil {
+		deps.Progress()
+	}
+
 	// Step C: parent / unborn.
 	_, isUnborn, err := deps.Git.RevParseHEAD(ctx)
 	if err != nil {

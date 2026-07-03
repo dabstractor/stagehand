@@ -79,6 +79,44 @@ func TestHookExec_SourceGateExit0(t *testing.T) {
 	if string(data) != "# comments\n" {
 		t.Errorf("msg-file was modified; got:\n%s", string(data))
 	}
+	if bytes.Contains(errBuf.Bytes(), []byte("Generating")) {
+		t.Errorf("progress line must NOT appear for a source-gated no-op; stderr:\n%s", errBuf.String())
+	}
+}
+
+func TestHookExec_EmptyDiffNoProgress(t *testing.T) {
+	defer resetRootCmd()
+	stubBin := stubtest.Build(t)
+	repoDir := hookexecNewTestRepo(t) // seed commit, nothing staged
+	cfg := writeTestStubConfig(t, stubBin)
+
+	msgFile := filepath.Join(t.TempDir(), "msg")
+	if err := os.WriteFile(msgFile, []byte("# comments\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(repoDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetArgs([]string{"--config", cfg, "hook", "exec", msgFile})
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+
+	err := rootCmd.ExecuteContext(context.TODO())
+	if err != nil {
+		t.Errorf("expected nil (exit 0), got: %v", err)
+	}
+	data, _ := os.ReadFile(msgFile)
+	if string(data) != "# comments\n" {
+		t.Errorf("msg-file was modified; got:\n%s", string(data))
+	}
+	if bytes.Contains(errBuf.Bytes(), []byte("Generating")) {
+		t.Errorf("progress line must NOT appear for an empty-diff no-op; stderr:\n%s", errBuf.String())
+	}
 }
 
 func TestHookExec_RangeArgs(t *testing.T) {
@@ -138,6 +176,9 @@ func TestHookExec_StrictFailureNonZero(t *testing.T) {
 	data, _ := os.ReadFile(msgFile)
 	if string(data) != "# comments\n" {
 		t.Errorf("msg-file was modified on strict failure; got:\n%s", string(data))
+	}
+	if !bytes.Contains(errBuf.Bytes(), []byte("Generating")) {
+		t.Errorf("progress line SHOULD fire for a real staged diff (regression guard); stderr:\n%s", errBuf.String())
 	}
 }
 

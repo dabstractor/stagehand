@@ -27,6 +27,10 @@ type Deps struct {
 	Manifest provider.Manifest // the provider manifest to Render+Execute (stub in tests)
 	Verbose  *ui.Verbose       // nil-safe --verbose diagnostics sink (P1.M4.T3.S2); logs retries here + passed to provider.Execute for command/raw-output logging
 	Excludes []string          // resolved user exclude pathspecs (from exclude.ResolveExcludePathspecs); nil ⇒ none
+	// Progress is an optional callback invoked by hook.Run after no-op gates pass (nil-safe —
+	// never called by CommitStaged). runHookExec sets it to emit the "Generating…" line
+	// only when generation is about to run.
+	Progress func()
 }
 
 // Result is the outcome of a successful CommitStaged. Carries everything the CLI
