@@ -1,0 +1,42 @@
+[
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go vet ./internal/generate/",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 2,
+    "description": "Level 2 gate",
+    "success": true,
+    "command": "go test ./internal/generate/ -run 'TestInvariant|TestStatic' -v -count=1",
+    "stdout": "=== RUN   TestInvariants_IdempotentIndexAcrossFailurePaths\n=== RUN   TestInvariants_IdempotentIndexAcrossFailurePaths/parse-fail\n=== RUN   TestInvariants_IdempotentIndexAcrossFailurePaths/timeout\n=== RUN   TestInvariants_IdempotentIndexAcrossFailurePaths/dup-exhaustion\n=== RUN   TestInvariants_IdempotentIndexAcrossFailurePaths/cas-fail\n--- PASS: TestInvariants_IdempotentIndexAcrossFailurePaths (0.73s)\n    --- PASS: TestInvariants_IdempotentIndexAcrossFailurePaths/parse-fail (0.16s)\n    --- PASS: TestInvariants_IdempotentIndexAcrossFailurePaths/timeout (0.52s)\n    --- PASS: TestInvariants_IdempotentIndexAcrossFailurePaths/dup-exhaustion (0.03s)\n    --- PASS: TestInvariants_IdempotentIndexAcrossFailurePaths/cas-fail (0.03s)\n=== RUN   TestInvariant_AtomicHEAD_CASFailureIsNoOp\n--- PASS: TestInvariant_AtomicHEAD_CASFailureIsNoOp (0.05s)\n=== RUN   TestInvariant_SnapshotImmutableAfterConcurrentStaging\n--- PASS: TestInvariant_SnapshotImmutableAfterConcurrentStaging (0.06s)\n=== RUN   TestStatic_NeverCallsGitCommit\n--- PASS: TestStatic_NeverCallsGitCommit (0.00s)\n=== RUN   TestStatic_NeverForceUpdatesRef\n--- PASS: TestStatic_NeverForceUpdatesRef (0.00s)\n=== RUN   TestStatic_UpdateRefOnlyCASGuarded\n--- PASS: TestStatic_UpdateRefOnlyCASGuarded (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/internal/generate\t0.860s\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 3,
+    "description": "Level 3 gate",
+    "success": true,
+    "command": "go test ./internal/generate/ -count=1",
+    "stdout": "ok  \tgithub.com/dustin/stagehand/internal/generate\t1.748s\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 4,
+    "description": "Level 4 gate",
+    "success": true,
+    "command": "gofmt -s -l internal/generate/invariants_test.go",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  }
+]

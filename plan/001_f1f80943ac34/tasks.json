@@ -392,7 +392,7 @@
           "id": "P1.M6",
           "type": "Milestone",
           "title": "Generation Orchestrator (the core IP)",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Build internal/generate: the two-nested-loop CommitStaged orchestrator (outer duplicate-rejection wrapping inner parse-correction), dedupe, the rescue protocol, signal handling (process-group kill + restore before commit), and the stub-provider integration harness with safety-invariant proofs. This is PRD §13 — the snapshot-based atomic-commit core and the product's defensibility. Integrates M2+M3+M4+M5. NEVER stages (v2 seam).",
           "tasks": [
             {
@@ -470,7 +470,7 @@
               "id": "P1.M6.T3",
               "type": "Task",
               "title": "Integration harness & safety-invariant proofs",
-              "status": "Planned",
+              "status": "Complete",
               "description": "The stub provider (fake agent), the end-to-end integration suite (temp-repo + stub driving CommitStaged across all paths), and the property tests asserting the §18.1 invariants. Test infra stands as its own unit (plan_overview §8).",
               "subtasks": [
                 {
@@ -500,7 +500,7 @@
                   "id": "P1.M6.T3.S3",
                   "type": "Subtask",
                   "title": "internal/generate/invariants_test.go — safety property tests (§18.1)",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M6.T3.S2"
