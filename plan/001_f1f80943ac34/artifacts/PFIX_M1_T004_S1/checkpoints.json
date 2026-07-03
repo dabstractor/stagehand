@@ -2,191 +2,6 @@
   "version": "1.0",
   "checkpoints": [
     {
-      "id": "PFIX_M1_T004_S1_1783069980490_complete_21dae417",
-      "taskId": "PFIX_M1_T004_S1",
-      "label": "Task completed successfully",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T004_S1.md",
-        "stage": "complete",
-        "coderResponse": "All gates green. The PRP `PFIX_M1_T004_S1` is fully implemented in a single pass.\n\n## Summary\n\n**BUG-004 fixed**: a generation timeout now exits `124` (`ui.ExitTimeout`) instead of `3` (`ui.ExitRescue`), per PRD §15.4, while the rescue block still prints and the repo stays unchanged.\n\n### Changes (5 files, minimal & surgical)\n\n1. **`internal/generate/generate.go`** — (A) added `\"fmt\"` to imports; (B) the run-error path of `CommitStaged` now preserves the cause via `fmt.Errorf(\"%w: %w\", ErrRescue, runErr)` (Go 1.20+ multi-wrap), so `errors.Is(err, ErrRescue)` stays **true** AND `errors.As(err, &provider.TimeoutError{})` becomes **true**. The signal-cancel (`context.Canceled`) path was left **bare** as required.\n\n2. **`cmd/stagehand/run.go`** — `mapErrorToExitCode` gained an `errors.As(err, &provider.TimeoutError{}) → ui.ExitTimeout (124)` branch placed **BEFORE** the `errors.Is(stagehand.ErrRescue)` branch (so timeout wins over rescue for a wrapped error that satisfies both). No new import (`provider`/`ui` already present). Doc comment corrected.\n\n3. **`docs/CONFIGURATION.md` §9 row 124** — rewrote \"Reserved … not returned today\" to document that a generation timeout exits 124 while still printing the rescue block (Mode A doc edit).\n\n4. **`cmd/stagehand/run_test.go`** — `TestMapErrorToExitCode` gained 3 cases (wrapped-timeout→124, bare-timeout→124, agent-error-wrapped-in-rescue→3) and a corrected comment; added `\"time\"` import.\n\n5. **`internal/generate/generate_test.go`** — `TestCommitStaged_Timeout` gained an `errors.As(err, &provider.TimeoutError{})` assertion proving the type survives the wrap.\n\n### Validation\n- **Level 1**: `go build`, `go vet`, `gofmt -s -l` (empty) — all clean.\n- **Level 2**: `go test ./internal/generate/`, `go test ./cmd/stagehand/`, `go test ./...` — all green, no regressions.\n- **Level 3 (e2e)**: built binary, ran in a temp repo — hanging provider + `--timeout 2s` → **exit 124** with rescue block printed + HEAD unchanged; failing provider (non-zero exit) → **exit 3** (non-timeout rescue unaffected).\n\nAll anti-patterns avoided: not a CLI-only fix, used the typed `*provider.TimeoutError` via `errors.As` (not `context.DeadlineExceeded`), timeout branch precedes the rescue branch, signal-cancel path left bare, no `ui.Exit*` constant / executor / signal-handler / public-surface changes, no new sentinel introduced.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\\\"%w: %w\\\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3.\"\n}\n```",
-        "coderResult": {
-          "result": "success",
-          "message": "BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\"%w: %w\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3."
-        },
-        "validationResults": [
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go build ./...",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go vet ./...",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./internal/generate/",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./cmd/stagehand/",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./...",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          }
-        ],
-        "timestamp": "2026-07-03T09:13:00.490Z"
-      },
-      "createdAt": "2026-07-03T09:13:00.490Z"
-    },
-    {
-      "id": "PFIX_M1_T004_S1_1783072637373_pre-execution_8ce443cd",
-      "taskId": "PFIX_M1_T004_S1",
-      "label": "Before Coder Agent execution",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T004_S1.md",
-        "stage": "pre-execution",
-        "validationResults": [],
-        "timestamp": "2026-07-03T09:57:17.373Z"
-      },
-      "createdAt": "2026-07-03T09:57:17.373Z"
-    },
-    {
-      "id": "PFIX_M1_T004_S1_1783072637374_coder-response_7611861b",
-      "taskId": "PFIX_M1_T004_S1",
-      "label": "After Coder Agent response",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T004_S1.md",
-        "stage": "coder-response",
-        "coderResponse": "All gates green. The PRP `PFIX_M1_T004_S1` is fully implemented in a single pass.\n\n## Summary\n\n**BUG-004 fixed**: a generation timeout now exits `124` (`ui.ExitTimeout`) instead of `3` (`ui.ExitRescue`), per PRD §15.4, while the rescue block still prints and the repo stays unchanged.\n\n### Changes (5 files, minimal & surgical)\n\n1. **`internal/generate/generate.go`** — (A) added `\"fmt\"` to imports; (B) the run-error path of `CommitStaged` now preserves the cause via `fmt.Errorf(\"%w: %w\", ErrRescue, runErr)` (Go 1.20+ multi-wrap), so `errors.Is(err, ErrRescue)` stays **true** AND `errors.As(err, &provider.TimeoutError{})` becomes **true**. The signal-cancel (`context.Canceled`) path was left **bare** as required.\n\n2. **`cmd/stagehand/run.go`** — `mapErrorToExitCode` gained an `errors.As(err, &provider.TimeoutError{}) → ui.ExitTimeout (124)` branch placed **BEFORE** the `errors.Is(stagehand.ErrRescue)` branch (so timeout wins over rescue for a wrapped error that satisfies both). No new import (`provider`/`ui` already present). Doc comment corrected.\n\n3. **`docs/CONFIGURATION.md` §9 row 124** — rewrote \"Reserved … not returned today\" to document that a generation timeout exits 124 while still printing the rescue block (Mode A doc edit).\n\n4. **`cmd/stagehand/run_test.go`** — `TestMapErrorToExitCode` gained 3 cases (wrapped-timeout→124, bare-timeout→124, agent-error-wrapped-in-rescue→3) and a corrected comment; added `\"time\"` import.\n\n5. **`internal/generate/generate_test.go`** — `TestCommitStaged_Timeout` gained an `errors.As(err, &provider.TimeoutError{})` assertion proving the type survives the wrap.\n\n### Validation\n- **Level 1**: `go build`, `go vet`, `gofmt -s -l` (empty) — all clean.\n- **Level 2**: `go test ./internal/generate/`, `go test ./cmd/stagehand/`, `go test ./...` — all green, no regressions.\n- **Level 3 (e2e)**: built binary, ran in a temp repo — hanging provider + `--timeout 2s` → **exit 124** with rescue block printed + HEAD unchanged; failing provider (non-zero exit) → **exit 3** (non-timeout rescue unaffected).\n\nAll anti-patterns avoided: not a CLI-only fix, used the typed `*provider.TimeoutError` via `errors.As` (not `context.DeadlineExceeded`), timeout branch precedes the rescue branch, signal-cancel path left bare, no `ui.Exit*` constant / executor / signal-handler / public-surface changes, no new sentinel introduced.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\\\"%w: %w\\\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3.\"\n}\n```",
-        "coderResult": {
-          "result": "success",
-          "message": "BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\"%w: %w\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3."
-        },
-        "validationResults": [],
-        "timestamp": "2026-07-03T09:57:17.374Z"
-      },
-      "createdAt": "2026-07-03T09:57:17.374Z"
-    },
-    {
-      "id": "PFIX_M1_T004_S1_1783072637842_validation-gate-2_faed31d1",
-      "taskId": "PFIX_M1_T004_S1",
-      "label": "After validation gate 2",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T004_S1.md",
-        "stage": "validation-gate-2",
-        "coderResponse": "All gates green. The PRP `PFIX_M1_T004_S1` is fully implemented in a single pass.\n\n## Summary\n\n**BUG-004 fixed**: a generation timeout now exits `124` (`ui.ExitTimeout`) instead of `3` (`ui.ExitRescue`), per PRD §15.4, while the rescue block still prints and the repo stays unchanged.\n\n### Changes (5 files, minimal & surgical)\n\n1. **`internal/generate/generate.go`** — (A) added `\"fmt\"` to imports; (B) the run-error path of `CommitStaged` now preserves the cause via `fmt.Errorf(\"%w: %w\", ErrRescue, runErr)` (Go 1.20+ multi-wrap), so `errors.Is(err, ErrRescue)` stays **true** AND `errors.As(err, &provider.TimeoutError{})` becomes **true**. The signal-cancel (`context.Canceled`) path was left **bare** as required.\n\n2. **`cmd/stagehand/run.go`** — `mapErrorToExitCode` gained an `errors.As(err, &provider.TimeoutError{}) → ui.ExitTimeout (124)` branch placed **BEFORE** the `errors.Is(stagehand.ErrRescue)` branch (so timeout wins over rescue for a wrapped error that satisfies both). No new import (`provider`/`ui` already present). Doc comment corrected.\n\n3. **`docs/CONFIGURATION.md` §9 row 124** — rewrote \"Reserved … not returned today\" to document that a generation timeout exits 124 while still printing the rescue block (Mode A doc edit).\n\n4. **`cmd/stagehand/run_test.go`** — `TestMapErrorToExitCode` gained 3 cases (wrapped-timeout→124, bare-timeout→124, agent-error-wrapped-in-rescue→3) and a corrected comment; added `\"time\"` import.\n\n5. **`internal/generate/generate_test.go`** — `TestCommitStaged_Timeout` gained an `errors.As(err, &provider.TimeoutError{})` assertion proving the type survives the wrap.\n\n### Validation\n- **Level 1**: `go build`, `go vet`, `gofmt -s -l` (empty) — all clean.\n- **Level 2**: `go test ./internal/generate/`, `go test ./cmd/stagehand/`, `go test ./...` — all green, no regressions.\n- **Level 3 (e2e)**: built binary, ran in a temp repo — hanging provider + `--timeout 2s` → **exit 124** with rescue block printed + HEAD unchanged; failing provider (non-zero exit) → **exit 3** (non-timeout rescue unaffected).\n\nAll anti-patterns avoided: not a CLI-only fix, used the typed `*provider.TimeoutError` via `errors.As` (not `context.DeadlineExceeded`), timeout branch precedes the rescue branch, signal-cancel path left bare, no `ui.Exit*` constant / executor / signal-handler / public-surface changes, no new sentinel introduced.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\\\"%w: %w\\\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3.\"\n}\n```",
-        "coderResult": {
-          "result": "success",
-          "message": "BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\"%w: %w\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3."
-        },
-        "validationResults": [
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go build ./...",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go vet ./...",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./internal/generate/",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./cmd/stagehand/",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./...",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          }
-        ],
-        "timestamp": "2026-07-03T09:57:17.842Z"
-      },
-      "createdAt": "2026-07-03T09:57:17.842Z"
-    },
-    {
       "id": "PFIX_M1_T004_S1_1783072637843_complete_55cf43eb",
       "taskId": "PFIX_M1_T004_S1",
       "label": "Task completed successfully",
@@ -263,7 +78,192 @@
         "timestamp": "2026-07-03T09:57:17.843Z"
       },
       "createdAt": "2026-07-03T09:57:17.843Z"
+    },
+    {
+      "id": "PFIX_M1_T004_S1_1783072639792_pre-execution_ee4801ab",
+      "taskId": "PFIX_M1_T004_S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T004_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-03T09:57:19.792Z"
+      },
+      "createdAt": "2026-07-03T09:57:19.792Z"
+    },
+    {
+      "id": "PFIX_M1_T004_S1_1783072639793_coder-response_4e5f9f5d",
+      "taskId": "PFIX_M1_T004_S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T004_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "All gates green. The PRP `PFIX_M1_T004_S1` is fully implemented in a single pass.\n\n## Summary\n\n**BUG-004 fixed**: a generation timeout now exits `124` (`ui.ExitTimeout`) instead of `3` (`ui.ExitRescue`), per PRD §15.4, while the rescue block still prints and the repo stays unchanged.\n\n### Changes (5 files, minimal & surgical)\n\n1. **`internal/generate/generate.go`** — (A) added `\"fmt\"` to imports; (B) the run-error path of `CommitStaged` now preserves the cause via `fmt.Errorf(\"%w: %w\", ErrRescue, runErr)` (Go 1.20+ multi-wrap), so `errors.Is(err, ErrRescue)` stays **true** AND `errors.As(err, &provider.TimeoutError{})` becomes **true**. The signal-cancel (`context.Canceled`) path was left **bare** as required.\n\n2. **`cmd/stagehand/run.go`** — `mapErrorToExitCode` gained an `errors.As(err, &provider.TimeoutError{}) → ui.ExitTimeout (124)` branch placed **BEFORE** the `errors.Is(stagehand.ErrRescue)` branch (so timeout wins over rescue for a wrapped error that satisfies both). No new import (`provider`/`ui` already present). Doc comment corrected.\n\n3. **`docs/CONFIGURATION.md` §9 row 124** — rewrote \"Reserved … not returned today\" to document that a generation timeout exits 124 while still printing the rescue block (Mode A doc edit).\n\n4. **`cmd/stagehand/run_test.go`** — `TestMapErrorToExitCode` gained 3 cases (wrapped-timeout→124, bare-timeout→124, agent-error-wrapped-in-rescue→3) and a corrected comment; added `\"time\"` import.\n\n5. **`internal/generate/generate_test.go`** — `TestCommitStaged_Timeout` gained an `errors.As(err, &provider.TimeoutError{})` assertion proving the type survives the wrap.\n\n### Validation\n- **Level 1**: `go build`, `go vet`, `gofmt -s -l` (empty) — all clean.\n- **Level 2**: `go test ./internal/generate/`, `go test ./cmd/stagehand/`, `go test ./...` — all green, no regressions.\n- **Level 3 (e2e)**: built binary, ran in a temp repo — hanging provider + `--timeout 2s` → **exit 124** with rescue block printed + HEAD unchanged; failing provider (non-zero exit) → **exit 3** (non-timeout rescue unaffected).\n\nAll anti-patterns avoided: not a CLI-only fix, used the typed `*provider.TimeoutError` via `errors.As` (not `context.DeadlineExceeded`), timeout branch precedes the rescue branch, signal-cancel path left bare, no `ui.Exit*` constant / executor / signal-handler / public-surface changes, no new sentinel introduced.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\\\"%w: %w\\\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\"%w: %w\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-03T09:57:19.793Z"
+      },
+      "createdAt": "2026-07-03T09:57:19.793Z"
+    },
+    {
+      "id": "PFIX_M1_T004_S1_1783072640238_validation-gate-2_3a789e4a",
+      "taskId": "PFIX_M1_T004_S1",
+      "label": "After validation gate 2",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T004_S1.md",
+        "stage": "validation-gate-2",
+        "coderResponse": "All gates green. The PRP `PFIX_M1_T004_S1` is fully implemented in a single pass.\n\n## Summary\n\n**BUG-004 fixed**: a generation timeout now exits `124` (`ui.ExitTimeout`) instead of `3` (`ui.ExitRescue`), per PRD §15.4, while the rescue block still prints and the repo stays unchanged.\n\n### Changes (5 files, minimal & surgical)\n\n1. **`internal/generate/generate.go`** — (A) added `\"fmt\"` to imports; (B) the run-error path of `CommitStaged` now preserves the cause via `fmt.Errorf(\"%w: %w\", ErrRescue, runErr)` (Go 1.20+ multi-wrap), so `errors.Is(err, ErrRescue)` stays **true** AND `errors.As(err, &provider.TimeoutError{})` becomes **true**. The signal-cancel (`context.Canceled`) path was left **bare** as required.\n\n2. **`cmd/stagehand/run.go`** — `mapErrorToExitCode` gained an `errors.As(err, &provider.TimeoutError{}) → ui.ExitTimeout (124)` branch placed **BEFORE** the `errors.Is(stagehand.ErrRescue)` branch (so timeout wins over rescue for a wrapped error that satisfies both). No new import (`provider`/`ui` already present). Doc comment corrected.\n\n3. **`docs/CONFIGURATION.md` §9 row 124** — rewrote \"Reserved … not returned today\" to document that a generation timeout exits 124 while still printing the rescue block (Mode A doc edit).\n\n4. **`cmd/stagehand/run_test.go`** — `TestMapErrorToExitCode` gained 3 cases (wrapped-timeout→124, bare-timeout→124, agent-error-wrapped-in-rescue→3) and a corrected comment; added `\"time\"` import.\n\n5. **`internal/generate/generate_test.go`** — `TestCommitStaged_Timeout` gained an `errors.As(err, &provider.TimeoutError{})` assertion proving the type survives the wrap.\n\n### Validation\n- **Level 1**: `go build`, `go vet`, `gofmt -s -l` (empty) — all clean.\n- **Level 2**: `go test ./internal/generate/`, `go test ./cmd/stagehand/`, `go test ./...` — all green, no regressions.\n- **Level 3 (e2e)**: built binary, ran in a temp repo — hanging provider + `--timeout 2s` → **exit 124** with rescue block printed + HEAD unchanged; failing provider (non-zero exit) → **exit 3** (non-timeout rescue unaffected).\n\nAll anti-patterns avoided: not a CLI-only fix, used the typed `*provider.TimeoutError` via `errors.As` (not `context.DeadlineExceeded`), timeout branch precedes the rescue branch, signal-cancel path left bare, no `ui.Exit*` constant / executor / signal-handler / public-surface changes, no new sentinel introduced.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\\\"%w: %w\\\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\"%w: %w\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/generate/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T09:57:20.238Z"
+      },
+      "createdAt": "2026-07-03T09:57:20.238Z"
+    },
+    {
+      "id": "PFIX_M1_T004_S1_1783072640239_complete_5a016d0a",
+      "taskId": "PFIX_M1_T004_S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T004_S1.md",
+        "stage": "complete",
+        "coderResponse": "All gates green. The PRP `PFIX_M1_T004_S1` is fully implemented in a single pass.\n\n## Summary\n\n**BUG-004 fixed**: a generation timeout now exits `124` (`ui.ExitTimeout`) instead of `3` (`ui.ExitRescue`), per PRD §15.4, while the rescue block still prints and the repo stays unchanged.\n\n### Changes (5 files, minimal & surgical)\n\n1. **`internal/generate/generate.go`** — (A) added `\"fmt\"` to imports; (B) the run-error path of `CommitStaged` now preserves the cause via `fmt.Errorf(\"%w: %w\", ErrRescue, runErr)` (Go 1.20+ multi-wrap), so `errors.Is(err, ErrRescue)` stays **true** AND `errors.As(err, &provider.TimeoutError{})` becomes **true**. The signal-cancel (`context.Canceled`) path was left **bare** as required.\n\n2. **`cmd/stagehand/run.go`** — `mapErrorToExitCode` gained an `errors.As(err, &provider.TimeoutError{}) → ui.ExitTimeout (124)` branch placed **BEFORE** the `errors.Is(stagehand.ErrRescue)` branch (so timeout wins over rescue for a wrapped error that satisfies both). No new import (`provider`/`ui` already present). Doc comment corrected.\n\n3. **`docs/CONFIGURATION.md` §9 row 124** — rewrote \"Reserved … not returned today\" to document that a generation timeout exits 124 while still printing the rescue block (Mode A doc edit).\n\n4. **`cmd/stagehand/run_test.go`** — `TestMapErrorToExitCode` gained 3 cases (wrapped-timeout→124, bare-timeout→124, agent-error-wrapped-in-rescue→3) and a corrected comment; added `\"time\"` import.\n\n5. **`internal/generate/generate_test.go`** — `TestCommitStaged_Timeout` gained an `errors.As(err, &provider.TimeoutError{})` assertion proving the type survives the wrap.\n\n### Validation\n- **Level 1**: `go build`, `go vet`, `gofmt -s -l` (empty) — all clean.\n- **Level 2**: `go test ./internal/generate/`, `go test ./cmd/stagehand/`, `go test ./...` — all green, no regressions.\n- **Level 3 (e2e)**: built binary, ran in a temp repo — hanging provider + `--timeout 2s` → **exit 124** with rescue block printed + HEAD unchanged; failing provider (non-zero exit) → **exit 3** (non-timeout rescue unaffected).\n\nAll anti-patterns avoided: not a CLI-only fix, used the typed `*provider.TimeoutError` via `errors.As` (not `context.DeadlineExceeded`), timeout branch precedes the rescue branch, signal-cancel path left bare, no `ui.Exit*` constant / executor / signal-handler / public-surface changes, no new sentinel introduced.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\\\"%w: %w\\\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "BUG-004 fixed in one pass. A generation timeout now exits 124 (ui.ExitTimeout) instead of 3 while the rescue block still prints and the repo is unchanged. Two coordinated code edits: internal/generate/generate.go preserves the run-error cause via fmt.Errorf(\"%w: %w\", ErrRescue, runErr) (Go 1.20+ multi-wrap) — keeping errors.Is(err,ErrRescue)==true AND errors.As(err,&provider.TimeoutError{})==true; cmd/stagehand/run.go mapErrorToExitCode detects the typed *provider.TimeoutError via errors.As BEFORE the ErrRescue branch and returns ui.ExitTimeout(124). Signal-cancel path left bare; non-timeout rescues (agent-error/parse-fail/dup-exhaustion/post-snapshot git error) still exit 3. Mode A doc edit applied (docs/CONFIGURATION.md §9 row 124). Added 3 mapErrorToExitCode test cases (wrapped-timeout→124, bare-timeout→124, agenterror-wrapped→3) and an errors.As assertion to TestCommitStaged_Timeout. All gates green: go build/vet/gofmt(empty), go test ./internal/generate/, go test ./cmd/stagehand/, go test ./... — no regressions. End-to-end reproduction confirmed: hanging provider + --timeout 2s → exit 124 with rescue block printed + HEAD unchanged; failing provider → exit 3."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/generate/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T09:57:20.239Z"
+      },
+      "createdAt": "2026-07-03T09:57:20.239Z"
     }
   ],
-  "lastModified": "2026-07-03T09:57:17.843Z"
+  "lastModified": "2026-07-03T09:57:20.239Z"
 }
