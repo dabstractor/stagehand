@@ -88,3 +88,7 @@ strip_code_fence = true             # strip one layer of ``` / ~~~ if the agent 
 high = ["--effort", "high"]
 medium = ["--effort", "medium"]
 low = ["--effort", "low"]
+
+# --- absent fields (PRD §12.1) ---
+# list_models_command, subcommand, prompt_flag, json_field, retry_instruction, default_provider,
+# and [env] are NOT set for claude and therefore omitted above.

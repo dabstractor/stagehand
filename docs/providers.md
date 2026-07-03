@@ -1,6 +1,6 @@
 # Provider manifests
 
-Full reference for Stagehand's provider manifest system: the 19-field schema, command-rendering algorithm, the 8 built-in providers, the tools-disable asymmetry, adding a new agent, and output parsing. Matches the Go source in `internal/provider/` and the shipped `providers/*.toml` files.
+Full reference for Stagehand's provider manifest system: the 21-field schema, command-rendering algorithm, the 8 built-in providers, the tools-disable asymmetry, adding a new agent, and output parsing. Matches the Go source in `internal/provider/` and the shipped `providers/*.toml` files.
 
 ## What a manifest is
 
@@ -10,13 +10,14 @@ See the [shipped `providers/*.toml` files](../providers/) for human-readable ref
 
 ## The schema
 
-Each manifest has 18 fields (matching the TOML tags in `internal/provider/manifest.go`):
+Each manifest has 21 fields (matching the TOML tags in `internal/provider/manifest.go`):
 
 | Field | Type | Default | Purpose |
 |-------|------|---------|---------|
 | `name` | string | (required) | Provider identity; set from the `[provider.<name>]` table key. |
 | `detect` | string | `command` | Binary to probe on `$PATH` for auto-detection. |
 | `command` | string | (required) | The executable to run. |
+| `list_models_command` | list of string | `[]` (none) | Full argv that asks the agent CLI to list its reachable models (e.g. `["opencode", "models"]`), used by `stagehand models`. Empty/nil ⇒ stagehand prints its curated per-role tier table instead (FR-L1). Populated only for providers whose CLI exposes a verified listing (opencode, pi, agy, cursor); never an HTTP call (§6.2 N2). |
 | `subcommand` | list of string | `[]` (none) | Inserted between command and flags (e.g. `["run"]`, `["exec"]`). |
 | `prompt_delivery` | string | `"stdin"` | How to deliver the prompt: `stdin`, `positional`, or `flag`. |
 | `prompt_flag` | string | `""` | Flag used when `prompt_delivery` is `"flag"`. |

@@ -76,7 +76,7 @@ strip_code_fence = true             # strip one layer of ``` / ~~~ if the agent 
 # message to file), --json (JSONL events). Resolved by the real-agent suite (P1.M5.T1.S2).
 
 # --- absent fields (PRD §12.1) ---
-# prompt_flag, json_field, retry_instruction, and [env] are NOT set for codex and therefore
+# list_models_command, prompt_flag, json_field, retry_instruction, and [env] are NOT set for codex and therefore
 # omitted above. At resolve time they take their §12.1 defaults: prompt_delivery -> "stdin",
 # output -> "raw", strip_code_fence -> true, retry_instruction ->
 # "Output ONLY the commit message. No preamble, no markdown, no quotes.",

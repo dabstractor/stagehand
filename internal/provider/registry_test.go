@@ -224,6 +224,63 @@ func TestMarshalTOML_ReflectsMerge(t *testing.T) {
 	}
 }
 
+// TestMarshalTOML_ListModelsCommandPopulated asserts that MarshalTOML emits list_models_command
+// for a populated built-in (opencode). Proves MarshalTOML needs no body edit — toml.Marshal is reflective.
+func TestMarshalTOML_ListModelsCommandPopulated(t *testing.T) {
+	r := NewRegistry(nil)
+	s, err := r.MarshalTOML("opencode")
+	if err != nil {
+		t.Fatalf("MarshalTOML(opencode): %v", err)
+	}
+	var decoded Manifest
+	if err := toml.Unmarshal([]byte(s), &decoded); err != nil {
+		t.Fatalf("re-decode: %v", err)
+	}
+	if !reflect.DeepEqual(decoded.ListModelsCommand, []string{"opencode", "models"}) {
+		t.Errorf("opencode list_models_command = %v, want [\"opencode\",\"models\"]", decoded.ListModelsCommand)
+	}
+}
+
+// TestMarshalTOML_ListModelsCommandNil asserts that MarshalTOML emits a nil-compatible list_models_command
+// for a built-in that has no verified listing (claude). go-toml marshals nil []string as `key = []`;
+// this is display-only and harmless — matches how nil subcommand already renders.
+func TestMarshalTOML_ListModelsCommandNil(t *testing.T) {
+	r := NewRegistry(nil)
+	s, err := r.MarshalTOML("claude")
+	if err != nil {
+		t.Fatalf("MarshalTOML(claude): %v", err)
+	}
+	var decoded Manifest
+	if err := toml.Unmarshal([]byte(s), &decoded); err != nil {
+		t.Fatalf("re-decode: %v", err)
+	}
+	// Nil slices marshal as [] then decode to non-nil empty — both are "absent" semantically.
+	if len(decoded.ListModelsCommand) != 0 {
+		t.Errorf("claude list_models_command = %v, want empty/nil", decoded.ListModelsCommand)
+	}
+}
+
+// TestMarshalTOML_UserOverrideListModelsCommand asserts that a user [provider.x] block setting
+// list_models_command is honored by the existing merge path (slice regime 2).
+func TestMarshalTOML_UserOverrideListModelsCommand(t *testing.T) {
+	r := NewRegistry(map[string]Manifest{"myagent": {
+		Command:           strPtr("/opt/agent"),
+		PromptDelivery:    strPtr("stdin"),
+		ListModelsCommand: []string{"myagent", "list"},
+	}})
+	s, err := r.MarshalTOML("myagent")
+	if err != nil {
+		t.Fatalf("MarshalTOML(myagent): %v", err)
+	}
+	var decoded Manifest
+	if err := toml.Unmarshal([]byte(s), &decoded); err != nil {
+		t.Fatalf("re-decode: %v", err)
+	}
+	if !reflect.DeepEqual(decoded.ListModelsCommand, []string{"myagent", "list"}) {
+		t.Errorf("myagent list_models_command = %v, want [\"myagent\",\"list\"]", decoded.ListModelsCommand)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // 11. DefaultProvider: pi preferred; falls through; "" if none; ignores user-defined
 // ---------------------------------------------------------------------------

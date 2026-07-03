@@ -35,10 +35,11 @@ var (
 // Decode target + merge participant + (after Resolve) consumed value — one struct, three roles.
 type Manifest struct {
 	// --- discovery (§12.1) ---
-	Name       string   `toml:"name"`       // REQUIRED. The identity; registry sets this from the table key.
-	Detect     *string  `toml:"detect"`     // nil/"" => DetectCommand falls back to Command.
-	Command    *string  `toml:"command"`    // REQUIRED (post-merge). nil in a partial override => inherit.
-	Subcommand []string `toml:"subcommand"` // nil => none; inserted between command and flags.
+	Name              string   `toml:"name"`                // REQUIRED. The identity; registry sets this from the table key.
+	Detect            *string  `toml:"detect"`              // nil/"" => DetectCommand falls back to Command.
+	Command           *string  `toml:"command"`             // REQUIRED (post-merge). nil in a partial override => inherit.
+	ListModelsCommand []string `toml:"list_models_command"` // nil/empty => no listing command (FR-L1 falls back to FR-D4 curated table); populated ONLY for verified providers (FR-D5); NEVER an HTTP call (§6.2 N2).
+	Subcommand        []string `toml:"subcommand"`          // nil => none; inserted between command and flags.
 
 	// --- prompt delivery (§12.1) ---
 	PromptDelivery *string `toml:"prompt_delivery"` // stdin|positional|flag; nil => Resolve→"stdin".

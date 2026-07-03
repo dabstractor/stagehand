@@ -481,14 +481,14 @@
               "type": "Task",
               "id": "P1.M6.T1",
               "title": "Model listing",
-              "status": "Planned",
+              "status": "Researching",
               "description": "The list_models_command manifest field (FR-L2) and the `models` command (FR-L1).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M6.T1.S1",
                   "title": "Manifest field list_models_command across schema, built-ins, and reference TOMLs",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — Manifest lives in `internal/provider/manifest.go`; ANY field addition must also touch `merge.go` (MergeManifest), `registry.go` (MarshalTOML), `builtin.go` (all 8 built-ins), and `providers/*.toml`, whose parity is asserted by `referencefiles_test.go`. external_deps.md §9: only opencode's `opencode models` is the known listing CLI — populate ONLY where verified against the live CLI in-task (Appendix E #17), record the verification date in a source comment.\n2. INPUT: none — schema change at the root of this milestone.\n3. LOGIC: add optional `ListModelsCommand []string` (`list_models_command`, default empty) to the Manifest struct with override-if-set merge semantics matching the other slice fields; extend MarshalTOML so `providers show` displays it; update all 8 built-ins (empty by default) and the reference TOMLs; verify per-provider listing support against each installed CLI's --help and populate only confirmed entries (expected: opencode → [\"opencode\", \"models\"]).\n4. OUTPUT: `Manifest.ListModelsCommand` consumed by P1.M6.T1.S2; user-defined providers can set it via [provider.<name>] blocks for free (existing DecodeUserOverrides path).\n5. DOCS: [Mode A] docs/providers.md — manifest field reference (field, default, semantics: never an HTTP call).",
@@ -505,7 +505,7 @@
                   "type": "Subtask",
                   "id": "P1.M6.T1.S2",
                   "title": "`stagehand models [<provider>]` command with curated-table fallback",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M6.T1.S1"

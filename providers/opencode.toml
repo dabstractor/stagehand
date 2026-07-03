@@ -29,6 +29,7 @@
 name = "opencode"                   # identity; the value you pass to --provider.
 detect = "opencode"                 # command looked up on $PATH to decide "installed".
 command = "opencode"                # the executable to run (exec.LookPath; may be absolute).
+list_models_command = ["opencode", "models"]  # VERIFIED 2026-07-03 via `opencode models` (exit 0); FR-L2/FR-D5. Never an HTTP call (§6.2 N2).
 
 # --- subcommand ---
 subcommand = ["run"]                # `opencode run` is non-interactive and prints the final message to stdout.
@@ -62,7 +63,7 @@ output = "raw"                      # cleaned stdout IS the commit message (DEFA
 strip_code_fence = true             # strip one layer of ``` / ~~~ if the agent wraps the output.
 
 # --- absent fields (PRD §12.1) ---
-# prompt_flag, json_field, retry_instruction, and [env] are NOT set for opencode and therefore
+# list_models_command, prompt_flag, json_field, retry_instruction, and [env] are NOT set for opencode and therefore
 # omitted above. At resolve time they take their §12.1 defaults: prompt_delivery -> "stdin",
 # output -> "raw", strip_code_fence -> true, retry_instruction ->
 # "Output ONLY the commit message. No preamble, no markdown, no quotes.",

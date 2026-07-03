@@ -93,6 +93,11 @@ func TestMergeManifest_PartialOverride_OnlyTouchedFieldChanges(t *testing.T) {
 		t.Errorf("Experimental = %v, want %v", merged.Experimental, base.Experimental)
 	}
 
+	// ListModelsCommand must match base.
+	if !reflect.DeepEqual(merged.ListModelsCommand, base.ListModelsCommand) {
+		t.Errorf("ListModelsCommand = %v, want %v", merged.ListModelsCommand, base.ListModelsCommand)
+	}
+
 	// Env must match base.
 	if !reflect.DeepEqual(merged.Env, base.Env) {
 		t.Errorf("Env = %v, want %v", merged.Env, base.Env)
@@ -129,8 +134,9 @@ func TestMergeManifest_ExplicitZeroPointerWins(t *testing.T) {
 func TestMergeManifest_NonEmptySliceReplacesWholesale(t *testing.T) {
 	base := sampleBase()
 	override := Manifest{
-		BareFlags:  []string{"--x"},
-		Subcommand: []string{"run"},
+		BareFlags:         []string{"--x"},
+		Subcommand:        []string{"run"},
+		ListModelsCommand: []string{"myagent", "list"},
 	}
 	merged := MergeManifest(base, override)
 
@@ -139,6 +145,9 @@ func TestMergeManifest_NonEmptySliceReplacesWholesale(t *testing.T) {
 	}
 	if !reflect.DeepEqual(merged.Subcommand, []string{"run"}) {
 		t.Errorf("Subcommand = %v, want [\"run\"] (wholesale replace)", merged.Subcommand)
+	}
+	if !reflect.DeepEqual(merged.ListModelsCommand, []string{"myagent", "list"}) {
+		t.Errorf("ListModelsCommand = %v, want [\"myagent\",\"list\"] (wholesale replace)", merged.ListModelsCommand)
 	}
 }
 
@@ -157,6 +166,12 @@ func TestMergeManifest_TooledFlagsReplacedWholesale(t *testing.T) {
 	// The OTHER flag slice must be untouched.
 	if !reflect.DeepEqual(merged.BareFlags, base.BareFlags) {
 		t.Errorf("BareFlags = %v, want %v (untouched)", merged.BareFlags, base.BareFlags)
+	}
+	if !reflect.DeepEqual(merged.Subcommand, base.Subcommand) {
+		t.Errorf("Subcommand = %v, want %v (untouched)", merged.Subcommand, base.Subcommand)
+	}
+	if !reflect.DeepEqual(merged.ListModelsCommand, base.ListModelsCommand) {
+		t.Errorf("ListModelsCommand = %v, want %v (untouched)", merged.ListModelsCommand, base.ListModelsCommand)
 	}
 }
 
@@ -178,11 +193,15 @@ func TestMergeManifest_EmptyOrNilSlicePreservesBase(t *testing.T) {
 	if !reflect.DeepEqual(mergedNil.TooledFlags, base.TooledFlags) {
 		t.Errorf("nil override: TooledFlags = %v, want %v", mergedNil.TooledFlags, base.TooledFlags)
 	}
+	if !reflect.DeepEqual(mergedNil.ListModelsCommand, base.ListModelsCommand) {
+		t.Errorf("nil override: ListModelsCommand = %v, want %v", mergedNil.ListModelsCommand, base.ListModelsCommand)
+	}
 
 	// (b) non-nil empty slice → treated as "not overridden" (keep base)
 	mergedEmpty := MergeManifest(base, Manifest{
-		Subcommand:  []string{}, // non-nil but empty
-		TooledFlags: []string{},
+		Subcommand:        []string{}, // non-nil but empty
+		TooledFlags:       []string{},
+		ListModelsCommand: []string{},
 	})
 	if !reflect.DeepEqual(mergedEmpty.Subcommand, base.Subcommand) {
 		t.Errorf("empty override: Subcommand = %v, want %v", mergedEmpty.Subcommand, base.Subcommand)

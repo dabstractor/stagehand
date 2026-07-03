@@ -41,15 +41,16 @@ func BuiltinManifests() map[string]Manifest {
 // picks the backend (inference provider) via the model slash-prefix (v3 FR-R5b).
 func builtinPi() Manifest {
 	return Manifest{
-		Name:             "pi",
-		Detect:           strPtr("pi"),
-		Command:          strPtr("pi"),
-		PromptDelivery:   strPtr("stdin"),
-		PrintFlag:        strPtr("-p"),
-		ModelFlag:        strPtr("--model"),
-		DefaultModel:     strPtr(""), // FR-D2: was glm-5-turbo; decoupled from any one subscription
-		SystemPromptFlag: strPtr("--system-prompt"),
-		ProviderFlag:     strPtr("--provider"),
+		Name:              "pi",
+		Detect:            strPtr("pi"),
+		Command:           strPtr("pi"),
+		ListModelsCommand: []string{"pi", "--list-models"}, // VERIFIED 2026-07-03 via `pi --list-models` (exit 0); FLAG form, not a subcommand. FR-L2/FR-D5.
+		PromptDelivery:    strPtr("stdin"),
+		PrintFlag:         strPtr("-p"),
+		ModelFlag:         strPtr("--model"),
+		DefaultModel:      strPtr(""), // FR-D2: was glm-5-turbo; decoupled from any one subscription
+		SystemPromptFlag:  strPtr("--system-prompt"),
+		ProviderFlag:      strPtr("--provider"),
 		BareFlags: []string{
 			"--no-tools",
 			"--no-extensions",
@@ -199,15 +200,16 @@ func builtinGemini() Manifest {
 // like gemini). agy is the Gemini-lineage twin of gemini, differing in default_model + Experimental.
 func builtinAgy() Manifest {
 	return Manifest{
-		Name:             "agy",
-		Detect:           strPtr("agy"),
-		Command:          strPtr("agy"),
-		PromptDelivery:   strPtr("stdin"),
-		PrintFlag:        strPtr("-p"),
-		ModelFlag:        strPtr("-m"),
-		DefaultModel:     strPtr("gemini-3.1-pro"), // WAS gemini-2.5-pro — refreshed per FR-D5 (verified 2026-07-02)
-		SystemPromptFlag: strPtr(""),               // §12.5.1 NON-NIL empty — no sys flag; sys prepended to payload (§12.2)
-		ProviderFlag:     strPtr(""),               // §12.5.1 NON-NIL empty — agy has no sub-provider
+		Name:              "agy",
+		Detect:            strPtr("agy"),
+		Command:           strPtr("agy"),
+		ListModelsCommand: []string{"agy", "models"}, // VERIFIED 2026-07-03 via `agy models` (exit 0); FR-L2/FR-D5.
+		PromptDelivery:    strPtr("stdin"),
+		PrintFlag:         strPtr("-p"),
+		ModelFlag:         strPtr("-m"),
+		DefaultModel:      strPtr("gemini-3.1-pro"), // WAS gemini-2.5-pro — refreshed per FR-D5 (verified 2026-07-02)
+		SystemPromptFlag:  strPtr(""),               // §12.5.1 NON-NIL empty — no sys flag; sys prepended to payload (§12.2)
+		ProviderFlag:      strPtr(""),               // §12.5.1 NON-NIL empty — agy has no sub-provider
 		BareFlags: []string{
 			"--approval-mode", "default", // read-only, never-ask profile (don't auto-run tools)
 		},
@@ -276,19 +278,20 @@ func builtinQwenCode() Manifest {
 // (FINDING D). (4) ReasoningLevels is nil — §12.6 OMITS the key.
 func builtinOpenCode() Manifest {
 	return Manifest{
-		Name:             "opencode",
-		Detect:           strPtr("opencode"),
-		Command:          strPtr("opencode"),
-		Subcommand:       []string{"run"}, // §12.6 `subcommand = ["run"]` → NON-NIL 1-element slice
-		PromptDelivery:   strPtr("positional"),
-		PrintFlag:        strPtr(""), // §12.6 explicit empty (NON-NIL) — `run` is already non-interactive
-		ModelFlag:        strPtr("-m"),
-		DefaultModel:     strPtr(""), // §12.6 explicit empty (NON-NIL) — user MUST set model (Appx E #3)
-		SystemPromptFlag: strPtr(""), // §12.6 explicit empty (NON-NIL) — no sys flag on `run`; sys prepended (§12.2)
-		ProviderFlag:     strPtr(""), // §12.6 explicit empty (NON-NIL) — provider is part of the model string
-		BareFlags:        []string{}, // §12.6 `bare_flags = []` → NON-NIL empty slice (FINDING D); do NOT omit
-		Output:           strPtr("raw"),
-		StripCodeFence:   boolPtr(true),
+		Name:              "opencode",
+		Detect:            strPtr("opencode"),
+		Command:           strPtr("opencode"),
+		ListModelsCommand: []string{"opencode", "models"}, // VERIFIED 2026-07-03 via `opencode models` (exit 0); FR-L2/FR-D5.
+		Subcommand:        []string{"run"},                // §12.6 `subcommand = ["run"]` → NON-NIL 1-element slice
+		PromptDelivery:    strPtr("positional"),
+		PrintFlag:         strPtr(""), // §12.6 explicit empty (NON-NIL) — `run` is already non-interactive
+		ModelFlag:         strPtr("-m"),
+		DefaultModel:      strPtr(""), // §12.6 explicit empty (NON-NIL) — user MUST set model (Appx E #3)
+		SystemPromptFlag:  strPtr(""), // §12.6 explicit empty (NON-NIL) — no sys flag on `run`; sys prepended (§12.2)
+		ProviderFlag:      strPtr(""), // §12.6 explicit empty (NON-NIL) — provider is part of the model string
+		BareFlags:         []string{}, // §12.6 `bare_flags = []` → NON-NIL empty slice (FINDING D); do NOT omit
+		Output:            strPtr("raw"),
+		StripCodeFence:    boolPtr(true),
 		// PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent in §12.6).
 	}
 }
@@ -355,16 +358,17 @@ func builtinCodex() Manifest {
 // verify against a real run during the real-agent scaffold (P1.M5.T1.S2).
 func builtinCursor() Manifest {
 	return Manifest{
-		Name:             "cursor",
-		Detect:           strPtr("agent"), // §12.7 detect = "agent" — the binary is `agent` (≠ Name "cursor")
-		Command:          strPtr("agent"), // §12.7 command = "agent"
-		Subcommand:       []string{},      // §12.7 `subcommand = []` → NON-NIL empty slice (FINDING D); do NOT omit
-		PromptDelivery:   strPtr("positional"),
-		PrintFlag:        strPtr("-p"), // §12.7 `-p` = non-interactive (writes answer to stdout)
-		ModelFlag:        strPtr("--model"),
-		DefaultModel:     strPtr(""), // §12.7 explicit empty (NON-NIL) — user must set (per-account availability)
-		SystemPromptFlag: strPtr(""), // §12.7 explicit empty (NON-NIL) — no sys flag on agent; sys prepended (§12.2)
-		ProviderFlag:     strPtr(""), // §12.7 explicit empty (NON-NIL) — cursor has no sub-provider
+		Name:              "cursor",
+		Detect:            strPtr("agent"),             // §12.7 detect = "agent" — the binary is `agent` (≠ Name "cursor")
+		Command:           strPtr("agent"),             // §12.7 command = "agent"
+		ListModelsCommand: []string{"agent", "models"}, // VERIFIED 2026-07-03: `agent --help` lists `models`; live run exits 1 (auth required) — valid for authed users, FR-L1 fallback covers unauthed. Binary is `agent` (≠ name). FR-L2/FR-D5.
+		Subcommand:        []string{},                  // §12.7 `subcommand = []` → NON-NIL empty slice (FINDING D); do NOT omit
+		PromptDelivery:    strPtr("positional"),
+		PrintFlag:         strPtr("-p"), // §12.7 `-p` = non-interactive (writes answer to stdout)
+		ModelFlag:         strPtr("--model"),
+		DefaultModel:      strPtr(""), // §12.7 explicit empty (NON-NIL) — user must set (per-account availability)
+		SystemPromptFlag:  strPtr(""), // §12.7 explicit empty (NON-NIL) — no sys flag on agent; sys prepended (§12.2)
+		ProviderFlag:      strPtr(""), // §12.7 explicit empty (NON-NIL) — cursor has no sub-provider
 		BareFlags: []string{
 			"--mode", "ask", // "Q&A style, read-only" — overrides -p's default full-tools profile
 			"--trust", // skip the workspace-trust prompt (else -p would block)

@@ -77,6 +77,9 @@ func MergeManifest(base, override Manifest) Manifest {
 	if len(override.Subcommand) > 0 {
 		out.Subcommand = override.Subcommand
 	}
+	if len(override.ListModelsCommand) > 0 {
+		out.ListModelsCommand = override.ListModelsCommand
+	}
 	if len(override.BareFlags) > 0 {
 		out.BareFlags = override.BareFlags
 	}

@@ -39,6 +39,7 @@
 name = "agy"                     # identity; the value you pass to --provider.
 detect = "agy"                   # command looked up on $PATH to decide "installed".
 command = "agy"                  # the executable to run (exec.LookPath; may be absolute).
+list_models_command = ["agy", "models"]      # VERIFIED 2026-07-03 via `agy models` (exit 0); FR-L2/FR-D5. Never an HTTP call (§6.2 N2).
 
 # --- prompt delivery ---
 prompt_delivery = "stdin"        # agy reads stdin; appended to the prompt.
@@ -71,6 +72,6 @@ strip_code_fence = true          # strip one layer of ``` / ~~~ if the agent wra
 experimental = true              # ships experimental (non-TTY stdout drop, issue #76; §12.5.1.1).
 
 # --- absent fields (PRD §12.1) ---
-# tooled_flags, subcommand, prompt_flag, default_provider, json_field, retry_instruction,
+# tooled_flags, list_models_command, subcommand, prompt_flag, default_provider, json_field, retry_instruction,
 # and [env] are NOT set for agy and therefore omitted above. tooled_flags is intentionally
 # nil — agy cannot serve as a stager until §12.5.1.1 item 4 is verified.

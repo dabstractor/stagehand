@@ -36,6 +36,7 @@ detect = "agent"                    # the binary is `agent` (NOT `cursor`) — t
                                     # detect != name. If `agent` is not on $PATH, override with
                                     # command="cursor" subcommand=["agent"] in your config.
 command = "agent"                   # the executable to run (exec.LookPath; may be absolute).
+list_models_command = ["agent", "models"]      # VERIFIED 2026-07-03: `agent --help` lists `models`; live run exits 1 (auth required). Binary is `agent` (≠ name). FR-L2/FR-D5. Never an HTTP call (§6.2 N2).
 
 # --- subcommand ---
 subcommand = []                     # NON-NIL empty array: no subcommand tokens (present-but-empty, NOT absent).
@@ -76,7 +77,7 @@ strip_code_fence = true             # strip one layer of ``` / ~~~ if the agent 
 # is defined as read-only Q&A); verify against a real run. Resolved by P1.M5.T1.S2.
 
 # --- absent fields (PRD §12.1) ---
-# prompt_flag, json_field, retry_instruction, and [env] are NOT set for cursor and therefore
+# list_models_command, prompt_flag, json_field, retry_instruction, and [env] are NOT set for cursor and therefore
 # omitted above. At resolve time they take their §12.1 defaults: prompt_delivery -> "stdin",
 # output -> "raw", strip_code_fence -> true, retry_instruction ->
 # "Output ONLY the commit message. No preamble, no markdown, no quotes.",

@@ -77,7 +77,7 @@ strip_code_fence = true          # strip one layer of ``` / ~~~ if the agent wra
 experimental = true              # ships experimental (docs-sourced, not --help-verified; §12.5.2/§12.7.2).
 
 # --- absent fields (PRD §12.1) ---
-# tooled_flags, subcommand, prompt_flag, default_provider, json_field, retry_instruction,
+# tooled_flags, list_models_command, subcommand, prompt_flag, default_provider, json_field, retry_instruction,
 # reasoning_levels, and [env] are NOT set for qwen-code and therefore omitted above.
 # tooled_flags is intentionally nil — qwen-code cannot serve as a stager until verified (FR-D4 fallback).
 # reasoning_levels is `# TO CONFIRM per FR-D5` (S2 owns the refresh — leave nil).

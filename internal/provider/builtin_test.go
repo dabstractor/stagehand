@@ -16,6 +16,7 @@ import (
 const piTOML = `name = "pi"
 detect = "pi"
 command = "pi"
+list_models_command = ["pi", "--list-models"]
 prompt_delivery = "stdin"
 print_flag = "-p"
 model_flag = "--model"
@@ -99,6 +100,7 @@ strip_code_fence = true
 const opencodeTOML = `name = "opencode"
 detect = "opencode"
 command = "opencode"
+list_models_command = ["opencode", "models"]
 subcommand = ["run"]
 prompt_delivery = "positional"
 print_flag = ""
@@ -158,6 +160,7 @@ experimental = true
 const agyTOML = `name = "agy"
 detect = "agy"
 command = "agy"
+list_models_command = ["agy", "models"]
 prompt_delivery = "stdin"
 print_flag = "-p"
 model_flag = "-m"
@@ -175,6 +178,7 @@ experimental = true
 const cursorTOML = `name = "cursor"
 detect = "agent"
 command = "agent"
+list_models_command = ["agent", "models"]
 subcommand = []
 prompt_delivery = "positional"
 print_flag = "-p"
@@ -798,6 +802,38 @@ func TestBuiltinManifests_QwenCodeFields(t *testing.T) {
 	assertNilStr(t, "RetryInstruction", m.RetryInstruction)
 	if m.Env != nil {
 		t.Errorf("Env = %v, want nil", m.Env)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Test 21: ListModelsCommand — 4 populated builtins carry the expected argv; 4 are nil.
+// ---------------------------------------------------------------------------
+
+func TestBuiltinManifests_ListModelsCommand(t *testing.T) {
+	m := BuiltinManifests()
+
+	// 4 populated builtins (verified 2026-07-03).
+	for _, tc := range []struct {
+		name string
+		want []string
+	}{
+		{"opencode", []string{"opencode", "models"}},
+		{"pi", []string{"pi", "--list-models"}},
+		{"agy", []string{"agy", "models"}},
+		{"cursor", []string{"agent", "models"}},
+	} {
+		bm := m[tc.name]
+		if !reflect.DeepEqual(bm.ListModelsCommand, tc.want) {
+			t.Errorf("%s ListModelsCommand = %v, want %v", tc.name, bm.ListModelsCommand, tc.want)
+		}
+	}
+
+	// 4 unpopulated builtins — field must be nil (absent in struct literal).
+	for _, name := range []string{"claude", "codex", "gemini", "qwen-code"} {
+		bm := m[name]
+		if bm.ListModelsCommand != nil {
+			t.Errorf("%s ListModelsCommand = %v, want nil", name, bm.ListModelsCommand)
+		}
 	}
 }
 
