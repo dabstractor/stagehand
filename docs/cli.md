@@ -172,6 +172,12 @@ stagehand config init --force
 
 # Write the inert all-commented reference (v1 behavior):
 stagehand config init --template
+
+# Guided TTY wizard — pick a provider, accept or edit per-role models:
+stagehand config init --interactive
+
+# Pre-select a provider, then edit its models:
+stagehand config init --interactive --provider pi
 ```
 
 | Flag | Description |
@@ -179,6 +185,9 @@ stagehand config init --template
 | `--provider <name>` | Target a specific built-in provider instead of auto-detecting |
 | `--force` | Overwrite an existing config file |
 | `--template` | Write the inert all-commented reference config (v1 behavior) |
+| `--interactive` | Guided TTY wizard: pick a detected provider, accept or edit per-role models; prompts for the inference/ prefix on multi-backend providers (pi, opencode). Writes the same file as plain `config init`. Non-TTY → exit 1 (use plain `config init`). |
+
+`--interactive` runs a three-step wizard: (1) pick a provider from the detected set (default highlighted), (2) accept or edit each per-role model default, (3) for multi-backend providers (pi, opencode), prompts for the `inference/model` prefix on any edited model. Writes the **same** file as plain `config init` — the wizard is a TTY front-end. Composes with `--force` (overwrites) and `--provider <name>` (pre-selects, skipping the provider prompt). Mutually exclusive with `--template` (exit 1). Non-TTY stdin exits 1 pointing at plain `config init`.
 
 ### `config upgrade`
 

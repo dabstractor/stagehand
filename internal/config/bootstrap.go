@@ -17,7 +17,18 @@ var preferredBuiltins = []string{"pi", "opencode", "cursor", "agy", "gemini", "q
 // GenerateBootstrapConfig returns the populated bootstrap TOML (PRD §9.17 FR-B1/B3). provider != "" is
 // used directly (caller validates); "" ⇒ cascading auto-detect (FR-D1) ⇒ "pi" fallback. NO I/O; $PATH
 // detection via the registry. Shared by `config init` and the Load() first-run fallback. (P1.M4.T4.S1.)
+// Delegates to GenerateBootstrapConfigWithOverrides(prov, nil) — byte-identical to the pre-refactor
+// output (nil overrides = no edits → golden test).
 func GenerateBootstrapConfig(prov string) string {
+	return GenerateBootstrapConfigWithOverrides(prov, nil)
+}
+
+// GenerateBootstrapConfigWithOverrides returns the populated bootstrap TOML with optional per-role
+// model overrides applied (role→model: "planner"|"stager"|"message"|"arbiter" → model string).
+// overrides is applied AFTER the pi-blank + stagerFallback computation (so structural routing is
+// preserved; only MODEL values change). nil/empty overrides ⇒ byte-identical to GenerateBootstrapConfig.
+// The interactive wizard (FR-L3, PRD §9.23/§15.3) calls this seam.
+func GenerateBootstrapConfigWithOverrides(prov string, overrides map[string]string) string {
 	reg := provider.NewRegistry(nil) // built-ins only
 	installed := bootstrapProviderNames(reg)
 	target := prov
@@ -28,7 +39,7 @@ func GenerateBootstrapConfig(prov string) string {
 			target = "pi" // nothing on $PATH — valid default; annotated by buildBootstrapConfig
 		}
 	}
-	return buildBootstrapConfig(target, installed)
+	return buildBootstrapConfig(target, installed, overrides)
 }
 
 // bootstrapWriteConfig writes the populated bootstrap config to path (MkdirAll + WriteFile), used by the
@@ -59,7 +70,10 @@ func bootstrapProviderNames(reg *provider.Registry) []string {
 // stagerFallback returns the (provider, model) for the [role.stager] block: target's own if
 // stager-capable (models["stager"] != ""), else the first stager-capable provider in preferredBuiltins
 // order. Always resolves to "pi" today (pi and claude are the only stager-capable providers; pi is first).
-func stagerFallback(target string, models map[string]string) (string, string) {
+// StagerFallback returns the (provider, model) for the [role.stager] block: target's own if
+// stager-capable (models["stager"] != ""), else the first stager-capable provider in preferredBuiltins
+// order. Exported for use by the interactive wizard (P1.M6.T2.S1).
+func StagerFallback(target string, models map[string]string) (string, string) {
 	if m := models["stager"]; m != "" {
 		return target, m
 	}
@@ -101,13 +115,32 @@ func writeCommentedRoleBlock(b *strings.Builder, role, prov, model string) {
 	fmt.Fprintf(b, "# model = %q\n", model)
 }
 
+// applyOverrides applies per-role model overrides onto the computed models map and stager model.
+// overrides control only MODEL values — stagerName (structural routing) is untouched.
+// A nil overrides map is a no-op (byte-identity contract: GenerateBootstrapConfig delegates with nil).
+func applyOverrides(models map[string]string, stagerModel *string, overrides map[string]string) {
+	if overrides == nil {
+		return
+	}
+	for _, role := range []string{"planner", "message", "arbiter"} {
+		if v, ok := overrides[role]; ok {
+			models[role] = v
+		}
+	}
+	if v, ok := overrides["stager"]; ok {
+		*stagerModel = v
+	}
+}
+
 // buildBootstrapConfig is the PURE populated-config generator (PRD §9.17 FR-B1). NO detection, NO I/O —
-// takes an already-resolved target + the installed list, returns the exact TOML. Deterministic ⇒ unit-
-// testable. Writes: header docs, config_version (uncommented), [defaults] provider=<target> (uncommented),
-// four [role.*] blocks for target (models from DefaultModelsForProvider; stager routed to the fallback
-// when target can't stage, annotated), each OTHER installed provider as a commented [role.*] group, then a
-// commented [generation] section.
-func buildBootstrapConfig(target string, installed []string) string {
+// takes an already-resolved target + the installed list + optional per-role model overrides, returns the
+// exact TOML. Deterministic ⇒ unit-testable. Writes: header docs, config_version (uncommented),
+// [defaults] provider=<target> (uncommented), four [role.*] blocks for target (models from
+// DefaultModelsForProvider, overridden by overrides; stager routed to the fallback when target can't
+// stage, annotated), each OTHER installed provider as a commented [role.*] group, then a commented
+// [generation] section. overrides is applied AFTER pi-blank + stagerFallback (structural routing
+// preserved; only MODEL values change). nil/empty overrides ⇒ no edits.
+func buildBootstrapConfig(target string, installed []string, overrides map[string]string) string {
 	var b strings.Builder
 
 	// --- header (precedence/env/git/cli docs — shared with the inert template) ---
@@ -138,18 +171,26 @@ func buildBootstrapConfig(target string, installed []string) string {
 			models[role] = ""
 		}
 	}
-	stagerName, stagerModel := stagerFallback(target, models)
+	stagerName, stagerModel := StagerFallback(target, models)
 	if piBlanked {
 		// stagerFallback re-pulls pi’s stager model from the FR-D4 table (a fresh copy); force
 		// it blank so all four roles stay empty. pi remains the stager (stager-capable).
 		stagerModel = ""
 	}
 
+	// Apply overrides AFTER pi-blank + stagerFallback (structural routing preserved; only MODEL values).
+	piHasOverrides := piBlanked && len(overrides) > 0
+	applyOverrides(models, &stagerModel, overrides)
+
 	fmt.Fprintf(&b, "\n# --- per-role models for the default provider %q (PRD §16.4, §9.15) ---\n", target)
-	if piBlanked {
+	if piBlanked && !piHasOverrides {
 		b.WriteString("# NOTE: pi is a multi-backend provider — prefix the model with your inference backend,\n")
 		b.WriteString("# e.g. model = \"zai/glm-5.2\". A bare model (no '/') on pi is a config error (FR-R5b).\n")
 		b.WriteString("# The shipped per-role models are empty so you can supply your own backend/model.\n")
+	} else if piBlanked && piHasOverrides {
+		b.WriteString("# NOTE: pi is a multi-backend provider — each model carries the inference backend as a\n")
+		b.WriteString("# slash-prefix (e.g. model = \"zai/glm-5.2\"). A bare model (no '/') on pi is a config\n")
+		b.WriteString("# error (FR-R5b).\n")
 	}
 
 	// planner — inherits [defaults] provider

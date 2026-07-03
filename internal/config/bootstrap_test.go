@@ -14,7 +14,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestBuildBootstrapConfig_Pi(t *testing.T) {
-	content := buildBootstrapConfig("pi", []string{"pi"})
+	content := buildBootstrapConfig("pi", []string{"pi"}, nil)
 
 	// config_version = 3 uncommented (CurrentConfigVersion)
 	if !strings.Contains(content, fmt.Sprintf("config_version = %d", CurrentConfigVersion)) {
@@ -60,7 +60,7 @@ func TestBuildBootstrapConfig_Pi(t *testing.T) {
 }
 
 func TestBuildBootstrapConfig_GeminiStagerFallback(t *testing.T) {
-	content := buildBootstrapConfig("gemini", nil)
+	content := buildBootstrapConfig("gemini", nil, nil)
 
 	// provider = "gemini"
 	if !strings.Contains(content, `provider = "gemini"`) {
@@ -88,7 +88,7 @@ func TestBuildBootstrapConfig_GeminiStagerFallback(t *testing.T) {
 }
 
 func TestBuildBootstrapConfig_OtherInstalledCommented(t *testing.T) {
-	content := buildBootstrapConfig("pi", []string{"pi", "claude"})
+	content := buildBootstrapConfig("pi", []string{"pi", "claude"}, nil)
 
 	// UNCOMMENTED role blocks are pi's (blanked — no sub-provider in bootstrap)
 	assertContains(t, content, "[role.planner]", `model = ""`)
@@ -114,7 +114,7 @@ func TestBuildBootstrapConfig_OtherInstalledCommented(t *testing.T) {
 }
 
 func TestBuildBootstrapConfig_NoInstallFallback(t *testing.T) {
-	content := buildBootstrapConfig("pi", nil)
+	content := buildBootstrapConfig("pi", nil, nil)
 
 	// Should have the fallback annotation on the provider line
 	if !strings.Contains(content, "no built-in agent detected on $PATH") {
@@ -136,7 +136,7 @@ func TestBuildBootstrapConfig_ValidTOML(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.target+"_"+strings.Join(tc.installed, ","), func(t *testing.T) {
-			content := buildBootstrapConfig(tc.target, tc.installed)
+			content := buildBootstrapConfig(tc.target, tc.installed, nil)
 			var m map[string]any
 			if err := toml.Unmarshal([]byte(content), &m); err != nil {
 				t.Errorf("buildBootstrapConfig(%q, %v) produced invalid TOML: %v", tc.target, tc.installed, err)
@@ -192,7 +192,7 @@ func TestGenerateBootstrapConfig_NamedProvider(t *testing.T) {
 // TestBuildBootstrapConfig_HeaderDocumentsReasoningEnvVars guards Issue 4: the generated config
 // header must document the FR-R6 reasoning env vars (global + per-role), matching docs/cli.md.
 func TestBuildBootstrapConfig_HeaderDocumentsReasoningEnvVars(t *testing.T) {
-	content := buildBootstrapConfig("pi", nil)
+	content := buildBootstrapConfig("pi", nil, nil)
 	assertContains(t, content,
 		"STAGEHAND_REASONING",
 		"STAGEHAND_<ROLE>_REASONING",

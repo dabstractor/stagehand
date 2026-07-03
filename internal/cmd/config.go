@@ -142,6 +142,7 @@ func init() {
 	configInitCmd.Flags().String("provider", "", "Target a specific provider instead of auto-detecting")
 	configInitCmd.Flags().Bool("force", false, "Overwrite an existing config file")
 	configInitCmd.Flags().Bool("template", false, "Write the inert all-commented reference config (v1 behavior)")
+	configInitCmd.Flags().Bool("interactive", false, "Guided TTY wizard: pick a detected provider, accept or edit per-role models (prompts for the inference/ prefix on multi-backend providers); writes the same config as plain 'config init'")
 
 	configCmd.AddCommand(configInitCmd)
 	configCmd.AddCommand(configPathCmd)
@@ -430,21 +431,12 @@ func leadingHeaderEnd(lines []string) int {
 // Parent dirs are created; the written path is always printed. Never calls os.Exit.
 // The populated-config generation is delegated to config.GenerateBootstrapConfig (P1.M4.T4.S1).
 func runConfigInit(cmd *cobra.Command, args []string) error {
+	// Route to interactive wizard at the TOP (before template/force checks).
+	if interactive, _ := cmd.Flags().GetBool("interactive"); interactive {
+		return runConfigInitInteractive(cmd, args)
+	}
+
 	path := config.ResolveConfigPath(flagConfig)
-
-	force, _ := cmd.Flags().GetBool("force")
-	if !force {
-		if _, err := os.Stat(path); err == nil {
-			return exitcode.New(exitcode.Error, fmt.Errorf("config file already exists at %s (not overwritten)", path))
-		} else if !os.IsNotExist(err) {
-			return exitcode.New(exitcode.Error, fmt.Errorf("check config path %s: %w", path, err))
-		}
-	}
-
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("create config dir %s: %w", filepath.Dir(path), err))
-	}
-
 	tmpl, _ := cmd.Flags().GetBool("template")
 	var content string
 	if tmpl {
@@ -461,14 +453,37 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 		content = config.GenerateBootstrapConfig(providerName)
 	}
 
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("write config %s: %w", path, err))
+	force, _ := cmd.Flags().GetBool("force")
+	if err := writeBootstrapFile(cmd, path, content, force); err != nil {
+		return err
 	}
 
 	if tmpl {
 		fmt.Fprintf(cmd.OutOrStdout(), "Wrote example config to %s\n", path)
 	} else {
 		fmt.Fprintf(cmd.OutOrStdout(), "Wrote config to %s\n", path)
+	}
+	return nil
+}
+
+// writeBootstrapFile handles the shared file-write contract for both plain and interactive config init:
+// force-check (refuse to overwrite unless --force) + MkdirAll + WriteFile. Returns exitcode.New(Error, …)
+// on failure. Used by BOTH runConfigInit and runConfigInitInteractive (DRY — one place for the contract).
+func writeBootstrapFile(cmd *cobra.Command, path, content string, force bool) error {
+	if !force {
+		if _, err := os.Stat(path); err == nil {
+			return exitcode.New(exitcode.Error, fmt.Errorf("config file already exists at %s (not overwritten)", path))
+		} else if !os.IsNotExist(err) {
+			return exitcode.New(exitcode.Error, fmt.Errorf("check config path %s: %w", path, err))
+		}
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return exitcode.New(exitcode.Error, fmt.Errorf("create config dir %s: %w", filepath.Dir(path), err))
+	}
+
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return exitcode.New(exitcode.Error, fmt.Errorf("write config %s: %w", path, err))
 	}
 	return nil
 }

@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "v2.1 — Competitor Feature Parity + Tool Integrations",
-      "status": "Planned",
+      "status": "Ready",
       "description": "Add the six v2.1 feature areas (PRD §9.18–§9.23: payload exclusions, message shaping, git hook mode, tool-integrations exporter, --edit/--push, discovery) as compositions over the fully-implemented v2.0/v3 core, then sweep changeset-level docs. Purely additive; no re-architecture. Grounded in plan/005_c38aa48290f0/architecture/{system_context.md,external_deps.md}.",
       "milestones": [
         {
@@ -474,7 +474,7 @@
           "type": "Milestone",
           "id": "P1.M6",
           "title": "Discovery: models listing and interactive bootstrap (§9.23)",
-          "status": "Ready",
+          "status": "Complete",
           "description": "`stagehand models` via the new manifest `list_models_command` (agent-CLI-sourced, never HTTP) with the curated FR-D4 table as fallback, and the TTY-gated `config init --interactive` wizard.",
           "tasks": [
             {
@@ -526,14 +526,14 @@
               "type": "Task",
               "id": "P1.M6.T2",
               "title": "Interactive bootstrap",
-              "status": "Ready",
+              "status": "Complete",
               "description": "config init --interactive: TTY-gated wizard over the existing FR-B1 bootstrap writer (FR-L3).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M6.T2.S1",
                   "title": "config init --interactive wizard",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — `runConfigInit` (`internal/cmd/config.go`) + `config.GenerateBootstrapConfig(provider)` (`internal/config/bootstrap.go`) already implement FR-B1; the wizard is a TTY front-end that writes the SAME file shape. FR-D1 detection order lives in `provider.Registry.DefaultProvider` / `preferredBuiltins`. Multi-backend providers (pi, opencode) must PROMPT for the `inference/` model prefix and never guess (FR-D2 / FR-R5b).\n2. INPUT: bootstrap writer + registry detection as above; per-role defaults via `config.DefaultModelsForProvider`; TTY-detection precedent in internal/ui.\n3. LOGIC: add `--interactive` to `config init`: non-TTY → exit 1 pointing at plain `config init` (which MUST stay non-interactive — FR-B3 runs it from post-install scripts); flow: (1) pick a provider from the DETECTED set with the FR-D1 default highlighted; (2) show that provider's per-role model defaults for accept-or-edit per role; (3) for a multi-backend provider, prompt for the inference/ prefix on edited models rather than guessing; (4) write via the same FR-B1 writer; composes with `--force` (and remains mutually sensible with --provider/--template). Tests: script stdin through a reader (answers piped), assert the written TOML equals the equivalent GenerateBootstrapConfig output with edits applied; non-TTY gate test.\n4. OUTPUT: interactive bootstrap per FR-L3 producing an FR-B1-identical config file.\n5. DOCS: [Mode A] docs/cli.md (config init --interactive), docs/configuration.md (interactive bootstrap note alongside the existing config init docs).",
@@ -554,21 +554,21 @@
           "type": "Milestone",
           "id": "P1.M7",
           "title": "Changeset documentation sync",
-          "status": "Planned",
+          "status": "Ready",
           "description": "Mode-B final sweep: README/hero/FAQ and docs index reflect all six v2.1 capabilities; stale references purged. Runs after every implementing subtask.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M7.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Planned",
+              "status": "Ready",
               "description": "The Mode-B catch-all: update changeset-level docs (README.md, docs/README.md index) once the whole delta is in place, and verify no stale claims survive. Depends on every implementing subtask.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M7.T1.S1",
                   "title": "README + docs index coherence sweep for the six v2.1 capabilities",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",
@@ -609,7 +609,7 @@
                   "type": "Subtask",
                   "id": "P1.M7.T1.S2",
                   "title": "Stale-reference sweep and known-stale string fix",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 0.5,
                   "dependencies": [
                     "P1.M7.T1.S1"

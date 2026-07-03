@@ -49,6 +49,8 @@ The written path is always printed on success.
 
 If a config file already exists, it is NOT overwritten unless `--force` is passed (exit code 1). Parent directories are created as needed.
 
+`config init --interactive` runs a TTY-gated wizard: it lists detected providers (FR-D1 default highlighted), shows each role's curated default (FR-D4) for accept-or-edit, and — for multi-backend providers (pi, opencode) — prompts for the `inference/model` prefix on edited models (FR-D2/FR-R5b) rather than guessing. It writes the **same file** as plain `config init`. Non-TTY stdin exits 1 pointing at plain `config init` (which stays non-interactive for post-install/first-run use, FR-B3). Composes with `--force` (overwrites) and `--provider <name>` (pre-selects); mutually exclusive with `--template`.
+
 ### Schema versioning (`config upgrade`)
 
 `stagehand config upgrade` rewrites an existing config's top-level `config_version` line to the current schema version (3) in place — For multi-backend providers, the former `default_provider` is folded into a slash-prefix on the model and the key is deleted. Every other line is preserved. Idempotent: running it twice leaves the file unchanged. No flags.

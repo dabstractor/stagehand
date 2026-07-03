@@ -144,6 +144,12 @@ func (r *Registry) FirstTooledProvider(installed []string) string {
 	return ""
 }
 
+// PreferredBuiltins returns the FR-D1 cascading provider priority order (pi first) for menu
+// ordering in the interactive wizard. The default HIGHLIGHT still comes from
+// DefaultProvider (which consults this same order internally). This is NOT a manifest-
+// schema change — it merely exposes the existing package-level preferredBuiltins slice.
+func (r *Registry) PreferredBuiltins() []string { return preferredBuiltins }
+
 // DecodeUserOverrides bridges config.Providers (raw map[string]map[string]any, P1.M1.T4) to the
 // map[string]Manifest NewRegistry consumes. For each [provider.<name>] entry it re-encodes the raw map
 // to TOML and unmarshals into a Manifest (the pattern the frozen config.go comment specifies for "the
