@@ -220,3 +220,27 @@ Stagehand requests raw text output from agents (`output = "raw"`) rather than st
 - A raw contract is more robust across different agent versions and providers.
 - The parser handles code-fence stripping and newline normalization, which covers the common raw-output quirks.
 - JSON mode is available as a fallback for agents that only produce structured output.
+
+## Hook mode vs the snapshot-based flow
+
+### Trade-off inversion (FR-H7)
+
+Stagehand offers two ways to generate commit messages, each with different trade-offs:
+
+**Snapshot-based flow** (the default `stagehand` command):
+- **Atomic**: uses `git write-tree` to freeze the index, then `git commit-tree` + `git update-ref` to publish — the repo is byte-for-byte unchanged on failure (no orphan commits, no partial state).
+- **Bypasses pre-commit hooks**: because the commit is built via plumbing (not `git commit`), tools like husky, lint-staged, and `.pre-commit-config.yaml` do NOT run on the generated commit.
+- **Stage-while-generating**: the snapshot decouples staged content from generation time, so you can keep staging while the message generates.
+- **Rescue protocol**: if generation fails after the snapshot, the frozen tree SHA is printed so you can commit manually.
+
+**Hook mode** (`stagehand hook install` + `git commit`):
+- **Pre-commit hooks honored**: the commit flows through the standard `git commit` path, so husky, lint-staged, and any other `pre-commit` hooks run normally.
+- **No snapshot guarantees**: the index is live during generation — if you stage more files while the hook runs, they may affect the commit. Generation latency is inside the commit flow (no overlap).
+- **Never-block contract**: any failure leaves the message file untouched and exits 0, so the commit proceeds to an empty editor — the commit is never aborted by a model hiccup (unless `--strict` opts in).
+- **No rescue protocol**: there is no frozen tree to recover — the commit simply proceeds without an AI message.
+
+### When to use which
+
+- Use **hook mode** for day-to-day commits in your IDE or lazygit — zero ceremony, pre-commit hooks run, never blocked.
+- Use the **snapshot-based flow** (`stagehand` directly) when you need atomicity, stage-while-generating overlap, or are scripting/batch-committing.
+- The two **compose**: install the hook for `git commit`, and run `stagehand` directly when you want the atomic path.

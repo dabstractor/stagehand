@@ -104,6 +104,32 @@ stagehand hook install
 stagehand hook status              # → "stagehand (v1)"
 ```
 
+### `hook exec`
+
+Generate a commit message into git's `prepare-commit-msg` file. Called by stagehand's installed hook — not by users directly. When `git commit` fires the hook, stagehand generates a message for the staged diff and writes it at the **top** of `<msg-file>`, preserving git's comment block beneath.
+
+**Source-gated no-op (FR-H4):** exits 0 having done nothing when a message source is present (`message`/`template`/`merge`/`squash`/`commit`) or nothing is staged. This means `git commit -m "x"`, `git commit -t template`, merge commits, squash commits, and `--amend` all pass through unchanged — the explicit message wins.
+
+**Never-block (FR-H5):** any generation failure (agent missing, timeout, parse failure, duplicate exhaustion) leaves `<msg-file>` byte-identical to before and exits 0 (so the commit proceeds to an empty editor). With `--strict` (baked into the script by `hook install --strict`), the same failure exits non-zero (aborts the commit).
+
+**Message-role resolution (FR-H6):** resolves provider/model/reasoning exactly like the single-commit path (`--message-*` flags, `[role.message]` config, env vars). Never decomposes.
+
+```bash
+stagehand hook exec <msg-file>                    # normal invocation (source absent → proceed)
+stagehand hook exec <msg-file> message              # source=message → no-op (exit 0)
+stagehand hook exec --strict <msg-file>             # abort on failure (exit 1)
+```
+
+| Arg | Description |
+|-----|-------------|
+| `<msg-file>` | Path to git's `prepare-commit-msg` file (e.g. `.git/COMMIT_EDITMSG`) |
+| `<source>` | Source of the message (absent/empty = proceed; `message`/`template`/`merge`/`squash`/`commit` = no-op) |
+| `<sha>` | Commit SHA (present only when source=`commit`) |
+
+| Flag | Description |
+|------|-------------|
+| `--strict` | Abort the commit on generation failure (default: never block — exit 0 and leave the message empty) |
+
 ### `providers list`
 
 List all known providers with detection status:
