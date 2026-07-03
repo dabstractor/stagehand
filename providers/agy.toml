@@ -15,16 +15,23 @@
 #   Change only the fields you want; fields you omit inherit the built-in's value.
 #       # ~/.config/stagehand/config.toml  (or a repo-local .stagehand.toml)
 #       [provider.agy]
-#       default_model = "gemini-2.5-flash"  # e.g. override only the model
+#       default_model = "Gemini 3.1 Pro (High)"  # e.g. override only the model (display label, verbatim)
 #
 # RENDERED COMMAND (PRD §12.5.1)
-#   agy -m gemini-3.1-pro --approval-mode default -p < "<sys>\n\n<user payload>"
-#   (stdin delivery; agy appends stdin to the prompt)
+#   agy --model "Gemini 3.5 Flash (Low)" --approval-mode default -p < "<sys>\n\n<user payload>"
+#   (stdin delivery; agy appends stdin to the prompt. The model label is ONE argv
+#   element — stagehand execs directly, no shell, so the spaces are safe.)
 #
-# EXPERIMENTAL (§12.5.1.1): agy ships experimental due to a non-TTY stdout drop
-#   bug (issue #76): `agy -p`/`--print` silently drops stdout when invoked from a
-#   non-TTY — exactly how stagehand spawns agents. agy is unusable for any role
-#   until upstream fixes it or stagehand PTY-shims the child.
+# MODEL NAMES (verified 2026-07-03): agy's --model takes the DISPLAY LABEL from
+#   `agy models` VERBATIM — e.g. "Gemini 3.5 Flash (Low)" / "Gemini 3.1 Pro (High)".
+#   Reasoning is NOT a separate flag; it is baked into the label's parenthesized
+#   suffix. API-style ids (gemini-3.5-flash) are NOT recognized and SILENTLY fall
+#   back to agy's own default model.
+#
+# EXPERIMENTAL (§12.5.1.1): agy still ships experimental. The original blocker —
+#   issue #76, `agy -p` silently dropping stdout from a non-TTY — NO LONGER
+#   REPRODUCES (live non-TTY -p runs verified 2026-07-03), but the remaining
+#   §12.5.1.1 checklist items have not all cleared.
 #
 # STAGER: agy cannot serve as a stager — TooledFlags is intentionally nil.
 #   RenderTooled errors on nil tooled_flags. This won't change until §12.5.1.1
@@ -47,8 +54,9 @@ prompt_delivery = "stdin"        # agy reads stdin; appended to the prompt.
 print_flag = "-p"                 # non-interactive print mode flag.
 
 # --- model ---
-model_flag = "-m"                # the model-selection flag.
-default_model = "gemini-3.1-pro" # model used if the user specifies none (agy runs the Gemini family).
+model_flag = "--model"                     # the model-selection flag. `-m` is REJECTED by agy (verified 2026-07-03).
+default_model = "Gemini 3.5 Flash (Low)"   # `agy models` display label VERBATIM (reasoning suffix included);
+                                           # API-style ids silently fall back to agy's default.
 
 # --- system prompt ---
 system_prompt_flag = ""          # NON-NIL empty: agy has NO system-prompt flag — the system prompt
@@ -68,7 +76,7 @@ output = "raw"                   # cleaned stdout IS the commit message (DEFAULT
 strip_code_fence = true          # strip one layer of ``` / ~~~ if the agent wraps the output.
 
 # --- experimental ---
-experimental = true              # ships experimental (non-TTY stdout drop, issue #76; §12.5.1.1).
+experimental = true              # ships experimental (§12.5.1.1; issue #76 no longer reproduces as of 2026-07-03).
 
 # --- absent fields (PRD §12.1) ---
 # tooled_flags, subcommand, prompt_flag, default_provider, json_field, retry_instruction,

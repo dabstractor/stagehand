@@ -160,8 +160,8 @@ detect = "agy"
 command = "agy"
 prompt_delivery = "stdin"
 print_flag = "-p"
-model_flag = "-m"
-default_model = "gemini-3.1-pro"
+model_flag = "--model"
+default_model = "Gemini 3.5 Flash (Low)"
 system_prompt_flag = ""
 provider_flag = ""
 bare_flags = [
@@ -711,8 +711,8 @@ func TestBuiltinManifests_AgyFields(t *testing.T) {
 	assertStr(t, "Command", m.Command, "agy")
 	assertStr(t, "PromptDelivery", m.PromptDelivery, "stdin")
 	assertStr(t, "PrintFlag", m.PrintFlag, "-p") // NON-NIL (agy HAS a -p print flag per §12.5.1)
-	assertStr(t, "ModelFlag", m.ModelFlag, "-m")
-	assertStr(t, "DefaultModel", m.DefaultModel, "gemini-3.1-pro")
+	assertStr(t, "ModelFlag", m.ModelFlag, "--model")                      // `-m` is rejected by agy (verified 2026-07-03)
+	assertStr(t, "DefaultModel", m.DefaultModel, "Gemini 3.5 Flash (Low)") // display label, verbatim (verified 2026-07-03)
 	assertStr(t, "SystemPromptFlag", m.SystemPromptFlag, "") // NON-NIL explicit empty (prepend)
 	assertStr(t, "ProviderFlag", m.ProviderFlag, "")         // NON-NIL explicit empty
 	assertStr(t, "ProviderFlag", m.ProviderFlag, "")         // NON-NIL explicit empty
@@ -750,9 +750,9 @@ func TestBuiltinManifests_AgyFields(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBuiltinManifests_RenderedCommand_Agy(t *testing.T) {
-	argv := renderArgs(builtinAgy(), "", "", "<sys>") // model="" → default gemini-3.1-pro
+	argv := renderArgs(builtinAgy(), "", "", "<sys>") // model="" → default "Gemini 3.5 Flash (Low)"
 	want := []string{
-		"agy", "-m", "gemini-3.1-pro",
+		"agy", "--model", "Gemini 3.5 Flash (Low)", // label passed as ONE argv element — spaces are safe (no shell)
 		"--approval-mode", "default",
 		"-p", // print_flag LAST per §12.2 (agy has -p unlike gemini)
 		// stdin delivery: "<sys>\n\n<user payload>" piped to stdin (NOT in argv). No sys/provider flag.
