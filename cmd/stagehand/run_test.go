@@ -269,6 +269,87 @@ func TestMapErrorToExitCode(t *testing.T) {
 	}
 }
 
+// TestReportError asserts the print+map seam that closes BUG-002: a fresh
+// *ui.Output over a bytes.Buffer stderr (verbose=false, noColor=true) so the
+// printed/not-printed assertion and the returned exit code are both observable.
+// The four sentinels are NOT printed (their producers already printed) and map
+// to their §15.4 codes; every NON-sentinel error is PRINTED to stderr and then
+// collapses to ExitError (1). Mirrors TestMapErrorToExitCode's table style.
+func TestReportError(t *testing.T) {
+	mergeErr := fmt.Errorf("git: unresolved merge conflicts in index")
+	wrappedGitErr := fmt.Errorf("stage: %w", errors.New("git exited 128 (write-tree): conflict"))
+	boom := errors.New("boom")
+	cases := []struct {
+		name       string
+		err        error
+		wantPrint  bool
+		wantCode   int
+		wantSubstr string // asserted inside stderr only when wantPrint
+	}{
+		{"nil", nil, false, ui.ExitSuccess, ""},
+		{"ErrNothingToCommit", stagehand.ErrNothingToCommit, false, ui.ExitNothingToCommit, ""},
+		{"ErrNothingStaged", ErrNothingStaged, false, ui.ExitNothingToCommit, ""},
+		{"ErrRescue", stagehand.ErrRescue, false, ui.ExitRescue, ""},
+		{"ErrHeadMoved", stagehand.ErrHeadMoved, false, ui.ExitError, ""},
+		{"merge-conflict", mergeErr, true, ui.ExitError, "merge conflicts"},
+		{"wrapped-git-error", wrappedGitErr, true, ui.ExitError, "stage: git exited 128 (write-tree): conflict"},
+		{"arbitrary", boom, true, ui.ExitError, "boom"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var stderr bytes.Buffer
+			out := ui.NewOutput(&bytes.Buffer{}, &stderr, false, true)
+			code := reportError(out, tc.err)
+			got := stderr.String()
+			if code != tc.wantCode {
+				t.Errorf("reportError(%v) code = %d, want %d", tc.err, code, tc.wantCode)
+			}
+			if tc.wantPrint {
+				if got == "" {
+					t.Fatalf("stderr empty, want it to contain %q", tc.wantSubstr)
+				}
+				if !strings.Contains(got, "stagehand:") {
+					t.Errorf("stderr %q missing the \"stagehand:\" prefix", got)
+				}
+				if !strings.Contains(got, tc.wantSubstr) {
+					t.Errorf("stderr %q missing %q", got, tc.wantSubstr)
+				}
+			} else if got != "" {
+				t.Errorf("stderr = %q, want empty (sentinel must NOT be re-printed)", got)
+			}
+		})
+	}
+}
+
+// TestIsAlreadyReported asserts the four sentinels (including a wrapped one
+// via fmt.Errorf("outer: %w", sentinel)) are recognized as already-reported so
+// reportError skips their stderr print, while arbitrary errors are not.
+func TestIsAlreadyReported(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"ErrNothingToCommit", stagehand.ErrNothingToCommit, true},
+		{"ErrNothingStaged", ErrNothingStaged, true},
+		{"ErrRescue", stagehand.ErrRescue, true},
+		{"ErrHeadMoved", stagehand.ErrHeadMoved, true},
+		{"wrapped-ErrNothingToCommit", fmt.Errorf("outer: %w", stagehand.ErrNothingToCommit), true},
+		{"wrapped-ErrNothingStaged", fmt.Errorf("outer: %w", ErrNothingStaged), true},
+		{"wrapped-ErrRescue", fmt.Errorf("outer: %w", stagehand.ErrRescue), true},
+		{"wrapped-ErrHeadMoved", fmt.Errorf("outer: %w", stagehand.ErrHeadMoved), true},
+		{"arbitrary", errors.New("boom"), false},
+		{"nil", nil, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isAlreadyReported(tc.err); got != tc.want {
+				t.Errorf("isAlreadyReported(%v) = %v, want %v", tc.err, got, tc.want)
+			}
+		})
+	}
+}
+
 // TestBuildOptions_DryRunWired asserts the FR49 seam: buildOptions sets
 // opts.DryRun from the flag and threads the resolved cfg provider/model/timeout.
 func TestBuildOptions_DryRunWired(t *testing.T) {

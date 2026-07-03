@@ -239,19 +239,57 @@ func mapErrorToExitCode(err error) int {
 	return ui.ExitError
 }
 
+// reportError is the print+map seam runDefault routes BOTH the staging and the
+// generation failure through (FR8/§18.2, BUG-002). It surfaces NON-sentinel
+// errors to stderr via out.Progressf("stagehand: %s\n", err) — the exact
+// pattern the earlier runDefault error paths (config.Load / git.New /
+// resolveAndCheckProvider) already use — and then delegates to the UNCHANGED
+// pure mapErrorToExitCode for the §15.4 exit-code mapping. The four sentinels
+// (ErrNothingToCommit/ErrNothingStaged/ErrRescue/ErrHeadMoved) are NOT printed
+// here because their PRODUCERS already printed their own human message, so
+// double-printing is avoided. This closes the SILENT exit-1 hole: merge-conflict
+// write-tree failures, not-a-repo, and any other generic git/generate error now
+// reach the user instead of being swallowed by mapErrorToExitCode. stderr only
+// — stdout stays byte-clean (FR51).
+func reportError(out *ui.Output, err error) int {
+	if err != nil && !isAlreadyReported(err) {
+		out.Progressf("stagehand: %s\n", err)
+	}
+	return mapErrorToExitCode(err)
+}
+
+// isAlreadyReported reports whether err is one of the four sentinel errors
+// whose PRODUCER already printed a human-facing message to stderr before
+// returning — and must therefore NOT be re-printed by reportError.
+// ErrNothingToCommit/ErrNothingStaged are printed by maybeAutoStage; ErrRescue
+// is printed by generate.Rescue; ErrHeadMoved is printed by generate's
+// HEAD-moved block. errors.Is (not ==) is used so a wrapped sentinel (e.g.
+// fmt.Errorf("outer: %w", ErrRescue)) still resolves.
+func isAlreadyReported(err error) bool {
+	return errors.Is(err, stagehand.ErrNothingToCommit) ||
+		errors.Is(err, ErrNothingStaged) ||
+		errors.Is(err, stagehand.ErrRescue) ||
+		errors.Is(err, stagehand.ErrHeadMoved)
+}
+
 // runDefault is the full default-action flow (PRD §15.1; research §5). It is
 // the testable, os.Exit-free core: main.go's rootCmd.Run closure calls it and
 // performs the single os.Exit on its return value. --version short-circuits
 // BEFORE this is reached (cobra's Version field handles it in Execute).
 //
 // Flow: buildFlags → config.Load (.) → §19 trust notice (stderr) → provider
-// validation → maybeAutoStage (FR16–FR20) → stagehand.GenerateCommit → exit-code
-// mapping. stdout is touched ONLY by GenerateCommit (the FR42 success block and
-// the FR49 dry-run message); runDefault writes notices to stderr via
-// out.Progressf so stdout stays byte-clean for piping (FR51). cfg.Verbose is
-// threaded into GenerateCommit via buildOptions, which honors it end-to-end
-// (FR50: the shared *ui.Output driving the executor and generate orchestrator
-// emits the resolved command, raw agent stdout, and retries to stderr).
+// validation → maybeAutoStage (FR16–FR20) → stagehand.GenerateCommit →
+// reportError + exit-code mapping. The staging and generation results are both
+// routed through reportError, which surfaces NON-sentinel errors (FR8
+// merge-conflict write-tree failures, not-a-repo, generic git/generate errors)
+// to stderr before delegating to mapErrorToExitCode (PRD §18.2); the four
+// self-printing sentinels are NOT double-printed. stdout is touched ONLY by
+// GenerateCommit (the FR42 success block and the FR49 dry-run message);
+// runDefault writes notices to stderr via out.Progressf so stdout stays
+// byte-clean for piping (FR51). cfg.Verbose is threaded into GenerateCommit via
+// buildOptions, which honors it end-to-end (FR50: the shared *ui.Output driving
+// the executor and generate orchestrator emits the resolved command, raw agent
+// stdout, and retries to stderr).
 func runDefault(cmd *cobra.Command) int {
 	flags, err := buildFlags(cmd)
 	if err != nil {
@@ -288,7 +326,7 @@ func runDefault(cmd *cobra.Command) int {
 	allFlag, _ := cmd.Flags().GetBool("all")
 	noAutoStage, _ := cmd.Flags().GetBool("no-auto-stage")
 	if err := maybeAutoStage(g, out, cfg, allFlag, noAutoStage); err != nil {
-		return mapErrorToExitCode(err)
+		return reportError(out, err)
 	}
 
 	// Generate (and, unless --dry-run, commit). GenerateCommit owns stdout
@@ -296,5 +334,5 @@ func runDefault(cmd *cobra.Command) int {
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	opts := buildOptions(cfg, dryRun)
 	_, err = stagehand.GenerateCommit(context.Background(), opts)
-	return mapErrorToExitCode(err)
+	return reportError(out, err)
 }
