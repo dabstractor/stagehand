@@ -343,8 +343,8 @@ stagehand integrate remove lazygit --yes          # skip confirmation
 
 List the models reachable by a provider's CLI. Source of truth, in order:
 
-1.  **(a) Live list** — if the provider manifest defines a `list_models_command`, it is run as a subprocess (inherited env, bounded timeout) and its stdout is printed under a provider heading.
-2.  **(b) Curated table** — if the `list_models_command` is absent **or** the command fails (non-zero exit, timeout, or not found), Stagehand's curated per-role tier table (FR-D4) is printed, annotated with its verification date and a "consult `<command> --help`" hint.
+1. **(a) Live list** — if the provider manifest defines a `list_models_command`, it is run as a subprocess (inherited env, bounded timeout) and its stdout is printed under a provider heading.
+2. **(b) Curated table** — if the `list_models_command` is absent **or** the command fails (non-zero exit, timeout, or not found), Stagehand's curated per-role tier table (FR-D4) is printed, annotated with its verification date and a "consult `<command> --help`" hint.
 
 Stagehand never makes an HTTP call to list models (§6.2 N2) — the agent CLI is the only model authority.
 

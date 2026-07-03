@@ -159,7 +159,7 @@ All `STAGEHAND_*` variables override the config file and are overridden by CLI f
 | `STAGEHAND_MESSAGE_MODEL` | `--message-model` | Per-role: message model (env + config only) | `STAGEHAND_MESSAGE_MODEL=haiku stagehand` |
 | `STAGEHAND_ARBITER_PROVIDER` | `--arbiter-provider` | Per-role: arbiter provider | `STAGEHAND_ARBITER_PROVIDER=claude stagehand` |
 | `STAGEHAND_ARBITER_MODEL` | `--arbiter-model` | Per-role: arbiter model | `STAGEHAND_ARBITER_MODEL=sonnet stagehand` |
-| `STAGEHAND_REASONING` | `--reasoning` | Global reasoning effort: off|low|medium|high | `STAGEHAND_REASONING=high stagehand` |
+| `STAGEHAND_REASONING` | `--reasoning` | Global reasoning effort: off\|low\|medium\|high | `STAGEHAND_REASONING=high stagehand` |
 | `STAGEHAND_PLANNER_REASONING` | `--planner-reasoning` | Per-role: planner reasoning | `STAGEHAND_PLANNER_REASONING=high stagehand` |
 | `STAGEHAND_STAGER_REASONING` | `--stager-reasoning` | Per-role: stager reasoning | `STAGEHAND_STAGER_REASONING=low stagehand` |
 | `STAGEHAND_MESSAGE_REASONING` | `--message-reasoning` | Per-role: message reasoning | `STAGEHAND_MESSAGE_REASONING=low stagehand` |

@@ -316,9 +316,9 @@ func TestWorkingTreeDiff_ExcludedPlaceholderAndUnion(t *testing.T) {
 	stageFile(t, repo, "pkg.lock")
 	execGit(t, repo, "commit", "-m", "init")
 
-	writeFile(t, repo, "keep.go", "package main\n// k\n")      // MODIFIED
-	writeFile(t, repo, "secret.conf", "pass=xyz\n")             // MODIFIED
-	writeFile(t, repo, "pkg.lock", "{\"v\": 2}\n")            // MODIFIED
+	writeFile(t, repo, "keep.go", "package main\n// k\n") // MODIFIED
+	writeFile(t, repo, "secret.conf", "pass=xyz\n")       // MODIFIED
+	writeFile(t, repo, "pkg.lock", "{\"v\": 2}\n")        // MODIFIED
 
 	g := New(repo)
 	out, err := g.WorkingTreeDiff(context.Background(), StagedDiffOptions{Excludes: []string{":(exclude,glob)**/secret.conf"}})
@@ -374,7 +374,7 @@ func TestWorkingTreeDiff_ExcludedBinaryPrecedence(t *testing.T) {
 	execGit(t, repo, "commit", "-m", "init")
 
 	writeFile(t, repo, "logo.png", "\x89PNG\r\n\x1a\n\x00\x00\x00new") // binary MODIFIED
-	writeFile(t, repo, "code.go", "package main\n// x\n")             // text MODIFIED
+	writeFile(t, repo, "code.go", "package main\n// x\n")              // text MODIFIED
 
 	g := New(repo)
 	out, err := g.WorkingTreeDiff(context.Background(), StagedDiffOptions{Excludes: []string{":(exclude,glob)**/logo.png"}})

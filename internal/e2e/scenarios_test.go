@@ -390,7 +390,7 @@ default_model = "x"
 exclude = ["excluded.txt"]
 `)
 		baseEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: add feature"})
-		res := runStagehand(t, bin, repo, cfg, baseEnv)
+		res := runStagehand(t, bin, repo, cfg, baseEnv, "--provider", "stub")
 		if res.ExitCode != 0 {
 			t.Fatalf("exit code = %d, want 0; stderr:\n%s", res.ExitCode, res.Stderr)
 		}

@@ -175,17 +175,18 @@ func init() {
 		"Extra context appended to the message+planner payload, e.g. \"hotfix for #812\" "+
 			"(flag only; per-invocation — no env/git/config key)")
 	pf.BoolVar(&flagEdit, "edit", false,
-		"Open your editor on the generated message before committing (resolved via `git var GIT_EDITOR`). "+
+		"If set, open your editor on the generated message before committing (uses $GIT_EDITOR). "+
 			"The message file includes the tree SHA + a diff-tree name-status summary; comment lines ('#') "+
 			"are stripped on close. An empty message aborts (exit 1, not a rescue). The edited message "+
 			"bypasses the duplicate check (git parity). In decompose mode each commit is gated. Ignored "+
 			"with --dry-run; not valid with hook exec. (§9.22 FR-E1)")
 	pf.BoolVar(&flagPush, "push", false,
-		"Run plain `git push` (streaming) after a fully-successful run. Never prompts; never auto-sets "+
-			"upstream. On push failure the commits stand — git's stderr is shown verbatim (including the "+
-			"no-upstream hint), \"commits created; push failed\" prints, and stagehand exits 1. Skipped "+
-			"on --dry-run, the nothing-to-commit exit, and any rescue/CAS abort. (env STAGEHAND_PUSH, "+
-			"git stagehand.push, config [generation].push; default false.) (§9.22 FR-P1)")
+		"If set, push to the remote (runs git push, streaming) after a fully-successful "+
+			"run. Never prompts; never auto-sets upstream. On push failure the commits stand — "+
+			"git's stderr is shown verbatim (including the no-upstream hint), \"commits created; "+
+			"push failed\" prints, and stagehand exits 1. Skipped on --dry-run, the nothing-to-commit "+
+			"exit, and any rescue/CAS abort. (env STAGEHAND_PUSH, git stagehand.push, config "+
+			"[generation].push; default false.) (§9.22 FR-P1)")
 	// §15.2 reasoning flags (FR-R6) — global + per-role; zero default; loadFlags reads via fs.Changed.
 	pf.StringVar(&flagReasoning, "reasoning", "",
 		"Global reasoning effort: off|low|medium|high (env STAGEHAND_REASONING; git stagehand.reasoning; default off for every role)")

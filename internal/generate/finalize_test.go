@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"context"
 	"testing"
 
 	"github.com/dustin/stagehand/internal/config"
@@ -86,7 +87,7 @@ func TestEditMessageNoop(t *testing.T) {
 	t.Run("cfg.Edit==false is identity", func(t *testing.T) {
 		cfg := config.Defaults() // Edit defaults to false
 		msg := "Fix parser\n\nBody text"
-		got, err := EditMessage(nil, msg, cfg, EditContext{})
+		got, err := EditMessage(context.TODO(), msg, cfg, EditContext{})
 		if err != nil {
 			t.Fatalf("EditMessage(nop) unexpected error: %v", err)
 		}

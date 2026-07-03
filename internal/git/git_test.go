@@ -260,7 +260,9 @@ func TestPush_NoUpstreamFails128(t *testing.T) {
 	repo := t.TempDir()
 	initRepo(t, repo)
 	bare := t.TempDir()
-	exec.Command("git", "init", "--bare", bare).Run()
+	if err := exec.Command("git", "init", "--bare", bare).Run(); err != nil {
+		t.Fatalf("init bare repo: %v", err)
+	}
 	mustRun(t, repo, "remote", "add", "origin", bare)
 	writeAndCommit(t, repo, "a.txt", "a")
 	// NOTE: deliberately NO `git push -u origin HEAD` — no upstream.
