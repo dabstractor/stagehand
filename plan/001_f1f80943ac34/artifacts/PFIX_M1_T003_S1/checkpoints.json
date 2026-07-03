@@ -2,103 +2,6 @@
   "version": "1.0",
   "checkpoints": [
     {
-      "id": "PFIX_M1_T003_S1_1783068397318_pre-execution_92e280c3",
-      "taskId": "PFIX_M1_T003_S1",
-      "label": "Before Coder Agent execution",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T003_S1.md",
-        "stage": "pre-execution",
-        "validationResults": [],
-        "timestamp": "2026-07-03T08:46:37.318Z"
-      },
-      "createdAt": "2026-07-03T08:46:37.318Z"
-    },
-    {
-      "id": "PFIX_M1_T003_S1_1783068784059_coder-response_200f9dc7",
-      "taskId": "PFIX_M1_T003_S1",
-      "label": "After Coder Agent response",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T003_S1.md",
-        "stage": "coder-response",
-        "coderResponse": "All validation gates pass. The implementation is complete and verified.\n\n## Summary\n\nI executed PRP `PFIX_M1_T003_S1`, fixing **BUG-003**: the `stagehand providers list` and `providers show <name>` subcommands ignored the global `--config`/`--provider`/`--model` flags and all `STAGEHAND_*` env vars because their `RunE` closures called `config.Load(config.Flags{}, \"\")` with an empty `Flags` struct.\n\n### Changes (minimal, exactly 2 files)\n\n**`cmd/stagehand/providers.go`** — rewired both RunE closures to the already-shipped `runDefault` pattern:\n- `newProvidersListCmd`: `config.Load(config.Flags{}, \"\")` → `buildFlags(cmd)` + `config.Load(flags, \".\")`\n- `newProvidersShowCmd`: same rewire\n- Corrected the now-stale doc comment (\"the flags layer is empty because the persistent flags are not yet wired by P1.M7.T2.S1\") to reflect that `buildFlags` now wires the full FR34 chain.\n- No new imports (both files are `package main`); `buildFlags` reused, not duplicated.\n\n**`cmd/stagehand/providers_test.go`** — added 3 white-box regression tests driving the real command tree via `cmd.Execute()` (mirroring `run_test.go`'s `TestVersionShortCircuit` pattern):\n- `TestProvidersList_HonorsConfigFlag` — `--config` lists a custom provider\n- `TestProvidersList_HonorsConfigEnv` — `STAGEHAND_CONFIG` lists it\n- `TestProvidersShow_HonorsConfigFlag` — `show` honors `--config`\n\n### Validation results\n- **Level 1** (build/vet/gofmt): all clean\n- **Level 2** (`go test ./cmd/stagehand/` + `go test ./...`): green, 3 new tests pass, no regressions\n- **Level 3** (E2E reproduction): all 5 scenarios confirmed — `--config`, `STAGEHAND_CONFIG`, `--provider` default marker, `show` override manifest, and repo-local `.stagehand.toml` discovery unchanged (no regression)\n- `git diff --name-only` confirms only the 2 intended files changed; `buildFlags`, `config.Load`, and the pure render helpers are byte-for-byte unchanged\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-003 fixed in cmd/stagehand/providers.go: both the `providers list` and `providers show <name>` RunE closures were rewired from `config.Load(config.Flags{}, \\\"\\\")` (empty Flags struct that silently ignored --config/--provider/--model and all STAGEHAND_* env vars) to the existing `buildFlags(cmd) -> config.Load(flags, \\\".\\\")` pattern used by runDefault. The stale 'flags layer is empty' doc comment was corrected. 3 white-box regression tests added to providers_test.go (TestProvidersList_HonorsConfigFlag, TestProvidersList_HonorsConfigEnv, TestProvidersShow_HonorsConfigFlag) driving the real command tree via cmd.Execute(). All gates green: go build ./..., go vet ./..., gofmt -s -l (empty), go test ./cmd/stagehand/, go test ./... E2E reproduction confirms customagent now lists via --config and STAGEHAND_CONFIG, --provider claude sets the default marker, providers show honors --config, and repo-local .stagehand.toml discovery is unchanged (no regression). Fix is minimal: buildFlags reused (not duplicated), no new imports in providers.go, and config.Load/buildFlags/pure render helpers are byte-for-byte unchanged (only 2 files modified).\"\n}\n```",
-        "coderResult": {
-          "result": "success",
-          "message": "BUG-003 fixed in cmd/stagehand/providers.go: both the `providers list` and `providers show <name>` RunE closures were rewired from `config.Load(config.Flags{}, \"\")` (empty Flags struct that silently ignored --config/--provider/--model and all STAGEHAND_* env vars) to the existing `buildFlags(cmd) -> config.Load(flags, \".\")` pattern used by runDefault. The stale 'flags layer is empty' doc comment was corrected. 3 white-box regression tests added to providers_test.go (TestProvidersList_HonorsConfigFlag, TestProvidersList_HonorsConfigEnv, TestProvidersShow_HonorsConfigFlag) driving the real command tree via cmd.Execute(). All gates green: go build ./..., go vet ./..., gofmt -s -l (empty), go test ./cmd/stagehand/, go test ./... E2E reproduction confirms customagent now lists via --config and STAGEHAND_CONFIG, --provider claude sets the default marker, providers show honors --config, and repo-local .stagehand.toml discovery is unchanged (no regression). Fix is minimal: buildFlags reused (not duplicated), no new imports in providers.go, and config.Load/buildFlags/pure render helpers are byte-for-byte unchanged (only 2 files modified)."
-        },
-        "validationResults": [],
-        "timestamp": "2026-07-03T08:53:04.059Z"
-      },
-      "createdAt": "2026-07-03T08:53:04.059Z"
-    },
-    {
-      "id": "PFIX_M1_T003_S1_1783068784458_validation-gate-2_28742cfe",
-      "taskId": "PFIX_M1_T003_S1",
-      "label": "After validation gate 2",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T003_S1.md",
-        "stage": "validation-gate-2",
-        "coderResponse": "All validation gates pass. The implementation is complete and verified.\n\n## Summary\n\nI executed PRP `PFIX_M1_T003_S1`, fixing **BUG-003**: the `stagehand providers list` and `providers show <name>` subcommands ignored the global `--config`/`--provider`/`--model` flags and all `STAGEHAND_*` env vars because their `RunE` closures called `config.Load(config.Flags{}, \"\")` with an empty `Flags` struct.\n\n### Changes (minimal, exactly 2 files)\n\n**`cmd/stagehand/providers.go`** — rewired both RunE closures to the already-shipped `runDefault` pattern:\n- `newProvidersListCmd`: `config.Load(config.Flags{}, \"\")` → `buildFlags(cmd)` + `config.Load(flags, \".\")`\n- `newProvidersShowCmd`: same rewire\n- Corrected the now-stale doc comment (\"the flags layer is empty because the persistent flags are not yet wired by P1.M7.T2.S1\") to reflect that `buildFlags` now wires the full FR34 chain.\n- No new imports (both files are `package main`); `buildFlags` reused, not duplicated.\n\n**`cmd/stagehand/providers_test.go`** — added 3 white-box regression tests driving the real command tree via `cmd.Execute()` (mirroring `run_test.go`'s `TestVersionShortCircuit` pattern):\n- `TestProvidersList_HonorsConfigFlag` — `--config` lists a custom provider\n- `TestProvidersList_HonorsConfigEnv` — `STAGEHAND_CONFIG` lists it\n- `TestProvidersShow_HonorsConfigFlag` — `show` honors `--config`\n\n### Validation results\n- **Level 1** (build/vet/gofmt): all clean\n- **Level 2** (`go test ./cmd/stagehand/` + `go test ./...`): green, 3 new tests pass, no regressions\n- **Level 3** (E2E reproduction): all 5 scenarios confirmed — `--config`, `STAGEHAND_CONFIG`, `--provider` default marker, `show` override manifest, and repo-local `.stagehand.toml` discovery unchanged (no regression)\n- `git diff --name-only` confirms only the 2 intended files changed; `buildFlags`, `config.Load`, and the pure render helpers are byte-for-byte unchanged\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-003 fixed in cmd/stagehand/providers.go: both the `providers list` and `providers show <name>` RunE closures were rewired from `config.Load(config.Flags{}, \\\"\\\")` (empty Flags struct that silently ignored --config/--provider/--model and all STAGEHAND_* env vars) to the existing `buildFlags(cmd) -> config.Load(flags, \\\".\\\")` pattern used by runDefault. The stale 'flags layer is empty' doc comment was corrected. 3 white-box regression tests added to providers_test.go (TestProvidersList_HonorsConfigFlag, TestProvidersList_HonorsConfigEnv, TestProvidersShow_HonorsConfigFlag) driving the real command tree via cmd.Execute(). All gates green: go build ./..., go vet ./..., gofmt -s -l (empty), go test ./cmd/stagehand/, go test ./... E2E reproduction confirms customagent now lists via --config and STAGEHAND_CONFIG, --provider claude sets the default marker, providers show honors --config, and repo-local .stagehand.toml discovery is unchanged (no regression). Fix is minimal: buildFlags reused (not duplicated), no new imports in providers.go, and config.Load/buildFlags/pure render helpers are byte-for-byte unchanged (only 2 files modified).\"\n}\n```",
-        "coderResult": {
-          "result": "success",
-          "message": "BUG-003 fixed in cmd/stagehand/providers.go: both the `providers list` and `providers show <name>` RunE closures were rewired from `config.Load(config.Flags{}, \"\")` (empty Flags struct that silently ignored --config/--provider/--model and all STAGEHAND_* env vars) to the existing `buildFlags(cmd) -> config.Load(flags, \".\")` pattern used by runDefault. The stale 'flags layer is empty' doc comment was corrected. 3 white-box regression tests added to providers_test.go (TestProvidersList_HonorsConfigFlag, TestProvidersList_HonorsConfigEnv, TestProvidersShow_HonorsConfigFlag) driving the real command tree via cmd.Execute(). All gates green: go build ./..., go vet ./..., gofmt -s -l (empty), go test ./cmd/stagehand/, go test ./... E2E reproduction confirms customagent now lists via --config and STAGEHAND_CONFIG, --provider claude sets the default marker, providers show honors --config, and repo-local .stagehand.toml discovery is unchanged (no regression). Fix is minimal: buildFlags reused (not duplicated), no new imports in providers.go, and config.Load/buildFlags/pure render helpers are byte-for-byte unchanged (only 2 files modified)."
-        },
-        "validationResults": [
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go build ./...",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go vet ./...",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./cmd/stagehand/",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./...",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          }
-        ],
-        "timestamp": "2026-07-03T08:53:04.458Z"
-      },
-      "createdAt": "2026-07-03T08:53:04.458Z"
-    },
-    {
       "id": "PFIX_M1_T003_S1_1783068784460_complete_8da6a634",
       "taskId": "PFIX_M1_T003_S1",
       "label": "Task completed successfully",
@@ -165,7 +68,172 @@
         "timestamp": "2026-07-03T08:53:04.460Z"
       },
       "createdAt": "2026-07-03T08:53:04.460Z"
+    },
+    {
+      "id": "PFIX_M1_T003_S1_1783072505444_pre-execution_10696897",
+      "taskId": "PFIX_M1_T003_S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T003_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-03T09:55:05.444Z"
+      },
+      "createdAt": "2026-07-03T09:55:05.444Z"
+    },
+    {
+      "id": "PFIX_M1_T003_S1_1783072636859_coder-response_1d27b485",
+      "taskId": "PFIX_M1_T003_S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T003_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "All validation gates pass. Every success criterion is verified. Here is my final assessment.\n\n## Summary\n\nThe PRP `PFIX_M1_T003_S1` (BUG-003 fix) was **already fully implemented and committed** in git commit `91450d5`. I verified the working-tree code matches the PRP's desired state exactly (no drift) and ran every validation gate to confirm correctness.\n\n**What was implemented (commit `91450d5`, matches PRP Tasks 1–4 verbatim):**\n- `cmd/stagehand/providers.go` — both RunE closures (`newProvidersListCmd` line 85, `newProvidersShowCmd` line 115) rewired from `config.Load(config.Flags{}, \"\")` → `buildFlags(cmd)` + `config.Load(flags, \".\")` (the exact `runDefault` pattern). The stale \"flags layer is empty\" doc comment corrected. No new imports (`buildFlags` is `package main`).\n- `cmd/stagehand/providers_test.go` — 3 new white-box regression tests added (`TestProvidersList_HonorsConfigFlag`, `TestProvidersList_HonorsConfigEnv`, `TestProvidersShow_HonorsConfigFlag`) driving the real RunE via `cmd.Execute()`.\n\n**Validation results — all green:**\n- **L1**: `go build ./...` ✓, `go vet ./...` ✓, `gofmt -s -l` empty ✓\n- **L2**: 3 new regression tests PASS; `go test ./cmd/stagehand/` ✓; `go test ./...` full suite green (no regressions) ✓\n- **L3 E2E reproduction** (binary built): (1) `--config` flag → `customagent` listed ✓; (2) `STAGEHAND_CONFIG` env → `customagent` listed ✓; (3) `--provider claude` → default line names `claude` (flag layer wired) ✓; (4) `providers show --config` → override manifest TOML printed ✓; (5) repo-local `.stagehand.toml` discovery unchanged (no regression) ✓\n\n**Code-quality checks:** `buildFlags` reused (not duplicated), no new import, `config.Load`/`buildFlags`/pure render helpers byte-for-byte unchanged, fix minimal (only `providers.go` + `providers_test.go`). All anti-patterns avoided. The only `config.Load(config.Flags{}` occurrence in `providers.go` is inside the historical doc comment describing the bug (\"the closures *previously* called...\") — not live code.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PRP PFIX_M1_T003_S1 (BUG-003) is fully implemented and validated. The fix was already committed in 91450d5; I verified the working-tree code matches the PRP's desired state byte-for-byte (both providers.go RunE closures rewired to buildFlags(cmd) -> config.Load(flags, \\\"..\\\"), stale comment corrected, 3 regression tests added) with zero code drift, and ran all 5 validation gates green: go build ./... (0), go vet ./... (clean), gofmt -s -l (empty), go test ./cmd/stagehand/ (PASS incl. 3 new TestProvidersList_HonorsConfigFlag / _ConfigEnv / TestProvidersShow_HonorsConfigFlag), go test ./... (full suite green, no regressions). Level-3 E2E reproduction on a built binary confirms all 5 success criteria: --config flag lists customagent, STAGEHAND_CONFIG env lists customagent, --provider claude drives the resolved default marker, providers show --config prints the override manifest TOML, and repo-local .stagehand.toml discovery is unchanged (no regression). buildFlags is reused (not duplicated) with no new import, and config.Load/buildFlags/pure render helpers are untouched. All anti-patterns avoided.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PRP PFIX_M1_T003_S1 (BUG-003) is fully implemented and validated. The fix was already committed in 91450d5; I verified the working-tree code matches the PRP's desired state byte-for-byte (both providers.go RunE closures rewired to buildFlags(cmd) -> config.Load(flags, \"..\"), stale comment corrected, 3 regression tests added) with zero code drift, and ran all 5 validation gates green: go build ./... (0), go vet ./... (clean), gofmt -s -l (empty), go test ./cmd/stagehand/ (PASS incl. 3 new TestProvidersList_HonorsConfigFlag / _ConfigEnv / TestProvidersShow_HonorsConfigFlag), go test ./... (full suite green, no regressions). Level-3 E2E reproduction on a built binary confirms all 5 success criteria: --config flag lists customagent, STAGEHAND_CONFIG env lists customagent, --provider claude drives the resolved default marker, providers show --config prints the override manifest TOML, and repo-local .stagehand.toml discovery is unchanged (no regression). buildFlags is reused (not duplicated) with no new import, and config.Load/buildFlags/pure render helpers are untouched. All anti-patterns avoided."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-03T09:57:16.859Z"
+      },
+      "createdAt": "2026-07-03T09:57:16.859Z"
+    },
+    {
+      "id": "PFIX_M1_T003_S1_1783072637272_validation-gate-2_d8ae657d",
+      "taskId": "PFIX_M1_T003_S1",
+      "label": "After validation gate 2",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T003_S1.md",
+        "stage": "validation-gate-2",
+        "coderResponse": "All validation gates pass. Every success criterion is verified. Here is my final assessment.\n\n## Summary\n\nThe PRP `PFIX_M1_T003_S1` (BUG-003 fix) was **already fully implemented and committed** in git commit `91450d5`. I verified the working-tree code matches the PRP's desired state exactly (no drift) and ran every validation gate to confirm correctness.\n\n**What was implemented (commit `91450d5`, matches PRP Tasks 1–4 verbatim):**\n- `cmd/stagehand/providers.go` — both RunE closures (`newProvidersListCmd` line 85, `newProvidersShowCmd` line 115) rewired from `config.Load(config.Flags{}, \"\")` → `buildFlags(cmd)` + `config.Load(flags, \".\")` (the exact `runDefault` pattern). The stale \"flags layer is empty\" doc comment corrected. No new imports (`buildFlags` is `package main`).\n- `cmd/stagehand/providers_test.go` — 3 new white-box regression tests added (`TestProvidersList_HonorsConfigFlag`, `TestProvidersList_HonorsConfigEnv`, `TestProvidersShow_HonorsConfigFlag`) driving the real RunE via `cmd.Execute()`.\n\n**Validation results — all green:**\n- **L1**: `go build ./...` ✓, `go vet ./...` ✓, `gofmt -s -l` empty ✓\n- **L2**: 3 new regression tests PASS; `go test ./cmd/stagehand/` ✓; `go test ./...` full suite green (no regressions) ✓\n- **L3 E2E reproduction** (binary built): (1) `--config` flag → `customagent` listed ✓; (2) `STAGEHAND_CONFIG` env → `customagent` listed ✓; (3) `--provider claude` → default line names `claude` (flag layer wired) ✓; (4) `providers show --config` → override manifest TOML printed ✓; (5) repo-local `.stagehand.toml` discovery unchanged (no regression) ✓\n\n**Code-quality checks:** `buildFlags` reused (not duplicated), no new import, `config.Load`/`buildFlags`/pure render helpers byte-for-byte unchanged, fix minimal (only `providers.go` + `providers_test.go`). All anti-patterns avoided. The only `config.Load(config.Flags{}` occurrence in `providers.go` is inside the historical doc comment describing the bug (\"the closures *previously* called...\") — not live code.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PRP PFIX_M1_T003_S1 (BUG-003) is fully implemented and validated. The fix was already committed in 91450d5; I verified the working-tree code matches the PRP's desired state byte-for-byte (both providers.go RunE closures rewired to buildFlags(cmd) -> config.Load(flags, \\\"..\\\"), stale comment corrected, 3 regression tests added) with zero code drift, and ran all 5 validation gates green: go build ./... (0), go vet ./... (clean), gofmt -s -l (empty), go test ./cmd/stagehand/ (PASS incl. 3 new TestProvidersList_HonorsConfigFlag / _ConfigEnv / TestProvidersShow_HonorsConfigFlag), go test ./... (full suite green, no regressions). Level-3 E2E reproduction on a built binary confirms all 5 success criteria: --config flag lists customagent, STAGEHAND_CONFIG env lists customagent, --provider claude drives the resolved default marker, providers show --config prints the override manifest TOML, and repo-local .stagehand.toml discovery is unchanged (no regression). buildFlags is reused (not duplicated) with no new import, and config.Load/buildFlags/pure render helpers are untouched. All anti-patterns avoided.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PRP PFIX_M1_T003_S1 (BUG-003) is fully implemented and validated. The fix was already committed in 91450d5; I verified the working-tree code matches the PRP's desired state byte-for-byte (both providers.go RunE closures rewired to buildFlags(cmd) -> config.Load(flags, \"..\"), stale comment corrected, 3 regression tests added) with zero code drift, and ran all 5 validation gates green: go build ./... (0), go vet ./... (clean), gofmt -s -l (empty), go test ./cmd/stagehand/ (PASS incl. 3 new TestProvidersList_HonorsConfigFlag / _ConfigEnv / TestProvidersShow_HonorsConfigFlag), go test ./... (full suite green, no regressions). Level-3 E2E reproduction on a built binary confirms all 5 success criteria: --config flag lists customagent, STAGEHAND_CONFIG env lists customagent, --provider claude drives the resolved default marker, providers show --config prints the override manifest TOML, and repo-local .stagehand.toml discovery is unchanged (no regression). buildFlags is reused (not duplicated) with no new import, and config.Load/buildFlags/pure render helpers are untouched. All anti-patterns avoided."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T09:57:17.272Z"
+      },
+      "createdAt": "2026-07-03T09:57:17.272Z"
+    },
+    {
+      "id": "PFIX_M1_T003_S1_1783072637274_complete_ff016f65",
+      "taskId": "PFIX_M1_T003_S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T003_S1.md",
+        "stage": "complete",
+        "coderResponse": "All validation gates pass. Every success criterion is verified. Here is my final assessment.\n\n## Summary\n\nThe PRP `PFIX_M1_T003_S1` (BUG-003 fix) was **already fully implemented and committed** in git commit `91450d5`. I verified the working-tree code matches the PRP's desired state exactly (no drift) and ran every validation gate to confirm correctness.\n\n**What was implemented (commit `91450d5`, matches PRP Tasks 1–4 verbatim):**\n- `cmd/stagehand/providers.go` — both RunE closures (`newProvidersListCmd` line 85, `newProvidersShowCmd` line 115) rewired from `config.Load(config.Flags{}, \"\")` → `buildFlags(cmd)` + `config.Load(flags, \".\")` (the exact `runDefault` pattern). The stale \"flags layer is empty\" doc comment corrected. No new imports (`buildFlags` is `package main`).\n- `cmd/stagehand/providers_test.go` — 3 new white-box regression tests added (`TestProvidersList_HonorsConfigFlag`, `TestProvidersList_HonorsConfigEnv`, `TestProvidersShow_HonorsConfigFlag`) driving the real RunE via `cmd.Execute()`.\n\n**Validation results — all green:**\n- **L1**: `go build ./...` ✓, `go vet ./...` ✓, `gofmt -s -l` empty ✓\n- **L2**: 3 new regression tests PASS; `go test ./cmd/stagehand/` ✓; `go test ./...` full suite green (no regressions) ✓\n- **L3 E2E reproduction** (binary built): (1) `--config` flag → `customagent` listed ✓; (2) `STAGEHAND_CONFIG` env → `customagent` listed ✓; (3) `--provider claude` → default line names `claude` (flag layer wired) ✓; (4) `providers show --config` → override manifest TOML printed ✓; (5) repo-local `.stagehand.toml` discovery unchanged (no regression) ✓\n\n**Code-quality checks:** `buildFlags` reused (not duplicated), no new import, `config.Load`/`buildFlags`/pure render helpers byte-for-byte unchanged, fix minimal (only `providers.go` + `providers_test.go`). All anti-patterns avoided. The only `config.Load(config.Flags{}` occurrence in `providers.go` is inside the historical doc comment describing the bug (\"the closures *previously* called...\") — not live code.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PRP PFIX_M1_T003_S1 (BUG-003) is fully implemented and validated. The fix was already committed in 91450d5; I verified the working-tree code matches the PRP's desired state byte-for-byte (both providers.go RunE closures rewired to buildFlags(cmd) -> config.Load(flags, \\\"..\\\"), stale comment corrected, 3 regression tests added) with zero code drift, and ran all 5 validation gates green: go build ./... (0), go vet ./... (clean), gofmt -s -l (empty), go test ./cmd/stagehand/ (PASS incl. 3 new TestProvidersList_HonorsConfigFlag / _ConfigEnv / TestProvidersShow_HonorsConfigFlag), go test ./... (full suite green, no regressions). Level-3 E2E reproduction on a built binary confirms all 5 success criteria: --config flag lists customagent, STAGEHAND_CONFIG env lists customagent, --provider claude drives the resolved default marker, providers show --config prints the override manifest TOML, and repo-local .stagehand.toml discovery is unchanged (no regression). buildFlags is reused (not duplicated) with no new import, and config.Load/buildFlags/pure render helpers are untouched. All anti-patterns avoided.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PRP PFIX_M1_T003_S1 (BUG-003) is fully implemented and validated. The fix was already committed in 91450d5; I verified the working-tree code matches the PRP's desired state byte-for-byte (both providers.go RunE closures rewired to buildFlags(cmd) -> config.Load(flags, \"..\"), stale comment corrected, 3 regression tests added) with zero code drift, and ran all 5 validation gates green: go build ./... (0), go vet ./... (clean), gofmt -s -l (empty), go test ./cmd/stagehand/ (PASS incl. 3 new TestProvidersList_HonorsConfigFlag / _ConfigEnv / TestProvidersShow_HonorsConfigFlag), go test ./... (full suite green, no regressions). Level-3 E2E reproduction on a built binary confirms all 5 success criteria: --config flag lists customagent, STAGEHAND_CONFIG env lists customagent, --provider claude drives the resolved default marker, providers show --config prints the override manifest TOML, and repo-local .stagehand.toml discovery is unchanged (no regression). buildFlags is reused (not duplicated) with no new import, and config.Load/buildFlags/pure render helpers are untouched. All anti-patterns avoided."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T09:57:17.274Z"
+      },
+      "createdAt": "2026-07-03T09:57:17.274Z"
     }
   ],
-  "lastModified": "2026-07-03T08:53:04.460Z"
+  "lastModified": "2026-07-03T09:57:17.274Z"
 }
