@@ -26,6 +26,7 @@ type Deps struct {
 	Git      git.Git           // the git boundary (real *gitRunner via git.New(repo) in prod+tests)
 	Manifest provider.Manifest // the provider manifest to Render+Execute (stub in tests)
 	Verbose  *ui.Verbose       // nil-safe --verbose diagnostics sink (P1.M4.T3.S2); logs retries here + passed to provider.Execute for command/raw-output logging
+	Excludes []string         // resolved user exclude pathspecs (from exclude.ResolveExcludePathspecs); nil ⇒ none
 }
 
 // Result is the outcome of a successful CommitStaged. Carries everything the CLI
@@ -144,6 +145,7 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 		MaxDiffBytes:     cfg.MaxDiffBytes,
 		MaxMDLines:       cfg.MaxMdLines,
 		BinaryExtensions: cfg.BinaryExtensions,
+		Excludes:         deps.Excludes,
 	})
 	if err != nil {
 		return Result{}, err

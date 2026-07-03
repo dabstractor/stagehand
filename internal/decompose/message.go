@@ -72,6 +72,7 @@ func generateMessage(ctx context.Context, deps Deps, treeA, treeB string) (strin
 		MaxDiffBytes:     deps.Config.MaxDiffBytes,
 		MaxMDLines:       deps.Config.MaxMdLines,
 		BinaryExtensions: deps.Config.BinaryExtensions,
+		Excludes:         deps.Excludes,
 	})
 	if err != nil {
 		return "", fmt.Errorf("%w: tree diff: %w", ErrMessageFailed, err)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/dustin/stagehand/internal/config"
 	"github.com/dustin/stagehand/internal/decompose"
+	"github.com/dustin/stagehand/internal/exclude"
 	"github.com/dustin/stagehand/internal/exitcode"
 	"github.com/dustin/stagehand/internal/generate"
 	"github.com/dustin/stagehand/internal/git"
@@ -73,7 +74,7 @@ func runDefault(cmd *cobra.Command, args []string) error {
 			if status == "" {
 				return exitcode.New(exitcode.NothingToCommit, errors.New("Nothing to commit.")) // clean tree
 			}
-			return runDecompose(ctx, stdout, stderr, u, cfg, g) // planner gets the working-tree diff
+			return runDecompose(ctx, stdout, stderr, u, cfg, g, repoDir) // planner gets the working-tree diff
 		}
 		switch {
 		case flagNoAutoStage:
@@ -273,7 +274,7 @@ func shouldDecompose(cfg *config.Config, dryRun, noAutoStage bool) bool {
 // Prints each landed commit's FR42 report to stdout (including partial landings on FR-M12), then maps
 // the error. Calls internal/decompose.Decompose directly (pkg/stagehand.Decompose is P4.M2.T1.S1 —
 // not yet shipped; that task swaps this one call site to the public wrapper).
-func runDecompose(ctx context.Context, stdout, stderr io.Writer, u *ui.UI, cfg *config.Config, g git.Git) error {
+func runDecompose(ctx context.Context, stdout, stderr io.Writer, u *ui.UI, cfg *config.Config, g git.Git, repoDir string) error {
 	overrides, err := provider.DecodeUserOverrides(cfg.Providers)
 	if err != nil {
 		return exitcode.New(exitcode.Error, fmt.Errorf("decompose: provider overrides: %w", err))
@@ -293,6 +294,12 @@ func runDecompose(ctx context.Context, stdout, stderr io.Writer, u *ui.UI, cfg *
 	})
 	// FR51b: main line surfaces the PLANNER role's resolved invocation.
 	u.Progress(ui.ProgressLabel("Decomposing", roleModels.Planner.Model, roleModels.Planner.Provider))
+
+	// Resolve user exclude pathspecs for the diff layer (FR-X1 union + FR-X4 placeholders).
+	excludes, err := exclude.ResolveExcludePathspecs(*cfg, repoDir, verbose)
+	if err != nil {
+		return exitcode.New(exitcode.Error, fmt.Errorf("resolve excludes: %w", err))
+	}
 	deps := decompose.Deps{
 		Git:      g,
 		Registry: reg,
@@ -300,6 +307,7 @@ func runDecompose(ctx context.Context, stdout, stderr io.Writer, u *ui.UI, cfg *
 		Roles:    roleManifests,
 		Verbose:  verbose,
 		Out:      stderr, // the loop prints §18.3 rescue + §13.5 CAS here (P3.M4.T1.S2)
+		Excludes: excludes,
 	}
 
 	res, derr := decompose.Decompose(ctx, deps)

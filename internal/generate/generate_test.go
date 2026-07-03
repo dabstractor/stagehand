@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -539,5 +540,59 @@ func TestCommitStaged_ResolvesSubProviderFromManifest(t *testing.T) {
 	}
 	if strings.Contains(cmd, "--provider pi") {
 		t.Errorf("rendered command emits the manifest name as sub-provider (conflation bug)\ngot: %s", cmd)
+	}
+}
+
+func TestCommitStaged_ExcludedPayloadCapture(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+
+	writeFile(t, repo, "feature.go", "package main\n")
+	stageFile(t, repo, "feature.go")
+	writeFile(t, repo, "secret.conf", "password=abc\n")
+	stageFile(t, repo, "secret.conf")
+
+	stdinFile := filepath.Join(t.TempDir(), "stdin.txt")
+	t.Setenv("STAGEHAND_STUB_STDINFILE", stdinFile)
+	stub := stubtest.Build(t)
+	m := stubtest.Manifest(stub, stubtest.Options{Out: "feat: add feature"})
+
+	cfg := config.Config{
+		Provider: "stub",
+		Model:    "stub",
+		Timeout:  30 * time.Second,
+	}
+	deps := Deps{
+		Git:      git.New(repo),
+		Manifest: m,
+		Verbose:  ui.NewVerbose(io.Discard, false),
+		Excludes: []string{":(exclude,glob)**/secret.conf"},
+	}
+
+	res, err := CommitStaged(context.Background(), deps, cfg)
+	if err != nil {
+		t.Fatalf("CommitStaged: %v", err)
+	}
+	if res.CommitSHA == "" {
+		t.Fatal("expected a commit SHA")
+	}
+
+	// Read the captured stdin payload.
+	data, err := os.ReadFile(stdinFile)
+	if err != nil {
+		t.Fatalf("read stdin capture: %v", err)
+	}
+	payload := string(data)
+
+	// secret.conf: hunk absent, placeholder present
+	if strings.Contains(payload, "diff --git a/secret.conf") {
+		t.Fatalf("expected secret.conf hunk ABSENT from payload, got:\n%s", payload)
+	}
+	if !strings.Contains(payload, "[excluded] secret.conf") {
+		t.Fatalf("expected [excluded] placeholder for secret.conf, got:\n%s", payload)
+	}
+	// feature.go present
+	if !strings.Contains(payload, "feature.go") {
+		t.Fatalf("expected feature.go present in payload, got:\n%s", payload)
 	}
 }

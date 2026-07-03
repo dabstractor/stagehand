@@ -19,6 +19,13 @@
 //   - WorkingTreeDiff:      diffArgs = []
 //   - TreeDiff:             diffArgs = [treeA, treeB]
 //
+// FR-X4 — User-exclude placeholder. Files matched by the user's exclude pathspecs (from
+// .stagehandignore, cfg.Exclude, or --exclude) emit a "<status>\t[excluded] <path>" placeholder
+// instead of their diff body. The placeholder signals the file changed while hiding its contents.
+// Detection uses a set-difference probe: git diff --name-only with the exclude pathspecs yields the
+// surviving paths; the complement against all changed paths is the excluded set. Empty excludes ⇒
+// no probe, no placeholders (zero overhead). Binary+excluded files get [binary] only (binary wins).
+//
 // This file contains the shared primitives; wiring into StagedDiff is S2's scope.
 package git
 
@@ -73,6 +80,14 @@ func binaryPlaceholderLine(status, path string) string {
 	return status + "\t[binary] " + path
 }
 
+// excludedPlaceholderLine returns the FR-X4 one-line placeholder for a user-excluded file:
+// "<status>\t[excluded] <path>". Mirrors binaryPlaceholderLine; distinguishable by tag
+// ([excluded] vs [binary]). status is the raw git name-status code. Pure function: no I/O.
+// (PRD §9.18 FR-X4.)
+func excludedPlaceholderLine(status, path string) string {
+	return status + "\t[excluded] " + path
+}
+
 // detectBinaryFiles returns the set of binary paths among the files matched by
 // `git diff <diffArgs>`. Detection is the FR3a two-signal UNION: (a) git numstat emits
 // "-\t-\t<path>" for files it content-sniffs as binary (PRIMARY), (b) the extension denylist
@@ -113,6 +128,7 @@ func (g *gitRunner) detectBinaryFiles(ctx context.Context, diffArgs ...string) (
 // the new name). diffArgs is forwarded verbatim, same contract as detectBinaryFiles.
 // Read-only w.r.t. refs/index. (PRD §9.1 FR3b.)
 func (g *gitRunner) fileStatuses(ctx context.Context, diffArgs ...string) (map[string]string, error) {
+
 	args := make([]string, 0, 1+len(diffArgs)+1)
 	args = append(args, "diff")
 	args = append(args, diffArgs...)
@@ -133,4 +149,41 @@ func (g *gitRunner) fileStatuses(ctx context.Context, diffArgs ...string) (map[s
 		statuses[fields[len(fields)-1]] = fields[0] // destination path → status (R100 line: fields[2]→"R100")
 	}
 	return statuses, nil
+}
+
+// detectExcludedStatuses returns the subset of allStatuses (path→status) whose paths the USER exclude
+// pathspecs remove from `git diff <diffArgs>`. It runs `git diff <diffArgs> --name-only -- <excludes>`
+// for the SURVIVING paths, then returns allStatuses minus those (the excluded set, statuses preserved).
+// Empty excludes ⇒ (nil, nil) with NO git call — zero overhead in the common case. diffArgs selects
+// the diff domain, variadic, identical to detectBinaryFiles: "--cached" (staged), nothing (working
+// tree), treeA treeB (tree-to-tree). Read-only w.r.t. refs/index. (PRD §9.18 FR-X4 placeholder source.)
+func (g *gitRunner) detectExcludedStatuses(ctx context.Context, allStatuses map[string]string,
+	excludes []string, diffArgs ...string) (map[string]string, error) {
+	if len(excludes) == 0 {
+		return nil, nil // no user exclusions ⇒ no placeholders, no git call (zero overhead)
+	}
+	args := []string{"diff"}
+	args = append(args, diffArgs...)
+	args = append(args, "--name-only", "--")
+	args = append(args, excludes...)
+	stdout, stderr, code, err := g.run(ctx, g.workDir, args...)
+	if err != nil {
+		return nil, err // infrastructural (git missing / ctx cancel / start failure) — propagate unwrapped
+	}
+	if code != 0 {
+		return nil, fmt.Errorf("git diff (exclude probe): failed (exit %d): %s", code, strings.TrimSpace(stderr))
+	}
+	surviving := make(map[string]bool, len(allStatuses))
+	for _, line := range strings.Split(stdout, "\n") {
+		if p := strings.TrimSpace(line); p != "" {
+			surviving[p] = true
+		}
+	}
+	excluded := make(map[string]string)
+	for path, st := range allStatuses {
+		if !surviving[path] { // present in all-changed but removed by the exclude pathspecs
+			excluded[path] = st
+		}
+	}
+	return excluded, nil
 }

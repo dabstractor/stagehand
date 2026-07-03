@@ -59,6 +59,8 @@ type Deps struct {
 	Roles    RoleManifests
 	Verbose  *ui.Verbose
 
+	Excludes []string // resolved user exclude pathspecs (from exclude.ResolveExcludePathspecs); nil ⇒ none
+
 	// Out is where the loop prints the §18.3 multi-commit rescue + the §13.5 CAS message (stderr in
 	// prod via cmd.ErrOrStderr; *bytes.Buffer in tests). nil → rescue/CAS messages are skipped
 	// (library-safe; the loop guards nil). S2 (P3.M4.T1.S2).

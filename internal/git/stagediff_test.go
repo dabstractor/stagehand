@@ -203,8 +203,12 @@ func TestStagedDiff_CustomExcludesOverride(t *testing.T) {
 	if !strings.Contains(out, "keep.go") {
 		t.Fatalf("expected keep.go in payload, got:\n%s", out)
 	}
-	if strings.Contains(out, "drop.go") {
-		t.Fatalf("expected drop.go to be excluded (custom excludes override), got:\n%s", out)
+	// The excluded file's hunk is absent but the [excluded] placeholder IS present.
+	if strings.Contains(out, "diff --git a/drop.go") {
+		t.Fatalf("expected drop.go hunk to be absent (user-excluded), got:\n%s", out)
+	}
+	if !strings.Contains(out, "[excluded] drop.go") {
+		t.Fatalf("expected [excluded] placeholder for drop.go, got:\n%s", out)
 	}
 }
 
@@ -439,5 +443,88 @@ func TestStagedDiff_NoBinaryWhenOnlyText(t *testing.T) {
 	}
 	if strings.Contains(out, "[binary]") {
 		t.Fatalf("expected no [binary] lines for text-only staging, got:\n%s", out)
+	}
+}
+
+func TestStagedDiff_ExcludedPlaceholder(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+
+	// feature.go (kept, non-excluded), secret.conf (user-excluded), pkg.lock (default-denylist)
+	writeFile(t, repo, "feature.go", "package main\n")
+	stageFile(t, repo, "feature.go")
+	writeFile(t, repo, "secret.conf", "password=abc\n")
+	stageFile(t, repo, "secret.conf")
+	writeFile(t, repo, "pkg.lock", "{}\n")
+	stageFile(t, repo, "pkg.lock")
+
+	g := New(repo)
+	out, err := g.StagedDiff(context.Background(), StagedDiffOptions{Excludes: []string{":(exclude,glob)**/secret.conf"}})
+	if err != nil {
+		t.Fatalf("StagedDiff err = %v, want nil", err)
+	}
+	// feature.go present
+	if !strings.Contains(out, "feature.go") {
+		t.Fatalf("expected feature.go hunk present, got:\n%s", out)
+	}
+	// secret.conf: hunk absent, placeholder present
+	if strings.Contains(out, "diff --git a/secret.conf") {
+		t.Fatalf("expected secret.conf hunk to be absent, got:\n%s", out)
+	}
+	if !strings.Contains(out, "[excluded] secret.conf") {
+		t.Fatalf("expected [excluded] placeholder for secret.conf, got:\n%s", out)
+	}
+	// UNION proof: pkg.lock is ALSO excluded (defaultExcludes still applies when opts.Excludes is set)
+	if strings.Contains(out, "pkg.lock") {
+		t.Fatalf("expected pkg.lock to be excluded (default denylist UNION), got:\n%s", out)
+	}
+}
+
+func TestStagedDiff_ExcludedEmptyIsNoOp(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+
+	writeFile(t, repo, "a.go", "package main\n")
+	stageFile(t, repo, "a.go")
+
+	g := New(repo)
+	out, err := g.StagedDiff(context.Background(), StagedDiffOptions{}) // Excludes is nil (zero value)
+	if err != nil {
+		t.Fatalf("StagedDiff err = %v, want nil", err)
+	}
+	if !strings.Contains(out, "a.go") {
+		t.Fatalf("expected a.go present, got:\n%s", out)
+	}
+	if strings.Contains(out, "[excluded]") {
+		t.Fatalf("expected no [excluded] placeholder when Excludes is nil, got:\n%s", out)
+	}
+}
+
+func TestStagedDiff_ExcludedBinaryPrecedence(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+
+	// Real binary (PNG) that is also user-excluded → [binary] only, no [excluded]
+	writeFile(t, repo, "logo.png", "\x89PNG\r\n\x1a\n\x00\x00\x00")
+	stageFile(t, repo, "logo.png")
+	writeFile(t, repo, "a.go", "package main\n")
+	stageFile(t, repo, "a.go")
+
+	g := New(repo)
+	out, err := g.StagedDiff(context.Background(), StagedDiffOptions{Excludes: []string{":(exclude,glob)**/logo.png"}})
+	if err != nil {
+		t.Fatalf("StagedDiff err = %v, want nil", err)
+	}
+	if !strings.Contains(out, "[binary] logo.png") {
+		t.Fatalf("expected [binary] for binary+excluded file, got:\n%s", out)
+	}
+	if strings.Contains(out, "[excluded] logo.png") {
+		t.Fatalf("expected NO [excluded] for binary+excluded file (binary wins), got:\n%s", out)
+	}
+	if strings.Contains(out, "diff --git a/logo.png") {
+		t.Fatalf("expected no hunk for binary+excluded file, got:\n%s", out)
+	}
+	if !strings.Contains(out, "a.go") {
+		t.Fatalf("expected a.go present, got:\n%s", out)
 	}
 }

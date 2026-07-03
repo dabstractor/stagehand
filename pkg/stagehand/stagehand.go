@@ -17,6 +17,7 @@ import (
 
 	"github.com/dustin/stagehand/internal/config"
 	"github.com/dustin/stagehand/internal/decompose"
+	"github.com/dustin/stagehand/internal/exclude"
 	"github.com/dustin/stagehand/internal/generate"
 	"github.com/dustin/stagehand/internal/git"
 	"github.com/dustin/stagehand/internal/prompt"
@@ -138,6 +139,10 @@ func GenerateCommit(ctx context.Context, opts Options) (Result, error) {
 		return Result{}, err
 	}
 	deps.Verbose = ui.NewVerbose(opts.Verbose, cfg.Verbose)
+	deps.Excludes, err = exclude.ResolveExcludePathspecs(cfg, repoDir, deps.Verbose)
+	if err != nil {
+		return Result{}, fmt.Errorf("resolve excludes: %w", err)
+	}
 
 	// Common path: no DryRun, no SystemExtra → delegate to the frozen, tested orchestrator.
 	if !opts.DryRun && opts.SystemExtra == "" {
@@ -199,6 +204,10 @@ func Decompose(ctx context.Context, opts DecomposeOptions) (DecomposeResult, err
 		Roles:    roleManifests,
 		Verbose:  ui.NewVerbose(opts.Verbose, cfg.Verbose),
 		Out:      opts.Verbose, // nil-safe rescue/CAS sink (G-DEPS-OUT-SINK)
+	}
+	deps.Excludes, err = exclude.ResolveExcludePathspecs(cfg, repoDir, deps.Verbose)
+	if err != nil {
+		return DecomposeResult{}, fmt.Errorf("resolve excludes: %w", err)
 	}
 	ires, derr := decompose.Decompose(ctx, deps)
 	return mapDecomposeResult(ires, roleModels), derr // partial + error on FR-M12
@@ -415,6 +424,7 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config, sys
 		MaxDiffBytes:     cfg.MaxDiffBytes,
 		MaxMDLines:       cfg.MaxMdLines,
 		BinaryExtensions: cfg.BinaryExtensions,
+		Excludes:         deps.Excludes,
 	})
 	if err != nil {
 		return Result{}, err

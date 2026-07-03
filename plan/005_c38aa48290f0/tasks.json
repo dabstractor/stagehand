@@ -11,7 +11,7 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Payload exclusions (§9.18)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "`.stagehandignore` + repeatable `--exclude/-x` + `[generation].exclude`, union semantics, gitignore-glob → `:(exclude,glob)` pathspec translation, `[excluded]` placeholders on all three diff paths. Payload-only — never affects the commit. Lands first: hook mode (M3) reuses this pipeline.",
           "tasks": [
             {
@@ -64,14 +64,14 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Apply exclusions to every diff path with placeholders",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Thread the resolved pathspecs through all three diff paths and emit [excluded] placeholders (FR-X3, FR-X4, FR-X5).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Thread pathspecs into StagedDiff / working-tree snapshot / TreeDiff and emit [excluded] placeholders",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T1.S1",
@@ -112,7 +112,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "format + locale config/flag/env/git-config plumbing with hard-error validation",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: architecture/system_context.md §3 — scalar keys follow the existing cascade in `internal/config/load.go` `Load()` (defaults → global → repo → git → env → flags, `fs.Changed` gating). An unknown `--format` mode is a HARD configuration error (FR-F1); `locale` is free-form and passed verbatim, never validated, no i18n tables (FR-F6).\n2. INPUT: `Config` struct + `fileGeneration` + root.go flag registration (same seams as P1.M1.T1.S1, disjoint fields — no dependency).\n3. LOGIC: add `Format` (default \"auto\") and `Locale` (default \"\") to Config; `[generation].format` / `[generation].locale` TOML keys; `--format` / `--locale` flags; `STAGEHAND_FORMAT` / `STAGEHAND_LOCALE` env; `stagehand.format` / `stagehand.locale` git-config keys (FR35/FR36 updates); validate format ∈ {auto, conventional, gitmoji, plain} at Load time with an error naming the offending value and the valid set.\n4. OUTPUT: `cfg.Format`, `cfg.Locale` resolved through the full precedence chain, consumed by P1.M2.T1.S3.\n5. DOCS: [Mode A] docs/cli.md (two flag rows), docs/configuration.md ([generation] keys + env-var + git-config tables).",

@@ -8,6 +8,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -29,9 +30,16 @@ func envInt(key string, def int) int {
 func main() {
 	// 1. Drain stdin FIRST (deadlock guard, §4): the executor pipes the payload via a bounded OS
 	//    pipe (~64 KiB). If we slept before draining and the payload exceeded the buffer,
-	//    parent+child would deadlock. io.Discard consumes the prompt as a real agent would.
+	//    parent+child would deadlock. Tee to file if STAGEHAND_STUB_STDINFILE is set (payload-capture
+	//    for tests); else drain to Discard. Both branches drain FULLY (the deadlock guard must hold).
 	//    /dev/null (Stdin=="") → io.Copy returns immediately.
-	io.Copy(io.Discard, os.Stdin)
+	if sf := os.Getenv("STAGEHAND_STUB_STDINFILE"); sf != "" {
+		var buf bytes.Buffer
+		io.Copy(&buf, os.Stdin)
+		os.WriteFile(sf, buf.Bytes(), 0o644)
+	} else {
+		io.Copy(io.Discard, os.Stdin)
+	}
 
 	// 1b. Write the readiness marker (if STAGEHAND_STUB_MARKER is set). This tells the test
 	//     harness that stdin has been drained and generation is in-flight. Must happen BEFORE

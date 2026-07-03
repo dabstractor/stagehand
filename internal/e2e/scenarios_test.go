@@ -375,6 +375,34 @@ default_model = "x"
 			}
 		})
 	})
+
+	t.Run("Sx_ExcludedFileStillCommitted", func(t *testing.T) {
+		repo := newRepo(t)
+		seedCommit(t, repo, "readme.md", "init")
+
+		writeFile(t, repo, "feature.go", "package main\n")
+		writeFile(t, repo, "excluded.txt", "secret\n")
+		stageFile(t, repo, "feature.go")
+		stageFile(t, repo, "excluded.txt")
+
+		cfg := writeStubConfig(t, stub, `
+[generation]
+exclude = ["excluded.txt"]
+`)
+		baseEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: add feature"})
+		res := runStagehand(t, bin, repo, cfg, baseEnv)
+		if res.ExitCode != 0 {
+			t.Fatalf("exit code = %d, want 0; stderr:\n%s", res.ExitCode, res.Stderr)
+		}
+		// FR-X5: excluded.txt IS committed (payload-only guarantee).
+		names := diffTreeNames(t, repo, headSHA(t, repo))
+		if !contains(names, "excluded.txt") {
+			t.Fatalf("expected excluded.txt in committed tree (FR-X5), got: %v", names)
+		}
+		if !contains(names, "feature.go") {
+			t.Fatalf("expected feature.go in committed tree, got: %v", names)
+		}
+	})
 }
 
 // contains reports whether ss contains s.

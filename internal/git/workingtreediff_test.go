@@ -155,8 +155,12 @@ func TestWorkingTreeDiff_ExcludesApplied(t *testing.T) {
 	if !strings.Contains(out, "keep.go") {
 		t.Fatalf("expected keep.go in payload, got:\n%s", out)
 	}
-	if strings.Contains(out, "drop.go") {
-		t.Fatalf("expected drop.go to be excluded, got:\n%s", out)
+	// The excluded file's hunk is absent but the [excluded] placeholder IS present.
+	if strings.Contains(out, "diff --git a/drop.go") {
+		t.Fatalf("expected drop.go hunk to be absent (user-excluded), got:\n%s", out)
+	}
+	if !strings.Contains(out, "[excluded] drop.go") {
+		t.Fatalf("expected [excluded] placeholder for drop.go, got:\n%s", out)
 	}
 }
 
@@ -297,5 +301,93 @@ func TestWorkingTreeDiff_ContextCancelled(t *testing.T) {
 	}
 	if out != "" {
 		t.Fatalf("expected empty output, got %q", out)
+	}
+}
+
+func TestWorkingTreeDiff_ExcludedPlaceholderAndUnion(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+
+	writeFile(t, repo, "keep.go", "package main\n")
+	stageFile(t, repo, "keep.go")
+	writeFile(t, repo, "secret.conf", "pass=abc\n")
+	stageFile(t, repo, "secret.conf")
+	writeFile(t, repo, "pkg.lock", "{}\n")
+	stageFile(t, repo, "pkg.lock")
+	execGit(t, repo, "commit", "-m", "init")
+
+	writeFile(t, repo, "keep.go", "package main\n// k\n")      // MODIFIED
+	writeFile(t, repo, "secret.conf", "pass=xyz\n")             // MODIFIED
+	writeFile(t, repo, "pkg.lock", "{\"v\": 2}\n")            // MODIFIED
+
+	g := New(repo)
+	out, err := g.WorkingTreeDiff(context.Background(), StagedDiffOptions{Excludes: []string{":(exclude,glob)**/secret.conf"}})
+	if err != nil {
+		t.Fatalf("WorkingTreeDiff err = %v, want nil", err)
+	}
+	if !strings.Contains(out, "keep.go") {
+		t.Fatalf("expected keep.go present, got:\n%s", out)
+	}
+	if strings.Contains(out, "diff --git a/secret.conf") {
+		t.Fatalf("expected secret.conf hunk absent, got:\n%s", out)
+	}
+	if !strings.Contains(out, "[excluded] secret.conf") {
+		t.Fatalf("expected [excluded] placeholder for secret.conf, got:\n%s", out)
+	}
+	// UNION: pkg.lock also excluded
+	if strings.Contains(out, "pkg.lock") {
+		t.Fatalf("expected pkg.lock excluded (default denylist UNION), got:\n%s", out)
+	}
+}
+
+func TestWorkingTreeDiff_ExcludedEmptyIsNoOp(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+
+	writeFile(t, repo, "code.go", "package main\n")
+	stageFile(t, repo, "code.go")
+	execGit(t, repo, "commit", "-m", "init")
+
+	writeFile(t, repo, "code.go", "package main\n// m\n") // MODIFIED
+
+	g := New(repo)
+	out, err := g.WorkingTreeDiff(context.Background(), StagedDiffOptions{})
+	if err != nil {
+		t.Fatalf("WorkingTreeDiff err = %v, want nil", err)
+	}
+	if !strings.Contains(out, "code.go") {
+		t.Fatalf("expected code.go present, got:\n%s", out)
+	}
+	if strings.Contains(out, "[excluded]") {
+		t.Fatalf("expected no [excluded] when Excludes is nil, got:\n%s", out)
+	}
+}
+
+func TestWorkingTreeDiff_ExcludedBinaryPrecedence(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+
+	writeFile(t, repo, "logo.png", "\x89PNG\r\n\x1a\n\x00\x00\x00old")
+	stageFile(t, repo, "logo.png")
+	writeFile(t, repo, "code.go", "package main\n")
+	stageFile(t, repo, "code.go")
+	execGit(t, repo, "commit", "-m", "init")
+
+	writeFile(t, repo, "logo.png", "\x89PNG\r\n\x1a\n\x00\x00\x00new") // binary MODIFIED
+	writeFile(t, repo, "code.go", "package main\n// x\n")             // text MODIFIED
+
+	g := New(repo)
+	out, err := g.WorkingTreeDiff(context.Background(), StagedDiffOptions{Excludes: []string{":(exclude,glob)**/logo.png"}})
+	if err != nil {
+		t.Fatalf("WorkingTreeDiff err = %v, want nil", err)
+	}
+	if !strings.Contains(out, "[binary] logo.png") {
+		t.Fatalf("expected [binary] for binary+excluded, got:\n%s", out)
+	}
+	if strings.Contains(out, "[excluded] logo.png") {
+		t.Fatalf("expected NO [excluded] for binary+excluded (binary wins), got:\n%s", out)
+	}
+	if !strings.Contains(out, "code.go") {
+		t.Fatalf("expected code.go present, got:\n%s", out)
 	}
 }

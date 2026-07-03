@@ -650,13 +650,33 @@ func (g *gitRunner) StagedDiff(ctx context.Context, opts StagedDiffOptions) (str
 		binExcludes = append(binExcludes, ":!"+path)
 	}
 
-	// ---- Part 2: non-markdown, aggregate, byte-capped, excluded ----
-	// opts.Excludes REPLACES the noise-filter default if non-empty (G6); the markdown excludes are
-	// ALWAYS appended (structural — prevents the double-count trap, G1).
-	excludes := opts.Excludes
-	if len(excludes) == 0 {
-		excludes = defaultExcludes
+	// ---- User-exclude placeholders (PRD §9.18 FR-X4, staged path) ----
+	// detectExcludedStatuses probes which changed files the USER exclude pathspecs match (set-difference).
+	// Only user excludes get placeholders; defaultExcludes are dropped silently (no placeholder).
+	excluded, xerr := g.detectExcludedStatuses(ctx, statuses, opts.Excludes, "--cached")
+	if xerr != nil {
+		return "", xerr
 	}
+	exPaths := make([]string, 0, len(excluded))
+	for path := range excluded {
+		if binSet[path] {
+			continue // FR3b binary placeholder already covers this path; binary is the more specific signal
+		}
+		exPaths = append(exPaths, path)
+	}
+	sort.Strings(exPaths)
+	for _, path := range exPaths {
+		b.WriteString(excludedPlaceholderLine(excluded[path], path)) // "<status>\t[excluded] <path>"
+		b.WriteByte('\n')
+	}
+
+	// ---- Part 2: non-markdown, aggregate, byte-capped, excluded ----
+	// opts.Excludes UNIONs the noise-filter default (FR-X1); the markdown excludes are
+	// ALWAYS appended (structural — prevents the double-count trap, G1).
+	excludes := make([]string, 0, len(defaultExcludes)+len(opts.Excludes))
+	excludes = append(excludes, defaultExcludes...) // FR3/FR-X1 source (a) — ALWAYS
+	excludes = append(excludes, opts.Excludes...)    // user union, FR-X1 sources (b)+(c)+(d)
+
 	nmArgs := []string{"diff", "--cached", "--"}
 	nmArgs = append(nmArgs, excludes...)
 	nmArgs = append(nmArgs, ":!*.md", ":!*.markdown")
@@ -1074,11 +1094,28 @@ func (g *gitRunner) TreeDiff(ctx context.Context, treeA, treeB string, opts Stag
 		binExcludes = append(binExcludes, ":!"+path)
 	}
 
-	// ---- Part 2: non-markdown, aggregate, byte-capped, excluded ----
-	excludes := opts.Excludes
-	if len(excludes) == 0 {
-		excludes = defaultExcludes
+	// ---- User-exclude placeholders (PRD §9.18 FR-X4, tree-to-tree path) ----
+	excluded, xerr := g.detectExcludedStatuses(ctx, statuses, opts.Excludes, treeA, treeB)
+	if xerr != nil {
+		return "", xerr
 	}
+	exPaths := make([]string, 0, len(excluded))
+	for path := range excluded {
+		if binSet[path] {
+			continue
+		}
+		exPaths = append(exPaths, path)
+	}
+	sort.Strings(exPaths)
+	for _, path := range exPaths {
+		b.WriteString(excludedPlaceholderLine(excluded[path], path))
+		b.WriteByte('\n')
+	}
+
+	// ---- Part 2: non-markdown, aggregate, byte-capped, excluded ----
+	excludes := make([]string, 0, len(defaultExcludes)+len(opts.Excludes))
+	excludes = append(excludes, defaultExcludes...)
+	excludes = append(excludes, opts.Excludes...)
 	nmArgs := []string{"diff", treeA, treeB, "--"}
 	nmArgs = append(nmArgs, excludes...)
 	nmArgs = append(nmArgs, ":!*.md", ":!*.markdown")
@@ -1192,11 +1229,28 @@ func (g *gitRunner) WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions)
 		binExcludes = append(binExcludes, ":!"+path)
 	}
 
-	// ---- Part 2: non-markdown, aggregate, byte-capped, excluded ----
-	excludes := opts.Excludes
-	if len(excludes) == 0 {
-		excludes = defaultExcludes
+	// ---- User-exclude placeholders (PRD §9.18 FR-X4, working-tree path) ----
+	excluded, xerr := g.detectExcludedStatuses(ctx, statuses, opts.Excludes)
+	if xerr != nil {
+		return "", xerr
 	}
+	exPaths := make([]string, 0, len(excluded))
+	for path := range excluded {
+		if binSet[path] {
+			continue
+		}
+		exPaths = append(exPaths, path)
+	}
+	sort.Strings(exPaths)
+	for _, path := range exPaths {
+		b.WriteString(excludedPlaceholderLine(excluded[path], path))
+		b.WriteByte('\n')
+	}
+
+	// ---- Part 2: non-markdown, aggregate, byte-capped, excluded ----
+	excludes := make([]string, 0, len(defaultExcludes)+len(opts.Excludes))
+	excludes = append(excludes, defaultExcludes...)
+	excludes = append(excludes, opts.Excludes...)
 	nmArgs := []string{"diff", "--"}
 	nmArgs = append(nmArgs, excludes...)
 	nmArgs = append(nmArgs, ":!*.md", ":!*.markdown")
