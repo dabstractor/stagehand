@@ -1,0 +1,191 @@
+{
+  "version": "1.0",
+  "checkpoints": [
+    {
+      "id": "PFIX_M1_T001_S1_1783066120337_pre-execution_6c13a748",
+      "taskId": "PFIX_M1_T001_S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T001_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-03T08:08:40.337Z"
+      },
+      "createdAt": "2026-07-03T08:08:40.337Z"
+    },
+    {
+      "id": "PFIX_M1_T001_S1_1783066918302_coder-response_6ff354a1",
+      "taskId": "PFIX_M1_T001_S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T001_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "All validation gates pass. The PRP is fully implemented.\n\n## Summary\n\nI executed `PFIX_M1_T001_S1`, which fixes **BUG-001**: the FR50 `--verbose`/`-v`/`STAGEHAND_VERBOSE` flag was a complete no-op because `Verbosef` was dead code and `GenerateCommit` hardcoded `verbose=false`.\n\n### Changes (4 Go files + 3 test files + 1 doc)\n\n1. **`pkg/stagehand/stagehand.go`** — Appended `Verbose bool` to `Options` (additive-only, after `Timeout`; zero value = no-op). In `GenerateCommit` built one shared `out := ui.NewOutput(os.Stdout, os.Stderr, opts.Verbose, false)`, set `exec.Output = out`, and reused the same sink for `deps.Output`. Updated the now-misleading wiring comment.\n\n2. **`cmd/stagehand/run.go`** — Added `Verbose: cfg.Verbose` to `buildOptions`. Rewrote the false \"Known v1 gap\" doc comment on `runDefault`.\n\n3. **`internal/provider/executor.go`** — Imported `internal/ui` (clean DAG edge; `ui` is a leaf). Added nil-safe exported field `Output *ui.Output`. Added 2 guarded `Verbosef` call sites in `Run`: the resolved command (after default resolution + `Render`) and the raw agent stdout on the success path. Signature/runner contract untouched.\n\n4. **`internal/generate/generate.go`** — Added 3 `out.Verbosef` markers in the two nested loops (generation attempt, parse-miss correction, duplicate-subject retry) using the already-in-scope `out`. No raw-stdout re-emission (executor owns it).\n\n5. **`docs/CONFIGURATION.md`** — Replaced the false \"Verbose v1 gap\" note with accurate FR50 behavior.\n\n6. **Tests** — Added `TestRun_VerboseEmitsResolvedCommandAndRawStdout` (+ nil-safety subtest), `TestCommitStaged_VerboseRetryMarkers` (+ verbose=false emptiness), and `TestBuildOptions_VerboseWired`.\n\n### Validation results\n- **L1** (build/vet/fmt): all clean.\n- **L2/L5** (`go test ./...`): all green, no regressions (new tests pass).\n- **L6/L3** (`grep .Verbosef`): 5 prod matches (was 0).\n- **L3 e2e** (real binary + stub agent on fresh repos): WITH `--verbose` → exit 0, stderr has all 3 markers, stdout byte-clean; WITHOUT → exit 0, **stderr empty (0 bytes)**, stdout carries the FR42 block; `-v` and `STAGEHAND_VERBOSE=1` behave identically.\n\nAll anti-patterns avoided (signatures/runner interface unchanged, verbose self-gates through `Verbosef`, stderr-only, nil-safe, no duplicate raw-stdout).\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PFIX_M1_T001_S1 implemented. FR50 verbose is now functional end-to-end: the resolved cfg.Verbose threads through buildOptions -> Options.Verbose -> GenerateCommit into one shared *ui.Output that drives both the executor (resolved-command + raw-stdout traces) and the generate orchestrator (retry markers). All 6 validation levels pass: go build/vet/fmt clean; full go test ./... green with new verbose unit tests; grep .Verbosef returns 5 production matches (was zero); and end-to-end reproduction against the real binary + stub agent proves --verbose writes the resolved command, raw agent stdout, and generation-attempt markers to STDERR (exit 0) while stdout stays byte-clean, the no-verbose case yields empty stderr, and -v / STAGEHAND_VERBOSE=1 behave identically to --verbose. API contracts preserved: NewExecutor/Run/runner signatures unchanged, Executor.Output is nil-safe (existing tests byte-identical), Options only adds Verbose (additive-only).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PFIX_M1_T001_S1 implemented. FR50 verbose is now functional end-to-end: the resolved cfg.Verbose threads through buildOptions -> Options.Verbose -> GenerateCommit into one shared *ui.Output that drives both the executor (resolved-command + raw-stdout traces) and the generate orchestrator (retry markers). All 6 validation levels pass: go build/vet/fmt clean; full go test ./... green with new verbose unit tests; grep .Verbosef returns 5 production matches (was zero); and end-to-end reproduction against the real binary + stub agent proves --verbose writes the resolved command, raw agent stdout, and generation-attempt markers to STDERR (exit 0) while stdout stays byte-clean, the no-verbose case yields empty stderr, and -v / STAGEHAND_VERBOSE=1 behave identically to --verbose. API contracts preserved: NewExecutor/Run/runner signatures unchanged, Executor.Output is nil-safe (existing tests byte-identical), Options only adds Verbose (additive-only)."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-03T08:21:58.302Z"
+      },
+      "createdAt": "2026-07-03T08:21:58.302Z"
+    },
+    {
+      "id": "PFIX_M1_T001_S1_1783066918720_validation-gate-3_4fa5bd6f",
+      "taskId": "PFIX_M1_T001_S1",
+      "label": "After validation gate 3",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T001_S1.md",
+        "stage": "validation-gate-3",
+        "coderResponse": "All validation gates pass. The PRP is fully implemented.\n\n## Summary\n\nI executed `PFIX_M1_T001_S1`, which fixes **BUG-001**: the FR50 `--verbose`/`-v`/`STAGEHAND_VERBOSE` flag was a complete no-op because `Verbosef` was dead code and `GenerateCommit` hardcoded `verbose=false`.\n\n### Changes (4 Go files + 3 test files + 1 doc)\n\n1. **`pkg/stagehand/stagehand.go`** — Appended `Verbose bool` to `Options` (additive-only, after `Timeout`; zero value = no-op). In `GenerateCommit` built one shared `out := ui.NewOutput(os.Stdout, os.Stderr, opts.Verbose, false)`, set `exec.Output = out`, and reused the same sink for `deps.Output`. Updated the now-misleading wiring comment.\n\n2. **`cmd/stagehand/run.go`** — Added `Verbose: cfg.Verbose` to `buildOptions`. Rewrote the false \"Known v1 gap\" doc comment on `runDefault`.\n\n3. **`internal/provider/executor.go`** — Imported `internal/ui` (clean DAG edge; `ui` is a leaf). Added nil-safe exported field `Output *ui.Output`. Added 2 guarded `Verbosef` call sites in `Run`: the resolved command (after default resolution + `Render`) and the raw agent stdout on the success path. Signature/runner contract untouched.\n\n4. **`internal/generate/generate.go`** — Added 3 `out.Verbosef` markers in the two nested loops (generation attempt, parse-miss correction, duplicate-subject retry) using the already-in-scope `out`. No raw-stdout re-emission (executor owns it).\n\n5. **`docs/CONFIGURATION.md`** — Replaced the false \"Verbose v1 gap\" note with accurate FR50 behavior.\n\n6. **Tests** — Added `TestRun_VerboseEmitsResolvedCommandAndRawStdout` (+ nil-safety subtest), `TestCommitStaged_VerboseRetryMarkers` (+ verbose=false emptiness), and `TestBuildOptions_VerboseWired`.\n\n### Validation results\n- **L1** (build/vet/fmt): all clean.\n- **L2/L5** (`go test ./...`): all green, no regressions (new tests pass).\n- **L6/L3** (`grep .Verbosef`): 5 prod matches (was 0).\n- **L3 e2e** (real binary + stub agent on fresh repos): WITH `--verbose` → exit 0, stderr has all 3 markers, stdout byte-clean; WITHOUT → exit 0, **stderr empty (0 bytes)**, stdout carries the FR42 block; `-v` and `STAGEHAND_VERBOSE=1` behave identically.\n\nAll anti-patterns avoided (signatures/runner interface unchanged, verbose self-gates through `Verbosef`, stderr-only, nil-safe, no duplicate raw-stdout).\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PFIX_M1_T001_S1 implemented. FR50 verbose is now functional end-to-end: the resolved cfg.Verbose threads through buildOptions -> Options.Verbose -> GenerateCommit into one shared *ui.Output that drives both the executor (resolved-command + raw-stdout traces) and the generate orchestrator (retry markers). All 6 validation levels pass: go build/vet/fmt clean; full go test ./... green with new verbose unit tests; grep .Verbosef returns 5 production matches (was zero); and end-to-end reproduction against the real binary + stub agent proves --verbose writes the resolved command, raw agent stdout, and generation-attempt markers to STDERR (exit 0) while stdout stays byte-clean, the no-verbose case yields empty stderr, and -v / STAGEHAND_VERBOSE=1 behave identically to --verbose. API contracts preserved: NewExecutor/Run/runner signatures unchanged, Executor.Output is nil-safe (existing tests byte-identical), Options only adds Verbose (additive-only).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PFIX_M1_T001_S1 implemented. FR50 verbose is now functional end-to-end: the resolved cfg.Verbose threads through buildOptions -> Options.Verbose -> GenerateCommit into one shared *ui.Output that drives both the executor (resolved-command + raw-stdout traces) and the generate orchestrator (retry markers). All 6 validation levels pass: go build/vet/fmt clean; full go test ./... green with new verbose unit tests; grep .Verbosef returns 5 production matches (was zero); and end-to-end reproduction against the real binary + stub agent proves --verbose writes the resolved command, raw agent stdout, and generation-attempt markers to STDERR (exit 0) while stdout stays byte-clean, the no-verbose case yields empty stderr, and -v / STAGEHAND_VERBOSE=1 behave identically to --verbose. API contracts preserved: NewExecutor/Run/runner signatures unchanged, Executor.Output is nil-safe (existing tests byte-identical), Options only adds Verbose (additive-only)."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/generate/ ./internal/provider/ ./internal/ui/ ./pkg/stagehand/ ./cmd/stagehand/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "grep -rn 'Verbosef(' internal/provider internal/generate pkg/stagehand cmd/stagehand | grep -v _test.go",
+            "stdout": "internal/provider/executor.go:112:\t\te.Output.Verbosef(\"stagehand: resolved command: %s %s%s\\n\",\ninternal/provider/executor.go:150:\t\t\t\te.Output.Verbosef(\"stagehand: raw agent stdout:\\n%s\", stdout.String())\ninternal/generate/generate.go:284:\t\t\tout.Verbosef(\"stagehand: generation attempt (duplicate=%d parse=%d)\\n\", dupAttempt, parseAttempt)\ninternal/generate/generate.go:305:\t\t\tout.Verbosef(\"stagehand: parse produced no usable message; retrying with correction\\n\")\ninternal/generate/generate.go:324:\t\tout.Verbosef(\"stagehand: duplicate subject %q; retrying (duplicate attempt %d)\\n\", subject, dupAttempt)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T08:21:58.720Z"
+      },
+      "createdAt": "2026-07-03T08:21:58.720Z"
+    },
+    {
+      "id": "PFIX_M1_T001_S1_1783066918722_complete_0e37de97",
+      "taskId": "PFIX_M1_T001_S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T001_S1.md",
+        "stage": "complete",
+        "coderResponse": "All validation gates pass. The PRP is fully implemented.\n\n## Summary\n\nI executed `PFIX_M1_T001_S1`, which fixes **BUG-001**: the FR50 `--verbose`/`-v`/`STAGEHAND_VERBOSE` flag was a complete no-op because `Verbosef` was dead code and `GenerateCommit` hardcoded `verbose=false`.\n\n### Changes (4 Go files + 3 test files + 1 doc)\n\n1. **`pkg/stagehand/stagehand.go`** — Appended `Verbose bool` to `Options` (additive-only, after `Timeout`; zero value = no-op). In `GenerateCommit` built one shared `out := ui.NewOutput(os.Stdout, os.Stderr, opts.Verbose, false)`, set `exec.Output = out`, and reused the same sink for `deps.Output`. Updated the now-misleading wiring comment.\n\n2. **`cmd/stagehand/run.go`** — Added `Verbose: cfg.Verbose` to `buildOptions`. Rewrote the false \"Known v1 gap\" doc comment on `runDefault`.\n\n3. **`internal/provider/executor.go`** — Imported `internal/ui` (clean DAG edge; `ui` is a leaf). Added nil-safe exported field `Output *ui.Output`. Added 2 guarded `Verbosef` call sites in `Run`: the resolved command (after default resolution + `Render`) and the raw agent stdout on the success path. Signature/runner contract untouched.\n\n4. **`internal/generate/generate.go`** — Added 3 `out.Verbosef` markers in the two nested loops (generation attempt, parse-miss correction, duplicate-subject retry) using the already-in-scope `out`. No raw-stdout re-emission (executor owns it).\n\n5. **`docs/CONFIGURATION.md`** — Replaced the false \"Verbose v1 gap\" note with accurate FR50 behavior.\n\n6. **Tests** — Added `TestRun_VerboseEmitsResolvedCommandAndRawStdout` (+ nil-safety subtest), `TestCommitStaged_VerboseRetryMarkers` (+ verbose=false emptiness), and `TestBuildOptions_VerboseWired`.\n\n### Validation results\n- **L1** (build/vet/fmt): all clean.\n- **L2/L5** (`go test ./...`): all green, no regressions (new tests pass).\n- **L6/L3** (`grep .Verbosef`): 5 prod matches (was 0).\n- **L3 e2e** (real binary + stub agent on fresh repos): WITH `--verbose` → exit 0, stderr has all 3 markers, stdout byte-clean; WITHOUT → exit 0, **stderr empty (0 bytes)**, stdout carries the FR42 block; `-v` and `STAGEHAND_VERBOSE=1` behave identically.\n\nAll anti-patterns avoided (signatures/runner interface unchanged, verbose self-gates through `Verbosef`, stderr-only, nil-safe, no duplicate raw-stdout).\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PFIX_M1_T001_S1 implemented. FR50 verbose is now functional end-to-end: the resolved cfg.Verbose threads through buildOptions -> Options.Verbose -> GenerateCommit into one shared *ui.Output that drives both the executor (resolved-command + raw-stdout traces) and the generate orchestrator (retry markers). All 6 validation levels pass: go build/vet/fmt clean; full go test ./... green with new verbose unit tests; grep .Verbosef returns 5 production matches (was zero); and end-to-end reproduction against the real binary + stub agent proves --verbose writes the resolved command, raw agent stdout, and generation-attempt markers to STDERR (exit 0) while stdout stays byte-clean, the no-verbose case yields empty stderr, and -v / STAGEHAND_VERBOSE=1 behave identically to --verbose. API contracts preserved: NewExecutor/Run/runner signatures unchanged, Executor.Output is nil-safe (existing tests byte-identical), Options only adds Verbose (additive-only).\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PFIX_M1_T001_S1 implemented. FR50 verbose is now functional end-to-end: the resolved cfg.Verbose threads through buildOptions -> Options.Verbose -> GenerateCommit into one shared *ui.Output that drives both the executor (resolved-command + raw-stdout traces) and the generate orchestrator (retry markers). All 6 validation levels pass: go build/vet/fmt clean; full go test ./... green with new verbose unit tests; grep .Verbosef returns 5 production matches (was zero); and end-to-end reproduction against the real binary + stub agent proves --verbose writes the resolved command, raw agent stdout, and generation-attempt markers to STDERR (exit 0) while stdout stays byte-clean, the no-verbose case yields empty stderr, and -v / STAGEHAND_VERBOSE=1 behave identically to --verbose. API contracts preserved: NewExecutor/Run/runner signatures unchanged, Executor.Output is nil-safe (existing tests byte-identical), Options only adds Verbose (additive-only)."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./internal/generate/ ./internal/provider/ ./internal/ui/ ./pkg/stagehand/ ./cmd/stagehand/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "grep -rn 'Verbosef(' internal/provider internal/generate pkg/stagehand cmd/stagehand | grep -v _test.go",
+            "stdout": "internal/provider/executor.go:112:\t\te.Output.Verbosef(\"stagehand: resolved command: %s %s%s\\n\",\ninternal/provider/executor.go:150:\t\t\t\te.Output.Verbosef(\"stagehand: raw agent stdout:\\n%s\", stdout.String())\ninternal/generate/generate.go:284:\t\t\tout.Verbosef(\"stagehand: generation attempt (duplicate=%d parse=%d)\\n\", dupAttempt, parseAttempt)\ninternal/generate/generate.go:305:\t\t\tout.Verbosef(\"stagehand: parse produced no usable message; retrying with correction\\n\")\ninternal/generate/generate.go:324:\t\tout.Verbosef(\"stagehand: duplicate subject %q; retrying (duplicate attempt %d)\\n\", subject, dupAttempt)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T08:21:58.722Z"
+      },
+      "createdAt": "2026-07-03T08:21:58.722Z"
+    }
+  ],
+  "lastModified": "2026-07-03T08:21:58.722Z"
+}

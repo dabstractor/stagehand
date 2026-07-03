@@ -285,14 +285,16 @@ is cobra's built-in.
 > even one parsing to `false` — still counts as "set" and overrides a lower
 > layer's `true` (the present-but-zero rule, [§1](#1-precedence-order-fr34)).
 >
-> **Verbose v1 gap.** `stagehand.GenerateCommit` constructs its own output sink
-> with verbose disabled, so the full FR50 agent trace (resolved command / raw
-> agent stdout / each retry) is not yet observable through the *generate* step in
-> v1. The `--verbose` flag is wired into the resolved config and gates the CLI's
-> own progress lines today; full FR50 verbose tracing is a follow-up. The
-> `--dry-run` message and the FR42 success block are always printed to stdout by
-> the generate pipeline (never re-printed by the CLI), so stdout stays
-> byte-clean for piping (e.g. `stagehand --dry-run --no-color | tee /tmp/msg.txt`).
+> **Verbose (FR50).** `--verbose` (or `-v` / `STAGEHAND_VERBOSE=1`) threads
+> the resolved flag through `GenerateCommit` into the shared output sink that
+> drives the provider executor and the generate orchestrator, so on a verbose
+> run stagehand prints to **stderr**: the fully-resolved provider command
+> (after default model/provider resolution), the raw agent stdout, and each
+> generation / retry attempt. The `--dry-run` message and the FR42 success
+> block are always printed to **stdout** by the generate pipeline (never
+> re-printed by the CLI), so stdout stays byte-clean for piping (e.g.
+> `stagehand --dry-run --no-color | tee /tmp/msg.txt`); verbose touches stderr
+> only and never leaks onto stdout.
 
 ## 9. Exit codes (PRD §15.4)
 

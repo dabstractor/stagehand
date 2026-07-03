@@ -1,0 +1,62 @@
+[
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go build ./...",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "go vet ./...",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 1,
+    "description": "Level 1 gate",
+    "success": true,
+    "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
+    "stdout": "",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 2,
+    "description": "Level 2 gate",
+    "success": true,
+    "command": "go test ./internal/generate/ ./internal/provider/ ./internal/ui/ ./pkg/stagehand/ ./cmd/stagehand/",
+    "stdout": "ok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 2,
+    "description": "Level 2 gate",
+    "success": true,
+    "command": "go test ./...",
+    "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  },
+  {
+    "level": 3,
+    "description": "Level 3 gate",
+    "success": true,
+    "command": "grep -rn 'Verbosef(' internal/provider internal/generate pkg/stagehand cmd/stagehand | grep -v _test.go",
+    "stdout": "internal/provider/executor.go:112:\t\te.Output.Verbosef(\"stagehand: resolved command: %s %s%s\\n\",\ninternal/provider/executor.go:150:\t\t\t\te.Output.Verbosef(\"stagehand: raw agent stdout:\\n%s\", stdout.String())\ninternal/generate/generate.go:284:\t\t\tout.Verbosef(\"stagehand: generation attempt (duplicate=%d parse=%d)\\n\", dupAttempt, parseAttempt)\ninternal/generate/generate.go:305:\t\t\tout.Verbosef(\"stagehand: parse produced no usable message; retrying with correction\\n\")\ninternal/generate/generate.go:324:\t\tout.Verbosef(\"stagehand: duplicate subject %q; retrying (duplicate attempt %d)\\n\", subject, dupAttempt)\n",
+    "stderr": "",
+    "exitCode": 0,
+    "skipped": false
+  }
+]

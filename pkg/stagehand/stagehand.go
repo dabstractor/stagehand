@@ -66,6 +66,13 @@ type Options struct {
 	// means "no deadline" (the resolved config.Timeout is used only when this
 	// is zero, matching the config-layer semantics).
 	Timeout time.Duration
+	// Verbose enables FR50 stderr tracing of the resolved provider command,
+	// the raw agent stdout, and each generation/retry attempt. false is a
+	// no-op (stderr stays empty, stdout byte-clean) — the existing behavior
+	// when unset. Resolved by the CLI layer from --verbose/-v/STAGEHAND_VERBOSE
+	// and threaded through GenerateCommit into the shared *ui.Output that drives
+	// the executor and the generate orchestrator.
+	Verbose bool
 }
 
 // Result is the successful-commit return value (PRD §14.1): the new commit's
@@ -196,20 +203,26 @@ func GenerateCommit(ctx context.Context, opts Options) (Result, error) {
 
 	// Wire the real collaborators. git.New(".") and provider.NewExecutor(".")
 	// both bind to the current working directory (repoDir = cwd, matching the
-	// config.Load repoDir above). ui.NewOutput uses verbose=false (a library
-	// call is not a CLI run) and noColor=false — color auto-disables when
-	// stdout is not a TTY (a pipe), so `GenerateCommit | tee` stays byte-clean.
+	// config.Load repoDir above). A SINGLE *ui.Output honoring opts.Verbose is
+	// shared by the executor (FR50 resolved-command/raw-stdout traces) and the
+	// generate orchestrator (retry markers), so the whole agent trace flows
+	// through one FR50 stderr sink. noColor=false means color auto-disables
+	// when stdout is not a TTY (a pipe), so `GenerateCommit | tee` stays
+	// byte-clean regardless of verbose.
 	g, err := git.New(".")
 	if err != nil {
 		return Result{}, err
 	}
 
+	out := ui.NewOutput(os.Stdout, os.Stderr, opts.Verbose, false)
+	exec := provider.NewExecutor(".") // exec.Output nil-safe for direct callers
+	exec.Output = out                 // set the FR50 verbose sink
 	deps := generate.Deps{
 		Git:         g,
-		Runner:      provider.NewExecutor("."),
+		Runner:      exec,
 		Manifest:    manifest,
 		Config:      cfg,
-		Output:      ui.NewOutput(os.Stdout, os.Stderr, false, false),
+		Output:      out, // same sink: executor + generate share one verbose Output
 		DryRun:      opts.DryRun,
 		SystemExtra: opts.SystemExtra,
 	}

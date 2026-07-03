@@ -296,6 +296,26 @@ func TestBuildOptions_DryRunWired(t *testing.T) {
 	})
 }
 
+// TestBuildOptions_VerboseWired asserts the FR50 seam: buildOptions threads the
+// resolved cfg.Verbose (from --verbose/-v/STAGEHAND_VERBOSE via config.Load) into
+// opts.Verbose, which GenerateCommit fans out to the shared *ui.Output driving
+// the executor and the generate orchestrator. A sibling of DryRunWired so the
+// FR49 dry-run assertions stay focused on the dry-run field.
+func TestBuildOptions_VerboseWired(t *testing.T) {
+	t.Run("verbose on", func(t *testing.T) {
+		cfg := config.Config{Verbose: true}
+		if opts := buildOptions(cfg, false); !opts.Verbose {
+			t.Error("opts.Verbose = false, want true (must thread cfg.Verbose)")
+		}
+	})
+	t.Run("verbose off", func(t *testing.T) {
+		cfg := config.Config{Verbose: false}
+		if opts := buildOptions(cfg, false); opts.Verbose {
+			t.Error("opts.Verbose = true, want false (zero value must be a no-op)")
+		}
+	})
+}
+
 // TestVersionShortCircuit asserts --version short-circuits via cobra's Version
 // field BEFORE Run is invoked: a command with Version set and args=["--version"]
 // prints "stagehand version <v>" to stdout and exits 0 without calling Run.

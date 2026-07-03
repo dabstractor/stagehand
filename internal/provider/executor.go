@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/dustin/stagehand/internal/ui"
 )
 
 // Executor turns a resolved provider intent into a real, timeout-enforced,
@@ -43,6 +45,16 @@ type Executor struct {
 	// cmd.Dir = repo root). An empty string means "inherit the stagehand
 	// process's current directory".
 	Dir string
+
+	// Output is the optional FR50 verbose sink (the same *ui.Output the
+	// generate orchestrator uses). When non-nil and verbose-enabled it
+	// receives, via Run, the resolved provider command (after default
+	// resolution + Render) and the raw agent stdout on the success path. nil
+	// (the zero value) leaves Run silent and byte-identical to M6.T1.S1, so
+	// NewExecutor("") and white-box &Executor{} test call sites are
+	// unaffected. It is set by the wiring layer (pkg/stagehand.GenerateCommit)
+	// and is NEVER read by tests that pre-date this seam.
+	Output *ui.Output
 }
 
 // NewExecutor returns an Executor whose subprocesses run in dir. It exists
@@ -88,6 +100,19 @@ func (e *Executor) Run(ctx context.Context, m Manifest, model, provider, sys, pa
 		return "", err
 	}
 
+	// FR50 verbose: emit the fully-resolved command (after DefaultModel/
+	// DefaultProvider resolution + Render) so a verbose run shows the exact
+	// argv the agent received. The note flags stdin delivery. Self-gated by
+	// Verbosef; callers never branch on verbose.
+	if e.Output != nil {
+		note := ""
+		if r.DeliverViaStdin {
+			note = " (payload via stdin)"
+		}
+		e.Output.Verbosef("stagehand: resolved command: %s %s%s\n",
+			m.Command, strings.Join(r.Args, " "), note)
+	}
+
 	// Build the command directly from Render's arg slice — never sh -c (§19).
 	// r.Args excludes the command token by construction.
 	cmd := exec.Command(m.Command, r.Args...)
@@ -117,6 +142,13 @@ func (e *Executor) Run(ctx context.Context, m Manifest, model, provider, sys, pa
 	select {
 	case err := <-done:
 		if err == nil {
+			// FR50 verbose: emit the raw agent stdout (captured above) so a
+			// verbose run can inspect exactly what the agent produced. Self-gated
+			// by Verbosef; stdout (the value Run returns) is untouched, keeping
+			// the FR51 byte-clean invariant for `| tee`.
+			if e.Output != nil {
+				e.Output.Verbosef("stagehand: raw agent stdout:\n%s", stdout.String())
+			}
 			return stdout.String(), nil
 		}
 		return "", &AgentError{

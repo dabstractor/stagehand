@@ -1,12 +1,16 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dustin/stagehand/internal/ui"
 )
 
 // These tests exercise Executor.Run against REAL host binaries as fake agents
@@ -268,4 +272,71 @@ func TestRun_DirSetsCwd(t *testing.T) {
 	if got := strings.TrimSpace(out); got != want {
 		t.Errorf("pwd output = %q, want %q (Dir must set the child cwd)", got, want)
 	}
+}
+
+// TestRun_VerboseEmitsResolvedCommandAndRawStdout proves the FR50 verbose sink
+// (Executor.Output) emits, to stderr on a successful run, BOTH the resolved
+// command line (naming the command token + the rendered argv, after
+// DefaultModel/DefaultProvider resolution + Render) AND the raw agent stdout.
+// It also pins the nil-safety contract: Output==nil is byte-identical to today
+// (Run returns stdout, emits nothing, no panic), which is what keeps every
+// pre-existing white-box executor test green.
+func TestRun_VerboseEmitsResolvedCommandAndRawStdout(t *testing.T) {
+	m := Manifest{Name: "echo", Command: "/bin/echo", PromptDelivery: DeliveryPositional}
+
+	t.Run("verbose emits both traces to stderr", func(t *testing.T) {
+		var stderr bytes.Buffer
+		out := ui.NewOutput(io.Discard, &stderr, true, true) // verbose=true, noColor=true
+
+		e := &Executor{Output: out}
+		stdout, err := e.Run(context.Background(), m, "", "", "", "VERBOSE-OUT")
+		if err != nil {
+			t.Fatalf("Run returned unexpected error: %v", err)
+		}
+		// Run's return value is the captured stdout — verbose must not change it.
+		if stdout != "VERBOSE-OUT\n" {
+			t.Errorf("stdout = %q, want %q (Run return value must be unchanged by verbose)", stdout, "VERBOSE-OUT\n")
+		}
+		got := stderr.String()
+		// The resolved-command line names /bin/echo and the positional payload.
+		if !strings.Contains(got, "resolved command:") {
+			t.Errorf("stderr missing %q\n--got--\n%s", "resolved command:", got)
+		}
+		if !strings.Contains(got, "/bin/echo") {
+			t.Errorf("stderr missing %q (the command token)\n--got--\n%s", "/bin/echo", got)
+		}
+		if !strings.Contains(got, "VERBOSE-OUT") {
+			t.Errorf("stderr missing the positional payload %q in the resolved command\n--got--\n%s", "VERBOSE-OUT", got)
+		}
+		// The raw-stdout line carries the agent's echoed output.
+		if !strings.Contains(got, "raw agent stdout:") {
+			t.Errorf("stderr missing %q\n--got--\n%s", "raw agent stdout:", got)
+		}
+	})
+
+	t.Run("verbose notes stdin delivery", func(t *testing.T) {
+		cat := Manifest{Name: "cat", Command: "/bin/cat", PromptDelivery: DeliveryStdin}
+		var stderr bytes.Buffer
+		out := ui.NewOutput(io.Discard, &stderr, true, true)
+
+		e := &Executor{Output: out}
+		if _, err := e.Run(context.Background(), cat, "", "", "", "PAYLOAD"); err != nil {
+			t.Fatalf("Run returned unexpected error: %v", err)
+		}
+		// stdin delivery is flagged in the resolved-command line.
+		if !strings.Contains(stderr.String(), "(payload via stdin)") {
+			t.Errorf("stderr missing the stdin-delivery note\n--got--\n%s", stderr.String())
+		}
+	})
+
+	t.Run("nil Output is byte-identical to today", func(t *testing.T) {
+		e := &Executor{} // Output nil ⇒ silent, the pre-seam default
+		stdout, err := e.Run(context.Background(), m, "", "", "", "QUIET")
+		if err != nil {
+			t.Fatalf("Run returned unexpected error: %v", err)
+		}
+		if stdout != "QUIET\n" {
+			t.Errorf("stdout = %q, want %q", stdout, "QUIET\n")
+		}
+	})
 }

@@ -279,6 +279,9 @@ outer:
 		instr := instruction // reset the instruction slot fresh each outer iter
 		ok = false
 		for parseAttempt := 1; parseAttempt <= 2; parseAttempt++ {
+			// FR50 verbose: mark every generation attempt so a verbose run can
+			// follow the two-nested-loop control flow. Self-gated by Verbosef.
+			out.Verbosef("stagehand: generation attempt (duplicate=%d parse=%d)\n", dupAttempt, parseAttempt)
 			payload := prompt.AssemblePayload(diff, instr, rejected)
 			stdout, runErr := deps.Runner.Run(runCtx, deps.Manifest, cfg.Model, cfg.Provider, sys, payload)
 			if runErr != nil {
@@ -297,6 +300,9 @@ outer:
 			if ok {
 				break // a parseable message: hand it to the dedupe check
 			}
+			// FR50 verbose: the inner parse-correction loop is about to rebuild
+			// the payload with the RetryInstruction. Self-gated by Verbosef.
+			out.Verbosef("stagehand: parse produced no usable message; retrying with correction\n")
 			// Parse miss: swap ONLY the instruction slot (the diff STAYS).
 			if deps.Manifest.RetryInstruction != "" {
 				instr = deps.Manifest.RetryInstruction
@@ -313,6 +319,9 @@ outer:
 			committed = true // a unique subject → COMMIT
 			break outer
 		}
+		// FR50 verbose: the OUTER duplicate-rejection loop is about to reject
+		// this subject and retry. Self-gated by Verbosef.
+		out.Verbosef("stagehand: duplicate subject %q; retrying (duplicate attempt %d)\n", subject, dupAttempt)
 		rejected = append(rejected, subject) // feeds the next AssemblePayload
 	}
 

@@ -695,3 +695,72 @@ func TestCommitStaged_SystemExtra(t *testing.T) {
 		t.Errorf("stderr must NOT rescue on success\n--got--\n%s", stderr.String())
 	}
 }
+
+// TestCommitStaged_VerboseRetryMarkers proves the FR50 verbose sink
+// (Deps.Output with verbose=true) emits the generation-attempt and
+// duplicate-subject retry markers to stderr across the two-nested-loop, and
+// that verbose=false leaves stderr empty of traces (byte-clean). It is the
+// generate-side complement to provider.TestRun_VerboseEmitsResolvedCommandAndRawStdout:
+// the executor owns the resolved-command + raw-stdout traces; generate owns the
+// loop/retry markers, so this test does NOT assert on raw stdout.
+func TestCommitStaged_VerboseRetryMarkers(t *testing.T) {
+	t.Run("verbose emits retry markers to stderr", func(t *testing.T) {
+		g := &stubGit{}
+		r := &stubRunner{responses: []stubResponse{
+			{stdout: "feat: dup", msg: "feat: dup", ok: true},       // collides → OUTER retry
+			{stdout: "feat: unique", msg: "feat: unique", ok: true}, // unique → COMMIT
+		}}
+		deps := baseDeps(g, r, 3)
+		g.subjects = []string{"feat: dup"} // first generated subject collides
+		stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+		deps.Output = ui.NewOutput(stdout, stderr, true, true) // verbose=true
+
+		if _, err := CommitStaged(context.Background(), deps); err != nil {
+			t.Fatalf("CommitStaged returned error %v; want nil", err)
+		}
+		got := stderr.String()
+		// At least one generation-attempt marker (the inner-loop top).
+		if !strings.Contains(got, "generation attempt") {
+			t.Errorf("stderr missing %q\n--got--\n%s", "generation attempt", got)
+		}
+		// The duplicate-subject marker from the OUTER rejection.
+		if !strings.Contains(got, "duplicate subject") {
+			t.Errorf("stderr missing %q\n--got--\n%s", "duplicate subject", got)
+		}
+		if !strings.Contains(got, "feat: dup") {
+			t.Errorf("stderr missing the rejected subject %q\n--got--\n%s", "feat: dup", got)
+		}
+		// FR51: verbose touches stderr ONLY — stdout must carry the FR42
+		// success block and nothing from the verbose traces.
+		if !strings.Contains(stdout.String(), "feat: unique") {
+			t.Errorf("stdout missing the FR42 success line\n--got--\n%s", stdout.String())
+		}
+		if strings.Contains(stdout.String(), "resolved command") ||
+			strings.Contains(stdout.String(), "generation attempt") {
+			t.Errorf("stdout leaked a verbose trace (FR51 violation)\n--got--\n%s", stdout.String())
+		}
+	})
+
+	t.Run("verbose=false leaves stderr empty of traces", func(t *testing.T) {
+		g := &stubGit{}
+		r := &stubRunner{responses: []stubResponse{
+			{stdout: "feat: dup", msg: "feat: dup", ok: true},
+			{stdout: "feat: unique", msg: "feat: unique", ok: true},
+		}}
+		deps := baseDeps(g, r, 3)
+		g.subjects = []string{"feat: dup"}
+		stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+		deps.Output = newTestOutput(stdout, stderr) // verbose=false, noColor=true
+
+		if _, err := CommitStaged(context.Background(), deps); err != nil {
+			t.Fatalf("CommitStaged returned error %v; want nil", err)
+		}
+		// Verbose is off: NO verbose markers on stderr (success path renders
+		// nothing to stderr at all, so it stays empty).
+		if strings.Contains(stderr.String(), "generation attempt") ||
+			strings.Contains(stderr.String(), "duplicate subject") ||
+			strings.Contains(stderr.String(), "resolved command") {
+			t.Errorf("stderr must be empty of verbose traces with verbose=false\n--got--\n%s", stderr.String())
+		}
+	})
+}

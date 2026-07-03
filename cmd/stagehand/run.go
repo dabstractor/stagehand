@@ -192,13 +192,17 @@ func resolveAndCheckProvider(cfg config.Config, reg *provider.Registry) (string,
 // full GenerateCommit pipeline. opts.Provider/Model/Timeout carry the resolved
 // cfg values (which may be ""/0 for auto-resolution by GenerateCommit); opts is
 // the HIGHEST-precedence source inside GenerateCommit, so a non-empty value
-// here overrides its own internal config.Load(config.Flags{}).
+// here overrides its own internal config.Load(config.Flags{}). opts.Verbose
+// threads the resolved cfg.Verbose (FR50: --verbose/-v/STAGEHAND_VERBOSE) into
+// GenerateCommit so the shared *ui.Output driving the executor and the generate
+// orchestrator emits the resolved command, raw agent stdout, and retry traces.
 func buildOptions(cfg config.Config, dryRun bool) stagehand.Options {
 	return stagehand.Options{
 		Provider: cfg.Provider,
 		Model:    cfg.Model,
 		Timeout:  cfg.Timeout,
 		DryRun:   dryRun,
+		Verbose:  cfg.Verbose,
 	}
 }
 
@@ -244,13 +248,10 @@ func mapErrorToExitCode(err error) int {
 // validation → maybeAutoStage (FR16–FR20) → stagehand.GenerateCommit → exit-code
 // mapping. stdout is touched ONLY by GenerateCommit (the FR42 success block and
 // the FR49 dry-run message); runDefault writes notices to stderr via
-// out.Progressf so stdout stays byte-clean for piping (FR51).
-//
-// Known v1 gap (research §1): GenerateCommit constructs its OWN ui.Output with
-// verbose=false, so full FR50 agent-trace verbose (resolved command / raw
-// stdout / retries) is not observable through the GENERATE step in v1 — cfg.Verbose
-// is wired here and gates CLI-level Progressf only. Full FR50 verbose is a
-// follow-up once GenerateCommit accepts a verbose Output.
+// out.Progressf so stdout stays byte-clean for piping (FR51). cfg.Verbose is
+// threaded into GenerateCommit via buildOptions, which honors it end-to-end
+// (FR50: the shared *ui.Output driving the executor and generate orchestrator
+// emits the resolved command, raw agent stdout, and retries to stderr).
 func runDefault(cmd *cobra.Command) int {
 	flags, err := buildFlags(cmd)
 	if err != nil {
