@@ -4,14 +4,14 @@
       "type": "Phase",
       "id": "P1",
       "title": "v2.1 Validation Bug Fixes",
-      "status": "Researching",
+      "status": "Complete",
       "description": "Fix the 1 Major + 3 Minor issues discovered during creative end-to-end validation of the v2.1 'competitor feature parity + tool integrations' delta (§9.18–§9.23). All four fixes are independent, localized code changes grounded in the existing codebase architecture. The changes restore the no-mangle guarantee for lazygit (Issue 1), silence misleading hook-exec output (Issue 2), complete the reference config template (Issue 3), and fix TTY detection for /dev/null (Issue 4).",
       "milestones": [
         {
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Fix Four Validation Issues",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Implement and test the four bug fixes. Each task is an independent, self-contained fix with its own TDD cycle. Issues 1-4 touch disjoint files and have no inter-dependencies, so they can be developed in any order.",
           "tasks": [
             {
@@ -114,14 +114,14 @@
               "type": "Task",
               "id": "P1.M1.T5",
               "title": "Sync changeset-level documentation",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Final documentation sweep to ensure README.md and any overview docs accurately reflect the changeset. Per SOW §5 Mode B: cross-cutting docs that only make sense once the whole change is in place.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T5.S1",
                   "title": "Verify README.md and overview docs reflect the four fixes",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",
