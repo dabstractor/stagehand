@@ -2,191 +2,6 @@
   "version": "1.0",
   "checkpoints": [
     {
-      "id": "PFIX_M1_T005_S1_1783070355863_complete_fea10838",
-      "taskId": "PFIX_M1_T005_S1",
-      "label": "Task completed successfully",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T005_S1.md",
-        "stage": "complete",
-        "coderResponse": "All validation gates pass and the diff is confined to the two allowed files. Implementation complete.\n\n**Summary of changes:**\n\n- **`cmd/stagehand/stage.go`** (the FR18 `maybeAutoStage` notice): replaced the hardcoded noun `(%d files)` with a noun-conditional block (`noun := \"files\"; if n == 1 { noun = \"file\" }` → `(%d %s)`). Used a local var because Go has no ternary. Preserved the literal em-dash, trailing `\\n`, wording, `// FR18` tag, and control flow.\n- **`cmd/stagehand/stage_test.go`**: added one `AutoStagesSingularFileNotice` subtest (Case 1b) mirroring `AutoStagesThenProceeds` with `fileCount: 1`, asserting stderr contains `(1 file)` and does NOT contain `(1 files)`, plus `err==nil`, `addCalled==true`, and FR51 byte-clean stdout. The existing n==3 subtest is untouched.\n\n**Validation results (all 6 gates green):**\n- Level 1 `go build ./cmd/stagehand/` ✅\n- Level 2 `gofmt -l` → empty ✅\n- Level 3 `go vet ./cmd/stagehand/` → clean ✅\n- Level 4 `go test -run TestMaybeAutoStage -v` → all 7 subtests pass (incl. new `AutoStagesSingularFileNotice`) ✅\n- Level 5 `go test ./cmd/stagehand/` ✅\n- Level 6 `go test ./...` → all packages green ✅\n\n**Scope boundaries respected:** no new pluralize helper, no `maybeAutoStage` rewrite, no edits to `run.go`, `internal/git/stage.go`, `internal/ui/output.go`, `PRD.md`, or docs.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched.\"\n}\n```",
-        "coderResult": {
-          "result": "success",
-          "message": "BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched."
-        },
-        "validationResults": [
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go build ./cmd/stagehand/",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "test -z \"$(gofmt -l cmd/stagehand/stage.go cmd/stagehand/stage_test.go)\"",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go vet ./cmd/stagehand/",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./cmd/stagehand/ -run TestMaybeAutoStage -v",
-            "stdout": "=== RUN   TestMaybeAutoStage\n=== RUN   TestMaybeAutoStage/AutoStagesThenProceeds\n=== RUN   TestMaybeAutoStage/AutoStagesSingularFileNotice\n=== RUN   TestMaybeAutoStage/AutoStagesThenClean\n=== RUN   TestMaybeAutoStage/NoAutoStageFlagReturnsNothingStaged\n=== RUN   TestMaybeAutoStage/AutoStageAllFalseReturnsNothingStaged\n=== RUN   TestMaybeAutoStage/AllFlagForcesAddOnStaged\n=== RUN   TestMaybeAutoStage/StagedNoAllProceeds\n--- PASS: TestMaybeAutoStage (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesThenProceeds (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesSingularFileNotice (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesThenClean (0.00s)\n    --- PASS: TestMaybeAutoStage/NoAutoStageFlagReturnsNothingStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStageAllFalseReturnsNothingStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/AllFlagForcesAddOnStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/StagedNoAllProceeds (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./cmd/stagehand/",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 3,
-            "description": "Level 3 gate",
-            "success": true,
-            "command": "go test ./...",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          }
-        ],
-        "timestamp": "2026-07-03T09:19:15.863Z"
-      },
-      "createdAt": "2026-07-03T09:19:15.863Z"
-    },
-    {
-      "id": "PFIX_M1_T005_S1_1783072637937_pre-execution_cc8e54f7",
-      "taskId": "PFIX_M1_T005_S1",
-      "label": "Before Coder Agent execution",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T005_S1.md",
-        "stage": "pre-execution",
-        "validationResults": [],
-        "timestamp": "2026-07-03T09:57:17.937Z"
-      },
-      "createdAt": "2026-07-03T09:57:17.937Z"
-    },
-    {
-      "id": "PFIX_M1_T005_S1_1783072637938_coder-response_9c9d40bf",
-      "taskId": "PFIX_M1_T005_S1",
-      "label": "After Coder Agent response",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T005_S1.md",
-        "stage": "coder-response",
-        "coderResponse": "All validation gates pass and the diff is confined to the two allowed files. Implementation complete.\n\n**Summary of changes:**\n\n- **`cmd/stagehand/stage.go`** (the FR18 `maybeAutoStage` notice): replaced the hardcoded noun `(%d files)` with a noun-conditional block (`noun := \"files\"; if n == 1 { noun = \"file\" }` → `(%d %s)`). Used a local var because Go has no ternary. Preserved the literal em-dash, trailing `\\n`, wording, `// FR18` tag, and control flow.\n- **`cmd/stagehand/stage_test.go`**: added one `AutoStagesSingularFileNotice` subtest (Case 1b) mirroring `AutoStagesThenProceeds` with `fileCount: 1`, asserting stderr contains `(1 file)` and does NOT contain `(1 files)`, plus `err==nil`, `addCalled==true`, and FR51 byte-clean stdout. The existing n==3 subtest is untouched.\n\n**Validation results (all 6 gates green):**\n- Level 1 `go build ./cmd/stagehand/` ✅\n- Level 2 `gofmt -l` → empty ✅\n- Level 3 `go vet ./cmd/stagehand/` → clean ✅\n- Level 4 `go test -run TestMaybeAutoStage -v` → all 7 subtests pass (incl. new `AutoStagesSingularFileNotice`) ✅\n- Level 5 `go test ./cmd/stagehand/` ✅\n- Level 6 `go test ./...` → all packages green ✅\n\n**Scope boundaries respected:** no new pluralize helper, no `maybeAutoStage` rewrite, no edits to `run.go`, `internal/git/stage.go`, `internal/ui/output.go`, `PRD.md`, or docs.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched.\"\n}\n```",
-        "coderResult": {
-          "result": "success",
-          "message": "BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched."
-        },
-        "validationResults": [],
-        "timestamp": "2026-07-03T09:57:17.938Z"
-      },
-      "createdAt": "2026-07-03T09:57:17.939Z"
-    },
-    {
-      "id": "PFIX_M1_T005_S1_1783072638230_validation-gate-3_024e2e5f",
-      "taskId": "PFIX_M1_T005_S1",
-      "label": "After validation gate 3",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T005_S1.md",
-        "stage": "validation-gate-3",
-        "coderResponse": "All validation gates pass and the diff is confined to the two allowed files. Implementation complete.\n\n**Summary of changes:**\n\n- **`cmd/stagehand/stage.go`** (the FR18 `maybeAutoStage` notice): replaced the hardcoded noun `(%d files)` with a noun-conditional block (`noun := \"files\"; if n == 1 { noun = \"file\" }` → `(%d %s)`). Used a local var because Go has no ternary. Preserved the literal em-dash, trailing `\\n`, wording, `// FR18` tag, and control flow.\n- **`cmd/stagehand/stage_test.go`**: added one `AutoStagesSingularFileNotice` subtest (Case 1b) mirroring `AutoStagesThenProceeds` with `fileCount: 1`, asserting stderr contains `(1 file)` and does NOT contain `(1 files)`, plus `err==nil`, `addCalled==true`, and FR51 byte-clean stdout. The existing n==3 subtest is untouched.\n\n**Validation results (all 6 gates green):**\n- Level 1 `go build ./cmd/stagehand/` ✅\n- Level 2 `gofmt -l` → empty ✅\n- Level 3 `go vet ./cmd/stagehand/` → clean ✅\n- Level 4 `go test -run TestMaybeAutoStage -v` → all 7 subtests pass (incl. new `AutoStagesSingularFileNotice`) ✅\n- Level 5 `go test ./cmd/stagehand/` ✅\n- Level 6 `go test ./...` → all packages green ✅\n\n**Scope boundaries respected:** no new pluralize helper, no `maybeAutoStage` rewrite, no edits to `run.go`, `internal/git/stage.go`, `internal/ui/output.go`, `PRD.md`, or docs.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched.\"\n}\n```",
-        "coderResult": {
-          "result": "success",
-          "message": "BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched."
-        },
-        "validationResults": [
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go build ./cmd/stagehand/",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "test -z \"$(gofmt -l cmd/stagehand/stage.go cmd/stagehand/stage_test.go)\"",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go vet ./cmd/stagehand/",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./cmd/stagehand/ -run TestMaybeAutoStage -v",
-            "stdout": "=== RUN   TestMaybeAutoStage\n=== RUN   TestMaybeAutoStage/AutoStagesThenProceeds\n=== RUN   TestMaybeAutoStage/AutoStagesSingularFileNotice\n=== RUN   TestMaybeAutoStage/AutoStagesThenClean\n=== RUN   TestMaybeAutoStage/NoAutoStageFlagReturnsNothingStaged\n=== RUN   TestMaybeAutoStage/AutoStageAllFalseReturnsNothingStaged\n=== RUN   TestMaybeAutoStage/AllFlagForcesAddOnStaged\n=== RUN   TestMaybeAutoStage/StagedNoAllProceeds\n--- PASS: TestMaybeAutoStage (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesThenProceeds (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesSingularFileNotice (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesThenClean (0.00s)\n    --- PASS: TestMaybeAutoStage/NoAutoStageFlagReturnsNothingStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStageAllFalseReturnsNothingStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/AllFlagForcesAddOnStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/StagedNoAllProceeds (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./cmd/stagehand/",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 3,
-            "description": "Level 3 gate",
-            "success": true,
-            "command": "go test ./...",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          }
-        ],
-        "timestamp": "2026-07-03T09:57:18.230Z"
-      },
-      "createdAt": "2026-07-03T09:57:18.230Z"
-    },
-    {
       "id": "PFIX_M1_T005_S1_1783072638232_complete_b66d158b",
       "taskId": "PFIX_M1_T005_S1",
       "label": "Task completed successfully",
@@ -263,7 +78,192 @@
         "timestamp": "2026-07-03T09:57:18.232Z"
       },
       "createdAt": "2026-07-03T09:57:18.232Z"
+    },
+    {
+      "id": "PFIX_M1_T005_S1_1783072640324_pre-execution_1255ef17",
+      "taskId": "PFIX_M1_T005_S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T005_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-03T09:57:20.324Z"
+      },
+      "createdAt": "2026-07-03T09:57:20.324Z"
+    },
+    {
+      "id": "PFIX_M1_T005_S1_1783072640326_coder-response_369dd6cd",
+      "taskId": "PFIX_M1_T005_S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T005_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "All validation gates pass and the diff is confined to the two allowed files. Implementation complete.\n\n**Summary of changes:**\n\n- **`cmd/stagehand/stage.go`** (the FR18 `maybeAutoStage` notice): replaced the hardcoded noun `(%d files)` with a noun-conditional block (`noun := \"files\"; if n == 1 { noun = \"file\" }` → `(%d %s)`). Used a local var because Go has no ternary. Preserved the literal em-dash, trailing `\\n`, wording, `// FR18` tag, and control flow.\n- **`cmd/stagehand/stage_test.go`**: added one `AutoStagesSingularFileNotice` subtest (Case 1b) mirroring `AutoStagesThenProceeds` with `fileCount: 1`, asserting stderr contains `(1 file)` and does NOT contain `(1 files)`, plus `err==nil`, `addCalled==true`, and FR51 byte-clean stdout. The existing n==3 subtest is untouched.\n\n**Validation results (all 6 gates green):**\n- Level 1 `go build ./cmd/stagehand/` ✅\n- Level 2 `gofmt -l` → empty ✅\n- Level 3 `go vet ./cmd/stagehand/` → clean ✅\n- Level 4 `go test -run TestMaybeAutoStage -v` → all 7 subtests pass (incl. new `AutoStagesSingularFileNotice`) ✅\n- Level 5 `go test ./cmd/stagehand/` ✅\n- Level 6 `go test ./...` → all packages green ✅\n\n**Scope boundaries respected:** no new pluralize helper, no `maybeAutoStage` rewrite, no edits to `run.go`, `internal/git/stage.go`, `internal/ui/output.go`, `PRD.md`, or docs.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-03T09:57:20.326Z"
+      },
+      "createdAt": "2026-07-03T09:57:20.326Z"
+    },
+    {
+      "id": "PFIX_M1_T005_S1_1783072640611_validation-gate-3_0d6a94e1",
+      "taskId": "PFIX_M1_T005_S1",
+      "label": "After validation gate 3",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T005_S1.md",
+        "stage": "validation-gate-3",
+        "coderResponse": "All validation gates pass and the diff is confined to the two allowed files. Implementation complete.\n\n**Summary of changes:**\n\n- **`cmd/stagehand/stage.go`** (the FR18 `maybeAutoStage` notice): replaced the hardcoded noun `(%d files)` with a noun-conditional block (`noun := \"files\"; if n == 1 { noun = \"file\" }` → `(%d %s)`). Used a local var because Go has no ternary. Preserved the literal em-dash, trailing `\\n`, wording, `// FR18` tag, and control flow.\n- **`cmd/stagehand/stage_test.go`**: added one `AutoStagesSingularFileNotice` subtest (Case 1b) mirroring `AutoStagesThenProceeds` with `fileCount: 1`, asserting stderr contains `(1 file)` and does NOT contain `(1 files)`, plus `err==nil`, `addCalled==true`, and FR51 byte-clean stdout. The existing n==3 subtest is untouched.\n\n**Validation results (all 6 gates green):**\n- Level 1 `go build ./cmd/stagehand/` ✅\n- Level 2 `gofmt -l` → empty ✅\n- Level 3 `go vet ./cmd/stagehand/` → clean ✅\n- Level 4 `go test -run TestMaybeAutoStage -v` → all 7 subtests pass (incl. new `AutoStagesSingularFileNotice`) ✅\n- Level 5 `go test ./cmd/stagehand/` ✅\n- Level 6 `go test ./...` → all packages green ✅\n\n**Scope boundaries respected:** no new pluralize helper, no `maybeAutoStage` rewrite, no edits to `run.go`, `internal/git/stage.go`, `internal/ui/output.go`, `PRD.md`, or docs.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./cmd/stagehand/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l cmd/stagehand/stage.go cmd/stagehand/stage_test.go)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./cmd/stagehand/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/ -run TestMaybeAutoStage -v",
+            "stdout": "=== RUN   TestMaybeAutoStage\n=== RUN   TestMaybeAutoStage/AutoStagesThenProceeds\n=== RUN   TestMaybeAutoStage/AutoStagesSingularFileNotice\n=== RUN   TestMaybeAutoStage/AutoStagesThenClean\n=== RUN   TestMaybeAutoStage/NoAutoStageFlagReturnsNothingStaged\n=== RUN   TestMaybeAutoStage/AutoStageAllFalseReturnsNothingStaged\n=== RUN   TestMaybeAutoStage/AllFlagForcesAddOnStaged\n=== RUN   TestMaybeAutoStage/StagedNoAllProceeds\n--- PASS: TestMaybeAutoStage (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesThenProceeds (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesSingularFileNotice (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesThenClean (0.00s)\n    --- PASS: TestMaybeAutoStage/NoAutoStageFlagReturnsNothingStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStageAllFalseReturnsNothingStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/AllFlagForcesAddOnStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/StagedNoAllProceeds (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T09:57:20.611Z"
+      },
+      "createdAt": "2026-07-03T09:57:20.611Z"
+    },
+    {
+      "id": "PFIX_M1_T005_S1_1783072640613_complete_1de15903",
+      "taskId": "PFIX_M1_T005_S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T005_S1.md",
+        "stage": "complete",
+        "coderResponse": "All validation gates pass and the diff is confined to the two allowed files. Implementation complete.\n\n**Summary of changes:**\n\n- **`cmd/stagehand/stage.go`** (the FR18 `maybeAutoStage` notice): replaced the hardcoded noun `(%d files)` with a noun-conditional block (`noun := \"files\"; if n == 1 { noun = \"file\" }` → `(%d %s)`). Used a local var because Go has no ternary. Preserved the literal em-dash, trailing `\\n`, wording, `// FR18` tag, and control flow.\n- **`cmd/stagehand/stage_test.go`**: added one `AutoStagesSingularFileNotice` subtest (Case 1b) mirroring `AutoStagesThenProceeds` with `fileCount: 1`, asserting stderr contains `(1 file)` and does NOT contain `(1 files)`, plus `err==nil`, `addCalled==true`, and FR51 byte-clean stdout. The existing n==3 subtest is untouched.\n\n**Validation results (all 6 gates green):**\n- Level 1 `go build ./cmd/stagehand/` ✅\n- Level 2 `gofmt -l` → empty ✅\n- Level 3 `go vet ./cmd/stagehand/` → clean ✅\n- Level 4 `go test -run TestMaybeAutoStage -v` → all 7 subtests pass (incl. new `AutoStagesSingularFileNotice`) ✅\n- Level 5 `go test ./cmd/stagehand/` ✅\n- Level 6 `go test ./...` → all packages green ✅\n\n**Scope boundaries respected:** no new pluralize helper, no `maybeAutoStage` rewrite, no edits to `run.go`, `internal/git/stage.go`, `internal/ui/output.go`, `PRD.md`, or docs.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "BUG-005 fixed: the FR18 auto-stage notice in cmd/stagehand/stage.go maybeAutoStage now prints the singular noun '(1 file)' when n==1 and '(N files)' otherwise, via a local noun var (Go has no ternary). The existing n==3 path is byte-identical. One new white-box subtest AutoStagesSingularFileNotice pins the n==1 form (asserts '(1 file)' present and '(1 files)' absent) and leaves the n==3 AutoStagesThenProceeds subtest unchanged. All 6 validation gates pass: go build, gofmt -l (empty), go vet (clean), go test -run TestMaybeAutoStage -v (7/7 subtests), go test ./cmd/stagehand/, and go test ./... (all packages green). Diff confined to cmd/stagehand/stage.go and cmd/stagehand/stage_test.go; no pluralize helper added and no out-of-scope files touched."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./cmd/stagehand/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -l cmd/stagehand/stage.go cmd/stagehand/stage_test.go)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./cmd/stagehand/",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/ -run TestMaybeAutoStage -v",
+            "stdout": "=== RUN   TestMaybeAutoStage\n=== RUN   TestMaybeAutoStage/AutoStagesThenProceeds\n=== RUN   TestMaybeAutoStage/AutoStagesSingularFileNotice\n=== RUN   TestMaybeAutoStage/AutoStagesThenClean\n=== RUN   TestMaybeAutoStage/NoAutoStageFlagReturnsNothingStaged\n=== RUN   TestMaybeAutoStage/AutoStageAllFalseReturnsNothingStaged\n=== RUN   TestMaybeAutoStage/AllFlagForcesAddOnStaged\n=== RUN   TestMaybeAutoStage/StagedNoAllProceeds\n--- PASS: TestMaybeAutoStage (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesThenProceeds (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesSingularFileNotice (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStagesThenClean (0.00s)\n    --- PASS: TestMaybeAutoStage/NoAutoStageFlagReturnsNothingStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/AutoStageAllFalseReturnsNothingStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/AllFlagForcesAddOnStaged (0.00s)\n    --- PASS: TestMaybeAutoStage/StagedNoAllProceeds (0.00s)\nPASS\nok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 3,
+            "description": "Level 3 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T09:57:20.613Z"
+      },
+      "createdAt": "2026-07-03T09:57:20.613Z"
     }
   ],
-  "lastModified": "2026-07-03T09:57:18.232Z"
+  "lastModified": "2026-07-03T09:57:20.613Z"
 }
