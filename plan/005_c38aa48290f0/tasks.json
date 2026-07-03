@@ -312,7 +312,7 @@
           "type": "Milestone",
           "id": "P1.M4",
           "title": "Tool integrations exporter (§9.21)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "New internal/integrate package: the no-mangle write protocol as a reusable engine, the `integrate list|install|remove` surface, and the git-alias + lazygit targets. The protocol (FR-I3) is the core deliverable — it must be impossible for stagehand to mangle a config file.",
           "tasks": [
             {
@@ -360,14 +360,14 @@
               "type": "Task",
               "id": "P1.M4.T2",
               "title": "Integration targets",
-              "status": "Planned",
+              "status": "Researching",
               "description": "git-alias (delegates to git config) and lazygit (comment-preserving YAML customCommands upsert) — FR-I4, FR-I5, FR-I6.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T2.S1",
                   "title": "git-alias target",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M4.T1.S2"
@@ -384,7 +384,7 @@
                   "type": "Subtask",
                   "id": "P1.M4.T2.S2",
                   "title": "lazygit target: comment-preserving customCommands upsert",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M4.T1.S1",

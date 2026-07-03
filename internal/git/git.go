@@ -258,6 +258,31 @@ type Git interface {
 	// 128; never use --quiet). Read-only with respect to refs and the index (PRD §18.1).
 	DiffTreeNames(ctx context.Context, treeA, treeB string) (paths []string, err error)
 
+	// ConfigGlobalGet reads a key from git's GLOBAL config (not repo-local) via
+	// `git config --global --get <key>` (PRD §9.21 FR-I4). Exit-code semantics (mirrors
+	// config/git.go gitConfigGet): 0 = found (trimmed value); 1 = not found (found=false,
+	// NOT an error); else wrapped error incl. stderr. Repo-independent: the `-C workDir`
+	// from run() is a harmless no-op for `--global` scope (git config --global targets
+	// ~/.gitconfig / $GIT_CONFIG_GLOBAL regardless of cwd). Used by integrate git-alias
+	// to read back alias.<name> — the stored value INCLUDES the leading `!` for shell
+	// aliases, so callers strip it when comparing whether the alias is stagehand's
+	// (external_deps.md §7).
+	ConfigGlobalGet(ctx context.Context, key string) (value string, found bool, err error)
+
+	// ConfigGlobalSet writes a key/value to git's GLOBAL config via
+	// `git config --global <key> <value>` (PRD §9.21 FR-I4). git performs the .gitconfig
+	// edit itself (so the FR-I3 file machinery is unnecessary). value is passed as a
+	// SINGLE argv element (NEVER sh -c — PRD §19), so a value like "!stagehand" is
+	// stored verbatim with its `!`. Non-zero exit ⇒ wrapped error incl. stderr.
+	ConfigGlobalSet(ctx context.Context, key, value string) error
+
+	// ConfigGlobalUnset removes a key from git's GLOBAL config via
+	// `git config --global --unset <key>` (PRD §9.21 FR-I6). Returns found=false when
+	// the key was not present (git exit 5 — NOT an error); found=true + nil when
+	// removed. The caller (git-alias) MUST first verify the value is ours before
+	// calling this (FR-I6: only unset when the current value is stagehand's).
+	ConfigGlobalUnset(ctx context.Context, key string) (found bool, err error)
+
 	// HooksPath returns the ABSOLUTE path to this repo's hooks directory via
 	// `git rev-parse --git-path hooks` (honors core.hooksPath and linked worktrees — architecture §3).
 	// git may return a cwd-relative path (notably from a subdirectory); it is resolved to absolute against
@@ -1326,6 +1351,66 @@ func (g *gitRunner) DiffTreeNames(ctx context.Context, treeA, treeB string) ([]s
 		}
 	}
 	return out, nil // nil if stdout was empty (identical trees); out aliases paths (same backing array)
+}
+
+// HooksPath returns the ABSOLUTE path to this repo's hooks directory (PRD §9.20 FR-H1). It runs
+// `git rev-parse --git-path hooks`, which honors core.hooksPath and resolves to the common dir from a
+// linked worktree (architecture §3, verified git 2.54.0). Because run() execs `git -C g.workDir …`, any
+// relative output is relative to g.workDir (notably `.git/hooks` from the repo root, or `../.git/hooks`
+// from a subdirectory) — it is resolved to absolute here so callers never see a cwd-relative path.
+//
+// `--git-path hooks` succeeds on an UNBORN repo, so exit 128 here is a REAL error (non-repo/corrupt) —
+// mirror StatusPorcelain's convention (branch on code != 0, NOT on code == 128; do NOT reuse
+// RevParseHEAD's 128-as-unborn special-case). Read-only with respect to refs and the index (PRD §18.1).
+// ConfigGlobalGet reads a key from git's GLOBAL config (not repo-local) via
+// `git config --global --get <key>` (PRD §9.21 FR-I4). Exit-code semantics: 0 = found
+// (trimmed value); 1 = not found (found=false, NOT an error); else wrapped error.
+// Repo-independent: the `-C workDir` from run() is a harmless no-op for `--global`.
+func (g *gitRunner) ConfigGlobalGet(ctx context.Context, key string) (string, bool, error) {
+	stdout, stderr, code, err := g.run(ctx, g.workDir, "config", "--global", "--get", key)
+	if err != nil {
+		return "", false, err // git binary missing / context cancel / start failure (code == -1)
+	}
+	switch code {
+	case 0:
+		return strings.TrimSpace(stdout), true, nil
+	case 1:
+		return "", false, nil // missing key — NOT an error
+	default:
+		return "", false, fmt.Errorf("git config --global --get %s: exit %d: %s", key, code, strings.TrimSpace(stderr))
+	}
+}
+
+// ConfigGlobalSet writes a key/value to git's GLOBAL config via
+// `git config --global <key> <value>` (PRD §9.21 FR-I4). value is passed as a SINGLE
+// argv element (NEVER sh -c — PRD §19). Non-zero exit ⇒ wrapped error.
+func (g *gitRunner) ConfigGlobalSet(ctx context.Context, key, value string) error {
+	_, stderr, code, err := g.run(ctx, g.workDir, "config", "--global", key, value)
+	if err != nil {
+		return err // git binary missing / context cancel / start failure (code == -1)
+	}
+	if code != 0 {
+		return fmt.Errorf("git config --global %s %s: exit %d: %s", key, value, code, strings.TrimSpace(stderr))
+	}
+	return nil
+}
+
+// ConfigGlobalUnset removes a key from git's GLOBAL config via
+// `git config --global --unset <key>` (PRD §9.21 FR-I6). Returns found=false when
+// the key was not present (git exit 5 — NOT an error); found=true + nil when removed.
+func (g *gitRunner) ConfigGlobalUnset(ctx context.Context, key string) (bool, error) {
+	_, stderr, code, err := g.run(ctx, g.workDir, "config", "--global", "--unset", key)
+	if err != nil {
+		return false, err // git binary missing / context cancel / start failure (code == -1)
+	}
+	switch code {
+	case 0:
+		return true, nil // key removed
+	case 5:
+		return false, nil // key not set — NOT an error
+	default:
+		return false, fmt.Errorf("git config --global --unset %s: exit %d: %s", key, code, strings.TrimSpace(stderr))
+	}
 }
 
 // HooksPath returns the ABSOLUTE path to this repo's hooks directory (PRD §9.20 FR-H1). It runs

@@ -31,7 +31,7 @@ import (
 // so the Registry is always freshly built (mirrors provider.NewRegistry's discipline)
 // and tests can swap it.
 var defaultEntries = func() []integrate.Entry {
-	return nil // T2.S1: append &gitAliasEntry{...}; T2.S2: append &lazygitEntry{...}
+	return []integrate.Entry{newGitAliasEntry()} // T2.S2 appends &lazygitEntry{...} here later
 }
 
 var flagIntegrateYes bool // --yes (persistent on integrateCmd; install+remove honor it, list ignores it)

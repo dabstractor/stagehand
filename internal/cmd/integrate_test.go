@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/dustin/stagehand/internal/exitcode"
 	"github.com/dustin/stagehand/internal/integrate"
 )
@@ -25,6 +27,13 @@ func resetIntegrateFlags(t *testing.T) {
 	flagIntegrateYes = false
 	if f := integrateCmd.PersistentFlags().Lookup("yes"); f != nil && f.Changed {
 		f.Changed = false
+	}
+	// T2.S1: reset --alias-name flag on install and remove
+	flagAliasName = ""
+	for _, c := range []*cobra.Command{integrateInstallCmd, integrateRemoveCmd} {
+		if f := c.Flags().Lookup("alias-name"); f != nil && f.Changed {
+			f.Changed = false
+		}
 	}
 }
 
@@ -512,6 +521,12 @@ func TestIntegrateList_EmptyWiring(t *testing.T) {
 		restoreRootState(t, nil, origOut, origErr, origRunE)
 	}()
 
+	// Swap defaultEntries to nil to test empty-registry wiring (git-alias is
+	// now a default entry; this test verifies the wiring works with zero entries).
+	saved := defaultEntries
+	defaultEntries = func() []integrate.Entry { return nil }
+	defer func() { defaultEntries = saved }()
+
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(io.Discard)
@@ -526,7 +541,8 @@ func TestIntegrateList_EmptyWiring(t *testing.T) {
 	if !strings.Contains(got, "TARGET") || !strings.Contains(got, "DETECTED") {
 		t.Error(`list output missing header columns`)
 	}
-	// Only header (no data rows) since defaultEntries returns nil
+
+	// Only header (no data rows) since we swapped defaultEntries to nil
 	lines := strings.Split(strings.TrimSpace(got), "\n")
 	if len(lines) != 1 {
 		t.Errorf("empty registry list should be header-only; got %d lines: %q", len(lines), got)

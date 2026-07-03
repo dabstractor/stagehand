@@ -245,9 +245,38 @@ stagehand integrate remove lazygit     # remove lazygit integration
 stagehand integrate remove --yes git-alias lazygit
 ```
 
+#### `git-alias` target
+
+Registers `git stagehand` as a git alias in the **global** gitconfig (`git config --global alias.stagehand '!stagehand'`). After installation, `git stagehand` runs stagehand from any git repo — no PATH configuration needed.
+
+The `.gitconfig` write is delegated to `git config` itself (FR-I4), so the no-mangle protocol (unified-diff preview, backup, re-parse validation) does **not** apply. Instead, git-alias shows the exact command and resulting usage, then asks for confirmation (same `y/N` / `--yes` mechanics).
+
+| Flag | On | Description |
+|------|----|-------------|
+| `--alias-name <name>` | `install`, `remove` | Override the alias name (default: `stagehand`). Manages `alias.<name>` instead of `alias.stagehand`. |
+
+**Conflicting alias behavior:**
+
+- **Install:** if `alias.<name>` already exists with a value other than `!stagehand` (a *foreign* alias), the current value is shown in the preview with a warning. After confirmation, the alias is overwritten (outcome: *Updated*). Use `--yes` to skip the prompt.
+- **Remove:** if the alias is foreign (not stagehand's), `remove` **refuses** to unset it and prints a note (outcome: *NoChange* — the alias is never silently removed). `remove` only unsets when the value is `!stagehand`.
+
+**`integrate list` shows:**
+
+- **DETECTED:** ✓ (git-alias needs only git, which is always present for stagehand)
+- **STATUS:** `not installed` / `installed` / `foreign` (a conflicting alias exists at `alias.<name>`)
+- **CONFIG:** the resolved global gitconfig path (`$GIT_CONFIG_GLOBAL` if set, else `$HOME/.gitconfig`)
+
+```bash
+stagehand integrate install git-alias        # install `git stagehand`
+stagehand integrate install git-alias --yes   # skip confirmation
+stagehand integrate install git-alias --alias-name ci   # install as `git ci`
+stagehand integrate remove git-alias         # remove the alias
+stagehand integrate remove git-alias --yes --alias-name ci  # remove `git ci`
+```
+
 #### No-mangle protocol
 
-Every file edit by an integration runs the no-mangle protocol (PRD §9.21 FR-I3): a unified-diff preview is shown, the user is asked to confirm (`y/N`; use `--yes` to skip), a timestamped backup is written before modification, and the file is re-parsed after writing with automatic restore on validation failure. This guarantee is enforced by the protocol engine — it is not a convention each target follows independently.
+Every file edit by an integration runs the no-mangle protocol (PRD §9.21 FR-I3): a unified-diff preview is shown, the user is asked to confirm (`y/N`; use `--yes` to skip), a timestamped backup is written before modification, and the file is re-parsed after writing with automatic restore on validation failure. This guarantee is enforced by the protocol engine — it is not a convention each target follows independently. The `git-alias` target does **not** use this protocol (it delegates the write to `git config`).
 
 ## Exit codes
 
