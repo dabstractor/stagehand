@@ -62,6 +62,15 @@ func (v *Verbose) VerboseRawOutput(output string) {
 	}
 }
 
+// VerboseWarn prints a general warning for diagnostics such as unsupported .stagehandignore
+// negation patterns (PRD §9.18 FR-X2). Format: "DEBUG: <msg>\n". No-op when v==nil, v.w==nil, or !v.on.
+func (v *Verbose) VerboseWarn(msg string) {
+	if v == nil || v.w == nil || !v.on {
+		return
+	}
+	fmt.Fprintln(v.w, "DEBUG: "+msg)
+}
+
 // VerboseRetry prints a retry attempt and its reason (PRD §9.13 FR50 — "each retry attempt"). attempt
 // is 1-based (matches Appendix B.4 "Attempt 1"). Format: "DEBUG: attempt <n>: <reason>\n". No-op when
 // v==nil, v.w==nil, or !v.on.

@@ -18,7 +18,7 @@
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Exclusion pattern sources and resolution",
-              "status": "Ready",
+              "status": "Complete",
               "description": "Resolve the union of exclusion patterns from config, flag, and .stagehandignore into git pathspecs (FR-X1, FR-X2).",
               "subtasks": [
                 {
@@ -44,7 +44,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": ".stagehandignore parser and gitignore-glob → :(exclude,glob) pathspec translation",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"

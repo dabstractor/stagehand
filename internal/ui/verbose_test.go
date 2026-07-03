@@ -75,6 +75,35 @@ func TestReasoningSuffix(t *testing.T) {
 	}
 }
 
+func TestVerbose_WarnWhenOn(t *testing.T) {
+	var buf bytes.Buffer
+	v := NewVerbose(&buf, true)
+	v.VerboseWarn("some warning message")
+	want := "DEBUG: some warning message\n"
+	if buf.String() != want {
+		t.Errorf("VerboseWarn: got %q, want %q", buf.String(), want)
+	}
+}
+
+func TestVerbose_WarnWhenOff(t *testing.T) {
+	var buf bytes.Buffer
+	v := NewVerbose(&buf, false)
+	v.VerboseWarn("should not appear")
+	if buf.Len() != 0 {
+		t.Errorf("off: wrote %q, want zero bytes", buf.String())
+	}
+}
+
+func TestVerbose_WarnNilSafe(t *testing.T) {
+	var v *Verbose = nil
+	v.VerboseWarn("must not panic")
+}
+
+func TestVerbose_WarnNilWriter(t *testing.T) {
+	v := NewVerbose(nil, true)
+	v.VerboseWarn("must not panic")
+}
+
 func TestVerbose_CommandWhenOn(t *testing.T) {
 	var buf bytes.Buffer
 	v := NewVerbose(&buf, true)

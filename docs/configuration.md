@@ -203,3 +203,23 @@ exclude = ["*.min.js", "dist/*"]
 > This is the **one setting in the whole precedence system that UNIONS instead of overriding** (§16.1). Every other list-valued key (e.g. `[generation].binary_extensions`) REPLACES across layers — a higher layer's list wins outright. `exclude` instead **accumulates**: the resolved set is the global file's globs, followed by the repo file's globs, followed by every `--exclude`/`-x` occurrence, in that order. A repo cannot use its local config to un-exclude a glob a user set globally.
 >
 > There is deliberately **no** `STAGEHAND_EXCLUDE` environment variable and **no** `stagehand.exclude` git-config key — a colon/comma-joined env list is a well-known quoting trap for glob patterns containing those characters. Use the config file for persistent excludes and `--exclude`/`-x` for ad-hoc ones.
+
+### `.stagehandignore`
+
+A repo can place a `.stagehandignore` file at its root (alongside `.stagehand.toml`) containing one gitignore-style glob per line (§9.18 FR-X1b, FR-X2). Blank lines and `#` comment lines are ignored. The globs are **unioned** with `[generation].exclude` and `--exclude`/`-x` (see [Exclusion globs](#exclusion-globs-generationexclude) above).
+
+> [!WARNING]
+> **Negation (`!`) is NOT supported.** Git pathspec excludes have no re-include mechanism — a `!` line is silently skipped with a `--verbose` warning. This is intentional: the translated `:(exclude,glob)` pathspecs cannot un-exclude.
+
+A missing `.stagehandignore` is a no-op (no warning, no error).
+
+**Exclusions are payload-only:** excluded files are hidden from what the agent sees but are still captured and committed normally.
+
+Example:
+
+```
+# .stagehandignore
+*.min.js          # any-depth
+/dist/            # root dist/ dir contents only
+vendor/
+```
