@@ -2,103 +2,6 @@
   "version": "1.0",
   "checkpoints": [
     {
-      "id": "PFIX_M1_T002_S1_1783067205128_pre-execution_45913e20",
-      "taskId": "PFIX_M1_T002_S1",
-      "label": "Before Coder Agent execution",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T002_S1.md",
-        "stage": "pre-execution",
-        "validationResults": [],
-        "timestamp": "2026-07-03T08:26:45.128Z"
-      },
-      "createdAt": "2026-07-03T08:26:45.128Z"
-    },
-    {
-      "id": "PFIX_M1_T002_S1_1783068032161_coder-response_c211407d",
-      "taskId": "PFIX_M1_T002_S1",
-      "label": "After Coder Agent response",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T002_S1.md",
-        "stage": "coder-response",
-        "coderResponse": "All checks complete. Implementation summary:\n\n## What was done\n\n**BUG-002 fix** (silent exit-1 failure path) — minimal, pattern-faithful patch to `cmd/stagehand/run.go` + new tests in `cmd/stagehand/run_test.go`. Nothing else touched.\n\n**`cmd/stagehand/run.go`:**\n1. Added two godoc'd pure helpers adjacent to (but not touching) `mapErrorToExitCode`:\n   - `reportError(out *ui.Output, err error) int` — prints `out.Progressf(\"stagehand: %s\\n\", err)` to **stderr** for every error *except* the four self-printing sentinels, then delegates to the unchanged `mapErrorToExitCode`.\n   - `isAlreadyReported(err error) bool` — uses `errors.Is` (not `==`) against `ErrNothingToCommit`/`ErrNothingStaged`/`ErrRescue`/`ErrHeadMoved`.\n2. Collapsed both `runDefault` call sites (staging + generation) from `return mapErrorToExitCode(err)` → `return reportError(out, err)`.\n3. Updated `runDefault`'s doc comment to note FR8/§18.2 stderr surfacing.\n\n**`cmd/stagehand/run_test.go`:** added `TestReportError` (table-driven, drives a fresh `*ui.Output` over a `bytes.Buffer` stderr, asserts printed-or-not + exit code for nil, all four sentinels, a merge-conflict error, a wrapped git error, and an arbitrary error) and `TestIsAlreadyReported` (sentinels incl. wrapped variants → true; arbitrary → false). Existing tests untouched.\n\n## Validation results — all green\n- **L1:** `go build ./...` ✓, `go vet ./...` ✓, `gofmt -s -l` empty ✓\n- **L2:** `go test ./cmd/stagehand/` ✓, `go test ./...` ✓ (cache-busted, no regressions; `TestMapErrorToExitCode` still green proving the mapper is unchanged)\n- **L3 e2e (proves BUG-002 fixed):**\n  - Merge conflict → exit 1 + 295-byte stderr (write-tree merge error) ✓\n  - Not-a-repo → exit 1 + non-empty stderr ✓\n  - Sentinel (`ErrNothingStaged`) → prints exactly *once*, exit 2, no `reportError` double-print ✓\n- LSP: no diagnostics on either file ✓\n- `mapErrorToExitCode` body confirmed byte-for-byte unchanged; only the 2 intended files modified.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-002 fixed. cmd/stagehand/run.go gained two pure helpers — reportError(out, err) int (prints non-sentinel errors to STDERR via out.Progressf('stagehand: %s\\\\n', err) then delegates to the UNCHANGED mapErrorToExitCode) and isAlreadyReported(err) bool (errors.Is against the four self-printing sentinels ErrNothingToCommit/ErrNothingStaged/ErrRescue/ErrHeadMoved). Both runDefault call sites (maybeAutoStage result + GenerateCommit result) collapsed from 'return mapErrorToExitCode(err)' to 'return reportError(out, err)'. New TestReportError (table-driven over a bytes.Buffer stderr: nil, 4 sentinels→not printed, merge-conflict/wrapped-git/arbitrary→printed + ExitError) and TestIsAlreadyReported (sentinels + wrapped variants→true, arbitrary/nil→false) added to run_test.go; existing tests untouched. All gates green: go build/vet/gofmt clean; go test ./cmd/stagehand and go test ./... pass with no regressions (TestMapErrorToExitCode stays green, confirming mapErrorToExitCode is byte-for-byte unchanged). E2E proves the fix: merge-conflict now exits 1 with a 295-byte write-tree/merge stderr message (was silent), not-a-repo exits 1 with a clear git error (was silent), and ErrNothingStaged still prints exactly 'Nothing staged; nothing to commit.' once and exits 2 with no double-print. FR51 stdout byte-clean invariant preserved (all new output on stderr). Only the two intended files changed.\"\n}\n```",
-        "coderResult": {
-          "result": "success",
-          "message": "BUG-002 fixed. cmd/stagehand/run.go gained two pure helpers — reportError(out, err) int (prints non-sentinel errors to STDERR via out.Progressf('stagehand: %s\\n', err) then delegates to the UNCHANGED mapErrorToExitCode) and isAlreadyReported(err) bool (errors.Is against the four self-printing sentinels ErrNothingToCommit/ErrNothingStaged/ErrRescue/ErrHeadMoved). Both runDefault call sites (maybeAutoStage result + GenerateCommit result) collapsed from 'return mapErrorToExitCode(err)' to 'return reportError(out, err)'. New TestReportError (table-driven over a bytes.Buffer stderr: nil, 4 sentinels→not printed, merge-conflict/wrapped-git/arbitrary→printed + ExitError) and TestIsAlreadyReported (sentinels + wrapped variants→true, arbitrary/nil→false) added to run_test.go; existing tests untouched. All gates green: go build/vet/gofmt clean; go test ./cmd/stagehand and go test ./... pass with no regressions (TestMapErrorToExitCode stays green, confirming mapErrorToExitCode is byte-for-byte unchanged). E2E proves the fix: merge-conflict now exits 1 with a 295-byte write-tree/merge stderr message (was silent), not-a-repo exits 1 with a clear git error (was silent), and ErrNothingStaged still prints exactly 'Nothing staged; nothing to commit.' once and exits 2 with no double-print. FR51 stdout byte-clean invariant preserved (all new output on stderr). Only the two intended files changed."
-        },
-        "validationResults": [],
-        "timestamp": "2026-07-03T08:40:32.161Z"
-      },
-      "createdAt": "2026-07-03T08:40:32.161Z"
-    },
-    {
-      "id": "PFIX_M1_T002_S1_1783068032583_validation-gate-2_b9f59bc0",
-      "taskId": "PFIX_M1_T002_S1",
-      "label": "After validation gate 2",
-      "state": {
-        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T002_S1.md",
-        "stage": "validation-gate-2",
-        "coderResponse": "All checks complete. Implementation summary:\n\n## What was done\n\n**BUG-002 fix** (silent exit-1 failure path) — minimal, pattern-faithful patch to `cmd/stagehand/run.go` + new tests in `cmd/stagehand/run_test.go`. Nothing else touched.\n\n**`cmd/stagehand/run.go`:**\n1. Added two godoc'd pure helpers adjacent to (but not touching) `mapErrorToExitCode`:\n   - `reportError(out *ui.Output, err error) int` — prints `out.Progressf(\"stagehand: %s\\n\", err)` to **stderr** for every error *except* the four self-printing sentinels, then delegates to the unchanged `mapErrorToExitCode`.\n   - `isAlreadyReported(err error) bool` — uses `errors.Is` (not `==`) against `ErrNothingToCommit`/`ErrNothingStaged`/`ErrRescue`/`ErrHeadMoved`.\n2. Collapsed both `runDefault` call sites (staging + generation) from `return mapErrorToExitCode(err)` → `return reportError(out, err)`.\n3. Updated `runDefault`'s doc comment to note FR8/§18.2 stderr surfacing.\n\n**`cmd/stagehand/run_test.go`:** added `TestReportError` (table-driven, drives a fresh `*ui.Output` over a `bytes.Buffer` stderr, asserts printed-or-not + exit code for nil, all four sentinels, a merge-conflict error, a wrapped git error, and an arbitrary error) and `TestIsAlreadyReported` (sentinels incl. wrapped variants → true; arbitrary → false). Existing tests untouched.\n\n## Validation results — all green\n- **L1:** `go build ./...` ✓, `go vet ./...` ✓, `gofmt -s -l` empty ✓\n- **L2:** `go test ./cmd/stagehand/` ✓, `go test ./...` ✓ (cache-busted, no regressions; `TestMapErrorToExitCode` still green proving the mapper is unchanged)\n- **L3 e2e (proves BUG-002 fixed):**\n  - Merge conflict → exit 1 + 295-byte stderr (write-tree merge error) ✓\n  - Not-a-repo → exit 1 + non-empty stderr ✓\n  - Sentinel (`ErrNothingStaged`) → prints exactly *once*, exit 2, no `reportError` double-print ✓\n- LSP: no diagnostics on either file ✓\n- `mapErrorToExitCode` body confirmed byte-for-byte unchanged; only the 2 intended files modified.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"BUG-002 fixed. cmd/stagehand/run.go gained two pure helpers — reportError(out, err) int (prints non-sentinel errors to STDERR via out.Progressf('stagehand: %s\\\\n', err) then delegates to the UNCHANGED mapErrorToExitCode) and isAlreadyReported(err) bool (errors.Is against the four self-printing sentinels ErrNothingToCommit/ErrNothingStaged/ErrRescue/ErrHeadMoved). Both runDefault call sites (maybeAutoStage result + GenerateCommit result) collapsed from 'return mapErrorToExitCode(err)' to 'return reportError(out, err)'. New TestReportError (table-driven over a bytes.Buffer stderr: nil, 4 sentinels→not printed, merge-conflict/wrapped-git/arbitrary→printed + ExitError) and TestIsAlreadyReported (sentinels + wrapped variants→true, arbitrary/nil→false) added to run_test.go; existing tests untouched. All gates green: go build/vet/gofmt clean; go test ./cmd/stagehand and go test ./... pass with no regressions (TestMapErrorToExitCode stays green, confirming mapErrorToExitCode is byte-for-byte unchanged). E2E proves the fix: merge-conflict now exits 1 with a 295-byte write-tree/merge stderr message (was silent), not-a-repo exits 1 with a clear git error (was silent), and ErrNothingStaged still prints exactly 'Nothing staged; nothing to commit.' once and exits 2 with no double-print. FR51 stdout byte-clean invariant preserved (all new output on stderr). Only the two intended files changed.\"\n}\n```",
-        "coderResult": {
-          "result": "success",
-          "message": "BUG-002 fixed. cmd/stagehand/run.go gained two pure helpers — reportError(out, err) int (prints non-sentinel errors to STDERR via out.Progressf('stagehand: %s\\n', err) then delegates to the UNCHANGED mapErrorToExitCode) and isAlreadyReported(err) bool (errors.Is against the four self-printing sentinels ErrNothingToCommit/ErrNothingStaged/ErrRescue/ErrHeadMoved). Both runDefault call sites (maybeAutoStage result + GenerateCommit result) collapsed from 'return mapErrorToExitCode(err)' to 'return reportError(out, err)'. New TestReportError (table-driven over a bytes.Buffer stderr: nil, 4 sentinels→not printed, merge-conflict/wrapped-git/arbitrary→printed + ExitError) and TestIsAlreadyReported (sentinels + wrapped variants→true, arbitrary/nil→false) added to run_test.go; existing tests untouched. All gates green: go build/vet/gofmt clean; go test ./cmd/stagehand and go test ./... pass with no regressions (TestMapErrorToExitCode stays green, confirming mapErrorToExitCode is byte-for-byte unchanged). E2E proves the fix: merge-conflict now exits 1 with a 295-byte write-tree/merge stderr message (was silent), not-a-repo exits 1 with a clear git error (was silent), and ErrNothingStaged still prints exactly 'Nothing staged; nothing to commit.' once and exits 2 with no double-print. FR51 stdout byte-clean invariant preserved (all new output on stderr). Only the two intended files changed."
-        },
-        "validationResults": [
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go build ./...",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "go vet ./...",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 1,
-            "description": "Level 1 gate",
-            "success": true,
-            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
-            "stdout": "",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./cmd/stagehand/",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          },
-          {
-            "level": 2,
-            "description": "Level 2 gate",
-            "success": true,
-            "command": "go test ./...",
-            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
-            "stderr": "",
-            "exitCode": 0,
-            "skipped": false
-          }
-        ],
-        "timestamp": "2026-07-03T08:40:32.583Z"
-      },
-      "createdAt": "2026-07-03T08:40:32.583Z"
-    },
-    {
       "id": "PFIX_M1_T002_S1_1783068032584_complete_d74ba0f4",
       "taskId": "PFIX_M1_T002_S1",
       "label": "Task completed successfully",
@@ -165,7 +68,172 @@
         "timestamp": "2026-07-03T08:40:32.584Z"
       },
       "createdAt": "2026-07-03T08:40:32.584Z"
+    },
+    {
+      "id": "PFIX_M1_T002_S1_1783072150649_pre-execution_961e9b4c",
+      "taskId": "PFIX_M1_T002_S1",
+      "label": "Before Coder Agent execution",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T002_S1.md",
+        "stage": "pre-execution",
+        "validationResults": [],
+        "timestamp": "2026-07-03T09:49:10.649Z"
+      },
+      "createdAt": "2026-07-03T09:49:10.649Z"
+    },
+    {
+      "id": "PFIX_M1_T002_S1_1783072504948_coder-response_9861ce8b",
+      "taskId": "PFIX_M1_T002_S1",
+      "label": "After Coder Agent response",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T002_S1.md",
+        "stage": "coder-response",
+        "coderResponse": "## Summary\n\nThe PRP `PFIX_M1_T002_S1` (BUG-002: silent exit-1 on non-sentinel errors) is **fully implemented and verified**. The implementation was already committed as `cdfbb84`; I verified it against the PRP blueprint and ran the complete validation gate sequence.\n\n### Implementation (commit `cdfbb84`, code files clean — no changes needed)\n- **`cmd/stagehand/run.go`**: added `reportError(out, err) int` + `isAlreadyReported(err) bool` (byte-identical to PRP blueprint, dense godoc, `errors.Is` not `==`), rewired both `runDefault` call sites to `return reportError(out, err)`, updated the `runDefault` doc comment. `mapErrorToExitCode` body **untouched** (the timeout branch came later from the unrelated T004 commit).\n- **`cmd/stagehand/run_test.go`**: `TestReportError` (8 cases) + `TestIsAlreadyReported` (10 cases) mirroring `TestMapErrorToExitCode`.\n\n### Validation Gates — all green\n| Level | Gate | Result |\n|---|---|---|\n| 1 | `go build ./...` | ✅ OK |\n| 1 | `go vet ./...` | ✅ clean |\n| 1 | `gofmt -s -l internal/ cmd/ pkg/` | ✅ empty |\n| 2 | `go test ./cmd/stagehand/` | ✅ ok (incl. new tests) |\n| 3 | `go test ./...` | ✅ all 8 packages, no regressions |\n| 4 | Merge-conflict (FR8) e2e | ✅ exit **1** + stderr prints write-tree \"unmerged ... error building trees\"; stdout 0 bytes |\n| 4 | Not-a-repo e2e | ✅ exit **1** + stderr prints `stagehand: stage: git exited 129 ...`; stdout 0 bytes |\n| 4 | Sentinel no-regression | ✅ exit **2** + stderr exactly `Nothing staged; nothing to commit.` once (not double-printed); stdout 0 bytes |\n\n### Checklist confirmed\n- FR8 merge-conflict & not-a-repo no longer fail silently ✅\n- Four self-printing sentinels not re-printed (`isAlreadyReported` guard) ✅\n- FR51 stdout byte-clean invariant preserved (0 stdout bytes in every failure case) ✅\n- `mapErrorToExitCode` byte-for-byte unchanged; printing isolated in the new seam ✅\n- Fix minimal & focused — only `run.go` + `run_test.go` touched ✅\n\n**Note on reproduction:** the PRP's literal merge-conflict sequence (`git checkout master 2>/dev/null || git checkout -B master`) is buggy when the repo's default branch is `main` — `-B master` resets `master` onto `b`, making `git merge b` a no-op (\"Already up to date\"), and `git add`-ing the conflicted file *resolves* it. I captured the real default branch name and left the conflicted file unmerged (staging a separate clean file so the staged diff is non-empty), which genuinely triggers the `WriteTree` failure path. The fix itself is correct; only the PRP's example script needed adjustment.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PRP PFIX_M1_T002_S1 (BUG-002) is fully implemented (commit cdfbb84) and passes all validation gates. The fix adds a minimal reportError(out, err) int / isAlreadyReported(err) bool seam to cmd/stagehand/run.go — printing non-sentinel errors to stderr via out.Progressf(\\\"stagehand: %s\\\\n\\\", err) before delegating to the byte-for-byte UNCHANGED pure mapErrorToExitCode — with both runDefault call sites collapsed to `return reportError(out, err)`. Level 1: go build/vet/gofmt all clean. Level 2/3: TestReportError (8 cases), TestIsAlreadyReported (10 cases), and TestMapErrorToExitCode all pass; full `go test ./...` green across all 8 packages (no regressions). Level 4 e2e reproduction: (a) a genuine add/add merge conflict left unmerged makes `git write-tree` fail → stagehand exits 1 AND prints the full 'unresolved merge conflicts in index ... git-write-tree: error building trees' diagnostic to stderr (previously SILENT); (b) not-a-repo exits 1 AND prints the git error to stderr; (c) the ErrNothingStaged sentinel still prints exactly 'Nothing staged; nothing to commit.' ONCE (not double-printed) and exits 2. Every failure path keeps stdout byte-clean (FR51: 0 stdout bytes observed in all cases). errors.Is (not ==) is used throughout so wrapped sentinels/git errors resolve correctly. NOTE: the PRP's literal merge-conflict reproduction script is buggy when the default branch is 'main' (git checkout -B master resets master onto b, yielding 'Already up to date' and no conflict) and staging the conflicted file resolves it; I captured the real default branch and left the conflict unmerged to genuinely exercise the WriteTree failure path. The fix itself is correct; only the example script needed adjustment.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PRP PFIX_M1_T002_S1 (BUG-002) is fully implemented (commit cdfbb84) and passes all validation gates. The fix adds a minimal reportError(out, err) int / isAlreadyReported(err) bool seam to cmd/stagehand/run.go — printing non-sentinel errors to stderr via out.Progressf(\"stagehand: %s\\n\", err) before delegating to the byte-for-byte UNCHANGED pure mapErrorToExitCode — with both runDefault call sites collapsed to `return reportError(out, err)`. Level 1: go build/vet/gofmt all clean. Level 2/3: TestReportError (8 cases), TestIsAlreadyReported (10 cases), and TestMapErrorToExitCode all pass; full `go test ./...` green across all 8 packages (no regressions). Level 4 e2e reproduction: (a) a genuine add/add merge conflict left unmerged makes `git write-tree` fail → stagehand exits 1 AND prints the full 'unresolved merge conflicts in index ... git-write-tree: error building trees' diagnostic to stderr (previously SILENT); (b) not-a-repo exits 1 AND prints the git error to stderr; (c) the ErrNothingStaged sentinel still prints exactly 'Nothing staged; nothing to commit.' ONCE (not double-printed) and exits 2. Every failure path keeps stdout byte-clean (FR51: 0 stdout bytes observed in all cases). errors.Is (not ==) is used throughout so wrapped sentinels/git errors resolve correctly. NOTE: the PRP's literal merge-conflict reproduction script is buggy when the default branch is 'main' (git checkout -B master resets master onto b, yielding 'Already up to date' and no conflict) and staging the conflicted file resolves it; I captured the real default branch and left the conflict unmerged to genuinely exercise the WriteTree failure path. The fix itself is correct; only the example script needed adjustment."
+        },
+        "validationResults": [],
+        "timestamp": "2026-07-03T09:55:04.948Z"
+      },
+      "createdAt": "2026-07-03T09:55:04.948Z"
+    },
+    {
+      "id": "PFIX_M1_T002_S1_1783072505341_validation-gate-2_9e316a25",
+      "taskId": "PFIX_M1_T002_S1",
+      "label": "After validation gate 2",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T002_S1.md",
+        "stage": "validation-gate-2",
+        "coderResponse": "## Summary\n\nThe PRP `PFIX_M1_T002_S1` (BUG-002: silent exit-1 on non-sentinel errors) is **fully implemented and verified**. The implementation was already committed as `cdfbb84`; I verified it against the PRP blueprint and ran the complete validation gate sequence.\n\n### Implementation (commit `cdfbb84`, code files clean — no changes needed)\n- **`cmd/stagehand/run.go`**: added `reportError(out, err) int` + `isAlreadyReported(err) bool` (byte-identical to PRP blueprint, dense godoc, `errors.Is` not `==`), rewired both `runDefault` call sites to `return reportError(out, err)`, updated the `runDefault` doc comment. `mapErrorToExitCode` body **untouched** (the timeout branch came later from the unrelated T004 commit).\n- **`cmd/stagehand/run_test.go`**: `TestReportError` (8 cases) + `TestIsAlreadyReported` (10 cases) mirroring `TestMapErrorToExitCode`.\n\n### Validation Gates — all green\n| Level | Gate | Result |\n|---|---|---|\n| 1 | `go build ./...` | ✅ OK |\n| 1 | `go vet ./...` | ✅ clean |\n| 1 | `gofmt -s -l internal/ cmd/ pkg/` | ✅ empty |\n| 2 | `go test ./cmd/stagehand/` | ✅ ok (incl. new tests) |\n| 3 | `go test ./...` | ✅ all 8 packages, no regressions |\n| 4 | Merge-conflict (FR8) e2e | ✅ exit **1** + stderr prints write-tree \"unmerged ... error building trees\"; stdout 0 bytes |\n| 4 | Not-a-repo e2e | ✅ exit **1** + stderr prints `stagehand: stage: git exited 129 ...`; stdout 0 bytes |\n| 4 | Sentinel no-regression | ✅ exit **2** + stderr exactly `Nothing staged; nothing to commit.` once (not double-printed); stdout 0 bytes |\n\n### Checklist confirmed\n- FR8 merge-conflict & not-a-repo no longer fail silently ✅\n- Four self-printing sentinels not re-printed (`isAlreadyReported` guard) ✅\n- FR51 stdout byte-clean invariant preserved (0 stdout bytes in every failure case) ✅\n- `mapErrorToExitCode` byte-for-byte unchanged; printing isolated in the new seam ✅\n- Fix minimal & focused — only `run.go` + `run_test.go` touched ✅\n\n**Note on reproduction:** the PRP's literal merge-conflict sequence (`git checkout master 2>/dev/null || git checkout -B master`) is buggy when the repo's default branch is `main` — `-B master` resets `master` onto `b`, making `git merge b` a no-op (\"Already up to date\"), and `git add`-ing the conflicted file *resolves* it. I captured the real default branch name and left the conflicted file unmerged (staging a separate clean file so the staged diff is non-empty), which genuinely triggers the `WriteTree` failure path. The fix itself is correct; only the PRP's example script needed adjustment.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PRP PFIX_M1_T002_S1 (BUG-002) is fully implemented (commit cdfbb84) and passes all validation gates. The fix adds a minimal reportError(out, err) int / isAlreadyReported(err) bool seam to cmd/stagehand/run.go — printing non-sentinel errors to stderr via out.Progressf(\\\"stagehand: %s\\\\n\\\", err) before delegating to the byte-for-byte UNCHANGED pure mapErrorToExitCode — with both runDefault call sites collapsed to `return reportError(out, err)`. Level 1: go build/vet/gofmt all clean. Level 2/3: TestReportError (8 cases), TestIsAlreadyReported (10 cases), and TestMapErrorToExitCode all pass; full `go test ./...` green across all 8 packages (no regressions). Level 4 e2e reproduction: (a) a genuine add/add merge conflict left unmerged makes `git write-tree` fail → stagehand exits 1 AND prints the full 'unresolved merge conflicts in index ... git-write-tree: error building trees' diagnostic to stderr (previously SILENT); (b) not-a-repo exits 1 AND prints the git error to stderr; (c) the ErrNothingStaged sentinel still prints exactly 'Nothing staged; nothing to commit.' ONCE (not double-printed) and exits 2. Every failure path keeps stdout byte-clean (FR51: 0 stdout bytes observed in all cases). errors.Is (not ==) is used throughout so wrapped sentinels/git errors resolve correctly. NOTE: the PRP's literal merge-conflict reproduction script is buggy when the default branch is 'main' (git checkout -B master resets master onto b, yielding 'Already up to date' and no conflict) and staging the conflicted file resolves it; I captured the real default branch and left the conflict unmerged to genuinely exercise the WriteTree failure path. The fix itself is correct; only the example script needed adjustment.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PRP PFIX_M1_T002_S1 (BUG-002) is fully implemented (commit cdfbb84) and passes all validation gates. The fix adds a minimal reportError(out, err) int / isAlreadyReported(err) bool seam to cmd/stagehand/run.go — printing non-sentinel errors to stderr via out.Progressf(\"stagehand: %s\\n\", err) before delegating to the byte-for-byte UNCHANGED pure mapErrorToExitCode — with both runDefault call sites collapsed to `return reportError(out, err)`. Level 1: go build/vet/gofmt all clean. Level 2/3: TestReportError (8 cases), TestIsAlreadyReported (10 cases), and TestMapErrorToExitCode all pass; full `go test ./...` green across all 8 packages (no regressions). Level 4 e2e reproduction: (a) a genuine add/add merge conflict left unmerged makes `git write-tree` fail → stagehand exits 1 AND prints the full 'unresolved merge conflicts in index ... git-write-tree: error building trees' diagnostic to stderr (previously SILENT); (b) not-a-repo exits 1 AND prints the git error to stderr; (c) the ErrNothingStaged sentinel still prints exactly 'Nothing staged; nothing to commit.' ONCE (not double-printed) and exits 2. Every failure path keeps stdout byte-clean (FR51: 0 stdout bytes observed in all cases). errors.Is (not ==) is used throughout so wrapped sentinels/git errors resolve correctly. NOTE: the PRP's literal merge-conflict reproduction script is buggy when the default branch is 'main' (git checkout -B master resets master onto b, yielding 'Already up to date' and no conflict) and staging the conflicted file resolves it; I captured the real default branch and left the conflict unmerged to genuinely exercise the WriteTree failure path. The fix itself is correct; only the example script needed adjustment."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T09:55:05.341Z"
+      },
+      "createdAt": "2026-07-03T09:55:05.341Z"
+    },
+    {
+      "id": "PFIX_M1_T002_S1_1783072505343_complete_31e35ac7",
+      "taskId": "PFIX_M1_T002_S1",
+      "label": "Task completed successfully",
+      "state": {
+        "prpPath": "/home/dustin/projects/stagehand-hack/plan/001_f1f80943ac34/prps/PFIX_M1_T002_S1.md",
+        "stage": "complete",
+        "coderResponse": "## Summary\n\nThe PRP `PFIX_M1_T002_S1` (BUG-002: silent exit-1 on non-sentinel errors) is **fully implemented and verified**. The implementation was already committed as `cdfbb84`; I verified it against the PRP blueprint and ran the complete validation gate sequence.\n\n### Implementation (commit `cdfbb84`, code files clean — no changes needed)\n- **`cmd/stagehand/run.go`**: added `reportError(out, err) int` + `isAlreadyReported(err) bool` (byte-identical to PRP blueprint, dense godoc, `errors.Is` not `==`), rewired both `runDefault` call sites to `return reportError(out, err)`, updated the `runDefault` doc comment. `mapErrorToExitCode` body **untouched** (the timeout branch came later from the unrelated T004 commit).\n- **`cmd/stagehand/run_test.go`**: `TestReportError` (8 cases) + `TestIsAlreadyReported` (10 cases) mirroring `TestMapErrorToExitCode`.\n\n### Validation Gates — all green\n| Level | Gate | Result |\n|---|---|---|\n| 1 | `go build ./...` | ✅ OK |\n| 1 | `go vet ./...` | ✅ clean |\n| 1 | `gofmt -s -l internal/ cmd/ pkg/` | ✅ empty |\n| 2 | `go test ./cmd/stagehand/` | ✅ ok (incl. new tests) |\n| 3 | `go test ./...` | ✅ all 8 packages, no regressions |\n| 4 | Merge-conflict (FR8) e2e | ✅ exit **1** + stderr prints write-tree \"unmerged ... error building trees\"; stdout 0 bytes |\n| 4 | Not-a-repo e2e | ✅ exit **1** + stderr prints `stagehand: stage: git exited 129 ...`; stdout 0 bytes |\n| 4 | Sentinel no-regression | ✅ exit **2** + stderr exactly `Nothing staged; nothing to commit.` once (not double-printed); stdout 0 bytes |\n\n### Checklist confirmed\n- FR8 merge-conflict & not-a-repo no longer fail silently ✅\n- Four self-printing sentinels not re-printed (`isAlreadyReported` guard) ✅\n- FR51 stdout byte-clean invariant preserved (0 stdout bytes in every failure case) ✅\n- `mapErrorToExitCode` byte-for-byte unchanged; printing isolated in the new seam ✅\n- Fix minimal & focused — only `run.go` + `run_test.go` touched ✅\n\n**Note on reproduction:** the PRP's literal merge-conflict sequence (`git checkout master 2>/dev/null || git checkout -B master`) is buggy when the repo's default branch is `main` — `-B master` resets `master` onto `b`, making `git merge b` a no-op (\"Already up to date\"), and `git add`-ing the conflicted file *resolves* it. I captured the real default branch name and left the conflicted file unmerged (staging a separate clean file so the staged diff is non-empty), which genuinely triggers the `WriteTree` failure path. The fix itself is correct; only the PRP's example script needed adjustment.\n\n```json\n{\n   \"result\": \"success\",\n   \"message\": \"PRP PFIX_M1_T002_S1 (BUG-002) is fully implemented (commit cdfbb84) and passes all validation gates. The fix adds a minimal reportError(out, err) int / isAlreadyReported(err) bool seam to cmd/stagehand/run.go — printing non-sentinel errors to stderr via out.Progressf(\\\"stagehand: %s\\\\n\\\", err) before delegating to the byte-for-byte UNCHANGED pure mapErrorToExitCode — with both runDefault call sites collapsed to `return reportError(out, err)`. Level 1: go build/vet/gofmt all clean. Level 2/3: TestReportError (8 cases), TestIsAlreadyReported (10 cases), and TestMapErrorToExitCode all pass; full `go test ./...` green across all 8 packages (no regressions). Level 4 e2e reproduction: (a) a genuine add/add merge conflict left unmerged makes `git write-tree` fail → stagehand exits 1 AND prints the full 'unresolved merge conflicts in index ... git-write-tree: error building trees' diagnostic to stderr (previously SILENT); (b) not-a-repo exits 1 AND prints the git error to stderr; (c) the ErrNothingStaged sentinel still prints exactly 'Nothing staged; nothing to commit.' ONCE (not double-printed) and exits 2. Every failure path keeps stdout byte-clean (FR51: 0 stdout bytes observed in all cases). errors.Is (not ==) is used throughout so wrapped sentinels/git errors resolve correctly. NOTE: the PRP's literal merge-conflict reproduction script is buggy when the default branch is 'main' (git checkout -B master resets master onto b, yielding 'Already up to date' and no conflict) and staging the conflicted file resolves it; I captured the real default branch and left the conflict unmerged to genuinely exercise the WriteTree failure path. The fix itself is correct; only the example script needed adjustment.\"\n}\n```",
+        "coderResult": {
+          "result": "success",
+          "message": "PRP PFIX_M1_T002_S1 (BUG-002) is fully implemented (commit cdfbb84) and passes all validation gates. The fix adds a minimal reportError(out, err) int / isAlreadyReported(err) bool seam to cmd/stagehand/run.go — printing non-sentinel errors to stderr via out.Progressf(\"stagehand: %s\\n\", err) before delegating to the byte-for-byte UNCHANGED pure mapErrorToExitCode — with both runDefault call sites collapsed to `return reportError(out, err)`. Level 1: go build/vet/gofmt all clean. Level 2/3: TestReportError (8 cases), TestIsAlreadyReported (10 cases), and TestMapErrorToExitCode all pass; full `go test ./...` green across all 8 packages (no regressions). Level 4 e2e reproduction: (a) a genuine add/add merge conflict left unmerged makes `git write-tree` fail → stagehand exits 1 AND prints the full 'unresolved merge conflicts in index ... git-write-tree: error building trees' diagnostic to stderr (previously SILENT); (b) not-a-repo exits 1 AND prints the git error to stderr; (c) the ErrNothingStaged sentinel still prints exactly 'Nothing staged; nothing to commit.' ONCE (not double-printed) and exits 2. Every failure path keeps stdout byte-clean (FR51: 0 stdout bytes observed in all cases). errors.Is (not ==) is used throughout so wrapped sentinels/git errors resolve correctly. NOTE: the PRP's literal merge-conflict reproduction script is buggy when the default branch is 'main' (git checkout -B master resets master onto b, yielding 'Already up to date' and no conflict) and staging the conflicted file resolves it; I captured the real default branch and left the conflict unmerged to genuinely exercise the WriteTree failure path. The fix itself is correct; only the example script needed adjustment."
+        },
+        "validationResults": [
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go build ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "go vet ./...",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 1,
+            "description": "Level 1 gate",
+            "success": true,
+            "command": "test -z \"$(gofmt -s -l internal/ cmd/ pkg/)\"",
+            "stdout": "",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./cmd/stagehand/",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          },
+          {
+            "level": 2,
+            "description": "Level 2 gate",
+            "success": true,
+            "command": "go test ./...",
+            "stdout": "ok  \tgithub.com/dustin/stagehand/cmd/stagehand\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/config\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/generate\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/git\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/prompt\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/provider\t(cached)\nok  \tgithub.com/dustin/stagehand/internal/ui\t(cached)\nok  \tgithub.com/dustin/stagehand/pkg/stagehand\t(cached)\n",
+            "stderr": "",
+            "exitCode": 0,
+            "skipped": false
+          }
+        ],
+        "timestamp": "2026-07-03T09:55:05.343Z"
+      },
+      "createdAt": "2026-07-03T09:55:05.343Z"
     }
   ],
-  "lastModified": "2026-07-03T08:40:32.584Z"
+  "lastModified": "2026-07-03T09:55:05.343Z"
 }
