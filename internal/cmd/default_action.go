@@ -15,6 +15,7 @@ import (
 	"github.com/dustin/stagehand/internal/exitcode"
 	"github.com/dustin/stagehand/internal/generate"
 	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagehand/internal/lock"
 	"github.com/dustin/stagehand/internal/provider"
 	"github.com/dustin/stagehand/internal/ui"
 	"github.com/dustin/stagehand/pkg/stagehand"
@@ -50,6 +51,20 @@ func runDefault(cmd *cobra.Command, args []string) error {
 		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: getwd: %w", err))
 	}
 	g := git.New(repoDir)
+
+	// FR52 / PRD §18.5: acquire the per-repo run lock so two stagehand processes cannot race on
+	// update-ref. One acquire + one defer covers BOTH the single-commit path and the decompose path
+	// (runDecompose is called below). Read-only subcommands never reach runDefault; hook mode only
+	// writes a message (git commits) — neither needs the lock.
+	locker, lockErr := lock.Acquire(repoDir)
+	if lockErr != nil {
+		var held *lock.HeldError
+		if errors.As(lockErr, &held) { // contention → no-op fast path (0) or Busy (5), both silent
+			return handleLockContention(stderr, held, g, ctx)
+		}
+		return exitcode.New(exitcode.Error, fmt.Errorf("acquire run lock: %w", lockErr))
+	}
+	defer locker.Release()
 
 	// ---- §9.4 auto-stage-all state machine (FR16–FR20) ----
 	// §9.22 FR-E4: --dry-run + --edit → warn + skip the editor (nothing to commit).
@@ -215,6 +230,29 @@ func runPush(ctx context.Context, stderr io.Writer, g git.Git, cfg config.Config
 		return fmt.Errorf("git push: %w", err)
 	}
 	return nil
+}
+
+// handleLockContention implements the FR52 / §18.5 contention behavior when lock.Acquire returns a
+// *lock.HeldError. It never blocks and never force-breaks the lock. No-op fast path: if the holder
+// published a snapshot AND the contender's own write-tree (index-read-only, safe without the lock) is
+// byte-identical, nothing new is staged → exit 0 ("nothing to do…"). Otherwise → exit Busy (5) naming
+// the holder, leaving the contender's new changes staged. Both returns are SILENT (message already
+// printed to stderr) so main does not double-print — same pattern as handleGenError/handleDecomposeError.
+func handleLockContention(stderr io.Writer, heldErr *lock.HeldError, g git.Git, ctx context.Context) error {
+	// No-op fast path (§18.5): holder published snapshot= and the contender's index matches it.
+	if snap := heldErr.Contents.Snapshot; snap != "" {
+		contenderTree, werr := g.WriteTree(ctx) // index-read-only + one harmless dangling tree (G4)
+		if werr == nil && contenderTree == snap {
+			fmt.Fprintln(stderr, "nothing to do — an in-progress run already covers your staged changes.")
+			return exitcode.New(exitcode.Success, nil) // exit 0, SILENT
+		}
+		// werr != nil (e.g. merge conflicts) or SHAs differ → fall through to Busy (G5).
+	}
+	fmt.Fprintf(stderr,
+		"stagehand: another stagehand run is already in progress on %s (pid %s on %s). "+
+			"Your newly-staged changes will remain staged — re-run stagehand after it finishes. Lock: %s.\n",
+		heldErr.Contents.Repo, heldErr.Contents.Pid, heldErr.Contents.Hostname, heldErr.Path)
+	return exitcode.New(exitcode.Busy, nil) // exit 5, SILENT
 }
 
 // handleGenError maps a GenerateCommit error to the §15.4 outcome WITH the right user-facing output. It

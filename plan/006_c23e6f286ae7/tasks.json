@@ -18,14 +18,14 @@
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Lock primitive (internal/lock + golang.org/x/sys)",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Create the self-contained internal/lock package: the flock-based Locker with platform split (unix/windows), the lockDir() XDG location resolver, sha256 canonical-path hashing, lock-file contents writer/reader, and the package-level SetSnapshot() singleton that lets the library publish its frozen tree SHA to the lock file. Unit-tested against temp files (real flock contention, dir resolution, contents round-trip, auto-release).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T1.S1",
                   "title": "Core lock package: Locker struct, flock acquire/release, dir resolver, hash, contents, SetSnapshot singleton, platform split",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/006_c23e6f286ae7/architecture/system_context.md §1 (lock design) and integration_seams.md §5–§6. The lock is an advisory flock(2) with LOCK_EX|LOCK_NB, auto-released on process death (no stale locks). Location: $XDG_RUNTIME_DIR/stagehand/locks/<hash>.lock → else $XDG_CACHE_HOME/... → else ~/.cache/stagehand/locks/<hash>.lock. NEVER inside the repo (PRD §18.5 explicitly rejects .git/stagehand.lock). <hash> = sha256 hex of canonical absolute repo path (symlinks resolved via filepath.EvalSymlinks so two terminals in the same repo hash identically).\n2. INPUT: A repo path string (from os.Getwd() in runDefault, default_action.go:48). No other inputs — this package is a self-contained leaf.\n3. LOGIC:\n   a. Add golang.org/x/sys to go.mod (go get golang.org/x/sys). Confirm it resolves; it is already a transitive dep of cobra/pflag on Linux but not in go.mod directly.\n   b. Create internal/lock/lock.go with:\n      - type Locker struct { file *os.File; path string } — holds the open fd and lock-file path.\n      - func Acquire(repoPath string) (*Locker, error) — resolves lockDir(), computes sha256 hash of canonical repo path, opens <hash>.lock (O_CREATE|O_RDWR), calls the platform-specific flock (lock_unix.go). On EWOULDBLOCK → returns a typed *HeldError containing the holder's lock-file contents (pid/hostname/repo/snapshot) for the contention path. On success → writes initial contents (pid=os.Getpid(), hostname=os.Hostname(), repo=repoPath, timestamp=time.Now().UTC().Format(time.RFC3339), snapshot=\"\") and sets the package-level singleton (var current atomic.Pointer[Locker]).\n      - func (l *Locker) Release() — closes the fd (flock auto-releases); clears the singleton if it points to l. Idempotent.\n      - func (l *Locker) SetSnapshot(sha string) — rewrites the lock file with the updated snapshot= field while holding the fd open. Uses the existing pid/hostname/repo/timestamp values.\n      - func SetSnapshot(sha string) — package-level convenience: if current.Load() != nil, calls current.Load().SetSnapshot(sha). No-op if no lock held (library usable without the lock in tests).\n      - func lockDir() (string, error) — XDG_RUNTIME_DIR (if abs) → XDG_CACHE_HOME (if abs) → ~/.cache/stagehand/locks. NO CWD fallback (a lock in the repo is the §18.5 anti-pattern — fail loud with an error).\n      - type HeldError struct { Contents LockContents; Path string } — returned by Acquire when the lock is held by another process. LockContents has Pid, Hostname, Repo, Timestamp, Snapshot string fields, parsed from the holder's lock file.\n      - func parseContents(data []byte) LockContents — bufio.Scanner + strings.SplitN(line, \"=\", 2).\n   c. Create internal/lock/lock_unix.go (//go:build !windows): func flock(fd int) error using unix.Flock(fd, unix.LOCK_EX|unix.LOCK_NB). Map unix.EWOULDBLOCK to the HeldError.\n   d. Create internal/lock/lock_windows.go (//go:build windows): no-op stub — flock always returns nil (lock always succeeds). The §13.5 CAS remains the guarantee on Windows. Add a comment documenting this rationale.\n4. OUTPUT: A complete, self-contained internal/lock package importable by internal/cmd, internal/generate, and internal/decompose. Acquire(repoPath) returns (*Locker, error) or *HeldError. SetSnapshot(sha) is callable from the library layers. Release() is idempotent and auto-releases on process death.\n5. MOCKING: No external services. Tests use temp directories and real flock (two goroutines/processes contending on the same lock file). For Windows-specific behavior, the build-tag split means lock_windows.go is never compiled on Linux CI.\n6. DOCS: [Mode A] Update docs/configuration.md — add a subsection documenting lock-file location resolution via XDG_RUNTIME_DIR / XDG_CACHE_HOME / ~/.cache/stagehand/locks and the 'never inside the repo' rationale. Update docs/how-it-works.md — add a '### Per-repo run lock (FR52)' subsection under '## Safety and the rescue protocol' covering: the two-stage defense (lock + CAS), the per-host limit (shared/network filesystems are the CAS's job), the never-in-repo location rationale, the no-op fast path, and the flock auto-release property. Both ride WITH this work — do not create a separate docs subtask.",
@@ -42,7 +42,7 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Contention behavior, Busy exit code, and wiring (both commit paths)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add the Busy=5 exit code, the no-op fast path and busy refusal contention behaviors, and wire lock acquisition into runDefault (the single funnel for both single-commit and decompose paths). Wire lock.SetSnapshot calls into generate.go and decompose.go so the holder publishes its frozen tree SHA for the fast-path comparison. E2E-tested for the cross-process contention scenarios that unit tests cannot reach.",
               "subtasks": [
                 {
@@ -81,7 +81,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S3",
                   "title": "E2E contention scenarios: held lock → Busy, accidental double-run → exit 0, no stale lock, dry-run/read-only bypass",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S2"

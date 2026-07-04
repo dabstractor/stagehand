@@ -34,6 +34,7 @@ import (
 
 	"github.com/dustin/stagehand/internal/generate"
 	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagehand/internal/lock"
 	"github.com/dustin/stagehand/internal/prompt"
 	"github.com/dustin/stagehand/internal/signal"
 )
@@ -165,6 +166,7 @@ func Decompose(ctx context.Context, deps Deps) (DecomposeResult, error) {
 	if err != nil {
 		return DecomposeResult{}, fmt.Errorf("%w: freeze working tree: %w", ErrDecomposeFailed, err)
 	}
+	lock.SetSnapshot(tStart) // publish frozen working-tree snapshot for the FR52 no-op fast path (nil-safe)
 
 	// FR-M2b one-file short-circuit (auto mode, PRD §9.14 FR-M2b / §13.6.1): if EXACTLY one path
 	// differs between baseTree and the frozen T_start, bypass the planner ENTIRELY — a single file

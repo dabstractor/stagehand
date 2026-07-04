@@ -13,6 +13,7 @@ import (
 
 	"github.com/dustin/stagehand/internal/config"
 	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagehand/internal/lock"
 	"github.com/dustin/stagehand/internal/prompt"
 	"github.com/dustin/stagehand/internal/provider"
 	"github.com/dustin/stagehand/internal/signal"
@@ -180,6 +181,7 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 	}
 	// *** SNAPSHOT TAKEN — HEAD & committed content are frozen w.r.t. this run. ***
 	signal.SetSnapshot(treeSHA, parentSHA, "") // arm rescue (§18.4)
+	lock.SetSnapshot(treeSHA)                  // publish frozen index tree for the FR52 no-op fast path (nil-safe: no-op w/o lock)
 
 	// Step 4: system prompt (built ONCE) + recent subjects (fetched ONCE).
 	sysPrompt, err := buildSystemPrompt(ctx, deps.Git, cfg, isUnborn)
