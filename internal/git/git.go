@@ -667,6 +667,16 @@ var defaultExcludes = []string{
 // `git diff` WITHOUT --quiet exits 0 on success whether or not there are changes (distinct from
 // HasStagedChanges' --quiet exit-1-means-staged); a non-zero exit (128) is a real error (bad
 // pathspec, corrupt repo) and is surfaced as a wrapped error.
+// buildDiffArgs returns the leading argv slice for a `git diff` invocation: ["diff", domain…].
+// It is the shared leading-token builder for the three sibling diff functions (StagedDiff/TreeDiff/
+// WorkingTreeDiff), which differ only in the diff-domain positional args (--cached / treeA treeB / none).
+// Centralizing the prefix lets FR3e/FR3f (-M / -U<diff_context>) and later FR3g/FR3i changes land in ONE
+// place instead of nine. domain is the verbatim diff domain: ("--cached"), (treeA, treeB), or ().
+// Pure function; no I/O. (This subtask standardizes the leading token ONLY — T2 injects -M/-U here.)
+func buildDiffArgs(domain ...string) []string {
+	return append([]string{"diff"}, domain...)
+}
+
 func (g *gitRunner) StagedDiff(ctx context.Context, opts StagedDiffOptions) (string, error) {
 	maxMDLines := opts.MaxMDLines
 	if maxMDLines <= 0 {
@@ -683,7 +693,7 @@ func (g *gitRunner) StagedDiff(ctx context.Context, opts StagedDiffOptions) (str
 	// "*.md" / "*.markdown" are git pathspec globs (interpreted by git, not the shell — G10); the "--"
 	// guards pathspec-like filenames (G11).
 	mdList, stderr, code, err := g.run(ctx, g.workDir,
-		"diff", "--cached", "--name-only", "--", "*.md", "*.markdown")
+		append(buildDiffArgs("--cached"), "--name-only", "--", "*.md", "*.markdown")...)
 	if err != nil {
 		return "", err // git binary missing / context cancelled / start failure (run sets code=-1)
 	}
@@ -694,7 +704,7 @@ func (g *gitRunner) StagedDiff(ctx context.Context, opts StagedDiffOptions) (str
 		if file == "" {
 			continue // nothing-staged ⇒ mdList is "" ⇒ Split yields [""] ⇒ skipped (G15)
 		}
-		fileDiff, fstderr, fcode, ferr := g.run(ctx, g.workDir, "diff", "--cached", "--", file)
+		fileDiff, fstderr, fcode, ferr := g.run(ctx, g.workDir, append(buildDiffArgs("--cached"), "--", file)...)
 		if ferr != nil {
 			return "", ferr
 		}
@@ -768,7 +778,8 @@ func (g *gitRunner) StagedDiff(ctx context.Context, opts StagedDiffOptions) (str
 	excludes = append(excludes, defaultExcludes...) // FR3/FR-X1 source (a) — ALWAYS
 	excludes = append(excludes, opts.Excludes...)   // user union, FR-X1 sources (b)+(c)+(d)
 
-	nmArgs := []string{"diff", "--cached", "--"}
+	nmArgs := buildDiffArgs("--cached")
+	nmArgs = append(nmArgs, "--")
 	nmArgs = append(nmArgs, excludes...)
 	nmArgs = append(nmArgs, ":!*.md", ":!*.markdown")
 	nmArgs = append(nmArgs, binExcludes...) // drop binary bodies from the aggregate
@@ -1133,7 +1144,7 @@ func (g *gitRunner) TreeDiff(ctx context.Context, treeA, treeB string, opts Stag
 
 	// ---- Part 1: markdown, per-file, line-capped ----
 	mdList, stderr, code, err := g.run(ctx, g.workDir,
-		"diff", treeA, treeB, "--name-only", "--", "*.md", "*.markdown")
+		append(buildDiffArgs(treeA, treeB), "--name-only", "--", "*.md", "*.markdown")...)
 	if err != nil {
 		return "", err
 	}
@@ -1144,7 +1155,7 @@ func (g *gitRunner) TreeDiff(ctx context.Context, treeA, treeB string, opts Stag
 		if file == "" {
 			continue
 		}
-		fileDiff, fstderr, fcode, ferr := g.run(ctx, g.workDir, "diff", treeA, treeB, "--", file)
+		fileDiff, fstderr, fcode, ferr := g.run(ctx, g.workDir, append(buildDiffArgs(treeA, treeB), "--", file)...)
 		if ferr != nil {
 			return "", ferr
 		}
@@ -1207,7 +1218,8 @@ func (g *gitRunner) TreeDiff(ctx context.Context, treeA, treeB string, opts Stag
 	excludes := make([]string, 0, len(defaultExcludes)+len(opts.Excludes))
 	excludes = append(excludes, defaultExcludes...)
 	excludes = append(excludes, opts.Excludes...)
-	nmArgs := []string{"diff", treeA, treeB, "--"}
+	nmArgs := buildDiffArgs(treeA, treeB)
+	nmArgs = append(nmArgs, "--")
 	nmArgs = append(nmArgs, excludes...)
 	nmArgs = append(nmArgs, ":!*.md", ":!*.markdown")
 	nmArgs = append(nmArgs, binExcludes...)
@@ -1267,7 +1279,7 @@ func (g *gitRunner) WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions)
 
 	// ---- Part 1: markdown, per-file, line-capped ---- (working-tree domain: no --cached, no tree args)
 	mdList, stderr, code, err := g.run(ctx, g.workDir,
-		"diff", "--name-only", "--", "*.md", "*.markdown")
+		append(buildDiffArgs(), "--name-only", "--", "*.md", "*.markdown")...)
 	if err != nil {
 		return "", err
 	}
@@ -1278,7 +1290,7 @@ func (g *gitRunner) WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions)
 		if file == "" {
 			continue
 		}
-		fileDiff, fstderr, fcode, ferr := g.run(ctx, g.workDir, "diff", "--", file)
+		fileDiff, fstderr, fcode, ferr := g.run(ctx, g.workDir, append(buildDiffArgs(), "--", file)...)
 		if ferr != nil {
 			return "", ferr
 		}
@@ -1342,7 +1354,8 @@ func (g *gitRunner) WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions)
 	excludes := make([]string, 0, len(defaultExcludes)+len(opts.Excludes))
 	excludes = append(excludes, defaultExcludes...)
 	excludes = append(excludes, opts.Excludes...)
-	nmArgs := []string{"diff", "--"}
+	nmArgs := buildDiffArgs()
+	nmArgs = append(nmArgs, "--")
 	nmArgs = append(nmArgs, excludes...)
 	nmArgs = append(nmArgs, ":!*.md", ":!*.markdown")
 	nmArgs = append(nmArgs, binExcludes...) // drop binary bodies from the aggregate

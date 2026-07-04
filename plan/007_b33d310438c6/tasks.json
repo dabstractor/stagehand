@@ -151,14 +151,14 @@
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "Extract shared buildDiffArgs helper",
-              "status": "Ready",
+              "status": "Complete",
               "description": "Collapse the 9 duplicated git-diff argv construction sites (3 per function: markdown name-list, markdown per-file, non-markdown aggregate) into one shared helper. Pure refactor — zero behavior change. This makes FR3e/FR3f/FR3g/FR3h single-site changes instead of 9× edits and is the foundation the rest of M2/M3/M4 builds on.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "buildDiffArgs helper + refactor 3 diff functions",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T2.S1"
@@ -177,14 +177,14 @@
               "type": "Task",
               "id": "P1.M2.T2",
               "title": "FR3e rename detection (-M) + FR3f reduced context (-U<diff_context>)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Inject `-M` (deterministic rename detection, wins over diff.renames=false) and `-U<diff_context>` (reduced unified context, default 1) into every diff argv via the shared helper. This is the single highest-value transform: -U1 cuts context tokens vs git's -U3 default, and -M collapses renames. NOTE: this ALTERS existing golden fixtures even at token_limit==0 (context shrinks 3→1), so the fixtures are updated here.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T2.S1",
                   "title": "Inject -M + -U<diff_context> via the helper; update golden fixtures",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M2.T1.S1"
