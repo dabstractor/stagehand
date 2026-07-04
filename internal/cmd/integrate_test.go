@@ -603,6 +603,53 @@ func TestIntegrateInstall_NoArgsUsage(t *testing.T) {
 	}
 }
 
+// TestIntegrateRemove_UninstallAlias verifies that `integrate uninstall` is accepted as an alias for
+// `integrate remove` (report Bug 3). The two integration surfaces used different verbs (`hook uninstall`
+// vs `integrate remove`), making `uninstall` a discoverability trap. cobra aliases bridge the gap.
+func TestIntegrateRemove_UninstallAlias(t *testing.T) {
+	// The alias is registered on integrateRemoveCmd.
+	found := false
+	for _, a := range integrateRemoveCmd.Aliases {
+		if a == "uninstall" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("integrateRemoveCmd.Aliases = %v, want 'uninstall' present", integrateRemoveCmd.Aliases)
+	}
+
+	// End-to-end: `stagehand integrate uninstall <target>` resolves to runIntegrateRemove and dispatches
+	// a remove against the registry (the fake records it).
+	_, origOut, origErr, origRunE := saveRootState(t)
+	defer func() {
+		resetIntegrateFlags(t)
+		restoreRootState(t, nil, origOut, origErr, origRunE)
+	}()
+
+	fake := &fakeEntry{
+		name:      "test-target",
+		removeRes: integrate.RemoveResult{Outcome: integrate.OutcomeRemoved, Target: "test-target", Path: "/t"},
+	}
+	saved := defaultEntries
+	defaultEntries = func() []integrate.Entry { return []integrate.Entry{fake} }
+	defer func() { defaultEntries = saved }()
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(io.Discard)
+	rootCmd.SetArgs([]string{"integrate", "uninstall", "test-target"})
+
+	if err := Execute(context.Background()); err != nil {
+		t.Fatalf("Execute err=%v, want nil (uninstall alias should dispatch remove)", err)
+	}
+	if !fake.removeCalled {
+		t.Errorf("fake.removeCalled = false, want true (uninstall alias must dispatch to Remove)")
+	}
+	if !strings.Contains(out.String(), "Removed test-target integration") {
+		t.Errorf("unexpected output: %q", out.String())
+	}
+}
+
 func TestIntegrateYesFlag(t *testing.T) {
 	_, origOut, origErr, origRunE := saveRootState(t)
 	defer func() {

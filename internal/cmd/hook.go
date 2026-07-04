@@ -87,15 +87,22 @@ func hooksDir(ctx context.Context) (string, error) {
 }
 
 func runHookInstall(cmd *cobra.Command, _ []string) error {
+	// Bake an explicit --config into the installed script so `hook exec` at commit time resolves the
+	// SAME config the user selected at install time (report Finding 4). When --config is unset (""), no
+	// STAGEHAND_CONFIG line is emitted and `hook exec` falls back to env/discovery as before.
+	configPath := ""
+	if cmd.Flags().Changed("config") {
+		configPath = flagConfig
+	}
 	if flagHookPrint { // FR-H2: --print bypasses disk entirely (works outside a repo)
-		fmt.Fprint(cmd.OutOrStdout(), hook.Script(flagHookStrict))
+		fmt.Fprint(cmd.OutOrStdout(), hook.Script(flagHookStrict, configPath))
 		return nil
 	}
 	dir, err := hooksDir(cmd.Context())
 	if err != nil {
 		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
 	}
-	prev, err := hook.Install(dir, flagHookStrict)
+	prev, err := hook.Install(dir, flagHookStrict, configPath)
 	if errors.Is(err, hook.ErrForeignHook) { // FR-H2 never-clobber refusal
 		fmt.Fprintf(cmd.ErrOrStderr(),
 			"stagehand: a foreign prepare-commit-msg hook already exists; refusing to overwrite it.\n"+

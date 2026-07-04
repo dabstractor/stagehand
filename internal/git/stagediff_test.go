@@ -6,9 +6,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+// indexLeakRe is the FR3h LEAK DETECTOR used by the regression tests: it matches ANY git index-header
+// line at all (`index <hex>..<hex>` optionally followed by a space + octal mode), in BOTH the
+// modified-file form (with trailing space+mode) and the add/delete form (mode on the separate
+// `new file mode` / `deleted file mode` line, so NO trailing space). It is BROADER than the
+// production indexLineRe on purpose: testing the leak with indexLineRe itself would be circular — a
+// buggy indexLineRe that fails to match the no-mode form would also fail to *detect* the leak.
+var indexLeakRe = regexp.MustCompile(`^index [0-9a-f]+\.\.[0-9a-f]+( [0-7]+)?$`)
 
 // sdManyLines returns a string with n lines of the form "line 0\nline 1\n...line n-1\n".
 func sdManyLines(n int) string {
@@ -606,6 +615,20 @@ func TestStripIndexLines(t *testing.T) {
 			want:  "diff --git a/a.go b/a.go\n--- a/a.go\n+++ b/a.go\n@@ -1 +1 @@\n-old\n+new\n",
 		},
 		{
+			// FR3h regression for NEWLY-ADDED files: git emits the index line WITHOUT a trailing
+			// space+mode (the mode goes on the separate `new file mode` line). The original regex
+			// required a trailing space, leaking the blob OID for every added file.
+			name:  "NEW file: index line WITHOUT trailing mode is removed (FR3h add/delete regression)",
+			input: "diff --git a/x.go b/x.go\nnew file mode 100644\nindex 0000000..32b4245\n--- /dev/null\n+++ b/x.go\n@@ -0,0 +1 @@\n+new\n",
+			want:  "diff --git a/x.go b/x.go\nnew file mode 100644\n--- /dev/null\n+++ b/x.go\n@@ -0,0 +1 @@\n+new\n",
+		},
+		{
+			// FR3h regression for DELETED files: same no-trailing-mode form as adds.
+			name:  "DELETED file: index line WITHOUT trailing mode is removed",
+			input: "diff --git a/x.go b/x.go\ndeleted file mode 100644\nindex 3367afd..0000000\n--- a/x.go\n+++ /dev/null\n@@ -1 +0,0 @@\n-old\n",
+			want:  "diff --git a/x.go b/x.go\ndeleted file mode 100644\n--- a/x.go\n+++ /dev/null\n@@ -1 +0,0 @@\n-old\n",
+		},
+		{
 			// THE contract negative case: a content line that starts with "index" but lacks the OID form is KEPT.
 			// "index of items" → "of" is not hex → no match. The diff-marked variants (space/-/+) also kept.
 			name:  "content line starting with index but no OID form is kept",
@@ -667,9 +690,9 @@ func TestStagedDiff_IndexLineStripped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StagedDiff: %v", err)
 	}
-	// FR3h: no line in the captured payload matches the index-header regex.
+	// FR3h: no line in the captured payload matches the index-header leak detector.
 	for _, line := range strings.Split(out, "\n") {
-		if indexLineRe.MatchString(line) {
+		if indexLeakRe.MatchString(line) {
 			t.Errorf("FR3h: index line present in StagedDiff output: %q\nfull output:\n%s", line, out)
 		}
 	}
@@ -679,6 +702,75 @@ func TestStagedDiff_IndexLineStripped(t *testing.T) {
 	}
 	if !strings.Contains(out, "+++ b/a.go") {
 		t.Errorf("+++ header missing (should be KEPT):\n%s", out)
+	}
+}
+
+// TestStagedDiff_IndexLineStripped_NewFile is the FR3h regression for newly-ADDED files. Git emits the
+// index line WITHOUT a trailing space+mode for add/delete (the mode goes on the separate `new file mode`
+// line). The original indexLineRe required a trailing space, so the no-mode form LEAKED into the agent
+// payload for every added file. This test stages a brand-new file and asserts the index line is stripped.
+//
+// Leak detection uses a BROADER regex than indexLineRe: any `index <hex>..<hex>` line at all (with or
+// without a trailing mode). Testing the leak with indexLineRe itself would be circular — a buggy
+// indexLineRe that fails to match the no-mode form would also fail to *detect* the leak.
+func TestStagedDiff_IndexLineStripped_NewFile(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+	writeFile(t, repo, "base.go", "package main\n")
+	stageFile(t, repo, "base.go")
+	execGit(t, repo, "commit", "-qm", "base")
+
+	writeFile(t, repo, "brand_new.go", "package main\nfunc new(){}\n")
+	stageFile(t, repo, "brand_new.go")
+
+	g := New(repo)
+	out, err := g.StagedDiff(context.Background(), StagedDiffOptions{DiffContext: 1})
+	if err != nil {
+		t.Fatalf("StagedDiff: %v", err)
+	}
+	// FR3h: detect ANY index line (with or without trailing mode) leaking into the payload.
+	for _, line := range strings.Split(out, "\n") {
+		if indexLeakRe.MatchString(line) {
+			t.Errorf("FR3h: index line present in StagedDiff output for a NEW file: %q\nfull output:\n%s", line, out)
+		}
+	}
+	// Sanity: the structural markers for a new-file diff are present.
+	if !strings.Contains(out, "new file mode 100644") {
+		t.Errorf("new file mode line missing (should be KEPT):\n%s", out)
+	}
+	if !strings.Contains(out, "diff --git a/brand_new.go b/brand_new.go") {
+		t.Errorf("diff --git header missing (should be KEPT):\n%s", out)
+	}
+}
+
+// TestStagedDiff_IndexLineStripped_DeletedFile is the FR3h regression for DELETED files. As with new
+// files, git omits the trailing space+mode on the index line for deletions (the mode goes on the
+// `deleted file mode` line). The original regex required the trailing space, leaking the blob OID into
+// the agent payload for every deleted file.
+func TestStagedDiff_IndexLineStripped_DeletedFile(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+	writeFile(t, repo, "doomed.go", "package main\nfunc doomed(){}\n")
+	stageFile(t, repo, "doomed.go")
+	execGit(t, repo, "commit", "-qm", "base")
+
+	execGit(t, repo, "rm", "-q", "doomed.go") // git rm stages the deletion
+
+	g := New(repo)
+	out, err := g.StagedDiff(context.Background(), StagedDiffOptions{DiffContext: 1})
+	if err != nil {
+		t.Fatalf("StagedDiff: %v", err)
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if indexLeakRe.MatchString(line) {
+			t.Errorf("FR3h: index line present in StagedDiff output for a DELETED file: %q\nfull output:\n%s", line, out)
+		}
+	}
+	if !strings.Contains(out, "deleted file mode 100644") {
+		t.Errorf("deleted file mode line missing (should be KEPT):\n%s", out)
+	}
+	if !strings.Contains(out, "diff --git a/doomed.go b/doomed.go") {
+		t.Errorf("diff --git header missing (should be KEPT):\n%s", out)
 	}
 }
 

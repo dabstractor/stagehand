@@ -74,6 +74,7 @@ var integrateInstallCmd = &cobra.Command{
 
 var integrateRemoveCmd = &cobra.Command{
 	Use:           "remove <target>…",
+	Aliases:       []string{"uninstall"}, // consistency with `hook uninstall` (report Bug 3)
 	Short:         "Remove one or more stagehand integrations",
 	Args:          cobra.MinimumNArgs(1),
 	SilenceErrors: true,

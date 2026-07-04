@@ -63,6 +63,17 @@ func sectionBody(section string) string {
 	return section[loc[0]:]
 }
 
+// minBodyTokens is the per-file body-token floor applied when the token budget is exhausted
+// (bodyBudget ≤ 0 but tokenLimit > 0). Rather than passing over-budget bodies through VERBATIM (the old
+// D10 behavior — which silently sent the full untruncated payload, violating the documented "payload
+// always fits your context window" contract for small token_limit values), each file's body is cut to a
+// minimal sliver of this many tokens (≈ minBodyTokens×4 runes) + the `... [truncated]` sentinel. This is
+// a BEST-EFFORT fit: when token_limit is below the effective floor (skeleton + prompt reserve + margin),
+// NOTHING can truly fit, but truncating to a sliver is strictly better than sending the full diff — a
+// smaller payload overflows the window by less, and the sentinel makes the truncation VISIBLE to the
+// model (vs. the silent no-op). Tunable; kept small so the aggregate stays minimal.
+const minBodyTokens = 8
+
 // applyWaterFillGate is the FR3d/FR3i token-limit gate (PRD §9.1 FR3d/FR3i; system_context.md §5/§6). It
 // replaces the legacy max_md_lines/max_diff_bytes caps with a dynamic water-fill over ALL diff bodies
 // (markdown + non-markdown) sharing ONE body_budget (FR3i: "across files" — one shared budget, NOT two
@@ -97,15 +108,20 @@ func sectionBody(section string) string {
 // Coherence: sizing + enforcement both use EstimateTokens over the SAME body (sectionBody via atAtRe ≡
 // truncateByWaterFill's split) ⇒ the water-fill's fairness guarantees (FR3i a–d) are EXACT.
 //
-// Degenerate bodyBudget≤0 (token_limit too small for skeleton+reserve+margin): clamped to 0 ⇒
-// allocByWaterFill returns all-0 ⇒ truncateByWaterFill treats allotment≤0 as path-miss ⇒ pass-through (no
-// truncation; the skeleton is the floor — cutting bodies to 0 helps nothing). Falls out naturally; no
-// special-case (design-decisions D10).
+// Degenerate bodyBudget≤0 (token_limit too small for skeleton+reserve+margin): the contract "payload
+// always fits" still requires a best-effort truncation. Each over-budget file's body is cut to a
+// minBodyTokens sliver + sentinel (NOT passed through whole — the old D10 behavior silently sent the
+// full untruncated payload, violating the documented contract for small token_limit values). A
+// minBodyTokens floor is used because truncateByWaterFill treats allotment≤0 as path-miss (pass-through),
+// so a strictly-positive floor is required to force truncation. This is a BEST-EFFORT fit: when
+// token_limit is below the effective floor nothing can truly fit, but a sliver is strictly smaller than
+// the full diff and the sentinel makes the truncation VISIBLE.
 //
 // Called by StagedDiff/TreeDiff/WorkingTreeDiff in their opts.TokenLimit>0 branch.
 func applyWaterFillGate(mdDiffs []string, nmDiff, skeleton string, tokenLimit, promptReserve int) string {
 	skeletonTokens := EstimateTokens(skeleton)
 	bodyBudget := tokenLimit - skeletonTokens - promptReserve - tokenBudgetMargin
+	budgetExhausted := bodyBudget <= 0 // token_limit below the effective floor; force minimal truncation.
 	if bodyBudget < 0 {
 		bodyBudget = 0
 	}
@@ -127,7 +143,14 @@ func applyWaterFillGate(mdDiffs []string, nmDiff, skeleton string, tokenLimit, p
 	allotments := make(map[string]int, len(sections))
 	for i, sec := range sections {
 		if path, ok := diffSectionPath(sec); ok {
-			allotments[path] = allocs[i] // keyed by destination — matches truncateByWaterFill's lookup (D11)
+			allot := allocs[i]
+			// Budget-exhausted path: a 0 allotment would make truncateByWaterFill treat the file as a
+			// path-miss and pass the FULL body through verbatim. Force a minimal strictly-positive floor
+			// so the body is truncated to a sliver + sentinel (best-effort fit; visible truncation).
+			if budgetExhausted && allot <= 0 {
+				allot = minBodyTokens
+			}
+			allotments[path] = allot // keyed by destination — matches truncateByWaterFill's lookup (D11)
 		}
 	}
 	return truncateByWaterFill(sections, allotments)

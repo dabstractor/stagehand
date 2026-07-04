@@ -1,6 +1,12 @@
 # .golangci.yml — deterministic lint config consumed by ci.yml's `lint` job.
 # Conservative: disable-all + a short, well-understood enable list so CI lint is stable and the
 # codebase is very likely already green. Add linters deliberately; never enable-all.
+#
+# SCHEMA NOTE: this file is the golangci-lint v1 schema (no top-level `version:` key). CI pins
+# golangci-lint v1.61 (ci.yml), where it passes. golangci-lint v2.x REJECTS the v1 schema
+# (`can't load config: unsupported version of the configuration: ""`); local developers with v2
+# installed should either install v1.61 (`go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0`)
+# or migrate this file to the v2 schema when bumping the CI pin.
 run:
   timeout: 5m
   go: '1.22'

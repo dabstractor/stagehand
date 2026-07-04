@@ -26,7 +26,7 @@ func TestDetect_None(t *testing.T) {
 func TestDetect_Stagehand(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, HookFilename)
-	if err := os.WriteFile(p, []byte(hookScript(false)), ScriptMode); err != nil {
+	if err := os.WriteFile(p, []byte(hookScript(false, "")), ScriptMode); err != nil {
 		t.Fatal(err)
 	}
 	st, err := Detect(dir)
@@ -74,7 +74,7 @@ func TestDetect_EmptyFileIsForeign(t *testing.T) {
 
 func TestInstall_Fresh(t *testing.T) {
 	dir := t.TempDir()
-	prev, err := Install(dir, false)
+	prev, err := Install(dir, false, "")
 	if err != nil {
 		t.Fatalf("Install err=%v", err)
 	}
@@ -90,16 +90,16 @@ func TestInstall_Fresh(t *testing.T) {
 		t.Errorf("file perm = %o, want %o", info.Mode().Perm(), ScriptMode)
 	}
 	data, _ := os.ReadFile(filepath.Join(dir, HookFilename))
-	if string(data) != hookScript(false) {
+	if string(data) != hookScript(false, "") {
 		t.Errorf("file content mismatch")
 	}
 }
 
 func TestInstall_IdempotentReinstall(t *testing.T) {
 	dir := t.TempDir()
-	_, _ = Install(dir, false)
+	_, _ = Install(dir, false, "")
 
-	prev2, err := Install(dir, false)
+	prev2, err := Install(dir, false, "")
 	if err != nil {
 		t.Fatalf("re-Install err=%v", err)
 	}
@@ -107,7 +107,7 @@ func TestInstall_IdempotentReinstall(t *testing.T) {
 		t.Errorf("re-Install prev=%v, want StatusStagehand", prev2)
 	}
 	data, _ := os.ReadFile(filepath.Join(dir, HookFilename))
-	if string(data) != hookScript(false) {
+	if string(data) != hookScript(false, "") {
 		t.Errorf("content changed on reinstall")
 	}
 	info, _ := os.Stat(filepath.Join(dir, HookFilename))
@@ -118,12 +118,12 @@ func TestInstall_IdempotentReinstall(t *testing.T) {
 
 func TestInstall_Strict(t *testing.T) {
 	dir := t.TempDir()
-	_, err := Install(dir, true)
+	_, err := Install(dir, true, "")
 	if err != nil {
 		t.Fatalf("Install strict err=%v", err)
 	}
 	data, _ := os.ReadFile(filepath.Join(dir, HookFilename))
-	if string(data) != hookScript(true) {
+	if string(data) != hookScript(true, "") {
 		t.Errorf("strict content mismatch")
 	}
 	if !strings.Contains(string(data), "--strict") {
@@ -140,7 +140,7 @@ func TestInstall_ForeignRefusal(t *testing.T) {
 	}
 	foreignBefore, _ := os.ReadFile(p)
 
-	prev, err := Install(dir, false)
+	prev, err := Install(dir, false, "")
 	if !errors.Is(err, ErrForeignHook) {
 		t.Fatalf("Install err=%v, want ErrForeignHook", err)
 	}
@@ -158,7 +158,7 @@ func TestInstall_ForeignRefusal(t *testing.T) {
 func TestInstall_CreatesHooksDir(t *testing.T) {
 	dir := t.TempDir()
 	nested := filepath.Join(dir, "nested", "hooks")
-	_, err := Install(nested, false)
+	_, err := Install(nested, false, "")
 	if err != nil {
 		t.Fatalf("Install nested err=%v", err)
 	}
@@ -173,7 +173,7 @@ func TestInstall_CreatesHooksDir(t *testing.T) {
 
 func TestUninstall_RemovesOurs(t *testing.T) {
 	dir := t.TempDir()
-	_, _ = Install(dir, false)
+	_, _ = Install(dir, false, "")
 
 	st, err := Uninstall(dir)
 	if err != nil {
@@ -244,17 +244,17 @@ func TestStatus_String(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestScript_MatchesHookScript(t *testing.T) {
-	if Script(false) != hookScript(false) {
-		t.Error("Script(false) != hookScript(false)")
+	if Script(false, "") != hookScript(false, "") {
+		t.Error(`Script(false, "") != hookScript(false, "")`)
 	}
-	if Script(true) != hookScript(true) {
-		t.Error("Script(true) != hookScript(true)")
+	if Script(true, "") != hookScript(true, "") {
+		t.Error(`Script(true, "") != hookScript(true, "")`)
 	}
 }
 
 func TestInvocationLine_InScript(t *testing.T) {
 	for _, strict := range []bool{false, true} {
-		script := hookScript(strict)
+		script := hookScript(strict, "")
 		il := InvocationLine(strict)
 		if !strings.Contains(script, il) {
 			t.Errorf("hookScript(%v) does not contain InvocationLine(%v)\nscript=%q\nline=%q", strict, strict, script, il)

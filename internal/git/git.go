@@ -698,13 +698,18 @@ func buildDiffArgs(opts StagedDiffOptions, domain ...string) []string {
 }
 
 // indexLineRe matches git's per-file `index <oid>..<oid> <mode>` patch header (PRD §9.1 FR3h).
-// Anchored at start: "index ", a hex OID run, "..", another hex OID run, then a space (the file mode
-// follows). A content line that merely starts with the word "index" (e.g. "// index of items" or
-// "index of items") does NOT match — it lacks the "<hex>..<hex> " form — and is preserved. diff --git /
-// --- / +++ / @@ / similarity index / rename from / rename to lines start with a different token and are
-// all kept. In a real diff body content lines also carry a +//-/space marker, so they cannot start with
-// "index " at all. The regex is OID-form-disambiguated (belt-and-suspenders with the diff markers).
-var indexLineRe = regexp.MustCompile(`^index [0-9a-f]+\.\.[0-9a-f]+ `)
+// Anchored at start: "index ", a hex OID run, "..", another hex OID run, then an OPTIONAL trailing
+// space + octal mode. Git emits the index line WITH a trailing space+mode for MODIFIED files, but
+// WITHOUT the trailing space+mode for NEWLY-ADDED and DELETED files (the mode goes on the separate
+// `new file mode` / `deleted file mode` line instead). Both forms must match or the blob OIDs leak
+// into the agent payload for the most common commit types (add/delete). A content line that merely
+// starts with the word "index" (e.g. "// index of items" or "index of items") does NOT match — it
+// lacks the "<hex>..<hex>" form — and is preserved. diff --git / --- / +++ / @@ / similarity index /
+// rename from / rename to lines start with a different token and are all kept. In a real diff body
+// content lines also carry a +//-/space marker, so they cannot start with "index " at all. The
+// `<hex>..<hex>` form is unambiguous, so the optional mode group is OID-form-disambiguated
+// (belt-and-suspenders with the diff markers).
+var indexLineRe = regexp.MustCompile(`^index [0-9a-f]+\.\.[0-9a-f]+( [0-7]+)?$`)
 
 // stripIndexLines removes git's per-file `index <oid>..<oid> <mode>` header lines from a captured diff
 // body (PRD §9.1 FR3h). The blob OIDs are useless to the model and cost ~30 bytes/file; stripping

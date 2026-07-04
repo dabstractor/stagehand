@@ -63,7 +63,10 @@ func Detect(hooksDir string) (Status, error) {
 // and writes the script with mode 0o755 (os.Chmod after WriteFile to defeat umask).
 // For StatusForeign it returns ErrForeignHook WITHOUT touching the file.
 // It returns the previous status so the caller can print "Installed" vs "Updated".
-func Install(hooksDir string, strict bool) (Status, error) {
+//
+// configPath, when non-empty, is baked into the installed script as STAGEHAND_CONFIG so `hook exec` at
+// commit time resolves the same config the user explicitly selected at install time (report Finding 4).
+func Install(hooksDir string, strict bool, configPath string) (Status, error) {
 	prev, err := Detect(hooksDir)
 	if err != nil {
 		return prev, err
@@ -75,7 +78,7 @@ func Install(hooksDir string, strict bool) (Status, error) {
 		return prev, err
 	}
 	p := filepath.Join(hooksDir, HookFilename)
-	if err := os.WriteFile(p, []byte(hookScript(strict)), ScriptMode); err != nil {
+	if err := os.WriteFile(p, []byte(hookScript(strict, configPath)), ScriptMode); err != nil {
 		return prev, err
 	}
 	if err := os.Chmod(p, ScriptMode); err != nil {
@@ -102,12 +105,16 @@ func Uninstall(hooksDir string) (Status, error) {
 	}
 }
 
-// Script returns the hook script content for the given strict mode.
+// Script returns the hook script content for the given strict mode and optional config path.
 // Exported so the cmd layer's `install --print` can access the unexported hookScript.
-func Script(strict bool) string { return hookScript(strict) }
+// configPath == "" yields the no-op (no STAGEHAND_CONFIG export) form.
+func Script(strict bool, configPath string) string { return hookScript(strict, configPath) }
 
 // InvocationLine returns the exec line baked into the hook script.
 // Kept consistent with hookScript via drift-guard tests.
+//
+// NOTE: when a configPath is baked into a hook script, the script EXPORTS STAGEHAND_CONFIG before this
+// exec line (the export lives on its own line, NOT in InvocationLine) — see hookScript.
 func InvocationLine(strict bool) string {
 	if strict {
 		return `exec stagehand hook exec --strict "$@"`

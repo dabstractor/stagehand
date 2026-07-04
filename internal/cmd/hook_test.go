@@ -64,7 +64,7 @@ func TestHookInstall_Print(t *testing.T) {
 	}
 
 	got := out.String()
-	want := hook.Script(false)
+	want := hook.Script(false, "")
 	if got != want {
 		t.Errorf("print output mismatch (got %d bytes, want %d bytes)", len(got), len(want))
 	}
@@ -88,7 +88,7 @@ func TestHookInstall_PrintStrict(t *testing.T) {
 	}
 
 	got := out.String()
-	want := hook.Script(true)
+	want := hook.Script(true, "")
 	if got != want {
 		t.Errorf("strict print output mismatch")
 	}
@@ -364,6 +364,74 @@ func TestHookInstall_StrictBaked(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "--strict") {
 		t.Error("strict hook missing --strict in script body")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// hook install --config <path> bakes STAGEHAND_CONFIG into the script (report Finding 4)
+// ---------------------------------------------------------------------------
+
+func TestHookInstall_ConfigBaked(t *testing.T) {
+	_, origOut, origErr, origRunE := saveRootState(t)
+	defer func() {
+		resetHookFlags(t)
+		restoreRootState(t, nil, origOut, origErr, origRunE)
+	}()
+
+	repo := setupHookRepo(t)
+	isolateHome(t)
+
+	rootCmd.SetOut(io.Discard)
+	rootCmd.SetErr(io.Discard)
+	rootCmd.SetArgs([]string{"--config", "/special/config.toml", "hook", "install"})
+
+	if err := Execute(context.Background()); err != nil {
+		t.Fatalf("install --config err=%v", err)
+	}
+
+	data, err := os.ReadFile(repo + "/.git/hooks/prepare-commit-msg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(data)
+	// The explicit --config path is baked in as a STAGEHAND_CONFIG export so `hook exec` at commit time
+	// resolves the SAME config the user selected at install time (report Finding 4).
+	if !strings.Contains(script, "export STAGEHAND_CONFIG='/special/config.toml'") {
+		t.Errorf("config path NOT baked into hook script:\n%s", script)
+	}
+	// The exec line is still present.
+	if !strings.Contains(script, `exec stagehand hook exec "$@"`) {
+		t.Errorf("exec line missing after config bake:\n%s", script)
+	}
+}
+
+// TestHookInstall_NoConfig_NotBaked verifies the default (no --config) install does NOT emit a
+// STAGEHAND_CONFIG line — `hook exec` falls back to env/discovery as before (no behavior change for
+// the common case).
+func TestHookInstall_NoConfig_NotBaked(t *testing.T) {
+	_, origOut, origErr, origRunE := saveRootState(t)
+	defer func() {
+		resetHookFlags(t)
+		restoreRootState(t, nil, origOut, origErr, origRunE)
+	}()
+
+	repo := setupHookRepo(t)
+	isolateHome(t)
+
+	rootCmd.SetOut(io.Discard)
+	rootCmd.SetErr(io.Discard)
+	rootCmd.SetArgs([]string{"hook", "install"})
+
+	if err := Execute(context.Background()); err != nil {
+		t.Fatalf("install err=%v", err)
+	}
+
+	data, err := os.ReadFile(repo + "/.git/hooks/prepare-commit-msg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "STAGEHAND_CONFIG") {
+		t.Errorf("no --config install must NOT bake STAGEHAND_CONFIG:\n%s", string(data))
 	}
 }
 

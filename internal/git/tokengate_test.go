@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -175,14 +176,18 @@ func TestApplyWaterFillGate(t *testing.T) {
 		if strings.Count(out1, "... [truncated]") != 0 {
 			t.Errorf("run1: expected no truncation (budget ≥ size), got sentinel; out=\n%s", out1)
 		}
-		// run2: SAME tokenLimit but a large skeleton eats the budget ⇒ bodyBudget < 200 ⇒ truncated.
+		// run2: SAME tokenLimit but a large skeleton eats the budget ⇒ bodyBudget < 0 → clamped 0 ⇒
+		// budget-exhausted path ⇒ the body is truncated to a minBodyTokens sliver + sentinel (NOT passed
+		// through whole — the contract "payload always fits" requires a best-effort truncation). The
+		// DIFFERENCE from run1 proves the skeleton was subtracted: run1 had budget for the body (whole),
+		// run2 does not (sliver + sentinel). Assert the section header survives and exactly one sentinel.
 		bigSkeleton := strings.Repeat("s", 8000) // ~2000 tokens > run1Limit-margin ⇒ bodyBudget clamps to 0
 		out2 := applyWaterFillGate(nil, section, bigSkeleton, run1Limit, 0)
-		// bodyBudget clamped to 0 ⇒ allotment 0 ⇒ path-miss (pass-through) ⇒ NO sentinel. (D10: graceful.)
-		// The DIFFERENCE from run1 proves the skeleton was subtracted: run1 had budget for the body,
-		// run2 does not. Assert the section is still present (pass-through) and no legacy sentinel.
 		if !strings.Contains(out2, "diff --git a/p.go b/p.go") {
-			t.Errorf("run2: section missing (should pass through under degenerate budget); out=\n%s", out2)
+			t.Errorf("run2: section header missing (should survive truncation); out=\n%s", out2)
+		}
+		if c := strings.Count(out2, "... [truncated]"); c != 1 {
+			t.Errorf("run2: expected the body CAPPED to a sliver under degenerate budget (sentinel=1), got %d; out=\n%s", c, out2)
 		}
 		if strings.Contains(out2, "[diff truncated at") {
 			t.Errorf("run2: legacy sentinel leaked; out=\n%s", out2)
@@ -208,10 +213,14 @@ func TestApplyWaterFillGate(t *testing.T) {
 		if strings.Count(out1, "... [truncated]") != 0 {
 			t.Errorf("reserve=0: expected no truncation, got sentinel; out=\n%s", out1)
 		}
-		// reserve=large (300) ⇒ bodyBudget = 250 − 300 = −50 → clamped 0 ⇒ pass-through (no sentinel, D10).
+		// reserve=large (300) ⇒ bodyBudget = 250 − 300 = −50 → clamped 0 ⇒ budget-exhausted path ⇒ the body
+		// is truncated to a minBodyTokens sliver + sentinel (best-effort fit; NOT passed through whole).
 		out2 := applyWaterFillGate(nil, section, "", tokenLimit, 300)
 		if !strings.Contains(out2, "diff --git a/p.go b/p.go") {
-			t.Errorf("reserve=large: section missing (should pass through); out=\n%s", out2)
+			t.Errorf("reserve=large: section header missing (should survive truncation); out=\n%s", out2)
+		}
+		if c := strings.Count(out2, "... [truncated]"); c != 1 {
+			t.Errorf("reserve=large: expected CAPPED to a sliver under degenerate budget (sentinel=1), got %d; out=\n%s", c, out2)
 		}
 		// reserve=100 ⇒ bodyBudget = 250 − 100 = 150 < 200 ⇒ truncated.
 		out3 := applyWaterFillGate(nil, section, "", tokenLimit, 100)
@@ -220,15 +229,24 @@ func TestApplyWaterFillGate(t *testing.T) {
 		}
 	})
 
-	t.Run("BodyBudget_clamped_zero_pass_through", func(t *testing.T) {
-		// tokenLimit tiny (< skeleton+reserve+margin) ⇒ bodyBudget 0 ⇒ pass-through, NO truncation.
+	t.Run("BodyBudget_clamped_zero_truncates_to_sliver", func(t *testing.T) {
+		// tokenLimit tiny (< skeleton+reserve+margin) ⇒ bodyBudget ≤ 0 ⇒ budget-exhausted path. The old
+		// behavior passed the full body through verbatim (silent no-op), violating the documented "payload
+		// always fits" contract. The fix truncates each over-budget body to a minBodyTokens sliver +
+		// sentinel — a best-effort fit that is strictly smaller than the full diff and makes the truncation
+		// VISIBLE. The section header is preserved; exactly one sentinel is emitted.
 		section := bodySection("p.go", 4000)                        // ~1000 tokens
 		out := applyWaterFillGate(nil, section, "skeleton", 100, 0) // bodyBudget = 100 − ~2 − margin < 0 → 0
-		if strings.Count(out, "... [truncated]") != 0 {
-			t.Errorf("degenerate budget≤0 must NOT truncate (pass-through); got sentinel; out=\n%s", out)
+		if c := strings.Count(out, "... [truncated]"); c != 1 {
+			t.Errorf("degenerate budget≤0 must truncate to a sliver (sentinel=1), got %d; out=\n%s", c, out)
 		}
 		if !strings.Contains(out, "diff --git a/p.go b/p.go") {
-			t.Errorf("degenerate budget: section missing (should pass through); out=\n%s", out)
+			t.Errorf("degenerate budget: section header missing (should survive truncation); out=\n%s", out)
+		}
+		// The truncated body must be SMALLER than the full 4000-rune body: assert the sentinel appears and
+		// the output length is well under the untruncated section length.
+		if len(out) >= len(section) {
+			t.Errorf("degenerate budget: output not smaller than the full body (len=%d, full=%d); out=\n%s", len(out), len(section), out)
 		}
 	})
 
@@ -254,6 +272,32 @@ func TestApplyWaterFillGate(t *testing.T) {
 		out := applyWaterFillGate(nil, large, "", tokenLimit, 0)
 		if c := strings.Count(out, "... [truncated]"); c != 1 {
 			t.Errorf("path-keyed section should be capped (sentinel=1), got %d; out=\n%s", c, out)
+		}
+	})
+
+	t.Run("SmallTokenLimit_truncates_not_noop", func(t *testing.T) {
+		// REGRESSION (report Bug 2): a small-but-nonzero token_limit (e.g. 100, 500, 1000) used to be
+		// silently a no-op — the full untruncated payload was sent because bodyBudget clamped to 0 and the
+		// degenerate path passed bodies through verbatim. The documented contract ("payload always fits
+		// your context window") was violated: a smaller token_limit yielded a LARGER (untruncated) payload.
+		// The fix truncates each over-budget body to a minBodyTokens sliver + sentinel regardless of how
+		// small the (positive) token_limit is. For each small token_limit, assert (a) the section header
+		// survives, (b) exactly one sentinel, and (c) the output is strictly smaller than the full body.
+		large := bodySection("src/big.go", 4000) // ~1000 tokens; full section ~4100 bytes
+		for _, tokenLimit := range []int{1, 100, 500, 1000, 1024} {
+			tokenLimit := tokenLimit
+			t.Run(fmt.Sprintf("tokenLimit=%d", tokenLimit), func(t *testing.T) {
+				out := applyWaterFillGate(nil, large, "", tokenLimit, 0)
+				if !strings.Contains(out, "diff --git a/src/big.go b/src/big.go") {
+					t.Errorf("section header missing (should survive truncation); out=\n%s", out)
+				}
+				if c := strings.Count(out, "... [truncated]"); c != 1 {
+					t.Errorf("small token_limit must STILL truncate (sentinel=1), got %d; out=\n%s", c, out)
+				}
+				if len(out) >= len(large) {
+					t.Errorf("output not smaller than the full body (len=%d, full=%d); out=\n%s", len(out), len(large), out)
+				}
+			})
 		}
 	})
 }
