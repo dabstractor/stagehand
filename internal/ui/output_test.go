@@ -370,3 +370,23 @@ func TestNoColorEnvSet(t *testing.T) {
 		}
 	})
 }
+
+// ---------------------------------------------------------------------------
+// TestTerminalWidth_NonTTYZero — a pipe/file is not a terminal: width unknown → 0
+// ---------------------------------------------------------------------------
+func TestTerminalWidth_NonTTYZero(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	defer r.Close()
+	defer w.Close()
+	// Both ends of an os.Pipe are not terminals (ioctl/console probe fails), so the width is
+	// undetectable and TerminalWidth must return 0 on every supported platform. This is the
+	// contract the CLI relies on to fall back to defaultHelpWidth for piped/redirected --help.
+	for _, f := range []*os.File{r, w} {
+		if got := TerminalWidth(f); got != 0 {
+			t.Errorf("TerminalWidth(pipe) = %d, want 0 (non-TTY is undetectable)", got)
+		}
+	}
+}

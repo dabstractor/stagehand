@@ -10,12 +10,35 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/dustin/stagehand/internal/config"
 	"github.com/dustin/stagehand/internal/exitcode"
+	"github.com/dustin/stagehand/internal/ui"
 )
+
+// Help output is wrapped to the LIVE terminal width so long flag descriptions stay readable and
+// justified (continuation lines align at the description column). Three knobs govern the width:
+const (
+	// maxHelpWidth caps the wrap width even on very wide terminals. Past ~160 columns extra width
+	// buys little readability and lets each flag's description sprawl across long, hard-to-scan lines.
+	maxHelpWidth = 160
+	// helpRightMargin is blank space reserved at the right edge of wrapped help so a line never
+	// butts against the terminal boundary — easier scanning, room for the cursor / IDE chrome.
+	helpRightMargin = 2
+	// defaultHelpWidth is the fallback wrap width when the terminal width can't be detected (stdout
+	// is piped/redirected/not a TTY). 80 is the universal safe assumption.
+	defaultHelpWidth = 80
+)
+
+// detectHelpWidth is the terminal-width seam: in production it reads the live stdout terminal width
+// via ui.TerminalWidth; tests override it (os.Stdout isn't a TTY under `go test`, so the production
+// impl would always return 0 and exercise only the fallback). Mirrors the injectable-IO discipline
+// used by config init --interactive (interactiveStdinIsTTY) and ResolveColor (isTTY param).
+var detectHelpWidth = func() int { return ui.TerminalWidth(os.Stdout) }
 
 // Version is set by main.go from the ldflags-injected `var version string` before Execute.
 // cobra's Version field auto-registers --version (no -v shorthand) and prints+exits BEFORE
@@ -203,6 +226,49 @@ func init() {
 	pf.StringVar(&flagArbiterReasoning, "arbiter-reasoning", "",
 		"Per-role reasoning override for the leftover arbiter (env STAGEHAND_ARBITER_REASONING; git stagehand.role.arbiter)")
 	// --version is auto-added by cobra (Version field above); --help/-h is cobra's built-in.
+
+	// Wrap flag-usage text to the live terminal width. Cobra's default usage template calls
+	// pflag.FlagUsages() (== FlagUsagesWrapped(0)); pflag v1.0.x treats cols=0 as "do not wrap",
+	// so long flag descriptions render as single un-justified lines that a terminal then
+	// soft-wraps raggedly. We swap that call for the stagehandFlagUsages template func (registered
+	// just below), which wraps each FlagSet's usage to helpWrapWidth() (live screen width, capped
+	// at maxHelpWidth, minus a right margin) and keeps continuation lines left-aligned at the
+	// description column. We derive the template from Cobra's own default via a targeted string
+	// swap (not a full copy), so we stay in lock-step with Cobra's layout. Applies to every
+	// subcommand: SetUsageTemplate on root is inherited by children via (*Command).UsageTemplate().
+	cobra.AddTemplateFunc("stagehandFlagUsages", flagUsagesWrapped)
+	rootCmd.SetUsageTemplate(strings.NewReplacer(
+		".LocalFlags.FlagUsages ", "stagehandFlagUsages .LocalFlags ",
+		".InheritedFlags.FlagUsages ", "stagehandFlagUsages .InheritedFlags ",
+	).Replace(rootCmd.UsageTemplate()))
+}
+
+// flagUsagesWrapped is the stagehandFlagUsages template func: it renders fs's usage block wrapped
+// to helpWrapWidth() columns. pflag.FlagUsagesWrapped(cols) wraps the WHOLE line (flag column +
+// description) at cols, indenting continuation lines to the description column — so feeding it the
+// screen-derived total lets descriptions fill whatever space is left after the flag column and stay
+// justified there. Used in the swapped usage template; see init().
+func flagUsagesWrapped(fs *pflag.FlagSet) string {
+	return fs.FlagUsagesWrapped(helpWrapWidth())
+}
+
+// helpWrapWidth returns the total column width Cobra/pflag should wrap help output to: the live
+// terminal width (detectHelpWidth), capped at maxHelpWidth, with a helpRightMargin gutter reserved
+// on the right; defaultHelpWidth when the width is unknown (piped/non-TTY). Always returns a
+// positive width. (pflag cols=0 would disable wrapping entirely — one long line per flag — so this
+// guarantees a deterministic, screen-fit, justified block instead.)
+func helpWrapWidth() int {
+	w := detectHelpWidth()
+	if w <= 0 {
+		w = defaultHelpWidth
+	}
+	if w > maxHelpWidth {
+		w = maxHelpWidth
+	}
+	if w > helpRightMargin {
+		w -= helpRightMargin
+	}
+	return w
 }
 
 // shouldSkipConfigLoad returns true for commands that operate on the config PATH or FILE

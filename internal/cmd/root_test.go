@@ -391,3 +391,65 @@ func TestRoot_TimeoutIsString(t *testing.T) {
 		t.Errorf("timeout DefValue = %q, want empty string", f.DefValue)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// TestHelpWrapWidth — live width → wrap width: default fallback, right margin, 160 cap
+// ---------------------------------------------------------------------------
+
+func TestHelpWrapWidth(t *testing.T) {
+	orig := detectHelpWidth
+	t.Cleanup(func() { detectHelpWidth = orig })
+
+	cases := []struct {
+		name string
+		det  int // what the terminal-width seam returns
+		want int
+	}{
+		{"unknown (non-TTY) -> default minus margin", 0, defaultHelpWidth - helpRightMargin},
+		{"negative -> default minus margin", -5, defaultHelpWidth - helpRightMargin},
+		{"normal 100 -> 100 minus margin", 100, 100 - helpRightMargin},
+		{"exactly at cap 160 -> 158", 160, 160 - helpRightMargin},
+		{"one over cap 161 -> capped 158", 161, 160 - helpRightMargin},
+		{"well over cap 300 -> capped 158", 300, 160 - helpRightMargin},
+		{"equal to margin 2 -> unchanged (no underflow)", 2, 2},
+		{"below margin 1 -> unchanged (no underflow)", 1, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			detectHelpWidth = func() int { return tc.det }
+			if got := helpWrapWidth(); got != tc.want {
+				t.Errorf("helpWrapWidth() with detect=%d = %d, want %d", tc.det, got, tc.want)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestHelp_FlagsWrappedWithinWidth — every --help line fits in helpWrapWidth()
+// ---------------------------------------------------------------------------
+
+func TestHelp_FlagsWrappedWithinWidth(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+	orig := detectHelpWidth
+	t.Cleanup(func() { detectHelpWidth = orig })
+
+	// Pin a width comfortably above pflag's internal wrap minimum (pflag refuses to wrap when the
+	// description region drops below ~24 cols — its own design, not ours). 100 -> wrap 98.
+	detectHelpWidth = func() int { return 100 }
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"--help"})
+
+	if err := Execute(context.Background()); err != nil {
+		t.Fatalf("Execute(--help) err=%v, want nil", err)
+	}
+	limit := helpWrapWidth() // 98
+	for i, line := range bytes.Split(buf.Bytes(), []byte("\n")) {
+		if len(line) > limit {
+			t.Errorf("help line %d is %d cols (limit %d):\n  %s", i, len(line), limit, line)
+		}
+	}
+}

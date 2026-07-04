@@ -33,6 +33,15 @@ func IsTerminal(f *os.File) bool {
 	return isTerminalFd(f.Fd())
 }
 
+// TerminalWidth reports the column width of the terminal attached to f, or 0 when it can't be
+// determined (f is not a TTY — pipe/file/redirect — or the platform can't report it). Mirrors
+// IsTerminal's platform delegation (linux/darwin: ioctl(TIOCGWINSZ); windows:
+// GetConsoleScreenBufferInfo; other: 0). The CLI uses it to wrap --help output to the live screen
+// width; a 0 return lets callers fall back to a fixed default. Always returns >= 0.
+func TerminalWidth(f *os.File) int {
+	return terminalWidthFd(f.Fd())
+}
+
 // noColorEnvSet reports whether the NO_COLOR convention (https://no-color.org) disables color: the var
 // is present AND not an empty string. Byte-identical idiom to config/load.go's STAGEHAND_NO_COLOR
 // handling (line 112) — kept consistent so a user's mental model transfers between the two vars.
