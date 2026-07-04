@@ -528,3 +528,64 @@ func TestStagedDiff_ExcludedBinaryPrecedence(t *testing.T) {
 		t.Fatalf("expected a.go present, got:\n%s", out)
 	}
 }
+
+// TestStagedDiff_RenameDetectedCompact pins FR3e (-M, always on): a staged pure rename
+// (delete old + add new of identical content, >=50% similar) must render as the compact extended
+// header (rename from / rename to) rather than a full-content delete+add body.
+func TestStagedDiff_RenameDetectedCompact(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+
+	writeFile(t, repo, "old.go", "package main\nfunc a(){}\n")
+	stageFile(t, repo, "old.go")
+	execGit(t, repo, "commit", "-qm", "base") // baseline
+
+	// pure rename: identical content, new path
+	writeFile(t, repo, "new.go", "package main\nfunc a(){}\n")
+	stageFile(t, repo, "new.go")
+	os.Remove(filepath.Join(repo, "old.go"))
+	execGit(t, repo, "add", "-A") // stage delete-old + add-new (>=50% similar -> -M sees a rename)
+
+	g := New(repo)
+	out, err := g.StagedDiff(context.Background(), StagedDiffOptions{DiffContext: 1})
+	if err != nil {
+		t.Fatalf("StagedDiff: %v", err)
+	}
+	if !strings.Contains(out, "rename from") || !strings.Contains(out, "rename to") {
+		t.Fatalf("FR3e (-M): expected compact rename (rename from/to), got:\n%s", out)
+	}
+}
+
+// TestStagedDiff_DiffContextZero_ChangedLinesOnly pins FR3f (-U<n>): DiffContext:0 (-U0) emits
+// changed lines only (the unchanged anchor `func a()` line is ABSENT), while DiffContext:1 (-U1,
+// the production default) retains one anchor context line each side of the change (the anchor IS present).
+func TestStagedDiff_DiffContextZero_ChangedLinesOnly(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+
+	writeFile(t, repo, "a.go", "package main\nfunc a(){}\nfunc b(){}\nfunc c(){}\n")
+	stageFile(t, repo, "a.go")
+	execGit(t, repo, "commit", "-qm", "base")
+
+	writeFile(t, repo, "a.go", "package main\nfunc a(){}\nfunc B(){}\nfunc c(){}\n") // edit middle line only
+	stageFile(t, repo, "a.go")
+
+	g := New(repo)
+	out0, err := g.StagedDiff(context.Background(), StagedDiffOptions{DiffContext: 0})
+	if err != nil {
+		t.Fatalf("StagedDiff -U0: %v", err)
+	}
+	out1, err := g.StagedDiff(context.Background(), StagedDiffOptions{DiffContext: 1})
+	if err != nil {
+		t.Fatalf("StagedDiff -U1: %v", err)
+	}
+	// The unchanged `func a(){}` line appears as a context line (single leading space) at -U1 but is
+	// dropped at -U0 (changed-lines-only). We check for the leading-space context form to avoid
+	// matching the `@@ ... @@ func a(){}` hunk heading that git emits at every -U level.
+	if !strings.Contains(out1, "\n func a(){}") {
+		t.Fatalf("DiffContext:1 (-U1) should retain an anchor context line, got:\n%s", out1)
+	}
+	if strings.Contains(out0, "\n func a(){}") {
+		t.Fatalf("DiffContext:0 (-U0) should drop unchanged context (changed-lines-only), got:\n%s", out0)
+	}
+}

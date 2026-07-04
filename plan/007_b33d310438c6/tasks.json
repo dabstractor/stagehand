@@ -144,7 +144,7 @@
           "type": "Milestone",
           "id": "P1.M2",
           "title": "Shared diff-argv foundation + always-on flag transforms (FR3e, FR3f, FR3h)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "First extract a shared buildDiffArgs helper to collapse the 9 duplicated flag-insertion sites across the three diff functions (the scout's top recommendation), then layer three always-on transforms that apply regardless of token_limit: -M rename detection (FR3e), -U<diff_context> reduced context (FR3f), and index-line stripping (FR3h). These are the cheapest, highest-value wins and they alter EVERY diff payload (including at token_limit==0), so existing golden fixtures are updated here. All facts in plan/007_b33d310438c6/architecture/git_diff_semantics.md §1/§2/§4 (empirically verified against git 2.54.0).",
           "tasks": [
             {
@@ -177,14 +177,14 @@
               "type": "Task",
               "id": "P1.M2.T2",
               "title": "FR3e rename detection (-M) + FR3f reduced context (-U<diff_context>)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Inject `-M` (deterministic rename detection, wins over diff.renames=false) and `-U<diff_context>` (reduced unified context, default 1) into every diff argv via the shared helper. This is the single highest-value transform: -U1 cuts context tokens vs git's -U3 default, and -M collapses renames. NOTE: this ALTERS existing golden fixtures even at token_limit==0 (context shrinks 3→1), so the fixtures are updated here.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T2.S1",
                   "title": "Inject -M + -U<diff_context> via the helper; update golden fixtures",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M2.T1.S1"
@@ -203,14 +203,14 @@
               "type": "Task",
               "id": "P1.M2.T3",
               "title": "FR3h index-line stripping",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Strip the `index <oid>..<oid> <mode>` line from each file diff (PRD FR3h). There is no git flag to suppress it, so this is a post-capture line filter. KEEP `diff --git`, `---`, `+++`, `@@`, content, and `rename from`/`rename to`/`similarity index`. Always-on (not gated on token_limit).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T3.S1",
                   "title": "Post-capture '^index ' line filter across 3 diff functions",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S1"
