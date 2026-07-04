@@ -1,0 +1,116 @@
+{
+  "backlog": [
+    {
+      "type": "Phase",
+      "id": "P1",
+      "title": "FR3i Diff Truncation Formatting Fix & Diff-Context Hardening",
+      "status": "Researching",
+      "description": "Bugfix delta for the FR3d–FR3i diff-payload optimization (plan 007_b33d310438c6). Fixes the Major FR3i truncated-section newline-separator defect (PRD Issue 1, reproducible in all three diff functions) and the Minor diff_context out-of-range silent-clamp defect (PRD Issue 2). PRD Issue 3 requires NO action (verified rune-boundary-safe). Research root cause, fix locations, and test gaps are documented in plan/007_b33d310438c6/bugfix/001_7e79f5773da8/architecture/system_context.md.",
+      "milestones": [
+        {
+          "type": "Milestone",
+          "id": "P1.M1",
+          "title": "Fix FR3i truncated-section newline separator (PRD Issue 1 — Major)",
+          "status": "Planned",
+          "description": "Resolve the 100%-reproducible Major defect where a truncated NON-LAST file section's `... [truncated]` sentinel is glued to the next file's `diff --git` header on a single line (`... [truncated]diff --git a/b.go b/b.go`). Single-point fix in the shared pure function truncateByWaterFill (internal/git/truncatediff.go), covering all three diff functions (StagedDiff/TreeDiff/WorkingTreeDiff) and the markdown path via applyWaterFillGate. Add regression coverage at BOTH the pure-unit layer and the E2E integration layer — the existing tests truncated only the last/only section, which is exactly the gap that hid this bug.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M1.T1",
+              "title": "Restore per-file truncation sentinel newline separator in truncateByWaterFill",
+              "status": "Planned",
+              "description": "Apply the surgical sentinel-only fix (append a trailing newline after truncatedSentinel in the truncation branch of truncateByWaterFill) so every truncated section ends with `... [truncated]\\n` and the next section's `diff --git` begins at a line start. Update the existing pure unit assertion that the fix will change (item_sentinel_on_its_own_line), and add the missing multi-section pure unit cases. This is one atomic TDD slice: failing test -> fix -> passing test.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T1.S1",
+                  "title": "Apply sentinel-newline fix + pure unit regression in truncateByWaterFill",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.2/h3.0", "h2.4", "code.2", "para.13", "list.3"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: In internal/git/truncatediff.go, function truncateByWaterFill, the truncation branch writes `body = firstNRunes(body, allotment*4) + \"\\n\" + truncatedSentinel` where `const truncatedSentinel = \"... [truncated]\"` has NO trailing newline. The for-loop immediately appends the next section, so a truncated NON-LAST section's sentinel is glued to the next section's `diff --git` header: `... [truncated]diff --git a/b.go b/b.go`. Reproduced empirically (see architecture/system_context.md §2.2). The legacy token_limit==0 path already enforces the separator (git.go:859/1338/1511 HasSuffix->WriteByte('\\n')). The PRD mandates the fix land ONCE in truncateByWaterFill so all three diff functions + the markdown path are covered. See architecture/system_context.md §2.5 for the recommended sentinel-only fix and the alternative considered.\n2. INPUT: `sections []string` (per-file diff sections, each self-contained starting with `diff --git a/<p> b/<p>`) and `allotments map[string]int` (numstat destination path -> token allotment). Both are produced by applyWaterFillGate (internal/git/tokengate.go:121), which assembles `sections = mdDiffs + splitDiffSections(nmDiff)` and keys allotments via diffSectionPath. No changes to those callers.\n3. LOGIC: In the truncation branch of truncateByWaterFill (internal/git/truncatediff.go), change the body replacement to append a trailing newline after the sentinel: `body = firstNRunes(body, allotment*4) + \"\\n\" + truncatedSentinel + \"\\n\"`. This is a SENTINEL-ONLY change — do NOT add newlines to within-budget sections, path-miss sections, or pure-rename pass-through sections (the byte-identical pass-through guarantee MUST hold; see TestTruncateByWaterFill 'all_within_budget_byte_identical_no_sentinels', 'path_miss_pass_through_verbatim', 'recompose_in_input_order'). UPDATE the existing assertion in TestTruncateByWaterFill subtest 'item_sentinel_on_its_own_line' (internal/git/truncatediff_test.go) which currently asserts `strings.HasSuffix(out, \"\\n... [truncated]\")` — it WILL now end with an extra `\\n`; update to `strings.HasSuffix(out, \"\\n... [truncated]\\n\")` (this is an EXPECTED fixture delta per system_context.md §6 invariant 3, NOT a regression). ADD new pure unit cases in TestTruncateByWaterFill that truncate a NON-LAST section: (a) non-md section truncated then a within-budget non-md section follows; (b) markdown section truncated then a non-md section follows; (c) non-md section truncated then a markdown section follows; (d) BOTH of two non-md sections truncated. For each, assert `!strings.Contains(out, \"[truncated]diff --git\")` AND that every `diff --git` after the first begins at a line start (i.e. is preceded by `\\n`, e.g. via `strings.Contains(out, \"[truncated]\\ndiff --git\")` for the truncated-then-next case) AND the sentinel count equals the number of truncated files. Follow the existing pure test style: string-literal sections using the canonical shape `\"diff --git a/x b/x\\n--- a/x\\n+++ b/x\\n@@ -1 +1 @@\\n...\"`, table or named t.Run subtests, no t.TempDir, no I/O, no testify. Reuse the shared `itoa`/`tail` helpers already in truncatediff_test.go.\n4. OUTPUT: A recomposed diff string (return of truncateByWaterFill) where every truncated section ends with `... [truncated]\\n` and the next section's `diff --git` is at a line start; within-budget/pass-through sections remain byte-identical. Signature of truncateByWaterFill is FROZEN (unchanged) — consumed unchanged by applyWaterFillGate and transitively all three diff functions.\n5. MOCKING: None. truncateByWaterFill is a PURE function (stdlib regexp + strings only); no git, no I/O, no context. Tests are pure string-arithmetic table cases.\n6. DOCS: none — no user-facing/config/API surface change (internal output line-shape only). docs/how-it-works.md mentions the `... [truncated]` marker but does not specify line shape, so no update is required here; the changeset-level sweep (P1.M3.T1.S1) will confirm."
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P1.M1.T2",
+              "title": "Add E2E integration regression coverage for multi-section truncation (all 3 diff functions)",
+              "status": "Planned",
+              "description": "Close the integration-layer gap that hid Issue 1: difftokenlimit_test.go only ever capped a single large file, so the glue defect was invisible end-to-end. Add E2E tests across StagedDiff, TreeDiff, and WorkingTreeDiff that cap TWO files under a small token_limit and assert no `[truncated]diff --git` glue appears and the next section's `diff --git` is at a line start.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T2.S1",
+                  "title": "E2E multi-section truncation regression tests in difftokenlimit_test.go",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M1.T1.S1"],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.2/h3.0", "h2.4", "code.2", "list.3"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: internal/git/difftokenlimit_test.go is the E2E integration file for the token-limit gate. Its established scaffold is: `repo := t.TempDir(); initRepo(t, repo)` then `writeFile(t, repo, name, body)` + `stageFile(t, repo, name)` pairs, then `g := New(repo)` and `g.StagedDiff/TreeDiff/WorkingTreeDiff(ctx, StagedDiffOptions{TokenLimit: N, DiffContext: 1, PromptReserveTokens: 0, MaxDiffBytes: 300000, MaxMDLines: 100})`. TreeDiff takes two tree SHAs from `writeTreeOf(t, repo)`; WorkingTreeDiff needs a baseline HEAD via `commitAllowEmpty(t, repo, msg)` then working-tree edits. Every existing test caps only ONE large file — the multi-section concatenation path (the gap that hid Issue 1) is never exercised E2E. See architecture/system_context.md §2.3 and §5 for the exact helper signatures/locations (initRepo git_test.go:13, writeFile/stageFile/writeTreeOf/headSHA committree_test.go:31-60, commitAllowEmpty difftokenlimit_test.go:29).\n2. INPUT: The FIXED truncateByWaterFill from dependency P1.M1.T1.S1 (sentinel now ends with `\\n`). The shared test helpers listed above. The real git binary on PATH.\n3. LOGIC: Add E2E tests to internal/git/difftokenlimit_test.go (one per diff function, following the existing TestStagedDiff_TokenLimitGt0_WaterFill / TestTreeDiff_... / TestWorkingTreeDiff_TokenLimitGt0 naming). For each: stage/create TWO non-markdown files (e.g. a.go, b.go) with LARGE bodies (many content lines, e.g. sdManyLines-style or explicit loops) so that under a SMALL TokenLimit BOTH are capped by the water-fill. Then: StagedDiff — stage both; TreeDiff — writeTreeOf after each variant to get treeA/treeB; WorkingTreeDiff — commitAllowEmpty baseline then edit both files in the working tree. Assert on the returned `out`: (a) `!strings.Contains(out, \"[truncated]diff --git\")` (the bug signature is GONE); (b) `strings.Contains(out, \"[truncated]\\ndiff --git\")` for the intermediate truncated section (the sentinel is followed by a newline before the next section); (c) both files' `diff --git a/<file>` headers survive (each at a line start); (d) the FR3g numstat skeleton is present; (e) the legacy `at N bytes/lines` sentinels do NOT appear (token_limit>0 path). Follow the existing assertion style: plain if/t.Errorf/t.Fatalf, strings.Contains/Count, NO testify. Each test must be self-contained with its own t.TempDir.\n4. OUTPUT: Passing E2E regression tests proving the glue defect is eliminated across all three diff entry points (StagedDiff, TreeDiff, WorkingTreeDiff). Consumed by: the `go test ./internal/git/...` release gate.\n5. MOCKING: None — these are integration tests against a REAL temp git repo (t.TempDir + initRepo), the established pattern in difftokenlimit_test.go. No services to mock.\n6. DOCS: none — test-only additions, no user-facing/config/API surface change."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M2",
+          "title": "Add diff_context out-of-range diagnostic (PRD Issue 2 — Minor)",
+          "status": "Planned",
+          "description": "Address the Minor defect where an out-of-range `diff_context` (e.g. 5, -1) is silently clamped to 1 by buildDiffArgs (internal/git/git.go:689) with no diagnostic. Add config-layer range validation per PRD §9.1 FR3f (\"integer 0–3\") that rejects or warns on out-of-range values while preserving the *int 0-vs-unset semantics (nil⇒unset default 1, *0⇒valid -U0). Low priority per PRD but improves operator feedback.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M2.T1",
+              "title": "Validate diff_context ∈ [0,3] with a clear diagnostic on out-of-range values",
+              "status": "Planned",
+              "description": "Surface out-of-range diff_context values at the config layer (PRD's primary suggestion) with either a load-time error or a one-time warning, preserving all valid values (0,1,2,3) and the unset default. Update configuration docs and the bootstrap template to state the valid range.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M2.T1.S1",
+                  "title": "Config-layer diff_context range validation + docs",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.3", "h2.3/h3.1", "h2.4", "list.3"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: internal/git/git.go buildDiffArgs (line ~689) silently clamps `opts.DiffContext` when `<0 || >3` to 1 — a PURE function (doc says 'Pure function; no I/O.'), so a warning cannot be added there without breaking purity and would spam per-diff-invocation. The config layer: internal/config/config.go DiffContextValue() (line ~201) returns `*c.DiffContext` or default 1 with NO range check; internal/config/file.go materialize (line ~226) and overlay (line ~340) copy the *int through verbatim; internal/config/load.go is the error-return path (it DOES return errors). The *int 0-vs-unset semantics are load-bearing (system_context.md §6; file_test.go TestMaterializeOverlay_DiffContext_TokenLimit): nil⇒unset (default 1/-U1), *0⇒VALID explicit (-U0 changed-lines-only), and ONLY values <0 or >3 are out-of-range. See architecture/system_context.md §3 for the two PRD options and the recommendation.\n2. INPUT: config.Config.DiffContext (*int) after materialize()+overlay() resolve global+repo layers. The existing internal/config/load.go error-return path.\n3. LOGIC: Implement config-layer range validation for diff_context ∈ [0,3] (PRD §9.1 FR3f 'integer 0–3'). PREFERRED (PRD primary): validate at config materialize/overlay/load time and return/propagate a clear error — e.g. add a `Config.Validate() error` invoked from the load path (load.go), OR an inline range check in the load.go path returning the existing error, that rejects `*DiffContext < 0 || *DiffContext > 3` while PRESERVING nil⇒unset and *0⇒valid. FALLBACK (if error-return plumbing is too invasive): emit a ONE-TIME stderr warning at the StagedDiffOptions-construction call sites (NOT inside the pure buildDiffArgs) when DiffContextValue() yields an out-of-range int. Add table test cases (internal/config/file_test.go or config_test.go, mirroring TestMaterializeOverlay_DiffContext_TokenLimit): diff_context=5 and diff_context=-1 produce an error/warning; diff_context=0,1,2,3 and unset pass through exactly as before (regression anchor — *0 MUST remain valid). Ensure buildDiffArgs' defensive clamp can remain as a belt-and-suspenders guard but is now never silently hit for valid config.\n4. OUTPUT: An out-of-range diff_context either fails config load with a clear message OR emits a visible warning; valid values (0,1,2,3) and unset behave byte-identically to before. The 6 StagedDiffOptions call sites are unchanged (they already consume DiffContextValue()).\n5. MOCKING: None — config parsing/validation is deterministic (TOML + overlay arithmetic). Tests use the existing materialize/overlay/load table style, no git, no I/O.\n6. DOCS: [Mode A] Update docs/configuration.md §diff_context (the comment block near line ~107, the defaults table near line ~131, and the prose near line ~147) AND the bootstrap template comment (internal/config/bootstrap.go:291) to state the valid range is 0–3 and that an out-of-range value is rejected (or warned about). This rides WITH the work — do not create a separate docs subtask."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M3",
+          "title": "Sync changeset-level documentation (Mode B catch-all)",
+          "status": "Planned",
+          "description": "Final cross-cutting documentation sweep that only makes sense once the whole changeset is in place. Verifies the overview/feature docs (README.md, docs/how-it-works.md) and configuration docs are consistent with the shipped behavior (newline-separated truncation sentinel + validated diff_context range). Depends on every implementing subtask so it runs last.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M3.T1",
+              "title": "Sync changeset-level documentation",
+              "status": "Planned",
+              "description": "Sweep README.md, docs/how-it-works.md, and docs/configuration.md for any statement about the per-file truncation format, the sentinel line shape, or the diff_context range that is now inaccurate or would benefit from surfacing the newline separation / validated range. Update only where a statement is stale or unclear; do not invent features.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T1.S1",
+                  "title": "Sweep README.md, docs/how-it-works.md, docs/configuration.md for truncation-format & diff_context accuracy",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T2.S1", "P1.M2.T1.S1"],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.2/h3.0", "h2.3", "h2.3/h3.1", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Issue 1's fix changes INTERNAL output line-shape only (a trailing newline after each `... [truncated]` sentinel) — no user-facing config/API surface change. docs/how-it-works.md (around line ~144) mentions the `... [truncated]` marker and the water-fill behavior but does NOT specify line shape. docs/configuration.md documents token_limit and diff_context (Issue 2's Mode-A doc update in P1.M2.T1.S1 may already touch it). README.md has a features/capabilities section. See architecture/system_context.md §6 for the documentation surface map.\n2. INPUT: The completed changes from P1.M1.T1.S1 (sentinel newline fix), P1.M1.T2.S1 (E2E coverage), and P1.M2.T1.S1 (diff_context validation + its Mode-A config docs). The shipped behavior: every truncated file's section ends with `... [truncated]` on its own line followed by a newline, and the next file's `diff --git` begins at a line start; diff_context accepts 0–3 and rejects/warns on out-of-range.\n3. LOGIC: Read README.md, docs/how-it-works.md, and docs/configuration.md. For each, determine whether any statement about (a) the per-file truncation format / sentinel line shape, or (b) the diff_context valid range / out-of-range behavior, is now inaccurate OR would materially improve the user's mental model if surfaced. Update ONLY those statements. If docs/how-it-works.md or README.md describe the water-fill truncation, ensure they do not imply sentinels can run together (optionally note each truncated file's section is newline-separated). Do NOT invent new features, do NOT duplicate what P1.M2.T1.S1 already updated in configuration.md unless it is now inconsistent. Respect docs house style (markdownlint config at .markdownlint.json).\n4. OUTPUT: Changeset-level docs consistent with the shipped behavior; no stale references to the pre-fix sentinel gluing or to silent diff_context clamping.\n5. MOCKING: None — documentation editing only.\n6. DOCS: This IS the documentation task (Mode B catch-all per SOW §5). It depends on all implementing subtasks and runs last."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

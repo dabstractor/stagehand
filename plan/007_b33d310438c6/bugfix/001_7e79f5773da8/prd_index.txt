@@ -1,0 +1,11 @@
+h1.0 Bug Fix Requirements
+ h2.0 Overview
+ h2.1 Critical Issues (Must Fix)
+ h2.2 Major Issues (Should Fix)
+  h3.0 Issue 1: Truncated sections are glued to the next diff --git with no newline separator
+ h2.3 Minor Issues (Nice to Fix)
+  h3.1 Issue 2: diff_context out-of-range values are silently clamped rather than validated at the config layer
+  h3.2 Issue 3: firstNRunes truncation can split a UTF-8 codepoint's logical representation mid-hunk on byte-aligned content
+ h2.4 Testing Summary
+---
+code:2 para:13 list:3
