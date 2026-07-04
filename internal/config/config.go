@@ -76,6 +76,8 @@ type Config struct {
 	// [generation] (PRD §16.2)
 	MaxDiffBytes        int `toml:"max_diff_bytes"`        // byte cap on non-markdown diff section
 	MaxMdLines          int `toml:"max_md_lines"`          // per-file line cap for markdown diffs
+	TokenLimit          int `toml:"token_limit"`           // FR3d holistic token cap (0 = unset ⇒ legacy caps); consumed by S2/S4
+	DiffContext         int `toml:"diff_context"`          // FR3f reduced diff context (0–3; default 1); consumed by S2/S4
 	MaxDuplicateRetries int `toml:"max_duplicate_retries"` // re-gen attempts on duplicate subject
 	SubjectTargetChars  int `toml:"subject_target_chars"`  // target subject length for truncation
 	// Format selects the commit-message style (PRD §9.19 FR-F1): "auto" (style learning, default),
@@ -167,6 +169,8 @@ func Defaults() Config {
 		Single:              false,
 		MaxDiffBytes:        300000,
 		MaxMdLines:          100,
+		TokenLimit:          0, // FR3d: 0 = unset ⇒ legacy per-section caps (max_diff_bytes/max_md_lines) apply unchanged
+		DiffContext:         1, // FR3f: reduced context (-U1) default; 0 = changed-lines-only, 3 = git default
 		MaxDuplicateRetries: 3,
 		SubjectTargetChars:  50,
 		Output:              nil,

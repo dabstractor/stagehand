@@ -49,6 +49,8 @@ type fileDefaults struct {
 type fileGeneration struct {
 	MaxDiffBytes        int      `toml:"max_diff_bytes"`
 	MaxMdLines          int      `toml:"max_md_lines"`
+	TokenLimit          int      `toml:"token_limit"`  // FR3d — plumbed in S2 (materialize/overlay)
+	DiffContext         int      `toml:"diff_context"` // FR3f — becomes *int in S2 (0-vs-unset); plain int here
 	MaxDuplicateRetries int      `toml:"max_duplicate_retries"`
 	SubjectTargetChars  int      `toml:"subject_target_chars"`
 	Output              string   `toml:"output"`

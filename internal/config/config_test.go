@@ -37,6 +37,12 @@ func TestDefaults(t *testing.T) {
 	if c.MaxMdLines != 100 {
 		t.Errorf("MaxMdLines = %d, want 100", c.MaxMdLines)
 	}
+	if c.TokenLimit != 0 {
+		t.Errorf("TokenLimit = %d, want 0 (unset ⇒ legacy caps)", c.TokenLimit)
+	}
+	if c.DiffContext != 1 {
+		t.Errorf("DiffContext = %d, want 1 (-U1 default)", c.DiffContext)
+	}
 	if c.MaxDuplicateRetries != 3 {
 		t.Errorf("MaxDuplicateRetries = %d, want 3", c.MaxDuplicateRetries)
 	}

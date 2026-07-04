@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Diff payload optimization (FR3d–FR3i)",
-      "status": "Ready",
+      "status": "Planned",
       "description": "Implement the six diff-payload optimizations added to PRD §9.1 by commit ccb15c0: a holistic token-budget overlay (FR3d), deterministic -M rename detection (FR3e), reduced -U<diff_context> (FR3f), a compact --numstat change skeleton (FR3g), index-line stripping (FR3h), and dynamic water-fill truncation (FR3i). SCOPE IS EXACTLY THIS. Every other PRD feature (v1 core, v2.0 decompose, v2.1 hook/integrate/exclude/format/edit/push/models, providers, config bootstrap) is ALREADY IMPLEMENTED — verified by grep (TokenLimit/DiffContext/token_limit/diff_context appear nowhere in non-test *.go) and must NOT be re-planned. All six transforms are PAYLOAD-ONLY (they shape what the agent sees; the snapshot/commit are untouched). They apply identically in every diff path (FR3c parity): StagedDiff, TreeDiff, and WorkingTreeDiff. See plan/007_b33d310438c6/architecture/system_context.md for the gap analysis, diff_capture_touchmap.md for exact code seams, and git_diff_semantics.md for verified git facts.",
       "milestones": [
         {
@@ -25,21 +25,37 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S1",
                   "title": "Config struct fields + Defaults() + fileGeneration struct",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.73", "h3.74", "h2.16", "h3.24"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: plan/007_b33d310438c6/architecture/diff_capture_touchmap.md §3 — config fields are FLAT on config.Config (NOT a nested struct); the [generation] block lives at internal/config/config.go:77-93. Defaults() is at config.go:155-190. fileGeneration struct is at internal/config/file.go:49-62. The existing pair to mirror is MaxDiffBytes/MaxMdLines.\n2. INPUT: PRD FR3d (token_limit, default 0 = unset) and FR3f (diff_context, default 1, range 0-3). internal/config/config.go lines 77-93 (Config fields) and 155-190 (Defaults).\n3. LOGIC: (a) Add two fields to config.Config next to MaxDiffBytes (config.go:77): `TokenLimit int toml:\"token_limit\"` and `DiffContext int toml:\"diff_context\"`. (b) Add the SAME two fields to the fileGeneration struct in internal/config/file.go:49-62. (c) In Defaults() (config.go:155-190) add `TokenLimit: 0,` (unset ⇒ legacy caps per FR3d) and `DiffContext: 1,` (FR3f reduced-context default). Comment each field citing FR3d/FR3f. NOTE: the DiffContext 0-vs-unset disambiguation is handled in S2 (the file struct uses *int); Config.DiffContext holds the resolved concrete int with default 1 — this subtask keeps it a plain int on Config.\n4. OUTPUT: config.Config and fileGeneration carry the two new fields with correct TOML tags; Defaults() seeds them. No behavior change yet (nothing reads them). Consumed by S2 (overlay/materialize) and S3.\n5. DOCS: none yet — the bootstrap template + docs/CONFIGURATION.md are updated in S4 (Mode A rides with that subtask). This subtask adds only internal struct fields."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: plan/007_b33d310438c6/architecture/diff_capture_touchmap.md §3 — config fields are FLAT on config.Config (NOT a nested struct); the [generation] block lives at internal/config/config.go:77-93. Defaults() is at config.go:155-190. fileGeneration struct is at internal/config/file.go:49-62. The existing pair to mirror is MaxDiffBytes/MaxMdLines.\n2. INPUT: PRD FR3d (token_limit, default 0 = unset) and FR3f (diff_context, default 1, range 0-3). internal/config/config.go lines 77-93 (Config fields) and 155-190 (Defaults).\n3. LOGIC: (a) Add two fields to config.Config next to MaxDiffBytes (config.go:77): `TokenLimit int toml:\"token_limit\"` and `DiffContext int toml:\"diff_context\"`. (b) Add the SAME two fields to the fileGeneration struct in internal/config/file.go:49-62. (c) In Defaults() (config.go:155-190) add `TokenLimit: 0,` (unset ⇒ legacy caps per FR3d) and `DiffContext: 1,` (FR3f reduced-context default). Comment each field citing FR3d/FR3f. NOTE: the DiffContext 0-vs-unset disambiguation is handled in S2 (the file struct uses *int); Config.DiffContext holds the resolved concrete int with default 1 — this subtask keeps it a plain int on Config.\n4. OUTPUT: config.Config and fileGeneration carry the two new fields with correct TOML tags; Defaults() seeds them. No behavior change yet (nothing reads them). Consumed by S2 (overlay/materialize) and S3.\n5. DOCS: none yet — the bootstrap template + docs/CONFIGURATION.md are updated in S4 (Mode A rides with that subtask). This subtask adds only internal struct fields.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.73",
+                    "h3.74",
+                    "h2.16",
+                    "h3.24"
+                  ]
                 },
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": "materialize + overlay field-merge (with DiffContext *int pointer)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.73", "h3.74", "h2.16", "h3.24"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §3 + system_context.md §3 — the standard overlay guard is `if src.X != 0 { dst.X = src.X }`, but DiffContext's default is 1 and 0 is a VALID value (-U0 = changed lines only). A plain int with `!= 0` would silently override an explicit 0 with default 1. Direct precedent for pointer fields: Output *string and StripCodeFence *bool at config.go:88-89.\n2. INPUT: fileGeneration from S1 (internal/config/file.go), materialize at file.go:~205-215, overlay at file.go:~308-318.\n3. LOGIC: (a) Change fileGeneration.DiffContext to `DiffContext *int toml:\"diff_context\"` (pointer — nil ⇒ unset). Keep fileGeneration.TokenLimit as plain `int` (0 is genuinely its unset sentinel per FR3d, so `!= 0` is correct for TokenLimit). (b) In materialize (file.go:~210, next to the MaxDiffBytes/MaxMdLines guards): add `if g.TokenLimit != 0 { c.TokenLimit = g.TokenLimit }` and for DiffContext `if g.DiffContext != nil { c.DiffContext = *g.DiffContext }` (nil pointer ⇒ keep the Defaults()-supplied 1). (c) In overlay (file.go:~312): mirror exactly — `if src.TokenLimit != 0 { dst.TokenLimit = src.TokenLimit }` and `if src.DiffContext != 0 { dst.DiffContext = src.DiffContext }` (overlay operates on resolved config.Config ints, so plain `!= 0` is fine HERE because Config.DiffContext already defaulted to 1 in Defaults() and an explicit 0 set during materialize propagates as a real 0; verify a user setting diff_context=0 in a file yields Config.DiffContext==0 end-to-end via the *int path). Write a table-driven test: unset⇒1, explicit 1⇒1, explicit 0⇒0, explicit 3⇒3, across global-only, repo-only, and global+repo overlay.\n4. OUTPUT: materialize() and overlay() propagate TokenLimit/DiffContext with correct unset-vs-0 semantics. Consumed by S3 (git-config) and downstream call sites.\n5. DOCS: none — internal resolver behavior, no user-facing/config surface change beyond the fields S1 added."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §3 + system_context.md §3 — the standard overlay guard is `if src.X != 0 { dst.X = src.X }`, but DiffContext's default is 1 and 0 is a VALID value (-U0 = changed lines only). A plain int with `!= 0` would silently override an explicit 0 with default 1. Direct precedent for pointer fields: Output *string and StripCodeFence *bool at config.go:88-89.\n2. INPUT: fileGeneration from S1 (internal/config/file.go), materialize at file.go:~205-215, overlay at file.go:~308-318.\n3. LOGIC: (a) Change fileGeneration.DiffContext to `DiffContext *int toml:\"diff_context\"` (pointer — nil ⇒ unset). Keep fileGeneration.TokenLimit as plain `int` (0 is genuinely its unset sentinel per FR3d, so `!= 0` is correct for TokenLimit). (b) In materialize (file.go:~210, next to the MaxDiffBytes/MaxMdLines guards): add `if g.TokenLimit != 0 { c.TokenLimit = g.TokenLimit }` and for DiffContext `if g.DiffContext != nil { c.DiffContext = *g.DiffContext }` (nil pointer ⇒ keep the Defaults()-supplied 1). (c) In overlay (file.go:~312): mirror exactly — `if src.TokenLimit != 0 { dst.TokenLimit = src.TokenLimit }` and `if src.DiffContext != 0 { dst.DiffContext = src.DiffContext }` (overlay operates on resolved config.Config ints, so plain `!= 0` is fine HERE because Config.DiffContext already defaulted to 1 in Defaults() and an explicit 0 set during materialize propagates as a real 0; verify a user setting diff_context=0 in a file yields Config.DiffContext==0 end-to-end via the *int path). Write a table-driven test: unset⇒1, explicit 1⇒1, explicit 0⇒0, explicit 3⇒3, across global-only, repo-only, and global+repo overlay.\n4. OUTPUT: materialize() and overlay() propagate TokenLimit/DiffContext with correct unset-vs-0 semantics. Consumed by S3 (git-config) and downstream call sites.\n5. DOCS: none — internal resolver behavior, no user-facing/config surface change beyond the fields S1 added.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.73",
+                    "h3.74",
+                    "h2.16",
+                    "h3.24"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -47,9 +63,16 @@
                   "title": "git-config resolver keys (stagehand.tokenLimit / stagehand.diffContext)",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.24", "h3.73"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §3(c) — the git-config resolver is resolveGitConfig in internal/config/git.go:181-205. The existing pattern (copy verbatim) for MaxDiffBytes is at git.go:184 using the 4-line `gitConfigGet` + `parseInt` idiom (helpers at git.go:48 and git.go:87). Keys use camelCase per the existing stagehand.maxDiffBytes / stagehand.maxMdLines / stagehand.stripCodeFence convention.\n2. INPUT: config.Config from S1 (with TokenLimit/DiffContext fields). resolveGitConfig at internal/config/git.go.\n3. LOGIC: Add two blocks mirroring the MaxDiffBytes block exactly: (a) `stagehand.tokenLimit` → parseInt into c.TokenLimit; (b) `stagehand.diffContext` → parseInt into c.DiffContext. NOTE on the 0-vs-unset for diffContext in the GIT-CONFIG layer: git config has no native nil-int; `git config stagehand.diffContext 0` returns the string \"0\" which parseInt writes as int 0. Because git config is a HIGHER precedence layer than the file (per FR34), an explicit 0 here correctly overrides the file's 1. Do NOT add a `!= 0` guard that would drop an explicit git-config 0 — use the `found` boolean from gitConfigGet to gate (only write when the key is found), NOT the parsed value. This preserves a user's explicit `git config stagehand.diffContext 0`.\n4. OUTPUT: `git config stagehand.tokenLimit N` and `git config stagehand.diffContext N` resolve into Config. Test with a temp repo + `git config`: unset, =0, =1, =3.\n5. DOCS: none — internal resolver; the user-facing key reference is updated in S4."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §3(c) — the git-config resolver is resolveGitConfig in internal/config/git.go:181-205. The existing pattern (copy verbatim) for MaxDiffBytes is at git.go:184 using the 4-line `gitConfigGet` + `parseInt` idiom (helpers at git.go:48 and git.go:87). Keys use camelCase per the existing stagehand.maxDiffBytes / stagehand.maxMdLines / stagehand.stripCodeFence convention.\n2. INPUT: config.Config from S1 (with TokenLimit/DiffContext fields). resolveGitConfig at internal/config/git.go.\n3. LOGIC: Add two blocks mirroring the MaxDiffBytes block exactly: (a) `stagehand.tokenLimit` → parseInt into c.TokenLimit; (b) `stagehand.diffContext` → parseInt into c.DiffContext. NOTE on the 0-vs-unset for diffContext in the GIT-CONFIG layer: git config has no native nil-int; `git config stagehand.diffContext 0` returns the string \"0\" which parseInt writes as int 0. Because git config is a HIGHER precedence layer than the file (per FR34), an explicit 0 here correctly overrides the file's 1. Do NOT add a `!= 0` guard that would drop an explicit git-config 0 — use the `found` boolean from gitConfigGet to gate (only write when the key is found), NOT the parsed value. This preserves a user's explicit `git config stagehand.diffContext 0`.\n4. OUTPUT: `git config stagehand.tokenLimit N` and `git config stagehand.diffContext N` resolve into Config. Test with a temp repo + `git config`: unset, =0, =1, =3.\n5. DOCS: none — internal resolver; the user-facing key reference is updated in S4.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.24",
+                    "h3.73"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -57,9 +80,18 @@
                   "title": "Bootstrap config template + docs/CONFIGURATION.md",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S2", "P1.M1.T1.S3"],
-                  "prd_selectors": ["h3.17", "h3.33", "h3.73", "h3.74", "h2.16"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §3 — the commented config template is `generationCommented` in internal/config/bootstrap.go:282-298. docs/CONFIGURATION.md documents every [generation] key. The existing max_diff_bytes/max_md_lines lines are the template to extend.\n2. INPUT: TokenLimit/DiffContext fields (S1) + their resolved semantics (S2/S3).\n3. LOGIC: (a) In bootstrap.go generationCommented, add commented lines: `# token_limit = 0` with a comment explaining it is the holistic token budget (0 = unset ⇒ use the legacy max_diff_bytes/max_md_lines caps; FR3d), and `# diff_context = 1` (0=changed lines only, 1=one anchor line default, 3=git default; FR3f). Annotate the existing max_diff_bytes / max_md_lines lines with `# ignored when token_limit is set (FR3d)`. (b) In docs/CONFIGURATION.md, add token_limit and diff_context entries to the [generation] reference table with the same explanations + cross-refs to FR3d/FR3f, and update any worked example that shows the [generation] block.\n4. OUTPUT: `stagehand config init --template` emits the two new commented keys; docs/CONFIGURATION.md documents them. Verify by running the bootstrap and grepping the output.\n5. DOCS: [Mode A] THIS subtask IS the docs update for these two keys — update docs/CONFIGURATION.md and the bootstrap template here, as part of the work. No separate docs subtask for these keys."
+                  "dependencies": [
+                    "P1.M1.T1.S2",
+                    "P1.M1.T1.S3"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §3 — the commented config template is `generationCommented` in internal/config/bootstrap.go:282-298. docs/CONFIGURATION.md documents every [generation] key. The existing max_diff_bytes/max_md_lines lines are the template to extend.\n2. INPUT: TokenLimit/DiffContext fields (S1) + their resolved semantics (S2/S3).\n3. LOGIC: (a) In bootstrap.go generationCommented, add commented lines: `# token_limit = 0` with a comment explaining it is the holistic token budget (0 = unset ⇒ use the legacy max_diff_bytes/max_md_lines caps; FR3d), and `# diff_context = 1` (0=changed lines only, 1=one anchor line default, 3=git default; FR3f). Annotate the existing max_diff_bytes / max_md_lines lines with `# ignored when token_limit is set (FR3d)`. (b) In docs/CONFIGURATION.md, add token_limit and diff_context entries to the [generation] reference table with the same explanations + cross-refs to FR3d/FR3f, and update any worked example that shows the [generation] block.\n4. OUTPUT: `stagehand config init --template` emits the two new commented keys; docs/CONFIGURATION.md documents them. Verify by running the bootstrap and grepping the output.\n5. DOCS: [Mode A] THIS subtask IS the docs update for these two keys — update docs/CONFIGURATION.md and the bootstrap template here, as part of the work. No separate docs subtask for these keys.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h3.33",
+                    "h3.73",
+                    "h3.74",
+                    "h2.16"
+                  ]
                 }
               ]
             },
@@ -76,9 +108,16 @@
                   "title": "StagedDiffOptions fields (TokenLimit, DiffContext, PromptReserveTokens)",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h3.17", "h2.9", "h2.13", "h3.66"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §2 — StagedDiffOptions is at internal/git/git.go:36-44, consumed by StagedDiff/TreeDiff/WorkingTreeDiff. system_context.md §5 defines the PromptReserveTokens seam: the git layer owns the diff body + numstat sizing; the prompt portion is measured upstream and passed in.\n2. INPUT: config fields from P1.M1.T1.S1.\n3. LOGIC: Add three fields to StagedDiffOptions (internal/git/git.go:36-44): `TokenLimit int` (holistic token budget; 0 = unset ⇒ legacy per-section caps, FR3d), `DiffContext int` (unified-context line count, 0-3; FR3f), and `PromptReserveTokens int` (the token cost of the stable prompt portion — system prompt header + examples + instruction + worst-case rejection block + margin — measured upstream so the git layer can compute body_budget = token_limit − skeleton − promptReserve; FR3i). Document each with its FR citation. Add a guard-note: DiffContext==0 is VALID (-U0); callers must pass the resolved value (default 1) explicitly.\n4. OUTPUT: StagedDiffOptions carries the three fields. Consumed by M2 (DiffContext read by the flag helper) and M4 (TokenLimit/PromptReserveTokens read by the gate + water-fill). No behavior change yet.\n5. DOCS: none — internal struct field, no user-facing/config/API surface change."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §2 — StagedDiffOptions is at internal/git/git.go:36-44, consumed by StagedDiff/TreeDiff/WorkingTreeDiff. system_context.md §5 defines the PromptReserveTokens seam: the git layer owns the diff body + numstat sizing; the prompt portion is measured upstream and passed in.\n2. INPUT: config fields from P1.M1.T1.S1.\n3. LOGIC: Add three fields to StagedDiffOptions (internal/git/git.go:36-44): `TokenLimit int` (holistic token budget; 0 = unset ⇒ legacy per-section caps, FR3d), `DiffContext int` (unified-context line count, 0-3; FR3f), and `PromptReserveTokens int` (the token cost of the stable prompt portion — system prompt header + examples + instruction + worst-case rejection block + margin — measured upstream so the git layer can compute body_budget = token_limit − skeleton − promptReserve; FR3i). Document each with its FR citation. Add a guard-note: DiffContext==0 is VALID (-U0); callers must pass the resolved value (default 1) explicitly.\n4. OUTPUT: StagedDiffOptions carries the three fields. Consumed by M2 (DiffContext read by the flag helper) and M4 (TokenLimit/PromptReserveTokens read by the gate + water-fill). No behavior change yet.\n5. DOCS: none — internal struct field, no user-facing/config/API surface change.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h2.13",
+                    "h3.66"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -86,9 +125,16 @@
                   "title": "Map cfg fields at the 6 production call-site struct literals",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T2.S1", "P1.M1.T1.S2"],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.66"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §2 table — there is NO central bridge function; the cfg→StagedDiffOptions mapping is duplicated inline at 6 sites: internal/generate/generate.go:163 (StagedDiff), internal/hook/exec.go:104 (StagedDiff), pkg/stagehand/stagehand.go:423 (StagedDiff), internal/decompose/planner.go:69 (TreeDiff), internal/decompose/message.go:71 (TreeDiff), internal/decompose/decompose.go:608 (TreeDiff). Each currently maps MaxDiffBytes/MaxMdLines/BinaryExtensions/Excludes.\n2. INPUT: StagedDiffOptions from S1; config.Config (with resolved TokenLimit/DiffContext) from P1.M1.T1.S2.\n3. LOGIC: At each of the 6 struct literals add `TokenLimit: cfg.TokenLimit,` and `DiffContext: cfg.DiffContext,`. Do NOT set PromptReserveTokens here (it is wired in M4.T1.S2 where the estimator exists) — leave it zero for now; M4.T1.S2 sets it. Keep the existing MaxDiffBytes/MaxMdLines/BinaryExtensions/Excludes mappings intact (they remain the token_limit==0 path). Run the full internal/{generate,hook,decompose} + pkg test suites — all must pass unchanged (no behavior change).\n4. OUTPUT: all 6 call sites propagate TokenLimit + DiffContext into the diff functions. PromptReserveTokens threaded in M4.T1.S2. Consumed by M2.T2 (DiffContext) and M4 (TokenLimit/PromptReserveTokens).\n5. DOCS: none — internal plumbing."
+                  "dependencies": [
+                    "P1.M1.T2.S1",
+                    "P1.M1.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §2 table — there is NO central bridge function; the cfg→StagedDiffOptions mapping is duplicated inline at 6 sites: internal/generate/generate.go:163 (StagedDiff), internal/hook/exec.go:104 (StagedDiff), pkg/stagehand/stagehand.go:423 (StagedDiff), internal/decompose/planner.go:69 (TreeDiff), internal/decompose/message.go:71 (TreeDiff), internal/decompose/decompose.go:608 (TreeDiff). Each currently maps MaxDiffBytes/MaxMdLines/BinaryExtensions/Excludes.\n2. INPUT: StagedDiffOptions from S1; config.Config (with resolved TokenLimit/DiffContext) from P1.M1.T1.S2.\n3. LOGIC: At each of the 6 struct literals add `TokenLimit: cfg.TokenLimit,` and `DiffContext: cfg.DiffContext,`. Do NOT set PromptReserveTokens here (it is wired in M4.T1.S2 where the estimator exists) — leave it zero for now; M4.T1.S2 sets it. Keep the existing MaxDiffBytes/MaxMdLines/BinaryExtensions/Excludes mappings intact (they remain the token_limit==0 path). Run the full internal/{generate,hook,decompose} + pkg test suites — all must pass unchanged (no behavior change).\n4. OUTPUT: all 6 call sites propagate TokenLimit + DiffContext into the diff functions. PromptReserveTokens threaded in M4.T1.S2. Consumed by M2.T2 (DiffContext) and M4 (TokenLimit/PromptReserveTokens).\n5. DOCS: none — internal plumbing.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.66"
+                  ]
                 }
               ]
             }
@@ -114,9 +160,16 @@
                   "title": "buildDiffArgs helper + refactor 3 diff functions",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M1.T2.S1"],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.61", "h3.66"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §1 — StagedDiff (git.go:642-764), TreeDiff (git.go:1094-1207), WorkingTreeDiff (git.go:1228-1341) DUPLICATE their argv logic inline. The three per-function sites are: (a) the markdown name-list run (`diff <domain> --name-only -- *.md *.markdown`), (b) the markdown per-file run (`diff <domain> -- <file>`), (c) the non-markdown aggregate `nmArgs` (`diff <domain> -- <excludes> :!*.md :!*.markdown <binExcludes>`). The `<domain>` differs: StagedDiff=`--cached`, TreeDiff=`<treeA> <treeB>`, WorkingTreeDiff=(nothing). The proven variadic-diffArgs pattern to mirror is detectBinaryFiles(ctx, diffArgs...)/fileStatuses(ctx, diffArgs...) in internal/git/binary.go:98/130.\n2. INPUT: StagedDiffOptions (with DiffContext field from P1.M1.T2.S1). The three diff functions.\n3. LOGIC: Add a helper (internal/git/git.go, near the diff functions) `func diffArgs(domain ...string) []string` that returns the leading argv slice `append([]string{\"diff\"}, domain...)`. This subtask ONLY standardizes the leading token construction — it does NOT yet inject -M/-U (that is T2) nor alter excludes. Refactor the 3 functions so each markdown-list / per-file / nmArgs call builds its base via this helper, then appends its specific trailing tokens (--name-only/-- <paths>/excludes) as today. Verify byte-identical output: the existing stagediff/treediff/workingtreediff golden tests MUST pass unchanged (this is a pure refactor). Keep the variadic shape so T2 can insert -M/-U in ONE place.\n4. OUTPUT: a single diffArgs(domain...) helper; the 3 functions route through it; output byte-identical. Enables T2/T3 and M3/M4 to be single-site edits.\n5. DOCS: none — internal refactor."
+                  "dependencies": [
+                    "P1.M1.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: diff_capture_touchmap.md §1 — StagedDiff (git.go:642-764), TreeDiff (git.go:1094-1207), WorkingTreeDiff (git.go:1228-1341) DUPLICATE their argv logic inline. The three per-function sites are: (a) the markdown name-list run (`diff <domain> --name-only -- *.md *.markdown`), (b) the markdown per-file run (`diff <domain> -- <file>`), (c) the non-markdown aggregate `nmArgs` (`diff <domain> -- <excludes> :!*.md :!*.markdown <binExcludes>`). The `<domain>` differs: StagedDiff=`--cached`, TreeDiff=`<treeA> <treeB>`, WorkingTreeDiff=(nothing). The proven variadic-diffArgs pattern to mirror is detectBinaryFiles(ctx, diffArgs...)/fileStatuses(ctx, diffArgs...) in internal/git/binary.go:98/130.\n2. INPUT: StagedDiffOptions (with DiffContext field from P1.M1.T2.S1). The three diff functions.\n3. LOGIC: Add a helper (internal/git/git.go, near the diff functions) `func diffArgs(domain ...string) []string` that returns the leading argv slice `append([]string{\"diff\"}, domain...)`. This subtask ONLY standardizes the leading token construction — it does NOT yet inject -M/-U (that is T2) nor alter excludes. Refactor the 3 functions so each markdown-list / per-file / nmArgs call builds its base via this helper, then appends its specific trailing tokens (--name-only/-- <paths>/excludes) as today. Verify byte-identical output: the existing stagediff/treediff/workingtreediff golden tests MUST pass unchanged (this is a pure refactor). Keep the variadic shape so T2 can insert -M/-U in ONE place.\n4. OUTPUT: a single diffArgs(domain...) helper; the 3 functions route through it; output byte-identical. Enables T2/T3 and M3/M4 to be single-site edits.\n5. DOCS: none — internal refactor.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.61",
+                    "h3.66"
+                  ]
                 }
               ]
             },
@@ -133,9 +186,16 @@
                   "title": "Inject -M + -U<diff_context> via the helper; update golden fixtures",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M2.T1.S1"],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.61", "h3.66"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: git_diff_semantics.md §1/§2 (verified against git 2.54.0). `-M` emits a pure rename as just `similarity index 100%`/`rename from`/`rename to` (NO index line, NO patch body) and WINS over `diff.renames=false` — pass `-M` always, NEVER `-C` (O(files²), no value per FR3e). `-U1`/`-U0` are valid; default is `-U3`; `-U1` composes with --cached and tree-to-tree. system_context.md §6 invariant 1: FR3e/FR3f are ALWAYS ON (not gated on token_limit).\n2. INPUT: buildDiffArgs helper from P1.M2.T1.S1; opts.DiffContext (default 1).\n3. LOGIC: In the shared helper (single site), after the domain tokens and BEFORE --name-only/--/paths, append `\"-M\"` then `fmt.Sprintf(\"-U%d\", ctx)` where ctx = effective context. Effective context: if opts.DiffContext is in [0,3] use it; if it is some invalid value, clamp to the default 1 (defensive — config validation may not have caught it). Verify these land in ALL argv paths: markdown name-list, markdown per-file, AND non-markdown aggregate (the helper must apply to all three since they all route through it). Then UPDATE the existing golden fixtures that assert on diff body shape: internal/git/stagediff_test.go, treediff_test.go, workingtreediff_test.go — context lines shrink from -U3 to -U1, so expected output strings change. KEEP the `diff --git a/<file>` boundary-marker assertions (those lines are retained) and the byte/line truncation-sentinel assertions (those are unchanged at token_limit==0). Add NEW positive tests: a renamed file appears as `rename from`/`rename to` (not delete+add); -U0 (diff_context=0) yields changed-lines-only.\n4. OUTPUT: every captured diff uses -M -U<diff_context>; renames are compact; context is reduced. Golden fixtures updated to match. Consumed as the baseline by M3/M4.\n5. DOCS: none — internal transform. The user-facing diff_context knob was documented in P1.M1.T1.S4."
+                  "dependencies": [
+                    "P1.M2.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: git_diff_semantics.md §1/§2 (verified against git 2.54.0). `-M` emits a pure rename as just `similarity index 100%`/`rename from`/`rename to` (NO index line, NO patch body) and WINS over `diff.renames=false` — pass `-M` always, NEVER `-C` (O(files²), no value per FR3e). `-U1`/`-U0` are valid; default is `-U3`; `-U1` composes with --cached and tree-to-tree. system_context.md §6 invariant 1: FR3e/FR3f are ALWAYS ON (not gated on token_limit).\n2. INPUT: buildDiffArgs helper from P1.M2.T1.S1; opts.DiffContext (default 1).\n3. LOGIC: In the shared helper (single site), after the domain tokens and BEFORE --name-only/--/paths, append `\"-M\"` then `fmt.Sprintf(\"-U%d\", ctx)` where ctx = effective context. Effective context: if opts.DiffContext is in [0,3] use it; if it is some invalid value, clamp to the default 1 (defensive — config validation may not have caught it). Verify these land in ALL argv paths: markdown name-list, markdown per-file, AND non-markdown aggregate (the helper must apply to all three since they all route through it). Then UPDATE the existing golden fixtures that assert on diff body shape: internal/git/stagediff_test.go, treediff_test.go, workingtreediff_test.go — context lines shrink from -U3 to -U1, so expected output strings change. KEEP the `diff --git a/<file>` boundary-marker assertions (those lines are retained) and the byte/line truncation-sentinel assertions (those are unchanged at token_limit==0). Add NEW positive tests: a renamed file appears as `rename from`/`rename to` (not delete+add); -U0 (diff_context=0) yields changed-lines-only.\n4. OUTPUT: every captured diff uses -M -U<diff_context>; renames are compact; context is reduced. Golden fixtures updated to match. Consumed as the baseline by M3/M4.\n5. DOCS: none — internal transform. The user-facing diff_context knob was documented in P1.M1.T1.S4.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.61",
+                    "h3.66"
+                  ]
                 }
               ]
             },
@@ -152,9 +212,16 @@
                   "title": "Post-capture '^index ' line filter across 3 diff functions",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M2.T1.S1"],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.61", "h3.66"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: git_diff_semantics.md §4 (verified: index line shape is `index 600d48a..62b056e 100644`). No git flag suppresses it — post-capture stripping is the only way. Lines to KEEP: `diff --git`, `---`, `+++`, `@@`, content, `similarity index N%`, `rename from`/`rename to`. Apply to BOTH captured bodies: the markdown per-file diff AND the non-markdown aggregate diff, in all 3 functions (FR3c parity).\n2. INPUT: the captured diff strings (markdown per-file at git.go:~669; non-markdown aggregate nmDiff at git.go:~756 and the Tree/WorkingTree analogues).\n3. LOGIC: Add a helper `func stripIndexLines(s string) string` (internal/git/git.go) that splits on \"\\n\", drops any line matching `^index [0-9a-f]+\\.\\.[0-9a-f]+ ` (a regex anchored at start; the OID run is ≥7 hex, then `..`, then ≥7 hex, then a space + mode), and rejoins. Apply it to each captured diff body IMMEDIATELY after capture and BEFORE the existing byte/line cap (so the cap measures the stripped size — the whole point of FR3h is saving the ~30 bytes/file). Do NOT strip inside placeholder lines ([binary]/[excluded]) — those never contain an index line. Keep it surgical: only `^index ` lines; never alter real content. Add tests: a diff with an index line has it removed; a content line that happens to start with 'index' (e.g. a code comment `// index of items`) is NOT removed (the regex requires the `..` OID form). Update golden fixtures that currently expect an `index ` line.\n4. OUTPUT: index lines gone from every payload; ~30 bytes/file saved; kept lines intact. Regression: fixtures updated.\n5. DOCS: none — internal transform."
+                  "dependencies": [
+                    "P1.M2.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: git_diff_semantics.md §4 (verified: index line shape is `index 600d48a..62b056e 100644`). No git flag suppresses it — post-capture stripping is the only way. Lines to KEEP: `diff --git`, `---`, `+++`, `@@`, content, `similarity index N%`, `rename from`/`rename to`. Apply to BOTH captured bodies: the markdown per-file diff AND the non-markdown aggregate diff, in all 3 functions (FR3c parity).\n2. INPUT: the captured diff strings (markdown per-file at git.go:~669; non-markdown aggregate nmDiff at git.go:~756 and the Tree/WorkingTree analogues).\n3. LOGIC: Add a helper `func stripIndexLines(s string) string` (internal/git/git.go) that splits on \"\\n\", drops any line matching `^index [0-9a-f]+\\.\\.[0-9a-f]+ ` (a regex anchored at start; the OID run is ≥7 hex, then `..`, then ≥7 hex, then a space + mode), and rejoins. Apply it to each captured diff body IMMEDIATELY after capture and BEFORE the existing byte/line cap (so the cap measures the stripped size — the whole point of FR3h is saving the ~30 bytes/file). Do NOT strip inside placeholder lines ([binary]/[excluded]) — those never contain an index line. Keep it surgical: only `^index ` lines; never alter real content. Add tests: a diff with an index line has it removed; a content line that happens to start with 'index' (e.g. a code comment `// index of items`) is NOT removed (the regex requires the `..` OID form). Update golden fixtures that currently expect an `index ` line.\n4. OUTPUT: index lines gone from every payload; ~30 bytes/file saved; kept lines intact. Regression: fixtures updated.\n5. DOCS: none — internal transform.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.61",
+                    "h3.66"
+                  ]
                 }
               ]
             }
@@ -180,9 +247,16 @@
                   "title": "numstat capture + parse (rename notation, binary, path keying)",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M2.T1.S1"],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.61", "h3.66"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: git_diff_semantics.md §3 (verified against git 2.54.0). `git diff <domain> --numstat` emits one tab-separated line per file: `added\\tdeleted\\tpath`. Binary = `-\\t-\\tpath`. WITH -M the path column shows `old => new` rename notation (and git 2.54 shows it even without -M since renames default on). To build a clean size map keyed on the patch's destination `b/` path, parse the path field and: if it contains ` => ` take the RIGHT side (destination) as the key, stripping any `{...}` brace-collapsed prefix/suffix down to the final path; else use the field verbatim. The existing detectBinaryFiles in internal/git/binary.go:98 already runs `--numstat` but only keeps binary (`-\\t-`) rows — FR3g needs the FULL set, so add a separate capture (or extend detectBinaryFiles to return all parsed rows and have binary detection filter them — prefer a dedicated parseNumstat to avoid coupling).\n2. INPUT: the domain args (per function) + opts (for excludes). The existing detectBinaryFiles/fileStatuses variadic-diffArgs pattern.\n3. LOGIC: Add `func (g *gitRunner) numstatRows(ctx context.Context, diffArgs ...string) ([]numstatRow, error)` returning `{added, deleted int; isBinary bool; path string}` keyed on the destination path. Run `git diff <diffArgs> --numstat` (compose with excludes the same way the aggregate diff does). Parse each line: split on tab; if added==\"-\" set isBinary; resolve `=>` to destination path. Return the rows SORTED by path for deterministic output. Reuse this for BOTH the FR3g skeleton (S2) and the FR3i sizing (M4.T2). Add table tests: normal edits, binary, rename (`old => new`), rename-with-brace-collapse, path with spaces (tab-safe), empty diff (no rows).\n4. OUTPUT: numstatRows(...) returns deterministic parsed rows keyed on destination path. Consumed by S2 (skeleton emit) and M4.T2.S2 (water-fill sizing).\n5. DOCS: none — internal."
+                  "dependencies": [
+                    "P1.M2.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: git_diff_semantics.md §3 (verified against git 2.54.0). `git diff <domain> --numstat` emits one tab-separated line per file: `added\\tdeleted\\tpath`. Binary = `-\\t-\\tpath`. WITH -M the path column shows `old => new` rename notation (and git 2.54 shows it even without -M since renames default on). To build a clean size map keyed on the patch's destination `b/` path, parse the path field and: if it contains ` => ` take the RIGHT side (destination) as the key, stripping any `{...}` brace-collapsed prefix/suffix down to the final path; else use the field verbatim. The existing detectBinaryFiles in internal/git/binary.go:98 already runs `--numstat` but only keeps binary (`-\\t-`) rows — FR3g needs the FULL set, so add a separate capture (or extend detectBinaryFiles to return all parsed rows and have binary detection filter them — prefer a dedicated parseNumstat to avoid coupling).\n2. INPUT: the domain args (per function) + opts (for excludes). The existing detectBinaryFiles/fileStatuses variadic-diffArgs pattern.\n3. LOGIC: Add `func (g *gitRunner) numstatRows(ctx context.Context, diffArgs ...string) ([]numstatRow, error)` returning `{added, deleted int; isBinary bool; path string}` keyed on the destination path. Run `git diff <diffArgs> --numstat` (compose with excludes the same way the aggregate diff does). Parse each line: split on tab; if added==\"-\" set isBinary; resolve `=>` to destination path. Return the rows SORTED by path for deterministic output. Reuse this for BOTH the FR3g skeleton (S2) and the FR3i sizing (M4.T2). Add table tests: normal edits, binary, rename (`old => new`), rename-with-brace-collapse, path with spaces (tab-safe), empty diff (no rows).\n4. OUTPUT: numstatRows(...) returns deterministic parsed rows keyed on destination path. Consumed by S2 (skeleton emit) and M4.T2.S2 (water-fill sizing).\n5. DOCS: none — internal.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.61",
+                    "h3.66"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -190,9 +264,15 @@
                   "title": "Prepend compact skeleton block; ordering invariance",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M3.T1.S1"],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.61"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD FR3g — the skeleton is `--numstat` output (one `added\\tdeleted\\tpath` line per changed file), preferred over `--stat` (no ASCII bar-chart tokens). It is PREPENDED before any diff body so a fully-truncated file remains represented. system_context.md §7 data flow: skeleton lands at the very top of the returned payload string.\n2. INPUT: numstatRows from S1.\n3. LOGIC: Build a skeleton block string: for each row emit `\"<added>\\t<deleted>\\t<path>\\n\"` (binary rows: `-\\t-\\t<path>`). Wrap with a one-line header so the model knows what it is (e.g. `Change summary (numstat: added\\tdeleted\\tpath):` then the rows, then a blank line separator before the diff bodies). PREPEND this to the payload returned by each of StagedDiff/TreeDiff/WorkingTreeDiff — it must come BEFORE the [binary]/[excluded] placeholders and the diff bodies. Ordering invariant (test it): skeleton first, then placeholders, then markdown bodies, then non-markdown bodies — identical order in all 3 functions. Confirm the skeleton reflects EVERY changed file even when a body is later truncated (M4) — that is the FR3g completeness floor. Update golden fixtures to expect the new leading skeleton block.\n4. OUTPUT: every payload begins with a compact numstat skeleton. The completeness floor holds under truncation (verified in M4).\n5. DOCS: none — internal; the user-facing description belongs in the how-it-works sweep (M5)."
+                  "dependencies": [
+                    "P1.M3.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD FR3g — the skeleton is `--numstat` output (one `added\\tdeleted\\tpath` line per changed file), preferred over `--stat` (no ASCII bar-chart tokens). It is PREPENDED before any diff body so a fully-truncated file remains represented. system_context.md §7 data flow: skeleton lands at the very top of the returned payload string.\n2. INPUT: numstatRows from S1.\n3. LOGIC: Build a skeleton block string: for each row emit `\"<added>\\t<deleted>\\t<path>\\n\"` (binary rows: `-\\t-\\t<path>`). Wrap with a one-line header so the model knows what it is (e.g. `Change summary (numstat: added\\tdeleted\\tpath):` then the rows, then a blank line separator before the diff bodies). PREPEND this to the payload returned by each of StagedDiff/TreeDiff/WorkingTreeDiff — it must come BEFORE the [binary]/[excluded] placeholders and the diff bodies. Ordering invariant (test it): skeleton first, then placeholders, then markdown bodies, then non-markdown bodies — identical order in all 3 functions. Confirm the skeleton reflects EVERY changed file even when a body is later truncated (M4) — that is the FR3g completeness floor. Update golden fixtures to expect the new leading skeleton block.\n4. OUTPUT: every payload begins with a compact numstat skeleton. The completeness floor holds under truncation (verified in M4).\n5. DOCS: none — internal; the user-facing description belongs in the how-it-works sweep (M5).",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.61"
+                  ]
                 }
               ]
             }
@@ -218,9 +298,14 @@
                   "title": "estimateTokens (chars/4) shared utility",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T2.S1"],
-                  "prd_selectors": ["h3.17", "h2.9"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: git_diff_semantics.md §5 — `tokens ≈ chars / 4` is the standard model-agnostic estimate (Stagehand never loads a tokenizer; it shells out to an arbitrary agent CLI). For a budget CEILING on code-heavy diffs, chars/4 is conservative (code is ~3 chars/token), so chars/4 errs toward under-spending the budget — safe.\n2. INPUT: none (pure utility).\n3. LOGIC: Add `func estimateTokens(s string) int` in internal/git (or a small internal/util) returning `len([]rune(s)) / 4` rounded up (use rune count, not byte count, so multi-byte UTF-8 doesn't over-count; ceiling division). Add a `func estimateTokensBytes(b []byte) int` if helpful. Table tests: empty⇒0, 4 ASCII chars⇒1, 8⇒2, a 4-rune CJK string⇒1 (rune-based). This is the SINGLE estimator used by S2 (prompt reserve) and M4.T2 (numstat sizing) — do not introduce a second formula.\n4. OUTPUT: estimateTokens(s) int. Consumed by S2 and M4.T2.S1/S2.\n5. DOCS: none — internal utility."
+                  "dependencies": [
+                    "P1.M1.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: git_diff_semantics.md §5 — `tokens ≈ chars / 4` is the standard model-agnostic estimate (Stagehand never loads a tokenizer; it shells out to an arbitrary agent CLI). For a budget CEILING on code-heavy diffs, chars/4 is conservative (code is ~3 chars/token), so chars/4 errs toward under-spending the budget — safe.\n2. INPUT: none (pure utility).\n3. LOGIC: Add `func estimateTokens(s string) int` in internal/git (or a small internal/util) returning `len([]rune(s)) / 4` rounded up (use rune count, not byte count, so multi-byte UTF-8 doesn't over-count; ceiling division). Add a `func estimateTokensBytes(b []byte) int` if helpful. Table tests: empty⇒0, 4 ASCII chars⇒1, 8⇒2, a 4-rune CJK string⇒1 (rune-based). This is the SINGLE estimator used by S2 (prompt reserve) and M4.T2 (numstat sizing) — do not introduce a second formula.\n4. OUTPUT: estimateTokens(s) int. Consumed by S2 and M4.T2.S1/S2.\n5. DOCS: none — internal utility.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -228,9 +313,16 @@
                   "title": "Measure PromptReserveTokens upstream at the 6 call sites",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M4.T1.S1", "P1.M1.T2.S2"],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.66"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: system_context.md §5 + diff_capture_touchmap.md §5. StagedDiff is called ONCE before the generate retry loop (generate.go:163 StagedDiff → :364 RecentMessages → :368 BuildSystemPrompt → :214 BuildUserPayload-in-loop). The prompt portion is built AFTER the diff, so its size is not known inside the diff function. The stable parts (system-prompt header constants in internal/prompt/system.go, the RecentMessages examples, the userInstruction/userInstructionReject constants in internal/prompt/payload.go:21/28, the format/locale blocks) ARE knowable upstream; only the rejection block grows per attempt — bound it worst-case (maxDuplicateRetries × ~max-rejection-line-len). The planner path uses BuildPlannerSystemPrompt/BuildPlannerUserPayload (internal/prompt/planner.go:86/124).\n2. INPUT: estimateTokens from S1; the 6 call sites from P1.M1.T2.S2.\n3. LOGIC: At each of the 6 call sites, BEFORE calling the diff function, compute PromptReserveTokens = estimateTokens(stablePromptPortion) + worstCaseRejectionBlock + safetyMargin. Concretely for the message path (generate.go, hook/exec.go, pkg/stagehand.go): fetch the examples (RecentMessages, as generate.go:364 already does — REORDER so the fetch happens before StagedDiff, or call a shared helper that returns both the built system prompt and its token estimate), then reserve = estimateTokens(systemPromptHeader + examples + formatBlock + localeBlock) + estimateTokens(userInstructionReject + rejectionPreamble + worstCase-rejected-subjects + rejectionEpilogue) + margin (e.g. 256 tokens). For the planner path (decompose/planner.go, message.go, decompose.go): reserve = estimateTokens(plannerSystemPrompt + examples) + instruction + margin. Set opts.PromptReserveTokens to this value at each struct literal. Provide a small shared helper `promptReserveTokens(...)` to avoid 6× duplication. When token_limit == 0 the reserve is unused (the legacy caps apply) — measuring it anyway is harmless and keeps the call sites uniform. Test: reserve is stable across retry attempts (it is a worst-case, not per-attempt).\n4. OUTPUT: opts.PromptReserveTokens is set at all 6 call sites from the stable prompt inputs. Consumed by M4.T3 (the gate) which passes it into body_budget.\n5. DOCS: none — internal seam."
+                  "dependencies": [
+                    "P1.M4.T1.S1",
+                    "P1.M1.T2.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: system_context.md §5 + diff_capture_touchmap.md §5. StagedDiff is called ONCE before the generate retry loop (generate.go:163 StagedDiff → :364 RecentMessages → :368 BuildSystemPrompt → :214 BuildUserPayload-in-loop). The prompt portion is built AFTER the diff, so its size is not known inside the diff function. The stable parts (system-prompt header constants in internal/prompt/system.go, the RecentMessages examples, the userInstruction/userInstructionReject constants in internal/prompt/payload.go:21/28, the format/locale blocks) ARE knowable upstream; only the rejection block grows per attempt — bound it worst-case (maxDuplicateRetries × ~max-rejection-line-len). The planner path uses BuildPlannerSystemPrompt/BuildPlannerUserPayload (internal/prompt/planner.go:86/124).\n2. INPUT: estimateTokens from S1; the 6 call sites from P1.M1.T2.S2.\n3. LOGIC: At each of the 6 call sites, BEFORE calling the diff function, compute PromptReserveTokens = estimateTokens(stablePromptPortion) + worstCaseRejectionBlock + safetyMargin. Concretely for the message path (generate.go, hook/exec.go, pkg/stagehand.go): fetch the examples (RecentMessages, as generate.go:364 already does — REORDER so the fetch happens before StagedDiff, or call a shared helper that returns both the built system prompt and its token estimate), then reserve = estimateTokens(systemPromptHeader + examples + formatBlock + localeBlock) + estimateTokens(userInstructionReject + rejectionPreamble + worstCase-rejected-subjects + rejectionEpilogue) + margin (e.g. 256 tokens). For the planner path (decompose/planner.go, message.go, decompose.go): reserve = estimateTokens(plannerSystemPrompt + examples) + instruction + margin. Set opts.PromptReserveTokens to this value at each struct literal. Provide a small shared helper `promptReserveTokens(...)` to avoid 6× duplication. When token_limit == 0 the reserve is unused (the legacy caps apply) — measuring it anyway is harmless and keeps the call sites uniform. Test: reserve is stable across retry attempts (it is a worst-case, not per-attempt).\n4. OUTPUT: opts.PromptReserveTokens is set at all 6 call sites from the stable prompt inputs. Consumed by M4.T3 (the gate) which passes it into body_budget.\n5. DOCS: none — internal seam.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.66"
+                  ]
                 }
               ]
             },
@@ -247,9 +339,15 @@
                   "title": "Water-fill level solver (sort-and-walk)",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M4.T1.S1", "P1.M3.T1.S1"],
-                  "prd_selectors": ["h3.17", "h2.9"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: git_diff_semantics.md §6 — the algorithm is classic water-filling / max-min-fair-with-caps. O(n log n) sort-and-walk reference impl given. Edge cases verified: `[10,20,30]@30→[10,10,10]`, `[5,100]@50→[5,45]`, `[10,10]@50→no truncation`, one-file-larger-than-budget, B=0. The per-file SIZE input is the numstat row's (added+deleted) line count converted to a token estimate via estimateTokens (chars/4 over a representative patch line is overkill — use a simpler proxy: the numstat added+deleted line count itself is a fine relative size, OR estimateTokens of the captured per-file body; PRD FR3i says 'token estimate derived from the numstat skeleton's per-file line counts' → use numstat (added+deleted) as the size unit, and budget in the SAME unit by converting token_limit's body_budget to a line-count-equivalent, OR keep everything in tokens by estimating each file's body tokens from numstat lines × avg-tokens-per-line). Pick ONE consistent unit (tokens throughout is cleanest) and document it.\n2. INPUT: per-file sizes (tokens, from numstatRows × estimateTokens), a body_budget (tokens).\n3. LOGIC: Add `func waterFillLevel(sizes []int, budget int) (level int, truncate bool)` (internal/git) implementing the sort-and-walk: if Σ sizes ≤ budget → return (maxSize, false) [no truncation]; else walk sorted-ascending, decrementing remaining, and when s[i]*count > remaining return level=remaining/count, truncate=true. Add `func allocByWaterFill(sizes []int, budget int) []int` returning each file's allotment (min(size, level)). Exhaustive table tests covering all §6 edge cases + the three verified numeric cases above. Property test (quickcheck or table): Σ allotments ≤ budget; allotment_i ≤ size_i; if any file truncated then Σ allotments == budget (full utilization) OR the remainder is < count (integer slack).\n4. OUTPUT: pure functions waterFillLevel + allocByWaterFill, fully tested independent of git. Consumed by S2 (application) and M4.T3 (gate).\n5. DOCS: none — internal algorithm."
+                  "dependencies": [
+                    "P1.M4.T1.S1",
+                    "P1.M3.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: git_diff_semantics.md §6 — the algorithm is classic water-filling / max-min-fair-with-caps. O(n log n) sort-and-walk reference impl given. Edge cases verified: `[10,20,30]@30→[10,10,10]`, `[5,100]@50→[5,45]`, `[10,10]@50→no truncation`, one-file-larger-than-budget, B=0. The per-file SIZE input is the numstat row's (added+deleted) line count converted to a token estimate via estimateTokens (chars/4 over a representative patch line is overkill — use a simpler proxy: the numstat added+deleted line count itself is a fine relative size, OR estimateTokens of the captured per-file body; PRD FR3i says 'token estimate derived from the numstat skeleton's per-file line counts' → use numstat (added+deleted) as the size unit, and budget in the SAME unit by converting token_limit's body_budget to a line-count-equivalent, OR keep everything in tokens by estimating each file's body tokens from numstat lines × avg-tokens-per-line). Pick ONE consistent unit (tokens throughout is cleanest) and document it.\n2. INPUT: per-file sizes (tokens, from numstatRows × estimateTokens), a body_budget (tokens).\n3. LOGIC: Add `func waterFillLevel(sizes []int, budget int) (level int, truncate bool)` (internal/git) implementing the sort-and-walk: if Σ sizes ≤ budget → return (maxSize, false) [no truncation]; else walk sorted-ascending, decrementing remaining, and when s[i]*count > remaining return level=remaining/count, truncate=true. Add `func allocByWaterFill(sizes []int, budget int) []int` returning each file's allotment (min(size, level)). Exhaustive table tests covering all §6 edge cases + the three verified numeric cases above. Property test (quickcheck or table): Σ allotments ≤ budget; allotment_i ≤ size_i; if any file truncated then Σ allotments == budget (full utilization) OR the remainder is < count (integer slack).\n4. OUTPUT: pure functions waterFillLevel + allocByWaterFill, fully tested independent of git. Consumed by S2 (application) and M4.T3 (gate).\n5. DOCS: none — internal algorithm.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -257,9 +355,14 @@
                   "title": "Per-file truncation application + sentinel + header preservation",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M4.T2.S1"],
-                  "prd_selectors": ["h3.17", "h2.9"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD FR3i — 'every file larger than L is truncated to exactly L (its first L tokens + the ... [truncated] sentinel)'; 'each file's diff --git/hunk headers are always preserved alongside its (possibly truncated) body'; the aggregate non-markdown diff is split on `diff --git` boundaries to apply the per-file level WITHOUT extra git invocations. The sentinel is the SHORTER `... [truncated]` form (NOT the legacy `... [diff truncated at N bytes]` — system_context.md §6 invariant 2).\n2. INPUT: allocByWaterFill allotments from S1; the captured non-markdown aggregate diff (already -M/-U<n> shaped and index-stripped from M2) split on `diff --git ` boundaries into per-file sections.\n3. LOGIC: Add a function that takes the per-file sections + allotments (in tokens) and, for each file whose allotment < its size, truncates the BODY (the lines after the `diff --git`/`---`/`+++`/`@@` headers) to its token allotment, preserving the headers, and appends `\\n... [truncated]`. Files within their allotment pass through untouched. Recompose the sections in original order. Map allotments back to files by matching the section's path (from its `diff --git a/<p> b/<p>` or `+++ b/<p>` line) to the numstat destination-path key (S1 path keying must agree here — same `=>` destination resolution). Handle the markdown per-file section similarly (it is already per-file; apply its allotment). Add tests: a 3-file diff where one exceeds L is truncated and the others are whole; headers preserved on the truncated file; sentinel present; non-truncated files byte-identical to input.\n4. OUTPUT: a truncateByWaterFill(sections, allotments) function producing the final diff body under token_limit. Consumed by M4.T3 (the gate calls it when token_limit>0).\n5. DOCS: none — internal."
+                  "dependencies": [
+                    "P1.M4.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: PRD FR3i — 'every file larger than L is truncated to exactly L (its first L tokens + the ... [truncated] sentinel)'; 'each file's diff --git/hunk headers are always preserved alongside its (possibly truncated) body'; the aggregate non-markdown diff is split on `diff --git` boundaries to apply the per-file level WITHOUT extra git invocations. The sentinel is the SHORTER `... [truncated]` form (NOT the legacy `... [diff truncated at N bytes]` — system_context.md §6 invariant 2).\n2. INPUT: allocByWaterFill allotments from S1; the captured non-markdown aggregate diff (already -M/-U<n> shaped and index-stripped from M2) split on `diff --git ` boundaries into per-file sections.\n3. LOGIC: Add a function that takes the per-file sections + allotments (in tokens) and, for each file whose allotment < its size, truncates the BODY (the lines after the `diff --git`/`---`/`+++`/`@@` headers) to its token allotment, preserving the headers, and appends `\\n... [truncated]`. Files within their allotment pass through untouched. Recompose the sections in original order. Map allotments back to files by matching the section's path (from its `diff --git a/<p> b/<p>` or `+++ b/<p>` line) to the numstat destination-path key (S1 path keying must agree here — same `=>` destination resolution). Handle the markdown per-file section similarly (it is already per-file; apply its allotment). Add tests: a 3-file diff where one exceeds L is truncated and the others are whole; headers preserved on the truncated file; sentinel present; non-truncated files byte-identical to input.\n4. OUTPUT: a truncateByWaterFill(sections, allotments) function producing the final diff body under token_limit. Consumed by M4.T3 (the gate calls it when token_limit>0).\n5. DOCS: none — internal.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9"
+                  ]
                 }
               ]
             },
@@ -276,9 +379,19 @@
                   "title": "Gate logic in 3 diff functions; token_limit==0 byte-identical legacy path",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M4.T2.S2", "P1.M2.T2.S1", "P1.M3.T1.S2", "P1.M4.T1.S2"],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.61", "h3.66"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: system_context.md §6 invariants — (1) token_limit==0 ⇒ legacy max_diff_bytes/max_md_lines caps + their `... [diff truncated at N bytes/lines]` sentinels remain BYTE-IDENTICAL for the diff body (the always-on FR3e/f/g/h transforms from M2/M3 still apply around them); (2) token_limit>0 ⇒ water-fill REPLACES the byte/line caps and emits the shorter `... [truncated]` sentinel. PRD FR3d: 'a non-zero token_limit supersedes both legacy caps for that run'. diff_capture_touchmap.md §1 — the byte cap is at git.go:~758 (StagedDiff) and analogues in TreeDiff/WorkingTreeDiff; the markdown line cap at git.go:~679.\n2. INPUT: opts.TokenLimit, opts.PromptReserveTokens (from M4.T1.S2), the numstatRows/skeleton (M3), the water-fill functions (M4.T2), the -M/-U/index-stripped captured bodies (M2).\n3. LOGIC: In each of StagedDiff/TreeDiff/WorkingTreeDiff, branch on opts.TokenLimit: (a) == 0 → existing path: markdown per-file line-cap (max_md_lines) + non-markdown byte-cap (max_diff_bytes), with the EXISTING sentinels, byte-identical to pre-M4 (this is the regression anchor — the stagediff/treediff/workingtreediff byte/line-cap tests must still pass). (b) > 0 → compute skeleton_tokens = estimateTokens(skeletonBlock); body_budget = max(0, opts.TokenLimit − skeleton_tokens − opts.PromptReserveTokens − margin); sizes = per-file body token estimates from numstatRows; allotments = allocByWaterFill(sizes, body_budget); apply truncateByWaterFill to the markdown + non-markdown sections; emit `... [truncated]` per truncated file. The skeleton (M3) is ALWAYS prepended in both branches. Add tests for the >0 path: a payload exceeding token_limit is truncated with water-fill fairness (small file whole, large file capped), sentinel present, skeleton present, total ≤ token_limit; and the ==0 regression: output matches the M2/M3 baseline exactly. Add an e2e-style test in internal/git: a temp repo with one huge + one small file, token_limit set, assert the small file is whole and the large is capped.\n4. OUTPUT: token_limit gates the truncation strategy in all 3 diff paths; ==0 is byte-identical legacy; >0 is water-fill. This completes FR3d + FR3i.\n5. DOCS: none — internal; the user-facing token_limit explanation was added in P1.M1.T1.S4 and is surfaced in M5."
+                  "dependencies": [
+                    "P1.M4.T2.S2",
+                    "P1.M2.T2.S1",
+                    "P1.M3.T1.S2",
+                    "P1.M4.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: system_context.md §6 invariants — (1) token_limit==0 ⇒ legacy max_diff_bytes/max_md_lines caps + their `... [diff truncated at N bytes/lines]` sentinels remain BYTE-IDENTICAL for the diff body (the always-on FR3e/f/g/h transforms from M2/M3 still apply around them); (2) token_limit>0 ⇒ water-fill REPLACES the byte/line caps and emits the shorter `... [truncated]` sentinel. PRD FR3d: 'a non-zero token_limit supersedes both legacy caps for that run'. diff_capture_touchmap.md §1 — the byte cap is at git.go:~758 (StagedDiff) and analogues in TreeDiff/WorkingTreeDiff; the markdown line cap at git.go:~679.\n2. INPUT: opts.TokenLimit, opts.PromptReserveTokens (from M4.T1.S2), the numstatRows/skeleton (M3), the water-fill functions (M4.T2), the -M/-U/index-stripped captured bodies (M2).\n3. LOGIC: In each of StagedDiff/TreeDiff/WorkingTreeDiff, branch on opts.TokenLimit: (a) == 0 → existing path: markdown per-file line-cap (max_md_lines) + non-markdown byte-cap (max_diff_bytes), with the EXISTING sentinels, byte-identical to pre-M4 (this is the regression anchor — the stagediff/treediff/workingtreediff byte/line-cap tests must still pass). (b) > 0 → compute skeleton_tokens = estimateTokens(skeletonBlock); body_budget = max(0, opts.TokenLimit − skeleton_tokens − opts.PromptReserveTokens − margin); sizes = per-file body token estimates from numstatRows; allotments = allocByWaterFill(sizes, body_budget); apply truncateByWaterFill to the markdown + non-markdown sections; emit `... [truncated]` per truncated file. The skeleton (M3) is ALWAYS prepended in both branches. Add tests for the >0 path: a payload exceeding token_limit is truncated with water-fill fairness (small file whole, large file capped), sentinel present, skeleton present, total ≤ token_limit; and the ==0 regression: output matches the M2/M3 baseline exactly. Add an e2e-style test in internal/git: a temp repo with one huge + one small file, token_limit set, assert the small file is whole and the large is capped.\n4. OUTPUT: token_limit gates the truncation strategy in all 3 diff paths; ==0 is byte-identical legacy; >0 is water-fill. This completes FR3d + FR3i.\n5. DOCS: none — internal; the user-facing token_limit explanation was added in P1.M1.T1.S4 and is surfaced in M5.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.61",
+                    "h3.66"
+                  ]
                 }
               ]
             }
@@ -304,9 +417,19 @@
                   "title": "docs/how-it-works.md diff-capture section",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M4.T3.S1", "P1.M3.T1.S2", "P1.M2.T2.S1", "P1.M2.T3.S1"],
-                  "prd_selectors": ["h3.17", "h2.9", "h2.13", "h3.61"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: docs/how-it-works.md (~21KB) documents the snapshot flow and diff capture. The diff-capture section currently describes only the markdown/non-markdown caps + binary filtering; it predates FR3d-i.\n2. INPUT: the implemented behavior from M2/M3/M4 (always-on -M/-U1/skeleton/index-strip; token_limit⇒water-fill).\n3. LOGIC: Update the diff-capture section to describe, in user-facing prose: (a) the compact numstat skeleton prepended to every payload (FR3g); (b) deterministic rename detection via -M so renames are compact (FR3e); (c) reduced -U1 context by default, configurable via diff_context 0-3 (FR3f); (d) index-line stripping for ~30 bytes/file (FR3h); (e) the optional token_limit holistic budget with water-fill truncation that keeps small files whole and caps large ones (FR3d/FR3i), and that token_limit==0 preserves the legacy max_diff_bytes/max_md_lines behavior. Keep it accurate to the implementation; cross-link to docs/CONFIGURATION.md for the knobs.\n4. OUTPUT: docs/how-it-works.md reflects the new diff-capture pipeline.\n5. DOCS: [Mode B] THIS is the changeset-level docs update for how-it-works."
+                  "dependencies": [
+                    "P1.M4.T3.S1",
+                    "P1.M3.T1.S2",
+                    "P1.M2.T2.S1",
+                    "P1.M2.T3.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: docs/how-it-works.md (~21KB) documents the snapshot flow and diff capture. The diff-capture section currently describes only the markdown/non-markdown caps + binary filtering; it predates FR3d-i.\n2. INPUT: the implemented behavior from M2/M3/M4 (always-on -M/-U1/skeleton/index-strip; token_limit⇒water-fill).\n3. LOGIC: Update the diff-capture section to describe, in user-facing prose: (a) the compact numstat skeleton prepended to every payload (FR3g); (b) deterministic rename detection via -M so renames are compact (FR3e); (c) reduced -U1 context by default, configurable via diff_context 0-3 (FR3f); (d) index-line stripping for ~30 bytes/file (FR3h); (e) the optional token_limit holistic budget with water-fill truncation that keeps small files whole and caps large ones (FR3d/FR3i), and that token_limit==0 preserves the legacy max_diff_bytes/max_md_lines behavior. Keep it accurate to the implementation; cross-link to docs/CONFIGURATION.md for the knobs.\n4. OUTPUT: docs/how-it-works.md reflects the new diff-capture pipeline.\n5. DOCS: [Mode B] THIS is the changeset-level docs update for how-it-works.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h2.13",
+                    "h3.61"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -314,9 +437,17 @@
                   "title": "README.md feature surface + providers/cli docs consistency",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M4.T3.S1", "P1.M1.T1.S4"],
-                  "prd_selectors": ["h3.17", "h2.9", "h3.95", "h3.74"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: README.md (~20KB) is the marketing surface (PRD §21.5 structure). docs/providers.md and docs/cli.md document the provider manifests and CLI. None mention token_limit/diff_context yet.\n2. INPUT: the new capabilities (FR3d-i) + the config knobs (P1.M1.T1.S4 documented token_limit/diff_context in docs/CONFIGURATION.md).\n3. LOGIC: (a) In README.md, add a concise mention of payload optimization to the feature list / 'how it works' blurb (e.g. 'diffs are trimmed and budgeted: rename-aware, reduced-context, skeleton-headed, and optionally capped to your model's context window via token_limit') — keep the hero pitch intact. (b) Verify docs/cli.md's global-flags / config tables are consistent with the new [generation] keys (they should already be, since the keys are config-only with no new flags — confirm no CLI flag was added and the docs don't claim one). (c) Verify docs/providers.md needs no change (it doesn't — the transforms are provider-agnostic). Do NOT duplicate the per-key reference (that lives in docs/CONFIGURATION.md from P1.M1.T1.S4).\n4. OUTPUT: README surfaces the capability; providers/cli docs confirmed consistent.\n5. DOCS: [Mode B] THIS is the README + overview sweep. Together with S1 and P1.M1.T1.S4, all changeset-level docs are covered."
+                  "dependencies": [
+                    "P1.M4.T3.S1",
+                    "P1.M1.T1.S4"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: README.md (~20KB) is the marketing surface (PRD §21.5 structure). docs/providers.md and docs/cli.md document the provider manifests and CLI. None mention token_limit/diff_context yet.\n2. INPUT: the new capabilities (FR3d-i) + the config knobs (P1.M1.T1.S4 documented token_limit/diff_context in docs/CONFIGURATION.md).\n3. LOGIC: (a) In README.md, add a concise mention of payload optimization to the feature list / 'how it works' blurb (e.g. 'diffs are trimmed and budgeted: rename-aware, reduced-context, skeleton-headed, and optionally capped to your model's context window via token_limit') — keep the hero pitch intact. (b) Verify docs/cli.md's global-flags / config tables are consistent with the new [generation] keys (they should already be, since the keys are config-only with no new flags — confirm no CLI flag was added and the docs don't claim one). (c) Verify docs/providers.md needs no change (it doesn't — the transforms are provider-agnostic). Do NOT duplicate the per-key reference (that lives in docs/CONFIGURATION.md from P1.M1.T1.S4).\n4. OUTPUT: README surfaces the capability; providers/cli docs confirmed consistent.\n5. DOCS: [Mode B] THIS is the README + overview sweep. Together with S1 and P1.M1.T1.S4, all changeset-level docs are covered.",
+                  "prd_selectors": [
+                    "h3.17",
+                    "h2.9",
+                    "h3.95",
+                    "h3.74"
+                  ]
                 }
               ]
             }
