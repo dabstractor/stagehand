@@ -127,6 +127,24 @@ The same snapshot-based safety invariants from the single-commit path apply to e
 
 See [configuration.md](configuration.md) for per-role model configuration and [cli.md](cli.md) for the decompose and per-role flags.
 
+### Diff capture pipeline
+
+Every diff payload Stagehand builds — the staged diff, the multi-commit working-tree snapshot, and the per-concept tree-to-tree diff — goes through the same capture pipeline before it reaches the agent. Five transforms run, in order, in every path, alongside the binary/exclusion filtering described below:
+
+1. **Compact change skeleton (FR3g).** A `git diff --numstat` summary is prepended to every payload, under a `Change summary (numstat: …)` header — one `added → deleted → path` line per changed file (binary files show as `-  -  <path>`). This is the completeness floor: the agent always sees the full shape of the change — every file, its add/delete magnitude, and its kind — even when individual bodies are truncated later. A file whose body is fully truncated still appears in the skeleton, so truncation never silently drops a file from view.
+
+2. **Deterministic rename detection (FR3e).** Every `git diff` passes `-M`, so a rename (or a near-rename above the similarity threshold) is emitted compactly — a `rename from` / `rename to` pair plus any residual edit — instead of as a delete + add that duplicates the full file content. This is deterministic regardless of your `diff.renames` config or git version. (Copy detection `-C` is intentionally not enabled — it is expensive and adds little for message generation.)
+
+3. **Reduced diff context (FR3f).** Diffs are captured with `-U1` by default — one anchor line per hunk — instead of git's `-U3` default, since unchanged surrounding lines are noise for message generation. Tune it with `diff_context`: `0` = changed lines only (maximal savings), `1` = one anchor line (the default), `3` = git's default.
+
+4. **Index-line stripping (FR3h).** The `index <oid>..<oid> <mode>` line is stripped from each file diff — the blob OIDs are useless to the model and cost roughly 30 bytes per file. The `diff --git`, `---`, `+++`, and `@@` lines are retained (they carry file identity and hunk location).
+
+5. **Size budget (FR3d / FR3i).** Two mutually-exclusive modes govern how large the payload is:
+   - **Legacy caps (the default).** With `token_limit` unset (`0`), the markdown section is capped at `max_md_lines` per file (default 100) and the non-markdown aggregate at `max_diff_bytes` (default 300000); over-cap sections are marked `... [diff truncated at N bytes]` / `... [diff truncated at N lines]`.
+   - **Holistic token budget.** Set `token_limit` (for example `120000`) to cap the *whole* payload — system prompt + style examples + the concatenated diff — to a token budget. Stagehand reserves room for the prompt and examples, then allocates the remainder to the diff bodies with a **dynamic water-fill**: it sizes every file's body up front, and if they exceed the budget it finds a single water level `L` such that every file *smaller* than `L` is included whole and untouched, and every file *larger* than `L` is truncated to `L` (with a `... [truncated]` marker). Small files are never penalized for their size; large, substantive files receive the bulk of the budget; no single file can monopolize it; and nothing is wasted. The common case — a commit that fits — is left untouched. A non-zero `token_limit` **supersedes** both legacy caps for that run (they are mutually exclusive).
+
+See [configuration.md](configuration.md#built-in-defaults) for the `token_limit`, `diff_context`, `max_diff_bytes`, and `max_md_lines` knobs.
+
 ### Binary and non-text file filtering
 
 Binary files, lock files, snapshots, sourcemaps, and vendor directories are **excluded from every diff payload** — staged diff, working-tree snapshot, and concept diff. They are replaced with a `<status>\t[binary] <path>` placeholder so the agent sees *that* the file changed without the useless binary hunk. This applies identically in the single-commit and multi-commit paths.

@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Diff payload optimization (FR3d–FR3i)",
-      "status": "Planned",
+      "status": "Researching",
       "description": "Implement the six diff-payload optimizations added to PRD §9.1 by commit ccb15c0: a holistic token-budget overlay (FR3d), deterministic -M rename detection (FR3e), reduced -U<diff_context> (FR3f), a compact --numstat change skeleton (FR3g), index-line stripping (FR3h), and dynamic water-fill truncation (FR3i). SCOPE IS EXACTLY THIS. Every other PRD feature (v1 core, v2.0 decompose, v2.1 hook/integrate/exclude/format/edit/push/models, providers, config bootstrap) is ALREADY IMPLEMENTED — verified by grep (TokenLimit/DiffContext/token_limit/diff_context appear nowhere in non-test *.go) and must NOT be re-planned. All six transforms are PAYLOAD-ONLY (they shape what the agent sees; the snapshot/commit are untouched). They apply identically in every diff path (FR3c parity): StagedDiff, TreeDiff, and WorkingTreeDiff. See plan/007_b33d310438c6/architecture/system_context.md for the gap analysis, diff_capture_touchmap.md for exact code seams, and git_diff_semantics.md for verified git facts.",
       "milestones": [
         {
@@ -401,21 +401,21 @@
           "type": "Milestone",
           "id": "P1.M5",
           "title": "Sync changeset-level documentation",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Mode B changeset-level docs sweep. The per-key config docs (token_limit/diff_context) were updated Mode-A with the implementing subtask (P1.M1.T1.S4). This final task updates the cross-cutting docs that summarize the whole delta — the how-it-works diff-capture narrative, the README feature surface, and the providers/providers-docs consistency check — once all implementing subtasks have landed. It depends on every implementing subtask.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M5.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Update docs/how-it-works.md (the diff-capture narrative now describes -M/-U/skeleton/index-strip/water-fill), README.md (surface the new payload-optimization capabilities), and verify docs/providers.md / docs/cli.md are consistent. This is the catch-all that prevents a coherent delta from shipping with stale overview docs.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M5.T1.S1",
                   "title": "docs/how-it-works.md diff-capture section",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M4.T3.S1",
@@ -435,7 +435,7 @@
                   "type": "Subtask",
                   "id": "P1.M5.T1.S2",
                   "title": "README.md feature surface + providers/cli docs consistency",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M4.T3.S1",
