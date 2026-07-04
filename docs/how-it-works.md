@@ -170,6 +170,7 @@ No provider mutates the repository (PRD §18.1). Every built-in manifest constra
 | Generation timed out | 124 (Timeout) | Rescue message with tree SHA |
 | CAS failure (HEAD moved meanwhile) | 1 (Error) | HEAD-moved message |
 | Nothing to commit (clean tree) | 2 (NothingToCommit) | Stage files and retry |
+| Another stagehand run holds the per-repo lock | 5 (Busy) | Wait for the in-progress run to finish, then re-run (see [Per-repo run lock](#per-repo-run-lock-fr52)) |
 | General error | 1 (Error) | Inspect error message |
 
 The rescue (3) and timeout (124) rows are the real-commit path; under `--dry-run`, a generation failure reports exit 1 instead — see [Rescue protocol](#rescue-protocol).

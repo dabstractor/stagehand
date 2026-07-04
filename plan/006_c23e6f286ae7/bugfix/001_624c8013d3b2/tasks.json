@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "FR52 Lock Robustness & Documentation Accuracy",
-      "status": "Researching",
+      "status": "Complete",
       "description": "Resolve the 1 Major + 3 Minor issues found in creative QA of the FR52 per-repo run lock (PRD §18.5). Core concurrency safety is verified correct on both commit paths — no data-corruption, double-commit, stale-lock, or false-no-op conditions exist. This changeset corrects a behavior-vs-documentation mismatch (Issue 1: the no-op fast path is structurally impossible on the decompose path), and applies three lock-primitive hardening fixes (lock-file cleanup, canonical diagnostic path, atomic snapshot rewrite + message guard). All fixes are grounded in codebase recon stored in plan/006_c23e6f286ae7/bugfix/001_624c8013d3b2/architecture/.",
       "milestones": [
         {
@@ -203,14 +203,14 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Sync changeset-level documentation (Mode B)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Per the §5 Documentation Sync rule, a final task sweeps the changeset-level / overview docs (README, how-it-works, cli.md) for cross-cutting coherence after ALL implementing subtasks land. The per-file doc qualification (P1.M1.T1) was Mode A (doc-with-work); this is the Mode B catch-all that ensures the README features/overview sections do not contradict the qualified claims and that the changeset reads coherently end-to-end.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Final sweep of the README and docs overview sections to ensure the whole changeset reads coherently. Depends on every implementing subtask so it runs last. The implementing agent decides whether each touched file needs a further touch; do not skip.",
               "subtasks": [
                 {
@@ -241,7 +241,7 @@
                   "type": "Subtask",
                   "id": "P1.M3.T1.S2",
                   "title": "Sweep docs/how-it-works.md and docs/cli.md for cross-cutting coherence",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",
