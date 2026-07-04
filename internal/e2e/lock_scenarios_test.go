@@ -207,4 +207,40 @@ func TestE2ELockContention(t *testing.T) {
 			t.Fatalf("holder exit = %d, want 0; stderr:\n%s", res.ExitCode, res.Stderr)
 		}
 	})
+
+	t.Run("F_DecomposeAccidentalDoubleRun_Busy", func(t *testing.T) {
+		repo := newRepo(t)
+		seedCommit(t, repo, "readme.md", "init")
+		writeFile(t, repo, "feature.txt", "new work\n") // ONE untracked file, NOT staged → decompose activates
+
+		readiness := t.TempDir() + "/ready.marker"
+		holderEnv := stubEnv(map[string]string{
+			"STAGEHAND_STUB_OUT":      "feat: add feature",
+			"STAGEHAND_STUB_MARKER":   readiness,
+			"STAGEHAND_STUB_SLEEP_MS": "4000",
+		})
+
+		resCh := make(chan e2eResult, 1)
+		go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+		waitForMarker(t, readiness, 10*time.Second) // holder: lock held, T_start published, message-gen sleep
+
+		// Contender: same dirty tree, still nothing staged → handleLockContention:
+		//   WriteTree() = baseTree ≠ snap(T_start) → Busy(5). "nothing to do" must NOT appear.
+		contenderEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: add feature"})
+		res2 := runStagehand(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
+		if res2.ExitCode != 5 {
+			t.Fatalf("contender exit = %d, want 5 (Busy) — decompose no-op fast path is structurally impossible; stderr:\n%s", res2.ExitCode, res2.Stderr)
+		}
+		if !strings.Contains(res2.Stderr, "already in progress") {
+			t.Errorf("stderr missing busy message; got:\n%s", res2.Stderr)
+		}
+		if strings.Contains(res2.Stderr, "nothing to do") {
+			t.Errorf("decompose path must NOT hit the no-op fast path; got:\n%s", res2.Stderr)
+		}
+
+		res := <-resCh // drain holder
+		if res.ExitCode != 0 {
+			t.Fatalf("holder exit = %d, want 0; stderr:\n%s", res.ExitCode, res.Stderr)
+		}
+	})
 }
