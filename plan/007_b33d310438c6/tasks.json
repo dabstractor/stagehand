@@ -18,7 +18,7 @@
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Add token_limit + diff_context to the config layer",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add TokenLimit (default 0 = unset ⇒ legacy per-section caps) and DiffContext (default 1, valid 0–3) as [generation] fields through Defaults(), the file struct, the materialize/overlay field-merge, the git-config resolver, and the bootstrap config template. DiffContext's default is non-zero but 0 is a valid value (-U0), so the overlay must distinguish unset from explicit 0.",
               "subtasks": [
                 {
@@ -61,7 +61,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S3",
                   "title": "git-config resolver keys (stagehand.tokenLimit / stagehand.diffContext)",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
@@ -78,7 +78,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S4",
                   "title": "Bootstrap config template + docs/CONFIGURATION.md",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S2",

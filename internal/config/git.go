@@ -192,6 +192,27 @@ func loadGitConfig(repoDir string) (*Config, error) {
 			return nil, err
 		}
 	}
+	// §9.1 FR3d — token_limit via git config (camelCase key). 0 = unset ⇒ legacy caps (no meaningful explicit 0).
+	if v, found, err := gitConfigGet(repoDir, "stagehand.tokenLimit"); err != nil { // camelCase!
+		return nil, err
+	} else if found {
+		if err := parseInt(repoDir, "stagehand.tokenLimit", v, &c.TokenLimit); err != nil {
+			return nil, err
+		}
+	}
+	// §9.1 FR3f — diff_context via git config (camelCase key, integer 0–3). Config.DiffContext is *int
+	// (S2): nil when the key is absent (found=false → overlay inherits the default *1); non-nil — incl.
+	// *0 — when found. The write is UNCONDITIONAL inside `found`: an explicit "git config
+	// stagehand.diffContext 0" must survive as intPtr(0) (0 = changed-lines-only is a first-class value).
+	if v, found, err := gitConfigGet(repoDir, "stagehand.diffContext"); err != nil { // camelCase!
+		return nil, err
+	} else if found {
+		var n int
+		if err := parseInt(repoDir, "stagehand.diffContext", v, &n); err != nil {
+			return nil, err
+		}
+		c.DiffContext = intPtr(n) // *int: parse into local n (NOT &c.DiffContext which is **int), then wrap.
+	}
 	if v, found, err := gitConfigGet(repoDir, "stagehand.maxDuplicateRetries"); err != nil { // camelCase!
 		return nil, err
 	} else if found {

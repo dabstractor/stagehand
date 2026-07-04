@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -369,5 +370,147 @@ func TestLoadGitConfig_OverlaysWithDefaults(t *testing.T) {
 	}
 	if cfg.Output != nil {
 		t.Errorf("Output=%v want nil (default preserved)", cfg.Output)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Test I: TokenLimit & DiffContext — table-driven proof of the two new int keys
+// (the explicit-0 row is load-bearing: a `!= 0` value guard would drop it).
+// ---------------------------------------------------------------------------
+
+func TestLoadGitConfig_TokenLimit_DiffContext(t *testing.T) {
+	// diffContext rows — unset (nil) / 0 (preserved!) / 1 / 3
+	type diffRow struct {
+		name   string
+		setVal string // empty = don't set the key
+		want   func(*int) error
+	}
+	diffRows := []diffRow{
+		{
+			name:   "unset",
+			setVal: "",
+			want: func(p *int) error {
+				if p != nil {
+					return fmt.Errorf("DiffContext=%v want nil (partial config — overlay inherits default)", p)
+				}
+				return nil
+			},
+		},
+		{
+			name:   "zero",
+			setVal: "0",
+			want: func(p *int) error {
+				if p == nil {
+					return fmt.Errorf("DiffContext=nil want non-nil (explicit 0 must survive)")
+				}
+				if *p != 0 {
+					return fmt.Errorf("*DiffContext=%d want 0 (explicit 0 = changed-lines-only, FR3f)", *p)
+				}
+				return nil
+			},
+		},
+		{
+			name:   "one",
+			setVal: "1",
+			want: func(p *int) error {
+				if p == nil || *p != 1 {
+					return fmt.Errorf("DiffContext=%v want non-nil *1", p)
+				}
+				return nil
+			},
+		},
+		{
+			name:   "three",
+			setVal: "3",
+			want: func(p *int) error {
+				if p == nil || *p != 3 {
+					return fmt.Errorf("DiffContext=%v want non-nil *3", p)
+				}
+				return nil
+			},
+		},
+	}
+	for _, r := range diffRows {
+		r := r
+		t.Run("diffContext/"+r.name, func(t *testing.T) {
+			t.Setenv("HOME", t.TempDir())
+			repo := t.TempDir()
+			initRepo(t, repo)
+			if r.setVal != "" {
+				setGitConfig(t, repo, "stagehand.diffContext", r.setVal)
+			}
+			cfg, err := loadGitConfig(repo)
+			if err != nil {
+				t.Fatalf("loadGitConfig err=%v, want nil", err)
+			}
+			if err := r.want(cfg.DiffContext); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+
+	// tokenLimit rows — unset (0) / 120000
+	type tlRow struct {
+		name   string
+		setVal string
+		want   int
+	}
+	tlRows := []tlRow{
+		{name: "unset", setVal: "", want: 0},
+		{name: "120000", setVal: "120000", want: 120000},
+	}
+	for _, r := range tlRows {
+		r := r
+		t.Run("tokenLimit/"+r.name, func(t *testing.T) {
+			t.Setenv("HOME", t.TempDir())
+			repo := t.TempDir()
+			initRepo(t, repo)
+			if r.setVal != "" {
+				setGitConfig(t, repo, "stagehand.tokenLimit", r.setVal)
+			}
+			cfg, err := loadGitConfig(repo)
+			if err != nil {
+				t.Fatalf("loadGitConfig err=%v, want nil", err)
+			}
+			if cfg.TokenLimit != r.want {
+				t.Errorf("TokenLimit=%d want %d", cfg.TokenLimit, r.want)
+			}
+			// DiffContext must remain nil when only tokenLimit is set
+			if cfg.DiffContext != nil {
+				t.Errorf("DiffContext=%v want nil (only tokenLimit set)", cfg.DiffContext)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Test J: BadTokenLimit_DiffContext — non-integer values fail (mirror BadTimeout)
+// ---------------------------------------------------------------------------
+
+func TestLoadGitConfig_BadTokenLimit_DiffContext(t *testing.T) {
+	for _, c := range []struct {
+		key, val string
+	}{
+		{"stagehand.diffContext", "abc"},
+		{"stagehand.tokenLimit", "NaN"},
+	} {
+		c := c
+		t.Run(c.key+"="+c.val, func(t *testing.T) {
+			t.Setenv("HOME", t.TempDir())
+			repo := t.TempDir()
+			initRepo(t, repo)
+			setGitConfig(t, repo, c.key, c.val)
+
+			_, err := loadGitConfig(repo)
+			if err == nil {
+				t.Fatalf("loadGitConfig err=nil, want non-nil for bad %s=%q", c.key, c.val)
+			}
+			if !strings.Contains(err.Error(), c.key) {
+				t.Errorf("err=%v, want it to contain %q", err, c.key)
+			}
+			if !strings.Contains(err.Error(), "invalid integer") {
+				t.Errorf("err=%v, want it to contain 'invalid integer'", err)
+			}
+		})
 	}
 }
