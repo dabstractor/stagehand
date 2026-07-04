@@ -230,6 +230,16 @@ A repo can place a `.stagehandignore` file at its root (alongside `.stagehand.to
 
 A missing `.stagehandignore` is a no-op (no warning, no error).
 
+## Lock file location
+
+The per-repo run lock (FR52) is stored outside the repository to avoid polluting `git status`, being committable, or being ambiguous across worktrees. The lock file location resolves in this order:
+
+1. `$XDG_RUNTIME_DIR/stagehand/locks/<hash>.lock` — when `XDG_RUNTIME_DIR` is set and absolute
+2. `$XDG_CACHE_HOME/stagehand/locks/<hash>.lock` — when `XDG_CACHE_HOME` is set and absolute
+3. `~/.cache/stagehand/locks/<hash>.lock` — fallback via `os.UserHomeDir()`
+
+Where `<hash>` is the sha256 hex digest of the repo's canonical absolute path (resolved via `filepath.EvalSymlinks` to handle symlinked paths). Relative XDG values are ignored (only absolute paths are honored). If no resolution path exists, stagehand exits with an error — it never falls back to the current working directory or the repo itself.
+
 **Exclusions are payload-only:** excluded files are hidden from what the agent sees but are still captured and committed normally.
 
 Example:

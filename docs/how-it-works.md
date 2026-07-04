@@ -141,6 +141,21 @@ The built-in noise denylist (lock files, snapshots, sourcemaps, vendor directori
 
 ## Safety and the rescue protocol
 
+### Per-repo run lock (FR52)
+
+Stagehand uses a **two-stage defense** against concurrent runs on the same repo:
+
+1. **Per-repo run lock** (advisory `flock(LOCK_EX|LOCK_NB)`) — prevents the common local double-run (two terminals in the same repo). The lock is held on a file descriptor and **auto-releases on process death** (SIGKILL, crash, power loss) — no stale-lock reaping or PID-liveness checks needed.
+2. **§13.5 CAS** (`git update-ref HEAD` compare-and-swap) — the second, never-clobber-HEAD guarantee. Even if the lock somehow fails (shared/network FS, cross-host), the CAS ensures only one commit lands per run.
+
+**Per-host limit.** The lock is a per-process advisory flock — it works on a single host. Cross-host contention (shared NFS, etc.) is the CAS's job.
+
+**Never-in-repo location.** The lock file lives in a per-user runtime/cache directory (resolved via `XDG_RUNTIME_DIR` → `XDG_CACHE_HOME` → `~/.cache/stagehand/locks`), keyed by a sha256 hash of the repo's canonical absolute path. It is **never inside the repo** — an in-repo lock would pollute `git status`, be committable, be ambiguous across worktrees, and be lost on clone.
+
+**No-op fast path.** When a lock is held, the holder publishes its frozen tree SHA via `SetSnapshot()`. A contender with nothing new staged since that snapshot can exit 0 immediately (no-op fast path).
+
+**Auto-release.** The lock uses POSIX `flock` — it releases when the file descriptor or process closes. No stale locks, no PID-liveness checks, no reaping. On Windows, `flock` is a no-op stub; the §13.5 CAS is the guarantee there.
+
 ### Safety invariant
 
 No provider mutates the repository (PRD §18.1). Every built-in manifest constrains the agent to a read-only mode — either via explicit tool-disable flags (pi, claude) or read-only constraint flags (codex, cursor, gemini). The agent receives the diff via stdin/argv and writes the commit message to stdout — it never runs `git add`, `git commit`, or any write command.

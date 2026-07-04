@@ -18,6 +18,7 @@ func TestFor(t *testing.T) {
 		{"nil → Success", nil, Success},
 		{"explicit ExitError NothingToCommit", New(NothingToCommit, errors.New("x")), NothingToCommit},
 		{"explicit ExitError custom code", New(7, errors.New("custom")), 7},
+		{"explicit ExitError Busy (silent, nil err) → 5", New(Busy, nil), Busy},
 		{"wrapped ExitError → Code (errors.As traverses %w)", fmt.Errorf("wrap: %w", New(7, errors.New("x"))), 7},
 		{"wrapped ExitError NothingToCommit beats sentinel branch", fmt.Errorf("%w", New(NothingToCommit, errors.New("y"))), NothingToCommit},
 		{"ErrNothingToCommit", generate.ErrNothingToCommit, NothingToCommit},
@@ -38,6 +39,13 @@ func TestFor(t *testing.T) {
 				t.Errorf("For(%v) = %d, want %d", tc.err, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestBusyCodeValue(t *testing.T) {
+	// Busy is 5 — distinct from 0/1/2/3/124; 4 is reserved (integration_seams §2).
+	if Busy != 5 {
+		t.Errorf("Busy = %d, want 5", Busy)
 	}
 }
 

@@ -371,9 +371,12 @@ stagehand models --help          # see the models-scoped --all text
 | `1` | General error (generation failed, parse failed after retries, **provider command missing on `$PATH` (checked before the snapshot)**, CAS, usage). |
 | `2` | Nothing to commit (clean tree after auto-stage, or nothing staged with `--no-auto-stage`). |
 | `3` | Rescue condition (snapshot taken, commit not created — manual recovery printed). |
+| `5` | Busy — another stagehand run holds the per-repo lock; retry after it finishes. |
 | `124` | Timeout (generation exceeded `--timeout`). |
 
 Exit codes mirror the constants in `internal/exitcode/exitcode.go`. A timeout is reported as `124` (matching GNU `timeout`), not `3`. With `--dry-run`, generation failures (timeout or parse/duplicate-check exhaustion) report exit **1** with a short stderr message (not 3/124 + the recovery recipe) — codes 3 and 124 remain the non-dry-run (commit-path) semantics.
+
+Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors: if a contending run's staged changes are already covered by the in-progress run's published snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. Stagehand never force-breaks the lock.
 
 ## Flag ↔ env ↔ git-config map
 

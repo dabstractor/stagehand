@@ -24,6 +24,7 @@ const (
 	Error           = 1   // general error (generation failed, parse failed, agent missing, CAS, usage/flag)
 	NothingToCommit = 2   // clean tree after auto-stage, or nothing staged with --no-auto-stage
 	Rescue          = 3   // snapshot taken, commit not created — manual recovery printed
+	Busy            = 5   // another stagehand run holds the per-repo lock; retry after it finishes (FR52 §18.5)
 	Timeout         = 124 // generation exceeded --timeout (mirrors GNU `timeout`)
 )
 
