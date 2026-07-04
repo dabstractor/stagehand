@@ -285,8 +285,10 @@ const generationCommented = `
 # [generation] — diff capture & output tuning (PRD §16.2)
 # ---------------------------------------------------------------------------
 # [generation]
-# max_diff_bytes        = 300000  # byte cap on the non-markdown diff section
-# max_md_lines          = 100     # per-file line cap for markdown diffs
+# max_diff_bytes        = 300000  # byte cap on the non-markdown diff section; ignored when token_limit is set (FR3d)
+# max_md_lines          = 100     # per-file line cap for markdown diffs; ignored when token_limit is set (FR3d)
+# token_limit           = 0       # holistic token budget for the WHOLE payload (prompt+examples+diff); 0 = unset ⇒ use the legacy caps above. Set to your model's context window, e.g. 120000, so the payload always fits without a per-model registry (FR3d)
+# diff_context          = 1       # unchanged context lines around each hunk: 0 = changed lines only (max savings), 1 = one anchor line (default), 3 = git's default (FR3f)
 # max_duplicate_retries = 3       # re-generation attempts when the subject duplicates a recent commit
 # subject_target_chars  = 50      # target subject-line length for truncation
 # output                = "raw"   # agent output mode: "raw" | "json" — applies to parsing across ALL providers
