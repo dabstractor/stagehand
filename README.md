@@ -201,13 +201,15 @@ Stagehand auto-detects which agents are installed and uses the first one it find
 
 ```bash
 $ stagehand providers list
-NAME      DETECTED  DEFAULT
-claude    ✓
-codex     ✓
-cursor    ✓
-gemini    ✓
-opencode  ✓
-pi        ✓         (default)
+NAME       DETECTED  DEFAULT
+agy        ✓
+claude     ✓
+codex      ✓
+cursor     ✓
+gemini     ✓
+opencode   ✓
+pi         ✓         (default)
+qwen-code  ✗
 ```
 
 > [!NOTE]

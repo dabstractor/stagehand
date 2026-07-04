@@ -62,7 +62,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S2",
                   "title": "Contention logic, acquire/release wiring in runDefault, and SetSnapshot calls in generate.go + decompose.go",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T1.S1",
