@@ -50,7 +50,7 @@ type fileGeneration struct {
 	MaxDiffBytes        int      `toml:"max_diff_bytes"`
 	MaxMdLines          int      `toml:"max_md_lines"`
 	TokenLimit          int      `toml:"token_limit"`  // FR3d — plumbed in S2 (materialize/overlay)
-	DiffContext         int      `toml:"diff_context"` // FR3f — becomes *int in S2 (0-vs-unset); plain int here
+	DiffContext         *int     `toml:"diff_context"` // FR3f — *int (0-vs-unset); nil ⇒ user omitted (S2 contract correction)
 	MaxDuplicateRetries int      `toml:"max_duplicate_retries"`
 	SubjectTargetChars  int      `toml:"subject_target_chars"`
 	Output              string   `toml:"output"`
@@ -215,6 +215,17 @@ func materialize(fc *fileConfig, timeout time.Duration) *Config {
 	if g.MaxMdLines != 0 {
 		c.MaxMdLines = g.MaxMdLines
 	}
+	// FR3d: TokenLimit is a plain int; 0 = unset ⇒ legacy caps (no meaningful "explicit 0").
+	if g.TokenLimit != 0 {
+		c.TokenLimit = g.TokenLimit
+	}
+	// FR3f: DiffContext is *int so an explicit 0 (changed-lines-only) is distinguishable from unset (nil).
+	// NOTE: the guard is != nil, NOT != 0 — overlay() sits between every layer and the final config
+	// (load.go:82 Defaults → :100/:123/:138 overlay), so a != 0 guard would silently clobber an
+	// explicit diff_context=0 back to the default 1 (the contract's broken-overlay bug fixed in S2).
+	if g.DiffContext != nil {
+		c.DiffContext = g.DiffContext // *int: nil ⇒ unset; non-nil (incl. *0) ⇒ override
+	}
 	if g.MaxDuplicateRetries != 0 {
 		c.MaxDuplicateRetries = g.MaxDuplicateRetries
 	}
@@ -316,6 +327,18 @@ func overlay(dst, src *Config) {
 	}
 	if src.MaxMdLines != 0 {
 		dst.MaxMdLines = src.MaxMdLines
+	}
+	// FR3d: TokenLimit plain int + != 0 (0 IS its unset sentinel per FR3d — no meaningful "explicit 0").
+	if src.TokenLimit != 0 {
+		dst.TokenLimit = src.TokenLimit
+	}
+	// FR3f: DiffContext *int + != nil. CRITICAL: this guard MUST be != nil, NOT != 0. overlay() is
+	// between EVERY layer (global file / repo file / git config) and the final config (load.go:82→
+	// :100/:123/:138; git.go:106), so a != 0 guard would fail `0 != 0` and silently revert an explicit
+	// diff_context=0 to the -U1 default — making FR3f's 0 (changed-lines-only) unconfigurable via any
+	// layer. The *int lets nil = "inherit lower layer" coexist with *0 = "explicit override to 0".
+	if src.DiffContext != nil {
+		dst.DiffContext = src.DiffContext // *int: nil ⇒ inherit lower layer; non-nil ⇒ override (incl. *0)
 	}
 	if src.MaxDuplicateRetries != 0 {
 		dst.MaxDuplicateRetries = src.MaxDuplicateRetries

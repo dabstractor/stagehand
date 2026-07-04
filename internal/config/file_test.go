@@ -794,3 +794,156 @@ func TestOverlayNilSrc(t *testing.T) {
 		t.Errorf("MaxDiffBytes changed: %d", dst.MaxDiffBytes)
 	}
 }
+
+// --- TestMaterializeOverlay_DiffContext_TokenLimit ---
+
+// TestMaterializeOverlay_DiffContext_TokenLimit is the load-bearing proof of S2's contract correction:
+// Config.DiffContext is *int (nil = unset) so an explicit diff_context=0 (FR3f: changed-lines-only)
+// survives the overlay chain, while an omitted key inherits the -U1 default (1). TokenLimit stays
+// plain int (FR3d: 0 IS its unset sentinel) and uses the standard != 0 guard everywhere.
+//
+// Table coverage: DiffContext unset⇒*1, explicit 1⇒*1, explicit 0⇒*0, explicit 3⇒*3, across:
+//
+//	(a) materialize-only  (file → Config)
+//	(b) global-only       (Defaults → overlay global)
+//	(c) repo-only         (Defaults → overlay repo)
+//	(d) global+repo       (Defaults → overlay global → overlay repo)
+//
+// The explicit-0 rows PASS under *int + != nil and would FAIL under the contract's literal
+// `!= 0` overlay guard (0 != 0 is false → clobbered to *1) — that failure is exactly the bug S2 fixes.
+func TestMaterializeOverlay_DiffContext_TokenLimit(t *testing.T) {
+	// intp returns a pointer to v (test-local alias of intPtr for table brevity).
+	intp := func(v int) *int { return &v }
+
+	// ---- (a) materialize-only: file → Config ----
+	// A file that sets diff_context = N decodes into a *int (nil when omitted) and materialize copies
+	// the pointer through (nil ⇒ materialize leaves c.DiffContext nil; non-nil ⇒ copies the pointer).
+	materializeCases := []struct {
+		name   string
+		fileDC *int // nil = key omitted in the file
+		fileTL int  // 0 = key omitted
+		wantDC *int // nil ⇒ expect c.DiffContext == nil (materialize does NOT seed a default)
+		wantTL int
+	}{
+		{"unset", nil, 0, nil, 0},
+		{"explicit_1", intp(1), 0, intp(1), 0},
+		{"explicit_0", intp(0), 0, intp(0), 0}, // THE key row: explicit 0 survives materialize
+		{"explicit_3", intp(3), 0, intp(3), 0},
+		{"token_limit_set", nil, 120000, nil, 120000},
+	}
+	for _, tc := range materializeCases {
+		t.Run("materialize/"+tc.name, func(t *testing.T) {
+			fc := &fileConfig{Generation: fileGeneration{DiffContext: tc.fileDC, TokenLimit: tc.fileTL}}
+			c := materialize(fc, 0)
+			if tc.wantDC == nil {
+				if c.DiffContext != nil {
+					t.Errorf("DiffContext = %v, want nil (materialize must not seed a default)", c.DiffContext)
+				}
+			} else {
+				if c.DiffContext == nil {
+					t.Fatalf("DiffContext = nil, want non-nil *%d", *tc.wantDC)
+				}
+				if *c.DiffContext != *tc.wantDC {
+					t.Errorf("*DiffContext = %d, want *%d", *c.DiffContext, *tc.wantDC)
+				}
+			}
+			if c.TokenLimit != tc.wantTL {
+				t.Errorf("TokenLimit = %d, want %d", c.TokenLimit, tc.wantTL)
+			}
+		})
+	}
+
+	// ---- (b)/(c)/(d) overlay chain: Defaults (DiffContext=intPtr(1)) → overlay(file) ----
+	// This is the load.go step the contract's broken guard sat in. overlay MUST use != nil so an
+	// explicit 0 propagates and an omitted key inherits the -U1 default.
+	type fileSpec struct {
+		dc *int
+		tl int
+	}
+	overlayCases := []struct {
+		name   string
+		global fileSpec // applied first (Defaults → overlay global)
+		repo   fileSpec // applied next (→ overlay repo); dc=nil ⇒ repo omits the key
+		wantDC int      // expected *cfg.DiffContext (Defaults guarantees non-nil after overlay)
+		wantTL int
+	}{
+		// (b) global-only (repo omits both)
+		{"global_only/unset", fileSpec{nil, 0}, fileSpec{nil, 0}, 1, 0},
+		{"global_only/explicit_1", fileSpec{intp(1), 0}, fileSpec{nil, 0}, 1, 0},
+		{"global_only/explicit_0", fileSpec{intp(0), 0}, fileSpec{nil, 0}, 0, 0}, // explicit 0 ⇒ *0 end-to-end
+		{"global_only/explicit_3", fileSpec{intp(3), 0}, fileSpec{nil, 0}, 3, 0},
+		// (c) repo-only (global omits both)
+		{"repo_only/unset", fileSpec{nil, 0}, fileSpec{nil, 0}, 1, 0},
+		{"repo_only/explicit_0", fileSpec{nil, 0}, fileSpec{intp(0), 0}, 0, 0}, // explicit 0 ⇒ *0 end-to-end
+		{"repo_only/explicit_3", fileSpec{nil, 0}, fileSpec{intp(3), 0}, 3, 0},
+		// (d) global+repo interactions
+		{"global3_repo0_repo_wins_0", fileSpec{intp(3), 0}, fileSpec{intp(0), 0}, 0, 0}, // repo explicit-0 overrides global-3
+		{"global3_repo_unset_inherits_3", fileSpec{intp(3), 0}, fileSpec{nil, 0}, 3, 0}, // repo omits ⇒ inherits global-3
+		{"global0_repo3_repo_wins_3", fileSpec{intp(0), 0}, fileSpec{intp(3), 0}, 3, 0},
+		// TokenLimit propagation (plain int, != 0)
+		{"token_limit_global", fileSpec{nil, 120000}, fileSpec{nil, 0}, 1, 120000},
+		{"token_limit_repo_overrides", fileSpec{nil, 120000}, fileSpec{nil, 80000}, 1, 80000},
+	}
+	for _, tc := range overlayCases {
+		t.Run("overlay/"+tc.name, func(t *testing.T) {
+			cfg := Defaults() // DiffContext = intPtr(1); TokenLimit = 0
+			g := materialize(&fileConfig{Generation: fileGeneration{DiffContext: tc.global.dc, TokenLimit: tc.global.tl}}, 0)
+			overlay(&cfg, g)
+			r := materialize(&fileConfig{Generation: fileGeneration{DiffContext: tc.repo.dc, TokenLimit: tc.repo.tl}}, 0)
+			overlay(&cfg, r)
+			if cfg.DiffContext == nil {
+				t.Fatalf("DiffContext = nil after overlay; Defaults() must seed intPtr(1) so nil is impossible here")
+			}
+			if *cfg.DiffContext != tc.wantDC {
+				t.Errorf("*DiffContext = %d, want %d", *cfg.DiffContext, tc.wantDC)
+			}
+			if cfg.TokenLimit != tc.wantTL {
+				t.Errorf("TokenLimit = %d, want %d", cfg.TokenLimit, tc.wantTL)
+			}
+		})
+	}
+
+	// ---- End-to-end via loadTOML (proves the TOML decode → *int path) ----
+	// A real TOML file with [generation] diff_context = 0 must yield *cfg.DiffContext == 0 after
+	// the full Defaults() → overlay(loadTOML) chain (the contract's stated end-to-end requirement).
+	t.Run("loadTOML/explicit_0_end_to_end", func(t *testing.T) {
+		body := `
+[generation]
+diff_context = 0
+`
+		path := writeTempTOML(t, body)
+		cfg, err := loadTOML(path)
+		if err != nil || cfg == nil {
+			t.Fatalf("loadTOML: cfg=%v err=%v", cfg, err)
+		}
+		if cfg.DiffContext == nil || *cfg.DiffContext != 0 {
+			t.Fatalf("loadTOML DiffContext = %v, want non-nil *0 (changed-lines-only)", cfg.DiffContext)
+		}
+		// Now run the load.go overlay step (Defaults → overlay) — the step the contract's guard broke.
+		dst := Defaults()
+		overlay(&dst, cfg)
+		if dst.DiffContext == nil || *dst.DiffContext != 0 {
+			t.Fatalf("after overlay: *DiffContext = %v, want *0 (explicit 0 must survive the overlay chain)", dst.DiffContext)
+		}
+	})
+
+	t.Run("loadTOML/omitted_inherits_default", func(t *testing.T) {
+		body := `
+[generation]
+max_diff_bytes = 1000
+`
+		path := writeTempTOML(t, body)
+		cfg, err := loadTOML(path)
+		if err != nil || cfg == nil {
+			t.Fatalf("loadTOML: cfg=%v err=%v", cfg, err)
+		}
+		if cfg.DiffContext != nil {
+			t.Errorf("loadTOML DiffContext = %v, want nil (key omitted ⇒ materialize leaves it nil)", cfg.DiffContext)
+		}
+		dst := Defaults()
+		overlay(&dst, cfg)
+		if dst.DiffContext == nil || *dst.DiffContext != 1 {
+			t.Fatalf("after overlay: DiffContext = %v, want non-nil *1 (-U1 default inherited)", dst.DiffContext)
+		}
+	})
+}

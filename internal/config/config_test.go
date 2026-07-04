@@ -40,8 +40,8 @@ func TestDefaults(t *testing.T) {
 	if c.TokenLimit != 0 {
 		t.Errorf("TokenLimit = %d, want 0 (unset ⇒ legacy caps)", c.TokenLimit)
 	}
-	if c.DiffContext != 1 {
-		t.Errorf("DiffContext = %d, want 1 (-U1 default)", c.DiffContext)
+	if c.DiffContext == nil || *c.DiffContext != 1 {
+		t.Errorf("DiffContext = %v, want non-nil *1 (-U1 default)", c.DiffContext)
 	}
 	if c.MaxDuplicateRetries != 3 {
 		t.Errorf("MaxDuplicateRetries = %d, want 3", c.MaxDuplicateRetries)

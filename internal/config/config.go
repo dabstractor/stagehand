@@ -8,6 +8,8 @@ func boolPtr(b bool) *bool { return &b }
 
 func strPtr(s string) *string { return &s }
 
+func intPtr(i int) *int { return &i }
+
 // CurrentConfigVersion is the config-schema version this binary understands (PRD §9.17 FR-B4).
 // Bumped on any breaking config change. On load, stagehand compares a config file's
 // config_version to this constant: older files are auto-migrated in memory (FR-B7) with
@@ -74,12 +76,12 @@ type Config struct {
 	Single  bool `toml:"-"` // --single/--no-decompose: bypass the planner entirely (v1 single-commit path)
 
 	// [generation] (PRD §16.2)
-	MaxDiffBytes        int `toml:"max_diff_bytes"`        // byte cap on non-markdown diff section
-	MaxMdLines          int `toml:"max_md_lines"`          // per-file line cap for markdown diffs
-	TokenLimit          int `toml:"token_limit"`           // FR3d holistic token cap (0 = unset ⇒ legacy caps); consumed by S2/S4
-	DiffContext         int `toml:"diff_context"`          // FR3f reduced diff context (0–3; default 1); consumed by S2/S4
-	MaxDuplicateRetries int `toml:"max_duplicate_retries"` // re-gen attempts on duplicate subject
-	SubjectTargetChars  int `toml:"subject_target_chars"`  // target subject length for truncation
+	MaxDiffBytes        int  `toml:"max_diff_bytes"`        // byte cap on non-markdown diff section
+	MaxMdLines          int  `toml:"max_md_lines"`          // per-file line cap for markdown diffs
+	TokenLimit          int  `toml:"token_limit"`           // FR3d holistic token cap (0 = unset ⇒ legacy caps); consumed by S2/S4
+	DiffContext         *int `toml:"diff_context"`          // FR3f reduced context (0–3); *int — nil ⇒ unset (default 1/-U1); non-nil incl. *0 ⇒ explicit (0 = changed-lines-only). *int not plain int so overlay distinguishes unset from explicit 0; consumed by S2/S4
+	MaxDuplicateRetries int  `toml:"max_duplicate_retries"` // re-gen attempts on duplicate subject
+	SubjectTargetChars  int  `toml:"subject_target_chars"`  // target subject length for truncation
 	// Format selects the commit-message style (PRD §9.19 FR-F1): "auto" (style learning, default),
 	// "conventional", "gitmoji", or "plain". Resolved through the standard 5-layer precedence
 	// (file → git → env → flag). Validated against validFormats at the tail of Load() — an unknown
@@ -169,8 +171,8 @@ func Defaults() Config {
 		Single:              false,
 		MaxDiffBytes:        300000,
 		MaxMdLines:          100,
-		TokenLimit:          0, // FR3d: 0 = unset ⇒ legacy per-section caps (max_diff_bytes/max_md_lines) apply unchanged
-		DiffContext:         1, // FR3f: reduced context (-U1) default; 0 = changed-lines-only, 3 = git default
+		TokenLimit:          0,         // FR3d: 0 = unset ⇒ legacy per-section caps (max_diff_bytes/max_md_lines) apply unchanged
+		DiffContext:         intPtr(1), // FR3f: -U1 default (non-nil: nil ⇒ user omitted the key; *0 ⇒ changed-lines-only)
 		MaxDuplicateRetries: 3,
 		SubjectTargetChars:  50,
 		Output:              nil,

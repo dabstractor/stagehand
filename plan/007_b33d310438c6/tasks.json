@@ -42,7 +42,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": "materialize + overlay field-merge (with DiffContext *int pointer)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
@@ -61,7 +61,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S3",
                   "title": "git-config resolver keys (stagehand.tokenLimit / stagehand.diffContext)",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
