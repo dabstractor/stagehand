@@ -327,6 +327,8 @@ For field reference, copy from the [shipped `providers/*.toml` files](providers/
 
 No. Stagehand uses `git write-tree` + `git commit-tree` + `git update-ref` (atomic snapshot commits). A failed generation leaves the repo byte-for-byte unchanged — it never touches the live index during generation.
 
+**Safe to run twice.** A per-repo run lock prevents two concurrent commit-producing runs from racing on HEAD, so an accidental double-invoke degrades gracefully: if nothing new is staged it exits `0` (*nothing to do — an in-progress run already covers your staged changes*); if genuinely new work is staged it exits `5` (Busy) and leaves your changes staged to re-run. (On a shared filesystem across hosts the lock can't help — the atomic `update-ref` CAS is the never-clobber-HEAD guarantee there.)
+
 ### Does it send my code anywhere new?
 
 No. It shells out to *your* agent under *your* existing auth and billing. Stagehand never opens an HTTP connection to any API — your agent does, exactly as it would if you ran it manually.

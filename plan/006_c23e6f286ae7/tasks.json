@@ -4,14 +4,14 @@
       "type": "Phase",
       "id": "P1",
       "title": "Per-repo run lock (FR52)",
-      "status": "Researching",
+      "status": "Complete",
       "description": "Implement FR52 — a per-repo advisory flock-based run lock that prevents two concurrent stagehand commit-producing processes from racing on the same repository's HEAD. This is a self-contained concurrency hardening layer composed over the already-implemented v2.0/v3/v2.1 core. The lock is the first line of defense (prevents the common local accidental double-run); the existing §13.5 CAS update-ref is the second (catches cross-host / shared-filesystem races the lock cannot cover). Both stay — defense in depth. One new package (internal/lock), one new exit code (Busy=5), one new third-party dependency (golang.org/x/sys for unix.Flock).",
       "milestones": [
         {
           "type": "Milestone",
           "id": "P1.M1",
           "title": "The run lock and its contention behavior",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Implement the complete FR52 feature: the internal/lock package with flock-based acquire/release and location resolution, the Busy exit code, the no-op fast path and busy refusal contention behaviors, the snapshot= field wiring into generate.go and decompose.go, and the changeset-level documentation sweep.",
           "tasks": [
             {
@@ -98,14 +98,14 @@
               "type": "Task",
               "id": "P1.M1.T3",
               "title": "Sync changeset-level documentation (Mode B)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Final cross-cutting documentation sweep: surface the race-free / safe-to-double-invoke safety property in README.md alongside the existing snapshot/atomic-commit pitch, and verify no stale concurrency claims survive anywhere in the docs tree.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T3.S1",
                   "title": "README.md race-free safety property + stale-claim sweep",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",
