@@ -11,7 +11,7 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Fix FR3i truncated-section newline separator (PRD Issue 1 — Major)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Resolve the 100%-reproducible Major defect where a truncated NON-LAST file section's `... [truncated]` sentinel is glued to the next file's `diff --git` header on a single line (`... [truncated]diff --git a/b.go b/b.go`). Single-point fix in the shared pure function truncateByWaterFill (internal/git/truncatediff.go), covering all three diff functions (StagedDiff/TreeDiff/WorkingTreeDiff) and the markdown path via applyWaterFillGate. Add regression coverage at BOTH the pure-unit layer and the E2E integration layer — the existing tests truncated only the last/only section, which is exactly the gap that hid this bug.",
           "tasks": [
             {
@@ -46,14 +46,14 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Add E2E integration regression coverage for multi-section truncation (all 3 diff functions)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Close the integration-layer gap that hid Issue 1: difftokenlimit_test.go only ever capped a single large file, so the glue defect was invisible end-to-end. Add E2E tests across StagedDiff, TreeDiff, and WorkingTreeDiff that cap TWO files under a small token_limit and assert no `[truncated]diff --git` glue appears and the next section's `diff --git` is at a line start.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "E2E multi-section truncation regression tests in difftokenlimit_test.go",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T1.S1"
@@ -77,21 +77,21 @@
           "type": "Milestone",
           "id": "P1.M2",
           "title": "Add diff_context out-of-range diagnostic (PRD Issue 2 — Minor)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Address the Minor defect where an out-of-range `diff_context` (e.g. 5, -1) is silently clamped to 1 by buildDiffArgs (internal/git/git.go:689) with no diagnostic. Add config-layer range validation per PRD §9.1 FR3f (\"integer 0–3\") that rejects or warns on out-of-range values while preserving the *int 0-vs-unset semantics (nil⇒unset default 1, *0⇒valid -U0). Low priority per PRD but improves operator feedback.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "Validate diff_context ∈ [0,3] with a clear diagnostic on out-of-range values",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Surface out-of-range diff_context values at the config layer (PRD's primary suggestion) with either a load-time error or a one-time warning, preserving all valid values (0,1,2,3) and the unset default. Update configuration docs and the bootstrap template to state the valid range.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Config-layer diff_context range validation + docs",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: internal/git/git.go buildDiffArgs (line ~689) silently clamps `opts.DiffContext` when `<0 || >3` to 1 — a PURE function (doc says 'Pure function; no I/O.'), so a warning cannot be added there without breaking purity and would spam per-diff-invocation. The config layer: internal/config/config.go DiffContextValue() (line ~201) returns `*c.DiffContext` or default 1 with NO range check; internal/config/file.go materialize (line ~226) and overlay (line ~340) copy the *int through verbatim; internal/config/load.go is the error-return path (it DOES return errors). The *int 0-vs-unset semantics are load-bearing (system_context.md §6; file_test.go TestMaterializeOverlay_DiffContext_TokenLimit): nil⇒unset (default 1/-U1), *0⇒VALID explicit (-U0 changed-lines-only), and ONLY values <0 or >3 are out-of-range. See architecture/system_context.md §3 for the two PRD options and the recommendation.\n2. INPUT: config.Config.DiffContext (*int) after materialize()+overlay() resolve global+repo layers. The existing internal/config/load.go error-return path.\n3. LOGIC: Implement config-layer range validation for diff_context ∈ [0,3] (PRD §9.1 FR3f 'integer 0–3'). PREFERRED (PRD primary): validate at config materialize/overlay/load time and return/propagate a clear error — e.g. add a `Config.Validate() error` invoked from the load path (load.go), OR an inline range check in the load.go path returning the existing error, that rejects `*DiffContext < 0 || *DiffContext > 3` while PRESERVING nil⇒unset and *0⇒valid. FALLBACK (if error-return plumbing is too invasive): emit a ONE-TIME stderr warning at the StagedDiffOptions-construction call sites (NOT inside the pure buildDiffArgs) when DiffContextValue() yields an out-of-range int. Add table test cases (internal/config/file_test.go or config_test.go, mirroring TestMaterializeOverlay_DiffContext_TokenLimit): diff_context=5 and diff_context=-1 produce an error/warning; diff_context=0,1,2,3 and unset pass through exactly as before (regression anchor — *0 MUST remain valid). Ensure buildDiffArgs' defensive clamp can remain as a belt-and-suspenders guard but is now never silently hit for valid config.\n4. OUTPUT: An out-of-range diff_context either fails config load with a clear message OR emits a visible warning; valid values (0,1,2,3) and unset behave byte-identically to before. The 6 StagedDiffOptions call sites are unchanged (they already consume DiffContextValue()).\n5. MOCKING: None — config parsing/validation is deterministic (TOML + overlay arithmetic). Tests use the existing materialize/overlay/load table style, no git, no I/O.\n6. DOCS: [Mode A] Update docs/configuration.md §diff_context (the comment block near line ~107, the defaults table near line ~131, and the prose near line ~147) AND the bootstrap template comment (internal/config/bootstrap.go:291) to state the valid range is 0–3 and that an out-of-range value is rejected (or warned about). This rides WITH the work — do not create a separate docs subtask.",

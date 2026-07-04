@@ -221,6 +221,133 @@ func TestTreeDiff_TokenLimitGt0(t *testing.T) {
 	}
 }
 
+// assertMultiSectionTruncationFormat asserts the Issue-1 fix holds for a multi-section water-fill
+// output (TWO files both truncated): no glued sentinel, the fixed sentinel+newline+diff--git join,
+// both file headers survive, the FR3g skeleton is present, legacy sentinels are absent, and exactly
+// 2 truncation sentinels appear (both files capped). Shared by the three MultiSection tests.
+func assertMultiSectionTruncationFormat(t *testing.T, out string) {
+	t.Helper()
+	// (a) Bug signature GONE: the sentinel is NEVER immediately followed by `diff --git`.
+	if strings.Contains(out, "[truncated]diff --git") {
+		t.Errorf("multi-section: sentinel glued to next diff --git (Issue 1 regressed); out=\n%s", out)
+	}
+	// (b) The fixed form: a truncated section's sentinel is followed by a newline then the next diff --git.
+	if !strings.Contains(out, "... [truncated]\ndiff --git") {
+		t.Errorf("multi-section: expected '... [truncated]\\ndiff --git' (sentinel on own line, next header at line start); out=\n%s", out)
+	}
+	// (c) Both files' diff --git section headers survive.
+	if !strings.Contains(out, "diff --git a/a.go b/a.go") {
+		t.Errorf("multi-section: a.go diff --git header missing; out=\n%s", out)
+	}
+	if !strings.Contains(out, "diff --git a/b.go b/b.go") {
+		t.Errorf("multi-section: b.go diff --git header missing; out=\n%s", out)
+	}
+	// (d) The FR3g numstat skeleton is present (completeness floor).
+	if !strings.Contains(out, "Change summary (numstat") {
+		t.Errorf("multi-section: FR3g skeleton missing; out=\n%s", out)
+	}
+	// (e) The legacy 'at N bytes/lines' sentinels are ABSENT on the token_limit>0 path.
+	if strings.Contains(out, "diff truncated at") {
+		t.Errorf("multi-section: legacy 'diff truncated at N' sentinel must be ABSENT; out=\n%s", out)
+	}
+	// Both files truncated ⇒ exactly 2 water-fill sentinels.
+	if c := strings.Count(out, "... [truncated]"); c != 2 {
+		t.Errorf("multi-section: expected 2 sentinels (both files capped), got %d; out=\n%s", c, out)
+	}
+}
+
+// === MULTI-SECTION TRUNCATION (Issue-1 regression: TWO files both truncated) ===================
+//
+// The single-section tests above cap only ONE file, so the truncated section is the LAST section →
+// its sentinel is never followed by another `diff --git` header, and the Issue-1 glue defect
+// (... [truncated]diff --git) is invisible. These three tests stage/create TWO large files so BOTH
+// are capped under a small token_limit → the FIRST section's sentinel is followed by the SECOND's
+// `diff --git` header (the exact join the bug corrupted). The shared helper asserts the no-glue
+// property across all three diff entry points.
+
+// TestStagedDiff_TokenLimitGt0_MultiSection_BothTruncated pins the multi-section no-glue property
+// for StagedDiff: TWO large non-markdown files, BOTH staged, BOTH truncated under a small budget.
+func TestStagedDiff_TokenLimitGt0_MultiSection_BothTruncated(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+	// TWO large non-markdown files, BOTH staged. Under a small token_limit BOTH are capped by the
+	// water-fill → the first section's sentinel is followed by the second's diff --git (the
+	// multi-section join the single-section tests never exercise — the gap that hid Issue 1).
+	writeFile(t, repo, "a.go", "package main\n"+strings.Repeat("// generated payload line xxxxxxxx\n", 1000))
+	stageFile(t, repo, "a.go")
+	writeFile(t, repo, "b.go", "package lib\n"+strings.Repeat("// other payload line yyyyyyyy\n", 1000))
+	stageFile(t, repo, "b.go")
+
+	g := New(repo)
+	out, err := g.StagedDiff(context.Background(), StagedDiffOptions{
+		TokenLimit:          4000,
+		DiffContext:         1,
+		PromptReserveTokens: 0,
+	})
+	if err != nil {
+		t.Fatalf("StagedDiff err = %v, want nil", err)
+	}
+	assertMultiSectionTruncationFormat(t, out)
+}
+
+// TestTreeDiff_TokenLimitGt0_MultiSection_BothTruncated pins the multi-section no-glue property for
+// TreeDiff: treeA (base.go) vs treeB (base + TWO large files), BOTH new files truncated.
+func TestTreeDiff_TokenLimitGt0_MultiSection_BothTruncated(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+	// treeA: a baseline (base.go only).
+	writeFile(t, repo, "base.go", "package main\n")
+	stageFile(t, repo, "base.go")
+	treeA := writeTreeOf(t, repo)
+	// treeB: add TWO large files.
+	writeFile(t, repo, "a.go", "package main\n"+strings.Repeat("// generated payload line xxxxxxxx\n", 1000))
+	stageFile(t, repo, "a.go")
+	writeFile(t, repo, "b.go", "package lib\n"+strings.Repeat("// other payload line yyyyyyyy\n", 1000))
+	stageFile(t, repo, "b.go")
+	treeB := writeTreeOf(t, repo)
+
+	g := New(repo)
+	out, err := g.TreeDiff(context.Background(), treeA, treeB, StagedDiffOptions{
+		TokenLimit:          4000,
+		DiffContext:         1,
+		PromptReserveTokens: 0,
+	})
+	if err != nil {
+		t.Fatalf("TreeDiff err = %v, want nil", err)
+	}
+	assertMultiSectionTruncationFormat(t, out)
+}
+
+// TestWorkingTreeDiff_TokenLimitGt0_MultiSection_BothTruncated pins the multi-section no-glue
+// property for WorkingTreeDiff: a tracked baseline commit then unstaged bloat of TWO tracked files.
+func TestWorkingTreeDiff_TokenLimitGt0_MultiSection_BothTruncated(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+	// Baseline: commit base.go + a.go + b.go (small, TRACKED) so working-tree changes appear in
+	// `git diff`. Untracked files do NOT appear in `git diff`.
+	writeFile(t, repo, "base.go", "package main\n")
+	stageFile(t, repo, "base.go")
+	writeFile(t, repo, "a.go", "package main\n")
+	stageFile(t, repo, "a.go")
+	writeFile(t, repo, "b.go", "package lib\n")
+	stageFile(t, repo, "b.go")
+	commitAllowEmpty(t, repo, "baseline")
+	// UNSTAGED working-tree bloat of BOTH tracked files → both large → both capped under the budget.
+	writeFile(t, repo, "a.go", "package main\n"+strings.Repeat("// unstaged payload line xxxxxxxx\n", 1000))
+	writeFile(t, repo, "b.go", "package lib\n"+strings.Repeat("// other unstaged line yyyyyyyy\n", 1000))
+
+	g := New(repo)
+	out, err := g.WorkingTreeDiff(context.Background(), StagedDiffOptions{
+		TokenLimit:          4000,
+		DiffContext:         1,
+		PromptReserveTokens: 0,
+	})
+	if err != nil {
+		t.Fatalf("WorkingTreeDiff err = %v, want nil", err)
+	}
+	assertMultiSectionTruncationFormat(t, out)
+}
+
 // TestWorkingTreeDiff_TokenLimitGt0 proves the gate is wired into WorkingTreeDiff (FR3c parity): a
 // baseline commit + an unstaged huge + small change, token_limit set.
 func TestWorkingTreeDiff_TokenLimitGt0(t *testing.T) {
