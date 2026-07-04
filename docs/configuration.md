@@ -104,7 +104,7 @@ model = "sonnet"
 # max_diff_bytes        = 300000  # ignored when token_limit is set (FR3d)
 # max_md_lines          = 100     # ignored when token_limit is set (FR3d)
 # token_limit           = 0       # holistic token budget (0 = unset ⇒ use the caps above); FR3d
-# diff_context          = 1       # 0 = changed-lines-only, 1 = one anchor (default), 3 = git default; FR3f
+# diff_context          = 1       # 0 = changed-lines-only, 1 = one anchor (default), 3 = git default; FR3f; valid range 0–3 — out-of-range rejected at config load
 # exclude               = []   # UNIONS across layers — see "Exclusion globs" below
 # format                = "auto"   # auto|conventional|gitmoji|plain; unknown = hard error (exit 1)
 # locale                = ""       # free-form language name or BCP-47 tag; never validated
@@ -128,7 +128,7 @@ These are the values when no config file, env var, git-config key, or flag sets 
 | `max_diff_bytes` | `300000` | `config.Defaults()` |
 | `max_md_lines` | `100` | `config.Defaults()` |
 | `token_limit` | `0` | `config.Defaults()` (§9.1 FR3d — unset ⇒ legacy caps) |
-| `diff_context` | `1` | `config.Defaults()` (§9.1 FR3f — `-U1`) |
+| `diff_context` | `1` | `config.Defaults()` (§9.1 FR3f — `-U1`; range 0–3, out-of-range rejected at config load) |
 | `max_duplicate_retries` | `3` | `config.Defaults()` |
 | `subject_target_chars` | `50` | `config.Defaults()` |
 | `output` | `"raw"` | provider manifest (§12.1) |
@@ -144,7 +144,7 @@ The `output` and `strip_code_fence` settings apply to **parsing** of agent outpu
 
 > **Token budget & diff context.** Two `[generation]` knobs size and shape the diff payload:
 > - **`token_limit`** (default `0` = unset) — a holistic token budget over the **whole** agent payload (system prompt + style examples + the concatenated diff). When set (e.g. `120000`), Stagehand reserves room for the prompt/examples and truncates the diff to fit using the ≈4 chars/token estimate, so the payload always fits your model's context window **without Stagehand maintaining a per-model context registry** (§9.1 FR3d). A non-zero `token_limit` **supersedes** the legacy per-section caps `max_diff_bytes` and `max_md_lines` for that run; the two modes are mutually exclusive. When `0`/unset, the legacy caps apply unchanged.
-> - **`diff_context`** (default `1`) — unchanged context lines surrounding each diff hunk: `0` = changed lines only (maximal savings), `1` = one anchor line (default), `3` = git's default (§9.1 FR3f). Applies in every diff path (staged, multi-commit snapshot, per-concept tree diff).
+> - **`diff_context`** (default `1`) — unchanged context lines surrounding each diff hunk: `0` = changed lines only (maximal savings), `1` = one anchor line (default), `3` = git's default (§9.1 FR3f). Applies in every diff path (staged, multi-commit snapshot, per-concept tree diff). Valid range is 0–3; an out-of-range value is rejected at config load with a clear error (§9.1 FR3f).
 
 ## Environment variables
 

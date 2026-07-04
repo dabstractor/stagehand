@@ -1135,6 +1135,46 @@ func TestValidateFormat(t *testing.T) {
 	}
 }
 
+// validateDiffContext tests (§9.1 FR3f — bugfix Issue 2: config-layer range validation). Mirrors the
+// intp-table style of file_test.go::TestMaterializeOverlay_DiffContext_TokenLimit; pure (no I/O).
+func TestValidateDiffContext(t *testing.T) {
+	intp := func(v int) *int { return &v }
+	cases := []struct {
+		name    string
+		dc      *int
+		wantErr bool
+	}{
+		{"unset_nil", nil, false},      // nil ⇒ unset ⇒ default 1 (VALID)
+		{"explicit_0", intp(0), false}, // THE key row: -U0 changed-lines-only (VALID)
+		{"explicit_1", intp(1), false},
+		{"explicit_2", intp(2), false},
+		{"explicit_3", intp(3), false},
+		{"over_3_four", intp(4), true},   // boundary just over 3
+		{"over_3_five", intp(5), true},   // the contract's example
+		{"negative_one", intp(-1), true}, // the contract's example
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateDiffContext(tc.dc)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("validateDiffContext(%v) = nil, want error", tc.dc)
+				}
+				if !strings.Contains(err.Error(), "range") {
+					t.Errorf("error %q should name the range", err.Error())
+				}
+				if !strings.Contains(err.Error(), "[0,3]") {
+					t.Errorf("error %q should name the [0,3] range", err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("validateDiffContext(%v) = %v, want nil", tc.dc, err)
+			}
+		})
+	}
+}
+
 func TestValidateTemplate(t *testing.T) {
 	validTemplates := []string{"", "$msg", "$msg (#205)", "[skip ci] $msg"}
 	for _, tpl := range validTemplates {

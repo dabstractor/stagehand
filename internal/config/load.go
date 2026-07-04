@@ -178,6 +178,13 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 	if err := validateTemplate(cfg.Template); err != nil {
 		return nil, fmt.Errorf("template: %w", err)
 	}
+	// §9.1 FR3f — diff_context is an integer in [0,3]. The config layer accepts any int and would otherwise
+	// be silently clamped to 1 by buildDiffArgs (internal/git/git.go) with NO diagnostic (bugfix Issue 2).
+	// Validate the fully-merged *int here so an out-of-range value (e.g. a typo'd 5) fails load with a clear,
+	// field-named error. The nil (unset ⇒ default 1) and *0 (-U0, changed-lines-only) cases are VALID.
+	if err := validateDiffContext(cfg.DiffContext); err != nil {
+		return nil, fmt.Errorf("diff_context: %w", err)
+	}
 
 	// Self-hosting guard (FR-SH1). "stub" (cmd/stubagent) is a TEST-ONLY provider double that echoes
 	// $STAGEHAND_STUB_OUT verbatim as the "generated" message. It is valid ONLY when selected
@@ -435,6 +442,22 @@ func validateFormat(format string) error {
 		}
 	}
 	return fmt.Errorf("invalid format %q (valid: %s)", format, strings.Join(validFormats, ", "))
+}
+
+// validateDiffContext rejects an out-of-range diff_context (PRD §9.1 FR3f: integer 0–3). It is the
+// config-layer diagnostic for bugfix Issue 2 (buildDiffArgs otherwise silently clamps to 1). Semantics:
+// nil ⇒ unset ⇒ valid (default 1 applied by DiffContextValue); *0 ⇒ valid (-U0, changed-lines-only);
+// *1/*2/*3 ⇒ valid. ONLY *v<0 or *v>3 is an error. PURE (no I/O) so it is unit-testable directly.
+// Called from Load after every layer (file + git-config) has merged into cfg.DiffContext (the single
+// chokepoint — diff_context has no env/flag source). Mirrors the validateFormat/validateTemplate shape.
+func validateDiffContext(dc *int) error {
+	if dc == nil {
+		return nil // unset ⇒ default 1 (valid)
+	}
+	if v := *dc; v < 0 || v > 3 {
+		return fmt.Errorf("must be in range [0,3]: got %d", v)
+	}
+	return nil // *0, *1, *2, *3 all valid
 }
 
 // validateTemplate returns nil iff tpl is empty or contains the literal "$msg" substring, else an error

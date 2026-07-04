@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "FR3i Diff Truncation Formatting Fix & Diff-Context Hardening",
-      "status": "Planned",
+      "status": "Researching",
       "description": "Bugfix delta for the FR3d–FR3i diff-payload optimization (plan 007_b33d310438c6). Fixes the Major FR3i truncated-section newline-separator defect (PRD Issue 1, reproducible in all three diff functions) and the Minor diff_context out-of-range silent-clamp defect (PRD Issue 2). PRD Issue 3 requires NO action (verified rune-boundary-safe). Research root cause, fix locations, and test gaps are documented in plan/007_b33d310438c6/bugfix/001_7e79f5773da8/architecture/system_context.md.",
       "milestones": [
         {
@@ -77,21 +77,21 @@
           "type": "Milestone",
           "id": "P1.M2",
           "title": "Add diff_context out-of-range diagnostic (PRD Issue 2 — Minor)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Address the Minor defect where an out-of-range `diff_context` (e.g. 5, -1) is silently clamped to 1 by buildDiffArgs (internal/git/git.go:689) with no diagnostic. Add config-layer range validation per PRD §9.1 FR3f (\"integer 0–3\") that rejects or warns on out-of-range values while preserving the *int 0-vs-unset semantics (nil⇒unset default 1, *0⇒valid -U0). Low priority per PRD but improves operator feedback.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "Validate diff_context ∈ [0,3] with a clear diagnostic on out-of-range values",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Surface out-of-range diff_context values at the config layer (PRD's primary suggestion) with either a load-time error or a one-time warning, preserving all valid values (0,1,2,3) and the unset default. Update configuration docs and the bootstrap template to state the valid range.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Config-layer diff_context range validation + docs",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: internal/git/git.go buildDiffArgs (line ~689) silently clamps `opts.DiffContext` when `<0 || >3` to 1 — a PURE function (doc says 'Pure function; no I/O.'), so a warning cannot be added there without breaking purity and would spam per-diff-invocation. The config layer: internal/config/config.go DiffContextValue() (line ~201) returns `*c.DiffContext` or default 1 with NO range check; internal/config/file.go materialize (line ~226) and overlay (line ~340) copy the *int through verbatim; internal/config/load.go is the error-return path (it DOES return errors). The *int 0-vs-unset semantics are load-bearing (system_context.md §6; file_test.go TestMaterializeOverlay_DiffContext_TokenLimit): nil⇒unset (default 1/-U1), *0⇒VALID explicit (-U0 changed-lines-only), and ONLY values <0 or >3 are out-of-range. See architecture/system_context.md §3 for the two PRD options and the recommendation.\n2. INPUT: config.Config.DiffContext (*int) after materialize()+overlay() resolve global+repo layers. The existing internal/config/load.go error-return path.\n3. LOGIC: Implement config-layer range validation for diff_context ∈ [0,3] (PRD §9.1 FR3f 'integer 0–3'). PREFERRED (PRD primary): validate at config materialize/overlay/load time and return/propagate a clear error — e.g. add a `Config.Validate() error` invoked from the load path (load.go), OR an inline range check in the load.go path returning the existing error, that rejects `*DiffContext < 0 || *DiffContext > 3` while PRESERVING nil⇒unset and *0⇒valid. FALLBACK (if error-return plumbing is too invasive): emit a ONE-TIME stderr warning at the StagedDiffOptions-construction call sites (NOT inside the pure buildDiffArgs) when DiffContextValue() yields an out-of-range int. Add table test cases (internal/config/file_test.go or config_test.go, mirroring TestMaterializeOverlay_DiffContext_TokenLimit): diff_context=5 and diff_context=-1 produce an error/warning; diff_context=0,1,2,3 and unset pass through exactly as before (regression anchor — *0 MUST remain valid). Ensure buildDiffArgs' defensive clamp can remain as a belt-and-suspenders guard but is now never silently hit for valid config.\n4. OUTPUT: An out-of-range diff_context either fails config load with a clear message OR emits a visible warning; valid values (0,1,2,3) and unset behave byte-identically to before. The 6 StagedDiffOptions call sites are unchanged (they already consume DiffContextValue()).\n5. MOCKING: None — config parsing/validation is deterministic (TOML + overlay arithmetic). Tests use the existing materialize/overlay/load table style, no git, no I/O.\n6. DOCS: [Mode A] Update docs/configuration.md §diff_context (the comment block near line ~107, the defaults table near line ~131, and the prose near line ~147) AND the bootstrap template comment (internal/config/bootstrap.go:291) to state the valid range is 0–3 and that an out-of-range value is rejected (or warned about). This rides WITH the work — do not create a separate docs subtask.",
@@ -112,21 +112,21 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Sync changeset-level documentation (Mode B catch-all)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Final cross-cutting documentation sweep that only makes sense once the whole changeset is in place. Verifies the overview/feature docs (README.md, docs/how-it-works.md) and configuration docs are consistent with the shipped behavior (newline-separated truncation sentinel + validated diff_context range). Depends on every implementing subtask so it runs last.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Sweep README.md, docs/how-it-works.md, and docs/configuration.md for any statement about the per-file truncation format, the sentinel line shape, or the diff_context range that is now inaccurate or would benefit from surfacing the newline separation / validated range. Update only where a statement is stale or unclear; do not invent features.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T1.S1",
                   "title": "Sweep README.md, docs/how-it-works.md, docs/configuration.md for truncation-format & diff_context accuracy",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",
