@@ -330,6 +330,7 @@ Each requirement has an ID (FR-n), a priority (P0 = must for v1, P1 = should for
 - **FR40.** Advance HEAD atomically: `git update-ref HEAD <NEW_SHA> <PARENT_SHA>` (the two-arg form refuses to move HEAD if its current value is not `<PARENT_SHA>`).
 - **FR41.** If `update-ref` fails (HEAD moved concurrently), abort with a clear message and a manual recovery command. Do **not** force-update.
 - **FR42.** On success, print `[<short-sha>] <subject>` and `git diff-tree --no-commit-id --name-status -r <NEW_SHA>` so the user sees what landed.
+- **FR52. Per-repo run lock.** Before snapshotting or generating, a commit-producing run acquires an exclusive, non-blocking lock scoped to the repository so two stagehand processes cannot race on the same repo (which would otherwise trip the §13.5 CAS and, in the duplicate-run case, surface the “already committed” message). If the lock is already held by a live run, stagehand does not block: if nothing new has been staged since that run’s published snapshot it exits 0 (nothing to do — the accidental-double-run case), otherwise it exits non-zero with a clear message naming the holder (re-run after it finishes). The lock lives in a per-system runtime directory keyed by the repo path — **never inside the repo** — and is implemented with advisory `flock` so it cannot go stale on a crash. Detailed in §18.5.
 
 ### 9.10 Rescue protocol (P0, → G10)
 
@@ -547,7 +548,7 @@ The flow is deliberately linear and synchronous for the **single-commit** path. 
 
 ### 11.2 Process model
 
-Stagehand is a single process. It shells out to git (multiple times) and to the agent CLI (once per attempt). All subprocesses inherit Stagehand's working directory (the repo root) and environment, with a controlled, minimal set of extra env vars passed to the agent only if the manifest requests them. Stagehand owns signal handling: SIGINT/SIGTERM propagates to the currently-running child and then triggers the rescue path.
+Stagehand is a single process. It shells out to git (multiple times) and to the agent CLI (once per attempt). All subprocesses inherit Stagehand's working directory (the repo root) and environment, with a controlled, minimal set of extra env vars passed to the agent only if the manifest requests them. Stagehand owns signal handling: SIGINT/SIGTERM propagates to the currently-running child and then triggers the rescue path. At most one stagehand process may produce commits in a given repo at a time: a per-repo run lock (FR52 / §18.5) serializes concurrent invocations on the same repo so two cannot race on HEAD.
 
 ### 11.3 Design constraints that protect v2 (now realized)
 
@@ -1151,7 +1152,7 @@ stagehand                     ┐
                                 stagehand        # next run commits these
 ```
 
-This is the workflow the author already uses with `commit-pi` and that lazygit's `output: none` binding makes frictionless. v1 preserves it exactly; the implementation simply never touches the index between `write-tree` and `update-ref`.
+This is the workflow the author already uses with `commit-pi` and that lazygit's `output: none` binding makes frictionless. v1 preserves it exactly; the implementation simply never touches the index between `write-tree` and `update-ref`. This safety holds for a **single** stagehand process; launching a second one against the same repo while the first is generating is not safe (the loser's CAS aborts — §13.5), and the per-repo run lock (FR52 / §18.5) makes that race impossible to stumble into.
 
 ### 13.5 Edge cases and their handling
 
@@ -1885,6 +1886,30 @@ Stagehand installs a `signal.Notify` handler for SIGINT and SIGTERM. On receipt:
 2. If the snapshot has been taken, run the rescue path; else just exit.
 3. Restore the default signal handler before the final `update-ref` so a Ctrl-C at the very last instant isn't mistaken for a failure (matching `commit-pi`'s `trap - INT TERM` before commit).
 
+### 18.5 Concurrency: the per-repo run lock (FR52)
+
+The stage-while-generating workflow (§13.4) is safe for a **single** stagehand process: the snapshot is frozen before generation, and staging files during generation cannot move HEAD, so the commit's CAS (§13.5) cannot be tripped by staging alone. What is **not** safe is two stagehand processes running against the same repo at the same time — whichever commits first moves HEAD, and the loser's CAS aborts (§13.5), leaving a dangling snapshot and, in the common duplicate-run case, the "already committed" message. The run lock makes that race structurally impossible to stumble into. It is the **first** line of defense (prevents the common local double-run); the §13.5 CAS is the **second** (the never-clobber-HEAD guarantee, which holds even on a shared filesystem the lock cannot cover). Both stay — defense in depth.
+
+**Scope.** Every commit-producing action acquires the lock: the default action in **both** its single-commit and decompose modes. Read-only subcommands (`config`, `providers`, `--version`, `--help`) bypass it — they never mutate refs.
+
+**Location — global per system, never inside the repo.** A lock file living in the repo (`.git/stagehand.lock` or the working tree) is rejected: it pollutes `git status`, can be committed accidentally, is ambiguous across worktrees/checkouts, and is lost on clone. Instead the lock lives in a **per-system, per-user runtime directory**, keyed by the repository's absolute path:
+
+- `$XDG_RUNTIME_DIR/stagehand/locks/<hash>.lock` when `XDG_RUNTIME_DIR` is set — the preferred location (tmpfs, per-login, auto-cleaned at logout; exactly what runtime locks are for).
+- Otherwise `$XDG_CACHE_HOME/stagehand/locks/<hash>.lock`, falling back to `~/.cache/stagehand/locks/<hash>.lock` (the XDG convention used for the global config, §16.1).
+- `<hash>` = `sha256` of the repository's **canonical absolute path**, hex-encoded. Hashing keeps the filename charset/length safe and yields exactly one lock file per repo. Two different repos hash differently and lock independently; two terminals in the **same** repo hash identically and contend — which is precisely the case to serialize.
+
+**Contents.** The lock file holds `pid`, `hostname`, the repo path, a start timestamp, and — once the holder freezes its snapshot — `snapshot=<frozen-tree-sha>` (the `WriteTree` result on the single-commit path; `T_start` on the decompose path; one `key=value` per line). The `pid`/`hostname`/repo are diagnostic (they let the contention message name *who* holds the lock); the `snapshot` enables the no-op fast path below. None of it is used for stale-lock reaping (see mechanism).
+
+**Mechanism — advisory `flock`, not a sentinel file.** The lock is taken with `flock(2)` (`LOCK_EX | LOCK_NB`) on the file descriptor of `<hash>.lock` (created if absent). `flock` is released **automatically** when the process exits — including under `SIGKILL` or a crash — so there are **no stale locks to reap** and no PID-liveness heuristics. This deliberately avoids the fragile `O_CREAT|O_EXCL`-plus-PID-check pattern, whose stale-lock bugs are the classic failure mode for hand-rolled locks.
+
+**Contention behavior.** If `LOCK_NB` fails (another stagehand holds the lock), stagehand does **not** block — the user is interactive, and blocking would hang their terminal. First it tries the **no-op fast path**: if the holder has published a `snapshot=` and the contending run's own staged snapshot (`write-tree`, which is index-read-only and therefore safe to take without the lock) is byte-identical to it — i.e. the path-diff is empty — then nothing new has been staged since the holder began, so the contending run is redundant (the common accidental-double-run). It exits **0** with *“nothing to do — an in-progress run already covers your staged changes.”* If a genuine second batch *is* staged (the diff is non-empty), it instead reads the holder's `pid`/`hostname`/repo and exits non-zero with a message of the form:
+
+> stagehand: another stagehand run is already in progress on `<repo>` (pid `<N>` on `<host>`). Your newly-staged changes will remain staged — re-run `stagehand` after it finishes. Lock: `<path>`.
+
+The non-zero exit code is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed" (§15.4; add exit `Busy`). Stagehand never force-breaks the lock. (Auto-committing that second batch instead of refusing is the depth-1 subtractive queue — deferred; see Appendix F.)
+
+**Limits.** The lock is **per-host**: on a shared/network filesystem mounted by two machines, two stagehand processes on different hosts can still race (their `flock`s are local to each host) — the §13.5 CAS catches that. The lock serializes stagehand with stagehand only, not against other tools (an editor, another coding agent); excluding those is the snapshot/freeze boundary's job (FR-M1b), not the lock's.
+
 ---
 
 ## 19. Security considerations
@@ -2194,6 +2219,7 @@ To commit the originally staged files manually:
 - **PR generation stays out despite ranking #2 in the analysis (v2.1).** §6.3 is permanent: stagehand writes commit messages. Scope discipline beats parity scoring. (`FUTURE_SPEC.md`)
 - **Self-update, clipboard, and chunking rejected (v2.1).** Package managers own binary updates; `--dry-run --no-color | wl-copy` is clipboard mode; 200k-token agent contexts + byte caps + decomposition make chunk-and-combine a quality regression, not a feature. (`FUTURE_SPEC.md`)
 - **Integrations ship git-alias + lazygit only, behind a no-mangle protocol (v2.1).** gitui is blocked upstream (keybinds can only remap built-in actions — verified against its changelog 2026-07-02). Every file edit: parse-first, preview + confirm, backup, post-write validation with auto-restore, marker idempotency. The git alias delegates the edit to `git config` itself. (§9.21)
+- **Run lock, not a run queue (FR52).** Two stagehand processes on one repo race on HEAD (the loser's CAS aborts — §13.5). A lock makes that race impossible to stumble into; a queue that *auto-commits* the second batch was rejected because the shared git index has no per-run marker, so the snapshot freeze is the only batch separator — which means the queue can isolate batch 2 only when run 1 commits first (it can't on run-1-failure) and is fundamentally ambiguous when both batches touch the *same file* (path-level subtraction can't split one file's two edits; hunk-merge can conflict). The queue's real reliability boundary is disjoint files across batches, not queue depth, and it would auto-fire on the very accidental double-run we're guarding against. Of the queue idea we adopted exactly one piece today — the **no-op-on-empty-delta** fast path: a contending run with nothing new staged since the holder's snapshot exits 0 instead of erroring, so the accidental double-run degrades to a graceful "nothing to do" rather than a refused run. The depth-1 subtractive queue (auto-commit batch 2 via `diff(T1, T2)`, with a disjoint-files precondition and a manual-fallback on overlap) is recorded here as a future possibility, out of scope for now. (§18.5)
 
 ---
 
