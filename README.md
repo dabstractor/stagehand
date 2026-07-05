@@ -72,6 +72,13 @@ Stagehand does one thing — commit messages — and a few things around them.
 | `--edit` / `--push` | Review in `$EDITOR` before the atomic commit; push after a clean run ([docs](docs/cli.md)). |
 | Discovery | `stagehand models` and `config init --interactive` for guided setup ([docs](docs/cli.md#models-provider)). |
 
+<!-- Multi-turn fallback (Features row above): intentionally generic — "stagehand" re-delivers, NOT
+     "the commit path". Multi-turn runs on EVERY generation path (snapshot commit, `--dry-run`, hook
+     mode); the per-path detail lives in docs/how-it-works.md#multi-turn-generation-fallback (linked
+     from the row), so this high-level row deliberately does NOT enumerate paths. "no extra commits"
+     is an anti-misconception note (one message/commit, not N), accurate on all three paths. Do not
+     narrow this row. (P1.M4.T1.S2.) -->
+
 ## Install
 
 **Prerequisite:** a coding-agent CLI already installed and on `$PATH` (pi, Claude Code, Gemini CLI, opencode, Codex, Cursor, agy, or qwen-code).

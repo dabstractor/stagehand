@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Multi-Turn Fallback Propagation & Hardening",
-      "status": "Researching",
+      "status": "Complete",
       "description": "Propagate the FR-T1 multi-turn fallback trigger gate from the reference CommitStaged implementation into the two generation-loop mirrors that lack it (runPipeline for --dry-run/SystemExtra, and hook.Run for git hooks), plus three minor correctness/UX fixes: payload consistency (Issue 4), per-chunk token estimate in verbose (Issue 3), and FR-H5 never-block safety in hook mode (Issue 2). The core multi-turn implementation in CommitStaged is correct and well-tested; this phase extends its reach to all three generation paths and resolves the four issues identified in the end-to-end validation.",
       "milestones": [
         {
@@ -189,14 +189,14 @@
           "type": "Milestone",
           "id": "P1.M4",
           "title": "Sync Changeset-Level Documentation (Mode B)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Final cross-cutting documentation sweep to reflect that multi-turn now applies to all three generation paths (commit, dry-run, hook), and that the verbose output includes the per-chunk token estimate. This is the Mode B catch-all that prevents the changeset from shipping with stale README/overview docs.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M4.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Update the overview docs that summarize the multi-turn feature across the whole changeset. The how-it-works.md hook-mode section must note multi-turn is now available in hook mode (composing with never-block). The README.md features row should reflect that multi-turn covers all paths. These are cross-cutting docs that only make sense once the whole change is in place.",
               "subtasks": [
                 {
@@ -220,7 +220,7 @@
                   "type": "Subtask",
                   "id": "P1.M4.T1.S2",
                   "title": "Update README.md features table for multi-turn path coverage",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 0.5,
                   "dependencies": [
                     "P1.M4.T1.S1",
