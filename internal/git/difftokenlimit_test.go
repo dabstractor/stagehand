@@ -30,6 +30,52 @@ func commitAllowEmpty(t *testing.T, dir, msg string) {
 	}
 }
 
+// embeddedDiffLiteralBody builds a non-markdown file body whose CONTENT contains `blocks`
+// documented `diff --git ` literals — a realistic test-fixture / golden-snapshot / .patch file.
+// Each block is a sample diff with a distinct sample filename (fa..fz cycling). Used by the
+// content-embedded-literal regression tests to prove splitDiffSections does NOT fragment one real
+// file into bogus sections (bugfix 002 Issue 1).
+func embeddedDiffLiteralBody(blocks int) string {
+	var sb strings.Builder
+	for i := 0; i < blocks; i++ {
+		c := string(rune('a' + (i % 26)))
+		sb.WriteString("diff --git a/f" + c + " b/f" + c + "\n@@ -1 +1 @@\n-old\n+new\n\n")
+	}
+	return sb.String()
+}
+
+// assertContentEmbeddedLiteralNotFragmented asserts the bugfix-002 Issue-1 fix holds for a
+// content-embedded-`diff --git `-literal water-fill output: (a) the payload FITS the token budget
+// (FR3d), (b) the single large file is TRUNCATED (exactly 1 sentinel), (c) it is NOT fragmented
+// (exactly ONE real `diff --git a/<file>` header — the bug produced hundreds of bogus sections),
+// (d) the FR3g numstat skeleton is present, (e) the legacy `at N bytes/lines` sentinels are
+// absent. Shared by the three ContentEmbeddedDiffGitLiteral tests.
+func assertContentEmbeddedLiteralNotFragmented(t *testing.T, out string, tokenLimit int, file string) {
+	t.Helper()
+	// (a) FR3d contract: the payload fits the budget (skeleton/header overhead absorbed by 2× margin).
+	if got := EstimateTokens(out); got > tokenLimit+2*tokenBudgetMargin {
+		t.Errorf("content-embedded: payload %d tokens overflows token_limit %d (FR3d contract broken); out tail=\n%s", got, tokenLimit, tail(out, 200))
+	}
+	// (b) Truncation occurred: exactly 1 sentinel for the single large file.
+	if c := strings.Count(out, "... [truncated]"); c != 1 {
+		t.Errorf("content-embedded: expected exactly 1 truncation sentinel (the single large file capped), got %d; out tail=\n%s", c, tail(out, 200))
+	}
+	// (c) NOT fragmented: the single real file appears as exactly ONE section header. The bug
+	//     fragmented one file into ~N bogus sections (one per embedded `diff --git ` literal).
+	realHeader := "diff --git a/" + file + " b/" + file
+	if c := strings.Count(out, realHeader); c != 1 {
+		t.Errorf("content-embedded: expected exactly 1 real %q header (not fragmented), got %d; out tail=\n%s", realHeader, c, tail(out, 200))
+	}
+	// (d) The FR3g numstat skeleton is present (completeness floor).
+	if !strings.Contains(out, "Change summary (numstat") {
+		t.Errorf("content-embedded: FR3g skeleton missing; out=\n%s", out)
+	}
+	// (e) The legacy 'at N bytes/lines' sentinels are ABSENT on the token_limit>0 path.
+	if strings.Contains(out, "diff truncated at") {
+		t.Errorf("content-embedded: legacy 'diff truncated at N' sentinel must be ABSENT; out=\n%s", out)
+	}
+}
+
 // === ==0 REGRESSION (the gate-level anchor) ==============================================
 
 // TestStagedDiff_TokenLimitZero_LegacyCaps pins the ==0 path at the GATE level: with TokenLimit unset
@@ -346,6 +392,94 @@ func TestWorkingTreeDiff_TokenLimitGt0_MultiSection_BothTruncated(t *testing.T) 
 		t.Fatalf("WorkingTreeDiff err = %v, want nil", err)
 	}
 	assertMultiSectionTruncationFormat(t, out)
+}
+
+// === CONTENT-EMBEDDED `diff --git ` LITERAL (bugfix 002 Issue-1 regression) ===================
+//
+// The existing tests stage content free of `diff --git ` literals, so the fragmentation defect was
+// never exercised E2E: a single non-markdown file whose BODY embeds many `diff --git ` literals (a
+// realistic fixture / golden-snapshot / .patch file) was torn into bogus sections by the un-anchored
+// split → sized tiny → truncated nothing → payload SILENTLY overflowed token_limit (~7× measured at
+// token_limit=2000). The S1 fix (line-anchored `(?m)^diff --git ` regex slice in truncatediff.go:55)
+// keeps that file ONE section, sized, and truncated to fit. These three tests PIN the fix across all
+// three diff entry points by staging ONE such file under a small token_limit and asserting (via the
+// shared helper) fits-budget + truncated + not-fragmented + skeleton + no-legacy.
+
+// TestStagedDiff_TokenLimitGt0_ContentEmbeddedDiffGitLiteral pins the Issue-1 fix for StagedDiff:
+// ONE non-md file whose content embeds many `diff --git ` literals, staged, under a small token_limit.
+func TestStagedDiff_TokenLimitGt0_ContentEmbeddedDiffGitLiteral(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+	// ONE non-md file whose CONTENT embeds many `diff --git ` literals (a fixture/snapshot/.patch).
+	// Under a small token_limit the file MUST be capped as ONE section (the un-anchored split
+	// fragmented it into bogus sections, silently overflowing the budget — bugfix 002 Issue 1).
+	writeFile(t, repo, "fixtures.diff", embeddedDiffLiteralBody(300))
+	stageFile(t, repo, "fixtures.diff")
+
+	g := New(repo)
+	const tokenLimit = 2000
+	out, err := g.StagedDiff(context.Background(), StagedDiffOptions{
+		TokenLimit:          tokenLimit,
+		PromptReserveTokens: 0,
+	})
+	if err != nil {
+		t.Fatalf("StagedDiff err = %v, want nil", err)
+	}
+	assertContentEmbeddedLiteralNotFragmented(t, out, tokenLimit, "fixtures.diff")
+}
+
+// TestTreeDiff_TokenLimitGt0_ContentEmbeddedDiffGitLiteral pins the Issue-1 fix for TreeDiff:
+// treeA (base.go) vs treeB (base + the embedded-literal fixture), under a small token_limit.
+func TestTreeDiff_TokenLimitGt0_ContentEmbeddedDiffGitLiteral(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+	// treeA: a baseline (base.go only).
+	writeFile(t, repo, "base.go", "package main\n")
+	stageFile(t, repo, "base.go")
+	treeA := writeTreeOf(t, repo)
+	// treeB: add the embedded-literal fixture.
+	writeFile(t, repo, "fixtures.diff", embeddedDiffLiteralBody(300))
+	stageFile(t, repo, "fixtures.diff")
+	treeB := writeTreeOf(t, repo)
+
+	g := New(repo)
+	const tokenLimit = 2000
+	out, err := g.TreeDiff(context.Background(), treeA, treeB, StagedDiffOptions{
+		TokenLimit:          tokenLimit,
+		PromptReserveTokens: 0,
+	})
+	if err != nil {
+		t.Fatalf("TreeDiff err = %v, want nil", err)
+	}
+	assertContentEmbeddedLiteralNotFragmented(t, out, tokenLimit, "fixtures.diff")
+}
+
+// TestWorkingTreeDiff_TokenLimitGt0_ContentEmbeddedDiffGitLiteral pins the Issue-1 fix for
+// WorkingTreeDiff: a tracked baseline commit then unstaged bloat of the tracked fixture with the
+// embedded-literal body, under a small token_limit.
+func TestWorkingTreeDiff_TokenLimitGt0_ContentEmbeddedDiffGitLiteral(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+	// Baseline: commit base.go + fixtures.diff (small, TRACKED) so working-tree changes appear in
+	// `git diff`. Untracked files do NOT appear in `git diff`.
+	writeFile(t, repo, "base.go", "package main\n")
+	stageFile(t, repo, "base.go")
+	writeFile(t, repo, "fixtures.diff", "seed\n")
+	stageFile(t, repo, "fixtures.diff")
+	commitAllowEmpty(t, repo, "baseline")
+	// UNSTAGED working-tree bloat of the tracked fixture with the embedded-literal body.
+	writeFile(t, repo, "fixtures.diff", embeddedDiffLiteralBody(300))
+
+	g := New(repo)
+	const tokenLimit = 2000
+	out, err := g.WorkingTreeDiff(context.Background(), StagedDiffOptions{
+		TokenLimit:          tokenLimit,
+		PromptReserveTokens: 0,
+	})
+	if err != nil {
+		t.Fatalf("WorkingTreeDiff err = %v, want nil", err)
+	}
+	assertContentEmbeddedLiteralNotFragmented(t, out, tokenLimit, "fixtures.diff")
 }
 
 // TestWorkingTreeDiff_TokenLimitGt0 proves the gate is wired into WorkingTreeDiff (FR3c parity): a
