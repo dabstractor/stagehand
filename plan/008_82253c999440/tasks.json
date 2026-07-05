@@ -147,14 +147,14 @@
               "type": "Task",
               "id": "P2.M1.T1",
               "title": "PlannerCommit.Files field + parse + FR-M3b coverage check",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add the Files []string field to PlannerCommit (FR-M3) and the deterministic, non-fatal coverage check (FR-M3b) that unions concept.Files and compares to the frozen changed-path set DiffTreeNames(baseTree, tStart), logging unclaimed paths as likely leftovers. Files is guidance only (FR-M1c remains the sole content guarantee); the coverage check never aborts and never hard-constrains the stager.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P2.M1.T1.S1",
                   "title": "Add Files []string to PlannerCommit + parse round-trip tests",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/008_82253c999440/architecture/planner_prompt.md §1.1 (PlannerCommit at prompt/planner.go:57-61 has Title+Description, NO Files) and §2.1 (the field). ParsePlannerOutput (planner.go ~171) uses json.Unmarshal generically — adding the field populates it FOR FREE (no parse-code change). validatePlannerOutput (~152) must NOT enforce non-empty Files (files is guidance).\n2. INPUT: None (leaf data-model change). PlannerCommit is defined in internal/prompt/planner.go.\n3. LOGIC: Implement FR-M3. Add `Files []string \\`json:\"files\"\\`` to the PlannerCommit struct with a doc comment: 'every path this concept touches; guidance, not a constraint (FR-M1c is the content guarantee)'. Do NOT touch validatePlannerOutput (Files is not validated). TDD: update internal/prompt/planner_test.go TestParsePlannerOutput table cases to add Files to the round-trip cases (e.g. {\"title\":\"A\",\"description\":\"d1\",\"files\":[\"a.go\",\"b.go\"]} -> PlannerCommit{Files:[]string{\"a.go\",\"b.go\"}}); add a \"files\":null case (-> nil) and a concept-missing-files-key case (-> nil); update TestParsePlannerOutput_RoundTrip to include Files in the original. The parse populates Files automatically. Mock: none (pure parse tests).\n4. OUTPUT: PlannerCommit.Files field populated by ParsePlannerOutput for consumption by P2.M1.T1.S2 (coverage check), P2.M1.T2.S1 (JSON contract references files), and P2.M1.T3.S1 (stager files block).\n5. DOCS: none — internal data-model field, no user-facing surface.",
@@ -169,7 +169,7 @@
                   "type": "Subtask",
                   "id": "P2.M1.T1.S2",
                   "title": "FR-M3b deterministic non-fatal coverage check (logs unclaimed paths)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P2.M1.T1.S1"

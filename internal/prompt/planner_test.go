@@ -2,6 +2,7 @@ package prompt
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -294,13 +295,14 @@ func TestPlannerRetryInstruction(t *testing.T) {
 // TestParsePlannerOutput is a table of parse scenarios covering clean JSON, prose-wrapped, code-fenced,
 // edge cases, and error cases.
 func TestParsePlannerOutput(t *testing.T) {
-	cleanMulti := `{"count":2,"single":false,"commits":[{"title":"A","description":"d1"},{"title":"B","description":"d2"}]}`
+	cleanMulti := `{"count":2,"single":false,"commits":[{"title":"A","description":"d1","files":["a.go","b.go"]},{"title":"B","description":"d2"}]}`
 	singleMsg := `{"count":1,"single":true,"commits":[{"title":"X","description":"d"}],"message":"feat: add thing"}`
 	proseWrapped := "Here is the plan:\n" + cleanMulti + "\nThanks!"
 	codeFenced := "```json\n" + cleanMulti + "\n```"
 	whitespace := "  \n" + cleanMulti + "\n  "
 	nullCommits := `{"count":0,"single":false,"commits":null}`
 	extraFields := `{"count":1,"single":true,"commits":[{"title":"T","description":"D"}],"message":"M","extra":"ignored"}`
+	nullFiles := `{"count":1,"single":false,"commits":[{"title":"N","description":"d","files":null}]}`
 
 	zero := PlannerOutput{Count: -999} // sentinel; non-nil Commits also compared below
 	cases := []struct {
@@ -310,19 +312,21 @@ func TestParsePlannerOutput(t *testing.T) {
 		wantErr bool
 	}{
 		{"clean multi-commit JSON", cleanMulti,
-			PlannerOutput{Count: 2, Single: false, Commits: []PlannerCommit{{Title: "A", Description: "d1"}, {Title: "B", Description: "d2"}}}, false},
+			PlannerOutput{Count: 2, Single: false, Commits: []PlannerCommit{{Title: "A", Description: "d1", Files: []string{"a.go", "b.go"}}, {Title: "B", Description: "d2"}}}, false},
 		{"single-commit with message", singleMsg,
 			PlannerOutput{Count: 1, Single: true, Commits: []PlannerCommit{{Title: "X", Description: "d"}}, Message: "feat: add thing"}, false},
 		{"JSON in prose (brace-balanced fallback)", proseWrapped,
-			PlannerOutput{Count: 2, Single: false, Commits: []PlannerCommit{{Title: "A", Description: "d1"}, {Title: "B", Description: "d2"}}}, false},
+			PlannerOutput{Count: 2, Single: false, Commits: []PlannerCommit{{Title: "A", Description: "d1", Files: []string{"a.go", "b.go"}}, {Title: "B", Description: "d2"}}}, false},
 		{"JSON in code fence", codeFenced,
-			PlannerOutput{Count: 2, Single: false, Commits: []PlannerCommit{{Title: "A", Description: "d1"}, {Title: "B", Description: "d2"}}}, false},
+			PlannerOutput{Count: 2, Single: false, Commits: []PlannerCommit{{Title: "A", Description: "d1", Files: []string{"a.go", "b.go"}}, {Title: "B", Description: "d2"}}}, false},
 		{"leading/trailing whitespace trimmed", whitespace,
-			PlannerOutput{Count: 2, Single: false, Commits: []PlannerCommit{{Title: "A", Description: "d1"}, {Title: "B", Description: "d2"}}}, false},
+			PlannerOutput{Count: 2, Single: false, Commits: []PlannerCommit{{Title: "A", Description: "d1", Files: []string{"a.go", "b.go"}}, {Title: "B", Description: "d2"}}}, false},
 		{"commits:null → nil slice, no panic", nullCommits,
 			PlannerOutput{Count: 0, Single: false, Commits: nil}, false},
 		{"extra unknown fields ignored", extraFields,
 			PlannerOutput{Count: 1, Single: true, Commits: []PlannerCommit{{Title: "T", Description: "D"}}, Message: "M"}, false},
+		{"files:null → nil slice, no panic", nullFiles,
+			PlannerOutput{Count: 1, Single: false, Commits: []PlannerCommit{{Title: "N", Description: "d"}}}, false},
 		{"malformed → error", "not json at all", zero, true},
 		{"empty → error", "", zero, true},
 		{"unbalanced braces → error", `{"count":1`, zero, true},
@@ -365,6 +369,9 @@ func TestParsePlannerOutput(t *testing.T) {
 					}
 					if c.Description != tc.wantOut.Commits[i].Description {
 						t.Errorf("Commits[%d].Description = %q, want %q", i, c.Description, tc.wantOut.Commits[i].Description)
+					}
+					if !reflect.DeepEqual(c.Files, tc.wantOut.Commits[i].Files) {
+						t.Errorf("Commits[%d].Files = %v, want %v", i, c.Files, tc.wantOut.Commits[i].Files)
 					}
 				}
 			}
@@ -419,7 +426,7 @@ func TestParsePlannerOutput_RoundTrip(t *testing.T) {
 	original := PlannerOutput{
 		Count:   3,
 		Single:  false,
-		Commits: []PlannerCommit{{Title: "A", Description: "dA"}, {Title: "B", Description: "dB"}, {Title: "C", Description: "dC"}},
+		Commits: []PlannerCommit{{Title: "A", Description: "dA", Files: []string{"x", "y"}}, {Title: "B", Description: "dB"}, {Title: "C", Description: "dC"}},
 		Message: "",
 	}
 	data, err := json.Marshal(original)
@@ -437,7 +444,7 @@ func TestParsePlannerOutput_RoundTrip(t *testing.T) {
 		t.Fatalf("Commits length = %d, want %d", len(out.Commits), len(original.Commits))
 	}
 	for i := range out.Commits {
-		if out.Commits[i] != original.Commits[i] {
+		if !reflect.DeepEqual(out.Commits[i], original.Commits[i]) {
 			t.Errorf("Commits[%d] = %+v, want %+v", i, out.Commits[i], original.Commits[i])
 		}
 	}

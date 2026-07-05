@@ -50,8 +50,9 @@ const PlannerRetryInstruction = "Respond with ONLY the JSON object described, no
 
 // PlannerCommit is one partitioned concept from the planner (§17.5 JSON contract).
 type PlannerCommit struct {
-	Title       string `json:"title"`       // "<short concept>" — a short label for the concept.
-	Description string `json:"description"` // "<precisely which files/hunks belong here, by path>" — staging instructions.
+	Title       string   `json:"title"`       // "<short concept>" — a short label for the concept.
+	Description string   `json:"description"` // "<precisely which files/hunks belong here, by path>" — staging instructions.
+	Files       []string `json:"files"`       // FR-M3: every path this concept touches; guidance, not a constraint (FR-M1c is the content guarantee).
 }
 
 // PlannerOutput is the planner's full JSON response (§17.5). Message is present iff Single==true
