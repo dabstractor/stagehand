@@ -14,7 +14,7 @@ import (
 // All section literals use explicit \n — the index-stripped captured-section shape from
 // stagediff_test.go's TestStripIndexLines (e.g. `diff --git a/a.go b/a.go\n--- a/a.go\n+++ b/a.go\n@@ -1 +1 @@\n-old\n+new\n`).
 
-// TestSplitDiffSections covers the `diff --git ` (trailing-space) splitter: re-prefix, drop an empty
+// TestSplitDiffSections covers the `diff --git ` (LINE-ANCHORED, trailing-space) splitter: drop an empty
 // leading element, preserve a non-empty leading element, [] for empty input. Pure; no I/O.
 func TestSplitDiffSections(t *testing.T) {
 	// A single canonical section (the index-stripped shape — no `index` line).
@@ -63,6 +63,20 @@ func TestSplitDiffSections(t *testing.T) {
 			desc: "trailing content after last section is preserved (no whole-input TrimSpace)",
 			in:   "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new\nextra",
 			want: []string{"diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new\nextra"},
+		},
+		{
+			desc: "content-embedded diff --git literal → ONE section (line-anchored, inert)",
+			in:   "diff --git a/real.txt b/real.txt\n@@ -0,0 +1,1 @@\n+diff --git a/foo b/foo\n",
+			want: []string{"diff --git a/real.txt b/real.txt\n@@ -0,0 +1,1 @@\n+diff --git a/foo b/foo\n"},
+		},
+		{
+			desc: "first file body embeds diff --git literal → TWO sections (only real headers are boundaries)",
+			in: "diff --git a/a.go b/a.go\n--- a/a.go\n+++ b/a.go\n@@ -1,2 +1,2 @@\n-old\n+diff --git a/embed b/embed\n" +
+				"diff --git a/b.go b/b.go\n--- b/a.go\n+++ b/b.go\n@@ -1 +1 @@\n-b\n+b2\n",
+			want: []string{
+				"diff --git a/a.go b/a.go\n--- a/a.go\n+++ b/a.go\n@@ -1,2 +1,2 @@\n-old\n+diff --git a/embed b/embed\n",
+				"diff --git a/b.go b/b.go\n--- b/a.go\n+++ b/b.go\n@@ -1 +1 @@\n-b\n+b2\n",
+			},
 		},
 	}
 	for _, tc := range tests {

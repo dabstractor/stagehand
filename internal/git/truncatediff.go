@@ -48,6 +48,12 @@ var diffSectionPlusPlusRe = regexp.MustCompile(`(?m)^\+\+\+ b/(.*)$`)
 // `/`+`/`-` marker) does not match because content lines start with a diff marker. Pure.
 var atAtRe = regexp.MustCompile(`(?m)^@@`)
 
+// diffSectionBoundaryRe matches a real file-section header at a LINE START. (?m)^ anchors at
+// column 0, so a content line carrying the literal `diff --git ` (always prefixed with a diff
+// marker +/-/space/\) does NOT match. Mirrors the line-anchored siblings
+// diffSectionHeaderRe/atAtRe. Pure; compiled once.
+var diffSectionBoundaryRe = regexp.MustCompile(`(?m)^diff --git `)
+
 // truncatedSentinel is the FR3i per-file truncation sentinel — the SHORTER `... [truncated]` form
 // (system_context.md §6 invariant 2: "The `... [truncated]` sentinel (shorter form, per PRD FR3i) is
 // emitted per truncated file; the `at N bytes` sentinels do NOT appear"). DISTINCT from the legacy
@@ -58,19 +64,31 @@ const truncatedSentinel = "... [truncated]"
 
 // splitDiffSections splits the captured non-markdown aggregate diff on `diff --git ` boundaries (PRD
 // §9.1 FR3i: "the aggregate non-markdown diff is split on `diff --git` boundaries to apply the
-// per-file level without extra git invocations"). Each returned section is self-contained — its first
-// line is `diff --git a/<p> b/<p>` — because the `diff --git ` separator (with its trailing space,
-// the faithful section boundary that distinguishes the header from a content line that happens to
-// start with "diff --git") is re-prefixed after the split. A truly-empty leading element (text before
-// the first `diff --git`) is dropped; a non-empty leading element is preserved as its own leading
-// section (defensive — should not occur for a clean non-md aggregate, which always starts with
-// `diff --git`). Empty/whitespace-only input → []. The input bytes are otherwise preserved verbatim
-// (the trailing "\n" of the last section is NOT stripped) so a round-trip split → join is
-// byte-identical for a clean aggregate.
+// per-file level without extra git invocations"). Each returned section is self-contained — its
+// first line is `diff --git a/<p> b/<p>` — because sections are SLICED AT the header byte offset
+// returned by diffSectionBoundaryRe.FindAllStringIndex: the regex consumes NOTHING, so the
+// `diff --git ` prefix is NATURALLY present at the start of each section (NO re-prefixing, NO
+// newline bookkeeping — byte-identical split→join round-trip).
 //
-// PURE: string manipulation only; no git, no I/O, no context. The input is the ALREADY-captured,
-// ALREADY FR3h-index-stripped non-markdown aggregate (the `index <oid>..<oid> <mode>` line is gone
-// upstream — do NOT re-strip). Signature FROZEN — consumed by M4.T3 (the token-limit gate).
+// Line-anchoring: diffSectionBoundaryRe is `(?m)^diff --git ` — it matches ONLY at column 0
+// (a line start). Every diff CONTENT line is prefixed with a diff marker (`+`/`-`/` `/`\`), so a
+// content line carrying the literal `diff --git ` (e.g. an added fixture/snapshot/doc line
+// `+diff --git a/foo b/foo`) does NOT match — it is INERT. Only real file-section headers at a
+// line start are boundaries, so each real file is exactly one section (the FR3d contract: each
+// real file is sized and truncated as a unit, restoring "the payload always fits").
+//
+// Leading element: text before the first `diff --git` is dropped if empty (TrimSpace), preserved
+// if non-empty (defensive — should not occur for a clean non-md aggregate, which always starts
+// with `diff --git`). Empty/whitespace-only input → nil. A non-empty input with NO `diff --git `
+// header line → a single verbatim element (safe default; should not occur for a clean aggregate).
+// The input bytes are otherwise preserved verbatim (the trailing "\n" of the last section is NOT
+// stripped — only the leading element is trimmed when deciding whether to drop it) so a round-trip
+// split → join is byte-identical for a clean aggregate.
+//
+// PURE: string manipulation only (stdlib `regexp` + `strings`); no git, no I/O, no context. The
+// input is the ALREADY-captured, ALREADY FR3h-index-stripped non-markdown aggregate (the
+// `index <oid>..<oid> <mode>` line is gone upstream — do NOT re-strip). Signature FROZEN —
+// consumed by M4.T3 (the token-limit gate).
 func splitDiffSections(diff string) []string {
 	// Whitespace-only input (incl. "") → nil. We do NOT TrimSpace the whole input: that would
 	// strip the trailing "\n" of the last section (legitimate git output), breaking byte-identical
@@ -79,19 +97,32 @@ func splitDiffSections(diff string) []string {
 	if strings.TrimSpace(diff) == "" {
 		return nil
 	}
-	// Split on the literal `diff --git ` (trailing space — the faithful section boundary).
-	parts := strings.Split(diff, "diff --git ")
+	// Find every real file-section header at a line start (column 0). A content line carrying the
+	// literal `diff --git ` is prefixed with a diff marker, so (?m)^diff --git does NOT match it.
+	matches := diffSectionBoundaryRe.FindAllStringIndex(diff, -1)
+	if len(matches) == 0 {
+		// No section boundary (no line starts with `diff --git `) → the non-empty input is a single
+		// blob. Preserve verbatim (should not occur for a clean non-md aggregate, which always starts
+		// with `diff --git`).
+		return []string{diff}
+	}
 	var sections []string
-	for i, p := range parts {
-		if i == 0 {
-			// Leading element: text before the first `diff --git`. Drop if empty; keep if non-empty
-			// (defensive — a stray placeholder/comment would be preserved, not lost).
-			if strings.TrimSpace(p) != "" {
-				sections = append(sections, p)
-			}
-			continue
+	// Leading content before the first boundary: drop if empty (TrimSpace), preserve if non-empty
+	// (defensive — a stray placeholder/comment would be preserved, not lost).
+	if first := matches[0][0]; first > 0 {
+		if leading := diff[:first]; strings.TrimSpace(leading) != "" {
+			sections = append(sections, leading)
 		}
-		sections = append(sections, "diff --git "+p) // re-prefix so the section is self-contained
+	}
+	// Each section is sliced AT its header offset, so the `diff --git ` prefix is naturally present
+	// (NO re-prefixing — the regex consumes nothing). Byte-identical split→join round-trip.
+	for i, m := range matches {
+		start := m[0]
+		end := len(diff)
+		if i+1 < len(matches) {
+			end = matches[i+1][0]
+		}
+		sections = append(sections, diff[start:end])
 	}
 	return sections
 }
