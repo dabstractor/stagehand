@@ -485,9 +485,10 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config, sys
 	var candidate, msg string
 	var parseFail, success bool
 	var lastCause error
+	var payload string // hoisted: survives the loop for the FR-T1 multi-turn gate (mirrors CommitStaged)
 
 	for attempt := 0; attempt <= cfg.MaxDuplicateRetries; attempt++ {
-		payload := prompt.BuildUserPayload(diff, cfg.Context, rejected)
+		payload = prompt.BuildUserPayload(diff, cfg.Context, rejected)
 		if parseFail {
 			payload = retryInstr + "\n\n" + payload
 		}
