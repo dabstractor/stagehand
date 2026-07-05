@@ -113,6 +113,35 @@ func TestPlannerReserveTokens(t *testing.T) {
 	}
 }
 
+// TestPlannerReserveTokens_ModeConditionalBuilderOutput threads the new mode-conditional builder
+// output through PlannerReserveTokens to confirm it does not panic and the formula holds for both the
+// auto (soft-target-interpolated) and forced (no soft target) sysPrompts.
+func TestPlannerReserveTokens_ModeConditionalBuilderOutput(t *testing.T) {
+	autoSys := BuildPlannerSystemPrompt(nil, "auto", "", 0, 12)
+	forcedSys := BuildPlannerSystemPrompt(nil, "auto", "", 3, 12)
+
+	rAuto := PlannerReserveTokens(autoSys, 0, "", est)
+	rForced := PlannerReserveTokens(forcedSys, 3, "", est)
+	if rAuto <= 0 {
+		t.Fatalf("auto reserve must be positive; got %d", rAuto)
+	}
+	if rForced <= 0 {
+		t.Fatalf("forced reserve must be positive; got %d", rForced)
+	}
+
+	// Exact parity for auto: overhead = PlannerRetryInstruction + "\n\n" + BuildPlannerUserPayload("", ctx, 0).
+	wantAuto := est(autoSys) + est(PlannerRetryInstruction+"\n\n"+BuildPlannerUserPayload("", "", 0)) + reserveSafetyMargin
+	if rAuto != wantAuto {
+		t.Fatalf("rAuto = %d, want %d (retry instr + normal payload + margin)", rAuto, wantAuto)
+	}
+
+	// Exact parity for forced: overhead = PlannerRetryInstruction + "\n\n" + BuildPlannerUserPayload("", ctx, 3).
+	wantForced := est(forcedSys) + est(PlannerRetryInstruction+"\n\n"+BuildPlannerUserPayload("", "", 3)) + reserveSafetyMargin
+	if rForced != wantForced {
+		t.Fatalf("rForced = %d, want %d (retry instr + forced payload + margin)", rForced, wantForced)
+	}
+}
+
 // TestArbiterReserveTokens pins the arbiter reserve: it includes the commits + headers overhead and grows
 // with the number of commits (each commit adds SHA + subject + files + a blank separator).
 func TestArbiterReserveTokens(t *testing.T) {

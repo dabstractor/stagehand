@@ -187,14 +187,14 @@
               "type": "Task",
               "id": "P2.M1.T2",
               "title": "Mode-conditional planner system prompt + soft target",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Rewrite the planner system prompt (PRD §17.5) so the Rules block is mode-conditional: auto-decompose leans toward SEVERAL commits with a soft count target interpolated from max_commits/2; forced-count has its own rules block (partition into EXACTLY N, no soft-target line). The opener, UNSTAGED framing line, and JSON contract (now with files) are shared. BuildPlannerSystemPrompt gains forcedCount + maxCommits args. The Mode A doc edit rides here.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P2.M1.T2.S1",
                   "title": "Split plannerSystemPrompt into shared + auto/forced rules + soft-target interpolation + BuildPlannerSystemPrompt signature + call-site + prompt tests",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P2.M1.T1.S1"
@@ -211,7 +211,7 @@
                   "type": "Subtask",
                   "id": "P2.M1.T2.S2",
                   "title": "Mode A doc edit: docs/how-it-works.md planner mode-conditional + files + soft target",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P2.M1.T2.S1"

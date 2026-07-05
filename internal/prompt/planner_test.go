@@ -2,6 +2,7 @@ package prompt
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -9,26 +10,40 @@ import (
 
 // TestBuildPlannerSystemPrompt_CanonicalExact asserts the FULL assembled string for a known input,
 // pinning the PRD §17.5 blank-line topology byte-for-byte. Independently derived from PRD §17.5
-// (not from the implementation) so a match is meaningful.
+// (not from the implementation) so a match is meaningful. AUTO mode (forcedCount=0, maxCommits=12
+// ⇒ soft target 6).
 func TestBuildPlannerSystemPrompt_CanonicalExact(t *testing.T) {
 	examples := []string{"feat: a", "fix: b\n\nBody."}
-	got := BuildPlannerSystemPrompt(examples, "auto", "")
+	got := BuildPlannerSystemPrompt(examples, "auto", "", 0, 12)
 
 	const want = "You are a commit-planning assistant. Given a diff of un-staged changes, decide whether they\n" +
 		"form ONE coherent commit or SEVERAL, and partition them into logical units.\n" +
 		"\n" +
+		"These changes were left UNSTAGED on purpose and handed to you to organize -- finding the real\n" +
+		"commit boundaries is the job you were asked to do, not a fallback to resist.\n" +
+		"\n" +
 		"Rules:\n" +
-		"- Prefer FEWER commits. A single commit is correct unless the changes clearly span\n" +
-		"  unrelated concerns. Do not manufacture tiny commits.\n" +
-		"- Each commit must be independently meaningful and reviewable. Group tightly-coupled\n" +
-		"  changes (a function + its test, a refactor + its callers) together.\n" +
+		"- Split changes that serve DIFFERENT purposes into separate commits. Two changes you would\n" +
+		"  describe with different verbs, or explain to a reviewer in separate sentences, almost always\n" +
+		"  belong in separate commits. When torn between one commit and several, lean toward SEVERAL.\n" +
+		"- Do not manufacture tiny commits. Group changes that only make sense together (a function plus\n" +
+		"  its test, a refactor plus the callers it updates). A single commit is correct only when the\n" +
+		"  whole changeset pursues ONE purpose.\n" +
+		"- Keep the count modest: in ordinary cases at or below 6 (half the max of 12). Only exceed that\n" +
+		"  when the changes genuinely span many unrelated concerns; do not approach the max casually.\n" +
+		"- Account for every changed path: each file in the diff should appear in some commit's \"files\".\n" +
+		"  A single file may be split across two concepts -- name it in both and say, per file, WHICH\n" +
+		"  part belongs here.\n" +
+		"- Each commit must be independently meaningful and reviewable.\n" +
 		"- Respect dependencies: if change B depends on change A, A comes first.\n" +
 		"- Match the repository's commit style shown below (format/tone), but NEVER reuse wording.\n" +
 		"\n" +
 		"Respond with ONLY JSON, no prose, no code fences:\n" +
-		`{"count": <int>, "single": <bool>, "commits": [{"title": "<short concept>", "description": "<precisely which files/hunks belong here, by path>"}, ...]}` + "\n" +
+		`{"count": <int>, "single": <bool>, "commits": [{"title": "<short concept>", "description": "<which change belongs here, per file>", "files": ["<path>", ...]}, ...]}` + "\n" +
 		`- If single is true, set count=1 and ALSO include "message": "<the full commit message>".` + "\n" +
-		"- The \"description\" must be specific enough that a staging agent can find the exact changes.\n" +
+		`- "files" must list every path this commit touches; "description" must say, per file, WHICH` + "\n" +
+		"  change belongs to this commit so a stager can find the exact hunks. Do NOT emit hunks or\n" +
+		"  line numbers.\n" +
 		"\n" +
 		"---\n" +
 		"feat: a\n" +
@@ -42,11 +57,58 @@ func TestBuildPlannerSystemPrompt_CanonicalExact(t *testing.T) {
 	}
 }
 
+// TestBuildPlannerSystemPrompt_ForcedCount_CanonicalExact asserts the byte-identity of the SHARED
+// blocks across modes (opener+framing is a TRUE contiguous prefix; plannerJSONContract is an identical
+// NON-contiguous substring) plus the forced-only markers (the directive PRESENT; the auto-only soft
+// target and "lean toward SEVERAL" bullet ABSENT).
+func TestBuildPlannerSystemPrompt_ForcedCount_CanonicalExact(t *testing.T) {
+	examples := []string{"feat: a", "fix: b\n\nBody."}
+	autoP := BuildPlannerSystemPrompt(examples, "auto", "", 0, 12)
+	forcedP := BuildPlannerSystemPrompt(examples, "auto", "", 3, 12)
+
+	// §3 identity: opener+framing is a TRUE contiguous prefix of both modes.
+	sharedPrefix := plannerOpener + "\n\n" + plannerUnstagedFraming
+	if !strings.HasPrefix(forcedP, sharedPrefix) || !strings.HasPrefix(autoP, sharedPrefix) {
+		t.Error("opener+framing must be a byte-identical contiguous prefix of both modes")
+	}
+	// §3 identity: plannerJSONContract is byte-identical (same substring) in both, but NON-contiguous
+	// (the differing rules block sits between the prefix and the contract).
+	if !strings.Contains(forcedP, plannerJSONContract) || !strings.Contains(autoP, plannerJSONContract) {
+		t.Error("plannerJSONContract must be byte-identical (same substring) in both modes")
+	}
+	// Forced-only markers.
+	if !strings.Contains(forcedP, "You MUST partition into EXACTLY") {
+		t.Error("forced prompt must contain the forced-count directive")
+	}
+	if strings.Contains(forcedP, "Keep the count modest") {
+		t.Error("forced prompt must NOT contain the soft-target line")
+	}
+	if strings.Contains(forcedP, "lean toward SEVERAL") {
+		t.Error("forced prompt must NOT contain the auto-only 'lean toward SEVERAL' bullet")
+	}
+}
+
+// TestBuildPlannerSystemPrompt_SoftTarget_Interpolation verifies the soft target uses Go integer
+// division (maxCommits/2) and that the FORCED prompt carries NEITHER number.
+func TestBuildPlannerSystemPrompt_SoftTarget_Interpolation(t *testing.T) {
+	for _, tc := range []struct{ max, half int }{{12, 6}, {10, 5}, {20, 10}, {4, 2}} {
+		auto := BuildPlannerSystemPrompt(nil, "auto", "", 0, tc.max)
+		wantLine := fmt.Sprintf("at or below %d (half the max of %d)", tc.half, tc.max)
+		if !strings.Contains(auto, wantLine) {
+			t.Errorf("max=%d: want %q", tc.max, wantLine)
+		}
+		forced := BuildPlannerSystemPrompt(nil, "auto", "", 3, tc.max)
+		if strings.Contains(forced, fmt.Sprintf("half the max of %d", tc.max)) {
+			t.Errorf("max=%d: forced prompt must not carry the soft-target line", tc.max)
+		}
+	}
+}
+
 // TestBuildPlannerSystemPrompt_Properties is a table of structural invariants on the assembled prompt,
 // including anti-copy-paste guards that pin §17.1 mature-prompt elements are ABSENT (the #1 risk).
 func TestBuildPlannerSystemPrompt_Properties(t *testing.T) {
 	examples := []string{"ALPHA", "BETA", "GAMMA"}
-	p := BuildPlannerSystemPrompt(examples, "auto", "")
+	p := BuildPlannerSystemPrompt(examples, "auto", "", 0, 12)
 
 	cases := []struct {
 		name      string
@@ -57,8 +119,9 @@ func TestBuildPlannerSystemPrompt_Properties(t *testing.T) {
 		{"role is commit-PLANNING assistant", "You are a commit-planning assistant.", true},
 		{"JSON contract line PRESENT verbatim", `{"count": <int>, "single": <bool>`, true},
 		{"single/message clause PRESENT", "If single is true, set count=1", true},
-		{"description clause PRESENT", `The "description" must be specific enough`, true},
-		{"rules section PRESENT", "Prefer FEWER commits", true},
+		{"files in JSON contract PRESENT", `"files": ["<path>"`, true},
+		{"auto: lean toward SEVERAL PRESENT", "lean toward SEVERAL", true},
+		{"auto: soft target PRESENT", "at or below 6 (half the max of 12)", true},
 
 		// §17.1 mature elements ABSENT (anti-copy-paste guards).
 		{"§17.1 'commit message generator' ABSENT", "You are a commit message generator", false},
@@ -66,6 +129,8 @@ func TestBuildPlannerSystemPrompt_Properties(t *testing.T) {
 		{"§17.1 subject-target line ABSENT", "Target ~", false},
 		{"§17.1 multi-line rule ABSENT", "multi-line commits AND", false},
 		{"§17.1 examples intro ABSENT", "Match the tone and style of these recent commits from this repository:", false},
+		// Forced-only directive ABSENT in auto mode (mode-conditional rule).
+		{"forced-only 'MUST partition into EXACTLY' ABSENT in auto", "You MUST partition into EXACTLY", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -97,25 +162,31 @@ func TestBuildPlannerSystemPrompt_Properties(t *testing.T) {
 // panic and must omit all "---" lines while keeping the header.
 func TestBuildPlannerSystemPrompt_EmptyExamples(t *testing.T) {
 	for _, ex := range [][]string{nil, {}} {
-		p := BuildPlannerSystemPrompt(ex, "auto", "") // must not panic
+		p := BuildPlannerSystemPrompt(ex, "auto", "", 0, 12) // must not panic
 		if strings.Contains(p, "---") {
 			t.Errorf("empty examples must emit no '---' lines; got %q", p)
 		}
 		if !strings.Contains(p, "You are a commit-planning assistant.") {
 			t.Error("empty-examples prompt missing the planner header")
 		}
-		if !strings.Contains(p, "find the exact changes.") {
+		if !strings.Contains(p, "line numbers.") {
 			t.Error("empty-examples prompt missing the JSON contract section")
 		}
 	}
 }
 
 // TestBuildPlannerSystemPrompt_FormatModes_CanonicalExact pins the exact §17.5/§17.8 assembly when
-// format != "auto": the PARTITIONING contract (plannerSystemPrompt) is unchanged, but the trailing
-// style-examples block is REPLACED by the format scaffold body (FR-F5), and locale appends its line
-// (FR-F6). This is the FR-M11 single-call-shortcut prompt's system half.
+// format != "auto": the shared preamble (opener + UNSTAGED framing + JSON contract) is byte-identical,
+// but the trailing style-examples block is REPLACED by the format scaffold body (FR-F5), and locale
+// appends its line (FR-F6). The rules block is AUTO here (forcedCount=0) — the two dimensions
+// (rules-block via forcedCount; examples/scaffold via format) are ORTHOGONAL.
 func TestBuildPlannerSystemPrompt_FormatModes_CanonicalExact(t *testing.T) {
 	examples := []string{"feat: a", "fix: b"} // IGNORED in non-auto modes
+
+	// forcedCount=0 ⇒ auto rules with soft target 6/12, REGARDLESS of format (the dimensions are
+	// orthogonal: you can have a conventional format scaffold WITH the auto rules).
+	sharedAuto := plannerOpener + "\n\n" + plannerUnstagedFraming + "\n\n" +
+		fmt.Sprintf(plannerAutoRules, 6, 12) + "\n\n" + plannerJSONContract
 
 	cases := []struct {
 		name   string
@@ -125,28 +196,28 @@ func TestBuildPlannerSystemPrompt_FormatModes_CanonicalExact(t *testing.T) {
 	}{
 		{
 			name: "conventional, no locale", format: "conventional", locale: "",
-			want: plannerSystemPrompt + "\n\n" + conventionalScaffold,
+			want: sharedAuto + "\n\n" + conventionalScaffold,
 		},
 		{
 			name: "conventional, locale French", format: "conventional", locale: "French",
-			want: plannerSystemPrompt + "\n\n" + conventionalScaffold + "\nWrite the commit message in French.",
+			want: sharedAuto + "\n\n" + conventionalScaffold + "\nWrite the commit message in French.",
 		},
 		{
 			name: "gitmoji, no locale", format: "gitmoji", locale: "",
-			want: plannerSystemPrompt + "\n\n" + gitmojiScaffoldInstruction + "\n\n" + RenderGitmojiTable(),
+			want: sharedAuto + "\n\n" + gitmojiScaffoldInstruction + "\n\n" + RenderGitmojiTable(),
 		},
 		{
 			name: "plain, no locale", format: "plain", locale: "",
-			want: plannerSystemPrompt + "\n\n", // scaffold body is "" for plain
+			want: sharedAuto + "\n\n", // scaffold body is "" for plain
 		},
 		{
 			name: "plain, locale ja", format: "plain", locale: "ja",
-			want: plannerSystemPrompt + "\nWrite the commit message in ja.", // withLocale trims the trailing "\n\n" to "\n"
+			want: sharedAuto + "\nWrite the commit message in ja.", // withLocale trims the trailing "\n\n" to "\n"
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := BuildPlannerSystemPrompt(examples, tc.format, tc.locale)
+			got := BuildPlannerSystemPrompt(examples, tc.format, tc.locale, 0, 12)
 			if got != tc.want {
 				t.Errorf("BuildPlannerSystemPrompt(%q, %q) mismatch:\n--- got ---\n%q\n--- want ---\n%q", tc.format, tc.locale, got, tc.want)
 			}
@@ -154,13 +225,13 @@ func TestBuildPlannerSystemPrompt_FormatModes_CanonicalExact(t *testing.T) {
 	}
 }
 
-// TestBuildPlannerSystemPrompt_FormatModes_Properties asserts the partitioning contract survives verbatim
+// TestBuildPlannerSystemPrompt_FormatModes_Properties asserts the shared preamble survives verbatim
 // in every mode (FR-F5) while the examples/scaffold swap behaves per §17.8.
 func TestBuildPlannerSystemPrompt_FormatModes_Properties(t *testing.T) {
 	examples := []string{"feat: a", "fix: b"}
 	for _, format := range []string{"conventional", "gitmoji", "plain"} {
 		t.Run(format, func(t *testing.T) {
-			p := BuildPlannerSystemPrompt(examples, format, "")
+			p := BuildPlannerSystemPrompt(examples, format, "", 0, 12)
 
 			if !strings.Contains(p, "You are a commit-planning assistant.") {
 				t.Error("partitioning contract role line must survive unchanged (FR-F5)")
@@ -178,7 +249,7 @@ func TestBuildPlannerSystemPrompt_FormatModes_Properties(t *testing.T) {
 	}
 
 	// auto path unaffected by the new params (regression: identical to the pre-existing behavior).
-	autoGot := BuildPlannerSystemPrompt(examples, "auto", "")
+	autoGot := BuildPlannerSystemPrompt(examples, "auto", "", 0, 12)
 	if !strings.Contains(autoGot, "---\nfeat: a") {
 		t.Error("auto mode must still embed the style examples")
 	}

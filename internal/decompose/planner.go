@@ -70,7 +70,7 @@ func callPlanner(ctx context.Context, deps Deps, forcedCount int, isUnborn bool,
 	if err != nil {
 		return prompt.PlannerOutput{}, fmt.Errorf("%w: recent messages: %w", ErrPlannerFailed, err)
 	}
-	sysPrompt := prompt.BuildPlannerSystemPrompt(examples, deps.Config.Format, deps.Config.Locale)
+	sysPrompt := prompt.BuildPlannerSystemPrompt(examples, deps.Config.Format, deps.Config.Locale, forcedCount, deps.Config.MaxCommits)
 	reserve := prompt.PlannerReserveTokens(sysPrompt, forcedCount, deps.Config.Context, git.EstimateTokens)
 
 	// 3. FR-M1b: the FROZEN concept diff — TreeDiff(baseTree, tStart), with binary placeholders per FR3c.

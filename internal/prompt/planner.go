@@ -15,29 +15,60 @@ import (
 // own ALL inter-block newline placement so the §17.5 blank-line topology lives in exactly one
 // auditable place (mirrors system.go / payload.go convention).
 //
-// §17.5 is ENTIRELY ASCII — no em-dash, no non-ASCII bytes.
+// §17.5 is ENTIRELY ASCII — no em-dash, no non-ASCII bytes. The PRD §17.5 source text has TWO em-dashes
+// (U+2014) in the prompt body (the framing line + the auto rules); in the CONST VALUES below they are
+// rendered as " -- " (space hyphen hyphen space) so the prompt BYTES stay ASCII (comments may keep §/—).
 
-// plannerSystemPrompt is the verbatim §17.5 system prompt from "You are a commit-planning assistant."
-// through `The "description" must be specific enough that a staging agent can find the exact changes.`
-// The JSON-contract line (with its <int>/<bool>/<short concept> tokens) is LITERAL text shown to the
-// model as the output-format example — those tokens are NOT replaced at runtime. The trailing
-// "<style examples>" is a RUNTIME placeholder and is NOT part of this constant; BuildPlannerSystemPrompt
-// appends the actual examples there. NO trailing newline.
-const plannerSystemPrompt = `You are a commit-planning assistant. Given a diff of un-staged changes, decide whether they
-form ONE coherent commit or SEVERAL, and partition them into logical units.
+// plannerOpener is the §17.5 opener (lines 1766-1768). ASCII; NO trailing newline.
+const plannerOpener = `You are a commit-planning assistant. Given a diff of un-staged changes, decide whether they
+form ONE coherent commit or SEVERAL, and partition them into logical units.`
 
-Rules:
-- Prefer FEWER commits. A single commit is correct unless the changes clearly span
-  unrelated concerns. Do not manufacture tiny commits.
-- Each commit must be independently meaningful and reviewable. Group tightly-coupled
-  changes (a function + its test, a refactor + its callers) together.
+// plannerUnstagedFraming is the §17.5 "UNSTAGED on purpose" framing line (line 1770). The PRD em-dash is
+// rendered ASCII (" -- "). ASCII; NO trailing newline.
+const plannerUnstagedFraming = `These changes were left UNSTAGED on purpose and handed to you to organize -- finding the real
+commit boundaries is the job you were asked to do, not a fallback to resist.`
+
+// plannerJSONContract is the §17.5 "Respond with ONLY JSON" block (lines 1789-1794), now INCLUDING "files"
+// in the commits array (FR-M3) and the two trailing clauses. ASCII; NO trailing newline.
+const plannerJSONContract = "Respond with ONLY JSON, no prose, no code fences:\n" +
+	`{"count": <int>, "single": <bool>, "commits": [{"title": "<short concept>", "description": "<which change belongs here, per file>", "files": ["<path>", ...]}, ...]}` + "\n" +
+	`- If single is true, set count=1 and ALSO include "message": "<the full commit message>".` + "\n" +
+	`- "files" must list every path this commit touches; "description" must say, per file, WHICH` + "\n" +
+	"  change belongs to this commit so a stager can find the exact hunks. Do NOT emit hunks or\n" +
+	"  line numbers."
+
+// plannerAutoRules is the §17.5 auto-decompose Rules block (lines 1772-1780). The PRD em-dash is rendered
+// ASCII (" -- "). The soft-target line carries TWO "%d" placeholders (arg0 = maxCommits/2 integer division,
+// arg1 = maxCommits) interpolated at build time (PRD §17.5 line 1812: "interpolated from max_commits at
+// build time (default 12 -> 6)"). ASCII; NO trailing newline.
+const plannerAutoRules = `Rules:
+- Split changes that serve DIFFERENT purposes into separate commits. Two changes you would
+  describe with different verbs, or explain to a reviewer in separate sentences, almost always
+  belong in separate commits. When torn between one commit and several, lean toward SEVERAL.
+- Do not manufacture tiny commits. Group changes that only make sense together (a function plus
+  its test, a refactor plus the callers it updates). A single commit is correct only when the
+  whole changeset pursues ONE purpose.
+- Keep the count modest: in ordinary cases at or below %d (half the max of %d). Only exceed that
+  when the changes genuinely span many unrelated concerns; do not approach the max casually.
+- Account for every changed path: each file in the diff should appear in some commit's "files".
+  A single file may be split across two concepts -- name it in both and say, per file, WHICH
+  part belongs here.
+- Each commit must be independently meaningful and reviewable.
 - Respect dependencies: if change B depends on change A, A comes first.
-- Match the repository's commit style shown below (format/tone), but NEVER reuse wording.
+- Match the repository's commit style shown below (format/tone), but NEVER reuse wording.`
 
-Respond with ONLY JSON, no prose, no code fences:
-{"count": <int>, "single": <bool>, "commits": [{"title": "<short concept>", "description": "<precisely which files/hunks belong here, by path>"}, ...]}
-- If single is true, set count=1 and ALSO include "message": "<the full commit message>".
-- The "description" must be specific enough that a staging agent can find the exact changes.`
+// plannerForcedRules is the §17.5 forced-count Rules block (lines 1798-1805). NO em-dash, NO soft-target
+// line (the count is fixed by the user via --commits N). ASCII; NO trailing newline.
+const plannerForcedRules = `Rules:
+- You MUST partition into EXACTLY the requested number of commits. Do not return more or fewer,
+  and do not reconsider the count.
+- Split changes that serve DIFFERENT purposes into separate commits; group changes that only
+  make sense together (a function plus its test, a refactor plus the callers).
+- Account for every changed path (each file in the diff in some commit's "files"); name it in
+  both if a single file is split across two concepts, and say WHICH part per file.
+- Each commit must be independently meaningful and reviewable.
+- Respect dependencies: if change B depends on change A, A comes first.
+- Match the repository's commit style shown below (format/tone), but NEVER reuse wording.`
 
 // plannerUserInstruction is the §17.5 normal user-payload instruction (trailing COLON — matches
 // payload.go's §17.3 normal-instruction precedent). NO trailing newline.
@@ -65,30 +96,49 @@ type PlannerOutput struct {
 	Message string          `json:"message"` // the full commit message; present iff Single==true
 }
 
-// BuildPlannerSystemPrompt assembles the planner system prompt from the verbatim §17.5 constant
-// followed by a blank line and EITHER the style examples in "---\n<msg>\n" format (format=="auto",
-// identical to system.go's BuildSystemPrompt example loop) OR the §17.8 format scaffold body
-// (formatScaffoldBody — shared with the message builders, FR-F5: the planner's single-call-shortcut
-// message obeys the same substitution). The PARTITIONING contract (plannerSystemPrompt) itself is
-// UNCHANGED in every mode (FR-F5); only the trailing style-examples-vs-scaffold block varies. locale,
-// when non-empty, appends the FR-F6 one-line language instruction (withLocale — a no-op when
-// locale=="", preserving FR-F1 byte-identity for format=="auto" && locale=="").
+// BuildPlannerSystemPrompt assembles the §17.5 planner system prompt. The opener, the UNSTAGED framing
+// line, and the JSON contract are SHARED across modes; only the Rules block is mode-conditional (§17.5
+// line 1762). forcedCount > 0 ⇒ the forced-count rules (the count is fixed; NO soft target); forcedCount
+// <= 0 ⇒ the auto-decompose rules with a soft target of maxCommits/2 interpolated into the third bullet
+// (PRD §17.5 line 1812; FR-M4). The soft target is GUIDANCE (never errors — only the hard cap in
+// decompose/planner.go:132 errors). maxCommits/2 is Go integer division (12→6, 10→5, 11→5 for odd values).
 //
-// ASSEMBLY TOPOLOGY (§17.5/§17.8, exact):
+// The rules-block selection (forcedCount) is ORTHOGONAL to the examples-vs-scaffold selection (format):
+// format=="auto" appends the §17.1 style examples ("---\n<msg>\n" each, same as system.go); any other
+// format appends formatScaffoldBody(format) instead (FR-F5). locale, when non-empty, appends the FR-F6
+// one-line language instruction (withLocale — a no-op when locale=="").
 //
-//	plannerSystemPrompt              // "…find the exact changes." (no trailing \n)
-//	'\n' '\n'                        // one blank line before the style examples / scaffold
-//	auto: for each ex: "---\n" + ex + '\n'   // one "---" BEFORE each message (same as system.go)
-//	non-auto: formatScaffoldBody(format)     // "" for "plain" — contract + (locale) only
-//	<withLocale>
+// ASSEMBLY TOPOLOGY (§17.5, exact):
 //
-// Defensive: nil/empty examples ⇒ no "---" lines and no panic. The auto result is
-// plannerSystemPrompt + "\n\n" (a trailing blank line where the examples section is simply empty).
-func BuildPlannerSystemPrompt(examples []string, format, locale string) string {
+//	plannerOpener                       // no trailing \n
+//	"\n\n"                              // blank line
+//	plannerUnstagedFraming              // no trailing \n
+//	"\n\n"                              // blank line
+//	<rules>                             // forcedCount>0 ⇒ plannerForcedRules;
+//	                                    //   else fmt.Sprintf(plannerAutoRules, maxCommits/2, maxCommits)
+//	"\n\n"                              // blank line
+//	plannerJSONContract                 // no trailing \n
+//	"\n\n"                              // blank line before examples/scaffold
+//	auto: for each ex: "---\n" + ex + '\n'
+//	non-auto: formatScaffoldBody(format)         // "" for plain
+//	<withLocale(b.String(), locale)>
+//
+// Defensive: nil/empty examples ⇒ no "---" lines and no panic. The shared opener+framing+contract are
+// byte-identical between auto and forced modes (only the Rules block differs).
+func BuildPlannerSystemPrompt(examples []string, format, locale string, forcedCount, maxCommits int) string {
 	var b strings.Builder
-	b.WriteString(plannerSystemPrompt)
-	b.WriteByte('\n')
-	b.WriteByte('\n') // one blank line between the JSON contract and the style examples/scaffold
+	b.WriteString(plannerOpener)
+	b.WriteString("\n\n")
+	b.WriteString(plannerUnstagedFraming)
+	b.WriteString("\n\n")
+	if forcedCount > 0 {
+		b.WriteString(plannerForcedRules) // forced-count: fixed count, NO soft target
+	} else {
+		b.WriteString(fmt.Sprintf(plannerAutoRules, maxCommits/2, maxCommits)) // auto: interpolated soft target
+	}
+	b.WriteString("\n\n")
+	b.WriteString(plannerJSONContract)
+	b.WriteString("\n\n") // blank line between the JSON contract and the style examples/scaffold
 	if format == "auto" {
 		for _, ex := range examples {
 			b.WriteString("---\n") // one "---" BEFORE each message (same format as system.go)
