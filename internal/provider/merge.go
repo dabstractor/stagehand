@@ -56,6 +56,9 @@ func MergeManifest(base, override Manifest) Manifest {
 	if override.ProviderFlag != nil {
 		out.ProviderFlag = override.ProviderFlag
 	}
+	if override.SessionMode != nil {
+		out.SessionMode = override.SessionMode // FR-37a field-merge: explicit "" disables multi-turn (overrides the built-in "append")
+	}
 
 	if override.Output != nil {
 		out.Output = override.Output

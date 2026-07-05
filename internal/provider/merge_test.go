@@ -19,6 +19,7 @@ func sampleBase() Manifest {
 		DefaultModel:     strPtr("glm-5-turbo"),
 		SystemPromptFlag: strPtr("--system-prompt"),
 		ProviderFlag:     strPtr("--provider"),
+		SessionMode:      strPtr("append"), // pi is the FR-T8 "append" provider — realistic non-nil for merge tests
 
 		Output:           strPtr("raw"),
 		JsonField:        strPtr(""),
@@ -60,6 +61,7 @@ func TestMergeManifest_PartialOverride_OnlyTouchedFieldChanges(t *testing.T) {
 		{"ModelFlag", merged.ModelFlag, base.ModelFlag},
 		{"SystemPromptFlag", merged.SystemPromptFlag, base.SystemPromptFlag},
 		{"ProviderFlag", merged.ProviderFlag, base.ProviderFlag},
+		{"SessionMode", merged.SessionMode, base.SessionMode},
 		{"Output", merged.Output, base.Output},
 		{"JsonField", merged.JsonField, base.JsonField},
 		{"RetryInstruction", merged.RetryInstruction, base.RetryInstruction},
@@ -114,6 +116,7 @@ func TestMergeManifest_ExplicitZeroPointerWins(t *testing.T) {
 		StripCodeFence: boolPtr(false), // explicit false — must NOT inherit base's true
 		PrintFlag:      strPtr(""),     // explicit empty — must NOT inherit base's "-p"
 		Experimental:   boolPtr(false), // base has true → explicit false must win
+		SessionMode:    strPtr(""),     // base has "append" → explicit "" must win (disable multi-turn for pi)
 	})
 
 	if merged.StripCodeFence == nil || *merged.StripCodeFence != false {
@@ -124,6 +127,9 @@ func TestMergeManifest_ExplicitZeroPointerWins(t *testing.T) {
 	}
 	if merged.Experimental == nil || *merged.Experimental != false {
 		t.Errorf("explicit experimental=false lost (got %v)", merged.Experimental)
+	}
+	if merged.SessionMode == nil || *merged.SessionMode != "" {
+		t.Errorf("explicit session_mode=\"\" lost (got %v)", merged.SessionMode)
 	}
 }
 
