@@ -259,28 +259,28 @@
       "type": "Phase",
       "id": "P3",
       "title": "Changeset-level documentation sync (Mode B)",
-      "status": "Planned",
+      "status": "Researching",
       "description": "The cross-cutting documentation sweep that only makes sense once the whole v2.2 changeset is in place: README.md feature surface for the decompose improvements, and a holistic reconciliation of the docs/how-it-works.md decompose section (the per-requirement Mode A edits from P1/P2 land with the code; this task reconciles the section as a whole). Per SOW §5 Mode B: this final task depends on every implementing subtask and runs last.",
       "milestones": [
         {
           "type": "Milestone",
           "id": "P3.M1",
           "title": "README + how-it-works changeset-level sync",
-          "status": "Planned",
+          "status": "Researching",
           "description": "One task: surface the v2.2 decompose improvements (arbiter now fully freeze-safe; planner partitions are per-file and count-guided) in README.md without duplicating per-key reference, and reconcile the docs/how-it-works.md decompose section as a whole. Verify docs/cli.md and docs/configuration.md need no changes (no new flags/keys) and leave them alone.",
           "tasks": [
             {
               "type": "Task",
               "id": "P3.M1.T1",
               "title": "Sync changeset-level documentation (README.md + docs/how-it-works.md reconciliation)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Mode B final task. README.md surfaces the v2.2 decompose improvements in the feature list (keeping the hero pitch intact, no per-key duplication). docs/how-it-works.md is reconciled as a whole once both Phase 1 (arbiter freeze) and Phase 2 (planner files/soft-target/mode-conditional) Mode A edits have landed. Verify docs/cli.md and docs/configuration.md are unchanged (no new flags/keys).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P3.M1.T1.S1",
                   "title": "README.md: surface v2.2 decompose improvements in the feature list",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S1",
@@ -303,7 +303,7 @@
                   "type": "Subtask",
                   "id": "P3.M1.T1.S2",
                   "title": "docs/how-it-works.md: holistic decompose-section reconciliation + verify cli.md/configuration.md untouched",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S2",
