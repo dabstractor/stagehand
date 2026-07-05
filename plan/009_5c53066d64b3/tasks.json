@@ -170,7 +170,7 @@
               "type": "Task",
               "id": "P1.M1.T3",
               "title": "Generate core: chunking + N+1 turn protocol + trigger gate + failure→rescue + progress + verbose (R3)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "The heart of the feature. Create a new internal/generate/multiturn.go with the chunk-sizing helper and the N+1 turn protocol, then wire the FR-T1 trigger gate into CommitStaged at the one-shot-exhaustion→rescue boundary (generate.go:288). The protocol reuses provider.Execute (one call per turn, inheriting per-turn verbose for free), provider.ParseOutput (final turn only), the dedupe path, and *RescueError (byte-identical on failure — FR-T7). Resolves the payload loop-scope issue (payload is loop-local at generate.go:228). Adds the FR-T5 progress line and FR-T11 verbose trigger line.",
               "subtasks": [
                 {
@@ -232,7 +232,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T3.S4",
                   "title": "Unit tests (chunk math, trigger truth table, token_limit non-interaction) + Mode A how-it-works.md",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T3.S3"
@@ -261,7 +261,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T4.S1",
                   "title": "Integration: N+1 turns, --session-id present, --no-session dropped, final parsed+deduped, commit lands",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T3.S3",

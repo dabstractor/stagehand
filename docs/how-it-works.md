@@ -259,6 +259,43 @@ Stagehand requests raw text output from agents (`output = "raw"`) rather than st
 - The parser handles code-fence stripping and newline normalization, which covers the common raw-output quirks.
 - JSON mode is available as a fallback for agents that only produce structured output.
 
+## Multi-turn generation fallback
+
+For diffs too large for a single reliable request, stagehand has an optional **multi-turn** generation
+path (PRD §9.24). It exists because a provider's *per-request* reliability ceiling can lie well below its
+advertised context window: a huge one-shot request may return empty or unparseable output even though the
+model can handle the same content delivered in smaller pieces.
+
+**When it triggers.** Multi-turn runs ONLY when all four hold: (1) the normal one-shot path exhausted its
+retries on empty/unparseable output; (2) the captured payload exceeds one chunk (`multi_turn_chunk_tokens`,
+default 32000); (3) `multi_turn_fallback` is enabled (default `true`); and (4) the resolved provider
+declares `session_mode = "append"` (the **pi** provider does; others ship `""` until verified). If any
+condition fails, the run proceeds to the normal rescue protocol unchanged — multi-turn is strictly an
+extra attempt, never a worse outcome.
+
+**Lossless, not summarized.** Multi-turn is deliberately *not* the lossy "chunk-summarize-combine" pattern.
+The full captured diff is re-delivered across N+1 session turns in request-sized pieces — the model sees
+the entire diff in its session history — then writes one message at the end:
+
+- **Turn 1:** the normal system prompt + a priming preamble + the first chunk.
+- **Turns 2..N:** each remaining chunk, prefixed `PART i/N:`. Boundaries anchor to newlines so no diff line
+  is fractured.
+- **Turn N+1:** "Now write the commit message for the diff above." This turn's output runs through the
+  normal parse + duplicate-rejection pipeline, then commits like any other message.
+
+Each turn is a separate provider invocation with its own timeout; total wall-clock ≈ `timeout × (N+1)`,
+surfaced on the progress line at fallback time.
+
+**Failure handling.** If any turn errors, times out, or the final output fails to parse/dedupe, the
+multi-turn attempt aborts and control passes to the standard rescue protocol — the snapshot is safe and
+the run is no worse off than a one-shot failure.
+
+**`token_limit` does not apply (FR-T12).** `token_limit` governs only the one-shot path (it truncates the
+payload to fit one request). Multi-turn deliberately ignores it: the whole point is lossless delivery of a
+large payload. (Caveat: in this release the multi-turn path operates on the payload captured for the
+one-shot attempt, so when `token_limit` is set and the diff exceeds it, multi-turn receives the already-
+truncated payload rather than re-capturing the full diff. The chunking itself never consults `token_limit`.)
+
 ## Hook mode vs the snapshot-based flow
 
 ### Trade-off inversion (FR-H7)
