@@ -300,7 +300,7 @@
               "type": "Task",
               "id": "P1.M1.T5",
               "title": "Sync changeset-level documentation (Mode B)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Final changeset-level documentation sweep (per SOW §5 Mode B). The per-file Mode A docs (providers.md, configuration.md provider + [generation] sections, how-it-works.md multi-turn subsection) ride with their implementing subtasks (T1.S5, T2.S3, T3.S4). This final task handles the cross-cutting/overview docs that only make sense once the whole feature is in place: the README.md feature blurb (user-visible reliability win for large diffs) and a consistency check of FUTURE_SPEC.md (already updated — confirm, do not edit unless inconsistent).",
               "subtasks": [
                 {
@@ -328,7 +328,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T5.S2",
                   "title": "Confirm FUTURE_SPEC.md consistency (lossless multi-turn graduated; lossy chunking still rejected)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 0.5,
                   "dependencies": [
                     "P1.M1.T3.S4"
