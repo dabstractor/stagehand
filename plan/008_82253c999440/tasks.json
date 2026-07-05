@@ -1,0 +1,241 @@
+{
+  "backlog": [
+    {
+      "type": "Phase",
+      "id": "P1",
+      "title": "Arbiter freeze parity (FR-M1d)",
+      "status": "Planned",
+      "description": "Close the arbiter freeze loophole so a file written to the working tree AFTER T_start capture can never land in an arbiter commit, on any of the three resolution paths (new / tip-amend / mid-chain). Add the new OverlayTreePaths git primitive for the mid-chain rebuild. Extend the freeze boundary — already shipped for the planner/stager (FR-M1b/M1c) and single shortcuts (FR-M2b/M11) — into the arbiter, the third and final freeze surface. All work is inside internal/git + internal/decompose; no config/CLI/provider/CAS/lock/rescue changes.",
+      "milestones": [
+        {
+          "type": "Milestone",
+          "id": "P1.M1",
+          "title": "Freeze-safe arbiter (gate + OverlayTreePaths + resolution rewrite + acceptance invariants)",
+          "status": "Planned",
+          "description": "Three tasks: (T1) the OverlayTreePaths git primitive + tests; (T2) the freeze-safe arbiter gate (frozen DiffTreeNames leftover) + resolveArbiter signature change + the three resolution paths rewritten to build trees strictly from T_start (new/tip commit T_start directly; mid-chain uses OverlayTreePaths) + ReadTree(T_start) index sync, with the Mode A doc edit; (T3) the §20.2/§20.5 acceptance invariant scenarios (concurrent-across-arbiter-gate, arbiter-folds-only-T_start, T_start completeness).",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M1.T1",
+              "title": "OverlayTreePaths git primitive",
+              "status": "Planned",
+              "description": "Add a new tree-construction plumbing primitive to internal/git: OverlayTreePaths(ctx, baseTree, sourceTree, paths) returns a new tree equal to baseTree with each path in paths overwritten by its state in sourceTree. This is the building block for the arbiter's mid-chain rebuild path (FR-M10). It mutates only .git/index + the object store (same discipline as FreezeWorkingTree/ReadTree/WriteTree); never the working tree, never a ref.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T1.S1",
+                  "title": "Add OverlayTreePaths to the Git interface + gitRunner impl + comprehensive unit tests",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": [],
+                  "prd_selectors": ["h3.66", "h4.7", "h3.30", "h2.13"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/008_82253c999440/architecture/arbiter_freeze_parity.md §3 (OverlayTreePaths design) and §1.4 (interface/impl placement). OverlayTreePaths does NOT exist yet (grep-confirmed). EmptyTreeSHA constant exists at internal/git/git.go:641. FreezeWorkingTree (git.go:1548) is the structural template (orchestrates AddAll+WriteTree+ReadTree, index/object-store-only mutation).\n2. INPUT: None from other subtasks (this is a leaf primitive). Reuse the existing internal git runner helpers: gitRunner.run(ctx, workDir, args...) -> (stdout, stderr, code, err) and gitRunner.WriteTree(ctx). The (mode, blob) pairs come from `git ls-tree -r --full-tree <sourceTree> -- <paths...>`.\n3. LOGIC: Implement PRD §13.6.5 OverlayTreePaths. Steps: (a) paths empty -> return baseTree verbatim (no-op early return). (b) read-tree baseTree (index = baseTree). (c) ONE `git ls-tree -r --full-tree <sourceTree> -- <paths...>` call; parse each line `<mode> <type> <blob>\\t<path>` into a map[path]->{mode,blob} via a new parseLsTree helper (split on '\\t' for path, split left on spaces for mode/type/blob). (d) for each path in paths: present in map -> `git update-index --cacheinfo <mode>,<blob>,<path>` (single-arg comma form, git 2.0+); absent in map (deletion-overlay) -> `git update-index --force-remove <path>`. (e) write-tree -> return new tree SHA. Exit-code convention: every sub-command uses the mutation form (code != 0 => error, NO 128-as-non-error special case), identical to ReadTree/WriteTree/Add. Add the interface doc-block to the Git interface immediately after DiffTreeNames (git.go ~line 288); add the gitRunner impl near FreezeWorkingTree (git.go ~line 1548). Mock: none (real git binary against a temp repo, matching every other internal/git/*_test.go). TDD: write failing tests first in a NEW internal/git/overlaytree_test.go using the package's existing temp-repo helpers (initRepo from git_test.go:13, writeFile/stageFile from committree_test.go, execGit oracle from revparsetree_test.go:115).\n4. OUTPUT: A method OverlayTreePaths(ctx, baseTree, sourceTree string, paths []string) (treeSHA string, err error) on the Git interface and gitRunner, with unit tests covering: overlay-only-listed-paths (base a.go+b.go; source a.go'+c.go; paths=[a.go,c.go] -> a.go'+b.go+c.go), deletion-overlay (path in paths absent in source -> removed), empty-paths-noop (nil/[] -> baseTree verbatim, no index mutation), mid-chain-leftover-simulation (OverlayTreePaths(tree1, tStart, DiffTreeNames(tree1,tStart)) overlays leftovers onto an intermediate tree), the standard four-case negative set (BadTree/NotARepo/GitBinaryMissing/ContextCancelled mirroring readtree_test.go), and DoesNotTouchWorkingTree (write a working-tree file, call OverlayTreePaths, assert file unchanged on disk — mirrors TestFreezeWorkingTree_LeavesWorkingTreeUnchanged). For consumption by P1.M1.T2.S1 (mid-chain rebuild).\n5. DOCS: none — no user-facing/config/API surface change (internal git primitive). The narrative belongs to P1.M1.T2.S2 (Mode A)."
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P1.M1.T2",
+              "title": "Freeze-safe arbiter gate + resolution paths",
+              "status": "Planned",
+              "description": "The core FR-M1d rewrite. Replace the live StatusPorcelain gate with the frozen leftover DiffTreeNames(tipTree, tStart); change resolveArbiter's signature to receive tStart + leftoverPaths; rewrite all three resolution paths (resolveNewCommit/resolveTipAmend/resolveMidChain in internal/decompose/chain.go) so they build trees strictly from T_start — new/tip commit T_start directly (no AddAll/WriteTree), mid-chain uses OverlayTreePaths(tree[j], T_start, leftoverPaths) (no live ReadTree/Add/StatusPorcelain) — and sync the index to T_start via ReadTree after each CAS. The Mode A doc edit to docs/how-it-works.md rides here.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T2.S1",
+                  "title": "Gate -> frozen leftover; resolveArbiter signature; three resolution paths -> tree-only-from-T_start; ReadTree(T_start) index sync; chain_test updates",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M1.T1.S1"],
+                  "prd_selectors": ["h3.30", "h4.7", "h3.66", "h2.13", "h3.85", "h3.86"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/008_82253c999440/architecture/arbiter_freeze_parity.md §1 (current live-tree calls with exact line numbers) and §2 (target state). The loophole: decompose.go:217 `status, err := deps.Git.StatusPorcelain(ctx)` gates the arbiter on the LIVE working tree, so a post-T_start file makes `status != \"\"` and the arbiter runs + resolveArbiter stages it via AddAll/Add. The arbiter's DIFF input is ALREADY frozen (runArbiterPhase:617 TreeDiff(tipTree, tStart)). chain.go resolution paths: resolveNewCommit(:99 AddAll, :106 WriteTree), resolveTipAmend(:142 AddAll, :147 WriteTree), resolveMidChain(:184 StatusPorcelain + leftoverPaths() helper, :205 ReadTree, :209 Add, :212 WriteTree). tipTree = chainData[len(chainData)-1].Tree.\n2. INPUT: OverlayTreePaths(ctx, baseTree, sourceTree, paths) from P1.M1.T1.S1. runArbiterPhase already holds tStart and derives tipTree. The frozen changed-path set is DiffTreeNames(tipTree, tStart).\n3. LOGIC: Implement FR-M1d/M9/M10. (a) GATE (decompose.go:213-227): replace `status != \"\"` with `leftoverPaths := DiffTreeNames(tipTree, tStart)`; compute tipTree = chainData[len(chainData)-1].Tree; run the arbiter iff `len(leftoverPaths) > 0 && len(commits) > 0`. Pass leftoverPaths into runArbiterPhase. (b) runArbiterPhase signature: add `leftoverPaths []string`; keep its internal tipTree/TreeDiff (already frozen); pass tStart + leftoverPaths into resolveArbiter. (c) resolveArbiter signature (chain.go:50): add `tStart string, leftoverPaths []string`; thread into the three paths. (d) resolveNewCommit: treePrime := tStart (drop AddAll + WriteTree); generateMessage(ctx, deps, treeA, tStart); after UpdateRefCAS succeeds, deps.Git.ReadTree(ctx, tStart). (e) resolveTipAmend: treePrime := tStart (drop AddAll + WriteTree); CommitTree(tStart, [tipParent], tipMsg); after CAS, ReadTree(tStart). (f) resolveMidChain: drop StatusPorcelain + the leftoverPaths() helper call (leftoverPaths is now a param); for each j: treePrime := deps.Git.OverlayTreePaths(ctx, chainData[j].Tree, tStart, leftoverPaths); CommitTree(treePrime, [rebuiltParent], chainData[j].Message); after the final CAS, ReadTree(tStart). The leftoverPaths helper func (chain.go ~248) becomes dead code — remove it and TestLeftoverPaths. (g) Update chain_test.go TestResolveArbiter_* calls to the new 7-arg signature. Mock: none (real git against temp repos; the existing stubtest.Manifest stub agents are unaffected — this is pure git plumbing). TDD: update chain_test.go canonical tests first to assert treePrime derives from T_start/OverlayTreePaths and git status is clean post-resolution.\n4. OUTPUT: A freeze-safe arbiter where NO resolution path reads git status or stages against the live working tree; every arbiter commit's tree is built from T_start (new/tip) or OverlayTreePaths(tree[j], T_start, leftoverPaths) (mid-chain); index == T_start after each path (ReadTree sync). The resolveArbiter 7-arg signature for consumption by P1.M1.T3 invariant tests. The mid-chain rebuilt tip equals T_start deterministically.\n5. DOCS: none here — the Mode A doc edit is P1.M1.T2.S2 (this subtask is code-only; the doc rides with the task)."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T2.S2",
+                  "title": "Mode A doc edit: docs/how-it-works.md arbiter freeze narrative",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T2.S1"],
+                  "prd_selectors": ["h3.30", "h4.7", "h3.66"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: docs/how-it-works.md line ~119 'Arbiter leftover reconciliation' paragraph currently says 'if `git status --porcelain` shows remaining changes' — the LIVE-tree behavior Group A replaces. Line ~111 'Start-of-run freeze (T_start)' already says the arbiter's leftover staging draws from T_start (now true after S1); confirm/refine.\n2. INPUT: The freeze-safe arbiter behavior from P1.M1.T2.S1 (gate = frozen DiffTreeNames(tipTree, tStart); resolution builds trees from T_start only; index synced to T_start after).\n3. LOGIC: Update the 'Arbiter leftover reconciliation' paragraph to state the gate/diff/staging all derive from the frozen T_start (not git status --porcelain); the arbiter runs iff the frozen leftover diff-names(tipTree, T_start) is non-empty; a concurrent working-tree change cannot trigger it. Keep it concise and consistent with the existing 'Frozen content' / 'Start-of-run freeze' bullets. No new flags/keys — do NOT touch docs/cli.md or docs/configuration.md. Mock: none (docs edit).\n4. OUTPUT: docs/how-it-works.md arbiter narrative consistent with FR-M1d (Mode A ride-with-the-work per SOW §5).\n5. DOCS: [Mode A] This IS the doc edit — update docs/how-it-works.md §arbiter to reflect frozen gate/diff/staging. Rides WITH the work (P1.M1.T2.S1); no separate docs subtask beyond this."
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P1.M1.T3",
+              "title": "Arbiter freeze-parity invariant scenarios (acceptance proof)",
+              "status": "Planned",
+              "description": "The §20.2/§20.5 acceptance invariants that PROVE the loophole is closed: a concurrent working-tree change written after T_start is captured lands in no arbiter commit (including across the arbiter gate), and every arbiter commit's tree is built strictly from T_start. These are cross-cutting end-to-end scenario harness entries + a unit-level proof in chain_test.go — distinct from the resolution-path unit tests that ride with P1.M1.T2.S1 under TDD.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T3.S1",
+                  "title": "Concurrent-across-arbiter-gate + T_start completeness integration tests",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M1.T2.S1"],
+                  "prd_selectors": ["h3.91", "h3.94", "h3.30", "h4.7"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See arbiter_freeze_parity.md §5.1/§5.3. The existing TestDecompose_ConcurrentChangeExclusion (decompose_test.go ~line 823) writes an unstaged sentinel.txt post-freeze via concurrentSentinelSeam; its comments at lines 838 & 880-882 ADMIT 'the arbiter's STAGING (resolveArbiter's AddAll) picks up sentinel.txt from the working tree' — it is the exact upgrade target. The dcm* helpers drive the full Decompose() integration path.\n2. INPUT: The freeze-safe arbiter from P1.M1.T2.S1.\n3. LOGIC: Implement §20.5 'End-to-end scenario harness' + §20.2 'Arbiter freeze parity' / 'T_start completeness' invariants. (a) Upgrade TestDecompose_ConcurrentChangeExclusion to ALSO assert (post-FR-M1d): sentinel.txt is in NO commit including any arbiter commit (git log --name-only across the run does not contain it); sentinel.txt REMAINS in the working tree post-run (git status --porcelain shows '?? sentinel.txt'). (b) Add the empty-frozen-leftover case: a 2-concept run whose stagers cover ALL of T_start (so DiffTreeNames(tipTree, tStart) == []); write a sentinel post-freeze; assert rev-list --count == exactly 2 (no N+1 arbiter commit) AND the sentinel is unstaged. THIS IS THE CASE THAT FAILS TODAY (the live gate sees the sentinel via StatusPorcelain and runs the arbiter). (c) T_start completeness (replaces 'Loop index cleanliness'): after a fully-successful run, DiffTreeNames(baseTree, HEAD^{tree}) ⊇ DiffTreeNames(baseTree, tStart) (every frozen path landed); live git status may be non-empty ONLY from paths outside T_start. Mock: stubtest.Manifest stub agents (no real model); real git against temp repos. TDD: these scenarios should FAIL before P1.M1.T2.S1 and PASS after.\n4. OUTPUT: Green integration tests proving a post-T_start concurrent change never enters an arbiter commit and the arbiter is skipped when the frozen leftover is empty. The regression net for FR-M1d.\n5. DOCS: none — these are internal acceptance tests (no user-facing surface). The §20.2/§20.5 narrative is in PRD already."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T3.S2",
+                  "title": "Arbiter-folds-only-T_start-content: paired integration case + chain_test.go unit proof",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M1.T2.S1"],
+                  "prd_selectors": ["h3.91", "h3.94", "h4.7", "h3.30"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See arbiter_freeze_parity.md §5.2. The chn* helpers in chain_test.go (chnBuildChain builds a 3-commit chain C0/C1/C2 + untracked leftover.go, returning parallel []CommitInfo + []ChainEntry) drive resolveArbiter directly at the unit level. Need a variant that captures tStart (the tree holding c0.go+c1.go+c2.go+leftover.go) and writes a post-freeze sentinel.go.\n2. INPUT: The freeze-safe resolveArbiter(ctx, deps, target, commits, chainData, tStart, leftoverPaths) 7-arg signature + OverlayTreePaths from P1.M1.T1.S1/P1.M1.T2.S1.\n3. LOGIC: (a) Integration case in decompose_test.go (sibling of P1.M1.T3.S1): a 2-concept run where concept-1's stager is a no-op (empty-skip) so a LEGITIMATE frozen leftover exists (e.g. b.go unclaimed); drive the arbiter (null target); write a sentinel concurrent.txt post-freeze (unstaged); assert each arbiter commit's tree (HEAD^{tree}) is exactly T_start (null/tip) — the sentinel lands in NO commit and remains in the working tree. (b) Unit-level proof in chain_test.go: a chnBuildChain variant capturing tStart + a post-freeze sentinel.go; call resolveArbiter(ctx, deps, &target, commits, chainData, tStart, []string{\"leftover.go\"}) directly for target = nil / &tipSHA / &sha1 (mid-chain); for each, assert HEAD^{tree} (and every rebuilt Cj'^{tree} for mid-chain) does NOT contain sentinel.go AND sentinel.go is untracked in git status post-call; assert the mid-chain rebuilt tip equals T_start. Mock: stubtest.Manifest stub agents; real git. TDD: write the assertions against the freeze-safe resolveArbiter.\n4. OUTPUT: Proof that every arbiter commit's tree is built from T_start only (or an OverlayTreePaths overlay of frozen trees) — a concurrent change is never swept in — at both the integration and unit level.\n5. DOCS: none — internal tests."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Phase",
+      "id": "P2",
+      "title": "Planner files + soft target + mode-conditional prompt (FR-M3/M3b/M4)",
+      "status": "Planned",
+      "description": "Make the planner's partition machine-actionable and count-aware. The planner JSON now carries per-concept files[]; a deterministic non-fatal coverage check logs unclaimed paths (the arbiter reconciles them); the count is guided by a soft max_commits/2 target with a mode-conditional rules block (auto-decompose leans toward SEVERAL; forced-count has its own rules). The stager receives the concept's files block. All work is inside internal/prompt + internal/decompose; no new config keys/CLI flags (soft target is derived from existing max_commits; files is automatic in the JSON).",
+      "milestones": [
+        {
+          "type": "Milestone",
+          "id": "P2.M1",
+          "title": "PlannerCommit.Files + coverage check + mode-conditional prompt + stager files block",
+          "status": "Planned",
+          "description": "Three tasks: (T1) the PlannerCommit.Files data field + parse round-trip + the FR-M3b deterministic coverage check (logs, never errors); (T2) the mode-conditional planner system prompt (split shared opener/framing/JSON-contract + swappable auto vs forced-count rules blocks + soft-target interpolation) with the Mode A doc edit; (T3) the stager BuildStagerTask files block + updated guardrails wording.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P2.M1.T1",
+              "title": "PlannerCommit.Files field + parse + FR-M3b coverage check",
+              "status": "Planned",
+              "description": "Add the Files []string field to PlannerCommit (FR-M3) and the deterministic, non-fatal coverage check (FR-M3b) that unions concept.Files and compares to the frozen changed-path set DiffTreeNames(baseTree, tStart), logging unclaimed paths as likely leftovers. Files is guidance only (FR-M1c remains the sole content guarantee); the coverage check never aborts and never hard-constrains the stager.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P2.M1.T1.S1",
+                  "title": "Add Files []string to PlannerCommit + parse round-trip tests",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h3.81", "h3.30", "h3.66", "h4.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/008_82253c999440/architecture/planner_prompt.md §1.1 (PlannerCommit at prompt/planner.go:57-61 has Title+Description, NO Files) and §2.1 (the field). ParsePlannerOutput (planner.go ~171) uses json.Unmarshal generically — adding the field populates it FOR FREE (no parse-code change). validatePlannerOutput (~152) must NOT enforce non-empty Files (files is guidance).\n2. INPUT: None (leaf data-model change). PlannerCommit is defined in internal/prompt/planner.go.\n3. LOGIC: Implement FR-M3. Add `Files []string \\`json:\"files\"\\`` to the PlannerCommit struct with a doc comment: 'every path this concept touches; guidance, not a constraint (FR-M1c is the content guarantee)'. Do NOT touch validatePlannerOutput (Files is not validated). TDD: update internal/prompt/planner_test.go TestParsePlannerOutput table cases to add Files to the round-trip cases (e.g. {\"title\":\"A\",\"description\":\"d1\",\"files\":[\"a.go\",\"b.go\"]} -> PlannerCommit{Files:[]string{\"a.go\",\"b.go\"}}); add a \"files\":null case (-> nil) and a concept-missing-files-key case (-> nil); update TestParsePlannerOutput_RoundTrip to include Files in the original. The parse populates Files automatically. Mock: none (pure parse tests).\n4. OUTPUT: PlannerCommit.Files field populated by ParsePlannerOutput for consumption by P2.M1.T1.S2 (coverage check), P2.M1.T2.S1 (JSON contract references files), and P2.M1.T3.S1 (stager files block).\n5. DOCS: none — internal data-model field, no user-facing surface."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P2.M1.T1.S2",
+                  "title": "FR-M3b deterministic non-fatal coverage check (logs unclaimed paths)",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P2.M1.T1.S1"],
+                  "prd_selectors": ["h3.30", "h3.66", "h3.81"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See planner_prompt.md §2.3. The check belongs in internal/decompose/decompose.go immediately after callPlanner returns successfully (current line ~199) and before the `if out.Single` short-circuit (line ~204). The frozen changed-path set is DiffTreeNames(baseTree, tStart) (baseTree/tStart are in scope). deps.Verbose.VerboseRawOutput is nil-receiver-safe (internal/ui/verbose.go:54).\n2. INPUT: concept.Files from P2.M1.T1.S1 (PlannerCommit.Files), the frozen baseTree/tStart, and deps.Git.DiffTreeNames.\n3. LOGIC: Implement FR-M3b. When !out.Single && len(out.Commits) > 0: union all concept.Files into a set; compute changed := deps.Git.DiffTreeNames(ctx, baseTree, tStart); for each path in changed not in the union, call deps.Verbose.VerboseRawOutput(fmt.Sprintf(\"decompose: path %q not claimed by any concept (likely leftover for the arbiter)\", p)). On a DiffTreeNames error, log 'coverage check skipped: <err>' and CONTINUE (best-effort, never fail the run). NEVER abort, NEVER hard-constrain the stager (FR-M1c/verifyFreezeSubset in runLoop stays the sole content guarantee). Consider extracting a small helper checkPlannerCoverage(deps, baseTree, tStart, concepts) for testability. TDD: add a test (decompose_test.go or planner_test.go) that drives a stub planner JSON whose concepts' files deliberately omit one changed path; assert the run SUCCEEDS (no error) AND a capturing Verbose writer received a line naming the unclaimed path. Mock: stubtest.Manifest stub planner returning canned JSON; real git for DiffTreeNames.\n4. OUTPUT: A diagnostic-only coverage log (no behavior change to staging/loop) for FR-M3b.\n5. DOCS: none — diagnostic-only, no user-facing surface (the §17.5 narrative that documents files is owned by P2.M1.T2.S1/S2)."
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P2.M1.T2",
+              "title": "Mode-conditional planner system prompt + soft target",
+              "status": "Planned",
+              "description": "Rewrite the planner system prompt (PRD §17.5) so the Rules block is mode-conditional: auto-decompose leans toward SEVERAL commits with a soft count target interpolated from max_commits/2; forced-count has its own rules block (partition into EXACTLY N, no soft-target line). The opener, UNSTAGED framing line, and JSON contract (now with files) are shared. BuildPlannerSystemPrompt gains forcedCount + maxCommits args. The Mode A doc edit rides here.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P2.M1.T2.S1",
+                  "title": "Split plannerSystemPrompt into shared + auto/forced rules + soft-target interpolation + BuildPlannerSystemPrompt signature + call-site + prompt tests",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P2.M1.T1.S1"],
+                  "prd_selectors": ["h3.81", "h3.30", "h3.66", "h4.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See planner_prompt.md §2.2 (verbatim rules blocks quoted from PRD §17.5 lines 1766-1805). Current plannerSystemPrompt (prompt/planner.go:29-49) is a SINGLE mode-agnostic block starting 'Prefer FEWER commits'. BuildPlannerSystemPrompt(examples, format, locale) at line ~113. callPlanner (decompose/planner.go:73) calls it; the hard cap is at planner.go:132 (unchanged). The JSON contract line in the current const has no 'files' — must add it (shared block). Soft-target interpolation: PRD §17.5 line 1812 'interpolated from max_commits at build time (default 12 -> 6)'.\n2. INPUT: PlannerCommit.Files from P2.M1.T1.S1 (so the JSON contract references files). forcedCount and deps.Config.MaxCommits reach callPlanner already.\n3. LOGIC: Implement FR-M3/M4/§17.5. (a) Split plannerSystemPrompt into consts: plannerOpener (verbatim §17.5 opener), plannerUnstagedFraming (the 'These changes were left UNSTAGED on purpose...' line), plannerJSONContract (the 'Respond with ONLY JSON...' block INCLUDING 'files' in the commits array and the two trailing clauses about files/hunks), plannerAutoRules (the auto rules block, with the soft-target line 'Keep the count modest: in ordinary cases at or below %d (half the max of %d)...' using fmt.Sprintf with maxCommits/2 and maxCommits), plannerForcedRules (the forced-count rules block — NO soft-target line). QUOTE THE EXACT RULES TEXT from PRD §17.5 (via architecture/planner_prompt.md §2.2) verbatim — ASCII only. (b) BuildPlannerSystemPrompt signature: add `forcedCount, maxCommits int`; forcedCount > 0 => emit plannerForcedRules; else plannerAutoRules with interpolated soft target (maxCommits/2 integer division, documented). Topology: opener + blank + framing + blank + rules + blank + JSON-contract + blank + (auto: examples; non-auto: formatScaffoldBody) + withLocale. (c) Update callPlanner (decompose/planner.go:73) to pass (forcedCount, deps.Config.MaxCommits). (d) PlannerReserveTokens takes the already-built sysPrompt — signature unchanged, but reserve_test.go fixtures must rebuild sysPrompt via the new builder. Mock: none (pure string-construction tests). TDD: rewrite TestBuildPlannerSystemPrompt_CanonicalExact (new auto-mode want); add TestBuildPlannerSystemPrompt_ForcedCount_CanonicalExact (forced rules, assert shared prefix byte-identical, soft-target line ABSENT); add TestBuildPlannerSystemPrompt_SoftTarget_Interpolation (table maxCommits in {12,10,20,4} -> target {6,5,10,2}); update Properties (drop 'Prefer FEWER commits' PRESENT; add 'lean toward SEVERAL' PRESENT-auto-only, 'MUST partition into EXACTLY' PRESENT-forced-only, files in contract); update FormatModes_CanonicalExact for the new const names; update reserve_test.go fixture.\n4. OUTPUT: A mode-conditional planner prompt builder for consumption by callPlanner; the hard cap (planner.go:132) UNCHANGED; soft target is guidance-only. Byte-identical shared prefix between auto and forced (opener+framing+contract).\n5. DOCS: none here — the Mode A doc edit is P2.M1.T2.S2."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P2.M1.T2.S2",
+                  "title": "Mode A doc edit: docs/how-it-works.md planner mode-conditional + files + soft target",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P2.M1.T2.S1"],
+                  "prd_selectors": ["h3.81", "h3.30", "h3.66"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: docs/how-it-works.md roles table (~line 59) planner-output cell currently shows 'JSON {count, single, commits:[...], message?}' — needs files. The 'Key design points' section (~line 109-119) has no mention of the soft target, auto-vs-forced rules, or the files partition contract.\n2. INPUT: The mode-conditional prompt + Files field + coverage check from P2.M1.T1/P2.M1.T2.\n3. LOGIC: Update the roles-table planner-output cell to 'JSON {count, single, commits:[{title,description,files}], message?}'. Add a short paragraph after 'One-file short-circuit' (~line 115): the planner's rules block is mode-conditional (auto leans toward SEVERAL with a soft max_commits/2 target; forced-count fixes the count); every concept carries a files list naming the paths it touches; a deterministic coverage check logs (not errors) any path no concept claimed — the arbiter reconciles leftovers. Keep it tight (one paragraph + the table cell). No new flags/keys — do NOT touch docs/cli.md or docs/configuration.md. Mock: none (docs edit).\n4. OUTPUT: docs/how-it-works.md planner narrative consistent with FR-M3/M3b/M4 (Mode A ride-with-the-work).\n5. DOCS: [Mode A] This IS the doc edit — update docs/how-it-works.md planner section. Rides WITH the work (P2.M1.T2.S1)."
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P2.M1.T3",
+              "title": "Stager files block + updated guardrails wording",
+              "status": "Planned",
+              "description": "The stager (PRD §17.6) now receives the concept's files list as a 'Files for this concept (where these changes live):' block (omitted when empty), and the guardrails wording is updated to reference it. files is guidance (where to look), not a hard constraint (FR-M1c stays the content guarantee).",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P2.M1.T3.S1",
+                  "title": "BuildStagerTask files param + files block (omit when empty) + guardrails wording + stager.go call-site + tests",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P2.M1.T1.S1"],
+                  "prd_selectors": ["h3.82", "h3.30", "h3.66", "h4.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See planner_prompt.md §2.4. BuildStagerTask(title, description string) at prompt/stager.go:64; stagerGuardrails const at stager.go:38-42 (second sentence must change wording; the em-dash U+2014 in 'file contents — only update the index' is preserved per §17.6 fidelity; two backtick commands unchanged). Sole call-site: decompose/stager.go:99 `task := prompt.BuildStagerTask(concept.Title, concept.Description)`. The deps.stager test seam (decompose/roles.go:73) takes the whole PlannerCommit so it is transparent to the signature change.\n2. INPUT: concept.Files from P2.M1.T1.S1.\n3. LOGIC: Implement §17.6/FR-M5 files block. (a) BuildStagerTask signature: add `files []string`. (b) Topology: stagerInstruction + blank + title + '\\n' + description + [if len(files)>0: blank + 'Files for this concept (where these changes live):\\n' + strings.Join(files, '\\n')] + blank + stagerGuardrails. Omit the files block ENTIRELY when files is nil/empty (no blank-line artifact). (c) Update stagerGuardrails wording: change 'Stage ONLY changes belonging to this concept; leave unrelated changes unstaged.' to 'Stage ONLY the changes the description assigns to this concept (the files above are where they live); leave everything else unstaged.' (verbatim PRD §17.6 line 1826); preserve the em-dash and the two backtick commands. (d) Update decompose/stager.go:99 to pass concept.Files. Mock: none (pure string tests). TDD: update TestBuildStagerTask_CanonicalExact (two cases: files=[a.go,b.go] block present; files=nil block absent — byte-identity minus block); add TestBuildStagerTask_FilesBlock_OmittedWhenEmpty (nil and [] must NOT contain 'Files for this concept'); update TestBuildStagerTask_Properties (replace the 'Stage ONLY changes belonging to this' needle with the new wording; add 'Files for this concept (where these changes live):' PRESENT-with-files; keep em-dash/backtick/anti-copy assertions); update edge-case tests to pass the new files arg (nil).\n4. OUTPUT: A stager task that surfaces the concept's files as guidance for consumption by the tooled stager agent; empty files omit the block cleanly.\n5. DOCS: none — internal prompt construction (no user-facing surface; §17.6 narrative is in PRD already)."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Phase",
+      "id": "P3",
+      "title": "Changeset-level documentation sync (Mode B)",
+      "status": "Planned",
+      "description": "The cross-cutting documentation sweep that only makes sense once the whole v2.2 changeset is in place: README.md feature surface for the decompose improvements, and a holistic reconciliation of the docs/how-it-works.md decompose section (the per-requirement Mode A edits from P1/P2 land with the code; this task reconciles the section as a whole). Per SOW §5 Mode B: this final task depends on every implementing subtask and runs last.",
+      "milestones": [
+        {
+          "type": "Milestone",
+          "id": "P3.M1",
+          "title": "README + how-it-works changeset-level sync",
+          "status": "Planned",
+          "description": "One task: surface the v2.2 decompose improvements (arbiter now fully freeze-safe; planner partitions are per-file and count-guided) in README.md without duplicating per-key reference, and reconcile the docs/how-it-works.md decompose section as a whole. Verify docs/cli.md and docs/configuration.md need no changes (no new flags/keys) and leave them alone.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P3.M1.T1",
+              "title": "Sync changeset-level documentation (README.md + docs/how-it-works.md reconciliation)",
+              "status": "Planned",
+              "description": "Mode B final task. README.md surfaces the v2.2 decompose improvements in the feature list (keeping the hero pitch intact, no per-key duplication). docs/how-it-works.md is reconciled as a whole once both Phase 1 (arbiter freeze) and Phase 2 (planner files/soft-target/mode-conditional) Mode A edits have landed. Verify docs/cli.md and docs/configuration.md are unchanged (no new flags/keys).",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P3.M1.T1.S1",
+                  "title": "README.md: surface v2.2 decompose improvements in the feature list",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T2.S1", "P1.M1.T3.S1", "P1.M1.T3.S2", "P2.M1.T1.S1", "P2.M1.T1.S2", "P2.M1.T2.S1", "P2.M1.T3.S1"],
+                  "prd_selectors": ["h3.99", "h2.5", "h3.30", "h3.66"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: README.md is the marketing surface (PRD §21.5). The hero pitch (PRD §5) must stay intact. The v2.2 improvements are internal-quality (arbiter fully freeze-safe — a concurrent edit never enters a commit; planner partitions are per-file and count-guided by a soft target). No new flags/keys to document.\n2. INPUT: The implemented v2.2 changes from all of P1.M1.T2/T3 and P2.M1.T1/T2/T3.\n3. LOGIC: Add/refresh the decompose feature blurb in README.md's feature list: the multi-commit decomposition now commits strictly from the frozen start-of-run snapshot (a concurrent edit during the run can never enter a commit, including across the leftover-reconciliation arbiter), and the planner partitions per-file with a soft count target. Keep it concise; do NOT duplicate per-key config reference or per-flag CLI reference (those live in docs/). Do NOT alter the hero pitch. Mock: none (docs edit).\n4. OUTPUT: README.md feature list reflects v2.2; hero pitch intact.\n5. DOCS: [Mode B] This subtask IS the README changeset-level doc update. Depends on every implementing subtask so it runs last and summarizes the whole delta."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P3.M1.T1.S2",
+                  "title": "docs/how-it-works.md: holistic decompose-section reconciliation + verify cli.md/configuration.md untouched",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T2.S2", "P2.M1.T2.S2", "P1.M1.T2.S1", "P2.M1.T1.S1", "P2.M1.T2.S1", "P2.M1.T3.S1"],
+                  "prd_selectors": ["h3.30", "h3.66", "h4.7", "h3.81", "h3.82"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The Mode A edits landed in P1.M1.T2.S2 (arbiter freeze narrative) and P2.M1.T2.S2 (planner mode-conditional/files/soft-target). This task reconciles the docs/how-it-works.md decompose section as a WHOLE so the two edits cohere and the 'Safety' bullets (line ~121-127) are consistent with FR-M1d (e.g. 'Start-of-run freeze' bullet should name the arbiter as a freeze surface, not just stager).\n2. INPUT: The Mode A edits from P1.M1.T2.S2 and P2.M1.T2.S2, plus the implemented behavior from P1.M1.T2.S1 / P2.M1.T1.S1 / P2.M1.T2.S1 / P2.M1.T3.S1.\n3. LOGIC: Reconcile the full decompose narrative in docs/how-it-works.md so the arbiter-freeze and planner-files/soft-target descriptions are internally consistent (no stale 'git status --porcelain' references anywhere in the decompose section; the 'Safety' bullets reflect that the arbiter now derives strictly from T_start). Cross-check the data-flow diagram caption if present. Then VERIFY docs/cli.md and docs/configuration.md require NO changes (FR-M4 soft target is derived from existing max_commits; FR-M3 files is automatic — no new flags/keys) and leave them untouched. Mock: none (docs review/edit).\n4. OUTPUT: A coherent, stale-free docs/how-it-works.md decompose section; cli.md/configuration.md confirmed unchanged.\n5. DOCS: [Mode B] This subtask IS the how-it-works changeset-level reconciliation. Depends on the Mode A edits + implementing subtasks so it runs last."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
