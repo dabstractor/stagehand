@@ -4,14 +4,14 @@
       "type": "Phase",
       "id": "P1",
       "title": "Arbiter freeze parity (FR-M1d)",
-      "status": "Planned",
+      "status": "Researching",
       "description": "Close the arbiter freeze loophole so a file written to the working tree AFTER T_start capture can never land in an arbiter commit, on any of the three resolution paths (new / tip-amend / mid-chain). Add the new OverlayTreePaths git primitive for the mid-chain rebuild. Extend the freeze boundary — already shipped for the planner/stager (FR-M1b/M1c) and single shortcuts (FR-M2b/M11) — into the arbiter, the third and final freeze surface. All work is inside internal/git + internal/decompose; no config/CLI/provider/CAS/lock/rescue changes.",
       "milestones": [
         {
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Freeze-safe arbiter (gate + OverlayTreePaths + resolution rewrite + acceptance invariants)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Three tasks: (T1) the OverlayTreePaths git primitive + tests; (T2) the freeze-safe arbiter gate (frozen DiffTreeNames leftover) + resolveArbiter signature change + the three resolution paths rewritten to build trees strictly from T_start (new/tip commit T_start directly; mid-chain uses OverlayTreePaths) + ReadTree(T_start) index sync, with the Mode A doc edit; (T3) the §20.2/§20.5 acceptance invariant scenarios (concurrent-across-arbiter-gate, arbiter-folds-only-T_start, T_start completeness).",
           "tasks": [
             {
@@ -86,14 +86,14 @@
               "type": "Task",
               "id": "P1.M1.T3",
               "title": "Arbiter freeze-parity invariant scenarios (acceptance proof)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "The §20.2/§20.5 acceptance invariants that PROVE the loophole is closed: a concurrent working-tree change written after T_start is captured lands in no arbiter commit (including across the arbiter gate), and every arbiter commit's tree is built strictly from T_start. These are cross-cutting end-to-end scenario harness entries + a unit-level proof in chain_test.go — distinct from the resolution-path unit tests that ride with P1.M1.T2.S1 under TDD.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T3.S1",
                   "title": "Concurrent-across-arbiter-gate + T_start completeness integration tests",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T2.S1"
@@ -110,7 +110,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T3.S2",
                   "title": "Arbiter-folds-only-T_start-content: paired integration case + chain_test.go unit proof",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T2.S1"

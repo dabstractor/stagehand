@@ -815,11 +815,20 @@ func concurrentSentinelSeam(t *testing.T, repo string, conceptFiles map[string][
 	}
 }
 
-// TestDecompose_ConcurrentChangeExclusion (FR-M1b/M1c happy path, §20.2 "Start-of-run freeze"): a
-// 2-concept in-process run whose stager seam writes an UNSTAGED sentinel.txt during concept 0.
-// Both commits succeed; sentinel.txt is in NEITHER commit's DiffTree and REMAINS in the working
-// tree ("?? sentinel.txt"). This is the success-path sibling of TestDecompose_StagerFreezeViolation
-// (which STAGES the sentinel → ErrFreezeViolation).
+// TestDecompose_ConcurrentChangeExclusion is the permanent FR-M1d / §20.2 regression net for the
+// empty-frozen-leftover case. The fixture is an unborn repo whose stagers cover ALL of T_start
+// (a.txt + b.txt are both written pre-run and both staged by the seam), so the tip tree equals
+// T_start and DiffTreeNames(tipTree, tStart) == [] ⇒ the freeze-safe arbiter gate (decompose.go
+// gate) is SKIPPED. concurrentSentinelSeam additionally writes sentinel.txt UNSTAGED post-freeze
+// (it is outside T_start). This asserts the three §20.2 invariants:
+//   - "Start-of-run freeze" (3a): sentinel.txt appears in NO commit across the whole run
+//     (git log --name-only --format=), and remains in the working tree ("?? sentinel.txt").
+//   - "Arbiter freeze parity" (3b): the gate is diff-names(tipTree, T_start), never a live status
+//     read, so the out-of-T_start sentinel cannot trip the gate. The arbiter is SKIPPED (no N+1
+//     commit): dcmLogCount == 2 (the two loop commits). Proven via dcmLogCount, NOT result.Amended
+//     (Amended is 0 for both "skipped" and "ran+null" — see decompose.go:72).
+//
+// Success-path sibling of TestDecompose_StagerFreezeViolation (which STAGES the sentinel).
 func TestDecompose_ConcurrentChangeExclusion(t *testing.T) {
 	bin := stubtest.Build(t)
 	repo := t.TempDir()
@@ -834,12 +843,12 @@ func TestDecompose_ConcurrentChangeExclusion(t *testing.T) {
 	plannerJSON := `{"count":2,"single":false,"commits":[{"title":"add a","description":"a.txt"},{"title":"add b","description":"b.txt"}]}`
 	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
 
-	// Message stub with extra entries for the arbiter's resolveNewCommit call.
-	// After the loop, the arbiter picks up the sentinel via AddAll (not yet frozen — P3.M2.T1.S1).
-	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add a", "feat: add b", "feat: add sentinel", "feat: add sentinel"})
+	// LOOP-ONLY message responses: under FR-M1d the arbiter does NOT run (the frozen leftover is
+	// empty — the stagers cover all of T_start), so no arbiter→resolveNewCommit message call occurs.
+	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add a", "feat: add b"})
 
 	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
-	arbiterM := dcmArbiterManifest(t, bin, `{"target": null}`) // null → new commit for any leftovers
+	arbiterM := dcmArbiterManifest(t, bin, `{"target": null}`) // never invoked under FR-M1d (gate skips)
 	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
 	deps := dcmDeps(t, repo, roles)
 
@@ -854,14 +863,17 @@ func TestDecompose_ConcurrentChangeExclusion(t *testing.T) {
 		t.Fatalf("Decompose(concurrent exclusion): %v", err)
 	}
 
-	// Verify at least 2 loop commits landed (arbiter may add a 3rd for the sentinel).
-	if len(result.Commits) < 2 {
-		t.Fatalf("Commits len = %d, want ≥2", len(result.Commits))
+	// Exactly 2 commits (the loop commits; the arbiter is SKIPPED because the frozen leftover is
+	// empty). A null-target arbiter would add a 3rd commit, so this is the authoritative skip proof.
+	if len(result.Commits) != 2 {
+		t.Fatalf("Commits len = %d, want exactly 2 (loop commits; arbiter must be skipped)", len(result.Commits))
+	}
+	if got := dcmLogCount(t, repo); got != 2 {
+		t.Errorf("commit count = %d, want exactly 2 (arbiter skipped — empty frozen leftover; FR-M1d)", got)
 	}
 
-	// Verify sentinel.txt appears in NO LOOP commit's diff-tree (first 2 commits).
-	// The freeze captured T_start before the sentinel was written; the loop commits
-	// commit frozen trees, so the sentinel is excluded (FR-M1b/M1c).
+	// (FR-M1b/M1c) sentinel.txt appears in NO LOOP commit's diff-tree (first 2 commits). The freeze
+	// captured T_start before the sentinel was written; the loop commits commit frozen trees.
 	log := dcmLogOneline(t, repo)
 	lines := strings.Split(log, "\n")
 	loopCount := 2
@@ -877,9 +889,86 @@ func TestDecompose_ConcurrentChangeExclusion(t *testing.T) {
 		}
 	}
 
-	// NOTE: the arbiter's STAGING (resolveArbiter's AddAll) picks up sentinel.txt from the
-	// working tree — that is expected; enforcement of the arbiter staging is P3.M2.T1.S1 (FR-M1c).
-	// So we verify only the loop commits. The arbiter may create a 3rd commit for the sentinel.
+	// (FR-M1d, contract 3a) sentinel.txt appears in NO commit across the WHOLE run, including any
+	// arbiter commit. The arbiter's gate/diff/staging are all frozen, so a post-T_start file cannot
+	// cross the gate. This strictly subsumes the per-loop check above (kept for layered diagnostics).
+	logNames := dcmGitOut(t, repo, "log", "--name-only", "--format=")
+	if strings.Contains(logNames, "sentinel.txt") {
+		t.Errorf("sentinel.txt appears in a commit (incl. arbiter) — FR-M1d freeze should exclude it:\n%s", logNames)
+	}
+
+	// (FR-M1b/M1d) the sentinel REMAINS in the working tree, untracked — the run left it untouched.
+	status := dcmStatusPorcelain(t, repo)
+	if !strings.Contains(status, "?? sentinel.txt") {
+		t.Errorf("status = %q, want it to contain '?? sentinel.txt' (concurrent change left untouched)", status)
+	}
+}
+
+// TestDecompose_TStartCompleteness (PRD §20.2 "T_start completeness" invariant, FR-M1d contract
+// 3c): after a fully-successful decompose run, EVERY T_start path landed in HEAD, and the live
+// working tree is non-empty ONLY from paths OUTSIDE T_start (the post-freeze sentinel), which are
+// intentionally left unstaged. Born repo so baseTree is a real tree (makes the DiffTreeNames
+// superset check meaningful). The stagers cover all of T_start (x.go + y.go), so the frozen
+// leftover is empty and the arbiter is SKIPPED.
+func TestDecompose_TStartCompleteness(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	dcmInitRepo(t, repo)
+	dcmCommitRaw(t, repo, "initial") // BORN repo — real baseTree
+	dcmWriteFile(t, repo, "x.go", "package x\n")
+	dcmWriteFile(t, repo, "y.go", "package y\n")
+	baseTree := dcmGitOut(t, repo, "rev-parse", "HEAD^{tree}") // capture BEFORE the run
+
+	plannerJSON := `{"count":2,"single":false,"commits":[{"title":"add x","description":"x.go"},{"title":"add y","description":"y.go"}]}`
+	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
+	messageM := dcmMessageScriptManifest(t, bin, []string{"feat: add x", "feat: add y"})
+	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
+	arbiterM := dcmArbiterManifest(t, bin, `{"target": null}`) // arbiter skipped (stagers cover all T_start)
+	roles := RoleManifests{Planner: plannerM, Stager: stagerM, Message: messageM, Arbiter: arbiterM}
+	deps := dcmDeps(t, repo, roles)
+	deps.stager = concurrentSentinelSeam(t, repo,
+		map[string][]string{"add x": {"x.go"}, "add y": {"y.go"}},
+		"sentinel.txt", // post-freeze, OUTSIDE T_start
+	)
+
+	result, err := Decompose(context.Background(), deps)
+	if err != nil {
+		t.Fatalf("Decompose(completeness): %v", err)
+	}
+	if len(result.Commits) != 2 {
+		t.Fatalf("Commits len = %d, want 2", len(result.Commits))
+	}
+
+	// (c) T_start completeness: every frozen path landed in HEAD. DiffTreeNames(baseTree, HEAD^{tree})
+	// ⊇ DiffTreeNames(baseTree, tStart) == {x.go, y.go}. Use the SAME primitive the production gate uses.
+	headTree := dcmGitOut(t, repo, "rev-parse", "HEAD^{tree}")
+	g := git.New(repo)
+	landed, err := g.DiffTreeNames(context.Background(), baseTree, headTree)
+	if err != nil {
+		t.Fatalf("DiffTreeNames(baseTree, headTree): %v", err)
+	}
+	landedSet := map[string]bool{}
+	for _, p := range landed {
+		landedSet[p] = true
+	}
+	for _, frozen := range []string{"x.go", "y.go"} {
+		if !landedSet[frozen] {
+			t.Errorf("frozen path %q did NOT land in HEAD — T_start completeness violated (landed=%v)", frozen, landed)
+		}
+	}
+
+	// (c) Live status is non-empty ONLY from paths OUTSIDE T_start: the sole entry is the sentinel.
+	if status := dcmStatusPorcelain(t, repo); !strings.Contains(status, "?? sentinel.txt") || strings.TrimSpace(status) != "?? sentinel.txt" {
+		t.Errorf("status = %q, want exactly '?? sentinel.txt' (only out-of-T_start dirt remains)", status)
+	}
+
+	// Cross-check (FR-M1d): the sentinel is in no commit; exactly 3 commits (initial + 2 loop; arbiter skipped).
+	if got := dcmLogCount(t, repo); got != 3 {
+		t.Errorf("commit count = %d, want 3 (initial + 2 loop; arbiter skipped)", got)
+	}
+	if logNames := dcmGitOut(t, repo, "log", "--name-only", "--format="); strings.Contains(logNames, "sentinel.txt") {
+		t.Errorf("sentinel.txt appears in a commit — FR-M1d freeze should exclude it:\n%s", logNames)
+	}
 }
 
 func TestDecompose_StagerGuardHappyPath(t *testing.T) {
