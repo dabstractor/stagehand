@@ -61,6 +61,7 @@ func Execute(ctx context.Context, spec CmdSpec, timeout time.Duration, vb *ui.Ve
 	setupProcessGroup(cmd) // platform seam (procgroup_*.go): Setpgid + Cancel + WaitDelay
 
 	vb.VerboseCommand(strings.Join(append([]string{spec.Command}, spec.Args...), " "))
+	vb.VerbosePayload(len(spec.Stdin)) // size only (never contents) — exposes whether the token-limit gate ran
 	if err := cmd.Start(); err != nil {
 		return "", "", fmt.Errorf("provider %q: start: %w", spec.Command, err)
 	}
@@ -69,11 +70,13 @@ func Execute(ctx context.Context, spec CmdSpec, timeout time.Duration, vb *ui.Ve
 
 	if werr := cmd.Wait(); werr != nil {
 		vb.VerboseRawOutput(out.String())
+		vb.VerboseStderr(errb.String()) // surface the provider's real failure reason (upstream errors live on stderr)
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return out.String(), errb.String(), ctxErr // timeout → DeadlineExceeded; cancel → Canceled
 		}
 		return out.String(), errb.String(), fmt.Errorf("provider %q: %w", spec.Command, werr) // exit failure
 	}
 	vb.VerboseRawOutput(out.String())
+	vb.VerboseStderr(errb.String()) // surface provider warnings/diagnostics even on success
 	return out.String(), errb.String(), nil
 }

@@ -62,6 +62,42 @@ func (v *Verbose) VerboseRawOutput(output string) {
 	}
 }
 
+// VerboseStderr prints the provider's captured stderr — the stderr twin of VerboseRawOutput.
+// Providers (pi, opencode, …) emit their real failure diagnostics to STDERR, not stdout: upstream
+// errors, rate-limit notices, context-length rejections, auth failures. Without this, a run whose
+// model rejected the request returns EMPTY stdout and surfaces only as an unexplained "parse failed
+// (no valid commit message)", with the actual reason sitting in a captured-then-discarded stderr
+// buffer. Format: "DEBUG: stderr:\n" + stderr verbatim (trailing newline ensured). No-op when v==nil,
+// v.w==nil, !v.on, OR stderr is empty (a clean run stays clean). Like VerboseRawOutput this is the
+// provider's OWN output — surfacing it falls squarely within --verbose's "raw output" purpose
+// (PRD §9.13 FR50); it is not a new diagnostic scope.
+func (v *Verbose) VerboseStderr(stderr string) {
+	if v == nil || v.w == nil || !v.on || stderr == "" {
+		return
+	}
+	fmt.Fprint(v.w, "DEBUG: stderr:\n")
+	fmt.Fprint(v.w, stderr)
+	if !strings.HasSuffix(stderr, "\n") {
+		fmt.Fprint(v.w, "\n")
+	}
+}
+
+// VerbosePayload prints the size of the payload being delivered to the provider (PRD §9.13 FR50 —
+// diagnostics). bytes is the stdin/payload length the executor is about to pipe (spec.Stdin for
+// stdin-delivery providers; the trailing positional/flag arg length otherwise). Stagehand's token
+// budgeting (FR3d/FR3i) is the difference between a payload that fits and one the model rejects, so
+// surfacing the shipped size lets a user see at a glance whether the gate ran and whether the chars/4
+// estimate is in the right neighborhood — without this, a silently-ignored token_limit (e.g. a key in
+// the wrong TOML section) looks identical to a working one. Only the SIZE is logged, never the
+// contents (PRD §19). Format: "DEBUG: payload: <bytes> bytes (~<tokens> tokens est)\n". No-op when
+// v==nil, v.w==nil, !v.on, or bytes<=0 (positional/flag delivery with no measured payload → skip).
+func (v *Verbose) VerbosePayload(bytes int) {
+	if v == nil || v.w == nil || !v.on || bytes <= 0 {
+		return
+	}
+	fmt.Fprintf(v.w, "DEBUG: payload: %d bytes (~%d tokens est)\n", bytes, (bytes+3)/4)
+}
+
 // VerboseWarn prints a general warning for diagnostics such as unsupported .stagehandignore
 // negation patterns (PRD §9.18 FR-X2). Format: "DEBUG: <msg>\n". No-op when v==nil, v.w==nil, or !v.on.
 func (v *Verbose) VerboseWarn(msg string) {
