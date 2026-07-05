@@ -11,7 +11,7 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Foundation — Shared Helper Export & Reference Gate Hardening",
-          "status": "Planned",
+          "status": "Ready",
           "description": "Establish the shared cross-package infrastructure (ChunkCount export) and fix the two minor issues in the REFERENCE gate (CommitStaged) BEFORE propagating to the other two paths. This ensures the corrected gate is the copy source for M2 and M3. Issue 4 (mtPayload inconsistency when TokenLimit==0) and Issue 3 (missing per-chunk token estimate in verbose) are both fixed in internal/generate/generate.go first.",
           "tasks": [
             {
@@ -41,14 +41,14 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Fix mtPayload consistency in reference gate (Issue 4)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Fix the payload inconsistency in CommitStaged's FR-T1 multi-turn gate: when TokenLimit==0, mtPayload is set to `payload` (which may have retryInstr prepended from a prior parse failure), while the TokenLimit!=0 path rebuilds from the untruncated diff WITHOUT retryInstr. Align both paths by always rebuilding mtPayload from the untruncated diff variable via prompt.BuildUserPayload, stripping retryInstr. This is PRD §9.24 FR-T2 ('captured ONCE and unmodified').",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Rebuild mtPayload from diff (not payload) when TokenLimit==0 in CommitStaged gate",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/research_commitstaged_reference.md §4 (mtPayload FR-T12 re-capture) and resolution_strategy.md (ISSUE 4 section). The gate is at internal/generate/generate.go:290-374. Line 311: `mtPayload := payload`. The `payload` variable (hoisted at L226) is rebuilt every loop iteration via prompt.BuildUserPayload(diff, cfg.Context, rejected) (L231), then conditionally prepended with retryInstr (L233: `payload = retryInstr + \"\\n\\n\" + payload`) when parseFail is true. So when the last one-shot attempt failed parsing, payload carries the retryInstr preamble. The TokenLimit!=0 branch (L312-326) rebuilds mtPayload = prompt.BuildUserPayload(fullDiff, cfg.Context, rejected) WITHOUT retryInstr. The inconsistency: TokenLimit==0 path includes retryInstr, TokenLimit!=0 does not. The `diff` variable (the untruncated staged diff captured at L193-198 via deps.Git.StagedDiff) is already in scope at the gate.\n2. INPUT: The `diff` string variable (CommitStaged L193, the untruncated staged diff when TokenLimit==0), `cfg.Context` (string, the --context text), `rejected` ([]string, accumulated duplicate subjects from the exhausted one-shot loop). All confirmed in scope at generate.go:311.\n3. LOGIC: Replace line 311 `mtPayload := payload` with `mtPayload := prompt.BuildUserPayload(diff, cfg.Context, rejected)`. This rebuilds from the existing untruncated `diff` WITHOUT retryInstr, matching the TokenLimit!=0 path's rebuild at L323. When TokenLimit==0, `diff` is already untruncated (the one-shot StagedDiff used TokenLimit=cfg.TokenLimit=0). When TokenLimit!=0, the existing re-capture branch (L312-326) overwrites mtPayload with the re-captured fullDiff version — so both paths produce a retryInstr-free mtPayload derived from the untruncated diff. Update the comment at L307 to reflect that mtPayload is ALWAYS rebuilt from diff (not just in the TokenLimit!=0 branch). Write a test mirroring TestMultiTurnGate_TokenLimitTruncated_Recaptures (multiturn_test.go:418-463) but for the TokenLimit==0 + parseFail case: force a one-shot parse failure on a large diff with TokenLimit==0, trigger multi-turn, and assert the mtPayload passed to Run does NOT contain the retryInstr preamble substring (\"Output ONLY the commit message\"). Verify the multi-turn still succeeds.\n4. OUTPUT: Corrected CommitStaged gate where mtPayload is always derived from the untruncated diff without retryInstr, regardless of TokenLimit. This corrected gate is the copy source for P1.M2.T1.S2 and P1.M3.T1.S2.\n5. DOCS: none — internal logic fix aligning code with the already-correct FR-T2 documentation in docs/how-it-works.md:262-298. No user-facing/config/API surface change.",
@@ -63,14 +63,14 @@
               "type": "Task",
               "id": "P1.M1.T3",
               "title": "Add per-chunk token estimate to verbose trigger line (Issue 3)",
-              "status": "Planned",
+              "status": "Ready",
               "description": "Fix the missing per-chunk token estimate (FR-T11) in the multi-turn trigger verbose output. The progress line at generate.go:337 prints turn count and total minutes but NOT the per-chunk token budget (cfg.MultiTurnChunkTokens). Extend the format string to include it.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T3.S1",
                   "title": "Extend progress line format with chunk token budget in CommitStaged gate",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 0.5,
                   "dependencies": [
                     "P1.M1.T2.S1"

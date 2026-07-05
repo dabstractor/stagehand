@@ -304,11 +304,13 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 		if cfg.MultiTurnFallback &&
 			resolved.SessionMode != nil && *resolved.SessionMode == "append" {
 
-			// FR-T12 re-capture: if token_limit is set, the one-shot `payload` is truncated and unsuitable.
-			// Re-capture the diff honoring FR-T12 (TokenLimit=0) and rebuild the payload from it. When
-			// token_limit is unset, `payload` is already untruncated (derived from the untruncated diff)
-			// so we use it directly and avoid the second StagedDiff call.
-			mtPayload := payload
+			// FR-T2/FR-T12: mtPayload is ALWAYS rebuilt from the untruncated `diff` via BuildUserPayload
+			// (NOT reused from the one-shot `payload`, which may carry the retryInstr corrective preamble
+			// from a failed parse — multi-turn has its own priming preamble, FR-T4). When token_limit is
+			// set (non-zero), the one-shot `diff` was truncated, so we RE-CAPTURE with TokenLimit=0 below
+			// and rebuild from the untruncated fullDiff. When token_limit is unset (0), `diff` is already
+			// untruncated, so we rebuild from it directly (avoids a redundant StagedDiff call).
+			mtPayload := prompt.BuildUserPayload(diff, cfg.Context, rejected)
 			if cfg.TokenLimit != 0 {
 				fullDiff, derr := deps.Git.StagedDiff(ctx, git.StagedDiffOptions{
 					MaxDiffBytes:        cfg.MaxDiffBytes,

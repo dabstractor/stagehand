@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -647,6 +649,112 @@ func TestMultiTurnGate_TokenLimitTruncated_Recaptures(t *testing.T) {
 		t.Errorf("CommitStaged err = %v, want nil (FR-T12: multi-turn must succeed on the untruncated diff)", err)
 	}
 }
+
+// TestMultiTurnGate_TokenLimitZero_ParseFail_NoRetryInstr (Issue 4, gate-level): when token_limit is
+// UNSET (0) and the one-shot attempt fails to parse (call 1 returns ""), the FR-T1 gate must rebuild
+// mtPayload from the untruncated `diff` via BuildUserPayload — NOT reuse the hoisted one-shot `payload`,
+// which carries the retryInstr corrective preamble ("Output ONLY the commit message. No preamble, no
+// markdown, no quotes.") prepended at generate.go:233 on a parse failure. The retryInstr is one-shot-only;
+// multi-turn has its own priming preamble (FR-T4). Before the fix (mtPayload := payload), the multi-turn
+// chunks carried the retryInstr, sending the model a confusing double instruction.
+//
+// This mirrors TestMultiTurnGate_TokenLimitTruncated_Recaptures but exercises the TokenLimit==0 path
+// (the re-capture branch at generate.go:314 is SKIPPED — that branch would overwrite mtPayload and hide
+// the bug). TokenLimit=0 + parseFail is the ONLY configuration that reaches the buggy line.
+//
+// Observation (G5): mtPayload is a local in CommitStaged — not directly inspectable. The stub's
+// STAGEHAND_STUB_STDINFILE captures only the LAST invocation's stdin (the finalInstruction turn, which
+// is independent of mtPayload). To observe the chunk bodies' content across ALL multi-turn turns, this
+// test wraps the stub in a /bin/sh tee-wrapper (precedent: generate_test.go:788, models_test.go) that
+// appends each invocation's stdin to a single capture file, then execs the real stub unchanged. The
+// wrapper is created in t.TempDir() (auto-cleaned); it is a TEST-ONLY fixture, never shipped.
+func TestMultiTurnGate_TokenLimitZero_ParseFail_NoRetryInstr(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	initRepo(t, repo)
+	commitRaw(t, repo, "initial")
+	// ~96 runes ⇒ ET≈24 (> chunk_tokens=4) ⇒ condition (b) true on the UNTRUNCATED payload.
+	writeFile(t, repo, "new.txt", strings.Repeat("change line\n", 8))
+	stageFile(t, repo, "new.txt")
+
+	// Tee-wrapper: appends each invocation's stdin (followed by a boundary marker) to captureFile,
+	// then pipes the SAME stdin into the real stub (passed as $1 via Subcommand). Pure /bin/sh; no
+	// content reaches a shell eval (cat/heredoc only) so the diff payload is never re-interpreted.
+	captureFile := filepath.Join(t.TempDir(), "captures.txt")
+	wrapper := filepath.Join(t.TempDir(), "tee-wrap.sh")
+	wrapperBody := "#!/bin/sh\n" +
+		"stub=\"$1\"; shift\n" +
+		"tmp=$(mktemp)\n" +
+		"cat > \"$tmp\"\n" +
+		"cat \"$tmp\" >> \"$STAGEHAND_TEST_CAPTURE\"\n" +
+		"printf '\\n---CAPTURE-BOUNDARY---\\n' >> \"$STAGEHAND_TEST_CAPTURE\"\n" +
+		"cat \"$tmp\" | \"$stub\" \"$@\"\n" +
+		"rc=$?\n" +
+		"rm -f \"$tmp\"\n" +
+		"exit $rc\n"
+	if err := os.WriteFile(wrapper, []byte(wrapperBody), 0o755); err != nil {
+		t.Fatalf("write wrapper: %v", err)
+	}
+
+	// Build the stub manifest as usual (call-varying script), then RETARGET Command at the wrapper and
+	// pass the real stub path as Subcommand[0] (rendered as the wrapper's $1). Add the capture path to
+	// the Env map so the wrapper knows where to tee; the STAGEHAND_STUB_SCRIPT/COUNTER knobs survive.
+	m := stubAppendManifest(t, bin, []string{"", "", "ok", "feat: mt win"}, false) // SessionMode="append"
+	m.Command = strPtr(wrapper)
+	m.Subcommand = []string{bin}
+	m.Env["STAGEHAND_TEST_CAPTURE"] = captureFile
+
+	cfg := config.Defaults()
+	cfg.MaxDuplicateRetries = 1 // TWO one-shot attempts: attempt 0 parses-fail (parseFail:=true),
+	// attempt 1 prepends retryInstr to `payload` (generate.go:233) then ALSO parses-fail → loop exhausts
+	// with the surviving `payload` CARRYING retryInstr. With MaxDuplicateRetries=0 the single attempt
+	// never triggers the retryInstr prepend (parseFail starts false) — the bug would be invisible.
+	cfg.MultiTurnChunkTokens = 4 // small so the untruncated diff exceeds one chunk (condition b true)
+	cfg.TokenLimit = 0           // G6: the bug's trigger — the re-capture branch (generate.go:314) is NOT taken
+
+	var buf bytes.Buffer
+	_, err := CommitStaged(context.Background(), Deps{
+		Git: git.New(repo), Manifest: m, Verbose: ui.NewVerbose(&buf, true),
+	}, cfg)
+
+	// (1) Multi-turn MUST fire (the gate passed all four conditions) and succeed (commit lands).
+	if !strings.Contains(buf.String(), "multi-turn fallback") {
+		t.Errorf("trigger absent; want present (TokenLimit=0 + parseFail must still fire multi-turn). "+
+			"buf tail: %q", tail(buf.String(), 200))
+	}
+	if err != nil {
+		t.Errorf("CommitStaged err = %v, want nil (multi-turn must succeed on the clean rebuild)", err)
+	}
+
+	// (2) Issue 4 core assertion: the mtPayload delivered to the multi-turn protocol must NOT contain
+	//     the retryInstr preamble. We assert on the retryInstr-SPECIFIC tail ("No preamble, no markdown,
+	//     no quotes.") — NOT the ambiguous "Output ONLY" (which also appears in the multi-turn
+	//     finalInstruction AND the one-shot system prompt). The capture holds EVERY invocation's stdin,
+	//     split by the boundary marker into segments — see the filter below.
+	captures, cerr := os.ReadFile(captureFile)
+	if cerr != nil {
+		t.Fatalf("read capture file: %v", cerr)
+	}
+	const retryInstrTail = "No preamble, no markdown, no quotes."
+	// Filter to multi-turn chunk segments (those containing "PART "): the one-shot attempt segments
+	// are EXPECTED to carry retryInstr (generate.go:233 prepends it on a parse-failed one-shot retry —
+	// that is correct one-shot behavior, not the bug). The bug leaked retryInstr into the MULTI-TURN
+	// chunks via `mtPayload := payload`; the fix rebuilds mtPayload from `diff` without retryInstr. So
+	// we assert that NO multi-turn chunk segment contains the retryInstr substring (G3).
+	for i, seg := range strings.Split(string(captures), "\n---CAPTURE-BOUNDARY---\n") {
+		if !strings.Contains(seg, "PART ") {
+			continue // a one-shot attempt segment or the trailing empty — retryInstr may be present there
+		}
+		if strings.Contains(seg, retryInstrTail) {
+			t.Errorf("retryInstr preamble leaked into multi-turn chunk segment %d (Issue 4 regression): "+
+				"segment contains %q.\nsegment head: %q", i, retryInstrTail, tail(seg, 200))
+		}
+	}
+}
+
+// strPtr returns a pointer to s — a local helper for building test manifests (provider.strPtr is
+// unexported; the stubtest package has its own copy we cannot reach from here).
+func strPtr(s string) *string { return &s }
 
 // tail returns the last n bytes of s (for readable failure messages on the verbose buffer).
 func tail(s string, n int) string {
