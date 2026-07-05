@@ -4,14 +4,14 @@
       "type": "Phase",
       "id": "P1",
       "title": "Multi-turn generation fallback (v2.3, G21)",
-      "status": "Planned",
+      "status": "Researching",
       "description": "Implement the lossless multi-turn generation fallback (PRD §9.24, FR-T1–FR-T12) for the MESSAGE role on the single-commit path (§13.1–§13.5). When a one-shot generation of a large diff fails (provider per-request unreliability below the advertised context window), losslessly re-deliver the FULL captured diff across request-sized provider session turns so a single commit message can still be produced — without truncation and without decomposing into multiple commits. This is strictly a fallback inserted between one-shot-retry-exhaustion and the existing rescue protocol; it reuses parse/dedupe/rescue/CAS/lock UNCHANGED and changes NO CLI flags, exit codes, or rescue messages. Scope is message-role only (planner/stager/arbiter and the decompose path are out of scope per FR-T10). FR-T9 (the pi `session_mode = \"append\"` append-turn rendering) is already verified empirically — see plan/009_5c53066d64b3/architecture/fr-t9-verification.md.",
       "milestones": [
         {
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Lossless multi-turn fallback for the message role",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Deliver the four implementing requirements (R1 provider surface, R2 config surface, R3 generate core, R4 tests) plus a final Mode B documentation sync. Each requirement composes onto the existing one-shot pipeline without forking parse/dedupe/rescue. On completion, a pi-backed run whose one-shot generation exhausts on a large diff will transparently fall back to N+1 session turns, produce a single commit message from the full diff, and on any failure degrade to the identical rescue a one-shot failure would produce.",
           "tasks": [
             {
@@ -300,14 +300,14 @@
               "type": "Task",
               "id": "P1.M1.T5",
               "title": "Sync changeset-level documentation (Mode B)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Final changeset-level documentation sweep (per SOW §5 Mode B). The per-file Mode A docs (providers.md, configuration.md provider + [generation] sections, how-it-works.md multi-turn subsection) ride with their implementing subtasks (T1.S5, T2.S3, T3.S4). This final task handles the cross-cutting/overview docs that only make sense once the whole feature is in place: the README.md feature blurb (user-visible reliability win for large diffs) and a consistency check of FUTURE_SPEC.md (already updated — confirm, do not edit unless inconsistent).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T5.S1",
                   "title": "README.md — add multi-turn fallback feature blurb",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 0.5,
                   "dependencies": [
                     "P1.M1.T1.S5",
@@ -328,7 +328,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T5.S2",
                   "title": "Confirm FUTURE_SPEC.md consistency (lossless multi-turn graduated; lossy chunking still rejected)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 0.5,
                   "dependencies": [
                     "P1.M1.T3.S4"
