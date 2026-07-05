@@ -111,7 +111,7 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Config surface: multi_turn_fallback + multi_turn_chunk_tokens (R2)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add the two config knobs that gate and size the multi-turn fallback: `multi_turn_fallback` (bool, default true — FR-T1c) and `multi_turn_chunk_tokens` (int, default 32000 — FR-T3). These are config-file-only (NO CLI flags, NO env vars per the delta). Thread them through the resolved Config, Defaults(), the file-config struct, materialize, and overlay following the EXACT established patterns (int `!= 0` guard for chunk tokens; bool only-true-propagates for fallback — the accepted v1 limitation shared with AutoStageAll/Push).",
               "subtasks": [
                 {
@@ -133,7 +133,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S2",
                   "title": "Add fields to fileGeneration struct + materialize + overlay",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S1"
@@ -149,7 +149,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S3",
                   "title": "Config unit tests + Mode A docs/configuration.md [generation] table",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S2"

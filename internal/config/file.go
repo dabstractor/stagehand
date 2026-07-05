@@ -47,21 +47,23 @@ type fileDefaults struct {
 }
 
 type fileGeneration struct {
-	MaxDiffBytes        int      `toml:"max_diff_bytes"`
-	MaxMdLines          int      `toml:"max_md_lines"`
-	TokenLimit          int      `toml:"token_limit"`  // FR3d — plumbed in S2 (materialize/overlay)
-	DiffContext         *int     `toml:"diff_context"` // FR3f — *int (0-vs-unset); nil ⇒ user omitted (S2 contract correction)
-	MaxDuplicateRetries int      `toml:"max_duplicate_retries"`
-	SubjectTargetChars  int      `toml:"subject_target_chars"`
-	Output              string   `toml:"output"`
-	StripCodeFence      *bool    `toml:"strip_code_fence"`
-	MaxCommits          int      `toml:"max_commits"`       // V2 — safety cap on auto-decompose (§9.14 FR-M4)
-	BinaryExtensions    []string `toml:"binary_extensions"` // V2 — extra non-text exts to filter (§9.1 FR3a)
-	Exclude             []string `toml:"exclude"`           // V2.1 — §9.18 FR-X1 exclusion globs; UNION-merged in overlay()
-	Format              string   `toml:"format"`            // V2.1 — §9.19 FR-F1 message format (validated at Load)
-	Locale              string   `toml:"locale"`            // V2.1 — §9.19 FR-F6 message locale (free-form, never validated)
-	Template            string   `toml:"template"`          // V2.1 — §9.19 FR-F8 message template (validated at Load)
-	Push                bool     `toml:"push"`              // §9.22 FR-P1 — push after clean run (default false)
+	MaxDiffBytes         int      `toml:"max_diff_bytes"`
+	MaxMdLines           int      `toml:"max_md_lines"`
+	TokenLimit           int      `toml:"token_limit"`  // FR3d — plumbed in S2 (materialize/overlay)
+	DiffContext          *int     `toml:"diff_context"` // FR3f — *int (0-vs-unset); nil ⇒ user omitted (S2 contract correction)
+	MaxDuplicateRetries  int      `toml:"max_duplicate_retries"`
+	MultiTurnFallback    bool     `toml:"multi_turn_fallback"`     // §9.24 FR-T1c multi-turn fallback (default true); only-true-propagates (mirrors AutoStageAll)
+	MultiTurnChunkTokens int      `toml:"multi_turn_chunk_tokens"` // §9.24 FR-T3 per-request chunk size in tokens (default 32000); != 0 guard (mirrors TokenLimit)
+	SubjectTargetChars   int      `toml:"subject_target_chars"`
+	Output               string   `toml:"output"`
+	StripCodeFence       *bool    `toml:"strip_code_fence"`
+	MaxCommits           int      `toml:"max_commits"`       // V2 — safety cap on auto-decompose (§9.14 FR-M4)
+	BinaryExtensions     []string `toml:"binary_extensions"` // V2 — extra non-text exts to filter (§9.1 FR3a)
+	Exclude              []string `toml:"exclude"`           // V2.1 — §9.18 FR-X1 exclusion globs; UNION-merged in overlay()
+	Format               string   `toml:"format"`            // V2.1 — §9.19 FR-F1 message format (validated at Load)
+	Locale               string   `toml:"locale"`            // V2.1 — §9.19 FR-F6 message locale (free-form, never validated)
+	Template             string   `toml:"template"`          // V2.1 — §9.19 FR-F8 message template (validated at Load)
+	Push                 bool     `toml:"push"`              // §9.22 FR-P1 — push after clean run (default false)
 }
 
 // ---------------------------------------------------------------------------
@@ -229,6 +231,15 @@ func materialize(fc *fileConfig, timeout time.Duration) *Config {
 	if g.MaxDuplicateRetries != 0 {
 		c.MaxDuplicateRetries = g.MaxDuplicateRetries
 	}
+	// §9.24 FR-T1c — multi_turn_fallback (bool; only-true-propagates, mirrors AutoStageAll —
+	// cannot disable via file, same v1 limitation; S3 documents this in docs/configuration.md).
+	if g.MultiTurnFallback {
+		c.MultiTurnFallback = true
+	}
+	// §9.24 FR-T3 — multi_turn_chunk_tokens (int; != 0, mirrors TokenLimit/MaxDuplicateRetries).
+	if g.MultiTurnChunkTokens != 0 {
+		c.MultiTurnChunkTokens = g.MultiTurnChunkTokens
+	}
 	if g.SubjectTargetChars != 0 {
 		c.SubjectTargetChars = g.SubjectTargetChars
 	}
@@ -342,6 +353,15 @@ func overlay(dst, src *Config) {
 	}
 	if src.MaxDuplicateRetries != 0 {
 		dst.MaxDuplicateRetries = src.MaxDuplicateRetries
+	}
+	// §9.24 FR-T1c — multi_turn_fallback (bool; only-true-propagates, mirrors AutoStageAll/Push —
+	// cannot disable via file, same v1 limitation).
+	if src.MultiTurnFallback {
+		dst.MultiTurnFallback = true
+	}
+	// §9.24 FR-T3 — multi_turn_chunk_tokens (int; != 0, mirrors TokenLimit/MaxCommits).
+	if src.MultiTurnChunkTokens != 0 {
+		dst.MultiTurnChunkTokens = src.MultiTurnChunkTokens
 	}
 	if src.SubjectTargetChars != 0 {
 		dst.SubjectTargetChars = src.SubjectTargetChars
