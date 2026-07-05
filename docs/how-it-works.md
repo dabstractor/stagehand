@@ -264,7 +264,10 @@ Stagehand requests raw text output from agents (`output = "raw"`) rather than st
 For diffs too large for a single reliable request, stagehand has an optional **multi-turn** generation
 path (PRD §9.24). It exists because a provider's *per-request* reliability ceiling can lie well below its
 advertised context window: a huge one-shot request may return empty or unparseable output even though the
-model can handle the same content delivered in smaller pieces.
+model can handle the same content delivered in smaller pieces. Multi-turn runs on
+every generation path — the snapshot commit flow, `--dry-run`, and hook mode (where
+it composes with the never-block contract; see
+[Hook mode](#hook-mode-vs-the-snapshot-based-flow) below).
 
 **When it triggers.** Multi-turn runs ONLY when all four hold: (1) the normal one-shot path exhausted its
 retries on empty/unparseable output; (2) the captured payload exceeds one chunk (`multi_turn_chunk_tokens`,
@@ -284,7 +287,7 @@ the entire diff in its session history — then writes one message at the end:
   normal parse + duplicate-rejection pipeline, then commits like any other message.
 
 Each turn is a separate provider invocation with its own timeout; total wall-clock ≈ `timeout × (N+1)`,
-surfaced on the progress line at fallback time.
+surfaced on the progress line at fallback time. That progress line also reports the per-chunk token budget each chunk targets; with `--verbose`, each turn additionally prints its payload size and raw agent output (FR-T11).
 
 **Failure handling.** If any turn errors, times out, or the final output fails to parse/dedupe, the
 multi-turn attempt aborts and control passes to the standard rescue protocol — the snapshot is safe and
@@ -316,6 +319,8 @@ Stagehand offers two ways to generate commit messages, each with different trade
 - **No snapshot guarantees**: the index is live during generation — if you stage more files while the hook runs, they may affect the commit. Generation latency is inside the commit flow (no overlap).
 - **Never-block contract**: any failure leaves the message file untouched and exits 0, so the commit proceeds to an empty editor — the commit is never aborted by a model hiccup (unless `--strict` opts in).
 - **No rescue protocol**: there is no frozen tree to recover — the commit simply proceeds without an AI message.
+
+**Multi-turn fallback in hook mode.** The [multi-turn fallback](#multi-turn-generation-fallback) is available in hook mode too: on a large diff with an append-mode provider, the hook tries it as one extra attempt before the never-block exit. On success the generated message is written to the commit-message file; on any failure — a turn error, an empty final parse, or a duplicate subject — the hook still exits 0 with the message file untouched (FR-H5 preserved).
 
 ### When to use which
 
