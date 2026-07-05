@@ -177,7 +177,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T3.S1",
                   "title": "multiturn.go chunk-sizing helper (EstimateTokens ceil, newline-anchored, PART i/N prefix)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: research-generate-config.md §4 — git.EstimateTokens is at internal/git/tokens.go:25, signature `func EstimateTokens(s string) int`, formula ceil(runeCount/4) (RUNE-based, not byte — UTF-8/CJK does not over-count). This is the SINGLE token estimator; use it for both sizing and the gate (do NOT introduce a second estimator). Also EstimateTokensBytes([]byte) at tokens.go:32.\n2. INPUT: PRD §9.24 FR-T3 (chunk sizing: N = ceil(payload_tokens/chunk_tokens); split into N consecutive chunks ≤ budget; anchor each boundary FORWARD to the next newline so no diff line fractures; each chunk carries a one-line \"PART i/N:\" prefix emitted OUTSIDE the budget). The payload string (the captured diff payload — passed in by the caller in P1.M1.T3.S2).\n3. LOGIC: Create internal/generate/multiturn.go. Define a chunk type (e.g. `type chunk struct { index, total int; text string }`) and a pure helper `func chunkPayload(payload string, chunkTokens int) []chunk`. Compute N = ceilDiv(EstimateTokens(payload), chunkTokens) (N ≥ 1; if payload_tokens ≤ chunkTokens, N = 1 — a single chunk). Walk the payload in rune-count-sized windows of ≤ chunkTokens, advancing each boundary FORWARD to the next '\\n' (so no line is fractured; the boundary line stays in the current chunk). Build each chunk's text as `fmt.Sprintf(\"PART %d/%d:\\n%s\", i, N, body)` where the PART prefix is OUTSIDE the body budget (body ≤ chunkTokens; the prefix adds its own tokens on top — acceptable, it is one short line). If N==1 the single chunk still carries the PART 1/1 prefix for protocol uniformity (the priming preamble references N).\n4. OUTPUT: chunkPayload(...) []chunk — a pure, unit-testable helper. Consumed by P1.M1.T3.S2.\n5. MOCKING: none — pure string math; depends only on git.EstimateTokens.\n6. DOCS: none — how-it-works doc rides with P1.M1.T3.S4.",
@@ -191,7 +191,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T3.S2",
                   "title": "multiturn.go N+1 turn protocol (Run): session id, priming, per-turn Execute, final parse",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S3",
