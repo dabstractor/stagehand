@@ -1,0 +1,193 @@
+{
+  "backlog": [
+    {
+      "type": "Phase",
+      "id": "P1",
+      "title": "Multi-Turn Fallback Propagation & Hardening",
+      "status": "Ready",
+      "description": "Propagate the FR-T1 multi-turn fallback trigger gate from the reference CommitStaged implementation into the two generation-loop mirrors that lack it (runPipeline for --dry-run/SystemExtra, and hook.Run for git hooks), plus three minor correctness/UX fixes: payload consistency (Issue 4), per-chunk token estimate in verbose (Issue 3), and FR-H5 never-block safety in hook mode (Issue 2). The core multi-turn implementation in CommitStaged is correct and well-tested; this phase extends its reach to all three generation paths and resolves the four issues identified in the end-to-end validation.",
+      "milestones": [
+        {
+          "type": "Milestone",
+          "id": "P1.M1",
+          "title": "Foundation — Shared Helper Export & Reference Gate Hardening",
+          "status": "Planned",
+          "description": "Establish the shared cross-package infrastructure (ChunkCount export) and fix the two minor issues in the REFERENCE gate (CommitStaged) BEFORE propagating to the other two paths. This ensures the corrected gate is the copy source for M2 and M3. Issue 4 (mtPayload inconsistency when TokenLimit==0) and Issue 3 (missing per-chunk token estimate in verbose) are both fixed in internal/generate/generate.go first.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M1.T1",
+              "title": "Export ChunkCount cross-package helper",
+              "status": "Planned",
+              "description": "Add an exported ChunkCount function in internal/generate/multiturn.go that wraps the unexported chunkPayload to return the chunk count. This is a prerequisite for the progress-line turn-count in runPipeline (P1.M2) and hook.Run (P1.M3), which are outside the internal/generate package and cannot call the unexported chunkPayload directly.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T1.S1",
+                  "title": "Add ChunkCount exported wrapper in multiturn.go",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.0", "h2.2/h3.0", "h2.3/h3.1"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/system_context.md §4 (chunkPayload export constraint) and resolution_strategy.md (FOUNDATION section). The unexported func chunkPayload(payload string, chunkTokens int) []chunk lives at internal/generate/multiturn.go:52. The internal type `chunk` (multiturn.go:31-35) is also unexported. The progress line at generate.go:332 computes turns := len(chunkPayload(mtPayload, cfg.MultiTurnChunkTokens)) + 1. Both target paths (pkg/stagehand, internal/hook) are outside internal/generate and cannot call chunkPayload.\n2. INPUT: No data dependencies. The existing chunkPayload function (multiturn.go:52) is the sole input — it is correct and well-tested (TestChunkPayload_* in multiturn_test.go, 9 tests covering ceil math, newline anchoring, CJK, empty payload, prefix-outside-budget).\n3. LOGIC: Add a new exported function `ChunkCount(payload string, chunkTokens int) int` immediately after chunkPayload (around line 93, before advanceRunes). Body: `return len(chunkPayload(payload, chunkTokens))`. This is a one-line wrapper that delegates to the existing tested function. Do NOT modify chunkPayload itself. Do NOT export the `chunk` type. Add a Godoc comment explaining it is for cross-package progress-message turn-count computation. Write a unit test TestChunkCount_* in multiturn_test.go verifying ChunkCount == len(chunkPayload(...)) for: empty payload (→1), single-chunk under budget (→1), multi-chunk (→N matching chunkPayload), sub-1 budget (→1 defensive collapse), and a CJK-heavy payload.\n4. OUTPUT: The exported `generate.ChunkCount(payload string, chunkTokens int) int` function, callable from pkg/stagehand and internal/hook. Consumed by P1.M2.T1.S2 (runPipeline progress line) and P1.M3.T1.S2 (hook progress line).\n5. DOCS: none — internal package helper with Godoc on the exported symbol (rides WITH the work). No user-facing/config/API surface change. No separate docs subtask."
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P1.M1.T2",
+              "title": "Fix mtPayload consistency in reference gate (Issue 4)",
+              "status": "Planned",
+              "description": "Fix the payload inconsistency in CommitStaged's FR-T1 multi-turn gate: when TokenLimit==0, mtPayload is set to `payload` (which may have retryInstr prepended from a prior parse failure), while the TokenLimit!=0 path rebuilds from the untruncated diff WITHOUT retryInstr. Align both paths by always rebuilding mtPayload from the untruncated diff variable via prompt.BuildUserPayload, stripping retryInstr. This is PRD §9.24 FR-T2 ('captured ONCE and unmodified').",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T2.S1",
+                  "title": "Rebuild mtPayload from diff (not payload) when TokenLimit==0 in CommitStaged gate",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.0", "h2.3/h3.3"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/research_commitstaged_reference.md §4 (mtPayload FR-T12 re-capture) and resolution_strategy.md (ISSUE 4 section). The gate is at internal/generate/generate.go:290-374. Line 311: `mtPayload := payload`. The `payload` variable (hoisted at L226) is rebuilt every loop iteration via prompt.BuildUserPayload(diff, cfg.Context, rejected) (L231), then conditionally prepended with retryInstr (L233: `payload = retryInstr + \"\\n\\n\" + payload`) when parseFail is true. So when the last one-shot attempt failed parsing, payload carries the retryInstr preamble. The TokenLimit!=0 branch (L312-326) rebuilds mtPayload = prompt.BuildUserPayload(fullDiff, cfg.Context, rejected) WITHOUT retryInstr. The inconsistency: TokenLimit==0 path includes retryInstr, TokenLimit!=0 does not. The `diff` variable (the untruncated staged diff captured at L193-198 via deps.Git.StagedDiff) is already in scope at the gate.\n2. INPUT: The `diff` string variable (CommitStaged L193, the untruncated staged diff when TokenLimit==0), `cfg.Context` (string, the --context text), `rejected` ([]string, accumulated duplicate subjects from the exhausted one-shot loop). All confirmed in scope at generate.go:311.\n3. LOGIC: Replace line 311 `mtPayload := payload` with `mtPayload := prompt.BuildUserPayload(diff, cfg.Context, rejected)`. This rebuilds from the existing untruncated `diff` WITHOUT retryInstr, matching the TokenLimit!=0 path's rebuild at L323. When TokenLimit==0, `diff` is already untruncated (the one-shot StagedDiff used TokenLimit=cfg.TokenLimit=0). When TokenLimit!=0, the existing re-capture branch (L312-326) overwrites mtPayload with the re-captured fullDiff version — so both paths produce a retryInstr-free mtPayload derived from the untruncated diff. Update the comment at L307 to reflect that mtPayload is ALWAYS rebuilt from diff (not just in the TokenLimit!=0 branch). Write a test mirroring TestMultiTurnGate_TokenLimitTruncated_Recaptures (multiturn_test.go:418-463) but for the TokenLimit==0 + parseFail case: force a one-shot parse failure on a large diff with TokenLimit==0, trigger multi-turn, and assert the mtPayload passed to Run does NOT contain the retryInstr preamble substring (\"Output ONLY the commit message\"). Verify the multi-turn still succeeds.\n4. OUTPUT: Corrected CommitStaged gate where mtPayload is always derived from the untruncated diff without retryInstr, regardless of TokenLimit. This corrected gate is the copy source for P1.M2.T1.S2 and P1.M3.T1.S2.\n5. DOCS: none — internal logic fix aligning code with the already-correct FR-T2 documentation in docs/how-it-works.md:262-298. No user-facing/config/API surface change."
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P1.M1.T3",
+              "title": "Add per-chunk token estimate to verbose trigger line (Issue 3)",
+              "status": "Planned",
+              "description": "Fix the missing per-chunk token estimate (FR-T11) in the multi-turn trigger verbose output. The progress line at generate.go:337 prints turn count and total minutes but NOT the per-chunk token budget (cfg.MultiTurnChunkTokens). Extend the format string to include it.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T3.S1",
+                  "title": "Extend progress line format with chunk token budget in CommitStaged gate",
+                  "status": "Planned",
+                  "story_points": 0.5,
+                  "dependencies": ["P1.M1.T2.S1"],
+                  "prd_selectors": ["h2.0", "h2.3/h3.2"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/research_config_provider_docs.md §4 (Verbose) and resolution_strategy.md (ISSUE 3 section). The progress line is at internal/generate/generate.go:337: `fmt.Fprintf(os.Stderr, \"↳ falling back to multi-turn: %d turns, ~%dm total\\n\", turns, totalMin)`. The turns variable is computed at L332: `turns := len(chunkPayload(mtPayload, cfg.MultiTurnChunkTokens)) + 1`. The cfg.MultiTurnChunkTokens (int, default 32000) is the per-chunk token budget — the target size each chunk aims for. It is already in scope but not printed. FR-T11 (PRD §9.24) requires the per-chunk token estimate in verbose output.\n2. INPUT: The existing `turns` (int), `totalMin` (int), and `cfg.MultiTurnChunkTokens` (int) variables, all in scope at generate.go:337. No new computation needed — cfg.MultiTurnChunkTokens IS the per-chunk token estimate.\n3. LOGIC: Change the format string at generate.go:337 from `\"↳ falling back to multi-turn: %d turns, ~%dm total\\n\"` (2 args: turns, totalMin) to `\"↳ falling back to multi-turn: %d turns (chunks of ~%d tokens), ~%dm total\\n\"` (3 args: turns, cfg.MultiTurnChunkTokens, totalMin). This is the PRD's suggested fix: the second %d is cfg.MultiTurnChunkTokens, the per-chunk token estimate. Update the truth-table test (TestMultiTurnTriggerGate_TruthTable, multiturn_test.go:246) and the render-contract test (TestCommitStaged_MultiTurnRenderContract, generate_multiturn_test.go:185) to also assert the chunk-tokens substring if they capture the progress line. If those tests don't capture the stderr progress line, add a focused unit test that triggers the gate and asserts the progress line contains the chunk token value (e.g., assert it contains \"chunks of ~50000 tokens\" when MultiTurnChunkTokens=50000).\n4. OUTPUT: The corrected progress line format in the reference gate, which is the copy source for P1.M2.T1.S2 and P1.M3.T1.S2.\n5. DOCS: none — verbose diagnostic format, not a documented user-facing feature surface. The cross-cutting overview docs (how-it-works.md) are handled by the final Mode B documentation sync task (P1.M4.T1)."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M2",
+          "title": "Major Fix — Dry-Run Path Multi-Turn Propagation (Issue 1)",
+          "status": "Planned",
+          "description": "Propagate the FR-T1 multi-turn trigger gate (now corrected in M1) into runPipeline in pkg/stagehand/stagehand.go. This is the MAJOR bug: when stagehand --dry-run is run on a large diff whose one-shot generation exhausts, multi-turn should activate identically to the commit path (FR49 requires --dry-run to 'run the full pipeline'). Currently runPipeline has its own pre-multi-turn generation loop with zero multi-turn references, so --dry-run fails where the commit path succeeds.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M2.T1",
+              "title": "Wire FR-T1 multi-turn gate into runPipeline",
+              "status": "Planned",
+              "description": "Hoist the loop-scoped payload variable to function scope (structural prerequisite), then insert the FR-T1 multi-turn trigger gate between the loop's exhaustion point and the RescueError return — mirroring the corrected CommitStaged gate from M1. The gate copies the Issue 4 fix (rebuild mtPayload from diff) and Issue 3 fix (per-chunk token estimate in progress line) since it copies from the corrected reference.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M2.T1.S1",
+                  "title": "Hoist payload variable out of runPipeline generation loop",
+                  "status": "Planned",
+                  "story_points": 0.5,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.0", "h2.2/h3.0"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/research_runpipeline_dryrun.md §3 (the loop) and §10 (edit recipe Edit 1 + Edit 2) and resolution_strategy.md (ISSUE 1, Edit 1 + Edit 2). The generation loop in pkg/stagehand/stagehand.go:489 declares `payload := prompt.BuildUserPayload(diff, cfg.Context, rejected)` with `:=` INSIDE the loop (line 490), making it loop-scoped. The CommitStaged reference hoists `var payload string` before the loop (generate.go:226) so the FR-T1 gate can read the last-built payload. This scoping difference is the structural blocker that prevents the gate from reading the last payload.\n2. INPUT: No external data dependency. The existing var block at stagehand.go:483-487 (retryInstr, rejected, candidate, msg, parseFail, success, lastCause) and the loop-scoped payload at line 490.\n3. LOGIC: (a) Add `var payload string // hoisted: survives the loop for the FR-T1 multi-turn gate (mirrors CommitStaged)` after line 487 (after `var lastCause error`). (b) Change line 490 from `payload := prompt.BuildUserPayload(diff, cfg.Context, rejected)` to `payload = prompt.BuildUserPayload(diff, cfg.Context, rejected)` (switch `:=` to `=`). The loop behavior is unchanged — payload is still rebuilt every iteration. Run `go vet` and `go build ./...` to verify no shadowing warnings. Run existing pkg/stagehand tests (`go test ./pkg/stagehand/...`) to confirm the hoist introduces no behavioral change.\n4. OUTPUT: The payload variable hoisted to function scope in runPipeline, available for the FR-T1 gate to read at the rescue insertion point. Consumed by P1.M2.T1.S2.\n5. DOCS: none — pure refactor (variable scoping), no user-facing/config/API surface change."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M2.T1.S2",
+                  "title": "Insert FR-T1 multi-turn trigger gate into runPipeline with dedupe and verbose",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T2.S1", "P1.M1.T3.S1", "P1.M2.T1.S1"],
+                  "prd_selectors": ["h2.0", "h2.2/h3.0", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/research_runpipeline_dryrun.md §4 (variables in scope), §5 (canonical gate to port), §6 (dry-run success path), §10 (edit recipe Edit 3), and resolution_strategy.md (ISSUE 1, full gate code). The insertion point is stagehand.go:543-548 (the `if !success { return ... &generate.RescueError{...} }` block). All gate inputs are confirmed in scope: ctx ✅, deps ✅, cfg ✅, resolved ✅ (L470 deps.Manifest.Resolve()), sysPrompt ✅ (L425), msgModel/msgReasoning ✅ (L474), diff ✅ (L446), rejected ✅ (L484), recent ✅ (L464), payload ✅ (hoisted in P1.M2.T1.S1), candidate/msg/success/lastCause ✅, treeSHA/parentSHA ✅. The dry-run success path (if dryRun { return Result{...}, nil } at ~L565) needs NO change — the gate only sets msg/success, and the existing dry-run early-return fires on a multi-turn win.\n2. INPUT: generate.ChunkCount from P1.M1.T1.S1 (for the progress line turn count). The corrected reference gate logic from P1.M1.T2.S1 (Issue 4: mtPayload rebuilt from diff, not payload) and P1.M1.T3.S1 (Issue 3: per-chunk token estimate in progress line). The hoisted payload variable from P1.M2.T1.S1.\n3. LOGIC: Insert the FR-T1 multi-turn gate between the `if !success {` and the `return ... &generate.RescueError{...}` at stagehand.go:543-548. The gate must: (a) check cfg.MultiTurnFallback && resolved.SessionMode != nil && *resolved.SessionMode == \"append\" (conditions c+d); (b) set mtPayload := prompt.BuildUserPayload(diff, cfg.Context, rejected) (Issue 4 fix — rebuild from diff, no retryInstr); (c) if cfg.TokenLimit != 0, re-capture via deps.Git.StagedDiff with TokenLimit:0, PromptReserveTokens:0 and rebuild mtPayload (FR-T12); (d) check git.EstimateTokens(mtPayload) > cfg.MultiTurnChunkTokens (condition b); (e) print the progress line with generate.ChunkCount + per-chunk token estimate (Issue 3 format); (f) call generate.Run(ctx, deps, cfg, deps.Manifest, sysPrompt, mtPayload, msgModel, msgReasoning); (g) on success (cause==nil && ok2): generate.FinalizeMessage → signal.SetCandidate → generate.IsDuplicate → set msg/success or candidate; (h) on failure: set lastCause/candidate; (i) fall through to the byte-identical generate.RescueError if !success. Use generate./prompt./git. package prefixes (runPipeline already does). Mock the provider via the existing stub provider infra in pkg/stagehand/stagehand_test.go (appendScriptManifest helper). Write integration tests: (1) TestGenerateCommit_DryRun_MultiTurnSuccess — large staged diff + DryRun=true + append provider → multi-turn fires, GenerateCommit returns exit 0 with Subject set and CommitSHA empty (dry-run); (2) TestGenerateCommit_DryRun_MultiTurnSkipped_NonAppend — SessionMode unset → gate skips, existing rescue; (3) TestGenerateCommit_DryRun_MultiTurnSmallPayloadSkip — tiny diff → condition (b) false → existing rescue; (4) TestGenerateCommit_DryRun_MultiTurnMidTurnFailure — stub exit-1 → Run aborts → RescueError (exit non-zero). Mirror the patterns in internal/generate/generate_multiturn_test.go and generate_multiturn_failure_test.go.\n4. OUTPUT: runPipeline now has the full FR-T1 multi-turn gate. stagehand --dry-run on a large diff with an append-mode provider activates multi-turn identically to the commit path. The gate preserves the existing dry-run success early-return and the byte-identical rescue on failure.\n5. DOCS: none per-file — the cross-cutting overview docs (how-it-works.md noting multi-turn now applies to the dry-run path, README.md features) are handled by the final Mode B documentation sync task (P1.M4.T1)."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M3",
+          "title": "Minor Fix — Hook Exec Multi-Turn Propagation (Issue 2)",
+          "status": "Planned",
+          "description": "Propagate the FR-T1 multi-turn gate (corrected in M1) into hook.Run in internal/hook/exec.go. The hook exec path has its own generation loop with zero multi-turn references. On a large diff, the one-shot loop exhausts, the hook exits 0 (FR-H5 never-block), and the user gets an empty editor. Propagate the gate while preserving FR-H5: multi-turn failure still exits 0 with the msg-file untouched.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M3.T1",
+              "title": "Wire FR-T1 multi-turn gate into hook.Run preserving FR-H5",
+              "status": "Planned",
+              "description": "Bind the resolved manifest (for SessionMode), hoist the payload variable, and insert the FR-T1 gate between the loop's exhaustion point and the exhaustion error return. On multi-turn success, call WriteMessageFile (the only write site). On any failure (cause != nil, parse empty, or duplicate), fall through to the existing exhaustion error, which the cmd layer maps to exit 0 (neverBlock). FR-H5 is preserved: the msg-file is written ONLY on success.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T1.S1",
+                  "title": "Bind resolved manifest and hoist payload in hook.Run loop",
+                  "status": "Planned",
+                  "story_points": 0.5,
+                  "dependencies": [],
+                  "prd_selectors": ["h2.0", "h2.3/h3.1"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/research_hook_exec.md §2 (the loop), §4 (variables in scope), §5 (CommitStaged vs hook diff), and resolution_strategy.md (ISSUE 2, Edit 1 + Edit 2 + Edit 3). The hook loop is at internal/hook/exec.go:157-205. Line 151: `retryInstr := *deps.Manifest.Resolve().RetryInstruction` — the resolved manifest is created inline and discarded (only RetryInstruction is extracted). The gate needs resolved.SessionMode, so the manifest must be bound to a variable. Line 158: `payload := prompt.BuildUserPayload(diff, cfg.Context, rejected)` — loop-scoped with `:=`, must be hoisted.\n2. INPUT: No external data dependency. The existing line 151 (inline Resolve) and lines 154-155 (var rejected/parseFail block) and line 158 (loop-scoped payload).\n3. LOGIC: (a) Replace line 151 `retryInstr := *deps.Manifest.Resolve().RetryInstruction` with two lines: `resolved := deps.Manifest.Resolve()` then `retryInstr := *resolved.RetryInstruction`. (b) Add `var payload string // hoisted: survives the loop for the FR-T1 gate` after line 155 (after `var parseFail bool`). (c) Change line 158 from `payload := prompt.BuildUserPayload(diff, cfg.Context, rejected)` to `payload = prompt.BuildUserPayload(diff, cfg.Context, rejected)` (switch `:=` to `=`). Run `go vet` and `go build ./...` to verify no shadowing. Run existing hook tests (`go test ./internal/hook/...`) to confirm no behavioral change.\n4. OUTPUT: The resolved manifest bound to a variable and payload hoisted to function scope in hook.Run, available for the FR-T1 gate. Consumed by P1.M3.T1.S2.\n5. DOCS: none — pure refactor (variable binding + scoping), no user-facing/config/API surface change."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T1.S2",
+                  "title": "Insert FR-T1 multi-turn gate into hook.Run preserving FR-H5 never-block",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T2.S1", "P1.M1.T3.S1", "P1.M3.T1.S1"],
+                  "prd_selectors": ["h2.0", "h2.3/h3.1", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/research_hook_exec.md §3 (FR-H5 contract), §6 (propagation recipe + FR-H5 preservation analysis table), §8 (risks), and resolution_strategy.md (ISSUE 2, full gate code + import note). The insertion point is exec.go:204-205 (before `return fmt.Errorf(\"stagehand: hook generation failed after %d retries\", ...)`). Variables confirmed in scope: ctx ✅, deps ✅, cfg ✅, msgFile ✅, sysPrompt ✅ (L118), diff ✅ (L134), recent ✅ (L144), msgModel/msgReasoning ✅ (L146), rejected ✅ (L154), payload ✅ (hoisted in P1.M3.T1.S1), resolved ✅ (bound in P1.M3.T1.S1). IMPORTANT: internal/hook/exec.go does NOT import `time` — the progress line uses time.Duration(turns). Add `\"time\"` to the import block. The hook nil-guards deps.Verbose (if deps.Verbose != nil) — keep this pattern in the gate's VerboseWarn call for consistency with the hook's existing style.\n2. INPUT: generate.ChunkCount from P1.M1.T1.S1. The corrected reference gate logic from P1.M1.T2.S1 (Issue 4) and P1.M1.T3.S1 (Issue 3). The bound resolved + hoisted payload from P1.M3.T1.S1.\n3. LOGIC: (a) Add `\"time\"` to the import block in exec.go. (b) Insert the FR-T1 gate between line 204 and 205. The gate must: check cfg.MultiTurnFallback && resolved.SessionMode != nil && *resolved.SessionMode == \"append\" (conditions c+d); set mtPayload := prompt.BuildUserPayload(diff, cfg.Context, rejected) (Issue 4 fix); if cfg.TokenLimit != 0, re-capture via deps.Git.StagedDiff with TokenLimit:0 (FR-T12); check git.EstimateTokens(mtPayload) > cfg.MultiTurnChunkTokens (condition b); print progress line with generate.ChunkCount + per-chunk estimate (Issue 3 format); call generate.Run(ctx, deps, cfg, deps.Manifest, sysPrompt, mtPayload, msgModel, msgReasoning); on success (cause==nil && ok2): generate.FinalizeMessage → generate.IsDuplicate → if not dup: return WriteMessageFile(msgFile, finalMsg) (SUCCESS — the ONLY write site); on ANY failure (cause!=nil, ok2==false, or duplicate): fall through to the existing exhaustion error return (line 205). The cmd layer's neverBlock closure (internal/cmd/hookexec.go:67-72) maps the exhaustion error to exit 0 + one stderr line + untouched msg-file. FR-H5 holds in all cases. Mock the provider via the existing stub provider infra in internal/hook/exec_test.go. Write tests: (1) TestRun_MultiTurnSuccess_WritesMessageFile — large diff + append provider → multi-turn fires → WriteMessageFile called with the generated message, msg-file content starts with the message; (2) TestRun_MultiTurnFailure_NeverBlock — stub exit-1 → Run aborts → exhaustion error returned, msg-file UNTOUCHED (byte-identical to pre-Run content); (3) TestRun_MultiTurnSkipped_NonAppend — SessionMode unset → gate skips → existing exhaustion error; (4) TestRun_MultiTurnSmallPayloadSkip — tiny diff → condition (b) false → existing exhaustion error. Mirror the patterns in internal/generate/generate_multiturn_failure_test.go (the never-block assertions).\n4. OUTPUT: hook.Run now has the FR-T1 multi-turn gate. git commit (via prepare-commit-msg hook) on a large diff with an append-mode provider activates multi-turn. On success, the generated message is written to the commit-msg file. On any failure, FR-H5 never-block is preserved (exit 0, msg-file untouched).\n5. DOCS: none per-file — the cross-cutting overview docs (how-it-works.md hook-mode section noting multi-turn is now available) are handled by the final Mode B documentation sync task (P1.M4.T1)."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M4",
+          "title": "Sync Changeset-Level Documentation (Mode B)",
+          "status": "Planned",
+          "description": "Final cross-cutting documentation sweep to reflect that multi-turn now applies to all three generation paths (commit, dry-run, hook), and that the verbose output includes the per-chunk token estimate. This is the Mode B catch-all that prevents the changeset from shipping with stale README/overview docs.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M4.T1",
+              "title": "Sync changeset-level documentation",
+              "status": "Planned",
+              "description": "Update the overview docs that summarize the multi-turn feature across the whole changeset. The how-it-works.md hook-mode section must note multi-turn is now available in hook mode (composing with never-block). The README.md features row should reflect that multi-turn covers all paths. These are cross-cutting docs that only make sense once the whole change is in place.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M4.T1.S1",
+                  "title": "Update docs/how-it-works.md hook-mode and multi-turn sections",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M2.T1.S2", "P1.M3.T1.S2"],
+                  "prd_selectors": ["h2.0", "h2.3/h3.1", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/research_config_provider_docs.md §5 (docs surface) and research_hook_exec.md §7 (docs/FAQ on multi-turn in hook mode). The multi-turn section is at docs/how-it-works.md:262-298. The hook-mode section is at docs/how-it-works.md:300-324 ('Hook mode vs the snapshot-based flow') — it lists the hook contract (never-block, no snapshot, no rescue) and does NOT mention multi-turn. The docs/configuration.md multi-turn knobs (lines 110-111, 137-138, 155-157) and docs/providers.md session_mode subsection (lines 29, 40-49) are already accurate and need no change.\n2. INPUT: The completed multi-turn propagation to runPipeline (P1.M2.T1.S2) and hook.Run (P1.M3.T1.S2). The confirmed behavior: multi-turn now fires on all three paths (commit via CommitStaged, dry-run via runPipeline, hook via hook.Run). In hook mode, multi-turn composes with FR-H5 never-block (failure → exit 0, msg-file untouched; success → message written).\n3. LOGIC: (a) In the hook-mode section (how-it-works.md:300-324), add a note that multi-turn fallback is now available in hook mode as an extra attempt before the never-block exit — on success the generated message is written to the commit-msg file; on any failure (turn error, parse empty, duplicate) the hook still exits 0 with the msg-file untouched (FR-H5 preserved). Keep it concise (1-2 sentences). (b) In the multi-turn section (how-it-works.md:262-298), verify the 'token_limit does not apply (FR-T12)' paragraph still matches the corrected Issue 4 behavior (mtPayload is always rebuilt from the untruncated diff without retryInstr — the docs already state 'captured ONCE and unmodified', which is now more accurate). (c) Optionally add a one-line note that --verbose shows the per-chunk token estimate at trigger time (Issue 3). Do NOT modify docs/configuration.md or docs/providers.md — they are already accurate.\n4. OUTPUT: Updated docs/how-it-works.md reflecting multi-turn availability across all three paths and the verbose per-chunk estimate. No stale documentation remains.\n5. DOCS: This IS the documentation task (Mode B). No further docs subtask needed."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M4.T1.S2",
+                  "title": "Update README.md features table for multi-turn path coverage",
+                  "status": "Planned",
+                  "story_points": 0.5,
+                  "dependencies": ["P1.M4.T1.S1", "P1.M2.T1.S2", "P1.M3.T1.S2"],
+                  "prd_selectors": ["h2.0", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/research_config_provider_docs.md §5b. README.md:68 has one row in the Features table for 'Multi-turn fallback' — it describes the feature generically ('when a one-shot generation of a large diff fails, stagehand re-delivers the full diff across session turns') without mentioning which paths it covers. It links to docs/how-it-works.md#multi-turn-generation-fallback and docs/configuration.md#built-in-defaults.\n2. INPUT: The completed multi-turn propagation (P1.M2.T1.S2, P1.M3.T1.S2). The updated docs/how-it-works.md (P1.M4.T1.S1).\n3. LOGIC: Review README.md:68 (the multi-turn features row). If the existing wording is already generic enough to cover all paths (it says 'stagehand' generically, not 'the commit path'), no change may be needed — in that case, document that decision in a brief comment and leave the row unchanged. If the wording implies commit-path-only, update it to reflect that multi-turn covers the commit path, --dry-run, and the git hook. Keep changes minimal — the README is a high-level overview, not a path-by-path reference. Do NOT add new sections; only adjust the existing row if needed.\n4. OUTPUT: README.md features row accurately reflects multi-turn coverage. If no change was needed, that decision is documented.\n5. DOCS: This IS the documentation task (Mode B). No further docs subtask needed."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
