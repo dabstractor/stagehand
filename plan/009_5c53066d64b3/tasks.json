@@ -254,14 +254,14 @@
               "type": "Task",
               "id": "P1.M1.T4",
               "title": "Integration tests: stub multi-turn end-to-end (R4)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Extend the existing internal/stubtest stub-agent pattern to drive the multi-turn path end-to-end against a temp git repo. The stub already varies output per-invocation (NewScript, call-order indexed) and captures the rendered argv (STAGEHAND_STUB_ARGSFILE) — sufficient to assert --session-id presence and --no-session absence without true session recall (the orchestrator re-sends content). Covers the FR-T4 happy path (N+1 turns → one commit) and the FR-T7 failure paths (mid-turn exit → rescue; small-payload skip; non-append provider skip), plus the idempotent-index invariant.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T4.S1",
                   "title": "Integration: N+1 turns, --session-id present, --no-session dropped, final parsed+deduped, commit lands",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T3.S3",
@@ -279,7 +279,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T4.S2",
                   "title": "Integration: mid-turn failure → rescue; small-payload skip; non-append provider skip",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T4.S1"
