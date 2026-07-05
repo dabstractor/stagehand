@@ -107,6 +107,8 @@ model = "sonnet"
 # max_md_lines          = 100     # ignored when token_limit is set (FR3d)
 # token_limit           = 0       # holistic token budget (0 = unset ⇒ use the caps above); FR3d
 # diff_context          = 1       # 0 = changed-lines-only, 1 = one anchor (default), 3 = git default; FR3f; valid range 0–3 — out-of-range rejected at config load
+# multi_turn_fallback     = true   # lossless multi-turn fallback on one-shot exhaustion (§9.24 FR-T1c); CANNOT disable via file (see "Multi-turn fallback" below)
+# multi_turn_chunk_tokens = 32000  # per-turn chunk budget in tokens (§9.24 FR-T3); does NOT interact with token_limit (FR-T12)
 # exclude               = []   # UNIONS across layers — see "Exclusion globs" below
 # format                = "auto"   # auto|conventional|gitmoji|plain; unknown = hard error (exit 1)
 # locale                = ""       # free-form language name or BCP-47 tag; never validated
@@ -132,6 +134,8 @@ These are the values when no config file, env var, git-config key, or flag sets 
 | `token_limit` | `0` | `config.Defaults()` (§9.1 FR3d — unset ⇒ legacy caps) |
 | `diff_context` | `1` | `config.Defaults()` (§9.1 FR3f — `-U1`; range 0–3, out-of-range rejected at config load) |
 | `max_duplicate_retries` | `3` | `config.Defaults()` |
+| `multi_turn_fallback` | `true` | `config.Defaults()` (§9.24 FR-T1c) |
+| `multi_turn_chunk_tokens` | `32000` | `config.Defaults()` (§9.24 FR-T3) |
 | `subject_target_chars` | `50` | `config.Defaults()` |
 | `output` | `"raw"` | provider manifest (§12.1) |
 | `strip_code_fence` | `true` | provider manifest (§12.1) |
@@ -147,6 +151,10 @@ The `output` and `strip_code_fence` settings apply to **parsing** of agent outpu
 > **Token budget & diff context.** Two `[generation]` knobs size and shape the diff payload:
 > - **`token_limit`** (default `0` = unset) — a holistic token budget over the **whole** agent payload (system prompt + style examples + the concatenated diff). When set (e.g. `120000`), Stagehand reserves room for the prompt/examples and truncates the diff to fit using the ≈4 chars/token estimate, so the payload always fits your model's context window **without Stagehand maintaining a per-model context registry** (§9.1 FR3d). A non-zero `token_limit` **supersedes** the legacy per-section caps `max_diff_bytes` and `max_md_lines` for that run; the two modes are mutually exclusive. When `0`/unset, the legacy caps apply unchanged.
 > - **`diff_context`** (default `1`) — unchanged context lines surrounding each diff hunk: `0` = changed lines only (maximal savings), `1` = one anchor line (default), `3` = git's default (§9.1 FR3f). Applies in every diff path (staged, multi-commit snapshot, per-concept tree diff). Valid range is 0–3; an out-of-range value is rejected at config load with a clear error (§9.1 FR3f).
+
+> **Multi-turn fallback.** Two `[generation]` knobs control the lossless multi-turn fallback path (§9.24), which activates only after the one-shot retry loop exhausts on a large diff:
+> - **`multi_turn_fallback`** (default `true`) — enables the fallback. **Limitation:** because this is a default-`true` boolean that uses the same only-true-propagates file pattern as `auto_stage_all`, you **cannot disable it by setting `multi_turn_fallback = false` in a config file** in this revision — the `false` is silently ignored (the resolved value stays `true`). To effectively disable multi-turn for a provider, set `session_mode = ""` on that provider (see [providers.md](providers.md#the-schema)); the shipped pi default is `"append"`.
+> - **`multi_turn_chunk_tokens`** (default `32000`) — the per-request chunk size (tokens est.) the large diff is split into for multi-turn priming. **This does NOT interact with `token_limit`** (§9.24 FR-T12): `token_limit` truncates the one-shot payload, while multi-turn deliberately uses the **untruncated** payload, delivered in request-sized pieces — the two never compose for a single message.
 
 ## Environment variables
 
