@@ -42,7 +42,7 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Freeze-safe arbiter gate + resolution paths",
-              "status": "Ready",
+              "status": "Complete",
               "description": "The core FR-M1d rewrite. Replace the live StatusPorcelain gate with the frozen leftover DiffTreeNames(tipTree, tStart); change resolveArbiter's signature to receive tStart + leftoverPaths; rewrite all three resolution paths (resolveNewCommit/resolveTipAmend/resolveMidChain in internal/decompose/chain.go) so they build trees strictly from T_start — new/tip commit T_start directly (no AddAll/WriteTree), mid-chain uses OverlayTreePaths(tree[j], T_start, leftoverPaths) (no live ReadTree/Add/StatusPorcelain) — and sync the index to T_start via ReadTree after each CAS. The Mode A doc edit to docs/how-it-works.md rides here.",
               "subtasks": [
                 {
@@ -68,7 +68,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S2",
                   "title": "Mode A doc edit: docs/how-it-works.md arbiter freeze narrative",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S1"
@@ -93,7 +93,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T3.S1",
                   "title": "Concurrent-across-arbiter-gate + T_start completeness integration tests",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T2.S1"

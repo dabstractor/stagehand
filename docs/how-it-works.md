@@ -87,9 +87,9 @@ Decompose activates when **nothing is staged**, **auto-stage-all is on** (the de
             commit-tree -p newSHA[i-1] tree[i] msg[i] ◀──────────┘
             update-ref HEAD newSHA[i] newSHA[i-1]   (serialized)
                   ▼
-         git status clean? ──yes──▶ done
-                  │ no
-                  ▼
+     frozen leftover empty? ──yes──▶ done
+              │ no
+              ▼
             ┌────────────┐  commits made + leftover diff   target SHA or null
             │  arbiter   │◀───────────────────────────▶  (stagehand does all git)
             │ (bare)     │
@@ -108,13 +108,13 @@ Decompose activates when **nothing is staged**, **auto-stage-all is on** (the de
 
 **Serialized publication.** Even though generation overlaps, `commit-tree` + `update-ref` are serialized per concept (CAS). If `HEAD` moved externally, the CAS fails and prior commits stand.
 
-**Start-of-run freeze (T_start).** The instant decomposition activates, the entire working-tree change set (every modified/added/deleted/untracked path and its byte content) is captured as an immutable tree object T_start. The planner partitions T_start's diff (never a fresh re-read of the live tree); every stager, the arbiter's leftover staging, and the one-file/single shortcuts stage content drawn strictly from T_start. A file created or modified after T_start is captured is invisible to the run.
+**Start-of-run freeze (T_start).** The instant decomposition activates, the entire working-tree change set (every modified/added/deleted/untracked path and its byte content) is captured as an immutable tree object T_start. The planner partitions T_start's diff (never a fresh re-read of the live tree); every stager, the arbiter (its gate, its diff, and its leftover staging), and the one-file/single shortcuts draw strictly from T_start. A file created or modified after T_start is captured is invisible to the run.
 
 **Freeze enforcement.** Because the stager is an external agent running `git` against the live tree, after each staging step stagehand verifies the resulting tree is a content-subset of T_start (only T_start paths, T_start content). Any deviation — a concurrent change swept in, or a stager that ran a bare `git add -A` — is a hard abort (non-rescue; already-landed commits stand per FR-M12).
 
 **One-file short-circuit.** In auto-decompose, if exactly one path changed, the planner is bypassed entirely: stage that file's T_start content, generate one message, create one commit (FR-M2b). Deterministic, not model judgment. `--commits N` (N≥2) overrides this shortcut.
 
-**Arbiter leftover reconciliation.** After all N concepts are committed, if `git status --porcelain` shows remaining changes, the arbiter decides whether they belong to an existing commit (amend) or warrant a new (N+1)th commit.
+**Arbiter leftover reconciliation.** After all N concepts are committed, stagehand computes the **frozen leftover** = `diff-names(tipTree, T_start)` — the `T_start` content no stager claimed (`tipTree` is the last committed tree) — and runs the arbiter **iff it is non-empty**. The live working tree is never consulted for the gate, so a file written after `T_start` was captured cannot trigger the arbiter or enter any arbiter commit. Given `TreeDiff(tipTree, T_start)`, the arbiter decides whether the leftovers belong to an existing commit (a plumbing amend that rebuilds the chain from the frozen per-concept `tree[j]` and `T_start`) or warrant a new (N+1)th commit (committing `T_start` directly); stagehand performs all git from frozen trees, then syncs the index to `T_start`, and the arbiter only decides.
 
 ### Safety
 
