@@ -46,6 +46,12 @@ func TestDefaults(t *testing.T) {
 	if c.MaxDuplicateRetries != 3 {
 		t.Errorf("MaxDuplicateRetries = %d, want 3", c.MaxDuplicateRetries)
 	}
+	if !c.MultiTurnFallback {
+		t.Errorf("MultiTurnFallback = false, want true (§9.24 FR-T1c)")
+	}
+	if c.MultiTurnChunkTokens != 32000 {
+		t.Errorf("MultiTurnChunkTokens = %d, want 32000 (§9.24 FR-T3)", c.MultiTurnChunkTokens)
+	}
 	if c.SubjectTargetChars != 50 {
 		t.Errorf("SubjectTargetChars = %d, want 50", c.SubjectTargetChars)
 	}

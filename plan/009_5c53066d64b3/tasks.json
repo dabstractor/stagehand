@@ -118,7 +118,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Add MultiTurnFallback + MultiTurnChunkTokens to resolved Config struct + Defaults()",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: research-generate-config.md §2 — type Config is at internal/config/config.go:63 (flat, resolved, plain-typed per its docstring lines 47–61). The generation scalars live at lines 78–96; TokenLimit is :81, MaxDuplicateRetries is :83. Defaults() is at config.go:161; the relevant block sets TokenLimit:0, DiffContext:intPtr(1), MaxDuplicateRetries:3, SubjectTargetChars:50 (lines ~174–177). TOML tags are snake_case leaf names kept for documentation parity (the resolved Config is never directly decoded — fileConfig is).\n2. INPUT: PRD §9.24 FR-T1c (multi_turn_fallback default true), FR-T3 (multi_turn_chunk_tokens default 32000). §16.1/§16.2 config model.\n3. LOGIC: In internal/config/config.go, add two fields to the Config struct immediately after MaxDuplicateRetries (line ~83): `MultiTurnFallback bool \\`toml:\"multi_turn_fallback\"\\`` with a comment citing §9.24 FR-T1c, and `MultiTurnChunkTokens int \\`toml:\"multi_turn_chunk_tokens\"\\`` citing §9.24 FR-T3. In Defaults() (line ~161), add after the MaxDuplicateRetries entry: `MultiTurnFallback: true,` and `MultiTurnChunkTokens: 32000,` with inline comments naming the FR refs and defaults.\n4. OUTPUT: Config.MultiTurnFallback (default true) and Config.MultiTurnChunkTokens (default 32000) exist and are set by Defaults(). Consumed by P1.M1.T2.S2 (file/overlay), P1.M1.T3.S2 (protocol reads cfg.MultiTurnChunkTokens), P1.M1.T3.S3 (trigger gate reads cfg.MultiTurnFallback).\n5. DOCS: none — the [generation] table doc rides with P1.M1.T2.S3.",
@@ -133,7 +133,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S2",
                   "title": "Add fields to fileGeneration struct + materialize + overlay",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S1"

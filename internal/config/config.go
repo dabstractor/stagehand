@@ -76,12 +76,14 @@ type Config struct {
 	Single  bool `toml:"-"` // --single/--no-decompose: bypass the planner entirely (v1 single-commit path)
 
 	// [generation] (PRD §16.2)
-	MaxDiffBytes        int  `toml:"max_diff_bytes"`        // byte cap on non-markdown diff section
-	MaxMdLines          int  `toml:"max_md_lines"`          // per-file line cap for markdown diffs
-	TokenLimit          int  `toml:"token_limit"`           // FR3d holistic token cap (0 = unset ⇒ legacy caps); consumed by S2/S4
-	DiffContext         *int `toml:"diff_context"`          // FR3f reduced context (0–3); *int — nil ⇒ unset (default 1/-U1); non-nil incl. *0 ⇒ explicit (0 = changed-lines-only). *int not plain int so overlay distinguishes unset from explicit 0; consumed by S2/S4
-	MaxDuplicateRetries int  `toml:"max_duplicate_retries"` // re-gen attempts on duplicate subject
-	SubjectTargetChars  int  `toml:"subject_target_chars"`  // target subject length for truncation
+	MaxDiffBytes         int  `toml:"max_diff_bytes"`          // byte cap on non-markdown diff section
+	MaxMdLines           int  `toml:"max_md_lines"`            // per-file line cap for markdown diffs
+	TokenLimit           int  `toml:"token_limit"`             // FR3d holistic token cap (0 = unset ⇒ legacy caps); consumed by S2/S4
+	DiffContext          *int `toml:"diff_context"`            // FR3f reduced context (0–3); *int — nil ⇒ unset (default 1/-U1); non-nil incl. *0 ⇒ explicit (0 = changed-lines-only). *int not plain int so overlay distinguishes unset from explicit 0; consumed by S2/S4
+	MaxDuplicateRetries  int  `toml:"max_duplicate_retries"`   // re-gen attempts on duplicate subject
+	MultiTurnFallback    bool `toml:"multi_turn_fallback"`     // §9.24 FR-T1c multi-turn fallback (lossless large-diff priming); default true; consumed by P1.M1.T3.S3 trigger gate
+	MultiTurnChunkTokens int  `toml:"multi_turn_chunk_tokens"` // §9.24 FR-T3 per-request chunk size (tokens est) for multi-turn; default 32000; consumed by P1.M1.T3.S2 protocol
+	SubjectTargetChars   int  `toml:"subject_target_chars"`    // target subject length for truncation
 	// Format selects the commit-message style (PRD §9.19 FR-F1): "auto" (style learning, default),
 	// "conventional", "gitmoji", or "plain". Resolved through the standard 5-layer precedence
 	// (file → git → env → flag). Validated against validFormats at the tail of Load() — an unknown
@@ -160,35 +162,37 @@ type Config struct {
 // nil-pointer hazards and lets callers copy freely.
 func Defaults() Config {
 	return Config{
-		Provider:            "",
-		Model:               "",
-		Reasoning:           "", // FR-R6: off for every role by default; config init writes reasoning = "off" into [defaults] (FR-B1)
-		Timeout:             120 * time.Second,
-		AutoStageAll:        true,
-		Verbose:             false,
-		NoColor:             false,
-		Commits:             0, // auto-decompose (PRD §9.14 FR-M2); set by --commits in P1.M3.T2/P4.M1.T1
-		Single:              false,
-		MaxDiffBytes:        300000,
-		MaxMdLines:          100,
-		TokenLimit:          0,         // FR3d: 0 = unset ⇒ legacy per-section caps (max_diff_bytes/max_md_lines) apply unchanged
-		DiffContext:         intPtr(1), // FR3f: -U1 default (non-nil: nil ⇒ user omitted the key; *0 ⇒ changed-lines-only)
-		MaxDuplicateRetries: 3,
-		SubjectTargetChars:  50,
-		Output:              nil,
-		StripCodeFence:      nil,
-		Format:              "auto", // §9.19 FR-F1 default (NON-empty; validateFormat would reject "" — must be set here)
-		Locale:              "",     // §9.19 FR-F6 default (empty = no locale instruction)
-		Template:            "",     // §9.19 FR-F8 default (empty = no template; validateTemplate accepts "")
-		MaxCommits:          12,     // §9.14 FR-M4 default safety cap on auto-decompose
-		BinaryExtensions:    nil,    // nil ⇒ built-in denylist only (§9.1 FR3a)
-		Exclude:             nil,    // §9.18 FR-X1: no built-in exclude globs at Layer 1 (denylist lives in git.go)
-		Context:             "",     // §9.19 FR-F7 default (empty = no context block)
-		Edit:                false,  // §9.22 FR-E1 default (false = non-interactive; no editor gate)
-		Push:                false,  // §9.22 FR-P1 default (false = no auto-push)
-		Providers:           nil,
-		Roles:               nil, // no per-role overrides → all roles use the global (§16.4 FR-R2)
-		ConfigVersion:       0,   // UNSET sentinel — the load-time advisory (P1.M4.T1.S1) compares the resolved
+		Provider:             "",
+		Model:                "",
+		Reasoning:            "", // FR-R6: off for every role by default; config init writes reasoning = "off" into [defaults] (FR-B1)
+		Timeout:              120 * time.Second,
+		AutoStageAll:         true,
+		Verbose:              false,
+		NoColor:              false,
+		Commits:              0, // auto-decompose (PRD §9.14 FR-M2); set by --commits in P1.M3.T2/P4.M1.T1
+		Single:               false,
+		MaxDiffBytes:         300000,
+		MaxMdLines:           100,
+		TokenLimit:           0,         // FR3d: 0 = unset ⇒ legacy per-section caps (max_diff_bytes/max_md_lines) apply unchanged
+		DiffContext:          intPtr(1), // FR3f: -U1 default (non-nil: nil ⇒ user omitted the key; *0 ⇒ changed-lines-only)
+		MaxDuplicateRetries:  3,
+		MultiTurnFallback:    true,  // §9.24 FR-T1c default (multi-turn fallback enabled)
+		MultiTurnChunkTokens: 32000, // §9.24 FR-T3 default (per-request chunk size, tokens est)
+		SubjectTargetChars:   50,
+		Output:               nil,
+		StripCodeFence:       nil,
+		Format:               "auto", // §9.19 FR-F1 default (NON-empty; validateFormat would reject "" — must be set here)
+		Locale:               "",     // §9.19 FR-F6 default (empty = no locale instruction)
+		Template:             "",     // §9.19 FR-F8 default (empty = no template; validateTemplate accepts "")
+		MaxCommits:           12,     // §9.14 FR-M4 default safety cap on auto-decompose
+		BinaryExtensions:     nil,    // nil ⇒ built-in denylist only (§9.1 FR3a)
+		Exclude:              nil,    // §9.18 FR-X1: no built-in exclude globs at Layer 1 (denylist lives in git.go)
+		Context:              "",     // §9.19 FR-F7 default (empty = no context block)
+		Edit:                 false,  // §9.22 FR-E1 default (false = non-interactive; no editor gate)
+		Push:                 false,  // §9.22 FR-P1 default (false = no auto-push)
+		Providers:            nil,
+		Roles:                nil, // no per-role overrides → all roles use the global (§16.4 FR-R2)
+		ConfigVersion:        0,   // UNSET sentinel — the load-time advisory (P1.M4.T1.S1) compares the resolved
 		//                              value to CurrentConfigVersion; 0 ⇒ no source declared a schema version.
 	}
 }
