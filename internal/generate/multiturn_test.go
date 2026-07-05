@@ -1,11 +1,15 @@
 package generate
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"unicode/utf8"
 
+	"github.com/dustin/stagehand/internal/config"
 	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagehand/internal/stubtest"
 )
 
 // stripPartPrefix removes the leading "PART i/N:\n" line from a chunk's text, returning the body. Used
@@ -176,5 +180,98 @@ func TestChunkPayload_CeilRounding(t *testing.T) {
 	}
 	if rebuilt.String() != payload {
 		t.Errorf("ceil-rounding round-trip mismatch\ngot:  %q\nwant: %q", rebuilt.String(), payload)
+	}
+}
+
+// stubAppendManifest returns a stub provider.Manifest wired to call-indexed scripted stdout (the stub's
+// selectScripted advances a per-invocation counter), WITH SessionMode set to "append" (RenderMultiTurn's
+// gate requires it; stubtest.NewScript does not set it — G7). omitAppend=true leaves SessionMode unset (⇒ "")
+// to exercise the non-append render-error path.
+func stubAppendManifest(t *testing.T, bin string, responses []string, omitAppend bool) provider.Manifest {
+	t.Helper()
+	m := stubtest.NewScript(t, bin, responses)
+	if !omitAppend {
+		appendMode := "append"
+		m.SessionMode = &appendMode
+	}
+	return m
+}
+
+// TestRun_HappyPath: a 2-chunk payload (chunkTokens=1, payload "aaaa\nbbbb\n" ⇒ N=2) drives 3 turns
+// ("ok", "ok", "<message>"). Run returns the final turn's parsed message with cause==nil, ok==true.
+func TestRun_HappyPath(t *testing.T) {
+	bin := stubtest.Build(t)
+	m := stubAppendManifest(t, bin, []string{"ok", "ok", "feat: add multi-turn support"}, false)
+	cfg := config.Defaults()
+	cfg.MultiTurnChunkTokens = 1 // ⇒ runesPerWindow=4 ⇒ "aaaa\nbbbb\n" splits into 2 chunks ⇒ 3 turns
+
+	msg, ok, cause := Run(context.Background(), Deps{}, cfg, m, "you are a commit writer",
+		"aaaa\nbbbb\n", "zai/glm-5.2", "")
+	if cause != nil {
+		t.Fatalf("Run cause = %v, want nil (happy path)", cause)
+	}
+	if !ok {
+		t.Fatalf("Run ok = false, want true (final turn parsed)")
+	}
+	if msg != "feat: add multi-turn support" {
+		t.Errorf("Run msg = %q, want %q", msg, "feat: add multi-turn support")
+	}
+}
+
+// TestRun_TurnError: a global stub exit-1 (Options{Exit:1}) ⇒ turn 1's Execute returns a non-zero-exit
+// error ⇒ Run aborts with cause != nil (FR-T7). The stub's exit code is global (one env var baked into
+// the manifest's Env map), so this asserts a turn-1 failure; mid-turn isolation (turn 1 ok, turn 2 fails)
+// needs a per-call exit mechanism the stub lacks ⇒ T4's exhaustive-matrix territory (research §6.4/G8).
+func TestRun_TurnError(t *testing.T) {
+	bin := stubtest.Build(t)
+	// Exit:1 is global across all turns ⇒ turn 1 fails. stubtest.Manifest returns a provider.Manifest
+	// VALUE (Env is a map[string]string, not a slice), so the SessionMode assignment is a clean local copy.
+	sm := stubtest.Manifest(bin, stubtest.Options{Exit: 1})
+	appendMode := "append"
+	sm.SessionMode = &appendMode
+
+	cfg := config.Defaults()
+	cfg.MultiTurnChunkTokens = 1
+	_, _, cause := Run(context.Background(), Deps{}, cfg, sm, "sys", "aaaa\nbbbb\n", "zai/glm-5.2", "")
+	if cause == nil {
+		t.Fatal("Run cause = nil, want non-nil (turn-1 non-zero exit ⇒ FR-T7 abort)")
+	}
+}
+
+// TestRun_FinalParseEmpty: the final turn's stdout is empty (script ends with "") ⇒ ParseOutput ok=false.
+// Run returns (msg="", ok=false, cause==nil) — the parse failure is NOT a cause; the caller decides rescue.
+func TestRun_FinalParseEmpty(t *testing.T) {
+	bin := stubtest.Build(t)
+	m := stubAppendManifest(t, bin, []string{"ok", "ok", ""}, false) // final turn → empty stdout
+	cfg := config.Defaults()
+	cfg.MultiTurnChunkTokens = 1
+
+	msg, ok, cause := Run(context.Background(), Deps{}, cfg, m, "sys", "aaaa\nbbbb\n", "zai/glm-5.2", "")
+	if cause != nil {
+		t.Fatalf("Run cause = %v, want nil (empty final stdout is a parse-fail, not a turn error)", cause)
+	}
+	if ok {
+		t.Error("Run ok = true, want false (empty final stdout ⇒ ParseOutput ok=false)")
+	}
+	if msg != "" {
+		t.Errorf("Run msg = %q, want \"\" (empty final stdout)", msg)
+	}
+}
+
+// TestRun_NonAppendManifest: a manifest with SessionMode unset (⇒ "") ⇒ RenderMultiTurn's session_mode
+// gate errors on turn 1 ⇒ Run surfaces the render error as cause (defense-in-depth for S3's FR-T1 gate).
+func TestRun_NonAppendManifest(t *testing.T) {
+	bin := stubtest.Build(t)
+	// omitAppend=true ⇒ SessionMode stays "" ⇒ RenderMultiTurn errors.
+	m := stubAppendManifest(t, bin, []string{"ok", "ok", "feat: never reached"}, true)
+	cfg := config.Defaults()
+	cfg.MultiTurnChunkTokens = 1
+
+	_, _, cause := Run(context.Background(), Deps{}, cfg, m, "sys", "aaaa\nbbbb\n", "zai/glm-5.2", "")
+	if cause == nil {
+		t.Fatal("Run cause = nil, want non-nil (non-append manifest ⇒ RenderMultiTurn session_mode gate)")
+	}
+	if !strings.Contains(cause.Error(), "session_mode") {
+		t.Errorf("Run cause = %v, want it to mention session_mode (the render gate)", cause)
 	}
 }
