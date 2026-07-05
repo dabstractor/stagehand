@@ -337,7 +337,7 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 				if totalMin < 1 {
 					totalMin = 1
 				}
-				fmt.Fprintf(os.Stderr, "↳ falling back to multi-turn: %d turns, ~%dm total\n", turns, totalMin)
+				fmt.Fprintf(os.Stderr, "↳ falling back to multi-turn: %d turns (chunks of ~%d tokens), ~%dm total\n", turns, cfg.MultiTurnChunkTokens, totalMin)
 
 				// FR-T11: verbose trigger line (per-turn verbose is emitted by provider.Execute inside Run).
 				deps.Verbose.VerboseWarn("one-shot exhausted → multi-turn fallback")

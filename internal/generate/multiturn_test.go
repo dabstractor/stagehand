@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -762,4 +763,70 @@ func tail(s string, n int) string {
 		return s[len(s)-n:]
 	}
 	return s
+}
+
+// captureStderr swaps os.Stderr to a temp file for the duration of fn, then restores it and returns the
+// captured content. Race-safe ONLY because no test in this package calls t.Parallel() (tests run serially,
+// so the package-global os.Stderr swap is sequential — the -race detector does not flag it). Used to
+// assert on direct os.Stderr writes (the multi-turn progress line) that bypass deps.Verbose.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "stderr-*.txt")
+	if err != nil {
+		t.Fatalf("create temp stderr: %v", err)
+	}
+	orig := os.Stderr
+	os.Stderr = f
+	defer func() { os.Stderr = orig }() // restore even if fn Fatalf's/panics
+	fn()
+	os.Stderr = orig // restore now (before any t.Errorf below) so test output is clean
+	if err := f.Close(); err != nil {
+		t.Fatalf("close temp stderr: %v", err)
+	}
+	b, err := os.ReadFile(f.Name())
+	if err != nil {
+		t.Fatalf("read temp stderr: %v", err)
+	}
+	return string(b)
+}
+
+// TestCommitStaged_MultiTurnProgressLine_ChunkTokens (FR-T11): the multi-turn fallback progress line
+// (os.Stderr) carries the per-chunk token budget. Mirrors TestMultiTurnTriggerGate_TruthTable's
+// control_all_true_gate_fires case (gate fires), but captures os.Stderr (not the verbose buffer) and
+// asserts the new "chunks of ~<N> tokens" substring.
+func TestCommitStaged_MultiTurnProgressLine_ChunkTokens(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	initRepo(t, repo)
+	commitRaw(t, repo, "initial")
+	// ~96 runes ⇒ EstimateTokens ≈ 24 > 4 (FR-T1 cond b: payload exceeds one chunk).
+	writeFile(t, repo, "new.txt", strings.Repeat("change line\n", 8))
+	stageFile(t, repo, "new.txt")
+
+	// Script: call 1 = "" (one-shot parse-fail ⇒ exhaust ⇒ gate fires); "ok","ok" priming; final = message.
+	m := stubAppendManifest(t, bin, []string{"", "ok", "ok", "feat: mt win"}, false) // append (cond d)
+	cfg := config.Defaults()
+	cfg.MaxDuplicateRetries = 0  // exactly 1 one-shot attempt ⇒ exhaust ⇒ gate fires
+	cfg.MultiTurnFallback = true // cond c
+	cfg.MultiTurnChunkTokens = 4 // cond b (24 > 4); small ⇒ a distinctive, easy-to-assert substring
+
+	var vbuf bytes.Buffer
+	captured := captureStderr(t, func() {
+		_, err := CommitStaged(context.Background(), Deps{
+			Git: git.New(repo), Manifest: m, Verbose: ui.NewVerbose(&vbuf, true),
+		}, cfg)
+		if err != nil {
+			t.Fatalf("CommitStaged: %v (expected multi-turn success)", err)
+		}
+	})
+
+	// FR-T11: the progress line carries the per-chunk token budget.
+	wantChunk := fmt.Sprintf("chunks of ~%d tokens", cfg.MultiTurnChunkTokens) // "chunks of ~4 tokens"
+	if !strings.Contains(captured, wantChunk) {
+		t.Errorf("progress line missing %q (FR-T11 per-chunk token estimate);\ngot stderr: %q", wantChunk, captured)
+	}
+	// Sanity: the line is still the multi-turn progress line.
+	if !strings.Contains(captured, "falling back to multi-turn") {
+		t.Errorf("progress line missing 'falling back to multi-turn';\ngot stderr: %q", captured)
+	}
 }
