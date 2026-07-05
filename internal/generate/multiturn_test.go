@@ -412,6 +412,93 @@ func TestChunkPayload_TokenLimitNonInteraction(t *testing.T) {
 	// (A grep of multiturn.go confirms the signature: func chunkPayload(payload string, chunkTokens int) []chunk.)
 }
 
+// --- P1.M1.T1.S1: ChunkCount exported wrapper (delegates to len(chunkPayload)) ---
+//
+// ChunkCount is the exported cross-package helper for progress-message turn-count computation. These
+// pure table tests use chunkPayload itself (callable in-package) as the oracle — asserting the wrapper
+// never drifts from the single source of truth for chunk sizing.
+
+// TestChunkCount_EmptyPayload: an empty payload yields ONE chunk (N ≥ 1; the preamble still references
+// N=1) — ChunkCount("", budget) == len(chunkPayload("", budget)) == 1.
+func TestChunkCount_EmptyPayload(t *testing.T) {
+	const payload = ""
+	const budget = 32000
+	got := ChunkCount(payload, budget)
+	want := len(chunkPayload(payload, budget))
+	if got != want {
+		t.Errorf("ChunkCount(%q, %d) = %d, want %d (len(chunkPayload))", payload, budget, got, want)
+	}
+	if got != 1 {
+		t.Errorf("ChunkCount(%q, %d) = %d, want 1 (empty payload ⇒ one empty chunk)", payload, budget, got)
+	}
+}
+
+// TestChunkCount_SingleChunk: a small payload well under the budget yields ONE chunk — the count
+// matches len(chunkPayload(...)) exactly.
+func TestChunkCount_SingleChunk(t *testing.T) {
+	payload := "diff --git a/x b/x\n+hello\n"
+	budget := 32000 // budget ≫ payload
+	got := ChunkCount(payload, budget)
+	want := len(chunkPayload(payload, budget))
+	if got != want {
+		t.Errorf("ChunkCount(%q, %d) = %d, want %d (len(chunkPayload))", payload, budget, got, want)
+	}
+	if got != 1 {
+		t.Errorf("ChunkCount(%q, %d) = %d, want 1 (single chunk under budget)", payload, budget, got)
+	}
+}
+
+// TestChunkCount_MultiChunk: a payload exceeding the budget splits into N > 1 chunks — ChunkCount
+// matches len(chunkPayload(...)) exactly (the wrapper delegates; no drift).
+func TestChunkCount_MultiChunk(t *testing.T) {
+	payload := strings.Repeat("abcd\n", 12) // 60 runes; CT=5 ⇒ N=3 (verified by TestChunkPayload_CeilMath)
+	budget := 5
+	got := ChunkCount(payload, budget)
+	want := len(chunkPayload(payload, budget))
+	if got != want {
+		t.Errorf("ChunkCount(%q, %d) = %d, want %d (len(chunkPayload))", payload, budget, got, want)
+	}
+	if got < 2 {
+		t.Errorf("ChunkCount(%q, %d) = %d, want ≥2 (payload exceeds the budget)", payload, budget, got)
+	}
+}
+
+// TestChunkCount_SubOneBudget: a non-positive budget does NOT panic — chunkPayload's defensive clamp
+// (chunkTokens < 1 ⇒ chunkTokens = 1) keeps it safe, and the count still matches len(chunkPayload(...))
+// exactly. NOTE: the clamp sets the BUDGET to 1 token (runesPerWindow=4), NOT the CHUNK COUNT to 1 — a
+// payload longer than 4 runes still splits under the clamped-1 budget. The wrapper's contract is solely
+// that it delegates to chunkPayload; this test pins that the defensive path is consistent, not panic-free
+// only but count-consistent.
+func TestChunkCount_SubOneBudget(t *testing.T) {
+	payload := strings.Repeat("abcd\n", 12) // 60 runes; under a clamped-1 budget this still splits
+	for _, budget := range []int{0, -1} {
+		got := ChunkCount(payload, budget)
+		want := len(chunkPayload(payload, budget))
+		if got != want {
+			t.Errorf("ChunkCount(%q, %d) = %d, want %d (len(chunkPayload))", payload, budget, got, want)
+		}
+	}
+	// Sanity: a sub-1 budget on a small payload DOES yield 1 chunk (the clamp keeps it non-trivial).
+	if got := ChunkCount("x", 0); got != 1 {
+		t.Errorf("ChunkCount(%q, %d) = %d, want 1 (small payload under clamped-1 budget)", "x", 0, got)
+	}
+	if got := ChunkCount("x", -1); got != 1 {
+		t.Errorf("ChunkCount(%q, %d) = %d, want 1 (small payload under clamped-1 budget)", "x", -1, got)
+	}
+}
+
+// TestChunkCount_CJK: a CJK-heavy payload (multi-byte UTF-8) is sized by runes — ChunkCount matches
+// len(chunkPayload(...)) exactly, so a multi-byte sequence is never split and the count is consistent.
+func TestChunkCount_CJK(t *testing.T) {
+	cjk := "你好世界\n你好世界\n" // 10 runes, 28 bytes; EstimateTokens = 3 tokens
+	budget := 1           // ⇒ runesPerWindow=4 runes ⇒ multiple chunks
+	got := ChunkCount(cjk, budget)
+	want := len(chunkPayload(cjk, budget))
+	if got != want {
+		t.Errorf("ChunkCount(%q, %d) = %d, want %d (len(chunkPayload))", cjk, budget, got, want)
+	}
+}
+
 // TestMultiTurnTriggerGate_TruthTable: drives CommitStaged (the inline FR-T1 gate's sole call site) across
 // the 4 skip rows + the success row + the all-true control. The gate is INLINE in generate.go (there is
 // NO standalone predicate fn); the table observes the gate's VerboseWarn trigger
@@ -543,7 +630,7 @@ func TestMultiTurnGate_TokenLimitTruncated_Recaptures(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.MaxDuplicateRetries = 0
 	cfg.MultiTurnChunkTokens = 4 // small so the untruncated diff clearly exceeds it
-	cfg.TokenLimit = 4          // truncates the one-shot diff BELOW chunk_tokens
+	cfg.TokenLimit = 4           // truncates the one-shot diff BELOW chunk_tokens
 
 	var buf bytes.Buffer
 	_, err := CommitStaged(context.Background(), Deps{

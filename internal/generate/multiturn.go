@@ -88,6 +88,15 @@ func chunkPayload(payload string, chunkTokens int) []chunk {
 	return chunks
 }
 
+// ChunkCount returns the number of chunks chunkPayload would split payload into at the given
+// chunkTokens budget. It is the exported cross-package helper for progress-message turn-count
+// computation (the progress line prints N+1 turns where N = ChunkCount). It delegates to the
+// unexported chunkPayload — the single source of truth for chunk sizing — so the count is always
+// consistent with the actual N+1 turn protocol. Pure; no I/O.
+func ChunkCount(payload string, chunkTokens int) int {
+	return len(chunkPayload(payload, chunkTokens))
+}
+
 // advanceRunes returns the byte offset obtained by advancing n runes forward from start in s, clamped
 // to len(s). Steps rune-by-rune via utf8.DecodeRuneInString so a multi-byte UTF-8 sequence is never
 // split (and s[start:] is an O(1) string-header slice — no allocation). Stops after n runes; does not
