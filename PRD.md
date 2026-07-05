@@ -186,6 +186,7 @@ The README hero pitch, verbatim candidate:
 - **G18.** Implement the **tool-integrations exporter** (§9.21): `stagehand integrate` writes a `git stagehand` alias and a lazygit `customCommands` keybind via a no-mangle write protocol (parse-first, preview + confirm, backup, post-write validation, marker idempotency).
 - **G19.** Implement the **`--edit`** (review in `$EDITOR` before the atomic commit) and **`--push`** (push after a fully-successful run) conveniences (§9.22).
 - **G20.** Implement **discovery** (§9.23): `stagehand models` (agent-CLI-sourced or curated, never HTTP) and `config init --interactive`.
+- **G21.** Implement the **multi-turn generation fallback** (§9.24): when a one-shot generation of a large diff fails (provider per-request unreliability that can fall well below the advertised context window), losslessly re-deliver the full diff across request-sized provider session turns so a single commit message can still be produced — without truncation and without decomposing into multiple commits. Gated on a provider `session_mode = "append"` capability; lossless (distinct from the rejected lossy map-reduce chunking).
 
 ### 6.2 Non-goals (v1 — explicitly deferred)
 
@@ -486,6 +487,34 @@ One command that wires stagehand into the git tools the user already runs — st
 - **FR-L2. Manifest field `list_models_command`.** An optional argv array in the provider manifest (§12.1), e.g. `["opencode", "models"]`. Empty by default. Populated at implementation time only for providers whose CLI actually exposes a listing (verified per FR-D5, recorded with date).
 - **FR-L3. `config init --interactive`.** TTY-gated (non-TTY → exit 1 pointing at plain `config init`, which stays non-interactive because FR-B3 runs it from post-install scripts). Flow: pick a provider from the detected set (default highlighted per FR-D1), show that provider's per-role model defaults (FR-D4) for acceptance or per-role edit (a multi-backend provider's models prompt for the `inference/` prefix rather than guessing, per FR-D2), then write the same file FR-B1 writes. Composes with `--force`.
 
+### 9.24 Multi-turn generation fallback (lossless large-diff priming) (P1, → G21)
+
+A fallback generation path for diffs too large for a single reliable request. It exists because a provider's **per-request reliability ceiling can lie well below its advertised context window**: empirically, a 169K-real-token request repeatedly failed a 200K-window model (zai/glm-5-turbo returned empty stdout), while the SAME total content delivered across several smaller requests succeeded losslessly — a 266K-token diff split across 5 session turns produced an accurate, full-fidelity commit message where one-shot failed. The constraint that fails is **per-request size**, not context-window size, so the fix bounds each *request* while keeping the whole diff in the session.
+
+This is deliberately NOT the lossy "chunk-summarize-combine" chunking rejected in `FUTURE_SPEC.md` (which degrades message quality). Multi-turn priming is **lossless**: the model sees the entire diff in its session history, delivered in request-sized pieces, then writes one message at the end. It is also distinct from decomposition (§9.14), which splits the work into N commits; multi-turn produces ONE commit and changes only how the single generation request is delivered.
+
+- **FR-T1. Fallback, not default; gated trigger.** The one-shot path (§9.5) runs first, unchanged. Multi-turn activates ONLY when ALL hold: (a) one-shot exhausted its retry loop (§9.7) on empty or unparseable output; (b) the captured payload exceeds one chunk (`payload_tokens > multi_turn_chunk_tokens`, FR-T3 — a small-payload one-shot failure is a transient, not a size problem, so it skips multi-turn and goes straight to rescue); (c) `multi_turn_fallback` is enabled (default true); and (d) the resolved provider manifest declares `session_mode = "append"` (FR-T8). If any condition fails, the run proceeds to the existing rescue protocol (§9.10) unchanged. Multi-turn is strictly an additional attempt inserted between one-shot-exhausted and rescue.
+- **FR-T2. Lossless — full diff, request-sized chunks.** The multi-turn payload is the SAME captured payload the one-shot path would send (FR3g skeleton + diff bodies, FR3c binary placeholders, FR-X4 exclude placeholders), captured ONCE and unmodified. No `token_limit` water-fill (FR3i), no truncation, no summarization is applied — the model receives the complete diff. Only the per-REQUEST byte count is bounded (FR-T3); the accumulated session history holds the full content.
+- **FR-T3. Chunk sizing.** Split the captured payload into N consecutive chunks each ≤ `multi_turn_chunk_tokens` (default 32000; configurable via `[generation].multi_turn_chunk_tokens`). `N = ceil(payload_tokens / chunk_size)`, using the shared `EstimateTokens` (chars/4, §9.1 FR3d). Chunk boundaries anchor forward to the next newline so no diff line is fractured. Each chunk carries a one-line prefix ("PART i/N:") emitted OUTSIDE the chunk budget.
+- **FR-T4. Turn protocol (N+1 turns).** The run is N+1 sequential provider invocations against ONE session id (FR-T6):
+  - **Turn 1:** the role's normal system prompt (delivered via the manifest's `system_prompt_flag`, unchanged) + the priming preamble + chunk 1. Preamble, verbatim with N interpolated: *"I will send a git diff in N parts. After each part, reply with exactly: ok. Do not analyze or write any commit message until I explicitly ask at the end."*
+  - **Turns 2..N:** *"PART i/N:"* + chunk i.
+  - **Turn N+1 (final):** *"Now write the commit message for the diff above. Output ONLY the message."* — the candidate message is THIS turn's stdout only.
+  Intermediate turns' stdout ("ok") is discarded. The final turn's stdout is parsed by the EXISTING pipeline (§9.6) and runs through duplicate rejection (§9.7) unchanged.
+- **FR-T5. Per-turn timeout; total budget surfaced.** Each turn is a separate provider invocation with its own timeout equal to the configured `timeout` (default 120s). Total wall-clock budget = `timeout × (N+1)`. Because this can be many minutes, the CLI prints the turn count and total budget on the progress line at fallback time (e.g. *"falling back to multi-turn: N+1 turns, ~Mm total"*), and `--verbose` (FR50) logs each turn. If any turn times out or exits with a non-timeout error, the multi-turn attempt aborts and control passes to rescue (FR-T7).
+- **FR-T6. Session lifecycle (provider `session_mode = "append"`).** A provider supports multi-turn iff re-invoking the SAME session id appends a turn the model can recall. Concretely:
+  - Stagehand mints a fresh, unique session id per multi-turn run (e.g. `stagehand-<run-uuid>`).
+  - Turn 1 is rendered with the manifest's normal flags EXCEPT the ephemeral-session flag is dropped (pi: omit `--no-session`), plus the session-id flag (`--session-id <id>`) and the one-shot/print flag (`-p`). This creates the session.
+  - Turns 2..N+1 are rendered identically (same `--session-id <id>`, same `-p`); re-invoking a session id APPENDS a turn (pi semantics, verified empirically). The `--continue`/`-c` flag is NOT used (it targets the previous session and is incompatible with `--session-id`).
+  - The session is one-run-scope: stagehand never resumes it on a later run. Providers that persist sessions leave it behind (harmless).
+  - The system prompt is set on turn 1 only (via `system_prompt_flag`); the provider must carry it for the session. (If a provider does not persist the system prompt across turns, its `session_mode` stays `""` until a verified rendering is found — FR-T9.)
+- **FR-T7. Failure handling.** Multi-turn is best-effort. On any of — a turn's provider error (non-zero exit that is not a timeout), a turn timeout, or the final turn's output failing to parse/dedupe — stagehand aborts the multi-turn attempt and proceeds to the existing rescue protocol (§9.10) exactly as a one-shot failure would. Multi-turn can never leave the run in a worse state than one-shot-exhausted; it is pure upside.
+- **FR-T8. Provider support; capability flag.** A provider manifest gains a `session_mode` field (§12.1): `""` (default; no support — multi-turn unavailable for that provider) or `"append"`. The shipped **pi** manifest declares `session_mode = "append"` (verified). claude / opencode / codex / cursor / agy / gemini ship `""` until each provider's append-turn mechanism is verified (FR-T9); for those providers, condition (d) of FR-T1 is false and multi-turn is skipped silently (one-shot → rescue unchanged).
+- **FR-T9. Verification duty for `session_mode`.** A manifest MUST NOT declare `"append"` speculatively. Setting it requires a verified, reproducible append-turn rendering: a second one-shot invocation against the same session id whose response demonstrably recalls content from the first call. The implementer confirms the exact flag set per provider (analogous to FR-D5's model-token verification duty) and records it; until then the field stays `""`. pi's verification: `pi --session-id X <isolation-flags> -p "remember BANANA"` then `pi --session-id X <isolation-flags> -p "recall it"` returns "BANANA".
+- **FR-T10. Role scope.** Multi-turn serves the **message** role (the single-commit path, §13.1–§13.5). The **planner** role (decompose §13.6) may adopt it in a later revision (its working-tree diff can also be large); out of scope here. The **stager** and **arbiter** operate on smaller per-concept diffs and do not need it.
+- **FR-T11. Verbose surface.** `--verbose` (FR50) prints, for a multi-turn run: the trigger ("one-shot exhausted → multi-turn fallback"), N+1, the per-chunk token estimate, the session id, and — per turn — the payload size + raw stdout + raw stderr (FR50). The final parsed message is logged as usual. No new flags.
+- **FR-T12. No interaction with `token_limit`.** `token_limit` (FR3d) governs ONLY the one-shot path (it truncates the payload to fit one request). Multi-turn deliberately ignores it: the whole point is lossless delivery of a payload that exceeded what one request could reliably carry. The two never compose for a single message: if `token_limit` is set and one-shot still fails (provider unreliable below the budget), multi-turn uses the UNTRUNCATED payload. (Rationale: truncation already lost information; re-truncating across turns would compound the loss for no reliability gain.)
+
 ---
 
 ## 10. Version scope (v1.0 → v2.1)
@@ -691,6 +720,14 @@ system_prompt_flag = "--system-prompt"
 # NO `default_provider` field in v3 — the prefix on `model` IS the provider. opencode
 # has no provider_flag and takes `backend/model` verbatim instead.
 provider_flag = "--provider"
+
+# --- session continuation (multi-turn fallback, §9.24) ------------------
+# "" (default): provider cannot append turns across one-shot calls → multi-turn
+#   fallback unavailable for this provider (one-shot → rescue, unchanged).
+# "append": re-invoking the same session id appends a turn the model can recall
+#   (pi: `--session-id <id> ... -p`, repeated). REQUIRES a verified append
+#   rendering (FR-T9); never set speculatively.
+session_mode = ""
 
 # --- bare mode -----------------------------------------------------------
 # Flags appended verbatim to make the call tool-less, session-less,
@@ -1562,7 +1599,7 @@ stagehand --planner-provider agy --planner-model gemini-3.1-pro
 
 ### 16.1 Resolution order (FR34), lowest to highest
 
-1. **Built-in defaults** (`internal/config/defaults.go`): timeout 120s, auto_stage_all true, max_diff_bytes 300000, max_md_lines 100, token_limit 0 (unset ⇒ legacy per-section caps; FR3d), diff_context 1 (FR3f), max_duplicate_retries 3, output raw, strip_code_fence true.
+1. **Built-in defaults** (`internal/config/defaults.go`): timeout 120s, auto_stage_all true, max_diff_bytes 300000, max_md_lines 100, token_limit 0 (unset ⇒ legacy per-section caps; FR3d), diff_context 1 (FR3f), max_duplicate_retries 3, output raw, strip_code_fence true, multi_turn_fallback true, multi_turn_chunk_tokens 32000 (§9.24 FR-T1/FR-T3).
 2. **Built-in provider defaults** (`internal/provider/builtin.go`): the manifests in §12.3–12.7.
 3. **Global config file** (`$XDG_CONFIG_HOME/stagehand/config.toml`, default `~/.config/stagehand/config.toml`).
 4. **Per-repo config file** (`./.stagehand.toml`, if present; not committed by default — added to a generated `.gitignore` only on `config init` if the user confirms).
@@ -1600,6 +1637,8 @@ strip_code_fence    = true
 subject_target_chars = 50
 binary_extensions   = []        # extra non-text extensions to filter (FR3a; merges with built-in denylist)
 max_commits         = 12        # safety cap on auto-decompose (FR-M4)
+multi_turn_fallback   = true     # on one-shot failure of a large diff, retry via lossless multi-turn session priming (§9.24 FR-T1)
+multi_turn_chunk_tokens = 32000  # per-request chunk size (tokens est) for multi-turn fallback (§9.24 FR-T3)
 exclude             = []        # payload-exclusion globs; unions with .stagehandignore and --exclude (§9.18)
 format              = "auto"    # auto | conventional | gitmoji | plain (§9.19, FR-F1)
 locale              = ""        # e.g. "German" or "pt-BR"; empty = no language instruction (FR-F6)
