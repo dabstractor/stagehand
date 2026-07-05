@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "FR3i splitDiffSections Line-Anchoring Fix (defeats token_limit truncation)",
-      "status": "Researching",
+      "status": "Complete",
       "description": "Bugfix delta for the FR3d–FR3i diff-payload optimization (plan 007_b33d310438c6), as the second adversarial pass after bugfix 001_7e79f5773da8 (confirmed fixed). Resolves the single systemic Major defect (PRD §9.1 Issue 1): splitDiffSections (internal/git/truncatediff.go) splits the captured non-markdown aggregate on the UN-ANCHORED substring \"diff --git \", so a non-markdown file whose CONTENT contains that literal (test fixtures, golden snapshots, vendored .patch/.diff, docs quoting diffs) is fragmented into bogus tiny sections, the water-fill sizes them as tiny, truncates NOTHING, and the full un-truncated payload silently overflows token_limit — breaking FR3d's core promise (\"the payload always fits your model's context window\"). Reproduced 100% (PRD: ~7x overflow at token_limit=2000, zero sentinels) across StagedDiff, TreeDiff, and WorkingTreeDiff via the sole caller applyWaterFillGate (tokengate.go:129). The fix is a single-point change to line-anchor the split (matching the already-line-anchored sibling regexes diffSectionHeaderRe/atAtRe), covering all three diff functions at once. Default token_limit==0 path and markdown files are UNAFFECTED. No Critical issues, no Minor issues requiring action. Root cause, fix shapes, the pre-verified recommended fix, test gaps, and doc surface are documented in plan/007_b33d310438c6/bugfix/002_430650446fcc/architecture/system_context.md.",
       "milestones": [
         {
@@ -77,21 +77,21 @@
           "type": "Milestone",
           "id": "P1.M2",
           "title": "Sync changeset-level documentation (Mode B catch-all)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Final cross-cutting documentation sweep that only makes sense once the whole changeset is in place. This is a pure correctness fix (restoring the documented FR3d contract), so the most likely outcome is 'no edit needed' — but per SOW §5 the final Mode-B task MUST exist and runs last so the implementing agent confirms no overview/feature doc implies content-embedded diff --git literals are a problem or otherwise states something now-inaccurate. Depends on every implementing subtask.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Sweep README.md, docs/how-it-works.md, and docs/configuration.md for any statement about token_limit, the water-fill truncation, or the payload-fits-context-window contract that is now inaccurate or would benefit from surfacing the fix. Update only where a statement is stale or unclear; do not invent features. The fix restores the documented behavior, so edits are unlikely — confirm and close.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Sweep README.md, docs/how-it-works.md, docs/configuration.md for token_limit / truncation accuracy",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",
