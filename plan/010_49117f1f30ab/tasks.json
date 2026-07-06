@@ -157,7 +157,7 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Commit-hooks runner + wiring into all commit chokepoints",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Build the RunCommitHooks runner (new module internal/hooks, distinct from the §9.20 hook-mode internal/hook), then wire it into the three commit chokepoints: generate.CommitStaged (single-commit COMMIT path), pkg/stagehand.runPipeline (single-commit DRY-RUN path — FR-V8a: commit-msg only), and decompose.publishCommit (multi-commit path). Reuse the existing *RescueError/FormatRescue/exit-3 path UNCHANGED for hook failures (FR-V7). post-commit is best-effort after UpdateRefCAS.",
           "tasks": [
             {
@@ -206,7 +206,7 @@
               "type": "Task",
               "id": "P1.M3.T2",
               "title": "Wire RunCommitHooks into the single-commit path (CommitStaged + runPipeline)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Insert RunCommitHooks into generate.CommitStaged (the COMMIT path) between EditMessage (line 389) and CommitTree (line 399), with post-commit after UpdateRefCAS (line 410). Handle the DRY-RUN path in pkg/stagehand.runPipeline (FR-V8a: commit-msg only, skip pre/post-commit). Includes the staged-during-generation sentinel invariant test (the FR-V3 freeze holds under hooks).",
               "subtasks": [
                 {
@@ -232,7 +232,7 @@
                   "type": "Subtask",
                   "id": "P1.M3.T2.S2",
                   "title": "pkg/stagehand.runPipeline dry-run wiring (FR-V8a: commit-msg only)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T2.S1"
@@ -249,14 +249,14 @@
               "type": "Task",
               "id": "P1.M3.T3",
               "title": "Wire RunCommitHooks into the decompose path (publishCommit + arbiter)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Wire the hook runner into decompose.publishCommit (the single chokepoint for all per-concept + arbiter new/tip commits), scoped to each commit's tree (FR-V8c: per-concept pre-commit sees only that concept's tree subset). The arbiter's silent mid-chain rebuild (resolveMidChain) SKIPS hooks (open_questions.md §2 — confirmed: running prepare-commit-msg on a verbatim-reused msg[j] risks breaking the §20.2 mid-chain amend fidelity invariant).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T3.S1",
                   "title": "decompose.publishCommit wiring (per-concept scoped; arbiter new/tip run; mid-chain skips) + mid-chain-fidelity invariant",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M3.T2.S1"

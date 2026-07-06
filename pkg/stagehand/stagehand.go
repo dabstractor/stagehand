@@ -642,6 +642,38 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config, sys
 		return Result{}, err // ErrEmptyMessage propagates BARE → exitcode.For() → exit 1
 	}
 
+	// ---- Commit hooks (PRD §9.25 FR-V1/V2/V8a). Threaded between EditMessage and the commit/dry-run split
+	// so BOTH the dry-run and the SystemExtra-commit paths run hooks. Under --dry-run the runner skips
+	// pre-commit + self-skips post-commit, but runs prepare-commit-msg + commit-msg on the would-be message
+	// (FR-V8a: the user still sees lint results). A commit-msg REJECTION under --dry-run is warn-and-print
+	// (the would-be message + a stderr notice, exit 0) — a dry-run is a preview; a lint rejection is
+	// information, not a failure. On the commit path (!dryRun) a hook abort is the FR-V7 rescue (exit 3,
+	// mirroring S1's CommitStaged). ----
+	if deps.Hooks != nil {
+		ft, fm, herr := deps.Hooks.RunCommitHooks(ctx, deps.Git, cfg, treeSHA, parentSHA, msg, dryRun, deps.Verbose)
+		if herr != nil {
+			if dryRun {
+				var re *generate.RescueError
+				if errors.As(herr, &re) {
+					// FR-V8a: hook rejection under --dry-run → warn-and-print (exit 0). Keep the would-be message so the
+					// dry-run Result (below) carries it; the runner returned "" on error.
+					fmt.Fprintf(os.Stderr, "⚠ commit hook rejected the would-be message under --dry-run: %v\n", re.Cause)
+					wouldBe := re.Candidate
+					if wouldBe == "" {
+						wouldBe = msg
+					}
+					msg = wouldBe // fall through to the `if dryRun` Result (prints msg; exit 0)
+				} else {
+					return Result{}, herr // infrastructure error (hooks dir / msg file / read-back) → propagate
+				}
+			} else {
+				return Result{}, herr // !dryRun → rescue (FR-V7, exit 3) — mirrors S1's CommitStaged
+			}
+		} else {
+			treeSHA, msg = ft, fm // hook accepted (possibly re-treed + prepare-annotated) → downstream uses these
+		}
+	}
+
 	// ---- Dry-run success: skip commit-tree/update-ref. ----
 	if dryRun {
 		signal.ClearSnapshot() // disarm — no rescue on dry-run success
@@ -678,6 +710,12 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config, sys
 			}
 		}
 		return Result{}, err
+	}
+
+	// ---- Post-commit hook (PRD §9.25 FR-V7). Reached ONLY when !dryRun (the `if dryRun` block returns above).
+	// Best-effort; the return is DISREGARDED (the commit already landed). Mirrors S1's CommitStaged. ----
+	if deps.Hooks != nil {
+		_ = deps.Hooks.RunPostCommit(ctx, deps.Git, cfg, dryRun, deps.Verbose)
 	}
 
 	signal.ClearSnapshot() // belt-and-suspenders disarm on success

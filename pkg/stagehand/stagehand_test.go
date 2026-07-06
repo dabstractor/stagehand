@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -14,6 +16,7 @@ import (
 
 	"github.com/dustin/stagehand/internal/config"
 	"github.com/dustin/stagehand/internal/exitcode"
+	"github.com/dustin/stagehand/internal/generate"
 	"github.com/dustin/stagehand/internal/stubtest"
 )
 
@@ -1509,5 +1512,148 @@ func TestGenerateCommit_DryRun_MultiTurnMidTurnFailure(t *testing.T) {
 	}
 	if re.Cause == nil {
 		t.Errorf("Cause = nil, want the wrapped *exec.ExitError from the failed multi-turn turn (FR-T7)")
+	}
+}
+
+// --- Commit-hook wiring tests (P1.M3.T2.S2: runPipeline dry-run + SystemExtra path, FR-V8a/FR-V7) ---
+//
+// These exercise runPipeline's INSERT A (RunCommitHooks, shared by the dry-run and SystemExtra-commit
+// paths) + INSERT B (RunPostCommit, commit-tail-only). They route through the EXPORTED GenerateCommit
+// (→ buildDeps, which S1 wires with Hooks: hooks.DefaultRunner{} → runPipeline). The repo's hooks are
+// installed into repo/.git/hooks/<name> (mode 0o755 so hookExecutable sees the owner-exec bit).
+//
+// stderr-capture note (design §6): captureStderr swaps os.Stderr globally. This is SAFE because the
+// stagehand_test suite has ZERO t.Parallel() calls — do NOT add t.Parallel() to any of these tests.
+
+// captureStderr runs fn with os.Stderr swapped to a pipe and returns whatever was written. SAFE only
+// when the test is NOT t.Parallel() (the stagehand_test suite has none). Restores os.Stderr in t.Cleanup.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, _ := os.Pipe()
+	old := os.Stderr
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = old })
+	done := make(chan string)
+	go func() { b, _ := io.ReadAll(r); done <- string(b) }()
+	fn()
+	w.Close()
+	return <-done
+}
+
+// installHook writes an executable hook script into repo/.git/hooks/<name> (the runner discovers hooks
+// via `git rev-parse --git-path hooks` = .git/hooks for a normal init). mode 0o755 ⇒ owner-exec bit set
+// (hookExecutable).
+func installHook(t *testing.T, repo, name, body string) {
+	t.Helper()
+	dir := filepath.Join(repo, ".git", "hooks")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir hooks: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
+}
+
+// TestGenerateCommit_DryRun_CommitMsgReject_PrintsMessage — FR-V8a: under --dry-run a commit-msg that
+// rejects (exit 1 + a stderr lint line) is warn-and-print: the would-be message is carried (Message) AND
+// the lint result is surfaced (stderr); exit 0 (err nil); nothing committed.
+func TestGenerateCommit_DryRun_CommitMsgReject_PrintsMessage(t *testing.T) {
+	setupTestRepo(t, stubtest.Options{Out: "feat: would-be preview"}) // UNIQUE message (not "initial")
+	repoDir, _ := os.Getwd()
+	writeFile(t, repoDir, "new.txt", "hello")
+	stageFile(t, repoDir, "new.txt")
+	beforeSHA := headSHA(t, repoDir)
+
+	// commit-msg hook: rejects (exit 1) + echoes a distinctive lint line to stderr.
+	installHook(t, repoDir, "commit-msg", "#!/bin/sh\necho 'reject: subject not conventional' >&2\nexit 1\n")
+
+	var res Result
+	var err error
+	stderr := captureStderr(t, func() {
+		res, err = GenerateCommit(context.Background(), Options{Provider: "stub", DryRun: true})
+	})
+	if err != nil {
+		t.Fatalf("GenerateCommit DryRun + rejecting commit-msg: err=%v, want nil (warn-and-print, exit 0)", err)
+	}
+	if res.Message == "" {
+		t.Errorf("Message empty, want the would-be message printed (FR-V8a)")
+	}
+	if !strings.Contains(res.Message, "would-be preview") {
+		t.Errorf("Message=%q, want it to carry the would-be message", res.Message)
+	}
+	if res.CommitSHA != "" {
+		t.Errorf("CommitSHA=%q, want empty (DryRun must not commit)", res.CommitSHA)
+	}
+	if after := headSHA(t, repoDir); after != beforeSHA {
+		t.Errorf("HEAD moved %q→%q (DryRun must not move HEAD)", beforeSHA, after)
+	}
+	if !strings.Contains(stderr, "reject: subject not conventional") {
+		t.Errorf("stderr missing the commit-msg lint result (FR-V8a):\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "rejected the would-be message") {
+		t.Errorf("stderr missing the dry-run rejection notice:\n%s", stderr)
+	}
+}
+
+// TestGenerateCommit_DryRun_SkipsPreCommit — FR-V8a: pre-commit is SKIPPED under --dry-run. A pre-commit
+// that would abort (exit 1) if run must NOT abort the dry-run (it is skipped).
+func TestGenerateCommit_DryRun_SkipsPreCommit(t *testing.T) {
+	setupTestRepo(t, stubtest.Options{Out: "feat: skip precommit preview"})
+	repoDir, _ := os.Getwd()
+	writeFile(t, repoDir, "new.txt", "hello")
+	stageFile(t, repoDir, "new.txt")
+
+	installHook(t, repoDir, "pre-commit", "#!/bin/sh\necho 'precommit: should not run' >&2\nexit 1\n")
+
+	res, err := GenerateCommit(context.Background(), Options{Provider: "stub", DryRun: true})
+	if err != nil {
+		t.Fatalf("DryRun + pre-commit exit 1: err=%v, want nil (pre-commit skipped under --dry-run)", err)
+	}
+	if res.Message == "" {
+		t.Errorf("Message empty, want the would-be message (pre-commit skipped ⇒ no abort)")
+	}
+}
+
+// TestGenerateCommit_DryRun_CommitMsgAccept — FR-V8a: commit-msg RUNS under --dry-run and an accepting
+// (exit 0) hook lets the dry-run succeed (the message is carried).
+func TestGenerateCommit_DryRun_CommitMsgAccept(t *testing.T) {
+	setupTestRepo(t, stubtest.Options{Out: "feat: accepted preview"})
+	repoDir, _ := os.Getwd()
+	writeFile(t, repoDir, "new.txt", "hello")
+	stageFile(t, repoDir, "new.txt")
+
+	installHook(t, repoDir, "commit-msg", "#!/bin/sh\nexit 0\n")
+
+	res, err := GenerateCommit(context.Background(), Options{Provider: "stub", DryRun: true})
+	if err != nil {
+		t.Fatalf("DryRun + accepting commit-msg: err=%v, want nil", err)
+	}
+	if res.Message == "" {
+		t.Errorf("Message empty, want the would-be message (commit-msg accepted under --dry-run)")
+	}
+}
+
+// TestGenerateCommit_SystemExtra_PreCommitAbort_Rescue — the shared INSERT A's !dryRun branch: a
+// SystemExtra real-commit (forces runPipeline's commit tail) with a rejecting pre-commit returns a
+// *generate.RescueError (FR-V7) and leaves HEAD unchanged (mirrors S1's CommitStaged).
+func TestGenerateCommit_SystemExtra_PreCommitAbort_Rescue(t *testing.T) {
+	setupTestRepo(t, stubtest.Options{Out: "feat: systemextra rescue"})
+	repoDir, _ := os.Getwd()
+	writeFile(t, repoDir, "new.txt", "hello")
+	stageFile(t, repoDir, "new.txt")
+	beforeSHA := headSHA(t, repoDir)
+
+	installHook(t, repoDir, "pre-commit", "#!/bin/sh\necho 'precommit: blocked' >&2\nexit 1\n")
+
+	_, err := GenerateCommit(context.Background(), Options{Provider: "stub", SystemExtra: "extra instructions"})
+	if err == nil {
+		t.Fatal("SystemExtra + pre-commit exit 1: err=nil, want a rescue error (FR-V7)")
+	}
+	var re *generate.RescueError
+	if !errors.As(err, &re) {
+		t.Errorf("expected *generate.RescueError (FR-V7), got %T: %v", err, err)
+	}
+	if after := headSHA(t, repoDir); after != beforeSHA {
+		t.Errorf("HEAD moved %q→%q on pre-commit abort (FR-V7 idempotent)", beforeSHA, after)
 	}
 }
