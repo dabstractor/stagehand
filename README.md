@@ -68,6 +68,7 @@ Stagehand does one thing — commit messages — and a few things around them.
 | Multi-turn fallback | Lossless multi-turn fallback: when a one-shot generation of a large diff fails, stagehand re-delivers the full diff across session turns so the message still lands — no truncation, no extra commits ([how it works](docs/how-it-works.md#multi-turn-generation-fallback) · [knobs](docs/configuration.md#built-in-defaults)). |
 | Message shaping | `--format` (auto, conventional, gitmoji, plain), `--locale`, `--context`, `--template` ([docs](docs/how-it-works.md#format-modes-and-locale)). |
 | Git hook mode | `stagehand hook install` fills the message on `git commit` — pre-commit hooks honored, never blocks ([docs](docs/how-it-works.md#trade-off-inversion-fr-h7)). |
+| Commit hooks on every `stagehand` commit | As of v2.4, your repo's `pre-commit` → `prepare-commit-msg` → `commit-msg` → `post-commit` hooks run around every `stagehand` commit, scoped to the frozen snapshot (atomic + stage-while-generating preserved); `--no-verify` mirrors git ([how it works](docs/how-it-works.md#commit-hooks-on-the-plumbing-path)). |
 | Tool integrations | `stagehand integrate install git-alias lazygit` wires `git stagehand` and a lazygit keybind ([docs](docs/cli.md#integrate-install-target)). |
 | `--edit` / `--push` | Review in `$EDITOR` before the atomic commit; push after a clean run ([docs](docs/cli.md)). |
 | Discovery | `stagehand models` and `config init --interactive` for guided setup ([docs](docs/cli.md#models-provider)). |
@@ -365,15 +366,7 @@ This prints the resolved provider command, raw agent output, and retry attempts.
 
 ### Does it run my pre-commit hooks?
 
-The default `stagehand` command builds commits via **git plumbing** (`write-tree` / `commit-tree` / `update-ref`) for atomicity and stage-while-generating. Because the commit never flows through `git commit`, **pre-commit hooks do not run** — tools like husky, lint-staged, and `.pre-commit-config.yaml` are bypassed.
-
-For day-to-day commits where pre-commit hooks must run, install **hook mode**:
-
-```bash
-stagehand hook install
-```
-
-Then use plain `git commit` — generation fills the message and never blocks the commit. The two modes compose: hook mode for `git commit`, the snapshot-based flow for the atomic path. See the full trade-off in [How Stagehand works — Trade-off inversion (FR-H7)](docs/how-it-works.md#trade-off-inversion-fr-h7).
+Yes. As of v2.4, the default `stagehand` command runs your repository's standard commit hooks (`pre-commit` → `prepare-commit-msg` → `commit-msg` → `post-commit`) around every commit, scoped to the frozen snapshot — so atomicity and stage-while-generating are preserved (a `pre-commit` formatter's fixes are included; a hook that stages brand-new content aborts the run). `--no-verify` skips `pre-commit` and `commit-msg` only, mirroring `git commit --no-verify`. **Hook mode** (`stagehand hook install`) remains for when you commit via plain `git commit` from an IDE — the two compose (§9.25 covers `stagehand`; hook mode covers `git commit`). See [Commit hooks on the plumbing path](docs/how-it-works.md#commit-hooks-on-the-plumbing-path).
 
 ### What about PR generation, editor extensions, a GitHub Action, API-key providers?
 

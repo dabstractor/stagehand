@@ -277,21 +277,21 @@
           "type": "Milestone",
           "id": "P1.M4",
           "title": "Changeset-level documentation sync (Mode B)",
-          "status": "Ready",
+          "status": "Complete",
           "description": "The final Mode B documentation sweep: rewrite the now-FALSE 'Bypasses pre-commit hooks' framing in docs/how-it-works.md (the headline doc change) and add a README.md feature mention. This task depends on ALL implementing subtasks (the whole feature must be in place before the overview docs summarize it). Per SOW §5 Mode B, this is the catch-all that prevents a coherent delta from shipping with stale overview docs.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M4.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Ready",
+              "status": "Complete",
               "description": "Rewrite docs/how-it-works.md 'Hook mode vs the snapshot-based flow' (line 303) — the current text explicitly says the snapshot flow 'Bypasses pre-commit hooks' and frames hook mode as the way to get hooks; BOTH are now FALSE. Reframe: the snapshot flow is atomic + stage-while-generating AND honors the repo's hooks (--no-verify skips pre-commit/commit-msg); hook mode (§9.20) remains for plain git commit from IDEs. Update 'When to use which': the two modes compose. Add a one-line README.md feature mention.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T1.S1",
                   "title": "how-it-works.md headline rewrite + README.md feature mention",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T2.S1",

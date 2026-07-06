@@ -321,9 +321,7 @@ run as a **rescue** (exit code 3) — no commit is created, HEAD and the index a
 unchanged, and the rescue recipe is printed. `post-commit` is best-effort: its exit code is logged as a
 warning but cannot undo an already-landed commit (git itself disregards it).
 
-See PRD §9.25 (FR-V1–V8) for the full specification. (The "Hook mode vs the snapshot-based flow"
-framing below is being reconciled in the v2.4 docs rewrite — hook mode remains the bridge for plain
-`git commit` from IDEs, and the two modes now compose.)
+See PRD §9.25 (FR-V1–V8) for the full specification, and [Hook mode vs the snapshot-based flow](#hook-mode-vs-the-snapshot-based-flow) below for how the two modes compose.
 
 ## Hook mode vs the snapshot-based flow
 
@@ -334,13 +332,13 @@ Stagehand offers two ways to generate commit messages, each with different trade
 **Snapshot-based flow** (the default `stagehand` command):
 
 - **Atomic**: uses `git write-tree` to freeze the index, then `git commit-tree` + `git update-ref` to publish — the repo is byte-for-byte unchanged on failure (no orphan commits, no partial state).
-- **Bypasses pre-commit hooks**: because the commit is built via plumbing (not `git commit`), tools like husky, lint-staged, and `.pre-commit-config.yaml` do NOT run on the generated commit.
+- **Honors pre-commit hooks**: the repository's pre-commit → prepare-commit-msg → commit-msg → post-commit hooks run around every stagehand commit, scoped to the frozen snapshot (so the stage-while-generating freeze holds). `--no-verify` skips pre-commit + commit-msg (mirrors `git commit --no-verify`). See [Commit hooks on the plumbing path](#commit-hooks-on-the-plumbing-path).
 - **Stage-while-generating**: the snapshot decouples staged content from generation time, so you can keep staging while the message generates.
 - **Rescue protocol**: if generation fails after the snapshot, the frozen tree SHA is printed so you can commit manually.
 
 **Hook mode** (`stagehand hook install` + `git commit`):
 
-- **Pre-commit hooks honored**: the commit flows through the standard `git commit` path, so husky, lint-staged, and any other `pre-commit` hooks run normally.
+- **The bridge for plain `git commit`**: hook mode covers the case where you commit via `git commit` from an IDE or another tool instead of invoking `stagehand`. Hooks run there too (real `git commit`), but there is no snapshot, no atomicity guarantee, and no stage-while-generating — generation latency happens inside the commit.
 - **No snapshot guarantees**: the index is live during generation — if you stage more files while the hook runs, they may affect the commit. Generation latency is inside the commit flow (no overlap).
 - **Never-block contract**: any failure leaves the message file untouched and exits 0, so the commit proceeds to an empty editor — the commit is never aborted by a model hiccup (unless `--strict` opts in).
 - **No rescue protocol**: there is no frozen tree to recover — the commit simply proceeds without an AI message.
@@ -349,6 +347,6 @@ Stagehand offers two ways to generate commit messages, each with different trade
 
 ### When to use which
 
-- Use **hook mode** for day-to-day commits in your IDE or lazygit — zero ceremony, pre-commit hooks run, never blocked.
-- Use the **snapshot-based flow** (`stagehand` directly) when you need atomicity, stage-while-generating overlap, or are scripting/batch-committing.
-- The two **compose**: install the hook for `git commit`, and run `stagehand` directly when you want the atomic path.
+- Use **`stagehand` directly** (the snapshot flow) for day-to-day commits: it's atomic, stage-while-generating, and — as of v2.4 — honors your repository's hooks (`--no-verify` for a one-off skip).
+- Install **hook mode** only if you commit via plain `git commit` from an IDE or lazygit instead of invoking `stagehand` — it fills the message without blocking, with hooks honored but no snapshot guarantees.
+- The two **compose**: [Commit hooks on the plumbing path](#commit-hooks-on-the-plumbing-path) (§9.25) covers `stagehand` commits; hook mode covers `git commit` commits.
