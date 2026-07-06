@@ -358,6 +358,15 @@ type Git interface {
 	// (branch on code != 0, NOT on code == 128). Read-only w.r.t. refs and the index (PRD §18.1).
 	GitDir(ctx context.Context) (dir string, err error)
 
+	// TopLevel returns the ABSOLUTE path to the working tree root via `git rev-parse
+	// --show-toplevel` (honors linked worktrees correctly — derives from CWD's worktree, NOT from
+	// GitDir's parent). Used by the commit-hooks runner (§9.25 FR-V6) to set the hook subprocess's
+	// CWD (githooks(5): "Before Git invokes a hook, it changes its working directory to … the root of
+	// the working tree in a non-bare repository"). `--show-toplevel` FAILS with exit 128 in a BARE repo
+	// (no working tree) — that is a REAL error here. On an unborn repo with a working tree it succeeds.
+	// Read-only w.r.t. refs and the index (PRD §18.1).
+	TopLevel(ctx context.Context) (string, error)
+
 	// Editor returns the user's resolved editor command via `git var GIT_EDITOR` (the exact chain
 	// GIT_EDITOR → core.editor → $VISUAL → $EDITOR → vi — external_deps.md §6, VERIFIED). The returned
 	// string is SHELL-INTERPRETED (may contain args/quotes); callers invoke it via `sh -c '<editor> "$@"'
@@ -1893,6 +1902,24 @@ func (g *gitRunner) GitDir(ctx context.Context) (string, error) {
 	if code != 0 {
 		// 128 = non-repo/corrupt — a REAL error (this call works on unborn repos; no 128-as-non-error here).
 		return "", fmt.Errorf("git rev-parse --absolute-git-dir: failed (exit %d): %s", code, strings.TrimSpace(stderr))
+	}
+	return strings.TrimSpace(stdout), nil
+}
+
+// TopLevel returns the absolute path to the working tree root (§9.25 FR-V6) via `git rev-parse
+// --show-toplevel`. Honors linked worktrees (derives from CWD's worktree, NOT from GitDir's parent —
+// the reason a dedicated accessor exists instead of deriving from GitDir). `--show-toplevel` output is
+// already absolute (no cwd-relative resolution needed). In a BARE repo `--show-toplevel` exits 128
+// (no working tree) — a REAL error here (the commit-hooks runner cannot set a worktree CWD on a bare
+// repo). Read-only w.r.t. refs and the index (PRD §18.1).
+func (g *gitRunner) TopLevel(ctx context.Context) (string, error) {
+	stdout, stderr, code, err := g.run(ctx, g.workDir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return "", err // git binary missing / context cancelled / start failure (run sets code=-1)
+	}
+	if code != 0 {
+		// 128 = bare repo (no working tree) or non-repo/corrupt — a REAL error.
+		return "", fmt.Errorf("git rev-parse --show-toplevel: failed (exit %d): %s", code, strings.TrimSpace(stderr))
 	}
 	return strings.TrimSpace(stdout), nil
 }

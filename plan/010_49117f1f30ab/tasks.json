@@ -164,14 +164,14 @@
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "RunCommitHooks runner module (new internal/hooks)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "The new module that executes the repo's commit hooks in git's documented order (pre-commit → prepare-commit-msg → commit-msg, then post-commit after publication), scoped to the frozen snapshot (FR-V3), with --no-verify (FR-V5), recursion prevention (FR-V4), per-hook timeout (FR-V6), and failure→*RescueError (FR-V7). Distinct from internal/hook (the §9.20 hook-MODE install/exec). Imports internal/hook only for Marker/Detect (recursion prevention) and internal/git for the primitives + scoped-index helper.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T1.S1",
                   "title": "Runner core — sequence, --no-verify, absent-hook skip, timeout, env, failure→rescue, post-commit",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M2.T2.S1",
@@ -189,7 +189,7 @@
                   "type": "Subtask",
                   "id": "P1.M3.T1.S2",
                   "title": "Recursion prevention (hook.Detect skip) + message-file lifecycle",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T1.S1"
