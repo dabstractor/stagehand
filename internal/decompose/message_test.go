@@ -425,8 +425,8 @@ func TestPublishCommit_PrepareCommitMsgAnnotates(t *testing.T) {
 	}
 
 	logMsg := msgGitOut(t, repo, "log", "--format=%B", "-n1")
-	if !strings.Contains(logMsg, "[HOOK-RAN]") {
-		t.Errorf("committed message = %q, want it to carry the [HOOK-RAN] append (hooks ran)", logMsg)
+	if !strings.Contains("\n"+logMsg+"\n", "\n[HOOK-RAN]\n") {
+		t.Errorf("committed message = %q, want [HOOK-RAN] on its own line (the hook append must not glue onto the subject — Issue 2 parity)", logMsg)
 	}
 }
 

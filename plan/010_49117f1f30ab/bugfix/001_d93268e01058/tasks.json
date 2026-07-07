@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Hook Execution Git-Parity Bugfix",
-      "status": "Planned",
+      "status": "Researching",
       "description": "Fix 4 Major issues (Issues 1–4) and 1 Minor test-quality gap (Issue 5) in stagehand's commit-path hook execution feature (v2.4, FR-V1–V8). All issues are divergences from documented git parity. Three corrupt commit content or state (Issues 1, 2, 4); one makes a documented configuration layer non-functional (Issue 3). All four reproduce deterministically. Research findings are in plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/.",
       "milestones": [
         {
@@ -170,21 +170,21 @@
           "type": "Milestone",
           "id": "P1.M4",
           "title": "Decompose Test Assertion Tightening (Issue 5)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Three decompose/arbiter hook tests use strings.Contains(logMsg, \"[HOOK-RAN]\") which passes even when the message is corrupted by Issue 2 (marker concatenated onto the subject line instead of on its own line). Tighten these assertions to verify line structure so a regression of the trailing-newline behavior fails the test. This milestone MUST run AFTER P1.M1.T2 (Issue 2 newline fix) — the tightened assertions only pass once the newline fix is in place.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M4.T1",
               "title": "Tighten decompose/arbiter hook test assertions to check line structure",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Replace the loose strings.Contains assertions in the 3 decompose hook tests with assertions that verify the hook's appended marker lands on a SEPARATE line (the git-parity outcome). This guards against a regression of the Issue 2 trailing-newline fix.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T1.S1",
                   "title": "Replace strings.Contains with line-structure assertions in 3 decompose hook tests",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S1"
@@ -206,21 +206,21 @@
           "type": "Milestone",
           "id": "P1.M5",
           "title": "Sync Changeset-Level Documentation",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Final sweep of README.md and docs/how-it-works.md — the cross-cutting overview docs that summarize the hooks feature across the entire changeset. Per-file docs (cli.md, configuration.md, config.go comments) were already updated in their implementing subtasks (Mode A). This task catches any overview-level drift.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M5.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Sweep README.md and docs/how-it-works.md for any hooks-related content that should reflect the 4 bug fixes: (1) prepare-commit-msg argc=1, (2) trailing newline parity, (3) stagehand.noVerify git-config key, (4) empty-message abort. The per-feature docs (cli.md, configuration.md) were already corrected in P1.M2.T1.S1 (Mode A). This task covers only the cross-cutting overview docs.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M5.T1.S1",
                   "title": "Sweep README.md and docs/how-it-works.md for hooks-feature accuracy",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",

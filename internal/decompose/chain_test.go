@@ -646,8 +646,8 @@ func TestResolveArbiter_NullNewCommit_RunsHooks(t *testing.T) {
 
 	// The N+1 commit's message should carry the [HOOK-RAN] append.
 	headMsg := chnRunGit(t, repo, "log", "--format=%B", "-1")
-	if !strings.Contains(headMsg, "[HOOK-RAN]") {
-		t.Errorf("HEAD message = %q, want it to carry [HOOK-RAN] (resolveNewCommit ran hooks)", headMsg)
+	if !strings.Contains("\n"+headMsg+"\n", "\n[HOOK-RAN]\n") {
+		t.Errorf("HEAD message = %q, want [HOOK-RAN] on its own line (resolveNewCommit ran hooks — Issue 2 parity)", headMsg)
 	}
 }
 
@@ -672,8 +672,8 @@ func TestResolveArbiter_TipAmend_RunsHooks(t *testing.T) {
 
 	// The amended tip's message should carry the [HOOK-RAN] append (amend re-runs msg hooks).
 	headMsg := chnRunGit(t, repo, "log", "--format=%B", "-1")
-	if !strings.Contains(headMsg, "[HOOK-RAN]") {
-		t.Errorf("amended tip message = %q, want it to carry [HOOK-RAN] (resolveTipAmend ran hooks — amend parity)", headMsg)
+	if !strings.Contains("\n"+headMsg+"\n", "\n[HOOK-RAN]\n") {
+		t.Errorf("amended tip message = %q, want [HOOK-RAN] on its own line (resolveTipAmend ran hooks — amend parity, Issue 2)", headMsg)
 	}
 }
 
