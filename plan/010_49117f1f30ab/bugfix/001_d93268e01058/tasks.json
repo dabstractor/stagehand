@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Hook Execution Git-Parity Bugfix",
-      "status": "Researching",
+      "status": "Complete",
       "description": "Fix 4 Major issues (Issues 1–4) and 1 Minor test-quality gap (Issue 5) in stagehand's commit-path hook execution feature (v2.4, FR-V1–V8). All issues are divergences from documented git parity. Three corrupt commit content or state (Issues 1, 2, 4); one makes a documented configuration layer non-functional (Issue 3). All four reproduce deterministically. Research findings are in plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/.",
       "milestones": [
         {
@@ -206,21 +206,21 @@
           "type": "Milestone",
           "id": "P1.M5",
           "title": "Sync Changeset-Level Documentation",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Final sweep of README.md and docs/how-it-works.md — the cross-cutting overview docs that summarize the hooks feature across the entire changeset. Per-file docs (cli.md, configuration.md, config.go comments) were already updated in their implementing subtasks (Mode A). This task catches any overview-level drift.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M5.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Sweep README.md and docs/how-it-works.md for any hooks-related content that should reflect the 4 bug fixes: (1) prepare-commit-msg argc=1, (2) trailing newline parity, (3) stagehand.noVerify git-config key, (4) empty-message abort. The per-feature docs (cli.md, configuration.md) were already corrected in P1.M2.T1.S1 (Mode A). This task covers only the cross-cutting overview docs.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M5.T1.S1",
                   "title": "Sweep README.md and docs/how-it-works.md for hooks-feature accuracy",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",

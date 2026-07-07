@@ -320,7 +320,11 @@ concurrent work).
 `--no-verify` mirrors `git commit --no-verify`: it skips `pre-commit` and `commit-msg` only
 (`prepare-commit-msg` and `post-commit` still run). A hook that exits non-zero or times out aborts the
 run as a **rescue** (exit code 3) — no commit is created, HEAD and the index are byte-for-byte
-unchanged, and the rescue recipe is printed. `post-commit` is best-effort: its exit code is logged as a
+unchanged, and the rescue recipe is printed. A `prepare-commit-msg` or `commit-msg` hook that empties
+the message file (a rejection or force-re-edit pattern) aborts with **exit 1** and no commit created —
+mirroring `git commit`'s "Aborting commit due to empty commit message." and the `--edit` path's
+empty-result abort (exit 1, not a rescue). HEAD and the index are untouched at that point (no
+`update-ref` has run). `post-commit` is best-effort: its exit code is logged as a
 warning but cannot undo an already-landed commit (git itself disregards it).
 
 See PRD §9.25 (FR-V1–V8) for the full specification, and [Hook mode vs the snapshot-based flow](#hook-mode-vs-the-snapshot-based-flow) below for how the two modes compose.
