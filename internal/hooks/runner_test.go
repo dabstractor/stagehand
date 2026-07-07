@@ -584,3 +584,33 @@ func TestRunCommitHooks_PrepareAndCommitMsg_SharedFile(t *testing.T) {
 		t.Errorf("commit-msg annotation missing from finalMsg: %q", finalMsg)
 	}
 }
+
+// --- 19. prepare-commit-msg argc: git githooks(5) — plain commit passes 1 arg ($2 unset) ---
+
+// TestRunCommitHooks_PrepareCommitMsg_ArgcIsOne asserts git-parity for the prepare-commit-msg
+// invocation: git githooks(5) specifies that for a plain commit the hook is invoked with ONE
+// argument (the message file) — the <source> parameter is ABSENT ($# == 1, $2 unset). The argv must
+// be []string{msgPath}, NOT []string{msgPath, ""} (which would make $# == 2 with $2 = empty string).
+// A hook that branches on "$#" (e.g. `[ "$#" -eq 1 ] && ...`) would take the wrong branch under argc=2.
+func TestRunCommitHooks_PrepareCommitMsg_ArgcIsOne(t *testing.T) {
+	repo, snapshotTree, parentSHA, g := primeRunnerRepo(t)
+
+	argcFile := filepath.Join(repo, "argc.txt")
+	installHook(t, repo, "prepare-commit-msg", `echo "ARGC=$#" > `+argcFile)
+
+	cfg := defaultCfg()
+	_, _, err := RunCommitHooks(context.Background(), g, cfg, snapshotTree, parentSHA,
+		"feat: a change", HookOpts{})
+	if err != nil {
+		t.Fatalf("RunCommitHooks err = %v", err)
+	}
+
+	data, readErr := os.ReadFile(argcFile)
+	if readErr != nil {
+		t.Fatalf("read argc file: %v", readErr)
+	}
+	got := strings.TrimSpace(string(data))
+	if got != "ARGC=1" {
+		t.Errorf("prepare-commit-msg $# = %q, want \"ARGC=1\" (git githooks(5): plain commit passes 1 arg; $2 unset)", got)
+	}
+}

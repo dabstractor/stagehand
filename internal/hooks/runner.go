@@ -49,9 +49,9 @@ type HookOpts struct {
 //     mutation (M/D/T of an existing snapshot path) → re-tree (finalTree = postTree); a NEW path
 //     → ErrHookSweptConcurrentWork (the FR-V3 freeze backstop). Non-zero/timeout → *RescueError.
 //   - prepare-commit-msg: ALWAYS runs (NoVerify + DryRun do NOT gate it — git-commit(1) parity).
-//     Invoked as `<msgfile> ""` (PRD FR-V2; VERIFIED argc=2 for a plain commit — see external_deps.md
-//     §2). The S2 seam shouldSkipStagehandPrepareCommitMsg stubs false (stagehand's own hook would
-//     recurse; S2 fills via hook.Detect). Non-zero/timeout → *RescueError.
+//     Invoked as `<msgfile>` (git githooks(5): for a plain commit no second parameter is passed;
+//     argc=1, $2 unset). The S2 seam shouldSkipStagehandPrepareCommitMsg stubs false (stagehand's
+//     own hook would recurse; S2 fills via hook.Detect). Non-zero/timeout → *RescueError.
 //   - commit-msg: SKIP if cfg.NoVerify (FR-V5); RUNS under DryRun (FR-V8a — lint the would-be
 //     message). Invoked as `<msgfile>`. Non-zero/timeout → *RescueError.
 //
@@ -175,11 +175,12 @@ func runPreCommitScoped(ctx context.Context, g git.Git, cfg config.Config, opts 
 	return postTree, nil // permitted mutation → re-tree (git-commit parity)
 }
 
-// runPrepareCommitMsg runs prepare-commit-msg <msgPath> "" (PRD FR-V2; VERIFIED argc=2 for a plain
-// commit — external_deps.md §2) on the SHARED message file. ALWAYS runs (NoVerify/DryRun don't gate it —
-// the caller gates the OTHER hooks). Skipped if absent/non-exec OR stagehand's OWN hook (FR-V4 recursion
-// prevention — invoking stagehand's own prepare-commit-msg would exec `stagehand hook exec` and recurse).
-// Returns the CAUSE error on non-zero/timeout (the caller wraps the full-context *RescueError).
+// runPrepareCommitMsg runs prepare-commit-msg <msgPath> (git githooks(5): for a plain commit no
+// second parameter is passed; argc=1, $2 unset) on the SHARED message file. ALWAYS runs
+// (NoVerify/DryRun don't gate it — the caller gates the OTHER hooks). Skipped if absent/non-exec
+// OR stagehand's OWN hook (FR-V4 recursion prevention — invoking stagehand's own prepare-commit-msg
+// would exec `stagehand hook exec` and recurse). Returns the CAUSE error on non-zero/timeout (the
+// caller wraps the full-context *RescueError).
 func runPrepareCommitMsg(ctx context.Context, cfg config.Config, opts HookOpts,
 	hooksDir, gitDir, workTree, msgPath string) error {
 	hookPath := filepath.Join(hooksDir, "prepare-commit-msg")
@@ -192,7 +193,7 @@ func runPrepareCommitMsg(ctx context.Context, cfg config.Config, opts HookOpts,
 		}
 		return nil
 	}
-	return runHook(ctx, cfg.HookTimeout, hookPath, []string{msgPath, ""}, gitDir, workTree, nil, opts)
+	return runHook(ctx, cfg.HookTimeout, hookPath, []string{msgPath}, gitDir, workTree, nil, opts)
 }
 
 // runCommitMsg runs commit-msg <msgPath> on the SHARED message file (sees prepare's output). Returns the
