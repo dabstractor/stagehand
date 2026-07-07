@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "v2.5 Reliability Hardening — Closed-Loop Token Budget & Stale Lock Reaping",
-      "status": "Ready",
+      "status": "Complete",
       "description": "Two reliability-hardening fixes from the v2.5 PRD revision: (1) FR3j closes the loop on the token_limit water-fill so the assembled prompt is guaranteed to never exceed the limit (observed ~152K delivered against 150K); (2) §18.5 reaps stale lock files (whose pid is dead) on Acquire and releases the lock file on the signal-rescue exit path before os.Exit. No commit/CAS/rescue behavior changes. No config or CLI surface changes.",
       "milestones": [
         {
@@ -271,21 +271,21 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Sync changeset-level documentation",
-          "status": "Ready",
+          "status": "Complete",
           "description": "Cross-cutting documentation updates for the v2.5 changeset: README.md feature table for the closed-loop token guarantee, docs/configuration.md token_limit description enhancement, and any overview-level docs that summarize the delta. Per-file docs touched directly by each subtask (lock.go comments, how-it-works.md stale-lock lines) are Mode A and ride with the implementing subtasks. This final task is Mode B — the cross-cutting sweep.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Sync changeset-level documentation",
-              "status": "Ready",
+              "status": "Complete",
               "description": "Update README.md and docs/configuration.md to reflect the v2.5 reliability hardening: the closed-loop token-budget guarantee (FR3j) and the stale lock-file reaping (§18.5). These are cross-cutting overview docs that only make sense once the whole changeset is in place.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T1.S1",
                   "title": "Update README.md and docs/configuration.md for v2.5 changes",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T3.S2",
