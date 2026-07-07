@@ -1,10 +1,10 @@
-// Package stagehand is Stagehand's public library surface (PRD §14.1).
+// Package stagecoach is Stagecoach's public library surface (PRD §14.1).
 // The entry point is GenerateCommit, which generates (and, unless Options.DryRun, creates) a commit
 // from the currently-staged index. The surface is intentionally tiny: an integrator imports this package
 // instead of reimplementing the pipeline or shelling out to the CLI.
 //
 // Stable as of v1.0.
-package stagehand
+package stagecoach
 
 import (
 	"context"

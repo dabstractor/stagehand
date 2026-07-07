@@ -23,7 +23,7 @@ import (
 
 // runDefault is the root command's default action (PRD §15.1): commit staged changes, auto-staging all
 // if nothing is staged and auto_stage_all is on (§9.4 FR16–FR20). It delegates generation+commit to the
-// PUBLIC API pkg/stagehand.GenerateCommit (US12 dogfooding), renders the FR42 success report, and maps
+// PUBLIC API pkg/stagecoach.GenerateCommit (US12 dogfooding), renders the FR42 success report, and maps
 // every §15.4 outcome by RETURNING an error that exitcode.For (S1) + main translate to an exit code.
 // It never calls os.Exit (only main does). Auto-stage lives HERE (CLI layer), not in the orchestrator
 // (PRD §11.3 — CommitStaged/GenerateCommit never call git add).
@@ -191,7 +191,7 @@ func runDefault(cmd *cobra.Command, args []string) error {
 	}
 	u.Progress(ui.ProgressLabel("Generating", labelModel, labelProvider))
 
-	res, err := stagehand.GenerateCommit(ctx, stagehand.Options{
+	res, err := stagecoach.GenerateCommit(ctx, stagecoach.Options{
 		Config:    cfg,
 		Provider:  cfg.Provider,
 		Model:     cfg.Model,
@@ -214,7 +214,7 @@ func runDefault(cmd *cobra.Command, args []string) error {
 		return nil                                  // exit 0
 	}
 
-	// Commit path: FR42 report. Compute the DiffTree file list ourselves — pkg/stagehand.Result drops
+	// Commit path: FR42 report. Compute the DiffTree file list ourselves — pkg/stagecoach.Result drops
 	// Changes (design §1). Best-effort: a DiffTree error post-commit is non-fatal (commit already landed).
 	changes, derr := g.DiffTree(ctx, res.CommitSHA, isUnborn)
 	if derr != nil {
@@ -337,7 +337,7 @@ func shortSHA(sha string) string {
 // the DiffTree name-status file list, one entry per line. Isolated as a function so P1.M4.T3 can restyle
 // it (the "↳ Created" decoration + color) without touching runDefault's flow (design §10). Format matches
 // PRD Appendix B.1's data; the ↳ progress wrapper is P1.M4.T3.
-func printCommitReport(w io.Writer, res stagehand.Result, changes []git.FileChange) {
+func printCommitReport(w io.Writer, res stagecoach.Result, changes []git.FileChange) {
 	fmt.Fprintf(w, "[%s] %s\n", shortSHA(res.CommitSHA), res.Subject)
 	for _, c := range changes {
 		if c.SrcPath != "" { // R/C rename/copy: "<status>\t<src>\t<dst>" → show "R100  old → new"
@@ -368,7 +368,7 @@ func shouldDecompose(cfg *config.Config, dryRun, noAutoStage bool) bool {
 
 // runDecompose builds decompose.Deps (ResolveRoles for the four roles) and runs the pipeline.
 // Prints each landed commit's FR42 report to stdout (including partial landings on FR-M12), then maps
-// the error. Calls internal/decompose.Decompose directly (pkg/stagehand.Decompose is P4.M2.T1.S1 —
+// the error. Calls internal/decompose.Decompose directly (pkg/stagecoach.Decompose is P4.M2.T1.S1 —
 // not yet shipped; that task swaps this one call site to the public wrapper).
 func runDecompose(ctx context.Context, stdout, stderr io.Writer, u *ui.UI, cfg *config.Config, g git.Git, repoDir string) error {
 	overrides, err := provider.DecodeUserOverrides(cfg.Providers)

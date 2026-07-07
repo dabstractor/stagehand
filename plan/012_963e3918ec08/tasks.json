@@ -18,7 +18,7 @@
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Module path, import paths, directories, and package declarations",
-              "status": "Planned",
+              "status": "Ready",
               "description": "Rename the Go module from github.com/dustin/stagehand to github.com/dustin/stagecoach, update all import paths, rename the cmd/stagehand/ and pkg/stagehand/ directories and their files, and rename the package declarations inside pkg/.",
               "subtasks": [
                 {
@@ -55,7 +55,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S3",
                   "title": "Rename files and package declarations within renamed directories",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S2"
@@ -71,7 +71,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S4",
                   "title": "Update binary build paths in test code and verify compilation",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S3"
@@ -96,7 +96,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Rename all Go identifiers containing Stagehand/stagehand",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T1.S4"

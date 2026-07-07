@@ -2,6 +2,7 @@
 /dist/
 /build/
 /stagehand
+/stagecoach
 /stubagent
 cmd/stubagent/stubagent
 *.exe

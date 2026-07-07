@@ -1,4 +1,4 @@
-package stagehand
+package stagecoach
 
 import (
 	"context"
