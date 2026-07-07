@@ -9,6 +9,7 @@ import (
 	"github.com/dustin/stagehand/internal/cmd"
 	"github.com/dustin/stagehand/internal/exitcode"
 	"github.com/dustin/stagehand/internal/generate"
+	"github.com/dustin/stagehand/internal/lock" // exit-path lock-release seam (FR52 §18.5)
 	"github.com/dustin/stagehand/internal/signal"
 )
 
@@ -57,6 +58,7 @@ func main() {
 	cmd.Version = resolveVersion(version) // cobra's --version prints this (short-circuits before config load)
 	ctx, _ := signal.Install(context.Background(), signal.Options{
 		RescueFormat: generate.FormatRescue,
+		OnRescueExit: lock.ReleaseCurrent, // FR52 §18.5: release the lock file before os.Exit orphans it
 		Out:          os.Stderr,
 	})
 	err := cmd.Execute(ctx)

@@ -190,7 +190,7 @@
               "type": "Task",
               "id": "P1.M2.T2",
               "title": "Exit-path lock release via signal seam",
-              "status": "Ready",
+              "status": "Complete",
               "description": "The signal-rescue path (handle() → os.Exit) skips defer locker.Release(). Add lock.ReleaseCurrent (nil-safe package wrapper) and signal.Options.OnRescueExit (injected seam), call OnRescueExit before both exit branches in handle(), and wire it in main.go.",
               "subtasks": [
                 {
@@ -211,7 +211,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T2.S2",
                   "title": "Wire OnRescueExit: lock.ReleaseCurrent in main.go",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T2.S1"
