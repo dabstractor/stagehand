@@ -160,6 +160,52 @@ func TestCommitStaged_PreCommitFreeze_HoldsForLiveStagedSentinel(t *testing.T) {
 	_ = res
 }
 
+// TestCommitStaged_CommitMsgEmptiesMessage_IsEmptyMessageAbort is the Issue-4 git-parity guard: a
+// commit-msg (or prepare-commit-msg) hook that empties the message file must NOT produce a commit. git
+// aborts "Aborting commit due to empty commit message." (exit 1); stagehand returns the BARE
+// generate.ErrEmptyMessage (exit 1, NOT a rescue) and creates NO commit (HEAD unchanged). (PRD §9.25
+// FR-V2 git parity.) Mirrors TestCommitStaged_PreCommitAbort_IsRescue's idiom but asserts a bare
+// ErrEmptyMessage (not *RescueError) — a hook that empties the file is a rejection, not a hook failure.
+func TestCommitStaged_CommitMsgEmptiesMessage_IsEmptyMessageAbort(t *testing.T) {
+	repo := initTempRepo(t)
+	if err := os.WriteFile(filepath.Join(repo, "fileA.txt"), []byte("a-mod\n"), 0o644); err != nil {
+		t.Fatalf("modify fileA: %v", err)
+	}
+	if out, err := exec.Command("git", "-C", repo, "add", "fileA.txt").CombinedOutput(); err != nil {
+		t.Fatalf("git add fileA: %v %s", err, out)
+	}
+
+	// A commit-msg hook that empties the message file (a common rejection / force-re-edit pattern).
+	// exit 0 ⇒ not a hook failure (no *RescueError); the guard catches the EMPTY result.
+	hooksDir := filepath.Join(repo, ".git", "hooks")
+	if err := os.WriteFile(filepath.Join(hooksDir, "commit-msg"),
+		[]byte("#!/bin/sh\n> \"$1\"\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write commit-msg hook: %v", err)
+	}
+
+	headBefore, _ := exec.Command("git", "-C", repo, "rev-parse", "HEAD").Output()
+
+	bin := stubtest.Build(t)
+	// NON-empty Out ⇒ generation succeeds; the hook then empties the message file.
+	m := stubtest.Manifest(bin, stubtest.Options{Out: "feat: non-empty generated message"})
+	cfg := config.Defaults()
+	deps := generate.Deps{Git: git.New(repo), Manifest: m, Hooks: hooks.DefaultRunner{}}
+
+	_, err := generate.CommitStaged(context.Background(), deps, cfg)
+	if err == nil {
+		t.Fatal("expected generate.ErrEmptyMessage, got nil (a commit with an empty message was created — the Issue-4 bug)")
+	}
+	if !errors.Is(err, generate.ErrEmptyMessage) {
+		t.Errorf("expected generate.ErrEmptyMessage (bare, exit 1 — NOT a rescue), got %T: %v", err, err)
+	}
+
+	// NO commit created (HEAD unchanged — the abort returned before CommitTree).
+	headAfter, _ := exec.Command("git", "-C", repo, "rev-parse", "HEAD").Output()
+	if string(headBefore) != string(headAfter) {
+		t.Errorf("HEAD moved on empty-message abort: %s → %s (a commit was created)", headBefore, headAfter)
+	}
+}
+
 // TestCommitStaged_PreCommitAbort_IsRescue is FR-V7: a non-zero pre-commit → CommitStaged returns
 // a *generate.RescueError (byte-identical to a generation failure → exit 3), HEAD is unchanged (no
 // update-ref ran), and the live index is idempotent (§20.2 property 1).

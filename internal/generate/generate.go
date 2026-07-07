@@ -431,6 +431,14 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 		treeSHA, msg = ft, fm // hook may have re-treed (permitted mutation) + annotated the msg
 	}
 
+	// §9.25 git parity (Issue 4): a prepare-commit-msg / commit-msg hook may have emptied the message
+	// file (a rejection / force-re-edit pattern). git aborts "Aborting commit due to empty commit
+	// message."; mirror it — return the BARE ErrEmptyMessage (exit 1, NOT a rescue), same as the --edit
+	// path above. HEAD + live index are untouched (the abort returns before CommitTree → no update-ref ran).
+	if strings.TrimSpace(msg) == "" {
+		return Result{}, ErrEmptyMessage
+	}
+
 	// Step 7: commit-tree — build the DANGLING commit object from the FROZEN tree.
 	var parents []string
 	if !isUnborn {
