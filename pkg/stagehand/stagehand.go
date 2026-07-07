@@ -432,6 +432,16 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config, sys
 	}
 	reserve := prompt.MessageReserveTokens(sysPrompt, cfg.MaxDuplicateRetries, cfg.SubjectTargetChars, cfg.Context, git.EstimateTokens)
 
+	// FR3j closed-loop: when token_limit is set, the gate re-measures the ACTUAL assembled prompt
+	// (sysPrompt + BuildUserPayload(gatedDiff)) after water-fill truncation and re-trims until it
+	// fits. nil when TokenLimit==0 (the gate branch doesn't run; byte-identical legacy path).
+	var measureAssembled func(string) int
+	if cfg.TokenLimit != 0 {
+		measureAssembled = func(gatedDiff string) int {
+			return git.EstimateTokens(sysPrompt + prompt.BuildUserPayload(gatedDiff, cfg.Context, nil))
+		}
+	}
+
 	// Step 3: diff payload; empty → nothing to commit. PromptReserveTokens carries the worst-case prompt
 	// token count for M4.T2's water-fill / M4.T3's gate (unread until M4.T3).
 	diff, err := deps.Git.StagedDiff(ctx, git.StagedDiffOptions{
@@ -442,6 +452,7 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config, sys
 		TokenLimit:          cfg.TokenLimit,
 		DiffContext:         cfg.DiffContextValue(),
 		PromptReserveTokens: reserve,
+		MeasureAssembled:    measureAssembled,
 	})
 	if err != nil {
 		return Result{}, err

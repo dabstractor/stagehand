@@ -57,14 +57,14 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Wire MeasureAssembled closures at all 6 consumer call sites",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Each of the 6 sites that call StagedDiff/TreeDiff with a non-zero TokenLimit must provide a MeasureAssembled closure that assembles the role-appropriate full prompt and measures it. The closure captures the system prompt and role-specific context, then returns EstimateTokens(sysPrompt + roleBuilder(gatedDiff)).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Wire MeasureAssembled at message-role consumer sites (generate, pkg, hook)",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S2"
@@ -81,7 +81,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S2",
                   "title": "Wire MeasureAssembled at decompose-role consumer sites (planner, message, arbiter)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S2"
