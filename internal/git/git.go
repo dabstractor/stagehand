@@ -1021,9 +1021,11 @@ func (g *gitRunner) StagedDiff(ctx context.Context, opts StagedDiffOptions) (str
 	}
 	nmDiff = stripIndexLines(nmDiff) // FR3h: drop `index <oid>..<oid> <mode>` before the byte cap
 	if opts.TokenLimit > 0 {
-		// FR3d/FR3i: the gate emits md + non-md (BOTH) under ONE shared water-fill budget; it returns the
-		// recomposed body (skeleton was already written above). The legacy byte cap is SUPPERSeded.
-		b.WriteString(applyWaterFillGate(mdDiffs, nmDiff, skeleton, opts.TokenLimit, opts.PromptReserveTokens))
+		// FR3d/FR3i/FR3j: closedLoopGate does the first-cut water-fill (applyWaterFillGate) AND, when
+		// opts.MeasureAssembled is non-nil, re-measures the ASSEMBLED prompt and re-trims if over
+		// tokenLimit (FR3j hard guarantee). nil MeasureAssembled ⇒ first-cut only (behavior unchanged).
+		gatedBody := closedLoopGate(mdDiffs, nmDiff, skeleton, opts.TokenLimit, opts.PromptReserveTokens, opts.MeasureAssembled)
+		b.WriteString(gatedBody)
 		return b.String(), nil
 	}
 	// Byte cap (post-capture, FINDING 7/G3). len() is byte length; the slice may split a UTF-8 rune —
@@ -1519,9 +1521,11 @@ func (g *gitRunner) TreeDiff(ctx context.Context, treeA, treeB string, opts Stag
 	}
 	nmDiff = stripIndexLines(nmDiff) // FR3h: drop `index <oid>..<oid> <mode>` before the byte cap
 	if opts.TokenLimit > 0 {
-		// FR3d/FR3i: the gate emits md + non-md (BOTH) under ONE shared water-fill budget; it returns the
-		// recomposed body (skeleton was already written above). The legacy byte cap is SUPPERSeded.
-		b.WriteString(applyWaterFillGate(mdDiffs, nmDiff, skeleton, opts.TokenLimit, opts.PromptReserveTokens))
+		// FR3d/FR3i/FR3j: closedLoopGate does the first-cut water-fill (applyWaterFillGate) AND, when
+		// opts.MeasureAssembled is non-nil, re-measures the ASSEMBLED prompt and re-trims if over
+		// tokenLimit (FR3j hard guarantee). nil MeasureAssembled ⇒ first-cut only (behavior unchanged).
+		gatedBody := closedLoopGate(mdDiffs, nmDiff, skeleton, opts.TokenLimit, opts.PromptReserveTokens, opts.MeasureAssembled)
+		b.WriteString(gatedBody)
 		return b.String(), nil
 	}
 	if len(nmDiff) > maxDiffBytes {
@@ -1692,9 +1696,11 @@ func (g *gitRunner) WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions)
 	}
 	nmDiff = stripIndexLines(nmDiff) // FR3h: drop `index <oid>..<oid> <mode>` before the byte cap
 	if opts.TokenLimit > 0 {
-		// FR3d/FR3i: the gate emits md + non-md (BOTH) under ONE shared water-fill budget; it returns the
-		// recomposed body (skeleton was already written above). The legacy byte cap is SUPPERSeded.
-		b.WriteString(applyWaterFillGate(mdDiffs, nmDiff, skeleton, opts.TokenLimit, opts.PromptReserveTokens))
+		// FR3d/FR3i/FR3j: closedLoopGate does the first-cut water-fill (applyWaterFillGate) AND, when
+		// opts.MeasureAssembled is non-nil, re-measures the ASSEMBLED prompt and re-trims if over
+		// tokenLimit (FR3j hard guarantee). nil MeasureAssembled ⇒ first-cut only (behavior unchanged).
+		gatedBody := closedLoopGate(mdDiffs, nmDiff, skeleton, opts.TokenLimit, opts.PromptReserveTokens, opts.MeasureAssembled)
+		b.WriteString(gatedBody)
 		return b.String(), nil
 	}
 	if len(nmDiff) > maxDiffBytes {

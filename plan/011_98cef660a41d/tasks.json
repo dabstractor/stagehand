@@ -18,7 +18,7 @@
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Closed-loop gate mechanism (internal/git)",
-              "status": "Ready",
+              "status": "Complete",
               "description": "Add the MeasureAssembled injection seam to StagedDiffOptions and implement the pure closed-loop trim function. Then wire the closed-loop into the three diff functions' >0 branches where mdDiffs/nmDiff/skeleton are in scope.",
               "subtasks": [
                 {
@@ -40,7 +40,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": "Wire closed-loop into StagedDiff/TreeDiff/WorkingTreeDiff",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
