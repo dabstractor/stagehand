@@ -100,7 +100,7 @@ type DecomposeResult struct {
 	Provider string   // resolved MESSAGE provider (for display)
 }
 
-// ---- Typed-error re-exports (so library consumers import only pkg/stagehand) ----
+// ---- Typed-error re-exports (so library consumers import only pkg/stagecoach) ----
 // These ARE the generate-package symbols (alias / same sentinel), so errors.Is / errors.As work
 // uniformly whether the error came from the delegation path (CommitStaged) or runPipeline.
 

@@ -1,4 +1,4 @@
-// Package cmd implements the models command for Stagehand (PRD §9.23 FR-L1/L2, §15.3, §6.2 N2).
+// Package cmd implements the models command for Stagecoach (PRD §9.23 FR-L1/L2, §15.3, §6.2 N2).
 // It provides a `models` cobra leaf on root that lists models reachable by a provider.
 // Source of truth per provider (FR-L1): (a) if the manifest's list_models_command is set and
 // succeeds, run it and print its stdout; (b) if absent or the command fails, print the curated
@@ -23,16 +23,16 @@ import (
 	"github.com/dustin/stagecoach/internal/ui"
 )
 
-// modelsCmd implements `stagehand models [<provider>]` (FR-L1).
+// modelsCmd implements `stagecoach models [<provider>]` (FR-L1).
 var modelsCmd = &cobra.Command{
 	Use:   "models [<provider>]",
 	Short: "List models reachable by a provider",
 	Long: `List the models a provider's CLI can reach — read straight from the agent CLI itself
-(never an HTTP call: stagehand has no API key; §6.2 N2 / FR-L1).
+(never an HTTP call: stagecoach has no API key; §6.2 N2 / FR-L1).
 
 Source of truth, in order:
   (a) the manifest's list_models_command — run it, print its stdout; or
-  (b) if absent or it fails — stagehand's curated per-role tier table, annotated with its
+  (b) if absent or it fails — stagecoach's curated per-role tier table, annotated with its
       verification date and "consult '<command> --help' for the live list".
 
 Default target is the resolved default provider; --all covers every detected provider.`,
@@ -73,7 +73,7 @@ func runModels(cmd *cobra.Command, args []string) error {
 
 	reg, err := newRegistry() // reuse providers.go helper (same package)
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	installed := installedNames(reg) // reuse
 	cfg := Config()                  // non-nil (PersistentPreRunE loaded it)
@@ -84,7 +84,7 @@ func runModels(cmd *cobra.Command, args []string) error {
 	case flagModelsAll:
 		if len(installed) == 0 {
 			return exitcode.New(exitcode.Error, fmt.Errorf(
-				"no providers detected on $PATH; install one of stagehand's supported agents"))
+				"no providers detected on $PATH; install one of stagecoach's supported agents"))
 		}
 		for _, name := range installed {
 			m, _ := reg.Get(name)
@@ -107,7 +107,7 @@ func runModels(cmd *cobra.Command, args []string) error {
 		}
 		if !detected {
 			return exitcode.New(exitcode.Error, fmt.Errorf(
-				"provider %q is not detected on $PATH; install it or run 'stagehand models --all' for detected providers", name))
+				"provider %q is not detected on $PATH; install it or run 'stagecoach models --all' for detected providers", name))
 		}
 		targets = append(targets, modelTarget{name: name, manifest: m})
 
@@ -115,7 +115,7 @@ func runModels(cmd *cobra.Command, args []string) error {
 		dflt := resolvedDefault(cfg, reg, installed)
 		if dflt == "" {
 			return exitcode.New(exitcode.Error, fmt.Errorf(
-				"no provider detected on $PATH; pass a provider name or install one of stagehand's supported agents"))
+				"no provider detected on $PATH; pass a provider name or install one of stagecoach's supported agents"))
 		}
 		m, _ := reg.Get(dflt)
 		targets = append(targets, modelTarget{name: dflt, manifest: m})
@@ -155,7 +155,7 @@ func renderModelBlock(cmd *cobra.Command, t modelTarget, cfg *config.Config) {
 			return
 		}
 		// FR-L1 (b): command failed → curated fallback
-		fmt.Fprintf(cmd.ErrOrStderr(), "stagehand: %s list command failed (%v); using curated table\n", t.name, err)
+		fmt.Fprintf(cmd.ErrOrStderr(), "stagecoach: %s list command failed (%v); using curated table\n", t.name, err)
 		// fall through to curated
 	}
 	printCuratedTable(cmd.OutOrStdout(), t)
@@ -181,7 +181,7 @@ func printCuratedTable(w io.Writer, t modelTarget) {
 		}
 		fmt.Fprintf(w, "  %-8s %s\n", role, m)
 	}
-	fmt.Fprintf(w, "\nStagehand's curated per-role defaults (verified %s). The live list may differ — consult `%s --help`.\n",
+	fmt.Fprintf(w, "\nStagecoach's curated per-role defaults (verified %s). The live list may differ — consult `%s --help`.\n",
 		config.DefaultModelsVerificationDate, t.manifest.DetectCommand())
 }
 

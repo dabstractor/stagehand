@@ -15,7 +15,7 @@ import (
 
 // newIsolatedGitAliasEntry builds a gitAliasEntry isolated from the real global config.
 // It sets GIT_CONFIG_GLOBAL to a temp file so the real ~/.gitconfig is NEVER touched.
-// name is the alias name; "" resolves to "stagehand".
+// name is the alias name; "" resolves to "stagecoach".
 func newIsolatedGitAliasEntry(t *testing.T, name string) *gitAliasEntry {
 	t.Helper()
 	cfg := filepath.Join(t.TempDir(), "gitconfig")

@@ -37,8 +37,8 @@ func runGitCommit(t *testing.T, repo string, env []string, args ...string) (stri
 	return stdout, stderr, 0
 }
 
-// runGitCommitHook installs the stagehand hook in repo, then runs git commit with the given env.
-// The env must include PATH (with stagehand binary dir), STAGECOACH_CONFIG, and stub knobs.
+// runGitCommitHook installs the stagecoach hook in repo, then runs git commit with the given env.
+// The env must include PATH (with stagecoach binary dir), STAGECOACH_CONFIG, and stub knobs.
 func runGitCommitHook(t *testing.T, bin, repo, cfg string, env []string, gitArgs ...string) (string, string, int) {
 	t.Helper()
 	// Install the hook.
@@ -52,7 +52,7 @@ func runGitCommitHook(t *testing.T, bin, repo, cfg string, env []string, gitArgs
 	return runGitCommit(t, repo, env, gitArgs...)
 }
 
-// buildStagecoachPath returns just the directory of the built stagehand binary.
+// buildStagecoachPath returns just the directory of the built stagecoach binary.
 func buildStagecoachPath(t *testing.T) string {
 	t.Helper()
 	bin := buildStagecoach(t)

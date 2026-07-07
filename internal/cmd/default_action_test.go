@@ -101,7 +101,7 @@ strip_code_fence = true
 
 	// Commit the config so it's tracked and not an untracked file picked up by AddAll
 	runGit(t, repo, "add", ".stagecoach.toml")
-	runGit(t, repo, "commit", "-m", "init: add stagehand config")
+	runGit(t, repo, "commit", "-m", "init: add stagecoach config")
 
 	t.Setenv("STAGECOACH_STUB_OUT", stubOut)
 	return repo
@@ -131,7 +131,7 @@ timeout = "%s"
 
 	// Commit the config so it's tracked
 	runGit(t, repo, "add", ".stagecoach.toml")
-	runGit(t, repo, "commit", "-m", "init: add stagehand config")
+	runGit(t, repo, "commit", "-m", "init: add stagecoach config")
 
 	t.Setenv("STAGECOACH_STUB_OUT", stubOut)
 	t.Setenv("STAGECOACH_STUB_SLEEP_MS", fmt.Sprintf("%d", sleepMs))
@@ -313,10 +313,10 @@ func TestRunDefault_DryRun(t *testing.T) {
 		t.Errorf("stdout = %q, must NOT contain '(no commit created)' (pipeable)", stdout)
 	}
 
-	// HEAD unchanged — the last commit should still be "init: add stagehand config"
+	// HEAD unchanged — the last commit should still be "init: add stagecoach config"
 	logMsg := gitOut(t, repo, "log", "--format=%s", "-n1")
-	if logMsg != "init: add stagehand config" {
-		t.Errorf("HEAD moved to %q, want 'init: add stagehand config' (no commit)", logMsg)
+	if logMsg != "init: add stagecoach config" {
+		t.Errorf("HEAD moved to %q, want 'init: add stagecoach config' (no commit)", logMsg)
 	}
 }
 
@@ -348,8 +348,8 @@ func TestRunDefault_NothingStaged_FR17(t *testing.T) {
 
 	// HEAD unchanged
 	logMsg := gitOut(t, repo, "log", "--format=%s", "-n1")
-	if logMsg != "init: add stagehand config" {
-		t.Errorf("HEAD moved to %q, want 'init: add stagehand config'", logMsg)
+	if logMsg != "init: add stagecoach config" {
+		t.Errorf("HEAD moved to %q, want 'init: add stagecoach config'", logMsg)
 	}
 
 	// Issue 7: clean tree must NOT print the misleading "staging all changes" notice.
@@ -508,8 +508,8 @@ func TestRunDefault_CleanTreeNoAutoStageNotice_Issue7(t *testing.T) {
 	}
 
 	// HEAD unchanged — last commit is still the config commit from setupStubRepo.
-	if logMsg := gitOut(t, repo, "log", "--format=%s", "-n1"); logMsg != "init: add stagehand config" {
-		t.Errorf("HEAD moved to %q, want 'init: add stagehand config'", logMsg)
+	if logMsg := gitOut(t, repo, "log", "--format=%s", "-n1"); logMsg != "init: add stagecoach config" {
+		t.Errorf("HEAD moved to %q, want 'init: add stagecoach config'", logMsg)
 	}
 }
 
@@ -801,7 +801,7 @@ strip_code_fence = true
 }
 
 // TestRunDefault_MissingProviderCommand_Issue3 proves PRD Issue 3 is fixed end-to-end through the CLI
-// seam: `stagehand --provider <missing-command>` exits 1 with the not-found message and NO §18.3
+// seam: `stagecoach --provider <missing-command>` exits 1 with the not-found message and NO §18.3
 // rescue block / no dangling tree. Before P1.M2.T1.S1 this was exit 3 + rescue block + dangling tree.
 func TestRunDefault_MissingProviderCommand_Issue3(t *testing.T) {
 	origArgs, origOut, origErr, origRunE := saveRootState(t)
@@ -817,7 +817,7 @@ func TestRunDefault_MissingProviderCommand_Issue3(t *testing.T) {
 	// count-objects guard is meaningful.
 	runGit(t, repo, "add", ".stagecoach.toml")
 	runGit(t, repo, "commit", "-m", "initial")
-	writeFile(t, repo, "new.txt", "content") // NEW file — see pkg/stagehand test comment for why
+	writeFile(t, repo, "new.txt", "content") // NEW file — see pkg/stagecoach test comment for why
 	stageFile(t, repo, "new.txt")
 
 	beforeCount := objectCountLine(t, repo)
@@ -1139,7 +1139,7 @@ func TestRouting_DecomposeEntered(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // TestRouting_StagedCommitsOnlyStaged_NoDecompose — THE BASELINE CONTRACT: when ANY file is
-// staged, stagehand generates ONE commit message for EXACTLY the staged content and leaves the
+// staged, stagecoach generates ONE commit message for EXACTLY the staged content and leaves the
 // rest of the working tree untouched. It must NOT decompose, and must NOT pull in unstaged files.
 // (This is the contract a prior change violated by decomposing staged+unstaged trees.)
 // ---------------------------------------------------------------------------
@@ -1459,7 +1459,7 @@ tooled_flags = ["--yes"]
 		t.Fatal("Execute err = nil, want non-nil for bare model on provider_flag provider")
 	}
 
-	// G1: the FR-R5b error is surfaced (returned to the caller, which main prints as "stagehand: …").
+	// G1: the FR-R5b error is surfaced (returned to the caller, which main prints as "stagecoach: …").
 	if !strings.Contains(err.Error(), "must be inference/model") {
 		t.Errorf("err = %v, want it to mention inference/model", err)
 	}

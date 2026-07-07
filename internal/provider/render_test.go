@@ -501,7 +501,7 @@ func mtPiManifest() Manifest {
 // TestRenderMultiTurn_PiTurn1_Golden is the byte-for-byte FR-T9 pin: --no-session dropped, --session-id
 // <id> added (before -p), --system-prompt <sys> present on turn 1, Stdin = payload only.
 func TestRenderMultiTurn_PiTurn1_Golden(t *testing.T) {
-	spec, err := mtPiManifest().RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagehand-test", 1)
+	spec, err := mtPiManifest().RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagecoach-test", 1)
 	if err != nil {
 		t.Fatalf("RenderMultiTurn: %v", err)
 	}
@@ -510,7 +510,7 @@ func TestRenderMultiTurn_PiTurn1_Golden(t *testing.T) {
 		"--system-prompt", "<sys>",
 		"--no-tools", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files",
 		// NOTE: "--no-session" is ABSENT (filtered).
-		"--session-id", "stagehand-test",
+		"--session-id", "stagecoach-test",
 		"-p", // print_flag LAST
 	}
 	if spec.Command != "pi" {
@@ -535,7 +535,7 @@ func TestRenderMultiTurn_PiTurn1_Golden(t *testing.T) {
 // sys prepend — even though sysPrompt is passed non-empty. The single turnSys local makes both guards
 // turn-correct; this is the load-bearing turn-1-only assertion.
 func TestRenderMultiTurn_PiTurn2_NoSysPromptFlag_NoPrepend(t *testing.T) {
-	spec, err := mtPiManifest().RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagehand-test", 2)
+	spec, err := mtPiManifest().RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagecoach-test", 2)
 	if err != nil {
 		t.Fatalf("RenderMultiTurn: %v", err)
 	}
@@ -543,7 +543,7 @@ func TestRenderMultiTurn_PiTurn2_NoSysPromptFlag_NoPrepend(t *testing.T) {
 		"--provider", "zai", "--model", "glm-5.2",
 		// NOTE: NO "--system-prompt","<sys>" (turn>1 ⇒ turnSys="" ⇒ flag suppressed).
 		"--no-tools", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files",
-		"--session-id", "stagehand-test",
+		"--session-id", "stagecoach-test",
 		"-p",
 	}
 	if !reflect.DeepEqual(spec.Args, wantArgs) {
@@ -589,7 +589,7 @@ func TestRenderMultiTurn_NonAppendProviderErrors(t *testing.T) {
 func TestRenderMultiTurn_DoesNotMutateManifest(t *testing.T) {
 	m := mtPiManifest()
 	wantBare := append([]string(nil), m.BareFlags...)
-	_, _ = m.RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagehand-test", 1)
+	_, _ = m.RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagecoach-test", 1)
 	if !reflect.DeepEqual(m.BareFlags, wantBare) {
 		t.Errorf("BareFlags mutated:\n got %v\nwant %v", m.BareFlags, wantBare)
 	}
@@ -609,9 +609,9 @@ func TestRenderMultiTurn_GoldenTable(t *testing.T) {
 		sessionID            string
 		wantSysPromptPresent bool
 	}{
-		{"pi_turn1_session_id_and_sys_prompt_no_no_session", 1, "stagehand-gt-t1", true},
-		{"pi_turn2_session_id_present_sys_prompt_absent", 2, "stagehand-gt-t1", false},
-		{"pi_turn3_session_id_still_present_sys_prompt_absent", 3, "stagehand-gt-t1", false},
+		{"pi_turn1_session_id_and_sys_prompt_no_no_session", 1, "stagecoach-gt-t1", true},
+		{"pi_turn2_session_id_present_sys_prompt_absent", 2, "stagecoach-gt-t1", false},
+		{"pi_turn3_session_id_still_present_sys_prompt_absent", 3, "stagecoach-gt-t1", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -644,7 +644,7 @@ func TestRenderMultiTurn_GoldenTable(t *testing.T) {
 // assert the id renders identically across turns. A regression that mutated the id per turn (e.g.
 // appending a counter) would fail here.
 func TestRenderMultiTurn_SessionIDStableAcrossTurns(t *testing.T) {
-	const sid = "stagehand-stability-probe"
+	const sid = "stagecoach-stability-probe"
 	for turn := 1; turn <= 3; turn++ {
 		spec, err := mtPiManifest().RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", sid, turn)
 		if err != nil {

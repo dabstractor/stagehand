@@ -349,7 +349,7 @@ func TestDispatchInstall_UnknownTarget(t *testing.T) {
 	if !strings.Contains(stderrStr, "unknown target") || !strings.Contains(stderrStr, "ghost") {
 		t.Errorf(`stderr should mention "unknown target" + "ghost", got %q`, stderrStr)
 	}
-	if !strings.Contains(stderrStr, "see `stagehand integrate list`") {
+	if !strings.Contains(stderrStr, "see `stagecoach integrate list`") {
 		t.Error(`stderr should mention "see integrate list"`)
 	}
 }
@@ -618,7 +618,7 @@ func TestIntegrateRemove_UninstallAlias(t *testing.T) {
 		t.Fatalf("integrateRemoveCmd.Aliases = %v, want 'uninstall' present", integrateRemoveCmd.Aliases)
 	}
 
-	// End-to-end: `stagehand integrate uninstall <target>` resolves to runIntegrateRemove and dispatches
+	// End-to-end: `stagecoach integrate uninstall <target>` resolves to runIntegrateRemove and dispatches
 	// a remove against the registry (the fake records it).
 	_, origOut, origErr, origRunE := saveRootState(t)
 	defer func() {
@@ -711,7 +711,7 @@ func TestIntegrateList_OutsideRepo(t *testing.T) {
 		t.Error(`list output missing header (should work outside repo)`)
 	}
 	// Confirm no config was bootstrapped
-	if _, statErr := os.Stat(home + "/stagehand/config.toml"); statErr == nil {
+	if _, statErr := os.Stat(home + "/stagecoach/config.toml"); statErr == nil {
 		t.Error("integrate list created a config file (bootstrap side effect)")
 	}
 }

@@ -101,7 +101,7 @@ func countNonBlankLines(s string) int {
 
 // BuildSystemPrompt implements PRD §9.3 FR13 / §17.1: assemble the mature-repo system prompt from the
 // canonical constants + the repo's recent-commit examples + the detected multi-line flag + the subject
-// target. It is the style-learning half of stagehand's core IP (PRD §13): the model is shown up to 20
+// target. It is the style-learning half of stagecoach's core IP (PRD §13): the model is shown up to 20
 // real recent commits so its output matches the repo's conventions, while the verbatim anti-reuse
 // prohibition forbids copying the example text.
 //

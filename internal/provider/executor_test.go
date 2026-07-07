@@ -124,7 +124,7 @@ func TestExecute_NoStdinDoesNotHang(t *testing.T) {
 
 // 8. Command not found ⇒ wrapped Start() error.
 func TestExecute_CommandNotFound(t *testing.T) {
-	spec := CmdSpec{Command: "definitely-not-a-real-binary-xyz-stagehand", Env: os.Environ()}
+	spec := CmdSpec{Command: "definitely-not-a-real-binary-xyz-stagecoach", Env: os.Environ()}
 	_, _, err := Execute(context.Background(), spec, 3*time.Second, nil)
 	if err == nil {
 		t.Fatal("err = nil, want non-nil (command not found)")

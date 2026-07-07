@@ -1,4 +1,4 @@
-// Package hook provides the lifecycle logic for stagehand's per-repo prepare-commit-msg hook
+// Package hook provides the lifecycle logic for stagecoach's per-repo prepare-commit-msg hook
 // (PRD §9.20 FR-H1/FR-H2/FR-H3/FR-H5). Detect, Install, and Uninstall operate on a hooks
 // directory path (no git dependency) so they are unit-testable with a bare temp dir.
 // This file extends P1.M3.T1.S1's script.go primitives (Marker, ScriptMode, hookScript).
@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// HookFilename is the git hook stagehand manages (PRD §9.20 — prepare-commit-msg only).
+// HookFilename is the git hook stagecoach manages (PRD §9.20 — prepare-commit-msg only).
 const HookFilename = "prepare-commit-msg"
 
 // Status is the state of a repo's prepare-commit-msg hook (PRD §9.20 FR-H3).
@@ -19,15 +19,15 @@ type Status int
 
 const (
 	StatusNone       Status = iota // no prepare-commit-msg file
-	StatusStagecoach               // stagehand-owned (Marker present)
+	StatusStagecoach               // stagecoach-owned (Marker present)
 	StatusForeign                  // a hook file exists WITHOUT our Marker (never touch it)
 )
 
-// String renders the FR-H3 report tokens EXACTLY: "none" / "stagehand (v1)" / "foreign".
+// String renders the FR-H3 report tokens EXACTLY: "none" / "stagecoach (v1)" / "foreign".
 func (s Status) String() string {
 	switch s {
 	case StatusStagecoach:
-		return "stagehand (v1)"
+		return "stagecoach (v1)"
 	case StatusForeign:
 		return "foreign"
 	default:
@@ -38,7 +38,7 @@ func (s Status) String() string {
 // Sentinels for the refusal paths (FR-H2 / FR-H3). Callers use errors.Is.
 var (
 	ErrForeignHook = errors.New("a foreign prepare-commit-msg hook exists")
-	ErrNoHook      = errors.New("no stagehand prepare-commit-msg hook is installed")
+	ErrNoHook      = errors.New("no stagecoach prepare-commit-msg hook is installed")
 )
 
 // Detect examines the hooks directory and returns the current hook status.
@@ -58,7 +58,7 @@ func Detect(hooksDir string) (Status, error) {
 	return StatusForeign, nil
 }
 
-// Install writes the stagehand prepare-commit-msg hook into hooksDir.
+// Install writes the stagecoach prepare-commit-msg hook into hooksDir.
 // For StatusNone or StatusStagecoach (idempotent rewrite), it creates the dir if absent
 // and writes the script with mode 0o755 (os.Chmod after WriteFile to defeat umask).
 // For StatusForeign it returns ErrForeignHook WITHOUT touching the file.
@@ -87,7 +87,7 @@ func Install(hooksDir string, strict bool, configPath string) (Status, error) {
 	return prev, nil
 }
 
-// Uninstall removes the stagehand prepare-commit-msg hook.
+// Uninstall removes the stagecoach prepare-commit-msg hook.
 // StatusStagecoach → removes the file. StatusForeign → ErrForeignHook (untouched).
 // StatusNone → ErrNoHook (idempotent — nothing to remove).
 func Uninstall(hooksDir string) (Status, error) {
@@ -117,7 +117,7 @@ func Script(strict bool, configPath string) string { return hookScript(strict, c
 // exec line (the export lives on its own line, NOT in InvocationLine) — see hookScript.
 func InvocationLine(strict bool) string {
 	if strict {
-		return `exec stagehand hook exec --strict "$@"`
+		return `exec stagecoach hook exec --strict "$@"`
 	}
-	return `exec stagehand hook exec "$@"`
+	return `exec stagecoach hook exec "$@"`
 }

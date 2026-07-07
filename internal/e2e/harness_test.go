@@ -1,7 +1,7 @@
 //go:build e2e
 
 // Package e2e implements the PRD §20.5 throwaway-repo regression harness: per scenario,
-// git init a temp repo, seed it, run the compiled stagehand binary as a subprocess (real agent
+// git init a temp repo, seed it, run the compiled stagecoach binary as a subprocess (real agent
 // when STAGECOACH_RUN_REAL=1, else a stub provider wired via --config + cmd/stubagent), and assert
 // the resulting history / exit code. This subprocess angle catches CLI-routing + config-load + real-repo
 // bugs that the in-process library tests (§20.1 layer 3, decompose_test.go) cannot reach.
@@ -29,7 +29,7 @@ import (
 	"github.com/dustin/stagecoach/internal/stubtest"
 )
 
-// e2eResult bundles a stagehand subprocess run's observable outputs for assertion.
+// e2eResult bundles a stagecoach subprocess run's observable outputs for assertion.
 type e2eResult struct {
 	Stdout   string
 	Stderr   string
@@ -41,7 +41,7 @@ var (
 	stagecoachBin  string
 )
 
-// buildStagecoach compiles ./cmd/stagehand ONCE per test process (cached) and returns its path.
+// buildStagecoach compiles ./cmd/stagecoach ONCE per test process (cached) and returns its path.
 // Mirrors stubtest.Build — import-path build so cwd-independent. Skips t if the go toolchain
 // is not on PATH.
 func buildStagecoach(t *testing.T) string {
@@ -49,14 +49,14 @@ func buildStagecoach(t *testing.T) string {
 	stagecoachOnce.Do(func() {
 		goPath, err := exec.LookPath("go")
 		if err != nil {
-			t.Skipf("go toolchain not on PATH; cannot build stagehand: %v", err)
+			t.Skipf("go toolchain not on PATH; cannot build stagecoach: %v", err)
 			return
 		}
-		dir, err := os.MkdirTemp("", "stagehand-e2e-*")
+		dir, err := os.MkdirTemp("", "stagecoach-e2e-*")
 		if err != nil {
 			t.Fatalf("mkdtemp: %v", err)
 		}
-		name := "stagehand"
+		name := "stagecoach"
 		if runtime.GOOS == "windows" {
 			name = "stagecoach.exe"
 		}
@@ -64,7 +64,7 @@ func buildStagecoach(t *testing.T) string {
 		build := exec.Command(goPath, "build", "-o", stagecoachBin,
 			"github.com/dustin/stagecoach/cmd/stagecoach")
 		if out, err := build.CombinedOutput(); err != nil {
-			t.Fatalf("go build stagehand: %v\n%s", err, out)
+			t.Fatalf("go build stagecoach: %v\n%s", err, out)
 		}
 	})
 	return stagecoachBin
@@ -177,7 +177,7 @@ tooled_flags = ["--tooled"]
 	return p
 }
 
-// stubEnv builds the stagehand process env for one scenario: os.Environ() + the given
+// stubEnv builds the stagecoach process env for one scenario: os.Environ() + the given
 // STAGECOACH_STUB_* knobs. Per executor.go: Render = os.Environ()+manifest.Env, so these inherit
 // to the stub subprocess.
 func stubEnv(knobs map[string]string) []string {
@@ -188,7 +188,7 @@ func stubEnv(knobs map[string]string) []string {
 	return env
 }
 
-// runStagecoach drives the compiled stagehand binary as a subprocess. Returns captured outputs + exit
+// runStagecoach drives the compiled stagecoach binary as a subprocess. Returns captured outputs + exit
 // code. Uses a 60s context timeout so a hung agent fails the test (not the suite).
 func runStagecoach(t *testing.T, bin, repo, cfg string, env []string, args ...string) e2eResult {
 	t.Helper()
@@ -207,7 +207,7 @@ func runStagecoach(t *testing.T, bin, repo, cfg string, env []string, args ...st
 		if ee := (*exec.ExitError)(nil); errors.As(err, &ee) {
 			r.ExitCode = ee.ExitCode()
 		} else {
-			t.Fatalf("run stagehand: %v", err)
+			t.Fatalf("run stagecoach: %v", err)
 		}
 	}
 	return r

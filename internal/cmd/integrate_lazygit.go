@@ -17,32 +17,32 @@ import (
 const (
 	lazygitTargetName = "lazygit"
 	defaultLazygitKey = "<c-a>"                  // FR-I5: the default key binding
-	lazygitMarker     = "stagecoach-integration" // the LineComment substring that identifies stagehand's entry
+	lazygitMarker     = "stagecoach-integration" // the LineComment substring that identifies stagecoach's entry
 )
 
-// entryTpl is the ONE stagehand customCommands entry, as a one-item YAML sequence document.
+// entryTpl is the ONE stagecoach customCommands entry, as a one-item YAML sequence document.
 // The %s is the key binding. The `# stagecoach-integration` marker rides on the `key` VALUE scalar
-// (LineComment) — stagehand's idempotency identity (FR-I3b), independent of the binding.
+// (LineComment) — stagecoach's idempotency identity (FR-I3b), independent of the binding.
 // Field names verified against lazygit v0.62.2 (external_deps.md §1): `output` (not the older
 // subprocess/showOutput), `loadingText` valid, context `files`.
 var entryTpl = `- key: '%s' # stagecoach-integration
   context: 'files'
-  command: 'stagehand'
+  command: 'stagecoach'
   loadingText: 'Generating commit message…'
   output: 'none'
-  description: 'stagehand: AI commit'
+  description: 'stagecoach: AI commit'
 `
 
 var flagLazygitKey string // --key (local on integrateInstallCmd AND integrateRemoveCmd; mirrors --alias-name)
 
 func init() {
 	// Register --key on BOTH leaves for UI symmetry + resetIntegrateFlags parity with --alias-name.
-	// (Remove targets the MARKER entry regardless of --key — the marker is stagehand's identity; --key is the
-	// binding stagehand writes. Documented in docs/cli.md.) Shared var; default "" → resolved to "<c-a>".
+	// (Remove targets the MARKER entry regardless of --key — the marker is stagecoach's identity; --key is the
+	// binding stagecoach writes. Documented in docs/cli.md.) Shared var; default "" → resolved to "<c-a>".
 	integrateInstallCmd.Flags().StringVar(&flagLazygitKey, "key", "",
 		"lazygit key binding to install (default: <c-a>)")
 	integrateRemoveCmd.Flags().StringVar(&flagLazygitKey, "key", "",
-		"lazygit key binding (default: <c-a>; remove targets the marked stagehand entry)")
+		"lazygit key binding (default: <c-a>; remove targets the marked stagecoach entry)")
 }
 
 // ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ func init() {
 // ---------------------------------------------------------------------------
 
 // lazygitTarget implements integrate.Target for lazygit's config.yml (PRD §9.21 FR-I5).
-// key is the binding stagehand writes; root is the parsed document (populated by Parse).
+// key is the binding stagecoach writes; root is the parsed document (populated by Parse).
 // Stateful: Parse populates root; HasEntry/Upsert/Remove read/mutate it;
 // Validate is a clean local probe (no Parse reliance).
 type lazygitTarget struct {
@@ -76,7 +76,7 @@ func (t *lazygitTarget) Parse(data []byte) error {
 // HasEntry reports whether the marker-identified entry is present in the parsed tree.
 func (t *lazygitTarget) HasEntry() bool { return t.findMarkedItem() != nil }
 
-// Upsert returns new bytes with the stagehand entry inserted (absent) or replaced (present).
+// Upsert returns new bytes with the stagecoach entry inserted (absent) or replaced (present).
 // Surgical: only the marker entry changes semantically (incidental whole-doc normalization is
 // possible — architecture §2 — and surfaced by Apply's preview-diff).
 func (t *lazygitTarget) Upsert() ([]byte, error) {
@@ -210,11 +210,11 @@ func (t *lazygitTarget) findKeyItem(key string) *yaml.Node {
 	return nil
 }
 
-// newEntryNode builds the stagehand entry from entryTpl and returns its single MappingNode.
+// newEntryNode builds the stagecoach entry from entryTpl and returns its single MappingNode.
 func (t *lazygitTarget) newEntryNode() (*yaml.Node, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(fmt.Sprintf(entryTpl, t.key)), &doc); err != nil {
-		return nil, fmt.Errorf("build stagehand entry: %w", err)
+		return nil, fmt.Errorf("build stagecoach entry: %w", err)
 	}
 	return doc.Content[0].Content[0], nil // DocumentNode → SequenceNode → the one MappingNode item
 }
@@ -234,7 +234,7 @@ func (t *lazygitTarget) encode(root *yaml.Node) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// isStagecoachItem reports whether a sequence item is stagehand's (marker on the `key` value scalar).
+// isStagecoachItem reports whether a sequence item is stagecoach's (marker on the `key` value scalar).
 func isStagecoachItem(item *yaml.Node) bool {
 	return item.Kind == yaml.MappingNode && len(item.Content) >= 2 &&
 		strings.Contains(item.Content[1].LineComment, lazygitMarker)
@@ -313,7 +313,7 @@ func (e *lazygitEntry) Install(ctx context.Context, opts integrate.InstallOption
 		probe := &lazygitTarget{key: e.key} // throwaway — separate state from Apply's tgt
 		if perr := probe.Parse(data); perr == nil {
 			if probe.findKeyItem(e.key) != nil {
-				fmt.Fprintf(out, "WARNING: a %s binding already exists (not managed by stagehand); installing will create a duplicate customCommands entry — use --key to choose a different binding.\n", e.key)
+				fmt.Fprintf(out, "WARNING: a %s binding already exists (not managed by stagecoach); installing will create a duplicate customCommands entry — use --key to choose a different binding.\n", e.key)
 			}
 		}
 	}

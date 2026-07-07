@@ -2,7 +2,7 @@
 
 // lock_scenarios_test.go is the PRD §20.5 cross-process regression net for the FR52 per-repo run lock
 // (PRD §18.5). It exercises the LANDED S2 contention wiring (internal/cmd/default_action.go:
-// lock.Acquire + handleLockContention) against REAL stagehand subprocesses on REAL temp git repos —
+// lock.Acquire + handleLockContention) against REAL stagecoach subprocesses on REAL temp git repos —
 // the layer unit tests cannot reach (real flock across real processes). Reuses the harness primitives
 // (buildStagecoach/newRepo/runStagecoach/waitForMarker/writeStubConfig/stubEnv) and the stub agent's
 // STAGECOACH_STUB_MARKER + STAGECOACH_STUB_SLEEP_MS blocking pattern (NO new binary). Test-only.

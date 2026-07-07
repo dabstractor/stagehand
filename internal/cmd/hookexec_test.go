@@ -28,7 +28,7 @@ func hookexecNewTestRepo(t *testing.T) string {
 	return dir
 }
 
-// writeTestStubConfig writes a minimal stagehand config pointing at the stub binary.
+// writeTestStubConfig writes a minimal stagecoach config pointing at the stub binary.
 func writeTestStubConfig(t *testing.T, stubBin string) string {
 	t.Helper()
 	body := `config_version = 3
@@ -255,8 +255,8 @@ func TestHookExec_StrictFail_HasStderrLine(t *testing.T) {
 	_ = rootCmd.ExecuteContext(context.TODO())
 
 	errStr := errBuf.String()
-	if !strings.Contains(errStr, "stagehand:") {
-		t.Errorf("expected 'stagehand:' on stderr, got: %s", errStr)
+	if !strings.Contains(errStr, "stagecoach:") {
+		t.Errorf("expected 'stagecoach:' on stderr, got: %s", errStr)
 	}
 	lines := strings.Split(strings.TrimSpace(errStr), "\n")
 	if len(lines) > 2 {

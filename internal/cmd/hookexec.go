@@ -1,4 +1,4 @@
-// Package cmd implements the hook exec cobra leaf for Stagehand (PRD §9.20 FR-H4/H5/H6).
+// Package cmd implements the hook exec cobra leaf for Stagecoach (PRD §9.20 FR-H4/H5/H6).
 // It loads config ITSELF (hookCmd's no-op PersistentPreRunE skips root's load), resolves the
 // message manifest (mirroring runDefault/buildDeps), and applies the never-block exit-code mapping.
 //
@@ -27,7 +27,7 @@ var flagHookExecStrict bool
 var hookExecCmd = &cobra.Command{
 	Use:   "exec <msg-file> [<source> [<sha>]]",
 	Short: "Generate a commit message into git's prepare-commit-msg file (called by the installed hook)",
-	Long: `Called by stagehand's prepare-commit-msg hook — not by users. Generates a message for the
+	Long: `Called by stagecoach's prepare-commit-msg hook — not by users. Generates a message for the
 staged diff and writes it at the top of <msg-file>, preserving git's comment block. No-op (exit 0)
 when a message source is present (message/template/merge/squash/commit) or nothing is staged. Any
 generation failure leaves the file untouched and exits 0 (never block) unless --strict aborts. (PRD §9.20)`,
@@ -49,12 +49,12 @@ func runHookExec(cmd *cobra.Command, args []string) error {
 
 	repoDir, err := os.Getwd()
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: getwd: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: getwd: %w", err))
 	}
 
 	// §9.22 FR-E4: --edit on hook exec is a usage error (git already opens the editor).
 	if cmd.Flags().Changed("edit") {
-		fmt.Fprintln(stderr, "stagehand: --edit is not valid with hook exec (git already opens the editor)")
+		fmt.Fprintln(stderr, "stagecoach: --edit is not valid with hook exec (git already opens the editor)")
 		return exitcode.New(exitcode.Error, nil)
 	}
 
@@ -67,7 +67,7 @@ func runHookExec(cmd *cobra.Command, args []string) error {
 
 	// neverBlock is the FR-H5 contract: ONE stderr line; exit 0 unless --strict (then exit 1, silent).
 	neverBlock := func(err error) error {
-		fmt.Fprintf(stderr, "stagehand: %s\n", err)
+		fmt.Fprintf(stderr, "stagecoach: %s\n", err)
 		if flagHookExecStrict {
 			return exitcode.New(exitcode.Error, nil) // silent non-zero → aborts the commit
 		}

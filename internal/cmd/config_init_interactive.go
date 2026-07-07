@@ -51,18 +51,18 @@ func runConfigInitInteractive(cmd *cobra.Command, _ []string) error {
 	// TTY gate: non-TTY stdin → exit 1 pointing at plain config init.
 	if !interactiveStdinIsTTY() {
 		return exitcode.New(exitcode.Error, fmt.Errorf(
-			"--interactive requires a terminal on stdin; run plain 'stagehand config init' instead (it stays non-interactive for post-install scripts, FR-B3)"))
+			"--interactive requires a terminal on stdin; run plain 'stagecoach config init' instead (it stays non-interactive for post-install scripts, FR-B3)"))
 	}
 
 	reg, err := newRegistry()
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 
 	installed := installedNames(reg)
 	if len(installed) == 0 {
 		return exitcode.New(exitcode.Error, fmt.Errorf(
-			"no providers detected on $PATH; run plain 'stagehand config init' to default to pi, or install one of: %s",
+			"no providers detected on $PATH; run plain 'stagecoach config init' to default to pi, or install one of: %s",
 			strings.Join(reg.PreferredBuiltins(), ", ")))
 	}
 

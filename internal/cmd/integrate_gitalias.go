@@ -14,29 +14,29 @@ import (
 
 const (
 	gitAliasTarget       = "git-alias"   // Entry.Name()
-	defaultAliasName     = "stagecoach"  // default alias name → `git stagehand`
-	stagecoachAliasValue = "!stagecoach" // the stored value (incl. `!`); command part is "stagehand"
+	defaultAliasName     = "stagecoach"  // default alias name → `git stagecoach`
+	stagecoachAliasValue = "!stagecoach" // the stored value (incl. `!`); command part is "stagecoach"
 )
 
 var flagAliasName string // --alias-name (local on integrateInstallCmd AND integrateRemoveCmd)
 
 func init() {
 	// Register --alias-name on BOTH leaves (you remove the alias by name). Shared var.
-	// Default "" → resolved to "stagehand" inside the entry. hook.go's --strict is the
+	// Default "" → resolved to "stagecoach" inside the entry. hook.go's --strict is the
 	// local-flag precedent.
 	integrateInstallCmd.Flags().StringVar(&flagAliasName, "alias-name", "",
-		"Override the git alias name (default: stagehand → `git stagehand`)")
+		"Override the git alias name (default: stagecoach → `git stagecoach`)")
 	integrateRemoveCmd.Flags().StringVar(&flagAliasName, "alias-name", "",
-		"Override the git alias name to remove (default: stagehand)")
+		"Override the git alias name to remove (default: stagecoach)")
 }
 
 // gitAliasEntry implements integrate.Entry for the git-alias target (PRD §9.21 FR-I4/I6).
 // It delegates the .gitconfig WRITE to `git config --global` (so it does NOT use protocol.Apply)
 // but owns its preview+confirm via the shared ConfirmFunc. aliasName is the resolved name
-// (default "stagehand").
+// (default "stagecoach").
 type gitAliasEntry struct {
 	git       git.Git // repo-independent for --global; cwd from os.Getwd() (no-op for global scope)
-	aliasName string  // resolved (never "" — defaultEntries resolves "" → "stagehand")
+	aliasName string  // resolved (never "" — defaultEntries resolves "" → "stagecoach")
 }
 
 // newGitAliasEntry builds the entry for the current invocation (reads the resolved --alias-name).
@@ -57,7 +57,7 @@ func (e *gitAliasEntry) Name() string { return gitAliasTarget }
 // aliasKey returns "alias.<name>".
 func (e *gitAliasEntry) aliasKey() string { return "alias." + e.aliasName }
 
-// isOurs reports whether a stored alias value (incl. its leading `!`) is stagehand's command.
+// isOurs reports whether a stored alias value (incl. its leading `!`) is stagecoach's command.
 func isOurs(storedValue string) bool { return strings.TrimPrefix(storedValue, "!") == defaultAliasName }
 
 // Detect — FR-I2: git-alias needs only git. exec.LookPath("git"); nil if present.
@@ -99,7 +99,7 @@ func (e *gitAliasEntry) Status(ctx context.Context) (integrate.Status, error) {
 }
 
 // Install — FR-I4: show command+usage (+ conflict if foreign), confirm, then
-// `git config --global alias.<name> '!stagehand'`.
+// `git config --global alias.<name> '!stagecoach'`.
 func (e *gitAliasEntry) Install(ctx context.Context, opts integrate.InstallOptions) (integrate.InstallResult, error) {
 	out := opts.Out
 	if out == nil {
@@ -120,15 +120,15 @@ func (e *gitAliasEntry) Install(ctx context.Context, opts integrate.InstallOptio
 	// FR-I4: surface the WARNING about foreign conflicts to stderr BEFORE the confirm step
 	// so it fires in both interactive and --yes modes (mirrors lazygitEntry.Install pattern).
 	if found { // foreign (not ours) — warn before overwriting
-		fmt.Fprintf(out, "WARNING: %s is currently set to %q (not stagehand) — it will be overwritten.\n",
+		fmt.Fprintf(out, "WARNING: %s is currently set to %q (not stagecoach) — it will be overwritten.\n",
 			e.aliasKey(), cur)
 	}
 
 	// Build the preview (command + usage + conflict note if foreign).
-	preview := fmt.Sprintf("Command:  git config --global %s '%s'\nResult:   git %s  →  stagehand\n",
+	preview := fmt.Sprintf("Command:  git config --global %s '%s'\nResult:   git %s  →  stagecoach\n",
 		e.aliasKey(), stagecoachAliasValue, e.aliasName)
 	if found { // foreign (not ours) — include in preview for interactive confirmation
-		preview += fmt.Sprintf("\nNOTE: %s is currently set to %q (not stagehand) — it will be overwritten.\n",
+		preview += fmt.Sprintf("\nNOTE: %s is currently set to %q (not stagecoach) — it will be overwritten.\n",
 			e.aliasKey(), cur)
 	}
 
@@ -172,7 +172,7 @@ func (e *gitAliasEntry) Remove(ctx context.Context, opts integrate.RemoveOptions
 	}
 	if !isOurs(cur) {
 		// FR-I6: NEVER remove a foreign alias. Inform + NoChange.
-		fmt.Fprintf(out, "stagehand: %s is set to %q (not stagehand); leaving it unchanged.\n", e.aliasKey(), cur)
+		fmt.Fprintf(out, "stagecoach: %s is set to %q (not stagecoach); leaving it unchanged.\n", e.aliasKey(), cur)
 		return res, nil
 	}
 

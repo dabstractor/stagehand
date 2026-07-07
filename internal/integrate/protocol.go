@@ -72,8 +72,8 @@ func (o Outcome) String() string {
 // it. Validate must NOT depend on prior Parse state (use a local probe) so the post-write gate is
 // clean and side-effect-free.
 type Target interface {
-	// Marker returns the identity string for stagehand's contribution — a comment or well-known key
-	// whose presence means "stagehand owns this entry" (FR-I3b idempotency, FR-I3f surgical scope).
+	// Marker returns the identity string for stagecoach's contribution — a comment or well-known key
+	// whose presence means "stagecoach owns this entry" (FR-I3b idempotency, FR-I3f surgical scope).
 	Marker() string
 
 	// Parse loads existing file content into the target's state. A non-nil error means the file is
@@ -126,9 +126,9 @@ type ApplyResult struct {
 }
 
 // BackupPath returns the timestamped backup path for a file (FR-I3d):
-// <file>.stagehand-backup.<unix-ts>. Exported so callers/tests can predict/locate the backup.
+// <file>.stagecoach-backup.<unix-ts>. Exported so callers/tests can predict/locate the backup.
 func BackupPath(path string, unixTs int64) string {
-	return fmt.Sprintf("%s.stagehand-backup.%d", path, unixTs)
+	return fmt.Sprintf("%s.stagecoach-backup.%d", path, unixTs)
 }
 
 // Apply runs the FR-I3 (a)–(g) no-mangle write protocol over a single file. Returns an
@@ -249,7 +249,7 @@ func DefaultConfirm(out io.Writer, path, diff string) bool {
 		}
 	}
 	if !ui.IsTerminal(os.Stdin) { // non-interactive ⇒ do not block; use --yes to force
-		fmt.Fprintf(out, "stagehand: non-interactive stdin — declining to modify %s (use --yes to apply)\n", path)
+		fmt.Fprintf(out, "stagecoach: non-interactive stdin — declining to modify %s (use --yes to apply)\n", path)
 		return false
 	}
 	fmt.Fprintf(out, "Apply changes to %s? [y/N] ", path)
@@ -271,7 +271,7 @@ func previewDiff(ctx context.Context, path string, oldBytes, newBytes []byte, ol
 		return "", fmt.Errorf("git binary not found in PATH: %w", err)
 	}
 	base := filepath.Base(path)
-	tmp, err := os.MkdirTemp("", "stagehand-diff-")
+	tmp, err := os.MkdirTemp("", "stagecoach-diff-")
 	if err != nil {
 		return "", err
 	}
@@ -338,7 +338,7 @@ func runGit(ctx context.Context, gitPath, dir string, args ...string) (stdout, s
 // filepath.Dir(path), NOT os.TempDir(), to avoid a cross-filesystem rename (non-atomic).
 func atomicWrite(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".stagehand-*")
+	tmp, err := os.CreateTemp(dir, ".stagecoach-*")
 	if err != nil {
 		return err
 	}

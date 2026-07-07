@@ -1,4 +1,4 @@
-// Package cmd implements the providers command group for Stagehand (PRD §15.3, §9.11 FR46/FR47/FR48).
+// Package cmd implements the providers command group for Stagecoach (PRD §15.3, §9.11 FR46/FR47/FR48).
 // It provides a `providers` cobra command with two leaf subcommands: `list` (show all providers with
 // detection + default status) and `show <name>` (print a provider's merged manifest as TOML). Both are
 // thin READ-only views over the provider.Registry (P1.M2.T3.S1), with user overrides from config reflected.
@@ -18,13 +18,13 @@ import (
 	"github.com/dustin/stagecoach/internal/provider"
 )
 
-// providersCmd is the PRD §15.3 "providers" command group. It has NO RunE → bare `stagehand providers`
+// providersCmd is the PRD §15.3 "providers" command group. It has NO RunE → bare `stagecoach providers`
 // prints help (cobra default). list/show are its leaves (registered in init()). Root's PersistentPreRunE
 // is INHERITED (none of the three define their own) so config loads for both (FR46/FR47 need cfg.Providers).
 var providersCmd = &cobra.Command{
 	Use:   "providers",
 	Short: "Manage AI provider manifests",
-	Long: `Inspect the built-in and user-defined provider manifests Stagehand uses to generate commits.
+	Long: `Inspect the built-in and user-defined provider manifests Stagecoach uses to generate commits.
 
 User-defined providers (from the global or repo-local config file) override built-ins of the same
 name; new names add new providers (PRD §12.8).`,
@@ -32,7 +32,7 @@ name; new names add new providers (PRD §12.8).`,
 	SilenceUsage:  true,
 }
 
-// providersListCmd implements `stagehand providers list` (FR46).
+// providersListCmd implements `stagecoach providers list` (FR46).
 var providersListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List providers",
@@ -51,7 +51,7 @@ User-defined providers override built-ins of the same name; new names add new pr
 	RunE:          runProvidersList,
 }
 
-// providersShowCmd implements `stagehand providers show <name>` (FR47).
+// providersShowCmd implements `stagecoach providers show <name>` (FR47).
 var providersShowCmd = &cobra.Command{
 	Use:   "show <name>",
 	Short: "Show a provider manifest",
@@ -71,14 +71,14 @@ func init() {
 	rootCmd.AddCommand(providersCmd) // register on S1's root — NO edit to root.go (design §0)
 }
 
-// runProvidersList implements `stagehand providers list` (FR46). It builds the merged registry from
+// runProvidersList implements `stagecoach providers list` (FR46). It builds the merged registry from
 // config, computes which providers are installed and which is the resolved default, and prints a
 // NAME/DETECTED/DEFAULT table to stdout. Returns nil on success; exitcode.New(Error, …) on a registry-
 // build failure (main maps to exit 1). Never calls os.Exit.
 func runProvidersList(cmd *cobra.Command, args []string) error {
 	reg, err := newRegistry()
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	installed := installedNames(reg)
 	defaultName := resolvedDefault(Config(), reg, installed)
@@ -86,14 +86,14 @@ func runProvidersList(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runProvidersShow implements `stagehand providers show <name>` (FR47). It builds the merged registry
+// runProvidersShow implements `stagecoach providers show <name>` (FR47). It builds the merged registry
 // and prints the TOML for <name> (built-in ⊕ overrides) to stdout. Unknown name → exitcode.New(Error,
 // …) (exit 1). cobra.ExactArgs(1) guarantees args[0] exists. Never calls os.Exit.
 func runProvidersShow(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	reg, err := newRegistry()
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	s, err := reg.MarshalTOML(name)
 	if err != nil {
@@ -103,7 +103,7 @@ func runProvidersShow(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// newRegistry builds the merged provider.Registry from config the SAME way pkg/stagehand.buildDeps
+// newRegistry builds the merged provider.Registry from config the SAME way pkg/stagecoach.buildDeps
 // does (design §2): DecodeUserOverrides(cfg.Providers) → NewRegistry. This guarantees list/show
 // reflect EXACTLY what GenerateCommit would use. A decode error (malformed [provider.X]) is returned
 // (caller maps to exit 1). If Config() is nil (defensive; PersistentPreRunE guarantees non-nil for
@@ -121,7 +121,7 @@ func newRegistry() (*provider.Registry, error) {
 }
 
 // installedNames returns the Names of providers whose command is on $PATH (FR46 detection). Mirrors
-// pkg/stagehand.buildDeps verbatim. reg.List() is sorted ascending, so the result is too.
+// pkg/stagecoach.buildDeps verbatim. reg.List() is sorted ascending, so the result is too.
 func installedNames(reg *provider.Registry) []string {
 	var installed []string
 	for _, m := range reg.List() {
@@ -132,9 +132,9 @@ func installedNames(reg *provider.Registry) []string {
 	return installed
 }
 
-// resolvedDefault returns the provider stagehand would use with no --provider (FR46 "show the resolved
+// resolvedDefault returns the provider stagecoach would use with no --provider (FR46 "show the resolved
 // default"): cfg.Provider if explicitly configured (Layer 1-7), else reg.DefaultProvider(installed)
-// (first preferred built-in on PATH). Mirrors pkg/stagehand.buildDeps. A nil cfg (defensive) → auto.
+// (first preferred built-in on PATH). Mirrors pkg/stagecoach.buildDeps. A nil cfg (defensive) → auto.
 func resolvedDefault(cfg *config.Config, reg *provider.Registry, installed []string) string {
 	if cfg != nil && cfg.Provider != "" {
 		return cfg.Provider

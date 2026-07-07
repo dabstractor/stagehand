@@ -7,7 +7,7 @@
 //
 // This package imports ONLY stdlib (no golang.org/x/sys — matches the codebase's
 // stdlib-only convention; syscall.Flock is in the Go stdlib on linux/darwin).
-// It is a self-contained leaf (no stagehand imports — no cycle risk).
+// It is a self-contained leaf (no stagecoach imports — no cycle risk).
 //
 // The SetSnapshot singleton (mirrors internal/signal.active) lets library layers
 // publish the frozen tree SHA for the no-op fast path without knowing whether a

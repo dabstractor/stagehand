@@ -1,6 +1,6 @@
 // FR3d/FR3i model-agnostic token estimator (PRD §9.1 FR3d/FR3i; architecture/git_diff_semantics.md §5).
 //
-// Stagehand never loads a tokenizer (it shells out to an arbitrary agent CLI), so it estimates tokens with
+// Stagecoach never loads a tokenizer (it shells out to an arbitrary agent CLI), so it estimates tokens with
 // the standard "~4 chars ≈ 1 token" heuristic: ceil(runeCount / 4), rounded UP. Rune-based (not byte-based)
 // so multi-byte UTF-8 (CJK, emoji) does not over-count. This is the SINGLE estimator used by BOTH the
 // prompt-reserve measurement (P1.M4.T1.S2) and the FR3i water-fill sizing/truncation (P1.M4.T2) — they call

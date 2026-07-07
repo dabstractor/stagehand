@@ -63,7 +63,7 @@ func (c *Config) setRoleReasoning(role, reasoning string) {
 	c.Roles[role] = rc
 }
 
-// Load resolves the full Stagehand configuration by applying PRD §16.1 layers in precedence order
+// Load resolves the full Stagecoach configuration by applying PRD §16.1 layers in precedence order
 // (lowest → highest): (1) built-in Defaults(); (2) global TOML; (3) repo-local TOML; (4) repo git
 // config; (5) STAGECOACH_* env vars; (7) CLI flags (only explicitly-set ones). Higher wins. Returns one
 // fully-resolved *Config (never nil on success). Any layer's hard error (unreadable file, bad parse,
@@ -198,7 +198,7 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 	// / global). Refuse AMBIENT selection via $STAGECOACH_PROVIDER or the stagecoach.provider repo
 	// git-config: those are the channels by which a leaked test environment (an exported
 	// STAGECOACH_PROVIDER=stub + STAGECOACH_STUB_OUT left sitting in a shell) silently hijacks a real
-	// `git commit-pi` / bare `stagehand` and mints nonsense commits ("feat: add a", "x", …). Tests
+	// `git commit-pi` / bare `stagecoach` and mints nonsense commits ("feat: add a", "x", …). Tests
 	// select stub via --provider stub or a config file, so they are unaffected; fileProvider (captured
 	// above, after the file layers and before the ambient layers) distinguishes a genuine file pick.
 	if cfg.Provider == "stub" {
@@ -213,7 +213,7 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 			}
 			return nil, fmt.Errorf("refusing test-only provider %q: selected via %s, not --provider "+
 				"or a config file (a leaked test environment would mint garbage commits through "+
-				"commit-pi/stagehand). Pass --provider stub explicitly, or unset the ambient source",
+				"commit-pi/stagecoach). Pass --provider stub explicitly, or unset the ambient source",
 				"stub", src)
 		}
 	}
@@ -517,14 +517,14 @@ func configVersionNotice(fileLoaded bool, version int) string {
 	case version == CurrentConfigVersion:
 		return ""
 	case version == 0:
-		return fmt.Sprintf("stagehand: config file has no config_version; current is %d. "+
-			"Run 'stagehand config upgrade' or 'stagehand config init --force'.\n", CurrentConfigVersion)
+		return fmt.Sprintf("stagecoach: config file has no config_version; current is %d. "+
+			"Run 'stagecoach config upgrade' or 'stagecoach config init --force'.\n", CurrentConfigVersion)
 	case version < CurrentConfigVersion:
-		return fmt.Sprintf("stagehand: config file uses schema version %d; current is %d. "+
-			"Run 'stagehand config upgrade' or 'stagehand config init --force'.\n", version, CurrentConfigVersion)
+		return fmt.Sprintf("stagecoach: config file uses schema version %d; current is %d. "+
+			"Run 'stagecoach config upgrade' or 'stagecoach config init --force'.\n", version, CurrentConfigVersion)
 	default: // version > CurrentConfigVersion
-		return fmt.Sprintf("stagehand: config file uses schema version %d; this binary supports up to %d. "+
-			"Upgrade stagehand, or run 'stagehand config init --force' to regenerate.\n", version, CurrentConfigVersion)
+		return fmt.Sprintf("stagecoach: config file uses schema version %d; this binary supports up to %d. "+
+			"Upgrade stagecoach, or run 'stagecoach config init --force' to regenerate.\n", version, CurrentConfigVersion)
 	}
 }
 

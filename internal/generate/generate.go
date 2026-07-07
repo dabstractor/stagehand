@@ -1,4 +1,4 @@
-// Package generate implements Stagehand's commit-generation pipeline (PRD §13).
+// Package generate implements Stagecoach's commit-generation pipeline (PRD §13).
 // CommitStaged is the atomic, snapshot-based orchestrator: it captures the parent
 // and a frozen write-tree snapshot, runs a bounded generate→parse→dedupe retry
 // loop, builds the commit from the frozen tree via git plumbing, and advances HEAD
@@ -25,7 +25,7 @@ import (
 // CommitHookRunner runs the repo's commit hooks around the plumbing commit path (PRD §9.25
 // FR-V1/V2/V3/V7). Injected into Deps (NOT called as hooks.RunCommitHooks) to break the
 // generate↔hooks import cycle (internal/hooks imports internal/generate for RescueError). The
-// CLI (pkg/stagehand.buildDeps) wires hooks.DefaultRunner; tests inject a stub OR nil (nil ⇒
+// CLI (pkg/stagecoach.buildDeps) wires hooks.DefaultRunner; tests inject a stub OR nil (nil ⇒
 // hooks skipped — back-compatible with the legacy no-hooks CommitStaged tests). dryRun + verbose
 // are INLINED (not a hooks.HookOpts) so generate need not import internal/hooks — zero
 // information loss (HookOpts is exactly those two fields). git.Git/config.Config/*ui.Verbose are
@@ -58,7 +58,7 @@ type Deps struct {
 	// (not called as hooks.RunCommitHooks) to break the generate↔hooks import cycle (hooks imports
 	// generate for RescueError). nil ⇒ hooks skipped (no-op) — back-compatible with the legacy
 	// no-hooks CommitStaged tests (which construct Deps without Hooks). Wired by
-	// pkg/stagehand.buildDeps (hooks.DefaultRunner{}); the dry-run path (runPipeline) and the
+	// pkg/stagecoach.buildDeps (hooks.DefaultRunner{}); the dry-run path (runPipeline) and the
 	// decompose path (publishCommit) thread it separately. CommitStaged is the !DryRun path, so
 	// it always passes dryRun=false.
 	Hooks CommitHookRunner
@@ -82,17 +82,17 @@ type Result struct {
 // ErrNothingToCommit is returned when the staged diff is empty (nothing meaningful
 // for the model). CLI → exit 2 (PRD §15.4). Reached BEFORE the snapshot (step 2)
 // — no TREE_SHA. Returned as a bare sentinel.
-var ErrNothingToCommit = errors.New("stagehand: nothing staged to commit")
+var ErrNothingToCommit = errors.New("stagecoach: nothing staged to commit")
 
 // ErrTimeout is returned when generation exceeded cfg.Timeout (the agent was
 // killed). CLI → exit 124 + FormatRescue (PRD §15.4). Returned wrapped in
 // *RescueError{Kind: ErrTimeout}. Reached AFTER the snapshot — TREE_SHA is set.
-var ErrTimeout = errors.New("stagehand: generation timed out")
+var ErrTimeout = errors.New("stagecoach: generation timed out")
 
 // ErrRescue is returned when generation failed after exhausting retries (parse-fail
 // / duplicate / non-zero exit / ctx cancel). CLI → exit 3 + FormatRescue (PRD
 // §15.4). Returned wrapped in *RescueError{Kind: ErrRescue}.
-var ErrRescue = errors.New("stagehand: commit generation failed after retries")
+var ErrRescue = errors.New("stagecoach: commit generation failed after retries")
 
 // ErrCASFailed is git.ErrCASFailed re-exported so the CLI imports a single package.
 // Returned wrapped in *CASError. Detected via errors.Is(err, generate.ErrCASFailed)
@@ -120,9 +120,9 @@ type RescueError struct {
 func (e *RescueError) Error() string {
 	switch e.Kind {
 	case ErrTimeout:
-		return "stagehand: generation timed out after the snapshot was taken"
+		return "stagecoach: generation timed out after the snapshot was taken"
 	default:
-		return "stagehand: commit generation failed after retries"
+		return "stagecoach: commit generation failed after retries"
 	}
 }
 
@@ -137,7 +137,7 @@ func (e *RescueError) Unwrap() error { return e.Kind }
 //
 // Error() branches on ActualTree == TreeSHA: when the commit that beat us to HEAD carries the
 // SAME tree as our frozen snapshot, our staged changes are already committed (the common case:
-// a duplicate stagehand run). It then says so plainly instead of printing a manual commit-tree
+// a duplicate stagecoach run). It then says so plainly instead of printing a manual commit-tree
 // recipe that would create a DUPLICATE commit.
 type CASError struct {
 	TreeSHA    string // the snapshot tree (for the manual commit-tree recovery command)
@@ -153,7 +153,7 @@ func (e *CASError) Error() string {
 	// the manual commit-tree recipe here would invite the user to create a DUPLICATE commit.
 	if e.TreeSHA != "" && e.ActualTree != "" && e.ActualTree == e.TreeSHA {
 		return fmt.Sprintf("HEAD advanced to %s while generating — that commit's tree matches this "+
-			"snapshot, so your staged changes are already committed (another stagehand run landed "+
+			"snapshot, so your staged changes are already committed (another stagecoach run landed "+
 			"them). Nothing to do.", e.Actual)
 	}
 	return fmt.Sprintf("HEAD moved from %s to %s while generating; aborting to avoid a non-fast-forward. "+
@@ -164,7 +164,7 @@ func (e *CASError) Error() string {
 
 func (e *CASError) Unwrap() error { return git.ErrCASFailed }
 
-// CommitStaged is Stagehand's core pipeline (PRD §13.3 / §9): the synchronous,
+// CommitStaged is Stagecoach's core pipeline (PRD §13.3 / §9): the synchronous,
 // atomic, snapshot-based commit orchestrator. It assumes the index is already in the
 // desired state (PRD §11.3); it NEVER calls git add. The commit is built from a
 // FROZEN tree (WriteTree) via plumbing (CommitTree → UpdateRefCAS); HEAD is advanced
@@ -486,7 +486,7 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 	if err := deps.Git.UpdateRefCAS(ctx, "HEAD", newSHA, expectedOld); err != nil {
 		if errors.Is(err, git.ErrCASFailed) {
 			// Re-read HEAD for the §13.5 message (D5), and its tree to detect the already-committed
-			// fast path (another stagehand run landed the same snapshot → duplicate-run race).
+			// fast path (another stagecoach run landed the same snapshot → duplicate-run race).
 			actual, _, _ := deps.Git.RevParseHEAD(ctx)
 			actualTree := ""
 			if actual != "" {

@@ -1,7 +1,7 @@
-// Package cmd implements the hook command group for Stagehand (PRD §9.20 FR-H1/H2/H3/H5).
+// Package cmd implements the hook command group for Stagecoach (PRD §9.20 FR-H1/H2/H3/H5).
 // It provides a `hook` cobra command with three leaf subcommands: `install` (write the
-// prepare-commit-msg hook, with optional --strict/--print), `uninstall` (remove a stagehand-owned
-// hook), and `status` (report none|stagehand (v1)|foreign).
+// prepare-commit-msg hook, with optional --strict/--print), `uninstall` (remove a stagecoach-owned
+// hook), and `status` (report none|stagecoach (v1)|foreign).
 //
 // The group defines a no-op PersistentPreRunE that OVERRIDES root's config.Load — hook commands
 // need only the repo's hooks dir, never the resolved config, and must not trigger config.Load's
@@ -28,14 +28,14 @@ var (
 	flagHookStrict bool
 )
 
-// hookCmd is the PRD §9.20 hook command group. No RunE → bare `stagehand hook` prints help.
+// hookCmd is the PRD §9.20 hook command group. No RunE → bare `stagecoach hook` prints help.
 // Its no-op PersistentPreRunE OVERRIDES root's (cobra runs only the nearest): install/uninstall/status
 // need only the repo's hooks dir, never the resolved config — and must not trigger config.Load's
 // first-run bootstrap write (FR-B3). P1.M3.T2.S1 adds `hook exec` as a sibling leaf to this group.
 var hookCmd = &cobra.Command{
 	Use:               "hook",
 	Short:             "Manage the per-repo prepare-commit-msg hook",
-	Long:              `Install, remove, or inspect stagehand's per-repo prepare-commit-msg hook (PRD §9.20).`,
+	Long:              `Install, remove, or inspect stagecoach's per-repo prepare-commit-msg hook (PRD §9.20).`,
 	SilenceErrors:     true,
 	SilenceUsage:      true,
 	PersistentPreRunE: func(*cobra.Command, []string) error { return nil },
@@ -52,7 +52,7 @@ var hookInstallCmd = &cobra.Command{
 
 var hookUninstallCmd = &cobra.Command{
 	Use:           "uninstall",
-	Short:         "Remove the stagehand prepare-commit-msg hook",
+	Short:         "Remove the stagecoach prepare-commit-msg hook",
 	Args:          cobra.NoArgs,
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -61,7 +61,7 @@ var hookUninstallCmd = &cobra.Command{
 
 var hookStatusCmd = &cobra.Command{
 	Use:           "status",
-	Short:         "Report the prepare-commit-msg hook state (none|stagehand (v1)|foreign)",
+	Short:         "Report the prepare-commit-msg hook state (none|stagecoach (v1)|foreign)",
 	Args:          cobra.NoArgs,
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -100,56 +100,56 @@ func runHookInstall(cmd *cobra.Command, _ []string) error {
 	}
 	dir, err := hooksDir(cmd.Context())
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	prev, err := hook.Install(dir, flagHookStrict, configPath)
 	if errors.Is(err, hook.ErrForeignHook) { // FR-H2 never-clobber refusal
 		fmt.Fprintf(cmd.ErrOrStderr(),
-			"stagehand: a foreign prepare-commit-msg hook already exists; refusing to overwrite it.\n"+
-				"To use stagehand, add this line to your existing hook:\n\n    %s\n",
+			"stagecoach: a foreign prepare-commit-msg hook already exists; refusing to overwrite it.\n"+
+				"To use stagecoach, add this line to your existing hook:\n\n    %s\n",
 			hook.InvocationLine(flagHookStrict))
 		return exitcode.New(exitcode.Error, nil) // silent exit 1 — message already printed
 	}
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: install hook: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: install hook: %w", err))
 	}
 	verb := "Installed"
 	if prev == hook.StatusStagecoach {
 		verb = "Updated"
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "%s stagehand prepare-commit-msg hook.\n", verb)
+	fmt.Fprintf(cmd.OutOrStdout(), "%s stagecoach prepare-commit-msg hook.\n", verb)
 	return nil
 }
 
 func runHookUninstall(cmd *cobra.Command, _ []string) error {
 	dir, err := hooksDir(cmd.Context())
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	switch _, err := hook.Uninstall(dir); {
 	case errors.Is(err, hook.ErrForeignHook):
 		fmt.Fprintln(cmd.ErrOrStderr(),
-			"stagehand: prepare-commit-msg hook is foreign; refusing to remove it.")
+			"stagecoach: prepare-commit-msg hook is foreign; refusing to remove it.")
 		return exitcode.New(exitcode.Error, nil) // exit 1
 	case errors.Is(err, hook.ErrNoHook):
-		fmt.Fprintln(cmd.OutOrStdout(), "No stagehand prepare-commit-msg hook to remove.")
+		fmt.Fprintln(cmd.OutOrStdout(), "No stagecoach prepare-commit-msg hook to remove.")
 		return nil // idempotent — exit 0
 	case err != nil:
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: uninstall hook: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: uninstall hook: %w", err))
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), "Removed stagehand prepare-commit-msg hook.")
+	fmt.Fprintln(cmd.OutOrStdout(), "Removed stagecoach prepare-commit-msg hook.")
 	return nil
 }
 
 func runHookStatus(cmd *cobra.Command, _ []string) error {
 	dir, err := hooksDir(cmd.Context())
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	st, err := hook.Detect(dir)
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: hook status: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: hook status: %w", err))
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), st.String()) // "none" / "stagehand (v1)" / "foreign"
+	fmt.Fprintln(cmd.OutOrStdout(), st.String()) // "none" / "stagecoach (v1)" / "foreign"
 	return nil
 }

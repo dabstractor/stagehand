@@ -214,5 +214,5 @@ func splitVerboseCommands(buf string) []string {
 }
 
 // sessionIDRe matches the multi-turn session id token logged in every turn's rendered argv
-// (FR-T6: "stagehand-<32 hex>"). Used to assert the id is STABLE across all N+1 turns.
-var sessionIDRe = regexp.MustCompile(`stagehand-[0-9a-f]{32}`)
+// (FR-T6: "stagecoach-<32 hex>"). Used to assert the id is STABLE across all N+1 turns.
+var sessionIDRe = regexp.MustCompile(`stagecoach-[0-9a-f]{32}`)

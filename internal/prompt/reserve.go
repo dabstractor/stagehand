@@ -51,7 +51,7 @@ func measureReserve(sysPrompt, overhead string, est TokenEstimator) int {
 
 // MessageReserveTokens computes the worst-case prompt reserve for the MESSAGE role (FR3d/FR3i). sysPrompt
 // is the ALREADY-BUILT system prompt (BuildSystemPrompt / BuildFallbackPrompt output — header + style
-// examples + format scaffold + locale line; at pkg/stagehand it includes the appended SystemExtra). The
+// examples + format scaffold + locale line; at pkg/stagecoach it includes the appended SystemExtra). The
 // message user payload's worst case is the REJECTION path (FR32): it grows per dedupe attempt up to
 // maxDuplicateRetries rejected subjects. Because the diff is captured ONCE before the dedupe loop, the
 // reserve is the WORST CASE (all maxDuplicateRetries slots filled), measured once — STABLE across
@@ -63,7 +63,7 @@ func measureReserve(sysPrompt, overhead string, est TokenEstimator) int {
 // rejection) is smaller, so this is a safe upper bound for every attempt. reserveSafetyMargin absorbs
 // over-length subjects + the FR29 retryInstruction preamble.
 //
-// Consumers: generate.CommitStaged, hook.Run, pkg/stagehand.runPipeline, decompose.generateMessage.
+// Consumers: generate.CommitStaged, hook.Run, pkg/stagecoach.runPipeline, decompose.generateMessage.
 func MessageReserveTokens(sysPrompt string, maxDuplicateRetries, subjectTargetChars int, context string, est TokenEstimator) int {
 	n := maxDuplicateRetries
 	if n < 0 { // clamp: a negative config ⇒ no rejection slots ⇒ normal-instruction overhead only.

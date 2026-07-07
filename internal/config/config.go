@@ -11,7 +11,7 @@ func strPtr(s string) *string { return &s }
 func intPtr(i int) *int { return &i }
 
 // CurrentConfigVersion is the config-schema version this binary understands (PRD §9.17 FR-B4).
-// Bumped on any breaking config change. On load, stagehand compares a config file's
+// Bumped on any breaking config change. On load, stagecoach compares a config file's
 // config_version to this constant: older files are auto-migrated in memory (FR-B7) with
 // a one-time deprecation notice pointing at `config upgrade`; ahead files emit an advisory.
 // config_version is metadata, NOT a precedence layer (PRD §16.1). v3 = inference provider
@@ -24,7 +24,7 @@ const CurrentConfigVersion = 3
 // the role inherits the global [defaults] (FR-R2); a non-empty value overrides just that
 // field (FR-R3 field-merge across layers). Model strings are provider-specific (FR-R5):
 // a role's Model is interpreted by that role's resolved Provider's manifest, so changing
-// a role's Provider without updating its Model is a configuration error stagehand surfaces.
+// a role's Provider without updating its Model is a configuration error stagecoach surfaces.
 // For multi-provider agents (pi/opencode/agy) Provider is required when Model is set (FR-R5b).
 // Reasoning controls thinking effort (off|low|medium|high; FR-R6); "" ⇒ inherit the global
 // [defaults].reasoning, which is "off" for every role out of the box (no shipped per-role default).
@@ -39,7 +39,7 @@ type RoleConfig struct {
 	Reasoning string `toml:"reasoning"` // off|low|medium|high (FR-R6); "" ⇒ inherit global [defaults].reasoning (off by default)
 }
 
-// Config is the fully-resolved Stagehand configuration: the single value produced by the 7-layer
+// Config is the fully-resolved Stagecoach configuration: the single value produced by the 7-layer
 // precedence resolver (PRD §16.1, FR34) and read by every consumer — the TOML/git/env/CLI loaders
 // (P1.M1.T4.S2-S4), the provider registry (P1.M2.T3), and the generation pipeline.
 //

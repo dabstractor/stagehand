@@ -1,4 +1,4 @@
-// Package cmd implements the config command group for Stagehand (PRD §9.8 FR38, §15.3, §16.2).
+// Package cmd implements the config command group for Stagecoach (PRD §9.8 FR38, §15.3, §16.2).
 // It provides a `config` cobra command with three leaf subcommands: `init` (bootstrap a populated
 // working config to the global config path, creating parent dirs, refusing to overwrite unless
 // --force), `path` (print the resolved global config path to stdout), and `upgrade` (rewrite an
@@ -32,14 +32,14 @@ import (
 // stagerFallback + commented-block ordering — pre-existing mirror pattern.)
 var preferredBuiltins = []string{"pi", "opencode", "cursor", "agy", "gemini", "codex", "claude"}
 
-// configCmd is the PRD §15.3 "config" command group. It has NO RunE → bare `stagehand config` prints
+// configCmd is the PRD §15.3 "config" command group. It has NO RunE → bare `stagecoach config` prints
 // help (cobra default). init/path are its leaves (registered in init()). Both leaves are in
 // shouldSkipConfigLoad (cmd.Name()=="init"/"path") so root's PersistentPreRunE returns nil immediately
 // — they work OUTSIDE a git repo and never need config.Load.
 var configCmd = &cobra.Command{
 	Use:           "config",
-	Short:         "Manage the Stagehand config file",
-	Long:          `Inspect, bootstrap, or upgrade the Stagehand global config file.`,
+	Short:         "Manage the Stagecoach config file",
+	Long:          `Inspect, bootstrap, or upgrade the Stagecoach global config file.`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 }
@@ -47,7 +47,7 @@ var configCmd = &cobra.Command{
 var configInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Bootstrap a working config (auto-detects your agent)",
-	Long: `Bootstrap a populated, working config to Stagehand's global config path.
+	Long: `Bootstrap a populated, working config to Stagecoach's global config path.
 
 By DEFAULT, detects the highest-priority installed built-in agent (order: pi, opencode,
 cursor, agy, gemini, codex, claude) and writes a config with that provider's per-role
@@ -63,7 +63,7 @@ Flags:
 Parent directories are created as needed. If a config file already exists, it is NOT
 overwritten unless --force is passed (exit code 1).
 
-See ` + "`stagehand config path`" + ` for the target location.`,
+See ` + "`stagecoach config path`" + ` for the target location.`,
 	Args:          cobra.NoArgs,
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -74,7 +74,7 @@ var configPathCmd = &cobra.Command{
 	Use:   "path",
 	Short: "Print the resolved global config path",
 	Long: `Print the config file path that ` + "`config init`" + `/` + "`config upgrade`" + ` operate on and that
-Stagehand reads as its global config layer.
+Stagecoach reads as its global config layer.
 
 By default this is the DISCOVERED global location ($XDG_CONFIG_HOME/stagecoach/config.toml, or
 ~/.config/stagecoach/config.toml). The --config flag and STAGECOACH_CONFIG env var ARE honored here: when
@@ -86,13 +86,13 @@ then target — so you can confirm exactly which file a command will touch.`,
 	RunE:          runConfigPath,
 }
 
-// configUpgradeCmd implements `stagehand config upgrade` (PRD §9.17 FR-B5). Rewrites an EXISTING
+// configUpgradeCmd implements `stagecoach config upgrade` (PRD §9.17 FR-B5). Rewrites an EXISTING
 // global config in place so its top-level config_version equals CurrentConfigVersion, via a minimal
 // TEXTUAL edit that preserves every other line. Idempotent. Works outside a git repo (shouldSkipConfigLoad).
 var configUpgradeCmd = &cobra.Command{
 	Use:   "upgrade",
 	Short: "Upgrade an existing config to the current schema version",
-	Long: `Rewrite an existing Stagehand config file in place so its config_version matches this binary's
+	Long: `Rewrite an existing Stagecoach config file in place so its config_version matches this binary's
 current schema version (` + fmt.Sprintf("`config_version = %d`", config.CurrentConfigVersion) + `).
 
 For files older than v3 this is more than a version bump: the removed ` + "`default_provider`" + ` field is
@@ -108,9 +108,9 @@ immediately — ` + "`config upgrade`" + ` persists that migration to the file s
 
 Running it twice is safe: a file already at the current version is left unchanged ("already up to date").
 
-This targets the file reported by ` + "`stagehand config path`" + ` — by default the GLOBAL config, but the
+This targets the file reported by ` + "`stagecoach config path`" + ` — by default the GLOBAL config, but the
 --config flag and STAGECOACH_CONFIG env var ARE honored. If no config file exists, run
-` + "`stagehand config init`" + ` first. If the file is not valid TOML, it is left untouched and an error is
+` + "`stagecoach config init`" + ` first. If the file is not valid TOML, it is left untouched and an error is
 printed.`,
 	Args:          cobra.NoArgs,
 	SilenceErrors: true,
@@ -150,7 +150,7 @@ func init() {
 	rootCmd.AddCommand(configCmd) // register on S1's root — NO edit to root.go (design D2)
 }
 
-// runConfigPath implements `stagehand config path` (FR38). Prints the resolved global config path to
+// runConfigPath implements `stagecoach config path` (FR38). Prints the resolved global config path to
 // stdout (one line). Returns nil. Never calls os.Exit. Works outside a git repo (config load skipped).
 func runConfigPath(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(cmd.OutOrStdout(), config.ResolveConfigPath(flagConfig))
@@ -165,7 +165,7 @@ func runConfigUpgrade(cmd *cobra.Command, args []string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return exitcode.New(exitcode.Error, fmt.Errorf("no config file at %s (run 'stagehand config init' first)", path))
+			return exitcode.New(exitcode.Error, fmt.Errorf("no config file at %s (run 'stagecoach config init' first)", path))
 		}
 		return exitcode.New(exitcode.Error, fmt.Errorf("read config %s: %w", path, err))
 	}
@@ -425,7 +425,7 @@ func leadingHeaderEnd(lines []string) int {
 	return len(lines)
 }
 
-// runConfigInit implements `stagehand config init` (PRD §9.17 FR-B1/B2). Bootstraps a populated
+// runConfigInit implements `stagecoach config init` (PRD §9.17 FR-B1/B2). Bootstraps a populated
 // working config by default (auto-detects provider + per-role models from the FR-D4 table), or writes
 // the inert exampleConfigTemplate when --template is passed. Refuses to overwrite unless --force.
 // Parent dirs are created; the written path is always printed. Never calls os.Exit.
@@ -494,9 +494,9 @@ func writeBootstrapFile(cmd *cobra.Command, path, content string, force bool) er
 // order, STAGECOACH_* env vars, and `stagecoach.*` git-config keys; the [defaults]/[generation]/
 // [provider.X] sections mirror §16.2 with documented default values and (for providers) field names
 // that match internal/provider/manifest.go toml tags.
-const exampleConfigTemplate = `# Stagehand configuration file (PRD §16.2).
+const exampleConfigTemplate = `# Stagecoach configuration file (PRD §16.2).
 #
-# Generated by ` + "`stagehand config init`" + `. Every option below is COMMENTED OUT (#), so this file
+# Generated by ` + "`stagecoach config init`" + `. Every option below is COMMENTED OUT (#), so this file
 # is inert — it documents the available options without changing any defaults. To use an option,
 # copy its line to a new (uncommented) line and adjust the value.
 #
@@ -522,16 +522,16 @@ const exampleConfigTemplate = `# Stagehand configuration file (PRD §16.2).
 #
 # ---------------------------------------------------------------------------
 # config_version — schema version (PRD §9.17 FR-B4). Top-level metadata, NOT a [defaults] key and
-# NOT a precedence layer (§16.1): it never overrides another field; it only tells stagehand which
+# NOT a precedence layer (§16.1): it never overrides another field; it only tells stagecoach which
 # schema the file was written for. This binary supports config_version = 3.
 # ---------------------------------------------------------------------------
 # config_version = 3
 #
-# On load, if this is missing/older than the binary's version, stagehand prints an advisory and
+# On load, if this is missing/older than the binary's version, stagecoach prints an advisory and
 # points you at the remediation; it NEVER auto-migrates your file (no behavior change, just a
 # warning on stderr):
-#   stagehand config upgrade      # rewrite this file in place to the current schema (P1.M4.T3)
-#   stagehand config init --force # regenerate the bootstrap config, overwriting this file
+#   stagecoach config upgrade      # rewrite this file in place to the current schema (P1.M4.T3)
+#   stagecoach config init --force # regenerate the bootstrap config, overwriting this file
 
 # Git config keys (PRD §9.8 FR36 / §16.3) — alternative to this file, scoped to one repo:
 #   git config stagecoach.provider pi
@@ -550,7 +550,7 @@ const exampleConfigTemplate = `# Stagehand configuration file (PRD §16.2).
 # --max-commits <N>                          safety cap on auto-decompose (default 12; §9.14 FR-M4)
 
 # ---------------------------------------------------------------------------
-# [defaults] — top-level Stagehand behavior (PRD §16.2)
+# [defaults] — top-level Stagecoach behavior (PRD §16.2)
 # ---------------------------------------------------------------------------
 # [defaults]
 # provider       = "pi"     # default agent; "" -> auto-detect (first installed built-in)
@@ -582,7 +582,7 @@ const exampleConfigTemplate = `# Stagehand configuration file (PRD §16.2).
 # [provider.<name>] — override a built-in or define a new provider (PRD §16.2, §12.8)
 # ---------------------------------------------------------------------------
 # A [provider.<name>] section FIELD-MERGES onto a built-in of the same name. A brand-new <name>
-# adds a new provider. Use ` + "`stagehand providers show <name>`" + ` to inspect the merged result.
+# adds a new provider. Use ` + "`stagecoach providers show <name>`" + ` to inspect the merged result.
 #
 # Override a built-in (e.g. pin pi to a different model/provider):
 # [provider.pi]

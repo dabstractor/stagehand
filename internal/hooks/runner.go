@@ -6,9 +6,9 @@
 // .git/index is never touched). RunPostCommit runs post-commit AFTER update-ref succeeds (best-effort;
 // its exit code is DISREGARDED). The runner mirrors `git commit`'s hook semantics (order, env, args,
 // --no-verify scope, X_OK skip, timeout) so a user's husky/lint-staged/conventional-commit-lint/notify
-// hooks fire on a stagehand-produced commit.
+// hooks fire on a stagecoach-produced commit.
 //
-// This file owns ONLY the runner. Recursion prevention (skip stagehand's OWN prepare-commit-msg via
+// This file owns ONLY the runner. Recursion prevention (skip stagecoach's OWN prepare-commit-msg via
 // hook.Detect) is the S2 sibling (P1.M3.T1.S2) via the shouldSkipStagecoachPrepareCommitMsg seam; caller
 // wiring is P1.M3.T2/M3.T3; the FR-V3 subset backstop lives in subset.go (P1.M2.T2.S1).
 package hooks
@@ -50,7 +50,7 @@ type HookOpts struct {
 //     → ErrHookSweptConcurrentWork (the FR-V3 freeze backstop). Non-zero/timeout → *RescueError.
 //   - prepare-commit-msg: ALWAYS runs (NoVerify + DryRun do NOT gate it — git-commit(1) parity).
 //     Invoked as `<msgfile>` (git githooks(5): for a plain commit no second parameter is passed;
-//     argc=1, $2 unset). The S2 seam shouldSkipStagecoachPrepareCommitMsg stubs false (stagehand's
+//     argc=1, $2 unset). The S2 seam shouldSkipStagecoachPrepareCommitMsg stubs false (stagecoach's
 //     own hook would recurse; S2 fills via hook.Detect). Non-zero/timeout → *RescueError.
 //   - commit-msg: SKIP if cfg.NoVerify (FR-V5); RUNS under DryRun (FR-V8a — lint the would-be
 //     message). Invoked as `<msgfile>`. Non-zero/timeout → *RescueError.
@@ -94,7 +94,7 @@ func RunCommitHooks(ctx context.Context, g git.Git, cfg config.Config, snapshotT
 	// (c)+(d) MESSAGE-FILE LIFECYCLE — ONE shared temp file for prepare-commit-msg + commit-msg (FR-V2
 	// git parity: commit-msg sees prepare's output). Strip ONLY at the final read-back (git cleanup=strip,
 	// honoring core.commentChar) — NEVER between the two hooks.
-	msgFile, err := os.CreateTemp("", "stagehand-hookmsg-*.txt")
+	msgFile, err := os.CreateTemp("", "stagecoach-hookmsg-*.txt")
 	if err != nil {
 		return "", "", fmt.Errorf("hooks: create message file: %w", err)
 	}
@@ -114,7 +114,7 @@ func RunCommitHooks(ctx context.Context, g git.Git, cfg config.Config, snapshotT
 	msgFile.Close()
 
 	// (c) PREPARE-COMMIT-MSG — ALWAYS runs (NoVerify + DryRun do NOT gate it; FR-V1/FR-V8a). Skipped if
-	// absent/non-exec OR stagehand's OWN hook (FR-V4 recursion prevention).
+	// absent/non-exec OR stagecoach's OWN hook (FR-V4 recursion prevention).
 	if cerr := runPrepareCommitMsg(ctx, cfg, opts, hooksDir, gitDir, workTree, msgPath); cerr != nil {
 		return "", "", &generate.RescueError{Kind: generate.ErrRescue, TreeSHA: snapshotTree,
 			ParentSHA: parentSHA, Candidate: finalMsg, Cause: fmt.Errorf("prepare-commit-msg: %w", cerr)}
@@ -185,8 +185,8 @@ func runPreCommitScoped(ctx context.Context, g git.Git, cfg config.Config, opts 
 // runPrepareCommitMsg runs prepare-commit-msg <msgPath> (git githooks(5): for a plain commit no
 // second parameter is passed; argc=1, $2 unset) on the SHARED message file. ALWAYS runs
 // (NoVerify/DryRun don't gate it — the caller gates the OTHER hooks). Skipped if absent/non-exec
-// OR stagehand's OWN hook (FR-V4 recursion prevention — invoking stagehand's own prepare-commit-msg
-// would exec `stagehand hook exec` and recurse). Returns the CAUSE error on non-zero/timeout (the
+// OR stagecoach's OWN hook (FR-V4 recursion prevention — invoking stagecoach's own prepare-commit-msg
+// would exec `stagecoach hook exec` and recurse). Returns the CAUSE error on non-zero/timeout (the
 // caller wraps the full-context *RescueError).
 func runPrepareCommitMsg(ctx context.Context, cfg config.Config, opts HookOpts,
 	hooksDir, gitDir, workTree, msgPath string) error {
@@ -194,9 +194,9 @@ func runPrepareCommitMsg(ctx context.Context, cfg config.Config, opts HookOpts,
 	if !hookExecutable(hookPath) {
 		return nil // absent/non-exec → silent skip
 	}
-	if shouldSkipStagecoachPrepareCommitMsg(hooksDir) { // FR-V4: stagehand's OWN hook → skip (recursion)
+	if shouldSkipStagecoachPrepareCommitMsg(hooksDir) { // FR-V4: stagecoach's OWN hook → skip (recursion)
 		if opts.Verbose != nil { // nil-safe
-			opts.Verbose.VerboseWarn("skipping stagehand's own prepare-commit-msg hook on the plumbing path (FR-V4 recursion prevention)")
+			opts.Verbose.VerboseWarn("skipping stagecoach's own prepare-commit-msg hook on the plumbing path (FR-V4 recursion prevention)")
 		}
 		return nil
 	}
@@ -253,7 +253,7 @@ func RunPostCommit(ctx context.Context, g git.Git, cfg config.Config, opts HookO
 // report Finding F1): when `git commit` runs a pre-commit hook that modifies and re-stages a file
 // (the formatter / lint-staged / prettier workflow), it commits the hook's version AND syncs the
 // index to that version, so `git status` is clean and a subsequent plain `git commit` cannot
-// re-commit the pre-hook blob. stagehand's atomic-commit core builds the commit from a FROZEN tree
+// re-commit the pre-hook blob. stagecoach's atomic-commit core builds the commit from a FROZEN tree
 // (PRD §13.2 G4) and runs pre-commit against a THROWAWAY index (FR-V3), so by default the live index
 // retains the pre-hook blob and diverges from HEAD — this reconciles exactly the mutated snapshot
 // paths (DiffTreeNameStatus(snapshotTree, finalTree)) to finalTree, preserving every OTHER staged
@@ -348,8 +348,8 @@ func hookExecutable(path string) bool {
 }
 
 // shouldSkipStagecoachPrepareCommitMsg implements FR-V4 recursion prevention: if the installed
-// prepare-commit-msg is stagehand's OWN (detected by its Marker line via hook.Detect), skip it on the
-// plumbing path — the message is already generated and invoking it would exec `stagehand hook exec`
+// prepare-commit-msg is stagecoach's OWN (detected by its Marker line via hook.Detect), skip it on the
+// plumbing path — the message is already generated and invoking it would exec `stagecoach hook exec`
 // and recurse. A foreign hook (StatusForeign) RUNS and may annotate; absent (StatusNone) is a no-op.
 // Pure (returns bool; the verbose log is in the caller, runPrepareCommitMsg). A Detect read error ⇒
 // StatusNone ⇒ don't skip (conservative: run rather than recurse-stall on a rare read failure).
@@ -392,7 +392,7 @@ func stripCommentLines(s, commentChar string) string {
 // tmpIndexPath returns a throwaway path for a scoped index file (os.TempDir + a unique name). The
 // caller owns the lifecycle (defer os.Remove). NOT under .git/ — keeps the repo clean (open_questions §6).
 func tmpIndexPath() (string, error) {
-	f, err := os.CreateTemp("", "stagehand-hook-*.idx")
+	f, err := os.CreateTemp("", "stagecoach-hook-*.idx")
 	if err != nil {
 		return "", err
 	}

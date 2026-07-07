@@ -134,7 +134,7 @@
           "type": "Milestone",
           "id": "P1.M2",
           "title": "Configuration Surface Rename (env vars, git config, paths, constants)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Rename all configuration-facing string literals: environment variable prefixes (STAGEHAND_→STAGECOACH_), git config section keys (stagehand.→stagecoach.), config file discovery paths, the repo-local config filename (.stagehand.toml→.stagecoach.toml), the lock directory path, and the exclusion file constant. After this milestone, the tool's runtime configuration contract uses 'stagecoach' throughout.",
           "tasks": [
             {
@@ -225,14 +225,14 @@
               "type": "Task",
               "id": "P1.M2.T3",
               "title": "User-facing string literals (error prefixes, session IDs, bootstrap template)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Rename all remaining user-facing string literals that contain 'stagehand': error message prefixes, session ID prefixes, temp directory prefixes, progress/status messages, and the bootstrap config template constant.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T3.S1",
                   "title": "Rename error message prefixes and status/progress strings",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T2.S2"
@@ -249,7 +249,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T3.S2",
                   "title": "Rename session ID prefix, temp dir prefix, and bootstrap config template",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T3.S1"

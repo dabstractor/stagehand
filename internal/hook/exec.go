@@ -1,4 +1,4 @@
-// Package hook holds the runtime for stagehand's prepare-commit-msg hook (PRD §9.20 FR-H4/H5/H6).
+// Package hook holds the runtime for stagecoach's prepare-commit-msg hook (PRD §9.20 FR-H4/H5/H6).
 // Run generates a commit message for the staged diff and writes it at the top of git's message file,
 // WITHOUT any commit plumbing (no snapshot/WriteTree, no commit-tree, no update-ref, no rescue/signal:
 // git owns this commit). Source-gated: no-op exit 0 when source ∈ {message,template,merge,squash,commit}
@@ -22,10 +22,10 @@ import (
 
 // ErrNoOp indicates Run declined to generate (FR-H4): a named message source was present, or the
 // staged diff was empty. The caller exits 0 silently — this is the intended no-op, NOT a failure.
-var ErrNoOp = errors.New("stagehand: hook no-op (message source present or nothing staged)")
+var ErrNoOp = errors.New("stagecoach: hook no-op (message source present or nothing staged)")
 
 // noOpSources are the prepare-commit-msg sources where a message already exists (architecture §3).
-// A plain `git commit` passes NO source (absent) — that is the empty case stagehand fills.
+// A plain `git commit` passes NO source (absent) — that is the empty case stagecoach fills.
 var noOpSources = map[string]struct{}{
 	"message":  {},
 	"template": {},
@@ -182,10 +182,10 @@ func Run(ctx context.Context, deps generate.Deps, cfg config.Config, msgFile, so
 		out, _, execErr := provider.Execute(ctx, *spec, cfg.Timeout, deps.Verbose)
 		if execErr != nil {
 			if errors.Is(execErr, context.DeadlineExceeded) {
-				return errors.New("stagehand: hook generation timed out") // no retry; never-block
+				return errors.New("stagecoach: hook generation timed out") // no retry; never-block
 			}
 			if errors.Is(execErr, context.Canceled) {
-				return errors.New("stagehand: hook generation cancelled")
+				return errors.New("stagecoach: hook generation cancelled")
 			}
 			// Non-zero exit: fall through to ParseOutput (partial stdout may be valid).
 		}
@@ -276,5 +276,5 @@ func Run(ctx context.Context, deps generate.Deps, cfg config.Config, msgFile, so
 	}
 
 	// Step G: exhaustion after bounded retries (also the FR-T1 gate's fall-through on any failure).
-	return fmt.Errorf("stagehand: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
+	return fmt.Errorf("stagecoach: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
 }

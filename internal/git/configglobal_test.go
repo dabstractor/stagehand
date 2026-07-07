@@ -17,7 +17,7 @@ func TestConfigGlobalGet_FoundAndMissing(t *testing.T) {
 	ctx := context.Background()
 
 	// Set a key first via ConfigGlobalSet.
-	if err := g.ConfigGlobalSet(ctx, "alias.testkey", "!stagehand"); err != nil {
+	if err := g.ConfigGlobalSet(ctx, "alias.testkey", "!stagecoach"); err != nil {
 		t.Fatalf("ConfigGlobalSet: %v", err)
 	}
 
@@ -29,8 +29,8 @@ func TestConfigGlobalGet_FoundAndMissing(t *testing.T) {
 	if !found {
 		t.Fatal("ConfigGlobalGet found=false, want true")
 	}
-	if val != "!stagehand" {
-		t.Fatalf("ConfigGlobalGet value = %q, want %q", val, "!stagehand")
+	if val != "!stagecoach" {
+		t.Fatalf("ConfigGlobalGet value = %q, want %q", val, "!stagecoach")
 	}
 
 	// Get a missing key — found=false, nil err.
@@ -54,7 +54,7 @@ func TestConfigGlobalSet_WritesValue(t *testing.T) {
 	g := New(t.TempDir())
 	ctx := context.Background()
 
-	if err := g.ConfigGlobalSet(ctx, "alias.testset", "!stagehand"); err != nil {
+	if err := g.ConfigGlobalSet(ctx, "alias.testset", "!stagecoach"); err != nil {
 		t.Fatalf("ConfigGlobalSet: %v", err)
 	}
 
@@ -66,8 +66,8 @@ func TestConfigGlobalSet_WritesValue(t *testing.T) {
 	if !found {
 		t.Fatal("key not found after set")
 	}
-	if val != "!stagehand" {
-		t.Fatalf("value = %q, want %q (the `!` must be preserved)", val, "!stagehand")
+	if val != "!stagecoach" {
+		t.Fatalf("value = %q, want %q (the `!` must be preserved)", val, "!stagecoach")
 	}
 }
 
@@ -80,7 +80,7 @@ func TestConfigGlobalUnset_PresentAndMissing(t *testing.T) {
 	ctx := context.Background()
 
 	// Set then unset a key.
-	if err := g.ConfigGlobalSet(ctx, "alias.testunset", "!stagehand"); err != nil {
+	if err := g.ConfigGlobalSet(ctx, "alias.testunset", "!stagecoach"); err != nil {
 		t.Fatalf("ConfigGlobalSet: %v", err)
 	}
 
@@ -125,7 +125,7 @@ func TestConfigGlobal_Isolation(t *testing.T) {
 	g := New(t.TempDir())
 	ctx := context.Background()
 
-	if err := g.ConfigGlobalSet(ctx, "alias.isolated", "!stagehand"); err != nil {
+	if err := g.ConfigGlobalSet(ctx, "alias.isolated", "!stagecoach"); err != nil {
 		t.Fatalf("ConfigGlobalSet: %v", err)
 	}
 
@@ -134,8 +134,8 @@ func TestConfigGlobal_Isolation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ConfigGlobalGet: %v", err)
 	}
-	if !found || val != "!stagehand" {
-		t.Fatalf("isolated config: found=%v val=%q, want true %q", found, val, "!stagehand")
+	if !found || val != "!stagecoach" {
+		t.Fatalf("isolated config: found=%v val=%q, want true %q", found, val, "!stagecoach")
 	}
 
 	// Verify the real global config is untouched (sentinel unchanged).

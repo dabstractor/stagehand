@@ -42,7 +42,7 @@ func FinalizeMessage(msg string, cfg config.Config) string {
 // comments + whitespace). It is an INTENTIONAL abort, NOT a rescue — HEAD and the index are untouched
 // (the editor runs after WriteTree but before CommitTree; the orphan tree is gc'd eventually). The CLI
 // maps it to exit 1 with "empty commit message — aborted" (NOT exit 3/124 — no manual-recovery recipe).
-var ErrEmptyMessage = errors.New("stagehand: empty commit message — aborted")
+var ErrEmptyMessage = errors.New("stagecoach: empty commit message — aborted")
 
 // EditContext carries the snapshot + git boundary the editor gate needs to build the EDITMSG summary
 // (§9.22 FR-E1: "the message plus a commented summary (tree SHA, diff-tree --name-status of the snapshot)").

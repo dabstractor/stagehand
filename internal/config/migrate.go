@@ -105,12 +105,12 @@ func isMultiBackend(name string, raw map[string]any) bool {
 // I/O); Load writes it to noticeOut. Points the user at `config upgrade` to persist the migration.
 func migrationNotice(originalVersion int) string {
 	if originalVersion == 0 {
-		return "stagehand: config file has no config_version — treated as legacy and auto-migrated in " +
+		return "stagecoach: config file has no config_version — treated as legacy and auto-migrated in " +
 			"memory (the `default_provider` field was folded into the `model` slash-prefix, FR-B7). " +
-			"Run 'stagehand config upgrade' to persist this to the file.\n"
+			"Run 'stagecoach config upgrade' to persist this to the file.\n"
 	}
-	return fmt.Sprintf("stagehand: config schema version %d (current %d) — auto-migrated in memory "+
+	return fmt.Sprintf("stagecoach: config schema version %d (current %d) — auto-migrated in memory "+
 		"(the `default_provider` field was folded into the `model` slash-prefix, FR-B7). "+
-		"Run 'stagehand config upgrade' to persist this to the file.\n",
+		"Run 'stagecoach config upgrade' to persist this to the file.\n",
 		originalVersion, CurrentConfigVersion)
 }

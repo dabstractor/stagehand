@@ -1,4 +1,4 @@
-// Package cmd implements the integrate command group for Stagehand (PRD §9.21 FR-I1/I2).
+// Package cmd implements the integrate command group for Stagecoach (PRD §9.21 FR-I1/I2).
 // It provides an `integrate` cobra command with three leaf subcommands: `list` (show
 // integration targets with detection + status + config path), `install <target>…`
 // (apply one or more integrations with detection gating), and `remove <target>…`
@@ -36,17 +36,17 @@ var defaultEntries = func() []integrate.Entry {
 
 var flagIntegrateYes bool // --yes (persistent on integrateCmd; install+remove honor it, list ignores it)
 
-// integrateCmd is the PRD §9.21 integrate command group. No RunE → bare `stagehand
+// integrateCmd is the PRD §9.21 integrate command group. No RunE → bare `stagecoach
 // integrate` prints help. Its no-op PersistentPreRunE OVERRIDES root's (cobra runs only
 // the nearest): list/install/remove do NOT need config — they edit user dotfiles and
 // work outside a git repo, and must not trigger config.Load's first-run bootstrap
 // write (FR-B3). Same rationale as hook.go.
 var integrateCmd = &cobra.Command{
 	Use:   "integrate",
-	Short: "Wire stagehand into installed git tools",
-	Long: `Install or remove stagehand integrations for the git tools you already run (PRD §9.21).
+	Short: "Wire stagecoach into installed git tools",
+	Long: `Install or remove stagecoach integrations for the git tools you already run (PRD §9.21).
 
-Targets are explicit — name one or more of the supported tools (see 'stagehand integrate list').
+Targets are explicit — name one or more of the supported tools (see 'stagecoach integrate list').
 Every file edit runs the no-mangle protocol: a unified-diff preview, a y/N prompt (use --yes to skip),
 a timestamped backup, and a post-write re-parse with automatic restore on failure.`,
 	SilenceErrors:     true,
@@ -65,7 +65,7 @@ var integrateListCmd = &cobra.Command{
 
 var integrateInstallCmd = &cobra.Command{
 	Use:           "install <target>…",
-	Short:         "Install one or more stagehand integrations",
+	Short:         "Install one or more stagecoach integrations",
 	Args:          cobra.MinimumNArgs(1),
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -75,7 +75,7 @@ var integrateInstallCmd = &cobra.Command{
 var integrateRemoveCmd = &cobra.Command{
 	Use:           "remove <target>…",
 	Aliases:       []string{"uninstall"}, // consistency with `hook uninstall` (report Bug 3)
-	Short:         "Remove one or more stagehand integrations",
+	Short:         "Remove one or more stagecoach integrations",
 	Args:          cobra.MinimumNArgs(1),
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -148,25 +148,25 @@ func dispatchInstall(ctx context.Context, reg *integrate.Registry, targets []str
 	for _, name := range targets {
 		e, ok := reg.Get(name)
 		if !ok {
-			fmt.Fprintf(stderr, "stagehand: unknown target %q; see `stagehand integrate list`.\n", name)
+			fmt.Fprintf(stderr, "stagecoach: unknown target %q; see `stagecoach integrate list`.\n", name)
 			failed = true
 			continue
 		}
 		if err := e.Detect(ctx); err != nil { // FR-I2 detection gating
-			fmt.Fprintf(stderr, "stagehand: %s requires its tool on $PATH, which was not detected (%v); skipping.\n", name, err)
+			fmt.Fprintf(stderr, "stagecoach: %s requires its tool on $PATH, which was not detected (%v); skipping.\n", name, err)
 			failed = true
 			continue
 		}
 		res, err := e.Install(ctx, opts)
 		if err != nil {
-			fmt.Fprintf(stderr, "stagehand: install %s failed: %v\n", name, err)
+			fmt.Fprintf(stderr, "stagecoach: install %s failed: %v\n", name, err)
 			failed = true
 			continue
 		}
 		fmt.Fprintln(stdout, formatInstallResult(res))
 	}
 	if failed {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: one or more targets failed"))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: one or more targets failed"))
 	}
 	return nil
 }
@@ -178,25 +178,25 @@ func dispatchRemove(ctx context.Context, reg *integrate.Registry, targets []stri
 	for _, name := range targets {
 		e, ok := reg.Get(name)
 		if !ok {
-			fmt.Fprintf(stderr, "stagehand: unknown target %q; see `stagehand integrate list`.\n", name)
+			fmt.Fprintf(stderr, "stagecoach: unknown target %q; see `stagecoach integrate list`.\n", name)
 			failed = true
 			continue
 		}
 		if err := e.Detect(ctx); err != nil { // FR-I2 detection gating
-			fmt.Fprintf(stderr, "stagehand: %s requires its tool on $PATH, which was not detected (%v); skipping.\n", name, err)
+			fmt.Fprintf(stderr, "stagecoach: %s requires its tool on $PATH, which was not detected (%v); skipping.\n", name, err)
 			failed = true
 			continue
 		}
 		res, err := e.Remove(ctx, opts)
 		if err != nil {
-			fmt.Fprintf(stderr, "stagehand: remove %s failed: %v\n", name, err)
+			fmt.Fprintf(stderr, "stagecoach: remove %s failed: %v\n", name, err)
 			failed = true
 			continue
 		}
 		fmt.Fprintln(stdout, formatRemoveResult(res))
 	}
 	if failed {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: one or more targets failed"))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: one or more targets failed"))
 	}
 	return nil
 }

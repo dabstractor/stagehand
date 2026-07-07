@@ -297,7 +297,7 @@ type Git interface {
 
 	// DiffTreeNames returns the SORTED, DEDUPED list of paths that differ between two tree SHAs via
 	// `git diff-tree -r --name-only --no-commit-id <treeA> <treeB>`. It is the path-set primitive for
-	// freeze enforcement (PRD §13.6.1 FR-M1c: "after each staging step, stagehand verifies the resulting
+	// freeze enforcement (PRD §13.6.1 FR-M1c: "after each staging step, stagecoach verifies the resulting
 	// tree is a subset of T_start — only paths present in T_start") — the enforcement layer computes
 	// DiffTreeNames(prevTree, tree[i]) and checks it is a subset of DiffTreeNames(baseTree, tStart). It is
 	// also reusable for FR-M9's arbiter file-lists and FR-M8's empty-skip (tree[i]==tree[i-1] ⇔ empty set).
@@ -352,7 +352,7 @@ type Git interface {
 	// from run() is a harmless no-op for `--global` scope (git config --global targets
 	// ~/.gitconfig / $GIT_CONFIG_GLOBAL regardless of cwd). Used by integrate git-alias
 	// to read back alias.<name> — the stored value INCLUDES the leading `!` for shell
-	// aliases, so callers strip it when comparing whether the alias is stagehand's
+	// aliases, so callers strip it when comparing whether the alias is stagecoach's
 	// (external_deps.md §7).
 	ConfigGlobalGet(ctx context.Context, key string) (value string, found bool, err error)
 
@@ -367,7 +367,7 @@ type Git interface {
 	// ConfigGlobalSet writes a key/value to git's GLOBAL config via
 	// `git config --global <key> <value>` (PRD §9.21 FR-I4). git performs the .gitconfig
 	// edit itself (so the FR-I3 file machinery is unnecessary). value is passed as a
-	// SINGLE argv element (NEVER sh -c — PRD §19), so a value like "!stagehand" is
+	// SINGLE argv element (NEVER sh -c — PRD §19), so a value like "!stagecoach" is
 	// stored verbatim with its `!`. Non-zero exit ⇒ wrapped error incl. stderr.
 	ConfigGlobalSet(ctx context.Context, key, value string) error
 
@@ -375,7 +375,7 @@ type Git interface {
 	// `git config --global --unset <key>` (PRD §9.21 FR-I6). Returns found=false when
 	// the key was not present (git exit 5 — NOT an error); found=true + nil when
 	// removed. The caller (git-alias) MUST first verify the value is ours before
-	// calling this (FR-I6: only unset when the current value is stagehand's).
+	// calling this (FR-I6: only unset when the current value is stagecoach's).
 	ConfigGlobalUnset(ctx context.Context, key string) (found bool, err error)
 
 	// HooksPath returns the ABSOLUTE path to this repo's hooks directory via
@@ -416,7 +416,7 @@ type Git interface {
 	// Push runs plain `git push` (NO arguments — §9.22 FR-P1) streaming its stdout/stderr VERBATIM to the
 	// passed writers (the CLI passes os.Stdout/os.Stderr so the user sees git's real output: progress,
 	// the no-upstream hint, rejected non-fast-forwards, etc.). It NEVER adds `--set-upstream` (FR-P2:
-	// publishing a new branch is the user's call — stagehand surfaces git's own hint verbatim instead).
+	// publishing a new branch is the user's call — stagecoach surfaces git's own hint verbatim instead).
 	// On a non-zero exit (128 = no upstream / rejected; 1 = network) it returns a wrapped error carrying
 	// git's exit code; the COMMITS STAND (push failure does not roll back local commits — push moves the
 	// REMOTE, not local HEAD; the caller prints "commits created; push failed" and exits 1). ctx-aware
@@ -437,7 +437,7 @@ func New(workDir string) Git {
 	return &gitRunner{workDir: workDir}
 }
 
-// run is the low-level git exec helper. It is the ONLY place Stagehand shells out to git.
+// run is the low-level git exec helper. It is the ONLY place Stagecoach shells out to git.
 //   - resolves the git binary via exec.LookPath (PRD §19: real binary, never go-git per §22.3)
 //   - targets repo via the -C flag (NOT os.Chdir / cmd.Dir — goroutine-safe)
 //   - captures stdout and stderr to SEPARATE buffers
@@ -481,7 +481,7 @@ func (g *gitRunner) run(ctx context.Context, repo string, args ...string) (stdou
 // runWithInput is run() plus a stdin pipe. It exists because run() cannot set cmd.Stdin (its body
 // leaves stdin as /dev/null), and commit-tree with -F - must read the commit message from stdin
 // (FINDING 4: -F - avoids ALL quoting/special-character/leading-dash issues that -m would suffer).
-// It is the ONLY other place Stagehand shells out to git; it is co-located with run() and shares
+// It is the ONLY other place Stagecoach shells out to git; it is co-located with run() and shares
 // its structure exactly (LookPath → -C repo → separate buffers → errors.As(ExitError) with
 // err==nil for non-zero exits). run() itself is intentionally left unmodified (see research §1).
 //
@@ -605,7 +605,7 @@ func (g *gitRunner) WriteTree(ctx context.Context) (sha string, err error) {
 		// non-empty stdout ⇒ unresolved conflicts. Failure path only (not hot); on any ls-files error
 		// fall through to the detailed diagnostic so a genuine non-conflict failure isn't hidden.
 		if lsOut, _, _, lsErr := g.run(ctx, g.workDir, "ls-files", "-u"); lsErr == nil && strings.TrimSpace(lsOut) != "" {
-			return "", errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagehand")
+			return "", errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagecoach")
 		}
 		return "", fmt.Errorf("git write-tree failed (exit %d): %s", code, strings.TrimSpace(stderr))
 	}
@@ -677,7 +677,7 @@ var ErrCASFailed = errors.New("git update-ref: compare-and-swap failed (ref move
 // UpdateRefCAS atomically moves ref to newSHA only if ref's current value equals expectedOld — the
 // 3-arg compare-and-swap form of git update-ref (git takes the ref lock, reads the current value, and
 // writes newSHA only if current == expectedOld, all under .git/<ref>.lock in one process). It is the
-// SOLE point at which Stagehand mutates a ref (PRD §18.1: "refs are modified only at the final
+// SOLE point at which Stagecoach mutates a ref (PRD §18.1: "refs are modified only at the final
 // update-ref step, and only if HEAD is unchanged since the snapshot"). The 2-arg force form is NEVER
 // used — it would silently clobber a concurrent commit (PRD §13.1/§13.2/§18.2).
 //

@@ -196,14 +196,14 @@ func Run(ctx context.Context, deps Deps, cfg config.Config, manifest provider.Ma
 }
 
 // newSessionID mints a fresh, one-run-scope session id for a multi-turn run (PRD §9.24 FR-T6). Format:
-// "stagehand-<32 hex>" (16 cryptographically-random bytes). The id is NEVER resumed on a later run —
+// "stagecoach-<32 hex>" (16 cryptographically-random bytes). The id is NEVER resumed on a later run —
 // providers that persist sessions leave it behind (harmless). Uses crypto/rand (no uuid library exists in
 // the repo and none is added); the time-based fallback is defense-in-depth (rand.Read practically never
 // fails on Linux/macOS/Windows).
 func newSessionID() string {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
-		return fmt.Sprintf("stagehand-%d", time.Now().UnixNano())
+		return fmt.Sprintf("stagecoach-%d", time.Now().UnixNano())
 	}
-	return "stagehand-" + hex.EncodeToString(b[:])
+	return "stagecoach-" + hex.EncodeToString(b[:])
 }

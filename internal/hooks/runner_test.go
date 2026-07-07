@@ -423,7 +423,7 @@ func TestStripCommentLines(t *testing.T) {
 // --- 14. shouldSkipStagecoachPrepareCommitMsg — FR-V4 seam via hook.Detect ---
 //
 // S1 stubbed this false; S2 fills it via hook.Detect(hooksDir) == hook.StatusStagecoach. A repo whose
-// prepare-commit-msg contains the stagehand Marker ⇒ StatusStagecoach ⇒ skip; a foreign (no Marker)
+// prepare-commit-msg contains the stagecoach Marker ⇒ StatusStagecoach ⇒ skip; a foreign (no Marker)
 // hook ⇒ StatusForeign ⇒ don't skip; no hook ⇒ StatusNone ⇒ don't skip.
 
 func TestShouldSkipStagecoachPrepareCommitMsg_StagecoachMarker_True(t *testing.T) {
@@ -432,13 +432,13 @@ func TestShouldSkipStagecoachPrepareCommitMsg_StagecoachMarker_True(t *testing.T
 	if err := os.MkdirAll(hooks, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// The Marker line baked into stagehand's own prepare-commit-msg hook (internal/hook.Marker).
-	body := "#!/bin/sh\n# stagecoach prepare-commit-msg hook v1\nexec stagehand hook exec \"$@\"\n"
+	// The Marker line baked into stagecoach's own prepare-commit-msg hook (internal/hook.Marker).
+	body := "#!/bin/sh\n# stagecoach prepare-commit-msg hook v1\nexec stagecoach hook exec \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(hooks, "prepare-commit-msg"), []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if !shouldSkipStagecoachPrepareCommitMsg(hooks) {
-		t.Errorf("shouldSkipStagecoachPrepareCommitMsg = false for stagehand's own hook; want true (recursion)")
+		t.Errorf("shouldSkipStagecoachPrepareCommitMsg = false for stagecoach's own hook; want true (recursion)")
 	}
 }
 
@@ -449,7 +449,7 @@ func TestShouldSkipStagecoachPrepareCommitMsg_ForeignOrAbsent_False(t *testing.T
 		if err := os.MkdirAll(hooks, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		// A foreign hook (no stagehand Marker) ⇒ StatusForeign ⇒ don't skip (it may annotate).
+		// A foreign hook (no stagecoach Marker) ⇒ StatusForeign ⇒ don't skip (it may annotate).
 		body := "#!/bin/sh\necho foreign\n"
 		if err := os.WriteFile(filepath.Join(hooks, "prepare-commit-msg"), []byte(body), 0o755); err != nil {
 			t.Fatal(err)
@@ -470,12 +470,12 @@ func TestShouldSkipStagecoachPrepareCommitMsg_ForeignOrAbsent_False(t *testing.T
 // --- 15. FR-V4 contract scenarios (recursion skip / foreign annotate / absent no-op) ---
 
 // TestRunCommitHooks_PrepareCommitMsg_StagecoachMarker_Skipped verifies FR-V4 recursion prevention:
-// a prepare-commit-msg that IS stagehand's own (the Marker line present) is SKIPPED on the plumbing
-// path — the message is unchanged and the hook's mutation (which would recurse via `stagehand hook
+// a prepare-commit-msg that IS stagecoach's own (the Marker line present) is SKIPPED on the plumbing
+// path — the message is unchanged and the hook's mutation (which would recurse via `stagecoach hook
 // exec`) did NOT run. NoVerify=true isolates prepare-commit-msg (no commit-msg).
 func TestRunCommitHooks_PrepareCommitMsg_StagecoachMarker_Skipped(t *testing.T) {
 	repo, snapshotTree, parentSHA, g := primeRunnerRepo(t)
-	// Install stagehand's OWN prepare-commit-msg (Marker present) that WOULD mutate the file if run.
+	// Install stagecoach's OWN prepare-commit-msg (Marker present) that WOULD mutate the file if run.
 	installHook(t, repo, "prepare-commit-msg",
 		`# stagecoach prepare-commit-msg hook v1`+"\n"+`echo 'RECURRED' >> "$1"`)
 	cfg := defaultCfg()
@@ -488,7 +488,7 @@ func TestRunCommitHooks_PrepareCommitMsg_StagecoachMarker_Skipped(t *testing.T) 
 	}
 	_ = finalTree
 	if strings.Contains(finalMsg, "RECURRED") {
-		t.Errorf("stagehand's own prepare-commit-msg was NOT skipped (recursion): %q", finalMsg)
+		t.Errorf("stagecoach's own prepare-commit-msg was NOT skipped (recursion): %q", finalMsg)
 	}
 	if finalMsg != "feat: test" {
 		t.Errorf("msg changed despite skip: %q", finalMsg)
@@ -499,7 +499,7 @@ func TestRunCommitHooks_PrepareCommitMsg_StagecoachMarker_Skipped(t *testing.T) 
 // prepare-commit-msg's appended annotation is read back from the shared file into finalMsg.
 func TestRunCommitHooks_PrepareCommitMsg_Foreign_AnnotationReadBack(t *testing.T) {
 	repo, snapshotTree, parentSHA, g := primeRunnerRepo(t)
-	// A foreign prepare-commit-msg (no stagehand Marker) that appends a ticket ref.
+	// A foreign prepare-commit-msg (no stagecoach Marker) that appends a ticket ref.
 	installHook(t, repo, "prepare-commit-msg", `echo 'Refs: #123' >> "$1"`)
 	cfg := defaultCfg()
 	cfg.NoVerify = true // isolate prepare (no commit-msg)

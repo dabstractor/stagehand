@@ -94,7 +94,7 @@ func parseInt(repo, key, value string, dst *int) error {
 	return nil
 }
 
-// loadGitConfig reads Stagehand's per-repo git-config layer (PRD §16.3, FR36, §16.1 layer 4) from the
+// loadGitConfig reads Stagecoach's per-repo git-config layer (PRD §16.3, FR36, §16.1 layer 4) from the
 // repo at repoDir and returns a PARTIAL *Config carrying ONLY the keys that were found set (all others
 // remain at their zero value). Missing keys are NOT errors (git config --get exits 1 for a missing
 // key, FINDING B). A non-integer timeout, a missing git binary, or any unexpected git exit yields a

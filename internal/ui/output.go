@@ -65,7 +65,7 @@ func ResolveColor(noColor bool, isTTY bool) bool {
 	return isTTY
 }
 
-// UI renders Stagehand's CLI output with optional ANSI color (PRD §9.13, Appendix B). Progress/Success/
+// UI renders Stagecoach's CLI output with optional ANSI color (PRD §9.13, Appendix B). Progress/Success/
 // Error go to STDERR (FR51: stdout stays clean for piping); the actual RESULT data (commit report,
 // dry-run message) stays PLAIN on stdout via the caller's own print path — never thread it through here.
 // Writers are injectable (cobra's cmd.OutOrStdout/ErrOrStderr in prod, *bytes.Buffer in tests); color is

@@ -418,7 +418,7 @@ func TestGenerateCommit_Timeout(t *testing.T) {
 // a recent subject retries to the UNIQUE message (Issue 2 / FR32). The repo's HEAD subject is
 // "feat: existing" and the stub script returns ["feat: existing", "feat: fresh"]; the duplicate
 // first attempt is rejected and the second attempt's "feat: fresh" is returned.
-// Mirrors TestCommitStaged_DedupeRetryThenSuccess at the pkg/stagehand boundary.
+// Mirrors TestCommitStaged_DedupeRetryThenSuccess at the pkg/stagecoach boundary.
 func TestGenerateCommit_DryRun_DedupeRetry(t *testing.T) {
 	setupScriptedRepo(t, "feat: existing", []string{"feat: existing", "feat: fresh"})
 	repoDir, _ := os.Getwd()
@@ -1315,7 +1315,7 @@ func stageLargeDiff(t *testing.T, dir string) {
 // exhausts on "", forcing the FR-T1 gate). chunkTokens sets cfg.MultiTurnChunkTokens (cond b threshold).
 // When sessionMode="" the provider is left NON-append (cond d false) for the skip test.
 //
-// This mirrors internal/generate's appendScriptManifest (direct manifest) at the pkg/stagehand boundary:
+// This mirrors internal/generate's appendScriptManifest (direct manifest) at the pkg/stagecoach boundary:
 // here the config flows through GenerateCommit → config.Load (skipped via Options.Config) → registry, and
 // the registry-built stub manifest supports multi-turn because RenderMultiTurn is a method on
 // provider.Manifest (render.go:203) and SessionMode is a TOML/config field (manifest.go:66).
@@ -1396,7 +1396,7 @@ func TestBuildDeps_NoMessageOverride_InheritsGlobal(t *testing.T) {
 // --- FR-T1 multi-turn dry-run tests (P1.M2.T1.S2) — Issue 1 fix ---
 //
 // These mirror internal/generate/generate_multiturn_test.go + generate_multiturn_failure_test.go at
-// the pkg/stagehand (runPipeline / DryRun) boundary. The central fix (Issue 1, FR49): `stagehand
+// the pkg/stagecoach (runPipeline / DryRun) boundary. The central fix (Issue 1, FR49): `stagecoach
 // --dry-run` on a large diff with an append-mode provider now activates multi-turn (previously it
 // rescued — exit 1 — where the commit path succeeded via multi-turn).
 
@@ -1523,10 +1523,10 @@ func TestGenerateCommit_DryRun_MultiTurnMidTurnFailure(t *testing.T) {
 // installed into repo/.git/hooks/<name> (mode 0o755 so hookExecutable sees the owner-exec bit).
 //
 // stderr-capture note (design §6): captureStderr swaps os.Stderr globally. This is SAFE because the
-// stagehand_test suite has ZERO t.Parallel() calls — do NOT add t.Parallel() to any of these tests.
+// stagecoach_test suite has ZERO t.Parallel() calls — do NOT add t.Parallel() to any of these tests.
 
 // captureStderr runs fn with os.Stderr swapped to a pipe and returns whatever was written. SAFE only
-// when the test is NOT t.Parallel() (the stagehand_test suite has none). Restores os.Stderr in t.Cleanup.
+// when the test is NOT t.Parallel() (the stagecoach_test suite has none). Restores os.Stderr in t.Cleanup.
 func captureStderr(t *testing.T, fn func()) string {
 	t.Helper()
 	r, w, _ := os.Pipe()
@@ -1661,7 +1661,7 @@ func TestGenerateCommit_SystemExtra_PreCommitAbort_Rescue(t *testing.T) {
 // TestGenerateCommit_DryRun_HookEmptiesMessage_AbortsExit1 — Issue 4 (P1.M3.T1.S2) dry-run guard: a
 // commit-msg hook that empties the message file (exit 0 ⇒ not a hook failure, no RescueError) must NOT
 // produce an empty dry-run preview (exit 0). git aborts "Aborting commit due to empty commit message.";
-// stagehand returns the BARE generate.ErrEmptyMessage (exit 1, NOT the FR-V8a warn-and-print —
+// stagecoach returns the BARE generate.ErrEmptyMessage (exit 1, NOT the FR-V8a warn-and-print —
 // ErrEmptyMessage is not a *RescueError, and this guard sits AFTER the hooks block). The stub Out is
 // NON-empty so generation succeeds and the HOOK empties the message (not the generator). FAILS before
 // the guard (err==nil, exit 0); PASSES after (errors.Is(err, generate.ErrEmptyMessage)).

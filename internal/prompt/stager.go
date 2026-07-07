@@ -27,7 +27,7 @@ const stagerFilesHeader = "Files for this concept (where these changes live):"
 
 // stagerGuardrails is the verbatim §17.6 five-line git-instructions + hard-guardrails block. It is the
 // prompt-level restatement of §13.6.2/§17.6's structural guardrails (no commit/amend/push/ref-mutation;
-// only update the index), enforced STRUCTURALLY too via tooled_flags (§12.1; stagehand owns all ref ops).
+// only update the index), enforced STRUCTURALLY too via tooled_flags (§12.1; stagecoach owns all ref ops).
 // The second sentence references the surfaced files block ("the files above are where they live").
 //
 // NOTE the TWO BACKTICK chars (`git add <path>` and `git apply --cached`) — hence a double-quoted "..."
@@ -51,7 +51,7 @@ const stagerGuardrails = "Use git to stage the relevant files and hunks (`git ad
 //
 // The stager returns free-form text ("list of paths staged"); the truth source is the index
 // (git diff --cached --name-only), hence NO JSON contract / NO parse — the caller reads the exit code.
-// The guardrails are ALSO enforced structurally (tooled_flags §12.1; stagehand owns all ref ops —
+// The guardrails are ALSO enforced structurally (tooled_flags §12.1; stagecoach owns all ref ops —
 // §17.6's safety proof).
 //
 // files is GUIDANCE (where the concept's changes live), NOT a hard constraint — FR-M1c

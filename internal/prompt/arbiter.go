@@ -11,7 +11,7 @@ import (
 // ONLY if the working tree is non-empty after the per-concept loop (§13.6.5). It receives the commits
 // made this run (SHA + subject + file-list each) and a diff of the remaining (leftover) changes, and
 // returns a JSON object indicating whether the leftovers belong with an existing commit or warrant a new
-// one. It performs NO git itself — stagehand owns all ref mutations (FR-M10); the arbiter only decides.
+// one. It performs NO git itself — stagecoach owns all ref mutations (FR-M10); the arbiter only decides.
 //
 // Constants are defined WITHOUT trailing newlines; BuildArbiterUserPayload owns ALL inter-block newline
 // placement so the blank-line topology lives in exactly one auditable place (mirrors system.go /
@@ -70,7 +70,7 @@ type ArbiterOutput struct {
 // BuildArbiterSystemPrompt returns the verbatim §17.7 arbiter system prompt. It takes NO arguments
 // because §17.7 has NO <style examples> placeholder (unlike §17.5's planner). The thin wrapper keeps
 // the constant private (no-trailing-newline enforced in one place) and provides API symmetry with the
-// Build* family. Stagehand performs all git (FR-M10); the arbiter only decides.
+// Build* family. Stagecoach performs all git (FR-M10); the arbiter only decides.
 func BuildArbiterSystemPrompt() string {
 	return arbiterSystemPrompt
 }

@@ -31,7 +31,7 @@ type CmdSpec struct {
 // `args += (mode == "tooled") ? m.tooled_flags : m.bare_flags`.
 //
 // Render's `mode ...RenderMode` parameter is VARIADIC and defaults to RenderBare when omitted, so every
-// v1 caller (generate.CommitStaged, pkg/stagehand.runPipeline, all tests) is unchanged. The decompose
+// v1 caller (generate.CommitStaged, pkg/stagecoach.runPipeline, all tests) is unchanged. The decompose
 // stager (P3.M2.T3) passes RenderTooled.
 type RenderMode string
 

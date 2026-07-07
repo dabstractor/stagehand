@@ -5,7 +5,7 @@
 // This file (roles.go) is the role-resolution foundation: ResolveRoles turns a fully-resolved
 // config.Config + *provider.Registry into four validated, install-checked provider.Manifests
 // (RoleManifests) and four (provider, model) pairs (RoleModels). It is the four-role generalization
-// of pkg/stagehand.buildDeps (which resolves one role: message). The decompose orchestrator
+// of pkg/stagecoach.buildDeps (which resolves one role: message). The decompose orchestrator
 // (P3.M4.T1.S1) calls ResolveRoles to build the injectable Deps struct.
 //
 // Subsequent tasks add planner.go, stager.go, message.go, arbiter.go, chain.go, and decompose.go
@@ -170,7 +170,7 @@ func ResolveRoles(cfg config.Config, reg *provider.Registry) (RoleManifests, Rol
 }
 
 // computeInstalled returns the names of providers whose discovery command is on $PATH.
-// Mirrors pkg/stagehand.buildDeps' installed computation. Computed ONCE per ResolveRoles call
+// Mirrors pkg/stagecoach.buildDeps' installed computation. Computed ONCE per ResolveRoles call
 // (shared by all 4 roles + FirstTooledProvider).
 func computeInstalled(reg *provider.Registry) []string {
 	var installed []string

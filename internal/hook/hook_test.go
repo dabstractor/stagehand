@@ -229,7 +229,7 @@ func TestStatus_String(t *testing.T) {
 		want string
 	}{
 		{StatusNone, "none"},
-		{StatusStagecoach, "stagehand (v1)"},
+		{StatusStagecoach, "stagecoach (v1)"},
 		{StatusForeign, "foreign"},
 	}
 	for _, tt := range tests {

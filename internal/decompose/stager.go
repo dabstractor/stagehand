@@ -9,7 +9,7 @@
 //     counterpart of callPlanner (RenderTooled instead of RenderBare; no retry loop — the
 //     orchestrator owns FR-M8 retry-once-then-empty; no output parsing — the stager has no JSON
 //     contract; the index is the truth source). It mutates the INDEX only (git add / git apply
-//     --cached); it NEVER commits, amends, or moves refs (stagehand owns all ref mutations).
+//     --cached); it NEVER commits, amends, or moves refs (stagecoach owns all ref mutations).
 //   - freezeSnapshot: the §13.6.3 invariant-1 primitive. A thin, documented wrapper over
 //     deps.Git.WriteTree that freezes the current index into an immutable tree SHA. The
 //     orchestrator calls it synchronously after stageConcept returns and BEFORE the next
@@ -35,14 +35,14 @@ import (
 // (P3.M4.T1.S1) detects stager failures via errors.Is to apply the FR-M8/M12 retry-once-then-empty.
 //
 // Non-rescue: stageConcept mutates the INDEX only (the agent runs git add / git apply --cached); it
-// NEVER commits, amends, or moves refs (stagehand owns all ref mutations — §13.6.2/§19). Its
+// NEVER commits, amends, or moves refs (stagecoach owns all ref mutations — §13.6.2/§19). Its
 // failures are NOT generate.RescueError scenarios (no snapshot-then-CAS here; refs move only at
 // P3.M2.T4's UpdateRefCAS).
 var ErrStagerFailed = errors.New("decompose: stager failed")
 
 // ErrStagerMovedHEAD is the sentinel for a stager SAFETY VIOLATION: the stager agent moved HEAD
 // (committed, amended, update-ref'd, or reset a ref). The stager is contractually allowed to mutate
-// the INDEX only (git add / git apply --cached); all ref mutations are owned exclusively by stagehand
+// the INDEX only (git add / git apply --cached); all ref mutations are owned exclusively by stagecoach
 // via UpdateRefCAS (PRD §18.1/§19).
 //
 // This guard is DEFENSE-IN-DEPTH for providers that cannot be flag-scoped — specifically pi's

@@ -1,4 +1,4 @@
-// Package exitcode maps Stagehand errors to PRD §15.4 process exit codes (0/1/2/3/124).
+// Package exitcode maps Stagecoach errors to PRD §15.4 process exit codes (0/1/2/3/124).
 // Shipped in P1.M4.T1.S1; verified and hardened in P1.M4.T3.S3.
 //
 // Constant names intentionally omit the "Exit" prefix (e.g. Success, not ExitSuccess) —
@@ -24,7 +24,7 @@ const (
 	Error           = 1   // general error (generation failed, parse failed, agent missing, CAS, usage/flag)
 	NothingToCommit = 2   // clean tree after auto-stage, or nothing staged with --no-auto-stage
 	Rescue          = 3   // snapshot taken, commit not created — manual recovery printed
-	Busy            = 5   // another stagehand run holds the per-repo lock; retry after it finishes (FR52 §18.5)
+	Busy            = 5   // another stagecoach run holds the per-repo lock; retry after it finishes (FR52 §18.5)
 	Timeout         = 124 // generation exceeded --timeout (mirrors GNU `timeout`)
 )
 

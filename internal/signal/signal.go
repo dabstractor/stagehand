@@ -1,16 +1,16 @@
-// Package signal implements Stagehand's SIGINT/SIGTERM safety net (PRD §18.4 / §9.10 FR45,
+// Package signal implements Stagecoach's SIGINT/SIGTERM safety net (PRD §18.4 / §9.10 FR45,
 // FINDING 8). It intercepts Ctrl-C / SIGTERM, forwards the signal to the running child agent's
 // whole process group (so no orphaned grandchildren survive), runs the §18.3 rescue protocol if
 // the snapshot was taken (print TREE_SHA + manual recovery command, exit 3), or exits cleanly
 // (130/143) pre-snapshot, and restores the default signal disposition immediately before the
 // final atomic update-ref so a last-instant Ctrl-C isn't misreported as a failure.
 //
-// Library-safe (D4): signal is opt-in (Install). A pkg/stagehand consumer who never installs it
+// Library-safe (D4): signal is opt-in (Install). A pkg/stagecoach consumer who never installs it
 // gets baseline behavior (their own ctx/signals; cmd.Cancel still kills the group). No behavior
 // change for library use. All package wrappers (RegisterChild, SetSnapshot, etc.) are nil-safe
 // no-ops when no handler is installed.
 //
-// This package imports NO stagehand packages (stdlib-only). The rescue message reaches the handler
+// This package imports NO stagecoach packages (stdlib-only). The rescue message reaches the handler
 // via the Options.RescueFormat callback (wired in main.go), avoiding a signal↔generate import cycle.
 package signal
 
@@ -48,7 +48,7 @@ type Options struct {
 	// lock.ReleaseCurrent so the lock file is removed before os.Exit skips the
 	// deferred Release (FR52 §18.5). Defaulted to a no-op here so the signal
 	// package stays stdlib-only (it cannot import internal/lock) and so library
-	// use of pkg/stagehand (no Install wiring) is unaffected.
+	// use of pkg/stagecoach (no Install wiring) is unaffected.
 	OnRescueExit func()
 }
 
@@ -71,7 +71,7 @@ type Handler struct {
 }
 
 // active is the process-global singleton (signals are process-global — see F4). nil when no handler
-// is installed (library use of pkg/stagehand); all package wrappers are nil-safe then.
+// is installed (library use of pkg/stagecoach); all package wrappers are nil-safe then.
 var active atomic.Pointer[Handler]
 
 // Install sets up SIGINT/SIGTERM interception and returns a context cancelled on signal. Stores

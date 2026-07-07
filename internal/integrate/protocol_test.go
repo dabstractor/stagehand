@@ -23,8 +23,8 @@ import (
 // ---------------------------------------------------------------------------
 
 type blockTarget struct {
-	marker      string // "# stagehand-test-marker"
-	endMarker   string // "# end-stagehand-test-marker"
+	marker      string // "# stagecoach-test-marker"
+	endMarker   string // "# end-stagecoach-test-marker"
 	managedLine string // the line Upsert installs
 	badValidate bool   // inject a Validate failure
 	lines       []string
@@ -33,8 +33,8 @@ type blockTarget struct {
 
 func newBlockTarget(managedLine string) *blockTarget {
 	return &blockTarget{
-		marker:      "# stagehand-test-marker",
-		endMarker:   "# end-stagehand-test-marker",
+		marker:      "# stagecoach-test-marker",
+		endMarker:   "# end-stagecoach-test-marker",
 		managedLine: managedLine,
 	}
 }
@@ -175,7 +175,7 @@ func TestApply_UpsertCreatesMissing(t *testing.T) {
 	if after == nil {
 		t.Fatal("file was not created")
 	}
-	if !strings.Contains(string(after), "# stagehand-test-marker") {
+	if !strings.Contains(string(after), "# stagecoach-test-marker") {
 		t.Error("created file missing the marker")
 	}
 	if !strings.Contains(string(after), "managed-line") {
@@ -219,7 +219,7 @@ func TestApply_UpsertIdempotentDoubleInstall(t *testing.T) {
 		t.Error("file changed on second install (should be idempotent)")
 	}
 	// Verify exactly one block
-	if strings.Count(string(afterSecond), "# stagehand-test-marker") != 1 {
+	if strings.Count(string(afterSecond), "# stagecoach-test-marker") != 1 {
 		t.Error("expected exactly one start marker after double install")
 	}
 }
@@ -227,7 +227,7 @@ func TestApply_UpsertIdempotentDoubleInstall(t *testing.T) {
 func TestApply_UpsertReplacesNotDuplicates(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.txt")
-	seed := []byte("foreign-line-1\n# stagehand-test-marker\nold-managed-line\n# end-stagehand-test-marker\nforeign-line-2\n")
+	seed := []byte("foreign-line-1\n# stagecoach-test-marker\nold-managed-line\n# end-stagecoach-test-marker\nforeign-line-2\n")
 	if err := os.WriteFile(path, seed, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -242,10 +242,10 @@ func TestApply_UpsertReplacesNotDuplicates(t *testing.T) {
 	}
 	content := string(after)
 	// Exactly one block, not two
-	if strings.Count(content, "# stagehand-test-marker") != 1 {
+	if strings.Count(content, "# stagecoach-test-marker") != 1 {
 		t.Error("duplicate start marker (not idempotent)")
 	}
-	if strings.Count(content, "# end-stagehand-test-marker") != 1 {
+	if strings.Count(content, "# end-stagecoach-test-marker") != 1 {
 		t.Error("duplicate end marker (not idempotent)")
 	}
 	// Managed line replaced
@@ -271,7 +271,7 @@ func TestApply_UpsertReplacesNotDuplicates(t *testing.T) {
 func TestApply_RemoveDeletesOnlyEntry(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.txt")
-	seed := []byte("foreign-line-1\n# stagehand-test-marker\nmanaged-line\n# end-stagehand-test-marker\nforeign-line-2\n")
+	seed := []byte("foreign-line-1\n# stagecoach-test-marker\nmanaged-line\n# end-stagecoach-test-marker\nforeign-line-2\n")
 	if err := os.WriteFile(path, seed, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +286,7 @@ func TestApply_RemoveDeletesOnlyEntry(t *testing.T) {
 		t.Error("Remove should have written a backup")
 	}
 	content := string(after)
-	if strings.Contains(content, "# stagehand-test-marker") {
+	if strings.Contains(content, "# stagecoach-test-marker") {
 		t.Error("marker still present after Remove")
 	}
 	if strings.Contains(content, "managed-line") {
@@ -328,7 +328,7 @@ func TestApply_CorruptInputRefusal(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.txt")
 	// Unbalanced: START marker without END marker
-	seed := []byte("# stagehand-test-marker\nsome-content\n")
+	seed := []byte("# stagecoach-test-marker\nsome-content\n")
 	if err := os.WriteFile(path, seed, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -354,7 +354,7 @@ func TestApply_CorruptInputRefusal(t *testing.T) {
 		t.Error("file was modified despite parse refusal")
 	}
 	// No backup written for parse refusal
-	entries, _ := filepath.Glob(path + ".stagehand-backup.*")
+	entries, _ := filepath.Glob(path + ".stagecoach-backup.*")
 	if len(entries) != 0 {
 		t.Errorf("backup written despite parse refusal: %v", entries)
 	}
@@ -437,7 +437,7 @@ func TestApply_BackupWritten(t *testing.T) {
 	}
 	// Target file has the block
 	targetData, _ := os.ReadFile(path)
-	if !strings.Contains(string(targetData), "# stagehand-test-marker") {
+	if !strings.Contains(string(targetData), "# stagecoach-test-marker") {
 		t.Error("target file missing the block after write")
 	}
 }
@@ -554,7 +554,7 @@ func TestPreviewDiff_NonEmptyIffChanged(t *testing.T) {
 
 func TestBackupPath_Format(t *testing.T) {
 	got := BackupPath("/x/y", 1700000000)
-	want := "/x/y.stagehand-backup.1700000000"
+	want := "/x/y.stagecoach-backup.1700000000"
 	if got != want {
 		t.Errorf("BackupPath = %q, want %q", got, want)
 	}

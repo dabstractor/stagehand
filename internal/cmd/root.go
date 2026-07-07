@@ -1,4 +1,4 @@
-// Package cmd implements the cobra CLI scaffold for Stagehand (PRD §15.1/§15.2/§15.4/§21.1).
+// Package cmd implements the cobra CLI scaffold for Stagecoach (PRD §15.1/§15.2/§15.4/§21.1).
 // It provides the root command with all eleven §15.2 global flags (persistent, inherited by every
 // future subcommand), a PersistentPreRunE that resolves config once via config.Load(), an Execute()
 // function that returns the command error (for exit-code mapping in main), and a Config() accessor
@@ -118,7 +118,7 @@ var loadedCfg *config.Config
 
 // rootCmd is the cobra root. SilenceErrors+SilenceUsage → the CLI (main) controls all output.
 var rootCmd = &cobra.Command{
-	Use:           "stagehand",
+	Use:           "stagecoach",
 	Short:         "AI-assisted commit message generator",
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -131,7 +131,7 @@ var rootCmd = &cobra.Command{
 		}
 		repoDir, err := os.Getwd()
 		if err != nil {
-			return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: getwd: %w", err))
+			return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: getwd: %w", err))
 		}
 		cfg, err := config.Load(cmd.Context(), config.LoadOpts{
 			ConfigPathOverride: flagConfig,
@@ -210,7 +210,7 @@ func init() {
 		"If set, push to the remote (runs git push, streaming) after a fully-successful "+
 			"run. Never prompts; never auto-sets upstream. On push failure the commits stand — "+
 			"git's stderr is shown verbatim (including the no-upstream hint), \"commits created; "+
-			"push failed\" prints, and stagehand exits 1. Skipped on --dry-run, the nothing-to-commit "+
+			"push failed\" prints, and stagecoach exits 1. Skipped on --dry-run, the nothing-to-commit "+
 			"exit, and any rescue/CAS abort. (env STAGECOACH_PUSH, git stagecoach.push, config "+
 			"[generation].push; default false.) (§9.22 FR-P1)")
 	pf.BoolVar(&flagNoVerify, "no-verify", false,

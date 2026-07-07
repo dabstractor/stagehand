@@ -1,4 +1,4 @@
-// Package stubtest provides a reusable fake-agent (cmd/stubagent) and helpers for Stagehand's
+// Package stubtest provides a reusable fake-agent (cmd/stubagent) and helpers for Stagecoach's
 // integration and property tests (PRD §20.1 layer 3). Build compiles the stub once per test process;
 // Manifest/NewScript return test-only provider.Manifests whose Env knobs drive the stub's behavior
 // through the real provider.Execute seam. Used by generate.CommitStaged integration tests
@@ -46,7 +46,7 @@ func Build(t testing.TB) string {
 			t.Skipf("go toolchain not on PATH; cannot build stubagent: %v", err)
 			return
 		}
-		dir, err := os.MkdirTemp("", "stagehand-stubagent-*")
+		dir, err := os.MkdirTemp("", "stagecoach-stubagent-*")
 		if err != nil {
 			t.Fatalf("mkdtemp: %v", err)
 		}

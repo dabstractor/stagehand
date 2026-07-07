@@ -35,7 +35,7 @@ func BuiltinManifests() map[string]Manifest {
 // see TestBuiltinManifests_RenderedCommand_Pi_PersonalOverride.
 //
 // NOTE: ReasoningLevels is populated — pi `--thinking` high/medium/low (verified `pi --help`,
-// external_deps.md §pi); off ⇒ no-op (no entry). minimal/xhigh have no stagehand level.
+// external_deps.md §pi); off ⇒ no-op (no entry). minimal/xhigh have no stagecoach level.
 // Per FR-D2 (PRD §9.16/§12.3), the shipped pi default is DECOUPLED from any one subscription:
 // default_model is "". config init fills per-role models from the FR-D4 table; the user/config
 // picks the backend (inference provider) via the model slash-prefix (v3 FR-R5b).
@@ -61,7 +61,7 @@ func builtinPi() Manifest {
 			"--no-session",
 		},
 		// REASONING LEVELS (v3; §12.1, FR-R6). pi exposes `--thinking off|minimal|low|medium|high|xhigh`
-		// (verified `pi --help`, external_deps.md §pi). off ⇒ no entry (natural zero no-op); stagehand's
+		// (verified `pi --help`, external_deps.md §pi). off ⇒ no entry (natural zero no-op); stagecoach's
 		// level set is off|low|medium|high, so minimal/xhigh are not mapped. Tokens append after the model flag.
 		ReasoningLevels: map[string][]string{
 			"high":   {"--thinking", "high"},
@@ -84,7 +84,7 @@ func builtinPi() Manifest {
 		//   2. BEST-EFFORT guarded — by the HEAD-movement defense-in-depth check (P1.M2.T1.S3): HEAD is
 		//      snapshotted before each stager call and the run aborts (treated as a safety violation) if HEAD
 		//      has moved when the stager returns. THE SAFETY NET IS THIS GUARD, NOT FLAG-SCOPING.
-		// (stagehand's ref-mutation monopoly, §13.6.2/§19, holds only insofar as the stager cannot itself
+		// (stagecoach's ref-mutation monopoly, §13.6.2/§19, holds only insofar as the stager cannot itself
 		// move a ref — for pi that relies on the §17.6 prompt + the S3 guard, not on TooledFlags.)
 		TooledFlags: []string{
 			"--no-extensions",

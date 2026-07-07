@@ -8,7 +8,7 @@
 //
 //	(I1) Idempotent index  — git diff --cached --name-only AND git diff --cached
 //	      byte-identical to the pre-run snapshot.
-//	(I2) Atomic HEAD       — git rev-parse HEAD unchanged by Stagehand
+//	(I2) Atomic HEAD       — git rev-parse HEAD unchanged by Stagecoach
 //	      (CAS: == the externally-moved concurrent commit).
 //	(I3) Snapshot immutability — git cat-file -p <TREE_SHA> byte-identical
 //	      AFTER staging extra content into the index.
@@ -89,7 +89,7 @@ func assertInvariants(t *testing.T, repo string, before repoSnapshot, treeSHA, w
 		t.Errorf("I1 (idempotent index) full diff mutated: before=%q after=%q", before.indexFull, got)
 	}
 
-	// I2: atomic HEAD — unchanged by Stagehand (CAS: == the externally-moved commit).
+	// I2: atomic HEAD — unchanged by Stagecoach (CAS: == the externally-moved commit).
 	if wantHead == "" {
 		wantHead = before.head
 	}

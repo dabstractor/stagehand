@@ -141,14 +141,14 @@ func TestHookInstallStatusUninstall_RoundTrip(t *testing.T) {
 		t.Errorf("hook perm = %o, want 0o755", info.Mode().Perm())
 	}
 
-	// status → stagehand (v1)
+	// status → stagecoach (v1)
 	out.Reset()
 	rootCmd.SetArgs([]string{"hook", "status"})
 	if err := Execute(context.Background()); err != nil {
 		t.Fatalf("status err=%v", err)
 	}
-	if strings.TrimSpace(out.String()) != "stagehand (v1)" {
-		t.Errorf("post-install status = %q, want 'stagehand (v1)'", out.String())
+	if strings.TrimSpace(out.String()) != "stagecoach (v1)" {
+		t.Errorf("post-install status = %q, want 'stagecoach (v1)'", out.String())
 	}
 
 	// reinstall (idempotent → "Updated")
@@ -224,7 +224,7 @@ func TestHookInstall_ForeignRefused(t *testing.T) {
 
 	// stderr contains the manual invocation line
 	stderr := errBuf.String()
-	if !strings.Contains(stderr, "exec stagehand hook exec") {
+	if !strings.Contains(stderr, "exec stagecoach hook exec") {
 		t.Errorf("stderr = %q, want to contain the invocation line", stderr)
 	}
 	if !strings.Contains(stderr, "foreign") {
@@ -298,7 +298,7 @@ func TestHookUninstall_NoneIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("uninstall none err=%v, want nil (idempotent exit 0)", err)
 	}
-	if !strings.Contains(out.String(), "No stagehand") {
+	if !strings.Contains(out.String(), "No stagecoach") {
 		t.Errorf("uninstall none output = %q, want informational note", out.String())
 	}
 }
@@ -400,7 +400,7 @@ func TestHookInstall_ConfigBaked(t *testing.T) {
 		t.Errorf("config path NOT baked into hook script:\n%s", script)
 	}
 	// The exec line is still present.
-	if !strings.Contains(script, `exec stagehand hook exec "$@"`) {
+	if !strings.Contains(script, `exec stagecoach hook exec "$@"`) {
 		t.Errorf("exec line missing after config bake:\n%s", script)
 	}
 }
@@ -491,7 +491,7 @@ func TestHookStatus_NoConfigLoad(t *testing.T) {
 	// We don't care if it succeeds or fails — just that no config was created
 	_ = err
 
-	configPath := home + "/stagehand/config.toml"
+	configPath := home + "/stagecoach/config.toml"
 	if _, err := os.Stat(configPath); err == nil {
 		t.Error("hook status created a global config file (bootstrap side effect)")
 	}

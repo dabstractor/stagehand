@@ -17,7 +17,7 @@ import (
 )
 
 // TestSignalIntegration_SigintPostSnapshot verifies the full signal path end-to-end:
-// build the real stagehand binary, use a hanging stub agent, send SIGINT after the snapshot
+// build the real stagecoach binary, use a hanging stub agent, send SIGINT after the snapshot
 // is taken, assert exit 3 + rescue message printed + HEAD unchanged.
 //
 // This is the ONLY way to test the real os.Exit(3) path (see design-decisions F5).
@@ -50,7 +50,7 @@ func TestSignalIntegration_SigintPostSnapshot(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	// Run stagehand with the hanging stub.
+	// Run stagecoach with the hanging stub.
 	cmd := exec.Command(stagecoachBin, "--config", cfgPath)
 	cmd.Dir = repo
 	cmd.Env = append(os.Environ(),
@@ -61,7 +61,7 @@ func TestSignalIntegration_SigintPostSnapshot(t *testing.T) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("start stagehand: %v", err)
+		t.Fatalf("start stagecoach: %v", err)
 	}
 
 	// Wait for the snapshot to be taken and the agent to start. WriteTree + stub startup
@@ -134,7 +134,7 @@ var (
 func buildStub(t *testing.T) string {
 	t.Helper()
 	buildStubOnce.Do(func() {
-		dir, err := os.MkdirTemp("", "stagehand-stubtest-*")
+		dir, err := os.MkdirTemp("", "stagecoach-stubtest-*")
 		if err != nil {
 			t.Fatalf("mkdtemp: %v", err)
 		}
@@ -149,7 +149,7 @@ func buildStub(t *testing.T) string {
 	return buildStubPath
 }
 
-// buildStagecoach compiles cmd/stagehand once and returns its path.
+// buildStagecoach compiles cmd/stagecoach once and returns its path.
 var (
 	buildStagecoachOnce sync.Once
 	buildStagecoachPath string
@@ -158,15 +158,15 @@ var (
 func buildStagecoach(t *testing.T) string {
 	t.Helper()
 	buildStagecoachOnce.Do(func() {
-		dir, err := os.MkdirTemp("", "stagehand-inttest-*")
+		dir, err := os.MkdirTemp("", "stagecoach-inttest-*")
 		if err != nil {
 			t.Fatalf("mkdtemp: %v", err)
 		}
-		name := "stagehand"
+		name := "stagecoach"
 		out := filepath.Join(dir, name)
 		cmd := exec.Command("go", "build", "-o", out, "github.com/dustin/stagecoach/cmd/stagecoach")
 		if o, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("go build stagehand: %v\n%s", err, o)
+			t.Fatalf("go build stagecoach: %v\n%s", err, o)
 		}
 		buildStagecoachPath = out
 	})

@@ -1,5 +1,5 @@
 // Package integrate provides the target registry and Entry interface for the
-// `stagehand integrate` command surface (PRD §9.21 FR-I1/I2). The Registry
+// `stagecoach integrate` command surface (PRD §9.21 FR-I1/I2). The Registry
 // holds pluggable integration targets (git-alias, lazygit, future) and the
 // Entry interface is the uniform contract every target implements.
 //
@@ -19,8 +19,8 @@ import (
 type Status int
 
 const (
-	StatusNotInstalled Status = iota // no stagehand-managed entry in the target's config
-	StatusInstalled                  // stagehand entry present (marker/key ours)
+	StatusNotInstalled Status = iota // no stagecoach-managed entry in the target's config
+	StatusInstalled                  // stagecoach entry present (marker/key ours)
 	StatusForeign                    // a conflicting entry exists at the target's key/alias
 )
 
@@ -51,7 +51,7 @@ type Entry interface {
 	// Detect reports whether the target's TOOL is on $PATH (FR-I2 detection gating).
 	// nil ⇒ present (install may proceed); non-nil ⇒ absent — the command prints
 	// the error's message as the note and skips install for this target (exit 1).
-	// git-alias detects git (always present for stagehand); lazygit detects lazygit.
+	// git-alias detects git (always present for stagecoach); lazygit detects lazygit.
 	Detect(ctx context.Context) error
 
 	// ConfigPath resolves the config file/path the target edits (FR-I1 "resolved
@@ -60,7 +60,7 @@ type Entry interface {
 	ConfigPath(ctx context.Context) (string, error)
 
 	// Status reports the integration's current state (FR-I1). Reads the target's config
-	// for the stagehand entry: NotInstalled (absent) / Installed (ours) / Foreign
+	// for the stagecoach entry: NotInstalled (absent) / Installed (ours) / Foreign
 	// (a conflicting entry). Independent of Detect (a target can be StatusInstalled with
 	// the tool since uninstalled).
 	Status(ctx context.Context) (Status, error)
@@ -73,7 +73,7 @@ type Entry interface {
 	// reported via Outcome, NOT as errors.
 	Install(ctx context.Context, opts InstallOptions) (InstallResult, error)
 
-	// Remove deletes the stagehand entry (uninstall symmetry). Same controls/contract
+	// Remove deletes the stagecoach entry (uninstall symmetry). Same controls/contract
 	// as Install.
 	Remove(ctx context.Context, opts RemoveOptions) (RemoveResult, error)
 }

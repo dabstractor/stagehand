@@ -1,7 +1,7 @@
 package config
 
 // DefaultModelsVerificationDate is the date the FR-D4 roleDefaults table was last verified (FR-D5).
-// Surfaced by `stagehand models` in the curated-fallback annotation (FR-L1). Update this AND roleDefaults
+// Surfaced by `stagecoach models` in the curated-fallback annotation (FR-L1). Update this AND roleDefaults
 // together on each re-verification.
 const DefaultModelsVerificationDate = "2026-07-02"
 

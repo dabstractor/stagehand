@@ -39,20 +39,20 @@ func runDefault(cmd *cobra.Command, args []string) error {
 
 	cfg := Config()
 	if cfg == nil {
-		// Defensive: PersistentPreRunE always loads config for the root action (cmd.Name()=="stagehand"),
+		// Defensive: PersistentPreRunE always loads config for the root action (cmd.Name()=="stagecoach"),
 		// so this is unreachable in practice. Still fail loudly rather than nil-deref.
-		return exitcode.New(exitcode.Error, errors.New("stagehand: configuration not loaded"))
+		return exitcode.New(exitcode.Error, errors.New("stagecoach: configuration not loaded"))
 	}
 
 	u := ui.New(stdout, stderr, ui.ResolveColor(cfg.NoColor, ui.IsTerminal(os.Stdout)))
 
 	repoDir, err := os.Getwd()
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: getwd: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: getwd: %w", err))
 	}
 	g := git.New(repoDir)
 
-	// FR52 / PRD §18.5: acquire the per-repo run lock so two stagehand processes cannot race on
+	// FR52 / PRD §18.5: acquire the per-repo run lock so two stagecoach processes cannot race on
 	// update-ref. One acquire + one defer covers BOTH the single-commit path and the decompose path
 	// (runDecompose is called below). Read-only subcommands never reach runDefault; hook mode only
 	// writes a message (git commits) — neither needs the lock.
@@ -69,7 +69,7 @@ func runDefault(cmd *cobra.Command, args []string) error {
 	// ---- §9.4 auto-stage-all state machine (FR16–FR20) ----
 	// §9.22 FR-E4: --dry-run + --edit → warn + skip the editor (nothing to commit).
 	if flagDryRun && cfg.Edit {
-		fmt.Fprintln(stderr, "stagehand: --edit ignored in --dry-run mode (nothing to commit)")
+		fmt.Fprintln(stderr, "stagecoach: --edit ignored in --dry-run mode (nothing to commit)")
 		cfg.Edit = false
 	}
 
@@ -100,7 +100,7 @@ func runDefault(cmd *cobra.Command, args []string) error {
 		switch {
 		case flagNoAutoStage:
 			// FR19: --no-auto-stage + nothing staged → exit 2 "Nothing staged." (--no-auto-stage wins
-			// over cfg.AutoStageAll). main prints "stagehand: Nothing staged." (non-nil err).
+			// over cfg.AutoStageAll). main prints "stagecoach: Nothing staged." (non-nil err).
 			return exitcode.New(exitcode.NothingToCommit, errors.New("Nothing staged."))
 		case cfg.AutoStageAll:
 			// FR16/FR18: auto-stage all, print the transparent notice, re-check.
@@ -276,8 +276,8 @@ func handleLockContention(stderr io.Writer, heldErr *lock.HeldError, g git.Git, 
 		hostname = "<unknown>"
 	}
 	fmt.Fprintf(stderr,
-		"stagehand: another stagehand run is already in progress on %s (pid %s on %s). "+
-			"Your newly-staged changes will remain staged — re-run stagehand after it finishes. Lock: %s.\n",
+		"stagecoach: another stagecoach run is already in progress on %s (pid %s on %s). "+
+			"Your newly-staged changes will remain staged — re-run stagecoach after it finishes. Lock: %s.\n",
 		repo, pid, hostname, heldErr.Path)
 	return exitcode.New(exitcode.Busy, nil) // exit 5, SILENT
 }
@@ -285,7 +285,7 @@ func handleLockContention(stderr io.Writer, heldErr *lock.HeldError, g git.Git, 
 // handleGenError maps a GenerateCommit error to the §15.4 outcome WITH the right user-facing output. It
 // prints the detailed message for rescue/CAS (to stderr) and returns a SILENT exitcode.New(code, nil) so
 // main does not double-print; for friendly/generic errors it returns exitcode.New(code, err) so main
-// prints "stagehand: <msg>". (design §4)
+// prints "stagecoach: <msg>". (design §4)
 func handleGenError(stderr io.Writer, err error) error {
 	// Dry-run generation failure (PRD §9.12 FR49 + bugfix-002 Issue 4): --dry-run runs the full
 	// pipeline (incl. the snapshot), so a timeout or parse/dedupe-exhaustion surfaces a
@@ -434,7 +434,7 @@ func printDecomposeCommit(w io.Writer, c decompose.CommitResult) {
 
 // handleDecomposeError maps a decompose error to the §15.4 outcome WITHOUT double-printing:
 // rescue/CAS are already printed by the loop → silent exitcode.New(exitcode.For(err), nil);
-// planner/safety/infra → exitcode.New(exitcode.Error, err) so main prints 'stagehand: <msg>'.
+// planner/safety/infra → exitcode.New(exitcode.Error, err) so main prints 'stagecoach: <msg>'.
 func handleDecomposeError(err error) error {
 	var re *generate.RescueError
 	var ce *generate.CASError
@@ -445,7 +445,7 @@ func handleDecomposeError(err error) error {
 }
 
 // printDryRunMessage writes the generated message to w (stdout) for --dry-run. stdout = message ONLY
-// (§15.5: `stagehand --dry-run --no-color | tee /tmp/msg.txt`). Decorations are P1.M4.T3/T4 (design §9).
+// (§15.5: `stagecoach --dry-run --no-color | tee /tmp/msg.txt`). Decorations are P1.M4.T3/T4 (design §9).
 func printDryRunMessage(w io.Writer, msg string) {
 	fmt.Fprintln(w, msg)
 }

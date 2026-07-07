@@ -7,7 +7,7 @@
 // with parallel runner.go edits. DefaultRunner satisfies generate.CommitHookRunner STRUCTURALLY
 // (Go duck typing) — it does NOT import internal/generate, so it adds no edge to the
 // generate↔hooks import graph (hooks already imports generate in runner.go for RescueError; this
-// adapter reuses no generate symbol). Wired into generate.Deps by pkg/stagehand.buildDeps; also
+// adapter reuses no generate symbol). Wired into generate.Deps by pkg/stagecoach.buildDeps; also
 // used by the external hooks_freeze_test.
 package hooks
 

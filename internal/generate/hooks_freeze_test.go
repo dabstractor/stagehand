@@ -162,7 +162,7 @@ func TestCommitStaged_PreCommitFreeze_HoldsForLiveStagedSentinel(t *testing.T) {
 
 // TestCommitStaged_CommitMsgEmptiesMessage_IsEmptyMessageAbort is the Issue-4 git-parity guard: a
 // commit-msg (or prepare-commit-msg) hook that empties the message file must NOT produce a commit. git
-// aborts "Aborting commit due to empty commit message." (exit 1); stagehand returns the BARE
+// aborts "Aborting commit due to empty commit message." (exit 1); stagecoach returns the BARE
 // generate.ErrEmptyMessage (exit 1, NOT a rescue) and creates NO commit (HEAD unchanged). (PRD §9.25
 // FR-V2 git parity.) Mirrors TestCommitStaged_PreCommitAbort_IsRescue's idiom but asserts a bare
 // ErrEmptyMessage (not *RescueError) — a hook that empties the file is a rejection, not a hook failure.

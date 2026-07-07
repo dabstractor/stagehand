@@ -52,7 +52,7 @@ func TestLazygitTarget_ParseGolden(t *testing.T) {
 		t.Fatalf("Parse(golden): %v", err)
 	}
 	if tgt.HasEntry() {
-		t.Error("HasEntry() = true, want false (golden has no stagehand marker)")
+		t.Error("HasEntry() = true, want false (golden has no stagecoach marker)")
 	}
 	// customCommands should exist with one pre-existing entry
 	top := tgt.topMap()
@@ -86,7 +86,7 @@ func TestLazygitTarget_Upsert_AddsEntrySemantically(t *testing.T) {
 
 	// (a) marked entry present with correct defaults
 	if !outTgt.HasEntry() {
-		t.Fatal("output HasEntry() = false, want true (stagehand entry should be present)")
+		t.Fatal("output HasEntry() = false, want true (stagecoach entry should be present)")
 	}
 	marked := outTgt.findMarkedItem()
 	if marked == nil {
@@ -103,8 +103,8 @@ func TestLazygitTarget_Upsert_AddsEntrySemantically(t *testing.T) {
 	if fields["context"] != "files" {
 		t.Errorf("marked context = %q, want 'files'", fields["context"])
 	}
-	if fields["command"] != "stagehand" {
-		t.Errorf("marked command = %q, want 'stagehand'", fields["command"])
+	if fields["command"] != "stagecoach" {
+		t.Errorf("marked command = %q, want 'stagecoach'", fields["command"])
 	}
 	if fields["output"] != "none" {
 		t.Errorf("marked output = %q, want 'none'", fields["output"])
@@ -112,8 +112,8 @@ func TestLazygitTarget_Upsert_AddsEntrySemantically(t *testing.T) {
 	if fields["loadingText"] != "Generating commit message…" {
 		t.Errorf("marked loadingText = %q, want 'Generating commit message…'", fields["loadingText"])
 	}
-	if fields["description"] != "stagehand: AI commit" {
-		t.Errorf("marked description = %q, want 'stagehand: AI commit'", fields["description"])
+	if fields["description"] != "stagecoach: AI commit" {
+		t.Errorf("marked description = %q, want 'stagecoach: AI commit'", fields["description"])
 	}
 
 	// (b) pre-existing 'b' entry preserved
@@ -233,7 +233,7 @@ func TestLazygitTarget_Remove_DeletesOnlyMarked(t *testing.T) {
 		t.Fatalf("Parse: %v", err)
 	}
 
-	// Upsert first to add the stagehand entry.
+	// Upsert first to add the stagecoach entry.
 	upserted, err := tgt.Upsert()
 	if err != nil {
 		t.Fatalf("Upsert: %v", err)
@@ -282,14 +282,14 @@ func TestLazygitTarget_Remove_DeletesOnlyMarked(t *testing.T) {
 }
 
 func TestLazygitTarget_Remove_EmptySeq(t *testing.T) {
-	// Build a config with ONLY the stagehand entry (no sibling).
+	// Build a config with ONLY the stagecoach entry (no sibling).
 	yamlStr := `customCommands:
   - key: '<c-a>' # stagecoach-integration
     context: 'files'
-    command: 'stagehand'
+    command: 'stagecoach'
     loadingText: 'Generating commit message…'
     output: 'none'
-    description: 'stagehand: AI commit'
+    description: 'stagecoach: AI commit'
 `
 	tgt := &lazygitTarget{key: "<c-a>"}
 	if err := tgt.Parse([]byte(yamlStr)); err != nil {
@@ -326,14 +326,14 @@ func TestLazygitTarget_Remove_NoMarkerUnchanged(t *testing.T) {
 		t.Fatalf("Remove: %v", err)
 	}
 
-	// Re-parse and assert no stagehand entry.
+	// Re-parse and assert no stagecoach entry.
 	var outRoot yaml.Node
 	if err := yaml.Unmarshal(out, &outRoot); err != nil {
 		t.Fatalf("re-parse: %v", err)
 	}
 	outTgt := &lazygitTarget{key: defaultLazygitKey, root: &outRoot}
 	if outTgt.HasEntry() {
-		t.Error("Remove on a clean file should not add a stagehand entry")
+		t.Error("Remove on a clean file should not add a stagecoach entry")
 	}
 }
 
@@ -372,7 +372,7 @@ func TestLazygitTarget_CreateIfMissing_EmptyFile(t *testing.T) {
 		t.Fatalf("Upsert: %v", err)
 	}
 
-	// Re-parse and assert valid with the stagehand entry.
+	// Re-parse and assert valid with the stagecoach entry.
 	outTgt := &lazygitTarget{key: defaultLazygitKey}
 	if err := outTgt.Parse(out); err != nil {
 		t.Fatalf("Parse output: %v", err)
@@ -519,8 +519,8 @@ func TestLazygitEntry_Install_Updated(t *testing.T) {
 	if res.Backup == "" {
 		t.Error("Backup is empty, want non-empty (existing-file modification)")
 	}
-	if !strings.Contains(res.Backup, ".stagehand-backup.") {
-		t.Errorf("Backup path = %q, want '.stagehand-backup.' pattern", res.Backup)
+	if !strings.Contains(res.Backup, ".stagecoach-backup.") {
+		t.Errorf("Backup path = %q, want '.stagecoach-backup.' pattern", res.Backup)
 	}
 
 	// Entry should be present.
@@ -593,7 +593,7 @@ func TestLazygitEntry_Install_ConfirmReceivesDiff(t *testing.T) {
 		t.Errorf("Outcome = %v, want Created", res.Outcome)
 	}
 
-	// The diff should contain stagehand-related content.
+	// The diff should contain stagecoach-related content.
 	if !strings.Contains(gotDiff, "stagecoach-integration") {
 		t.Errorf("diff missing 'stagecoach-integration'; got %q", gotDiff)
 	}
@@ -630,7 +630,7 @@ func TestLazygitEntry_Install_ForeignKeyWarning(t *testing.T) {
 		t.Errorf("Outcome = %v, want Updated", res.Outcome)
 	}
 
-	// The config must contain exactly TWO <c-a> entries: the foreign (unmarked) + stagehand's marked one.
+	// The config must contain exactly TWO <c-a> entries: the foreign (unmarked) + stagecoach's marked one.
 	data, err := os.ReadFile(e.configPath)
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
@@ -689,7 +689,7 @@ func TestLazygitEntry_Install_ForeignKeyWarningInteractiveConfirm(t *testing.T) 
 		t.Errorf("opts.Out missing WARNING; got %q", buf.String())
 	}
 	if !strings.Contains(gotDiff, "stagecoach-integration") {
-		t.Errorf("confirm diff missing stagehand entry; got %q", gotDiff)
+		t.Errorf("confirm diff missing stagecoach entry; got %q", gotDiff)
 	}
 }
 
@@ -785,7 +785,7 @@ func TestLazygitEntry_Status_States(t *testing.T) {
 	}
 
 	// Hand-write an unmarked entry with key "<c-a>" → Foreign
-	// Remove the stagehand entry first, then write a foreign one.
+	// Remove the stagecoach entry first, then write a foreign one.
 	if _, err := e.Remove(ctx, integrate.RemoveOptions{Yes: true}); err != nil {
 		t.Fatalf("Remove: %v", err)
 	}

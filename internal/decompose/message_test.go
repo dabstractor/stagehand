@@ -470,7 +470,7 @@ func TestPublishCommit_PreCommitAbort_RescueError(t *testing.T) {
 
 // TestPublishCommit_HookEmptiesMessage_Aborts is the Issue-4 guard on the decompose path: a commit-msg hook
 // that empties the message file must NOT create an empty-message commit. git aborts "Aborting commit due to
-// empty commit message."; stagehand returns the BARE generate.ErrEmptyMessage (exit 1, NOT a rescue — it is
+// empty commit message."; stagecoach returns the BARE generate.ErrEmptyMessage (exit 1, NOT a rescue — it is
 // neither *RescueError nor *CASError). Mirrors TestPublishCommit_PreCommitAbort_RescueError's structure but
 // swaps the hook (commit-msg `> "$1"; exit 0`) + the assertion (errors.Is(err, generate.ErrEmptyMessage)).
 // FAILS before the guard (publishCommit creates an empty-message commit → err==nil, HEAD moved); PASSES after.

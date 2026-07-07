@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Verbose is Stagehand's --verbose diagnostics sink (PRD §9.13 FR50, §15.2, §19). When ON, it prints
+// Verbose is Stagecoach's --verbose diagnostics sink (PRD §9.13 FR50, §15.2, §19). When ON, it prints
 // the resolved provider command, the raw agent stdout, and each retry attempt to a writer (the CLI's
 // stderr) with a "DEBUG: " prefix (the commit-pi convention named in the work-item contract). When OFF
 // (the default), or when the receiver is nil, or when the writer is nil, EVERY method is a no-op
@@ -18,7 +18,7 @@ import (
 // VERBOSE=2 — see D9; Config.Verbose is a bool, so VERBOSE=2 is currently un-parseable and out of scope).
 //
 // The writer is INJECTABLE: the CLI passes cmd.ErrOrStderr() (stderr); a library consumer of
-// pkg/stagehand passes its own writer or nil. This keeps the library side-effect-free by default
+// pkg/stagecoach passes its own writer or nil. This keeps the library side-effect-free by default
 // (it never writes to os.Stderr directly). Sibling to output.go (P1.M4.T3.S1's ↳/color layer); this
 // file owns ONLY verbose diagnostics.
 type Verbose struct {
@@ -84,7 +84,7 @@ func (v *Verbose) VerboseStderr(stderr string) {
 
 // VerbosePayload prints the size of the payload being delivered to the provider (PRD §9.13 FR50 —
 // diagnostics). bytes is the stdin/payload length the executor is about to pipe (spec.Stdin for
-// stdin-delivery providers; the trailing positional/flag arg length otherwise). Stagehand's token
+// stdin-delivery providers; the trailing positional/flag arg length otherwise). Stagecoach's token
 // budgeting (FR3d/FR3i) is the difference between a payload that fits and one the model rejects, so
 // surfacing the shipped size lets a user see at a glance whether the gate ran and whether the chars/4
 // estimate is in the right neighborhood — without this, a silently-ignored token_limit (e.g. a key in

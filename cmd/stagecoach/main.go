@@ -64,7 +64,7 @@ func main() {
 	err := cmd.Execute(ctx)
 	code := exitcode.For(err)
 	if err != nil && err.Error() != "" {
-		fmt.Fprintf(os.Stderr, "stagehand: %v\n", err)
+		fmt.Fprintf(os.Stderr, "stagecoach: %v\n", err)
 	}
 	os.Exit(code)
 }

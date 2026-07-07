@@ -12,7 +12,7 @@ func TestHookScript_NonStrict(t *testing.T) {
 	got := hookScript(false, "")
 	want := "#!/bin/sh\n" +
 		"# stagecoach prepare-commit-msg hook v1\n" +
-		`exec stagehand hook exec "$@"` + "\n"
+		`exec stagecoach hook exec "$@"` + "\n"
 	if got != want {
 		t.Fatalf(`hookScript(false, "") = %q, want %q`, got, want)
 	}
@@ -23,7 +23,7 @@ func TestHookScript_NonStrict(t *testing.T) {
 	if lines[1] != Marker {
 		t.Fatalf("second line = %q, want Marker %q", lines[1], Marker)
 	}
-	if !strings.Contains(got, `exec stagehand hook exec "$@"`) {
+	if !strings.Contains(got, `exec stagecoach hook exec "$@"`) {
 		t.Fatalf(`hookScript(false, "") missing expected exec line: %q`, got)
 	}
 	if strings.Contains(got, "--strict") {
@@ -38,7 +38,7 @@ func TestHookScript_Strict(t *testing.T) {
 	}
 	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
 	last := lines[len(lines)-1]
-	want := `exec stagehand hook exec --strict "$@"`
+	want := `exec stagecoach hook exec --strict "$@"`
 	if last != want {
 		t.Fatalf(`hookScript(true, "") last line = %q, want %q`, last, want)
 	}
@@ -97,12 +97,12 @@ func TestHookScript_ConfigPathBaked(t *testing.T) {
 		t.Errorf("configPath not baked into script as a STAGECOACH_CONFIG export:\n%s", got)
 	}
 	// The exec line must STILL be present after the export.
-	if !strings.Contains(got, `exec stagehand hook exec "$@"`) {
+	if !strings.Contains(got, `exec stagecoach hook exec "$@"`) {
 		t.Errorf("exec line missing after config bake:\n%s", got)
 	}
-	// The export must come BEFORE the exec line (so the env is set when stagehand runs).
+	// The export must come BEFORE the exec line (so the env is set when stagecoach runs).
 	exportIdx := strings.Index(got, "export STAGECOACH_CONFIG=")
-	execIdx := strings.Index(got, "exec stagehand")
+	execIdx := strings.Index(got, "exec stagecoach")
 	if exportIdx < 0 || execIdx < 0 || exportIdx > execIdx {
 		t.Errorf("export must precede exec; exportIdx=%d execIdx=%d\n%s", exportIdx, execIdx, got)
 	}
