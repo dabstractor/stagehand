@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagecoach/internal/git"
 )
 
 // ErrHookSweptConcurrentWork is the sentinel for an FR-V3 FREEZE violation by a scoped pre-commit hook:

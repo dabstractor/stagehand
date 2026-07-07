@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/git"
 )
 
 // ApplyTemplate applies the §9.19 FR-F8 message template: every literal "$msg" in tpl is replaced with the

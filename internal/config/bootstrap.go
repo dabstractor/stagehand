@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagecoach/internal/provider"
 )
 
 // preferredBuiltins is the FR-D1 cascading provider priority order (local copy — mirrors

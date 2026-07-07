@@ -1,4 +1,4 @@
-module github.com/dustin/stagehand
+module github.com/dustin/stagecoach
 
 go 1.22
 

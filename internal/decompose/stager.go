@@ -25,9 +25,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/prompt"
-	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/prompt"
+	"github.com/dustin/stagecoach/internal/provider"
 )
 
 // ErrStagerFailed is the sentinel for stager-agent failures (render error, non-zero exit, timeout,

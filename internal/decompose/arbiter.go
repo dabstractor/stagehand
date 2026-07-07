@@ -29,10 +29,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/prompt"
-	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/prompt"
+	"github.com/dustin/stagecoach/internal/provider"
 )
 
 // ErrArbiterFailed is the sentinel for the arbiter's ONE true infra failure: a render error (the

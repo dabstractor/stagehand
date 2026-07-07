@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/dustin/stagehand/internal/config"
+	"github.com/dustin/stagecoach/internal/config"
 )
 
 func TestApplyTemplate(t *testing.T) {

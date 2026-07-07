@@ -11,8 +11,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/integrate"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/integrate"
 )
 
 // ---------------------------------------------------------------------------

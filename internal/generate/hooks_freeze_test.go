@@ -25,11 +25,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/hooks"
-	"github.com/dustin/stagehand/internal/stubtest"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/hooks"
+	"github.com/dustin/stagecoach/internal/stubtest"
 )
 
 // initTempRepo creates a temp git repo with repo-local identity + a seed commit, returns its dir.

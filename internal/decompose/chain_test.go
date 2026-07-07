@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/provider"
-	"github.com/dustin/stagehand/internal/stubtest"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dustin/stagecoach/internal/stubtest"
 )
 
 // --- Fixture helpers (chn*-prefixed to avoid collisions with arb*/stg*/msg*/un-prefixed) ---

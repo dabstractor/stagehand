@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagecoach/internal/git"
 )
 
 // indexBlob returns the blob content for path in the LIVE index (oracle). "" if path is absent.

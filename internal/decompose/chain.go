@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/hooks"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/hooks"
 )
 
 // ErrArbiterResolutionFailed is the sentinel for arbiter-RESOLUTION infra failures (AddAll/Add/

@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 
 // Action selects whether Apply installs or removes the marker-identified entry (PRD §9.21 FR-I3b).

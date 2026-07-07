@@ -13,9 +13,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/provider"
 )
 
 // providersCmd is the PRD §15.3 "providers" command group. It has NO RunE → bare `stagehand providers`

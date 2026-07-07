@@ -20,8 +20,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/provider"
 )
 
 // chunk is one part of a multi-turn chunked payload (PRD §9.24 FR-T3). index/total carry the "PART i/N"

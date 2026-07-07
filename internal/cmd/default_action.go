@@ -9,16 +9,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/decompose"
-	"github.com/dustin/stagehand/internal/exclude"
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/lock"
-	"github.com/dustin/stagehand/internal/provider"
-	"github.com/dustin/stagehand/internal/ui"
-	"github.com/dustin/stagehand/pkg/stagehand"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/decompose"
+	"github.com/dustin/stagecoach/internal/exclude"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/lock"
+	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dustin/stagecoach/internal/ui"
+	"github.com/dustin/stagecoach/pkg/stagehand"
 )
 
 // runDefault is the root command's default action (PRD §15.1): commit staged changes, auto-staging all

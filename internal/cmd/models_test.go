@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/provider"
 )
 
 // ---------------------------------------------------------------------------

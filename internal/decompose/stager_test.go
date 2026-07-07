@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/prompt"
-	"github.com/dustin/stagehand/internal/provider"
-	"github.com/dustin/stagehand/internal/stubtest"
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/prompt"
+	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dustin/stagecoach/internal/stubtest"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 
 // --- Fixture helpers (stg*-prefixed to avoid colliding with planner_test.go's un-prefixed copies) ---

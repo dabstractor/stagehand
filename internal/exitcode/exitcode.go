@@ -14,7 +14,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/dustin/stagehand/internal/generate"
+	"github.com/dustin/stagecoach/internal/generate"
 )
 
 // PRD §15.4 exit codes (AUTHORITATIVE — overrides arch/go_ecosystem_patterns.md §1.2's generic table,

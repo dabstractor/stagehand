@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/decompose"
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/stubtest"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/decompose"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/stubtest"
 )
 
 // ---------------------------------------------------------------------------

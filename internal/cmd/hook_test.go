@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/hook"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/hook"
 )
 
 // ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Project Rename: stagehand → stagecoach",
-      "status": "Researching",
+      "status": "Planned",
       "description": "Rename the entire project from 'stagehand' to 'stagecoach' across all tracked files. The codebase is a fully-implemented Go CLI tool (63K lines, ~200 files) that generates git commit messages via AI agent CLIs. Every reference to 'stagehand' (module path, imports, directories, files, packages, env vars, git config keys, config paths, CLI name, docs, build system) must be replaced with 'stagecoach'. The git remote is already renamed to dabstractor/stagecoach on GitHub. No backward compatibility is needed (no public releases exist).",
       "milestones": [
         {
@@ -25,21 +25,31 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S1",
                   "title": "Rename go.mod module path and all Go import paths",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
-                  "prd_selectors": ["h2.14", "h3.70", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/012_963e3918ec08/architecture/rename_surface_map.md Layer 1. The go.mod module is `github.com/dustin/stagehand` (line 1). There are ~257 occurrences of the import path `github.com/dustin/stagehand/` across ~100+ Go files.\n2. INPUT: The existing go.mod at repo root and all .go files under cmd/, pkg/, and internal/.\n3. LOGIC: (a) Edit go.mod line 1: `module github.com/dustin/stagehand` → `module github.com/dustin/stagecoach`. (b) Run `find . -name '*.go' -not -path './.git/*' -exec sed -i 's|github.com/dustin/stagehand|github.com/dustin/stagecoach|g' {} +` to update ALL import paths. This includes test files. (c) Also update go.sum if it references the module (it does not — no internal module deps).\n4. OUTPUT: go.mod and all .go files use `github.com/dustin/stagecoach` as the module path. `go build ./...` should still compile (import paths match go.mod module name).\n5. DOCS: none — no user-facing/config/API surface change in this subtask (the module path is internal). Docs are handled by M4."
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/012_963e3918ec08/architecture/rename_surface_map.md Layer 1. The go.mod module is `github.com/dustin/stagehand` (line 1). There are ~257 occurrences of the import path `github.com/dustin/stagehand/` across ~100+ Go files.\n2. INPUT: The existing go.mod at repo root and all .go files under cmd/, pkg/, and internal/.\n3. LOGIC: (a) Edit go.mod line 1: `module github.com/dustin/stagehand` → `module github.com/dustin/stagecoach`. (b) Run `find . -name '*.go' -not -path './.git/*' -exec sed -i 's|github.com/dustin/stagehand|github.com/dustin/stagecoach|g' {} +` to update ALL import paths. This includes test files. (c) Also update go.sum if it references the module (it does not — no internal module deps).\n4. OUTPUT: go.mod and all .go files use `github.com/dustin/stagecoach` as the module path. `go build ./...` should still compile (import paths match go.mod module name).\n5. DOCS: none — no user-facing/config/API surface change in this subtask (the module path is internal). Docs are handled by M4.",
+                  "prd_selectors": [
+                    "h2.14",
+                    "h3.70",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": "Rename directories cmd/stagehand→cmd/stagecoach and pkg/stagehand→pkg/stagecoach",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S1"],
-                  "prd_selectors": ["h2.14", "h3.70", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 1.3. Two directories need renaming: `cmd/stagehand/` → `cmd/stagecoach/` and `pkg/stagehand/` → `pkg/stagecoach/`. Use `git mv` to preserve history.\n2. INPUT: The directories `cmd/stagehand/` (containing main.go) and `pkg/stagehand/` (containing stagehand.go and stagehand_test.go) from S1.\n3. LOGIC: Run `git mv cmd/stagehand cmd/stagecoach` and `git mv pkg/stagehand pkg/stagecoach`. These are git-tracked directories. No other code changes in this subtask.\n4. OUTPUT: Directories `cmd/stagecoach/` and `pkg/stagecoach/` exist. The import paths in .go files already point to `github.com/dustin/stagecoach/cmd/stagecoach` and `.../pkg/stagecoach` from S1. `go build ./...` should still fail ONLY because package declarations don't match the directory name yet (fixed in S3).\n5. DOCS: none — internal structural change."
+                  "dependencies": [
+                    "P1.M1.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 1.3. Two directories need renaming: `cmd/stagehand/` → `cmd/stagecoach/` and `pkg/stagehand/` → `pkg/stagecoach/`. Use `git mv` to preserve history.\n2. INPUT: The directories `cmd/stagehand/` (containing main.go) and `pkg/stagehand/` (containing stagehand.go and stagehand_test.go) from S1.\n3. LOGIC: Run `git mv cmd/stagehand cmd/stagecoach` and `git mv pkg/stagehand pkg/stagecoach`. These are git-tracked directories. No other code changes in this subtask.\n4. OUTPUT: Directories `cmd/stagecoach/` and `pkg/stagecoach/` exist. The import paths in .go files already point to `github.com/dustin/stagecoach/cmd/stagecoach` and `.../pkg/stagecoach` from S1. `go build ./...` should still fail ONLY because package declarations don't match the directory name yet (fixed in S3).\n5. DOCS: none — internal structural change.",
+                  "prd_selectors": [
+                    "h2.14",
+                    "h3.70",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -47,9 +57,15 @@
                   "title": "Rename files and package declarations within renamed directories",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S2"],
-                  "prd_selectors": ["h2.14", "h3.70", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 1.4-1.5. Files: `pkg/stagecoach/stagehand.go` → `pkg/stagecoach/stagecoach.go`, `pkg/stagecoach/stagehand_test.go` → `pkg/stagecoach/stagecoach_test.go`. Package declarations: `package stagehand` appears in `pkg/stagecoach/stagecoach.go` (line 7) and `pkg/stagecoach/stagecoach_test.go` (line 1).\n2. INPUT: The renamed directories from S2 containing files still named stagehand.go and stagehand_test.go.\n3. LOGIC: (a) `git mv pkg/stagecoach/stagehand.go pkg/stagecoach/stagecoach.go`. (b) `git mv pkg/stagecoach/stagehand_test.go pkg/stagecoach/stagecoach_test.go`. (c) In both files, replace `package stagehand` with `package stagecoach`. (d) The cmd/stagecoach/main.go file does NOT need renaming (it's already main.go) but verify its package declaration is `package main` (it is).\n4. OUTPUT: All package declarations and file names match the `stagecoach` identity. `go build ./cmd/stagecoach/` must succeed.\n5. DOCS: none — internal structural change. The public API package name change (pkg/stagehand→pkg/stagecoach) is a user-facing change but docs are handled by M4."
+                  "dependencies": [
+                    "P1.M1.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 1.4-1.5. Files: `pkg/stagecoach/stagehand.go` → `pkg/stagecoach/stagecoach.go`, `pkg/stagecoach/stagehand_test.go` → `pkg/stagecoach/stagecoach_test.go`. Package declarations: `package stagehand` appears in `pkg/stagecoach/stagecoach.go` (line 7) and `pkg/stagecoach/stagecoach_test.go` (line 1).\n2. INPUT: The renamed directories from S2 containing files still named stagehand.go and stagehand_test.go.\n3. LOGIC: (a) `git mv pkg/stagecoach/stagehand.go pkg/stagecoach/stagecoach.go`. (b) `git mv pkg/stagecoach/stagehand_test.go pkg/stagecoach/stagecoach_test.go`. (c) In both files, replace `package stagehand` with `package stagecoach`. (d) The cmd/stagecoach/main.go file does NOT need renaming (it's already main.go) but verify its package declaration is `package main` (it is).\n4. OUTPUT: All package declarations and file names match the `stagecoach` identity. `go build ./cmd/stagecoach/` must succeed.\n5. DOCS: none — internal structural change. The public API package name change (pkg/stagehand→pkg/stagecoach) is a user-facing change but docs are handled by M4.",
+                  "prd_selectors": [
+                    "h2.14",
+                    "h3.70",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -57,9 +73,15 @@
                   "title": "Update binary build paths in test code and verify compilation",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S3"],
-                  "prd_selectors": ["h2.14", "h3.70", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 1.6. Test code builds the binary via import paths that still reference `cmd/stagehand`. Files: `internal/stubtest/stubtest.go` (line 59: `github.com/dustin/stagecoach/cmd/stubagent` — already fixed by S1's import sed), `internal/signal/signal_integration_test.go` (lines 143, 167: builds cmd/stubagent and cmd/stagecoach), `internal/cmd/default_action_test.go`, `internal/e2e/harness_test.go`. After S1's import-path sed, these should already reference `stagecoach` paths, but the `cmd/stagehand` path component in build commands needs verification. Also check that `cmd/stubagent/main.go` comment referencing 'Stagehand' is updated.\n2. INPUT: The renamed module and directories from S1-S3.\n3. LOGIC: (a) Search for any remaining `cmd/stagehand` path references in .go files (should be caught by S1's sed but verify). (b) Update any string literals in test code that build the binary (e.g., `exec.Command(goPath, \"build\", \"-o\", out, \"github.com/dustin/stagecoach/cmd/stagecoach\")`). (c) Run `go build ./...` and `go vet ./...` — both MUST pass.\n4. OUTPUT: The entire project compiles and vets cleanly under `github.com/dustin/stagecoach`. No remaining `stagehand` import paths exist in any .go file.\n5. DOCS: none — internal verification step."
+                  "dependencies": [
+                    "P1.M1.T1.S3"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 1.6. Test code builds the binary via import paths that still reference `cmd/stagehand`. Files: `internal/stubtest/stubtest.go` (line 59: `github.com/dustin/stagecoach/cmd/stubagent` — already fixed by S1's import sed), `internal/signal/signal_integration_test.go` (lines 143, 167: builds cmd/stubagent and cmd/stagecoach), `internal/cmd/default_action_test.go`, `internal/e2e/harness_test.go`. After S1's import-path sed, these should already reference `stagecoach` paths, but the `cmd/stagehand` path component in build commands needs verification. Also check that `cmd/stubagent/main.go` comment referencing 'Stagehand' is updated.\n2. INPUT: The renamed module and directories from S1-S3.\n3. LOGIC: (a) Search for any remaining `cmd/stagehand` path references in .go files (should be caught by S1's sed but verify). (b) Update any string literals in test code that build the binary (e.g., `exec.Command(goPath, \"build\", \"-o\", out, \"github.com/dustin/stagecoach/cmd/stagecoach\")`). (c) Run `go build ./...` and `go vet ./...` — both MUST pass.\n4. OUTPUT: The entire project compiles and vets cleanly under `github.com/dustin/stagecoach`. No remaining `stagehand` import paths exist in any .go file.\n5. DOCS: none — internal verification step.",
+                  "prd_selectors": [
+                    "h2.14",
+                    "h3.70",
+                    "h2.30"
+                  ]
                 }
               ]
             },
@@ -76,9 +98,17 @@
                   "title": "Rename all Go identifiers containing Stagehand/stagehand",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M1.T1.S4"],
-                  "prd_selectors": ["h3.34", "h3.36", "h3.37", "h2.23", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 2.5 and critical_findings.md F4. The following Go identifiers must be renamed (each must be renamed in BOTH its declaration AND all reference sites):\n   - `StagehandIgnoreFile` → `StagecoachIgnoreFile` (const, internal/exclude/exclude.go:28)\n   - `LoadStagehandIgnore` → `LoadStagecoachIgnore` (func, internal/exclude/exclude.go:65)\n   - `StatusStagehand` → `StatusStagecoach` (enum value, internal/hook/hook.go:22)\n   - `stagehandAliasValue` → `stagecoachAliasValue` (const, internal/cmd/integrate_gitalias.go:18)\n   - `defaultAliasName` value: `\"stagehand\"` → `\"stagecoach\"` (const, internal/cmd/integrate_gitalias.go:17)\n   - `lazygitMarker` value: `\"stagehand-integration\"` → `\"stagecoach-integration\"` (const, internal/cmd/integrate_lazygit.go:20)\n   - `Marker` value: `\"# stagehand prepare-commit-msg hook v1\"` → `\"# stagecoach prepare-commit-msg hook v1\"` (const, internal/hook/script.go:14)\n   - `buildStagehand` → `buildStagecoach` (func, internal/signal/signal_integration_test.go:152)\n2. INPUT: The compiled project from P1.M1.T1.S4. All import paths are already renamed.\n3. LOGIC: For each identifier, use sed to replace it across all .go files (declaration + references). Be careful with case: `StagehandIgnoreFile` is exact-match replaceable via sed; `defaultAliasName` is the variable NAME (stays) but its VALUE changes from `\"stagehand\"` to `\"stagecoach\"`. The `Marker` const value and `lazygitMarker` value are string values that change. Verify each rename by grepping for the old name to ensure zero remaining references.\n4. OUTPUT: No Go identifier or const value contains 'stagehand' (case-insensitive) in any non-test, non-comment .go file. `go build ./...` and `go vet ./...` pass.\n5. DOCS: none for this subtask — the user-facing identifiers (env vars, config paths) are handled in M2. The hook marker string is user-visible but docs are handled in M4."
+                  "dependencies": [
+                    "P1.M1.T1.S4"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 2.5 and critical_findings.md F4. The following Go identifiers must be renamed (each must be renamed in BOTH its declaration AND all reference sites):\n   - `StagehandIgnoreFile` → `StagecoachIgnoreFile` (const, internal/exclude/exclude.go:28)\n   - `LoadStagehandIgnore` → `LoadStagecoachIgnore` (func, internal/exclude/exclude.go:65)\n   - `StatusStagehand` → `StatusStagecoach` (enum value, internal/hook/hook.go:22)\n   - `stagehandAliasValue` → `stagecoachAliasValue` (const, internal/cmd/integrate_gitalias.go:18)\n   - `defaultAliasName` value: `\"stagehand\"` → `\"stagecoach\"` (const, internal/cmd/integrate_gitalias.go:17)\n   - `lazygitMarker` value: `\"stagehand-integration\"` → `\"stagecoach-integration\"` (const, internal/cmd/integrate_lazygit.go:20)\n   - `Marker` value: `\"# stagehand prepare-commit-msg hook v1\"` → `\"# stagecoach prepare-commit-msg hook v1\"` (const, internal/hook/script.go:14)\n   - `buildStagehand` → `buildStagecoach` (func, internal/signal/signal_integration_test.go:152)\n2. INPUT: The compiled project from P1.M1.T1.S4. All import paths are already renamed.\n3. LOGIC: For each identifier, use sed to replace it across all .go files (declaration + references). Be careful with case: `StagehandIgnoreFile` is exact-match replaceable via sed; `defaultAliasName` is the variable NAME (stays) but its VALUE changes from `\"stagehand\"` to `\"stagecoach\"`. The `Marker` const value and `lazygitMarker` value are string values that change. Verify each rename by grepping for the old name to ensure zero remaining references.\n4. OUTPUT: No Go identifier or const value contains 'stagehand' (case-insensitive) in any non-test, non-comment .go file. `go build ./...` and `go vet ./...` pass.\n5. DOCS: none for this subtask — the user-facing identifiers (env vars, config paths) are handled in M2. The hook marker string is user-visible but docs are handled in M4.",
+                  "prd_selectors": [
+                    "h3.34",
+                    "h3.36",
+                    "h3.37",
+                    "h2.23",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -86,9 +116,15 @@
                   "title": "Rename cobra template function and verify full compilation",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T2.S1"],
-                  "prd_selectors": ["h3.71", "h3.72", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See critical_findings.md F4. `cobra.AddTemplateFunc(\"stagehandFlagUsages\", flagUsagesWrapped)` at internal/cmd/root.go:246. The template string at lines 248-249 references `stagehandFlagUsages` in two `.Replace()` calls. Also the comment at line 240 and 253.\n2. INPUT: The project with all identifiers renamed in S1.\n3. LOGIC: Rename the cobra template function registration string from `\"stagehandFlagUsages\"` to `\"stagecoachFlagUsages\"` in root.go. Update the two `.Replace()` template string replacements that reference it. Update comments.\n4. OUTPUT: `go build ./...`, `go vet ./...`, and `go test ./internal/cmd/... -run TestRoot -count=1` pass. The cobra help rendering works correctly with the new template function name.\n5. DOCS: none — internal cobra plumbing."
+                  "dependencies": [
+                    "P1.M1.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See critical_findings.md F4. `cobra.AddTemplateFunc(\"stagehandFlagUsages\", flagUsagesWrapped)` at internal/cmd/root.go:246. The template string at lines 248-249 references `stagehandFlagUsages` in two `.Replace()` calls. Also the comment at line 240 and 253.\n2. INPUT: The project with all identifiers renamed in S1.\n3. LOGIC: Rename the cobra template function registration string from `\"stagehandFlagUsages\"` to `\"stagecoachFlagUsages\"` in root.go. Update the two `.Replace()` template string replacements that reference it. Update comments.\n4. OUTPUT: `go build ./...`, `go vet ./...`, and `go test ./internal/cmd/... -run TestRoot -count=1` pass. The cobra help rendering works correctly with the new template function name.\n5. DOCS: none — internal cobra plumbing.",
+                  "prd_selectors": [
+                    "h3.71",
+                    "h3.72",
+                    "h2.30"
+                  ]
                 }
               ]
             }
@@ -114,9 +150,16 @@
                   "title": "Rename STAGEHAND_* env var literals to STAGECOACH_* across all Go files",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M1.T2.S2"],
-                  "prd_selectors": ["h3.24", "h3.31", "h3.72", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 2.1. The prefix `STAGEHAND_` appears as ~30+ hardcoded literal strings in internal/config/load.go (os.LookupEnv calls: STAGEHAND_PROVIDER, _MODEL, _REASONING, _TIMEOUT, _VERBOSE, _NO_COLOR, _CONFIG, _COMMITS, _FORMAT, _LOCALE, _TEMPLATE, _PUSH, _STUB_OUT, plus the per-role prefix `\"STAGEHAND_\" + strings.ToUpper(role)`). Also in internal/cmd/root.go flag help text, internal/config/bootstrap.go template comments, internal/e2e/harness_test.go (STAGEHAND_RUN_REAL), and all *_test.go files that set/unset env vars. The prefix is NOT a single constant — each env var name is a literal string.\n2. INPUT: The compiled project from M1 with all identifiers renamed.\n3. LOGIC: Run `grep -rl 'STAGEHAND_' --include='*.go' . | grep -v '.git/' | xargs sed -i 's/STAGEHAND_/STAGECOACH_/g'`. This handles ALL uppercase env var references (string literals, comments, error messages). Then verify: `grep -rn 'STAGEHAND_' --include='*.go' . | grep -v '.git/'` returns zero results. Critical: the per-role prefix string `\"STAGEHAND_\" + strings.ToUpper(role)` at load.go:263 becomes `\"STAGECOACH_\" + strings.ToUpper(role)`.\n4. OUTPUT: All env var references use STAGECOACH_ prefix. `go test ./internal/config/... -count=1` passes with the new env var names (tests must also be updated — the sed handles them).\n5. DOCS: Mode A — update docs/cli.md and docs/configuration.md env var references in M4. The env var names are a user-facing config surface change."
+                  "dependencies": [
+                    "P1.M1.T2.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 2.1. The prefix `STAGEHAND_` appears as ~30+ hardcoded literal strings in internal/config/load.go (os.LookupEnv calls: STAGEHAND_PROVIDER, _MODEL, _REASONING, _TIMEOUT, _VERBOSE, _NO_COLOR, _CONFIG, _COMMITS, _FORMAT, _LOCALE, _TEMPLATE, _PUSH, _STUB_OUT, plus the per-role prefix `\"STAGEHAND_\" + strings.ToUpper(role)`). Also in internal/cmd/root.go flag help text, internal/config/bootstrap.go template comments, internal/e2e/harness_test.go (STAGEHAND_RUN_REAL), and all *_test.go files that set/unset env vars. The prefix is NOT a single constant — each env var name is a literal string.\n2. INPUT: The compiled project from M1 with all identifiers renamed.\n3. LOGIC: Run `grep -rl 'STAGEHAND_' --include='*.go' . | grep -v '.git/' | xargs sed -i 's/STAGEHAND_/STAGECOACH_/g'`. This handles ALL uppercase env var references (string literals, comments, error messages). Then verify: `grep -rn 'STAGEHAND_' --include='*.go' . | grep -v '.git/'` returns zero results. Critical: the per-role prefix string `\"STAGEHAND_\" + strings.ToUpper(role)` at load.go:263 becomes `\"STAGECOACH_\" + strings.ToUpper(role)`.\n4. OUTPUT: All env var references use STAGECOACH_ prefix. `go test ./internal/config/... -count=1` passes with the new env var names (tests must also be updated — the sed handles them).\n5. DOCS: Mode A — update docs/cli.md and docs/configuration.md env var references in M4. The env var names are a user-facing config surface change.",
+                  "prd_selectors": [
+                    "h3.24",
+                    "h3.31",
+                    "h3.72",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -124,9 +167,16 @@
                   "title": "Rename stagehand.* git config keys to stagecoach.* across all Go files",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T2.S2"],
-                  "prd_selectors": ["h3.24", "h3.76", "h3.78", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 2.2. The git config section `stagehand.*` is hardcoded as 26+ literal strings in internal/config/git.go (gitConfigGet calls: `\"stagehand.provider\"`, `\"stagehand.model\"`, `\"stagehand.timeout\"`, `\"stagehand.autoStageAll\"`, `\"stagehand.verbose\"`, `\"stagehand.format\"`, `\"stagehand.locale\"`, `\"stagehand.template\"`, `\"stagehand.push\"`, `\"stagehand.noVerify\"`, `\"stagehand.maxDiffBytes\"`, `\"stagehand.maxMdLines\"`, `\"stagehand.tokenLimit\"`, `\"stagehand.diffContext\"`, `\"stagehand.maxDuplicateRetries\"`, `\"stagehand.subjectTargetChars\"`, `\"stagehand.output\"`, `\"stagehand.stripCodeFence\"`, plus role keys `\"stagehand.role.planner.provider\"` etc.). Also in internal/config/load_test.go test assertions, internal/cmd/root.go help text, internal/config/bootstrap.go template.\n2. INPUT: The compiled project from M1.\n3. LOGIC: Run `grep -rl '\"stagehand\\.' --include='*.go' . | grep -v '.git/' | xargs sed -i 's/\"stagehand\\./\"stagecoach./g'`. This replaces string-literal git config keys like `\"stagehand.provider\"` → `\"stagecoach.provider\"`. Then manually update any references in COMMENTS (e.g., load.go:212 `src = \"git config stagehand.provider\"` → `stagecoach.provider`). Run `grep -rn 'stagehand\\.' --include='*.go' . | grep -v '.git/'` to find remaining references in comments and fix them.\n4. OUTPUT: All git config keys use `stagecoach.` prefix. `go test ./internal/config/... -count=1` passes.\n5. DOCS: Mode A — update docs/configuration.md git config section references in M4."
+                  "dependencies": [
+                    "P1.M1.T2.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 2.2. The git config section `stagehand.*` is hardcoded as 26+ literal strings in internal/config/git.go (gitConfigGet calls: `\"stagehand.provider\"`, `\"stagehand.model\"`, `\"stagehand.timeout\"`, `\"stagehand.autoStageAll\"`, `\"stagehand.verbose\"`, `\"stagehand.format\"`, `\"stagehand.locale\"`, `\"stagehand.template\"`, `\"stagehand.push\"`, `\"stagehand.noVerify\"`, `\"stagehand.maxDiffBytes\"`, `\"stagehand.maxMdLines\"`, `\"stagehand.tokenLimit\"`, `\"stagehand.diffContext\"`, `\"stagehand.maxDuplicateRetries\"`, `\"stagehand.subjectTargetChars\"`, `\"stagehand.output\"`, `\"stagehand.stripCodeFence\"`, plus role keys `\"stagehand.role.planner.provider\"` etc.). Also in internal/config/load_test.go test assertions, internal/cmd/root.go help text, internal/config/bootstrap.go template.\n2. INPUT: The compiled project from M1.\n3. LOGIC: Run `grep -rl '\"stagehand\\.' --include='*.go' . | grep -v '.git/' | xargs sed -i 's/\"stagehand\\./\"stagecoach./g'`. This replaces string-literal git config keys like `\"stagehand.provider\"` → `\"stagecoach.provider\"`. Then manually update any references in COMMENTS (e.g., load.go:212 `src = \"git config stagehand.provider\"` → `stagecoach.provider`). Run `grep -rn 'stagehand\\.' --include='*.go' . | grep -v '.git/'` to find remaining references in comments and fix them.\n4. OUTPUT: All git config keys use `stagecoach.` prefix. `go test ./internal/config/... -count=1` passes.\n5. DOCS: Mode A — update docs/configuration.md git config section references in M4.",
+                  "prd_selectors": [
+                    "h3.24",
+                    "h3.76",
+                    "h3.78",
+                    "h2.30"
+                  ]
                 }
               ]
             },
@@ -143,9 +193,16 @@
                   "title": "Rename config file discovery paths and lock directory paths",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M2.T1.S1"],
-                  "prd_selectors": ["h3.24", "h3.76", "h3.92", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 2.3-2.4. Files to update:\n   - internal/config/file.go:102: `filepath.Join(xdg, \"stagehand\", \"config.toml\")` → `\"stagecoach\"`\n   - internal/config/file.go:108: `filepath.Join(home, \".config\", \"stagehand\", \"config.toml\")` → `\"stagecoach\"`\n   - internal/config/file.go:127: `func repoLocalConfigPath() string { return \".stagehand.toml\" }` → `\".stagecoach.toml\"`\n   - internal/config/file.go:491: error message with `.stagehand.toml`\n   - internal/config/load.go:109,118: comments referencing paths\n   - internal/config/bootstrap.go:244,246: template comments with `.stagehand.toml`\n   - internal/config/load.go:109: `fmt.Fprintf(noticeOut, \"stagehand: wrote bootstrap config to %s\\n\", globalPath)` → `\"stagecoach: ...\"`\n   - internal/lock/lock.go:222,225,231: `filepath.Join(xdg, \"stagehand\", \"locks\")` and `filepath.Join(home, \".cache\", \"stagehand\", \"locks\")` → `\"stagecoach\"`\n   - internal/lock/lock.go:51,60: error messages `\"stagehand run lock held...\"` → `\"stagecoach run lock held...\"`\n   - Test files: file_test.go, lock_test.go, load_test.go assertions\n2. INPUT: The project with env vars and git config keys already renamed (S1, S2).\n3. LOGIC: (a) `sed -i 's/\"stagehand\"\\/\"config.toml\"/\"stagecoach\"\\/\"config.toml\"/g'` — or more reliably, edit file.go lines 102, 108 to use `\"stagecoach\"`. (b) Edit file.go:127 `.stagehand.toml` → `.stagecoach.toml`. (c) Edit lock.go lines 222, 225, 231 `\"stagehand\"` → `\"stagecoach\"`. (d) Update all error messages and comments referencing these paths. (e) Update test assertions.\n4. OUTPUT: Config files are discovered at `~/.config/stagecoach/config.toml`, repo-local `.stagecoach.toml`, locks at `stagecoach/locks`. `go test ./internal/config/... ./internal/lock/... -count=1` passes.\n5. DOCS: Mode A — update docs/configuration.md config path references in M4."
+                  "dependencies": [
+                    "P1.M2.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 2.3-2.4. Files to update:\n   - internal/config/file.go:102: `filepath.Join(xdg, \"stagehand\", \"config.toml\")` → `\"stagecoach\"`\n   - internal/config/file.go:108: `filepath.Join(home, \".config\", \"stagehand\", \"config.toml\")` → `\"stagecoach\"`\n   - internal/config/file.go:127: `func repoLocalConfigPath() string { return \".stagehand.toml\" }` → `\".stagecoach.toml\"`\n   - internal/config/file.go:491: error message with `.stagehand.toml`\n   - internal/config/load.go:109,118: comments referencing paths\n   - internal/config/bootstrap.go:244,246: template comments with `.stagehand.toml`\n   - internal/config/load.go:109: `fmt.Fprintf(noticeOut, \"stagehand: wrote bootstrap config to %s\\n\", globalPath)` → `\"stagecoach: ...\"`\n   - internal/lock/lock.go:222,225,231: `filepath.Join(xdg, \"stagehand\", \"locks\")` and `filepath.Join(home, \".cache\", \"stagehand\", \"locks\")` → `\"stagecoach\"`\n   - internal/lock/lock.go:51,60: error messages `\"stagehand run lock held...\"` → `\"stagecoach run lock held...\"`\n   - Test files: file_test.go, lock_test.go, load_test.go assertions\n2. INPUT: The project with env vars and git config keys already renamed (S1, S2).\n3. LOGIC: (a) `sed -i 's/\"stagehand\"\\/\"config.toml\"/\"stagecoach\"\\/\"config.toml\"/g'` — or more reliably, edit file.go lines 102, 108 to use `\"stagecoach\"`. (b) Edit file.go:127 `.stagehand.toml` → `.stagecoach.toml`. (c) Edit lock.go lines 222, 225, 231 `\"stagehand\"` → `\"stagecoach\"`. (d) Update all error messages and comments referencing these paths. (e) Update test assertions.\n4. OUTPUT: Config files are discovered at `~/.config/stagecoach/config.toml`, repo-local `.stagecoach.toml`, locks at `stagecoach/locks`. `go test ./internal/config/... ./internal/lock/... -count=1` passes.\n5. DOCS: Mode A — update docs/configuration.md config path references in M4.",
+                  "prd_selectors": [
+                    "h3.24",
+                    "h3.76",
+                    "h3.92",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -153,9 +210,14 @@
                   "title": "Rename .stagehandignore to .stagecoachignore and related identifiers",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M2.T1.S2"],
-                  "prd_selectors": ["h3.34", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 2.5. The constant `StagecoachIgnoreFile` (already renamed from StagehandIgnoreFile in M1.T2.S1) has value `\".stagehandignore\"` at internal/exclude/exclude.go:28. This value must become `\".stagecoachignore\"`. Related: LoadStagecoachIgnore function name already renamed; only the string value and doc comments remain. Also: internal/cmd/root.go:164 help text references `.stagehandignore`, internal/ui/verbose.go:101 references `.stagehandignore`.\n2. INPUT: The project with identifiers renamed (M1.T2.S1 renamed the const NAME; now its VALUE must change).\n3. LOGIC: (a) Edit exclude.go:28: `const StagecoachIgnoreFile = \".stagehandignore\"` → `\".stagecoachignore\"`. (b) sed all .go files: `grep -rl 'stagehandignore' --include='*.go' . | grep -v '.git/' | xargs sed -i 's/stagehandignore/stagecoachignore/g'`. This catches comments, help text, and test assertions. (c) Verify: `grep -rn 'stagehandignore' --include='*.go' . | grep -v '.git/'` returns zero.\n4. OUTPUT: The exclusion file is `.stagecoachignore`. `go test ./internal/exclude/... -count=1` passes.\n5. DOCS: Mode A — update README.md and docs/cli.md `.stagecoachignore` references in M4."
+                  "dependencies": [
+                    "P1.M2.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 2.5. The constant `StagecoachIgnoreFile` (already renamed from StagehandIgnoreFile in M1.T2.S1) has value `\".stagehandignore\"` at internal/exclude/exclude.go:28. This value must become `\".stagecoachignore\"`. Related: LoadStagecoachIgnore function name already renamed; only the string value and doc comments remain. Also: internal/cmd/root.go:164 help text references `.stagehandignore`, internal/ui/verbose.go:101 references `.stagehandignore`.\n2. INPUT: The project with identifiers renamed (M1.T2.S1 renamed the const NAME; now its VALUE must change).\n3. LOGIC: (a) Edit exclude.go:28: `const StagecoachIgnoreFile = \".stagehandignore\"` → `\".stagecoachignore\"`. (b) sed all .go files: `grep -rl 'stagehandignore' --include='*.go' . | grep -v '.git/' | xargs sed -i 's/stagehandignore/stagecoachignore/g'`. This catches comments, help text, and test assertions. (c) Verify: `grep -rn 'stagehandignore' --include='*.go' . | grep -v '.git/'` returns zero.\n4. OUTPUT: The exclusion file is `.stagecoachignore`. `go test ./internal/exclude/... -count=1` passes.\n5. DOCS: Mode A — update README.md and docs/cli.md `.stagecoachignore` references in M4.",
+                  "prd_selectors": [
+                    "h3.34",
+                    "h2.30"
+                  ]
                 }
               ]
             },
@@ -172,9 +234,16 @@
                   "title": "Rename error message prefixes and status/progress strings",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M2.T2.S2"],
-                  "prd_selectors": ["h3.72", "h3.29", "h3.88", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 3.2-3.3. Error prefixes `\"stagehand: ...\"` appear in ~20+ locations: internal/config/migrate.go (lines 108-114), internal/config/load.go (lines 109, 212, 216, 520-527), internal/config/file.go (line 491), internal/config/git.go (line 152), internal/generate/generate.go (lines 85, 90, 95, 123, 125, 156), internal/generate/finalize.go (line 45), internal/cmd/providers.go (line 81), internal/cmd/integrate_gitalias.go (lines 123, 128, 175), internal/cmd/integrate_lazygit.go, internal/exitcode/exitcode.go (line 27 comment), internal/lock/lock.go (lines 51, 60).\n2. INPUT: The project with config paths and identifiers renamed (S1-S2 above).\n3. LOGIC: Run `grep -rl 'stagehand' --include='*.go' internal/ cmd/ pkg/ | grep -v '.git/' | xargs sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g'`. BUT CAUTION: this broad sed must NOT run before verifying it won't break already-renamed identifiers. Since all identifiers were renamed in M1.T2, a case-insensitive sed of remaining 'stagehand'→'stagecoach' and 'Stagehand'→'Stagecoach' should only hit string literals, comments, and error messages. Verify with: `grep -rni 'stagehand' --include='*.go' . | grep -v '.git/' | wc -l` returns zero.\n4. OUTPUT: Zero occurrences of 'stagehand' (case-insensitive) in any .go file. `go build ./...` and `go test ./... -count=1` pass.\n5. DOCS: none — all remaining Go string changes are captured here."
+                  "dependencies": [
+                    "P1.M2.T2.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 3.2-3.3. Error prefixes `\"stagehand: ...\"` appear in ~20+ locations: internal/config/migrate.go (lines 108-114), internal/config/load.go (lines 109, 212, 216, 520-527), internal/config/file.go (line 491), internal/config/git.go (line 152), internal/generate/generate.go (lines 85, 90, 95, 123, 125, 156), internal/generate/finalize.go (line 45), internal/cmd/providers.go (line 81), internal/cmd/integrate_gitalias.go (lines 123, 128, 175), internal/cmd/integrate_lazygit.go, internal/exitcode/exitcode.go (line 27 comment), internal/lock/lock.go (lines 51, 60).\n2. INPUT: The project with config paths and identifiers renamed (S1-S2 above).\n3. LOGIC: Run `grep -rl 'stagehand' --include='*.go' internal/ cmd/ pkg/ | grep -v '.git/' | xargs sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g'`. BUT CAUTION: this broad sed must NOT run before verifying it won't break already-renamed identifiers. Since all identifiers were renamed in M1.T2, a case-insensitive sed of remaining 'stagehand'→'stagecoach' and 'Stagehand'→'Stagecoach' should only hit string literals, comments, and error messages. Verify with: `grep -rni 'stagehand' --include='*.go' . | grep -v '.git/' | wc -l` returns zero.\n4. OUTPUT: Zero occurrences of 'stagehand' (case-insensitive) in any .go file. `go build ./...` and `go test ./... -count=1` pass.\n5. DOCS: none — all remaining Go string changes are captured here.",
+                  "prd_selectors": [
+                    "h3.72",
+                    "h3.29",
+                    "h3.88",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -182,9 +251,15 @@
                   "title": "Rename session ID prefix, temp dir prefix, and bootstrap config template",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M2.T3.S1"],
-                  "prd_selectors": ["h3.33", "h3.40", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 3.4-3.5, 3.9. Specific items:\n   - internal/generate/multiturn.go:206-208: `\"stagehand-%d\"` → `\"stagecoach-%d\"` and `\"stagehand-\" + hex...` → `\"stagecoach-\" + hex...` (session ID prefix, diagnostic only)\n   - internal/stubtest/stubtest.go:49: `\"stagehand-stubagent-*\"` → `\"stagecoach-stubagent-*\"` (temp dir prefix)\n   - internal/config/bootstrap.go: The `bootstrapHeader` constant (lines 236-269) contains the entire generated config template with 'Stagehand', 'STAGEHAND', 'stagehand', '.stagehand.toml' references throughout. After S1's broad sed, these should already be replaced — VERIFY by reading the file.\n2. INPUT: The project from S1 where all remaining 'stagehand' string literals were replaced.\n3. LOGIC: (a) Verify the broad sed from S1 caught the bootstrap template, session IDs, and temp dir prefix. (b) If any were missed (e.g., the sed pattern missed a specific context), fix manually. (c) Specifically verify internal/config/bootstrap.go has `\"# Stagecoach configuration file\"`, `\"stagecoach config init\"`, `\"STAGECOACH_\"`, `\".stagecoach.toml\"`, `\"stagecoach.*\"`. (d) Verify internal/generate/multiturn.go uses `\"stagecoach-\"` prefix.\n4. OUTPUT: Every string literal in every .go file uses 'stagecoach' (case-appropriate). `grep -rni 'stagehand' --include='*.go' . | grep -v '.git/'` returns zero lines. `go test ./... -count=1` passes with all updated strings.\n5. DOCS: none — string literals internal to Go source. The bootstrap template's user-visible content is tested by config init tests."
+                  "dependencies": [
+                    "P1.M2.T3.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 3.4-3.5, 3.9. Specific items:\n   - internal/generate/multiturn.go:206-208: `\"stagehand-%d\"` → `\"stagecoach-%d\"` and `\"stagehand-\" + hex...` → `\"stagecoach-\" + hex...` (session ID prefix, diagnostic only)\n   - internal/stubtest/stubtest.go:49: `\"stagehand-stubagent-*\"` → `\"stagecoach-stubagent-*\"` (temp dir prefix)\n   - internal/config/bootstrap.go: The `bootstrapHeader` constant (lines 236-269) contains the entire generated config template with 'Stagehand', 'STAGEHAND', 'stagehand', '.stagehand.toml' references throughout. After S1's broad sed, these should already be replaced — VERIFY by reading the file.\n2. INPUT: The project from S1 where all remaining 'stagehand' string literals were replaced.\n3. LOGIC: (a) Verify the broad sed from S1 caught the bootstrap template, session IDs, and temp dir prefix. (b) If any were missed (e.g., the sed pattern missed a specific context), fix manually. (c) Specifically verify internal/config/bootstrap.go has `\"# Stagecoach configuration file\"`, `\"stagecoach config init\"`, `\"STAGECOACH_\"`, `\".stagecoach.toml\"`, `\"stagecoach.*\"`. (d) Verify internal/generate/multiturn.go uses `\"stagecoach-\"` prefix.\n4. OUTPUT: Every string literal in every .go file uses 'stagecoach' (case-appropriate). `grep -rni 'stagehand' --include='*.go' . | grep -v '.git/'` returns zero lines. `go test ./... -count=1` passes with all updated strings.\n5. DOCS: none — string literals internal to Go source. The bootstrap template's user-visible content is tested by config init tests.",
+                  "prd_selectors": [
+                    "h3.33",
+                    "h3.40",
+                    "h2.30"
+                  ]
                 }
               ]
             }
@@ -210,9 +285,15 @@
                   "title": "Rename Makefile (binary names, paths, targets, echo messages)",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M1.T1.S3"],
-                  "prd_selectors": ["h3.98", "h3.100", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 4.1. Makefile references: BIN := $(BIN_DIR)/stagehand (line 28), BIN_TEST := $(BIN_DIR)/stagehand-test (line 29), MAIN_PKG := ./cmd/stagehand (line 30), all echo messages (lines 6-9, 52-65), install-test symlink paths.\n2. INPUT: The project with cmd/stagecoach/ directory (from M1.T1.S2).\n3. LOGIC: `sed -i 's/stagehand/stagecoach/g' Makefile`. This replaces all occurrences. Verify: MAIN_PKG becomes `./cmd/stagecoach`, BIN becomes `$(BIN_DIR)/stagecoach`, BIN_TEST becomes `$(BIN_DIR)/stagecoach-test`.\n4. OUTPUT: `make build` produces `./bin/stagecoach`. `make build-test` produces `./bin/stagecoach-test`.\n5. DOCS: none — build config is internal."
+                  "dependencies": [
+                    "P1.M1.T1.S3"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 4.1. Makefile references: BIN := $(BIN_DIR)/stagehand (line 28), BIN_TEST := $(BIN_DIR)/stagehand-test (line 29), MAIN_PKG := ./cmd/stagehand (line 30), all echo messages (lines 6-9, 52-65), install-test symlink paths.\n2. INPUT: The project with cmd/stagecoach/ directory (from M1.T1.S2).\n3. LOGIC: `sed -i 's/stagehand/stagecoach/g' Makefile`. This replaces all occurrences. Verify: MAIN_PKG becomes `./cmd/stagecoach`, BIN becomes `$(BIN_DIR)/stagecoach`, BIN_TEST becomes `$(BIN_DIR)/stagecoach-test`.\n4. OUTPUT: `make build` produces `./bin/stagecoach`. `make build-test` produces `./bin/stagecoach-test`.\n5. DOCS: none — build config is internal.",
+                  "prd_selectors": [
+                    "h3.98",
+                    "h3.100",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -220,9 +301,16 @@
                   "title": "Rename .goreleaser.yaml (project_name, builds, formulas, URLs)",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M3.T1.S1"],
-                  "prd_selectors": ["h3.99", "h3.100", "h3.101", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 4.2 and critical_findings.md F9. The .goreleaser.yaml references: project_name: stagehand (line 12), build id: stagehand (line 20), main: ./cmd/stagehand (line 21), binary: stagehand (line 22), archive refs (line 39), Homebrew formula name + tap refs (lines 69-80), Scoop name (lines 85-92), AUR name (lines 98-103), URLs: github.com/dustin/stagehand (lines 80, 92, 95). CAUTION: the actual GitHub remote is `dabstractor/stagecoach`, not `dustin/stagecoach`. URLs should become `github.com/dabstractor/stagecoach` to match the real remote, OR verify with the user which GitHub org is canonical.\n2. INPUT: The project with Makefile renamed (S1).\n3. LOGIC: (a) `sed -i 's/stagehand/stagecoach/g' .goreleaser.yaml`. (b) Review URLs: the `github.com/dustin/stagecoach` references from the sed should be corrected to `github.com/dabstractor/stagecoach` to match the actual git remote. (c) Verify `goreleaser check` passes (if goreleaser is installed) or at least YAML is valid.\n4. OUTPUT: goreleaser config uses `stagecoach` throughout. Binary name, formula name, scoop name, AUR name all `stagecoach`. URLs match the actual GitHub repo.\n5. DOCS: Mode A — README.md install instructions reference brew/scoop/go-install paths that must match. Handled in M4.T1.S1."
+                  "dependencies": [
+                    "P1.M3.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 4.2 and critical_findings.md F9. The .goreleaser.yaml references: project_name: stagehand (line 12), build id: stagehand (line 20), main: ./cmd/stagehand (line 21), binary: stagehand (line 22), archive refs (line 39), Homebrew formula name + tap refs (lines 69-80), Scoop name (lines 85-92), AUR name (lines 98-103), URLs: github.com/dustin/stagehand (lines 80, 92, 95). CAUTION: the actual GitHub remote is `dabstractor/stagecoach`, not `dustin/stagecoach`. URLs should become `github.com/dabstractor/stagecoach` to match the real remote, OR verify with the user which GitHub org is canonical.\n2. INPUT: The project with Makefile renamed (S1).\n3. LOGIC: (a) `sed -i 's/stagehand/stagecoach/g' .goreleaser.yaml`. (b) Review URLs: the `github.com/dustin/stagecoach` references from the sed should be corrected to `github.com/dabstractor/stagecoach` to match the actual git remote. (c) Verify `goreleaser check` passes (if goreleaser is installed) or at least YAML is valid.\n4. OUTPUT: goreleaser config uses `stagecoach` throughout. Binary name, formula name, scoop name, AUR name all `stagecoach`. URLs match the actual GitHub repo.\n5. DOCS: Mode A — README.md install instructions reference brew/scoop/go-install paths that must match. Handled in M4.T1.S1.",
+                  "prd_selectors": [
+                    "h3.99",
+                    "h3.100",
+                    "h3.101",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -230,9 +318,14 @@
                   "title": "Rename CI workflow module paths and .gitignore entries",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M3.T1.S2"],
-                  "prd_selectors": ["h3.96", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 4.3-4.4. .github/workflows/ci.yml lines 102-105: `github.com/dustin/stagehand/internal/git` etc. → `stagecoach`. These are already fixed by M1.T1.S1's import-path sed IF the sed ran on .yml files — but it only ran on .go files. These are shell/bash strings in the YAML, not Go imports. .gitignore: line 4 `/stagehand` → `/stagecoach`, lines 21-22 `.stagehand.toml` → `.stagecoach.toml`. Also check .github/workflows/release.yml for any stagehand references (the SECRETS comments reference `dustin/homebrew-tap` etc. — these match goreleaser and may need the same org correction).\n2. INPUT: The project with goreleaser renamed (S2).\n3. LOGIC: (a) `sed -i 's/dustin\\/stagehand/dabstractor\\/stagecoach/g' .github/workflows/ci.yml` for the module path references (they are in bash strings, not Go imports). Actually they reference `github.com/dustin/stagehand/internal/...` which after M1's sed of .go files would not have touched .yml. So: `sed -i 's|github.com/dustin/stagehand|github.com/dustin/stagecoach|g' .github/workflows/ci.yml`. (b) `sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g' .gitignore`. (c) Review release.yml for any stagehand references. (d) Remove stale bin/stagehand and bin/stagehand-test artifacts: `rm -f bin/stagehand bin/stagehand-test`.\n4. OUTPUT: CI workflow uses stagecoach module paths. .gitignore ignores `/stagecoach` and `.stagecoach.toml`. No stale binaries in bin/.\n5. DOCS: none — CI and gitignore are internal."
+                  "dependencies": [
+                    "P1.M3.T1.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 4.3-4.4. .github/workflows/ci.yml lines 102-105: `github.com/dustin/stagehand/internal/git` etc. → `stagecoach`. These are already fixed by M1.T1.S1's import-path sed IF the sed ran on .yml files — but it only ran on .go files. These are shell/bash strings in the YAML, not Go imports. .gitignore: line 4 `/stagehand` → `/stagecoach`, lines 21-22 `.stagehand.toml` → `.stagecoach.toml`. Also check .github/workflows/release.yml for any stagehand references (the SECRETS comments reference `dustin/homebrew-tap` etc. — these match goreleaser and may need the same org correction).\n2. INPUT: The project with goreleaser renamed (S2).\n3. LOGIC: (a) `sed -i 's/dustin\\/stagehand/dabstractor\\/stagecoach/g' .github/workflows/ci.yml` for the module path references (they are in bash strings, not Go imports). Actually they reference `github.com/dustin/stagehand/internal/...` which after M1's sed of .go files would not have touched .yml. So: `sed -i 's|github.com/dustin/stagehand|github.com/dustin/stagecoach|g' .github/workflows/ci.yml`. (b) `sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g' .gitignore`. (c) Review release.yml for any stagehand references. (d) Remove stale bin/stagehand and bin/stagehand-test artifacts: `rm -f bin/stagehand bin/stagehand-test`.\n4. OUTPUT: CI workflow uses stagecoach module paths. .gitignore ignores `/stagecoach` and `.stagecoach.toml`. No stale binaries in bin/.\n5. DOCS: none — CI and gitignore are internal.",
+                  "prd_selectors": [
+                    "h3.96",
+                    "h2.30"
+                  ]
                 }
               ]
             }
@@ -258,9 +351,19 @@
                   "title": "Rename README.md (title, hero, badges, install, examples)",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M3.T1.S3"],
-                  "prd_selectors": ["h2.1", "h2.5", "h3.100", "h3.102", "h3.72", "h3.75", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 5.1. README.md (~22KB) contains the project title `# Stagehand`, the hero pitch, badge URLs (`github.com/dustin/stagehand/actions/...`), install instructions (`brew install dustin/tap/stagehand`, `go install github.com/dustin/stagehand/cmd/stagehand@latest`), CLI examples, feature descriptions, and FAQ. All use 'Stagehand'/'stagehand'.\n2. INPUT: The project with all Go source, build, and CI renamed (M1-M3 complete).\n3. LOGIC: `sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g; s/STAGEHAND/STAGECOACH/g' README.md`. Then manually review: (a) Badge URL must match the actual GitHub repo: `github.com/dabstractor/stagecoach/actions/workflows/ci.yml/badge.svg`. (b) Install instructions: `brew install dustin/tap/stagecoach` or verify tap name. (c) `go install github.com/dustin/stagecoach/cmd/stagecoach@latest` — verify the module path matches go.mod. (d) `.stagecoach.toml` config examples. (e) STAGECOACH_ env var references.\n4. OUTPUT: README.md uses 'Stagecoach'/'stagecoach' throughout. Badge URLs and install commands reference the correct GitHub repo and module path.\n5. DOCS: Mode A — this IS the docs update for the project's primary user-facing surface."
+                  "dependencies": [
+                    "P1.M3.T1.S3"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 5.1. README.md (~22KB) contains the project title `# Stagehand`, the hero pitch, badge URLs (`github.com/dustin/stagehand/actions/...`), install instructions (`brew install dustin/tap/stagehand`, `go install github.com/dustin/stagehand/cmd/stagehand@latest`), CLI examples, feature descriptions, and FAQ. All use 'Stagehand'/'stagehand'.\n2. INPUT: The project with all Go source, build, and CI renamed (M1-M3 complete).\n3. LOGIC: `sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g; s/STAGEHAND/STAGECOACH/g' README.md`. Then manually review: (a) Badge URL must match the actual GitHub repo: `github.com/dabstractor/stagecoach/actions/workflows/ci.yml/badge.svg`. (b) Install instructions: `brew install dustin/tap/stagecoach` or verify tap name. (c) `go install github.com/dustin/stagecoach/cmd/stagecoach@latest` — verify the module path matches go.mod. (d) `.stagecoach.toml` config examples. (e) STAGECOACH_ env var references.\n4. OUTPUT: README.md uses 'Stagecoach'/'stagecoach' throughout. Badge URLs and install commands reference the correct GitHub repo and module path.\n5. DOCS: Mode A — this IS the docs update for the project's primary user-facing surface.",
+                  "prd_selectors": [
+                    "h2.1",
+                    "h2.5",
+                    "h3.100",
+                    "h3.102",
+                    "h3.72",
+                    "h3.75",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -268,9 +371,18 @@
                   "title": "Rename docs/*.md (cli.md, configuration.md, how-it-works.md, providers.md, README.md)",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M4.T1.S1"],
-                  "prd_selectors": ["h3.72", "h3.76", "h3.77", "h3.24", "h3.31", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 5.2. Five files in docs/: README.md (title + description), cli.md (~32KB CLI reference with all flags, env vars, git config keys), configuration.md (~24KB config model with all paths, env vars, git config keys, examples), how-it-works.md (~34KB architecture explanation), providers.md (~16KB provider documentation). Each contains extensive 'Stagehand'/'stagehand'/'STAGEHAND' references.\n2. INPUT: The project with README.md renamed (S1).\n3. LOGIC: For each file: `sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g; s/STAGEHAND/STAGECOACH/g' docs/cli.md docs/configuration.md docs/how-it-works.md docs/providers.md docs/README.md`. Then review: (a) All env var references match STAGECOACH_ prefix. (b) All git config keys match stagecoach.* section. (c) Config file paths match `~/.config/stagecoach/config.toml` and `.stagecoach.toml`. (d) Exclusion file is `.stagecoachignore`. (e) CLI binary name is `stagecoach`.\n4. OUTPUT: All docs/*.md files use 'stagecoach' throughout. No mismatched env vars, config keys, or paths.\n5. DOCS: Mode A — these ARE the docs updates."
+                  "dependencies": [
+                    "P1.M4.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 5.2. Five files in docs/: README.md (title + description), cli.md (~32KB CLI reference with all flags, env vars, git config keys), configuration.md (~24KB config model with all paths, env vars, git config keys, examples), how-it-works.md (~34KB architecture explanation), providers.md (~16KB provider documentation). Each contains extensive 'Stagehand'/'stagehand'/'STAGEHAND' references.\n2. INPUT: The project with README.md renamed (S1).\n3. LOGIC: For each file: `sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g; s/STAGEHAND/STAGECOACH/g' docs/cli.md docs/configuration.md docs/how-it-works.md docs/providers.md docs/README.md`. Then review: (a) All env var references match STAGECOACH_ prefix. (b) All git config keys match stagecoach.* section. (c) Config file paths match `~/.config/stagecoach/config.toml` and `.stagecoach.toml`. (d) Exclusion file is `.stagecoachignore`. (e) CLI binary name is `stagecoach`.\n4. OUTPUT: All docs/*.md files use 'stagecoach' throughout. No mismatched env vars, config keys, or paths.\n5. DOCS: Mode A — these ARE the docs updates.",
+                  "prd_selectors": [
+                    "h3.72",
+                    "h3.76",
+                    "h3.77",
+                    "h3.24",
+                    "h3.31",
+                    "h2.30"
+                  ]
                 }
               ]
             },
@@ -287,9 +399,15 @@
                   "title": "Rename providers/*.toml comment references",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M2.T3.S2"],
-                  "prd_selectors": ["h2.12", "h3.53", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 5.3. Eight TOML files in providers/: pi.toml, claude.toml, gemini.toml, agy.toml, opencode.toml, codex.toml, cursor.toml, qwen-code.toml. These are reference manifests with comments referencing 'stagehand' (e.g., '# stagehand uses this provider', 'stagehand config init').\n2. INPUT: The project with Go source fully renamed (M1-M2 complete).\n3. LOGIC: `sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g' providers/*.toml`. Verify no functional values were changed (only comments).\n4. OUTPUT: All provider TOML comments reference 'stagecoach'. No functional manifest values changed.\n5. DOCS: Mode A — provider docs reference manifests."
+                  "dependencies": [
+                    "P1.M2.T3.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See rename_surface_map.md Layer 5.3. Eight TOML files in providers/: pi.toml, claude.toml, gemini.toml, agy.toml, opencode.toml, codex.toml, cursor.toml, qwen-code.toml. These are reference manifests with comments referencing 'stagehand' (e.g., '# stagehand uses this provider', 'stagehand config init').\n2. INPUT: The project with Go source fully renamed (M1-M2 complete).\n3. LOGIC: `sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g' providers/*.toml`. Verify no functional values were changed (only comments).\n4. OUTPUT: All provider TOML comments reference 'stagecoach'. No functional manifest values changed.\n5. DOCS: Mode A — provider docs reference manifests.",
+                  "prd_selectors": [
+                    "h2.12",
+                    "h3.53",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -297,9 +415,15 @@
                   "title": "Rename FUTURE_SPEC.md references",
                   "status": "Planned",
                   "story_points": 0.5,
-                  "dependencies": ["P1.M4.T2.S1"],
-                  "prd_selectors": ["h2.10", "h3.47", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FUTURE_SPEC.md (~7.5KB) contains deferred/rejected feature descriptions with 'stagehand'/'Stagehand' references.\n2. INPUT: The project with provider manifests renamed (S1).\n3. LOGIC: `sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g' FUTURE_SPEC.md`.\n4. OUTPUT: FUTURE_SPEC.md uses 'stagecoach' throughout.\n5. DOCS: Mode A — this IS the docs update."
+                  "dependencies": [
+                    "P1.M4.T2.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: FUTURE_SPEC.md (~7.5KB) contains deferred/rejected feature descriptions with 'stagehand'/'Stagehand' references.\n2. INPUT: The project with provider manifests renamed (S1).\n3. LOGIC: `sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g' FUTURE_SPEC.md`.\n4. OUTPUT: FUTURE_SPEC.md uses 'stagecoach' throughout.\n5. DOCS: Mode A — this IS the docs update.",
+                  "prd_selectors": [
+                    "h2.10",
+                    "h3.47",
+                    "h2.30"
+                  ]
                 }
               ]
             }
@@ -325,9 +449,13 @@
                   "title": "Bulk rename stagehand references in plan/ directory files",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M4.T2.S2"],
-                  "prd_selectors": ["h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See critical_findings.md F8. The plan/ directory contains ~622 tracked files across plan/001_* through plan/011_* with 'stagehand' references. These are historical task breakdowns, PRP files, and architecture research. They are tracked in git but never compiled, executed, or shipped to users.\n2. INPUT: The project with all source, build, CI, and docs renamed (M1-M4 complete).\n3. LOGIC: `find plan/ -name '*.md' -o -name '*.go' -o -name '*.toml' -o -name '*.txt' | xargs grep -l 'stagehand' 2>/dev/null | xargs sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g; s/STAGEHAND/STAGECOACH/g'`. This is a bulk mechanical replacement across historical files. These files may also reference `github.com/dustin/stagehand` import paths — the sed handles those too. CAUTION: do NOT modify the current plan/012_963e3918ec08/ directory's architecture docs (they intentionally reference both names as part of the rename documentation).\n4. OUTPUT: All plan/ files (except 012_*) use 'stagecoach' throughout.\n5. DOCS: none — historical artifacts, no user-facing surface."
+                  "dependencies": [
+                    "P1.M4.T2.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See critical_findings.md F8. The plan/ directory contains ~622 tracked files across plan/001_* through plan/011_* with 'stagehand' references. These are historical task breakdowns, PRP files, and architecture research. They are tracked in git but never compiled, executed, or shipped to users.\n2. INPUT: The project with all source, build, CI, and docs renamed (M1-M4 complete).\n3. LOGIC: `find plan/ -name '*.md' -o -name '*.go' -o -name '*.toml' -o -name '*.txt' | xargs grep -l 'stagehand' 2>/dev/null | xargs sed -i 's/stagehand/stagecoach/g; s/Stagehand/Stagecoach/g; s/STAGEHAND/STAGECOACH/g'`. This is a bulk mechanical replacement across historical files. These files may also reference `github.com/dustin/stagehand` import paths — the sed handles those too. CAUTION: do NOT modify the current plan/012_963e3918ec08/ directory's architecture docs (they intentionally reference both names as part of the rename documentation).\n4. OUTPUT: All plan/ files (except 012_*) use 'stagecoach' throughout.\n5. DOCS: none — historical artifacts, no user-facing surface.",
+                  "prd_selectors": [
+                    "h2.30"
+                  ]
                 }
               ]
             },
@@ -344,9 +472,13 @@
                   "title": "Final grep audit: zero stagehand references in tracked files",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M5.T1.S1"],
-                  "prd_selectors": ["h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: After all preceding subtasks, verify completeness. The exception: plan/012_963e3918ec08/architecture/ files intentionally reference 'stagehand' as the OLD name being documented for the rename — these SHOULD contain 'stagehand' as historical reference.\n2. INPUT: The fully renamed project (M1-M5.T1 complete).\n3. LOGIC: Run `git grep -i 'stagehand' | grep -v 'plan/012_963e3918ec08/architecture/' | wc -l`. This must return 0 (excluding the rename task's own architecture docs). If any references remain, fix them. Also verify: no stale directories (cmd/stagehand, pkg/stagehand should not exist), no stale files (stagehand.go, stagehand_test.go should not exist anywhere outside the architecture docs).\n4. OUTPUT: `git grep -i 'stagehand' | grep -v 'plan/012_963e3918ec08/architecture/' | wc -l` == 0. The rename is complete and verified.\n5. DOCS: none — verification step."
+                  "dependencies": [
+                    "P1.M5.T1.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: After all preceding subtasks, verify completeness. The exception: plan/012_963e3918ec08/architecture/ files intentionally reference 'stagehand' as the OLD name being documented for the rename — these SHOULD contain 'stagehand' as historical reference.\n2. INPUT: The fully renamed project (M1-M5.T1 complete).\n3. LOGIC: Run `git grep -i 'stagehand' | grep -v 'plan/012_963e3918ec08/architecture/' | wc -l`. This must return 0 (excluding the rename task's own architecture docs). If any references remain, fix them. Also verify: no stale directories (cmd/stagehand, pkg/stagehand should not exist), no stale files (stagehand.go, stagehand_test.go should not exist anywhere outside the architecture docs).\n4. OUTPUT: `git grep -i 'stagehand' | grep -v 'plan/012_963e3918ec08/architecture/' | wc -l` == 0. The rename is complete and verified.\n5. DOCS: none — verification step.",
+                  "prd_selectors": [
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -354,9 +486,16 @@
                   "title": "Full build + test suite passes with stagecoach identity",
                   "status": "Planned",
                   "story_points": 2,
-                  "dependencies": ["P1.M2.T3.S2"],
-                  "prd_selectors": ["h3.93", "h3.94", "h3.97", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The project has comprehensive tests (internal/e2e/, internal/stubtest/ integration tests that build and run the real binary). All tests must pass with the new identity. The build must produce ./bin/stagecoach.\n2. INPUT: The fully renamed Go source (M1-M2 complete, plus M3 for Makefile).\n3. LOGIC: (a) `make build` — must produce ./bin/stagecoach without errors. (b) `go test ./... -count=1` — full test suite must pass. This includes unit tests, integration tests with stub agents, and the e2e harness. (c) `go vet ./...` — must pass clean. (d) Run `./bin/stagecoach --version` — should print the version (or `dev`). (e) Run `./bin/stagecoach --help` — should show 'stagecoach' as the command name, STAGECOACH_ env vars, stagecoach.* git config keys.\n4. OUTPUT: `make build` succeeds, `go test ./... -count=1` passes, `go vet ./...` passes, `./bin/stagecoach --help` shows the correct identity.\n5. DOCS: none — verification step."
+                  "dependencies": [
+                    "P1.M2.T3.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The project has comprehensive tests (internal/e2e/, internal/stubtest/ integration tests that build and run the real binary). All tests must pass with the new identity. The build must produce ./bin/stagecoach.\n2. INPUT: The fully renamed Go source (M1-M2 complete, plus M3 for Makefile).\n3. LOGIC: (a) `make build` — must produce ./bin/stagecoach without errors. (b) `go test ./... -count=1` — full test suite must pass. This includes unit tests, integration tests with stub agents, and the e2e harness. (c) `go vet ./...` — must pass clean. (d) Run `./bin/stagecoach --version` — should print the version (or `dev`). (e) Run `./bin/stagecoach --help` — should show 'stagecoach' as the command name, STAGECOACH_ env vars, stagecoach.* git config keys.\n4. OUTPUT: `make build` succeeds, `go test ./... -count=1` passes, `go vet ./...` passes, `./bin/stagecoach --help` shows the correct identity.\n5. DOCS: none — verification step.",
+                  "prd_selectors": [
+                    "h3.93",
+                    "h3.94",
+                    "h3.97",
+                    "h2.30"
+                  ]
                 }
               ]
             },
@@ -373,9 +512,17 @@
                   "title": "Verify documentation internal consistency and unified identity",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M5.T2.S1", "P1.M5.T2.S2"],
-                  "prd_selectors": ["h3.102", "h2.1", "h2.5", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See critical_findings.md F9. After the bulk rename, the README badge URLs, goreleaser GitHub URLs, and install instructions must all be internally consistent. The git remote is `dabstractor/stagecoach`. The go.mod module is `github.com/dustin/stagecoach`. These may conflict — verify the canonical GitHub path.\n2. INPUT: The fully renamed and tested project (all preceding subtasks complete).\n3. LOGIC: (a) Verify README.md badge URL matches the actual GitHub repo URL. (b) Verify `go install` command in README matches go.mod module path. (c) Verify goreleaser URLs match the README badge URL. (d) Verify all docs/*.md cross-references are consistent (no file links to old names). (e) Verify the lazygit integration example in README uses `command: 'stagecoach'` and marker `# stagecoach-integration`. (f) Verify the git alias example uses `git stagecoach`. (g) Verify `.git/stagecoach_EDITMSG` is referenced correctly (not `.git/stagehand_EDITMSG`).\n4. OUTPUT: The project presents a unified, internally-consistent 'stagecoach' identity across all user-facing surfaces.\n5. DOCS: Mode B — this is the cross-cutting changeset-level documentation sync. It depends on ALL implementing subtasks and verifies the whole delta is coherent."
+                  "dependencies": [
+                    "P1.M5.T2.S1",
+                    "P1.M5.T2.S2"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See critical_findings.md F9. After the bulk rename, the README badge URLs, goreleaser GitHub URLs, and install instructions must all be internally consistent. The git remote is `dabstractor/stagecoach`. The go.mod module is `github.com/dustin/stagecoach`. These may conflict — verify the canonical GitHub path.\n2. INPUT: The fully renamed and tested project (all preceding subtasks complete).\n3. LOGIC: (a) Verify README.md badge URL matches the actual GitHub repo URL. (b) Verify `go install` command in README matches go.mod module path. (c) Verify goreleaser URLs match the README badge URL. (d) Verify all docs/*.md cross-references are consistent (no file links to old names). (e) Verify the lazygit integration example in README uses `command: 'stagecoach'` and marker `# stagecoach-integration`. (f) Verify the git alias example uses `git stagecoach`. (g) Verify `.git/stagecoach_EDITMSG` is referenced correctly (not `.git/stagehand_EDITMSG`).\n4. OUTPUT: The project presents a unified, internally-consistent 'stagecoach' identity across all user-facing surfaces.\n5. DOCS: Mode B — this is the cross-cutting changeset-level documentation sync. It depends on ALL implementing subtasks and verifies the whole delta is coherent.",
+                  "prd_selectors": [
+                    "h3.102",
+                    "h2.1",
+                    "h2.5",
+                    "h2.30"
+                  ]
                 },
                 {
                   "type": "Subtask",
@@ -383,9 +530,16 @@
                   "title": "Verify badge URLs, GitHub links, and distribution paths are correct",
                   "status": "Planned",
                   "story_points": 1,
-                  "dependencies": ["P1.M5.T3.S1"],
-                  "prd_selectors": ["h3.99", "h3.100", "h3.102", "h2.30"],
-                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See external_deps.md and critical_findings.md F9. Distribution channels: Homebrew (dustin/tap/stagecoach), Scoop (dustin/scoop-bucket/stagecoach), AUR (stagecoach-bin), GitHub Releases (github.com/<org>/stagecoach). The actual remote is `dabstractor/stagecoach`. The goreleaser and README must agree.\n2. INPUT: The verified-consistent project from S1.\n3. LOGIC: (a) Check all URLs in README.md, .goreleaser.yaml, and docs/ point to the same GitHub repo. (b) Verify Homebrew tap name, Scoop bucket name, and AUR package name are consistent across goreleaser and README. (c) Verify the curl|sh install script URL (if install.sh exists). (d) If any URL is wrong (e.g., `dustin/stagecoach` when remote is `dabstractor/stagecoach`), fix it. (e) Run `make build && ./bin/stagecoach providers list` as a final smoke test — should list all providers with 'stagecoach' branding.\n4. OUTPUT: All distribution paths, URLs, and package names are correct and consistent. The rename is complete.\n5. DOCS: Mode B — final cross-cutting verification of the distribution surface."
+                  "dependencies": [
+                    "P1.M5.T3.S1"
+                  ],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See external_deps.md and critical_findings.md F9. Distribution channels: Homebrew (dustin/tap/stagecoach), Scoop (dustin/scoop-bucket/stagecoach), AUR (stagecoach-bin), GitHub Releases (github.com/<org>/stagecoach). The actual remote is `dabstractor/stagecoach`. The goreleaser and README must agree.\n2. INPUT: The verified-consistent project from S1.\n3. LOGIC: (a) Check all URLs in README.md, .goreleaser.yaml, and docs/ point to the same GitHub repo. (b) Verify Homebrew tap name, Scoop bucket name, and AUR package name are consistent across goreleaser and README. (c) Verify the curl|sh install script URL (if install.sh exists). (d) If any URL is wrong (e.g., `dustin/stagecoach` when remote is `dabstractor/stagecoach`), fix it. (e) Run `make build && ./bin/stagecoach providers list` as a final smoke test — should list all providers with 'stagecoach' branding.\n4. OUTPUT: All distribution paths, URLs, and package names are correct and consistent. The rename is complete.\n5. DOCS: Mode B — final cross-cutting verification of the distribution surface.",
+                  "prd_selectors": [
+                    "h3.99",
+                    "h3.100",
+                    "h3.102",
+                    "h2.30"
+                  ]
                 }
               ]
             }

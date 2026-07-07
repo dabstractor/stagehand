@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/stubtest"
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/stubtest"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 
 // verboseCommandPrefix is the marker ui.Verbose emits before each joined argv. Each provider.Execute

@@ -22,11 +22,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/hook"
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/hook"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 
 // HookOpts carries the runner's per-call options.

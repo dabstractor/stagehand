@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 
 // ---------------------------------------------------------------------------

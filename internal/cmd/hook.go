@@ -18,9 +18,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/hook"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/hook"
 )
 
 var (

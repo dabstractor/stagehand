@@ -140,7 +140,7 @@ func buildStub(t *testing.T) string {
 		}
 		name := "stubagent"
 		out := filepath.Join(dir, name)
-		cmd := exec.Command("go", "build", "-o", out, "github.com/dustin/stagehand/cmd/stubagent")
+		cmd := exec.Command("go", "build", "-o", out, "github.com/dustin/stagecoach/cmd/stubagent")
 		if o, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("go build stubagent: %v\n%s", err, o)
 		}
@@ -164,7 +164,7 @@ func buildStagehand(t *testing.T) string {
 		}
 		name := "stagehand"
 		out := filepath.Join(dir, name)
-		cmd := exec.Command("go", "build", "-o", out, "github.com/dustin/stagehand/cmd/stagehand")
+		cmd := exec.Command("go", "build", "-o", out, "github.com/dustin/stagecoach/cmd/stagehand")
 		if o, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("go build stagehand: %v\n%s", err, o)
 		}

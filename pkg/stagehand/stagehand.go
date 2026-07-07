@@ -15,16 +15,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/decompose"
-	"github.com/dustin/stagehand/internal/exclude"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/hooks"
-	"github.com/dustin/stagehand/internal/prompt"
-	"github.com/dustin/stagehand/internal/provider"
-	"github.com/dustin/stagehand/internal/signal"
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/decompose"
+	"github.com/dustin/stagecoach/internal/exclude"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/hooks"
+	"github.com/dustin/stagecoach/internal/prompt"
+	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dustin/stagecoach/internal/signal"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 
 // Options configures a GenerateCommit call. All fields are optional (zero value ⇒ inherit the resolved

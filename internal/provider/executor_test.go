@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 
 // mustBin skips the test if any named binary is not resolvable on PATH.

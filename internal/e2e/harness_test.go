@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagehand/internal/stubtest"
+	"github.com/dustin/stagecoach/internal/stubtest"
 )
 
 // e2eResult bundles a stagehand subprocess run's observable outputs for assertion.
@@ -62,7 +62,7 @@ func buildStagehand(t *testing.T) string {
 		}
 		stagehandBin = filepath.Join(dir, name)
 		build := exec.Command(goPath, "build", "-o", stagehandBin,
-			"github.com/dustin/stagehand/cmd/stagehand")
+			"github.com/dustin/stagecoach/cmd/stagehand")
 		if out, err := build.CombinedOutput(); err != nil {
 			t.Fatalf("go build stagehand: %v\n%s", err, out)
 		}

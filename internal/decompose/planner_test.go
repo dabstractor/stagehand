@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/ui"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/provider"
-	"github.com/dustin/stagehand/internal/stubtest"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dustin/stagecoach/internal/stubtest"
 )
 
 // --- Fixture helpers (own copies — git's and generate's _test.go helpers are unimportable) ---

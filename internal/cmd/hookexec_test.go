@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/stubtest"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/stubtest"
 )
 
 // hookexecNewTestRepo creates a temp git repo with identity config and a seed commit.
