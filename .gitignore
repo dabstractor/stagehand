@@ -1,7 +1,6 @@
 # Build artifacts
 /dist/
 /build/
-/stagehand
 /stagecoach
 /stubagent
 cmd/stubagent/stubagent
@@ -19,8 +18,8 @@ cmd/stubagent/stubagent
 .env.*
 !.env.example
 
-# Stagehand repo-local config (per-repo .stagehand.toml; not committed by default per PRD §19)
-.stagehand.toml
+# Stagecoach repo-local config (per-repo .stagecoach.toml; not committed by default per PRD §19)
+.stagecoach.toml
 
 # OS-specific files
 .DS_Store
@@ -37,7 +36,7 @@ Thumbs.db
 # pi agent runtime config (ephemeral; per-repo agent state)
 .pi/
 
-# Go build / test artifacts (Stagehand)
+# Go build / test artifacts (Stagecoach)
 /bin/
 *.test
 coverage.out

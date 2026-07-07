@@ -269,14 +269,14 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Build System & CI Rename",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Rename the project in all build configuration: Makefile (binary names, paths, targets), .goreleaser.yaml (project name, build IDs, formulas, URLs), .github/workflows/ci.yml (module paths in coverage gates), and .gitignore (binary and config file names). After this milestone, `make build` produces ./bin/stagecoach.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Build configuration files rename",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Rename stagehand to stagecoach in the Makefile, goreleaser config, CI workflows, and .gitignore.",
               "subtasks": [
                 {
@@ -316,7 +316,7 @@
                   "type": "Subtask",
                   "id": "P1.M3.T1.S3",
                   "title": "Rename CI workflow module paths and .gitignore entries",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T1.S2"
@@ -349,7 +349,7 @@
                   "type": "Subtask",
                   "id": "P1.M4.T1.S1",
                   "title": "Rename README.md (title, hero, badges, install, examples)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M3.T1.S3"

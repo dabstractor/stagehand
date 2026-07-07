@@ -1,4 +1,4 @@
-# .github/workflows/ci.yml — Stagehand CI (PRD §20.4 build/test matrix + §20.3 coverage gate).
+# .github/workflows/ci.yml — Stagecoach CI (PRD §20.4 build/test matrix + §20.3 coverage gate).
 # Scope NOTE: release-on-tag via goreleaser lives in a SEPARATE workflow owned by P1.M5.T3.S2.
 # This file triggers ONLY on push(main) + pull_request.
 name: CI
@@ -99,10 +99,10 @@ jobs:
             }
             END{
               threshold=85
-              t[1]="github.com/dustin/stagehand/internal/git"
-              t[2]="github.com/dustin/stagehand/internal/provider"
-              t[3]="github.com/dustin/stagehand/internal/generate"
-              t[4]="github.com/dustin/stagehand/internal/config"
+              t[1]="github.com/dustin/stagecoach/internal/git"
+              t[2]="github.com/dustin/stagecoach/internal/provider"
+              t[3]="github.com/dustin/stagecoach/internal/generate"
+              t[4]="github.com/dustin/stagecoach/internal/config"
               fail=0
               for(i=1;i<=4;i++){
                 if(!(t[i] in tot)){ printf("::error::%s — no coverage data\n",t[i]); fail=1; continue }
