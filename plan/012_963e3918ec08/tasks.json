@@ -463,7 +463,7 @@
               "type": "Task",
               "id": "P1.M5.T2",
               "title": "Comprehensive verification (grep audit + full test suite)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Perform a final grep audit to ensure zero 'stagehand' references remain in any tracked file, and run the full build and test suite to confirm the renamed project works correctly.",
               "subtasks": [
                 {
@@ -484,7 +484,7 @@
                   "type": "Subtask",
                   "id": "P1.M5.T2.S2",
                   "title": "Full build + test suite passes with stagecoach identity",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M2.T3.S2"
@@ -510,7 +510,7 @@
                   "type": "Subtask",
                   "id": "P1.M5.T3.S1",
                   "title": "Verify documentation internal consistency and unified identity",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M5.T2.S1",
