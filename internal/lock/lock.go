@@ -1,5 +1,7 @@
 // Package lock implements the FR52 per-repo run lock (PRD §18.5): an advisory
-// flock(LOCK_EX|LOCK_NB) auto-released on process death (no stale locks).
+// flock(LOCK_EX|LOCK_NB) auto-released on process death — the LOCK never goes
+// stale; orphaned FILES (SIGKILL/crash/signal-rescue os.Exit bypassing the
+// deferred Remove) are reaped by pid-liveness on Acquire.
 // The lock file lives outside the repo (XDG runtime/cache dir) keyed by a
 // sha256 hash of the repo's canonical absolute path.
 //
@@ -28,8 +30,9 @@ import (
 
 // Locker is an acquired per-repo run lock (PRD §18.5 / FR52). The fd holds an
 // advisory flock (LOCK_EX|LOCK_NB) that auto-releases when the fd/process
-// closes — no stale locks. Create via Acquire; release via Release (idempotent)
-// or process exit.
+// closes — the LOCK never goes stale (flock auto-releases); orphaned FILES are
+// reaped by pid-liveness on the next Acquire. Create via Acquire; release via
+// Release (idempotent) or process exit.
 type Locker struct {
 	file      *os.File
 	path      string
@@ -64,7 +67,9 @@ var current atomic.Pointer[Locker]
 // Acquire acquires the per-repo run lock for the given repoPath. On success it
 // returns a *Locker; on contention (EWOULDBLOCK) it returns a *HeldError
 // containing the holder's parsed lock file contents. The lock is an advisory
-// flock auto-released on process death (no stale locks).
+// flock auto-released on process death — the LOCK never goes stale; after
+// taking its own flock, Acquire reaps orphaned *.lock FILES whose recorded pid
+// is dead (the holder's own live-pid file survives).
 func Acquire(repoPath string) (*Locker, error) {
 	path, err := lockPath(repoPath)
 	if err != nil {
@@ -106,7 +111,36 @@ func Acquire(repoPath string) (*Locker, error) {
 
 	l.writeContents("")
 	current.Store(l)
+	reapStaleLocks(filepath.Dir(path)) // §18.5: reap orphaned *.lock files whose pid is dead (holder's live pid survives)
 	return l, nil
+}
+
+// reapStaleLocks removes every *.lock file in dir whose recorded pid is not a
+// live process on its recorded hostname (PRD §18.5 stale-FILE reaping). Called
+// from Acquire AFTER the holder's own flock succeeds — the holder's pid is
+// os.Getpid() (live), so its own file is never reaped. SAFETY INVARIANT: a LIVE
+// pid is NEVER reaped (processAlive is conservative on every ambiguity) —
+// unlinking a live holder's inode-bound-flock file would let a contender
+// O_CREATE a fresh inode and flock it, defeating FR52. Only a DEAD pid (no open
+// fd → no flock) is safe to unlink. Malformed/empty pid → skip (best-effort).
+// All errors are ignored throughout (reaping is best-effort disk hygiene; a
+// failed Glob/ReadFile/Remove is a no-op, never fatal).
+func reapStaleLocks(dir string) {
+	matches, _ := filepath.Glob(filepath.Join(dir, "*.lock"))
+	for _, f := range matches {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		c := parseContents(data)
+		pid, err := strconv.Atoi(c.Pid)
+		if err != nil {
+			continue // malformed/empty pid → skip
+		}
+		if !processAlive(pid, c.Hostname) {
+			os.Remove(f) // dead pid → safe to unlink (ignore error)
+		}
+	}
 }
 
 // Release releases the lock and removes the lock file (Issue 2 — disk hygiene).

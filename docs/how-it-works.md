@@ -167,7 +167,7 @@ The built-in noise denylist (lock files, snapshots, sourcemaps, vendor directori
 
 Stagehand uses a **two-stage defense** against concurrent runs on the same repo:
 
-1. **Per-repo run lock** (advisory `flock(LOCK_EX|LOCK_NB)`) — prevents the common local double-run (two terminals in the same repo). The lock is held on a file descriptor and **auto-releases on process death** (SIGKILL, crash, power loss) — no stale-lock reaping or PID-liveness checks needed.
+1. **Per-repo run lock** (advisory `flock(LOCK_EX|LOCK_NB)`) — prevents the common local double-run (two terminals in the same repo). The lock is held on a file descriptor and **auto-releases on process death** (SIGKILL, crash, power loss) — the LOCK never goes stale. Orphaned lock FILES (left by exits that bypass the deferred cleanup) are reaped by pid-liveness on the next Acquire, and the signal path releases the file before exiting.
 2. **§13.5 CAS** (`git update-ref HEAD` compare-and-swap) — the second, never-clobber-HEAD guarantee. Even if the lock somehow fails (shared/network FS, cross-host), the CAS ensures only one commit lands per run.
 
 **Per-host limit.** The lock is a per-process advisory flock — it works on a single host. Cross-host contention (shared NFS, etc.) is the CAS's job.
@@ -176,7 +176,7 @@ Stagehand uses a **two-stage defense** against concurrent runs on the same repo:
 
 **No-op fast path.** On the single-commit path (changes staged), the holder publishes its frozen index-tree SHA via `SetSnapshot()`, and a contender whose staged snapshot is byte-identical to it exits 0 immediately. On the decompose path (nothing staged, dirty working tree), an accidental double-run exits **5 (Busy)** instead — the holder publishes a working-tree snapshot (`T_start`) that a lock-free contender cannot reproduce from the index, so it conservatively refuses.
 
-**Auto-release.** The lock uses POSIX `flock` — it releases when the file descriptor or process closes. No stale locks, no PID-liveness checks, no reaping. On Windows, `flock` is a no-op stub; the §13.5 CAS is the guarantee there.
+**Auto-release + file reaping.** The lock uses POSIX `flock` — it releases when the file descriptor or process closes, so the LOCK is never stale. The lock FILE, however, is orphaned by exits that bypass the deferred cleanup (SIGKILL, crash, signal-rescue `os.Exit`); on the next Acquire, stagehand reaps every `*.lock` whose recorded pid is dead (`kill(pid,0)`→`ESRCH`), and the signal path releases the file before exiting. On Windows, `flock` is a no-op stub, reaping is a no-op too, and the §13.5 CAS is the guarantee there.
 
 ### Safety invariant
 
