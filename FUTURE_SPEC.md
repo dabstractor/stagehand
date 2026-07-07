@@ -1,4 +1,4 @@
-# Stagehand — Future Spec (deferred & rejected ideas)
+# Stagecoach — Future Spec (deferred & rejected ideas)
 
 Companion to `PRD.md` (v2.1). The PRD carries **no stubs or placeholders**: if a capability is
 described there, it is in scope. Everything else — ideas we like but haven't specified, ideas
@@ -21,24 +21,24 @@ git — VS Code, JetBrains, neovim `:Git commit` via fugitive — a pre-filled c
 free. The extensions below are UX sugar on top of that (a button, a re-generate command, inline
 status), not a new capability, which is why they're deferred rather than specified.
 
-- **VS Code extension.** A ✨ button in the Source Control panel invoking `stagehand --dry-run`
+- **VS Code extension.** A ✨ button in the Source Control panel invoking `stagecoach --dry-run`
   into the message box (aicommits ships one). Separate TypeScript artifact, marketplace
   publishing pipeline.
-- **neovim / vim-fugitive.** A small plugin (or doc'd `:Git` mapping) wrapping `stagehand` /
-  `stagehand --dry-run`. The primary author is a neovim user; likely the first one built.
+- **neovim / vim-fugitive.** A small plugin (or doc'd `:Git` mapping) wrapping `stagecoach` /
+  `stagecoach --dry-run`. The primary author is a neovim user; likely the first one built.
 - **Zed.** Has a git panel with commit-message box and runs git hooks; watch its extension API
   for a first-class hook point.
 - **JetBrains.** Still a huge population. Its commit dialog executes git hooks, so hook mode
   covers it today; a plugin would add a toolbar action.
 
-Common design note for all of these: they must shell out to the installed `stagehand` binary
+Common design note for all of these: they must shell out to the installed `stagecoach` binary
 (the quota/auth story lives in the user's shell environment), never re-implement generation.
 
 ### 1.2 More `integrate` targets (PRD §9.21)
 
 - **gitui — blocked upstream.** Verified 2026-07-02 against the gitui changelog: `key_bindings.ron`
   can only remap built-in actions; there is no custom/external-command facility to bind
-  `stagehand` to. Revisit if upstream ships custom commands.
+  `stagecoach` to. Revisit if upstream ships custom commands.
 - **tig.** `~/.tigrc` external-command keybind; line-oriented format, easy to edit safely.
 - **magit / emacs.** Print-only (`integrate --print` style): never auto-edit a user's elisp.
 - **Sublime Merge.** Custom command via a `.sublime-commands` JSON file.
@@ -74,7 +74,7 @@ All future targets inherit the FR-I3 no-mangle write protocol unchanged.
 
 opencommit's Action rewrites lazy commit messages on push, on a GitHub-hosted runner. It works
 **only because opencommit is an API-key tool**: the key sits in a repo secret and the runner
-bills per token. Stagehand's entire thesis is spending a coding-plan quota through a locally
+bills per token. Stagecoach's entire thesis is spending a coding-plan quota through a locally
 authenticated agent CLI, and an ephemeral headless runner cannot do that without exporting OAuth
 credentials into repo-level secrets — per-provider, refresh-fragile, ToS-hostile, and it makes
 one person's personal plan pay for every contributor's pushes.
@@ -90,14 +90,14 @@ plan-tokens.** Until then: rejected, not deferred-by-laziness.
 
 | Feature (competitor) | Why rejected |
 |---|---|
-| **API-key HTTP providers, token limits, proxy/custom headers** (both) | PRD N2 is a permanent boundary: stagehand never owns the model call. Both competitors have these; contradiction beats parity. |
-| **PR title/body generation** (aicommits, beta) | PRD §6.3, permanent: stagehand writes commit messages, nothing else. Ranked #2 in the analysis; scope discipline wins anyway. |
+| **API-key HTTP providers, token limits, proxy/custom headers** (both) | PRD N2 is a permanent boundary: stagecoach never owns the model call. Both competitors have these; contradiction beats parity. |
+| **PR title/body generation** (aicommits, beta) | PRD §6.3, permanent: stagecoach writes commit messages, nothing else. Ranked #2 in the analysis; scope discipline wins anyway. |
 | **Interactive confirm loop as the default** (both) | Contradicts the non-interactive atomic design (lazygit `output: none` flows). The opt-in `--edit` (PRD §9.22) is the accepted form. |
 | **Generate N messages + pick** (aicommits) | Interactive selection contradicts the non-interactive default; also no parity (opencommit only has a regenerate loop). |
 | **Interactive file multiselect when nothing staged** (opencommit) | Superseded by multi-commit decomposition (PRD §13.6), which solves the same problem without a picker. |
 | **Push-after-commit *prompt*** (opencommit) | The prompt is the objection, not the push: accepted as the non-interactive `--push` flag (PRD FR-P1). |
 | **Large-diff chunking — lossy map-reduce form** (aicommits) | The *summarize-each-chunk-then-combine* flavor degrades message quality and is permanently rejected. NOTE: a **lossless** multi-turn priming form (full diff delivered across request-sized session turns) has graduated to the spec — see PRD §9.24 (FR-T1–T12). The rejection above applies only to the lossy form; the original premise ("agent contexts are 200k+; byte caps bound the payload") is withdrawn — a provider's per-request reliability ceiling can fall well below its advertised window, which is exactly what §9.24 addresses. |
-| **`--clipboard` mode** (aicommits) | `stagehand --dry-run --no-color \| wl-copy` (or `pbcopy`) is the same feature without per-platform clipboard dependencies. |
+| **`--clipboard` mode** (aicommits) | `stagecoach --dry-run --no-color \| wl-copy` (or `pbcopy`) is the same feature without per-platform clipboard dependencies. |
 | **Self-update command** (aicommits) | Distribution is Homebrew/AUR/Scoop/`go install`; a self-updating binary fights its package manager and breaks checksums. |
 | **`config describe`** (opencommit) | The populated bootstrap (FR-B1) plus `config init --template` already document every key in place. |
 | **Locale i18n file trees** (opencommit: 20 files) | The *feature* shipped (`--locale`, FR-F6) — as one prompt line. The model is the translator; maintaining 20 locale files is incumbent baggage. |

@@ -335,7 +335,7 @@
           "type": "Milestone",
           "id": "P1.M4",
           "title": "Documentation Rename",
-          "status": "Ready",
+          "status": "Complete",
           "description": "Rename all stagehand references in user-facing documentation: README.md (title, hero, badges, examples, install instructions), docs/*.md (cli.md, configuration.md, how-it-works.md, providers.md, README.md), providers/*.toml (manifest comment references), and FUTURE_SPEC.md.",
           "tasks": [
             {
@@ -390,7 +390,7 @@
               "type": "Task",
               "id": "P1.M4.T2",
               "title": "Provider manifests and spec docs rename",
-              "status": "Ready",
+              "status": "Complete",
               "description": "Rename stagehand references in provider TOML files and FUTURE_SPEC.md.",
               "subtasks": [
                 {
@@ -413,7 +413,7 @@
                   "type": "Subtask",
                   "id": "P1.M4.T2.S2",
                   "title": "Rename FUTURE_SPEC.md references",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 0.5,
                   "dependencies": [
                     "P1.M4.T2.S1"
@@ -440,14 +440,14 @@
               "type": "Task",
               "id": "P1.M5.T1",
               "title": "Historical plan artifacts rename",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Rename stagehand references in the plan/ directory's historical planning documents (task breakdowns, PRP files, architecture research from previous implementation phases).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M5.T1.S1",
                   "title": "Bulk rename stagehand references in plan/ directory files",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M4.T2.S2"
