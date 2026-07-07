@@ -11,7 +11,7 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "FR3j Closed-Loop Token-Budget Guarantee",
-          "status": "Planned",
+          "status": "Ready",
           "description": "After the FR3i water-fill produces the gated diff, assemble the actual full prompt (system prompt + BuildUserPayload(gatedDiff)), measure it with EstimateTokens, and re-trim until it fits token_limit. This makes 'the prompt never exceeds token_limit' a hard invariant. Covers every role that routes through the gate: message (3 paths), planner, arbiter. Stager and multi-turn (FR-T12) are out of scope.",
           "tasks": [
             {
@@ -101,14 +101,14 @@
               "type": "Task",
               "id": "P1.M1.T3",
               "title": "Closed-loop invariant tests",
-              "status": "Planned",
+              "status": "Ready",
               "description": "Pure unit tests for closedLoopGate convergence and the hard invariant, plus an e2e test verifying the assembled prompt never exceeds token_limit against a real temp repo.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T3.S1",
                   "title": "Pure unit tests for closedLoopGate convergence + invariant",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
@@ -124,7 +124,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T3.S2",
                   "title": "E2e test for assembled-prompt-≤-token_limit invariant",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T2.S1",
@@ -159,7 +159,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "processAlive cross-platform helper (lock_unix.go, lock_windows.go)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/011_98cef660a41d/architecture/lock_reaping.md. The existing lock package has a build-tag split: lock_unix.go (flock via syscall.Flock, isWouldBlock) and lock_windows.go (no-op flock, isWouldBlock). The processAlive helper follows the same split. On Unix, syscall.Kill(pid, 0) returns ESRCH for a dead pid, nil for a live one, EPERM for alive-but-not-ours. On Windows, flock is a no-op stub so there is no inode-bound-flock hazard; the §13.5 CAS is the guarantee.\n2. INPUT: The existing lock_unix.go and lock_windows.go files (both are small: ~22 and ~15 lines respectively).\n3. LOGIC: Add processAlive(pid int, hostname string) bool to each build-tag file. Unix (lock_unix.go): if hostname == \"\" or hostname != os.Hostname() return true (foreign host — don't reap, conservative). err := syscall.Kill(pid, 0). If err == nil return true (alive). If errors.Is(err, syscall.EPERM) return true (alive, different user). Return false (ESRCH — dead). Windows (lock_windows.go): return true always (conservative: reap nothing — there is no flock hazard and the invariant 'never reap a live pid' is trivially satisfied). Add necessary imports (errors, os, syscall).\n4. OUTPUT: The processAlive function is used by reapStaleLocks in S2. It is unexported (internal to the lock package).\n5. DOCS: [Mode A] Add a doc comment to processAlive explaining the cross-platform semantics and the 'never reap a live pid' invariant. No user-facing docs change.",

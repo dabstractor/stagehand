@@ -400,6 +400,42 @@ func TestClosedLoopGate_MaxPassesBound(t *testing.T) {
 	}
 }
 
+// TestClosedLoopGate_AdversarialDrift_GrowingMeasure (FR3j contract (b) — the "grows with each trim"
+// drift variant): an adversarial measure that GROWS each call models estimation drift where re-measurement
+// reports LARGER on each pass (the worst case the bounded loop must survive). Trimming can never satisfy
+// the invariant (each re-measure is worse than the last), so the loop must TERMINATE at the maxClosedLoopPasses
+// bound and return the best attempt — the FIRST-CUT (later trims are strictly worse, so bestDiff is never
+// updated). Distinct from TestClosedLoopGate_MaxPassesBound (constant adversarial): there the measure is
+// invariant to trimming; here trimming makes it strictly worse. Also the FIRST test to assert the
+// maxClosedLoopPasses call-count bound (via a counting measure).
+func TestClosedLoopGate_AdversarialDrift_GrowingMeasure(t *testing.T) {
+	section := bodySection("src/big.go", 4000) // a sizeable body so the gate trims on re-runs
+	tokenLimit := tokenBudgetMargin + 200
+	firstCut := applyWaterFillGate(nil, section, "", tokenLimit, 0)
+
+	// Stateful adversarial drift: GROWS each call (always > tokenLimit ⇒ invariant can never hold) AND
+	// counts calls (to assert the pass bound). The closedLoopGate measure-call pattern is deterministic
+	// (1 first-cut call + ≤ maxClosedLoopPasses pass calls), so `calls` is a faithful pass counter.
+	var calls int
+	measure := func(gatedDiff string) int {
+		calls++
+		return tokenLimit + 100 + calls*50 // call#1: +150; #2: +200; #3: +250; #4: +300; #5: +350 (all > tokenLimit)
+	}
+
+	got := closedLoopGate(nil, section, "", tokenLimit, 0, measure)
+
+	// (1) TERMINATES: the call returned (implicit — a regression to an unbounded loop hangs the runner).
+	// (2) BOUNDED: measure is called once for the first-cut + ≤ maxClosedLoopPasses passes ⇒ calls ≤ maxClosedLoopPasses+1.
+	if calls > maxClosedLoopPasses+1 {
+		t.Errorf("loop exceeded maxClosedLoopPasses: measure called %d times, want ≤ %d (1 first-cut + maxClosedLoopPasses passes)", calls, maxClosedLoopPasses+1)
+	}
+	// (3) BEST ATTEMPT: with a growing measure, trimming worsens the measured value, so bestDiff is never
+	// updated and the loop returns the first-cut (the smallest measured value seen) byte-identical.
+	if got != firstCut {
+		t.Errorf("growing-drift: best attempt must be the first-cut (trimming worsens the measure, so bestDiff is never updated);\nfirstCut=\n%s\ngot=\n%s", firstCut, got)
+	}
+}
+
 // TestClosedLoopGate_EffectiveLimitFloor verifies the effectiveLimit < 1 clamp: a pathological overshoot
 // (measure reports vastly over tokenLimit) drives effectiveLimit negative, which MUST be clamped to 1 so
 // applyWaterFillGate's bodyBudget ≤ 0 / minBodyTokens path fires (a strictly-positive limit is required —
