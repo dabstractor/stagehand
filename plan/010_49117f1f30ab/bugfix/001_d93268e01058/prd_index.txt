@@ -1,0 +1,13 @@
+h1.0 Bug Fix Requirements
+ h2.0 Overview
+ h2.1 Critical Issues (Must Fix)
+ h2.2 Major Issues (Should Fix)
+  h3.0 Issue 1: prepare-commit-msg invoked with 2 args (<msgfile> "") but git passes 1 arg for a plain commit
+  h3.1 Issue 2: Hook message file written WITHOUT a trailing newline — prepare-commit-msg appends corrupt the subject line
+  h3.2 Issue 3: The no_verify git-config layer is entirely missing (no reader) AND the documented key name is invalid for git
+  h3.3 Issue 4: A hook that empties the message file produces a commit with an EMPTY message (git aborts)
+ h2.3 Minor Issues (Nice to Fix)
+  h3.4 Issue 5: Decompose/arbiter hook tests assert only strings.Contains, masking the newline corruption (Issue 2)
+ h2.4 Testing Summary
+---
+code:3 para:12 list:3

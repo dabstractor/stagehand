@@ -1,0 +1,192 @@
+{
+  "backlog": [
+    {
+      "type": "Phase",
+      "id": "P1",
+      "title": "Hook Execution Git-Parity Bugfix",
+      "status": "Researching",
+      "description": "Fix 4 Major issues (Issues 1–4) and 1 Minor test-quality gap (Issue 5) in stagehand's commit-path hook execution feature (v2.4, FR-V1–V8). All issues are divergences from documented git parity. Three corrupt commit content or state (Issues 1, 2, 4); one makes a documented configuration layer non-functional (Issue 3). All four reproduce deterministically. Research findings are in plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/.",
+      "milestones": [
+        {
+          "type": "Milestone",
+          "id": "P1.M1",
+          "title": "Hooks Runner Message-File Parity (Issues 1 & 2)",
+          "status": "Planned",
+          "description": "Fix the two hooks-runner defects in internal/hooks/runner.go that corrupt commit message content: (1) prepare-commit-msg invoked with argc=2 instead of argc=1, and (2) message file written without a trailing newline, causing append-style hooks to corrupt the subject line. Both fixes are in the same file and restore git's documented COMMIT_EDITMSG format and hook invocation contract.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M1.T1",
+              "title": "Fix prepare-commit-msg argv to argc=1 for plain commits (Issue 1)",
+              "status": "Planned",
+              "description": "Git invokes prepare-commit-msg <msgfile> with ONE argument for a plain commit (no -m/merge/squash/amend). Stagehand passes []string{msgPath, \"\"} (argc=2). Change to []string{msgPath} and correct the false 'VERIFIED argc=2' comments at lines 52 and 178.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T1.S1",
+                  "title": "Change prepare-commit-msg argv from 2 args to 1 arg; correct false verification comments",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.2/h3.0", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/git_hook_semantics.md §1 and architecture/hooks_runner_and_callers.md §1. Git's githooks(5) says for a plain commit 'no second parameter is passed' — argc=1, $2 unset. Git 2.54.0 empirically confirms ARGC=1. The code at internal/hooks/runner.go:195 passes []string{msgPath, \"\"} (argc=2, $2=\"\"). Comments at lines 52 and 178 claim 'VERIFIED argc=2 for a plain commit — see external_deps.md §2' — this is FALSE. external_deps.md does not exist.\n2. INPUT: The function runPrepareCommitMsg at internal/hooks/runner.go:183-195 receives (ctx, cfg, opts, hooksDir, gitDir, workTree, msgPath string). msgPath is the temp file path from os.CreateTemp at line 97.\n3. LOGIC: (a) Write a FAILING test first: a test that installs a prepare-commit-msg hook that writes $# to a file, calls RunCommitHooks, and asserts $# is 1 (not 2). Place in internal/hooks/runner_test.go. Use the existing installHook helper pattern (runner_test.go:33-43). (b) Change line 195 from runHook(ctx, cfg.HookTimeout, hookPath, []string{msgPath, \"\"}, ...) to runHook(ctx, cfg.HookTimeout, hookPath, []string{msgPath}, ...). (c) Correct the doc comment at line 52 (in RunCommitHooks header): change 'Invoked as `<msgfile> \"\"` (PRD FR-V2; VERIFIED argc=2 for a plain commit — see external_deps.md §2)' to 'Invoked as `<msgfile>` (git githooks(5): for a plain commit no second parameter is passed; argc=1, $2 unset)'. (d) Correct the comment at line 178 in runPrepareCommitMsg: same correction.\n4. OUTPUT: prepare-commit-msg is invoked with argc=1. The function signature and return contract are unchanged. No caller is affected.\n5. DOCS: [Mode A] No external docs reference argc — the fix is internal to runner.go comments. Update ONLY the in-source comments (lines 52, 178). No separate docs subtask."
+                }
+              ]
+            },
+            {
+              "type": "Task",
+              "id": "P1.M1.T2",
+              "title": "Ensure message file has trailing newline before hooks run (Issue 2)",
+              "status": "Planned",
+              "description": "Git writes the commit message to the message file FOLLOWED BY A TRAILING NEWLINE. Stagehand writes finalMsg with NO trailing newline (runner.go:103). When a hook appends via echo >> $1, the append concatenates onto the subject line, corrupting it. Fix: ensure finalMsg ends with \\n before WriteString.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M1.T2.S1",
+                  "title": "Add trailing newline to message file before prepare-commit-msg runs",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.2/h3.1", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/git_hook_semantics.md §2 and architecture/hooks_runner_and_callers.md §2. Git's strbuf_complete_line() ensures COMMIT_EDITMSG always ends with \\n. Stagehand's runner.go:103 does msgFile.WriteString(finalMsg) with NO trailing newline. A prepare-commit-msg hook that does `echo 'Signed-off-by: Dev <dev@example.com>' >> \"$1\"` produces 'feat: changeSigned-off-by: Dev <dev@example.com>' (corrupted) instead of two clean lines. This is the HIGHEST-IMPACT bug.\n2. INPUT: The RunCommitHooks function at internal/hooks/runner.go:67. At line 91-103, finalMsg is the incoming message parameter (default from the generation pipeline). msgFile is a temp file (os.CreateTemp at line 97). The message is written at line 103 via msgFile.WriteString(finalMsg).\n3. LOGIC: (a) Write a FAILING test first: install a prepare-commit-msg that appends 'echo \"Signed-off-by: Dev <dev@example.com>\" >> \"$1\"', call RunCommitHooks with msg=\"feat: change\", assert the returned finalMsg has the Signed-off-by on a SEPARATE line (e.g. strings.Contains(finalMsg, \"\\nSigned-off-by:\") or split by \\n and check). Place in internal/hooks/runner_test.go. (b) Before the WriteString at line 103, add: if !strings.HasSuffix(finalMsg, \"\\n\") { finalMsg += \"\\n\" }. This mutates finalMsg BEFORE writing. The finalMsg is reassigned at line 131 from stripCommentLines(string(data), commentChar) which does TrimRight(\"\\n\"), so the mutation only affects the file content, not the return value. Mirrors git's strbuf_complete_line(). (c) Verify the existing TestRunCommitHooks_PrepareAndCommitMsg_SharedFile and TestRunCommitHooks_PrepareCommitMsg_Foreign_AnnotationReadBack still pass.\n4. OUTPUT: RunCommitHooks returns (finalTree, finalMsg, nil) as before — the trailing \\n is consumed by stripCommentLines on read-back. The file content fed to hooks now has the trailing \\n that git provides.\n5. DOCS: [Mode A] No external docs — the fix is internal. Add a brief in-source comment at the WriteString line noting git parity (strbuf_complete_line)."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M2",
+          "title": "noVerify Git-Config Layer (Issue 3)",
+          "status": "Planned",
+          "description": "Two compounding defects: (A) loadGitConfig() never queries stagehand.noVerify (grep returns 0 matches), so the git-config precedence layer is missing entirely. (B) The documented key name stagehand.no_verify (snake_case) is invalid for git — git rejects underscores in the final config key segment. Fix: add a gitConfigBool reader for stagehand.noVerify (camelCase, matching the codebase convention), and correct all doc references from stagehand.no_verify to stagehand.noVerify.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M2.T1",
+              "title": "Add git-config reader for stagehand.noVerify and correct key name in all docs",
+              "status": "Planned",
+              "description": "Add the missing gitConfigBool reader for stagehand.noVerify in loadGitConfig(), mirroring the existing stagehand.push reader at git.go:174. Correct the invalid snake_case key name in docs/cli.md, docs/configuration.md, and the config.go doc comment to camelCase stagehand.noVerify.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M2.T1.S1",
+                  "title": "Add stagehand.noVerify reader in loadGitConfig + fix key name in docs and comments",
+                  "status": "Planned",
+                  "story_points": 2,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.2/h3.2", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/config_no_verify_layer.md and architecture/git_hook_semantics.md §4. Two defects: (A) loadGitConfig() in internal/config/git.go never queries any stagehand.no* key (grep returns 0). (B) The documented key 'stagehand.no_verify' is invalid — git rejects underscores in the final segment ('error: invalid key'). ALL existing multi-word keys use camelCase: autoStageAll, maxDiffBytes, tokenLimit, diffContext, etc. The overlay() function in file.go:351-353 already handles NoVerify correctly (if src.NoVerify { dst.NoVerify = true }). The env (load.go:315) and flag (load.go:447) layers use DIRECT set and are correct. The TOML file key [generation].no_verify stays snake_case (TOML permits underscores).\n2. INPUT: internal/config/git.go loadGitConfig() function (lines 106-260). The stagehand.push reader at line ~174 is the exact template. The NoVerify field on *Config is a bool (config.go:134). The overlay() in file.go:351-352 already copies it.\n3. LOGIC: (a) Write FAILING tests first: in internal/config/git_test.go TestLoadGitConfig_ReadsValues (line ~54), add `setGitConfig(t, repo, \"stagehand.noVerify\", \"true\")` and assert cfg.NoVerify == true. Also add a TestLoad_NoVerifyPrecedence in internal/config/load_test.go mirroring TestLoad_PushPrecedence (load_test.go:1389-1429): set git config noVerify=true, assert cfg.NoVerify; then set STAGEHAND_NO_VERIFY=false, assert cfg.NoVerify==false (env overrides git). (b) In loadGitConfig() (git.go), after the push reader block at ~line 177, add: if v, found, err := gitConfigBool(repoDir, \"stagehand.noVerify\"); err != nil { return nil, err } else if found { c.NoVerify = v }. Use camelCase 'noVerify' — NOT 'no_verify'. (c) Fix docs: docs/cli.md:44 — change 'stagehand.no_verify' to 'stagehand.noVerify' in the git-config column. docs/configuration.md:155 — change 'stagehand.no_verify' to 'stagehand.noVerify' in the precedence chain. internal/config/config.go:130 — change 'stagehand.no_verify' to 'stagehand.noVerify' in the doc comment. Do NOT change the TOML struct tag (config.go:134 'toml:\"no_verify\"') — TOML allows underscores. Do NOT touch overlay(), materialize(), loadEnv, loadFlags — they are all correct.\n4. OUTPUT: loadGitConfig now reads stagehand.noVerify from git config. The 5-layer precedence is complete. Users can run 'git config stagehand.noVerify true' and it works (no 'invalid key' error, value is read). The TOML key [generation].no_verify is unchanged.\n5. DOCS: [Mode A] docs/cli.md:44, docs/configuration.md:155, and internal/config/config.go:130 comment are updated AS PART OF this subtask (they reference the specific key name being fixed). No separate docs subtask for these per-file docs."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M3",
+          "title": "Post-Hook Empty-Message Guard (Issue 4)",
+          "status": "Planned",
+          "description": "If prepare-commit-msg or commit-msg empties the message file, git aborts with 'Aborting commit due to empty commit message.' (exit 1, no commit). Stagehand has NO empty-message check after RunCommitHooks returns in any of the 3 commit paths (CommitStaged, runPipeline, publishCommit). An emptied message flows straight to CommitTree and creates an invalid commit. Fix: add a post-hook empty-message guard in all 3 callers, returning the existing ErrEmptyMessage sentinel (non-rescue, exit 1).",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M3.T1",
+              "title": "Add empty-message guard after RunCommitHooks in all 3 commit paths",
+              "status": "Planned",
+              "description": "After RunCommitHooks returns successfully in each of the 3 commit paths, check whether the hook-adjusted message is empty (after trimming). If empty, return generate.ErrEmptyMessage (the existing sentinel from finalize.go:45, used by EditMessage) — non-rescue, exit 1, mirroring git's 'Aborting commit due to empty commit message.' HEAD and the index are untouched (no update-ref ran).",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T1.S1",
+                  "title": "Add empty-message guard in generate.CommitStaged after RunCommitHooks",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.2/h3.3", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/hooks_runner_and_callers.md §3-§5. The ErrEmptyMessage sentinel exists at internal/generate/finalize.go:45: var ErrEmptyMessage = errors.New(\"stagehand: empty commit message — aborted\"). It is used by EditMessage (finalize.go:118) and propagates BARE to exit 1 (non-rescue, NOT exit 3). CommitStaged at internal/generate/generate.go:427-439 calls deps.Hooks.RunCommitHooks then assigns treeSHA, msg = ft, fm with NO empty check before CommitTree at line 439. The --edit path (EditMessage) DOES guard against empty at generate.go:410-413, but hooks run AFTER the editor, so a hook can empty a message the editor already validated.\n2. INPUT: CommitStaged function in internal/generate/generate.go. The hooks block at lines 427-431: `if deps.Hooks != nil { ft, fm, herr := deps.Hooks.RunCommitHooks(...); if herr != nil { return Result{}, herr }; treeSHA, msg = ft, fm }`. After this block, `msg` is the hook-adjusted message (possibly empty if a hook emptied the file). CommitTree is at line 439: `deps.Git.CommitTree(ctx, treeSHA, parents, msg)`.\n3. LOGIC: (a) Write a FAILING test first: in internal/generate/generate_test.go or hooks_freeze_test.go, install a commit-msg hook that empties the file (`> \"$1\"`), call CommitStaged with a stub provider, assert the error is generate.ErrEmptyMessage (errors.Is) and NO commit was created (git log shows no new commit). (b) After line 431 (`treeSHA, msg = ft, fm`), add: `if strings.TrimSpace(msg) == \"\" { return Result{}, ErrEmptyMessage }`. This is a bare non-rescue error — exit 1, mirroring EditMessage's path at line 413 and git's 'Aborting commit due to empty commit message.' HEAD and index are untouched (no update-ref ran). Use the package-local ErrEmptyMessage (same package: generate). Add import for strings if not present (it likely is).\n4. OUTPUT: CommitStaged returns Result{}, ErrEmptyMessage when a hook empties the message. No commit is created. The error propagates bare to exitcode.For() → exit 1 (NOT exit 3 rescue).\n5. DOCS: [Mode A] none — no user-facing/config/API surface change beyond the new abort behavior (which matches git's existing 'Aborting commit due to empty commit message' and the existing --edit path). The error message 'stagehand: empty commit message — aborted' is the same sentinel already used by EditMessage."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T1.S2",
+                  "title": "Add empty-message guard in pkg/stagehand.runPipeline after RunCommitHooks",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.2/h3.3", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/hooks_runner_and_callers.md §4 caller (b). runPipeline at pkg/stagehand/stagehand.go:652-694 calls deps.Hooks.RunCommitHooks and handles dryRun specially: under dryRun a *RescueError from a hook is warn-and-print (exit 0). The empty-message guard must be placed AFTER the hooks block, where `msg` has been reassigned to `fm` (line ~672: treeSHA, msg = ft, fm). ErrEmptyMessage is NOT a *RescueError, so it does NOT enter the dryRun warn-and-print branch — it propagates as a hard error (exit 1) under both dryRun and commit paths, which is correct: an empty message means the commit would be aborted even under --dry-run.\n2. INPUT: runPipeline function in pkg/stagehand/stagehand.go. The hooks block at lines 652-672: `if deps.Hooks != nil { ft, fm, herr := deps.Hooks.RunCommitHooks(..., dryRun, ...); if herr != nil { ...dryRun warn-and-print or rescue... } else { treeSHA, msg = ft, fm } }`. After this block (under the `else` branch where herr==nil), `msg` is the hook-adjusted message. Under dryRun, the function returns early at line ~678 with Result{Message: msg}. Under !dryRun, CommitTree is at line ~694.\n3. LOGIC: (a) Write a FAILING test first: in pkg/stagehand/stagehand_test.go, install a commit-msg hook that empties the file, call GenerateCommit with DryRun:true, assert the error is generate.ErrEmptyMessage (errors.Is) and exit would be 1 (NOT 0). Also test the !dryRun path. (b) After the hooks block closes (after the `if deps.Hooks != nil { ... }` block), BEFORE the `if dryRun` early return, add: `if strings.TrimSpace(msg) == \"\" { return Result{}, generate.ErrEmptyMessage }`. This fires under both dryRun and commit paths. Use generate.ErrEmptyMessage (pkg/stagehand already imports generate). HEAD and index are untouched.\n4. OUTPUT: runPipeline returns Result{}, generate.ErrEmptyMessage when a hook empties the message, under both dry-run and commit paths. No commit is created. The dry-run preview correctly shows the abort instead of carrying an empty message.\n5. DOCS: [Mode A] none — the abort matches git's existing behavior and the existing --edit ErrEmptyMessage path."
+                },
+                {
+                  "type": "Subtask",
+                  "id": "P1.M3.T1.S3",
+                  "title": "Add empty-message guard in decompose.publishCommit after RunCommitHooks",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": [],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.2/h3.3", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/hooks_runner_and_callers.md §4 caller (c). publishCommit at internal/decompose/message.go:230-235 calls hooks.RunCommitHooks DIRECTLY (not via the CommitHookRunner interface — decompose imports hooks directly). After RunCommitHooks returns, finalTree and finalMsg are assigned, then CommitTree is called at line 235 with NO empty check. publishCommit calls generate.ErrEmptyMessage — decompose already imports generate (for RescueError, CASError).\n2. INPUT: publishCommit function in internal/decompose/message.go. The hooks block at lines 230-234: `finalTree, finalMsg, herr := hooks.RunCommitHooks(ctx, deps.Git, deps.Config, tree, parentSHA, msg, hooks.HookOpts{DryRun: false, Verbose: deps.Verbose}); if herr != nil { return \"\", herr }`. After this, finalMsg is the hook-adjusted message (possibly empty). CommitTree is at line 235: `deps.Git.CommitTree(ctx, finalTree, parents, finalMsg)`.\n3. LOGIC: (a) Write a FAILING test first: in internal/decompose/message_test.go, install a commit-msg hook that empties the file (`> \"$1\"`), call publishCommit, assert the error is generate.ErrEmptyMessage (errors.Is) and NO commit was created (git log shows no new commit). Use the existing msgInstallHook helper (message_test.go:407). (b) After the `if herr != nil` block at line 233, add: `if strings.TrimSpace(finalMsg) == \"\" { return \"\", generate.ErrEmptyMessage }`. This is a bare non-rescue error — propagates to runLoop's FR-M12 handling. The strings package is already imported in message.go. HEAD and index are untouched.\n4. OUTPUT: publishCommit returns \"\", generate.ErrEmptyMessage when a hook empties the message. No commit is created. The error propagates to the decompose orchestrator's error handling.\n5. DOCS: [Mode A] none — the abort matches git's behavior and the existing ErrEmptyMessage pattern."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M4",
+          "title": "Decompose Test Assertion Tightening (Issue 5)",
+          "status": "Planned",
+          "description": "Three decompose/arbiter hook tests use strings.Contains(logMsg, \"[HOOK-RAN]\") which passes even when the message is corrupted by Issue 2 (marker concatenated onto the subject line instead of on its own line). Tighten these assertions to verify line structure so a regression of the trailing-newline behavior fails the test. This milestone MUST run AFTER P1.M1.T2 (Issue 2 newline fix) — the tightened assertions only pass once the newline fix is in place.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M4.T1",
+              "title": "Tighten decompose/arbiter hook test assertions to check line structure",
+              "status": "Planned",
+              "description": "Replace the loose strings.Contains assertions in the 3 decompose hook tests with assertions that verify the hook's appended marker lands on a SEPARATE line (the git-parity outcome). This guards against a regression of the Issue 2 trailing-newline fix.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M4.T1.S1",
+                  "title": "Replace strings.Contains with line-structure assertions in 3 decompose hook tests",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T2.S1"],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.3", "h2.3/h3.4", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/decompose_hook_tests.md. Three tests use strings.Contains(logMsg, \"[HOOK-RAN]\") which passes even with Issue 2 corruption ('feat: add new[HOOK-RAN]'). The hook body in all three is: `#!/bin/sh\\necho '[HOOK-RAN]' >> \"$1\"\\n`. After the Issue 2 fix (P1.M1.T2.S1), the file has a trailing \\n, so the echo append lands on its own line: 'feat: add new\\n[HOOK-RAN]'. The test helpers (msgRunGit/msgGitOut in message_test.go:46-54, chnRunGit in chain_test.go:58-66) use strings.TrimSpace which strips trailing \\n from git log output — this is fine for the assertion since we check for a line break BEFORE the marker, not after.\n2. INPUT: Three test functions: (a) TestPublishCommit_PrepareCommitMsgAnnotates in internal/decompose/message_test.go:407-429 — asserts strings.Contains(logMsg, \"[HOOK-RAN]\") at line 428. (b) TestResolveArbiter_NullNewCommit_RunsHooks in internal/decompose/chain_test.go:631-652 — asserts strings.Contains(headMsg, \"[HOOK-RAN]\") at line 649. (c) TestResolveArbiter_TipAmend_RunsHooks in internal/decompose/chain_test.go:654-677 — asserts strings.Contains(headMsg, \"[HOOK-RAN]\") at line 675.\n3. LOGIC: For each of the 3 tests, replace the strings.Contains assertion with a line-structure check. Recommended approach: assert that the marker appears as a standalone line — e.g. `if !strings.Contains(\"\\n\"+logMsg+\"\\n\", \"\\n[HOOK-RAN]\\n\") { t.Errorf(...) }`. This fails on 'feat: add new[HOOK-RAN]' (no \\n before [HOOK-RAN]) but passes on 'feat: add new\\n[HOOK-RAN]' (newline before). Do NOT change the test setup, the hook installation, or the negative test (TestResolveArbiter_MidChain_SkipsHooks at chain_test.go:698-710 — it asserts ABSENCE of [HOOK-RAN], which is correct as-is).\n4. OUTPUT: Three decompose hook tests now assert line-structure parity. A regression of the Issue 2 trailing-newline fix (P1.M1.T2.S1) would cause these tests to fail.\n5. DOCS: [Mode A] none — this is a test-only change with no user-facing impact."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Milestone",
+          "id": "P1.M5",
+          "title": "Sync Changeset-Level Documentation",
+          "status": "Planned",
+          "description": "Final sweep of README.md and docs/how-it-works.md — the cross-cutting overview docs that summarize the hooks feature across the entire changeset. Per-file docs (cli.md, configuration.md, config.go comments) were already updated in their implementing subtasks (Mode A). This task catches any overview-level drift.",
+          "tasks": [
+            {
+              "type": "Task",
+              "id": "P1.M5.T1",
+              "title": "Sync changeset-level documentation",
+              "status": "Planned",
+              "description": "Sweep README.md and docs/how-it-works.md for any hooks-related content that should reflect the 4 bug fixes: (1) prepare-commit-msg argc=1, (2) trailing newline parity, (3) stagehand.noVerify git-config key, (4) empty-message abort. The per-feature docs (cli.md, configuration.md) were already corrected in P1.M2.T1.S1 (Mode A). This task covers only the cross-cutting overview docs.",
+              "subtasks": [
+                {
+                  "type": "Subtask",
+                  "id": "P1.M5.T1.S1",
+                  "title": "Sweep README.md and docs/how-it-works.md for hooks-feature accuracy",
+                  "status": "Planned",
+                  "story_points": 1,
+                  "dependencies": ["P1.M1.T1.S1", "P1.M1.T2.S1", "P1.M2.T1.S1", "P1.M3.T1.S1", "P1.M3.T1.S2", "P1.M3.T1.S3", "P1.M4.T1.S1"],
+                  "prd_selectors": ["h1.0", "h2.0", "h2.2", "h2.3", "h2.4"],
+                  "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: The hooks feature is referenced in: README.md:71 (feature table row for commit hooks), README.md:367-369 (FAQ 'Does it run my pre-commit hooks?'), docs/how-it-works.md:310-324 (Commit hooks on the plumbing path section), docs/how-it-works.md:337 (snapshot-based flow feature list). The per-file docs (docs/cli.md:44, docs/configuration.md:155) and the config.go comment were already fixed in P1.M2.T1.S1 (Mode A — stagehand.no_verify → stagehand.noVerify). This task sweeps ONLY the overview/README-level docs.\n2. INPUT: All 4 bug fixes are complete (P1.M1.T1, P1.M1.T2, P1.M2.T1, P1.M3.T1). The changeset restored git parity for: argc=1 on prepare-commit-msg, trailing newline on COMMIT_EDITMSG, stagehand.noVerify git-config key, and empty-message abort after hooks.\n3. LOGIC: Review README.md:71, README.md:367-369, docs/how-it-works.md:310-324, and docs/how-it-works.md:337. Check whether any content: (a) references the old invalid key name 'stagehand.no_verify' (should be 'stagehand.noVerify'), (b) claims prepare-commit-msg runs with 2 args (should be 1 for a plain commit), (c) implies message files have no trailing newline (git always adds one), or (d) omits the empty-message abort behavior (should mention it for completeness, like the --edit abort). If any of these are found, update the doc text to reflect the corrected behavior. If none are found (likely for README which is high-level), document that the docs were reviewed and no changes were needed.\n4. OUTPUT: README.md and docs/how-it-works.md accurately reflect the git-parity behavior of the hooks feature after the 4 bug fixes. No stale references to the invalid key name or incorrect argc.\n5. DOCS: [Mode B] This IS the changeset-level documentation sync task. It depends on ALL implementing subtasks and sweeps the cross-cutting overview docs that summarize the full delta."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
