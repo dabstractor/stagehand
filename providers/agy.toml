@@ -6,21 +6,21 @@
 #   Human-readable REFERENCE DOCUMENTATION for the `agy` provider. It mirrors the
 #   compiled-in manifest `builtinAgy()` in internal/provider/builtin.go BYTE-FOR-BYTE
 #   (modulo comments). It is NOT loaded at runtime — built-ins are compiled into
-#   the Go binary. (The config loader reads .stagehand.toml, not this directory.)
+#   the Go binary. (The config loader reads .stagecoach.toml, not this directory.)
 #
 # HOW TO USE IT AS A CONFIG OVERRIDE (PRD §12.8)
 #   To override the built-in agy (or define a variant), copy the FIELD lines below
 #   (NOT this header) into your config file and wrap them in a `[provider.agy]`
 #   table, then DELETE the `name = "agy"` line — the table key supplies the name.
 #   Change only the fields you want; fields you omit inherit the built-in's value.
-#       # ~/.config/stagehand/config.toml  (or a repo-local .stagehand.toml)
+#       # ~/.config/stagecoach/config.toml  (or a repo-local .stagecoach.toml)
 #       [provider.agy]
 #       default_model = "Gemini 3.1 Pro (High)"  # e.g. override only the model (display label, verbatim)
 #
 # RENDERED COMMAND (PRD §12.5.1)
 #   agy --model "Gemini 3.5 Flash (Low)" --approval-mode default -p < "<sys>\n\n<user payload>"
 #   (stdin delivery; agy appends stdin to the prompt. The model label is ONE argv
-#   element — stagehand execs directly, no shell, so the spaces are safe.)
+#   element — stagecoach execs directly, no shell, so the spaces are safe.)
 #
 # MODEL NAMES (verified 2026-07-03): agy's --model takes the DISPLAY LABEL from
 #   `agy models` VERBATIM — e.g. "Gemini 3.5 Flash (Low)" / "Gemini 3.1 Pro (High)".

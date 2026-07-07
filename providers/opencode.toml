@@ -6,14 +6,14 @@
 #   Human-readable REFERENCE DOCUMENTATION for the `opencode` provider. It mirrors the
 #   compiled-in manifest `builtinOpenCode()` in internal/provider/builtin.go BYTE-FOR-BYTE
 #   (modulo comments). It is NOT loaded at runtime — built-ins are compiled into
-#   the Go binary. (The config loader reads .stagehand.toml, not this directory.)
+#   the Go binary. (The config loader reads .stagecoach.toml, not this directory.)
 #
 # HOW TO USE IT AS A CONFIG OVERRIDE (PRD §12.8)
 #   To override the built-in opencode (or define a variant), copy the FIELD lines below
 #   (NOT this header) into your config file and wrap them in a `[provider.opencode]`
 #   table, then DELETE the `name = "opencode"` line — the table key supplies the name.
 #   Change only the fields you want; fields you omit inherit the built-in's value.
-#       # ~/.config/stagehand/config.toml  (or a repo-local .stagehand.toml)
+#       # ~/.config/stagecoach/config.toml  (or a repo-local .stagecoach.toml)
 #       [provider.opencode]
 #       default_model = "anthropic/claude-sonnet-4"  # e.g. override only the model
 #

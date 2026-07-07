@@ -397,7 +397,7 @@
                   "type": "Subtask",
                   "id": "P1.M4.T2.S1",
                   "title": "Rename providers/*.toml comment references",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T3.S2"

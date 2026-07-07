@@ -6,14 +6,14 @@
 #   Human-readable REFERENCE DOCUMENTATION for the `pi` provider. It mirrors the
 #   compiled-in manifest `builtinPi()` in internal/provider/builtin.go BYTE-FOR-BYTE
 #   (modulo comments). It is NOT loaded at runtime — built-ins are compiled into
-#   the Go binary. (The config loader reads .stagehand.toml, not this directory.)
+#   the Go binary. (The config loader reads .stagecoach.toml, not this directory.)
 #
 # HOW TO USE IT AS A CONFIG OVERRIDE (PRD §12.8)
 #   To override the built-in pi (or define a variant), copy the FIELD lines below
 #   (NOT this header) into your config file and wrap them in a `[provider.pi]`
 #   table, then DELETE the `name = "pi"` line — the table key supplies the name.
 #   Change only the fields you want; fields you omit inherit the built-in's value.
-#       # ~/.config/stagehand/config.toml  (or a repo-local .stagehand.toml)
+#       # ~/.config/stagecoach/config.toml  (or a repo-local .stagecoach.toml)
 #       [provider.pi]
 #       default_model = "glm-5.2"          # e.g. override only the model
 #
@@ -109,7 +109,7 @@ strip_code_fence = true             # strip one layer of ``` / ~~~ if the agent 
 
 # --- reasoning levels (v3; §12.1, FR-R6) ---
 # pi exposes `--thinking off|minimal|low|medium|high|xhigh` (verified `pi --help`, external_deps.md §pi).
-# off has no entry ⇒ graceful no-op (FR-R6); minimal/xhigh have no stagehand level. Tokens append
+# off has no entry ⇒ graceful no-op (FR-R6); minimal/xhigh have no stagecoach level. Tokens append
 # after the model flag at render.
 [reasoning_levels]
 high = ["--thinking", "high"]
