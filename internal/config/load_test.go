@@ -570,7 +570,7 @@ func TestLoad_GitOverridesRepoFile(t *testing.T) {
 	chdir(t, repo)
 	writeConfigFile(t, globalDir, "config.toml", "[defaults]\nprovider = \"pi\"\n")
 	writeConfigFile(t, repo, ".stagehand.toml", "[defaults]\nprovider = \"claude\"\n")
-	setGitConfig(t, repo, "stagehand.provider", "gemini")
+	setGitConfig(t, repo, "stagecoach.provider", "gemini")
 
 	// Redirect notice
 	origNoticeOut := noticeOut
@@ -589,7 +589,7 @@ func TestLoad_GitOverridesRepoFile(t *testing.T) {
 func TestLoad_EnvOverridesGit(t *testing.T) {
 	_, repo, _ := loadEnvSetup(t)
 	chdir(t, repo)
-	setGitConfig(t, repo, "stagehand.provider", "gemini")
+	setGitConfig(t, repo, "stagecoach.provider", "gemini")
 	t.Setenv("STAGECOACH_PROVIDER", "pi")
 
 	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
@@ -642,11 +642,11 @@ func TestLoad_RefusesStubViaEnvProvider(t *testing.T) {
 	}
 }
 
-// TestLoad_RefusesStubViaGitConfig (FR-SH1) — the same guard against the stagehand.provider git-config.
+// TestLoad_RefusesStubViaGitConfig (FR-SH1) — the same guard against the stagecoach.provider git-config.
 func TestLoad_RefusesStubViaGitConfig(t *testing.T) {
 	_, repo, _ := loadEnvSetup(t)
 	chdir(t, repo)
-	setGitConfig(t, repo, "stagehand.provider", "stub")
+	setGitConfig(t, repo, "stagecoach.provider", "stub")
 
 	if _, err := Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true}); err == nil {
 		t.Fatal("Load err=nil, want refusal for ambient stub via git config")
@@ -1088,7 +1088,7 @@ func TestLoad_GitConfigErrorPropagates(t *testing.T) {
 	_, repo, _ := loadEnvSetup(t)
 	chdir(t, repo)
 	// Set a non-integer timeout in git config
-	setGitConfig(t, repo, "stagehand.timeout", "notanumber")
+	setGitConfig(t, repo, "stagecoach.timeout", "notanumber")
 
 	_, err := Load(context.Background(), LoadOpts{RepoDir: repo})
 	if err == nil {
@@ -1183,7 +1183,7 @@ func TestValidateDiffContext(t *testing.T) {
 	}
 }
 
-// validateCommits tests (Finding 5: --commits / STAGECOACH_COMMITS / stagehand.commits must be >= 0).
+// validateCommits tests (Finding 5: --commits / STAGECOACH_COMMITS / stagecoach.commits must be >= 0).
 // Pure (no I/O); mirrors the validateDiffContext table style.
 func TestValidateCommits(t *testing.T) {
 	cases := []struct {
@@ -1263,7 +1263,7 @@ func TestLoad_TemplatePrecedence(t *testing.T) {
 	}
 
 	// Layer 4: git overrides
-	setGitConfig(t, repo, "stagehand.template", "$msg (git)")
+	setGitConfig(t, repo, "stagecoach.template", "$msg (git)")
 	cfg, err = Load(context.Background(), LoadOpts{RepoDir: repo})
 	if err != nil {
 		t.Fatalf("Load err=%v", err)
@@ -1402,7 +1402,7 @@ func TestLoad_PushPrecedence(t *testing.T) {
 
 	// Layer 4: git overrides (NOTE: git-config false is a no-op with overlay — same as
 	// AutoStageAll/Verbose. DIRECT-set escape via env or flag.)
-	setGitConfig(t, repo, "stagehand.push", "false")
+	setGitConfig(t, repo, "stagecoach.push", "false")
 	cfg, err = Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
 	if err != nil {
 		t.Fatalf("Load err=%v", err)
@@ -1443,14 +1443,14 @@ func TestLoad_NoVerifyPrecedence(t *testing.T) {
 	chdir(t, repo)
 
 	// Layer 4: git config sets noVerify=true (proves the git-config reader exists
-	// and reads stagehand.noVerify — the bug this task fixes).
-	setGitConfig(t, repo, "stagehand.noVerify", "true")
+	// and reads stagecoach.noVerify — the bug this task fixes).
+	setGitConfig(t, repo, "stagecoach.noVerify", "true")
 	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
 	if err != nil {
 		t.Fatalf("Load err=%v", err)
 	}
 	if !cfg.NoVerify {
-		t.Errorf("NoVerify=false want true (stagehand.noVerify=true via git config)")
+		t.Errorf("NoVerify=false want true (stagecoach.noVerify=true via git config)")
 	}
 
 	// Layer 5: env overrides (DIRECT set — the escape hatch that CAN set false,
@@ -1461,7 +1461,7 @@ func TestLoad_NoVerifyPrecedence(t *testing.T) {
 		t.Fatalf("Load err=%v", err)
 	}
 	if cfg.NoVerify {
-		t.Errorf("NoVerify=true want false (STAGECOACH_NO_VERIFY=false > stagehand.noVerify=true)")
+		t.Errorf("NoVerify=true want false (STAGECOACH_NO_VERIFY=false > stagecoach.noVerify=true)")
 	}
 }
 
@@ -1502,8 +1502,8 @@ func TestLoad_FullPrecedenceMatrix(t *testing.T) {
 	defer func() { noticeOut = origNoticeOut }()
 
 	// Layer 4: git overrides provider
-	setGitConfig(t, repo, "stagehand.provider", "gemini")
-	setGitConfig(t, repo, "stagehand.model", "git-model")
+	setGitConfig(t, repo, "stagecoach.provider", "gemini")
+	setGitConfig(t, repo, "stagecoach.model", "git-model")
 
 	// Layer 5: env overrides provider + model
 	t.Setenv("STAGECOACH_PROVIDER", "env-pi")

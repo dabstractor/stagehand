@@ -83,9 +83,9 @@ func TestGitRunner_RunWithEnv_PassesEnv(t *testing.T) {
 	// with empty output, failing the test loudly.
 	out, _, code, err := g.runWithEnv(context.Background(), repo, []string{
 		"GIT_CONFIG_COUNT=1",
-		"GIT_CONFIG_KEY_0=stagehand.envtest",
+		"GIT_CONFIG_KEY_0=stagecoach.envtest",
 		"GIT_CONFIG_VALUE_0=passed-via-env",
-	}, "config", "--get", "stagehand.envtest")
+	}, "config", "--get", "stagecoach.envtest")
 	if err != nil || code != 0 {
 		t.Fatalf("runWithEnv config --get: code=%d err=%v (cmd.Env likely not set)", code, err)
 	}

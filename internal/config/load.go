@@ -129,7 +129,7 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 	// one smuggled in by a leaked environment. MUST stay positioned before Layer 4 (gitconfig).
 	fileProvider := cfg.Provider
 
-	// Layer 4: repo git config (stagehand.* keys). Non-nil partial *Config; errors propagate.
+	// Layer 4: repo git config (stagecoach.* keys). Non-nil partial *Config; errors propagate.
 	gc, err := loadGitConfig(opts.RepoDir)
 	if err != nil {
 		return nil, fmt.Errorf("git config: %w", err)
@@ -185,7 +185,7 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 	if err := validateDiffContext(cfg.DiffContext); err != nil {
 		return nil, fmt.Errorf("diff_context: %w", err)
 	}
-	// Finding 5: --commits / STAGECOACH_COMMITS / stagehand.commits must be >= 0. A negative value is
+	// Finding 5: --commits / STAGECOACH_COMMITS / stagecoach.commits must be >= 0. A negative value is
 	// meaningless (0 = auto-decompose, 1 = --single, N>=2 = force N). Surface it as a usage error at
 	// load time rather than letting it fall through to downstream behavior.
 	if err := validateCommits(cfg.Commits); err != nil {
@@ -195,7 +195,7 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 	// Self-hosting guard (FR-SH1). "stub" (cmd/stubagent) is a TEST-ONLY provider double that echoes
 	// $STAGECOACH_STUB_OUT verbatim as the "generated" message. It is valid ONLY when selected
 	// intentionally — via the --provider flag or a config FILE (--config / repo-local .stagehand.toml
-	// / global). Refuse AMBIENT selection via $STAGECOACH_PROVIDER or the stagehand.provider repo
+	// / global). Refuse AMBIENT selection via $STAGECOACH_PROVIDER or the stagecoach.provider repo
 	// git-config: those are the channels by which a leaked test environment (an exported
 	// STAGECOACH_PROVIDER=stub + STAGECOACH_STUB_OUT left sitting in a shell) silently hijacks a real
 	// `git commit-pi` / bare `stagehand` and mints nonsense commits ("feat: add a", "x", …). Tests
@@ -209,7 +209,7 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 			case os.Getenv("STAGECOACH_PROVIDER") == "stub":
 				src = "$STAGECOACH_PROVIDER"
 			case gc != nil && gc.Provider == "stub":
-				src = "git config stagehand.provider"
+				src = "git config stagecoach.provider"
 			}
 			return nil, fmt.Errorf("refusing test-only provider %q: selected via %s, not --provider "+
 				"or a config file (a leaked test environment would mint garbage commits through "+
@@ -419,7 +419,7 @@ func loadFlags(cfg *Config, fs *pflag.FlagSet) {
 	}
 
 	// §9.19 FR-F7 — context via CLI flag ONLY (no env/git/file source; per-invocation). Mirrors --exclude's
-	// flag-only discipline (there is no STAGECOACH_CONTEXT / stagehand.context / [generation].context).
+	// flag-only discipline (there is no STAGECOACH_CONTEXT / stagecoach.context / [generation].context).
 	if fs.Changed("context") {
 		if v, err := fs.GetString("context"); err == nil {
 			cfg.Context = v
@@ -427,7 +427,7 @@ func loadFlags(cfg *Config, fs *pflag.FlagSet) {
 	}
 
 	// §9.22 FR-E1 — --edit flag (flag-only; no env/git/file source; per-invocation). Mirrors --context's
-	// flag-only discipline (there is no STAGECOACH_EDIT / stagehand.edit / [generation].edit).
+	// flag-only discipline (there is no STAGECOACH_EDIT / stagecoach.edit / [generation].edit).
 	if fs.Changed("edit") {
 		if v, err := fs.GetBool("edit"); err == nil {
 			cfg.Edit = v

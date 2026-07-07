@@ -240,10 +240,10 @@ const bootstrapHeader = `# Stagehand configuration file (populated bootstrap).
 # Edit freely; uncomment any commented section to activate it.
 #
 # Resolution precedence (highest -> lowest), PRD §9.8 FR34 / §16.1:
-#   CLI flags  >  STAGECOACH_* env vars  >  repo git config (stagehand.*)  >
+#   CLI flags  >  STAGECOACH_* env vars  >  repo git config (stagecoach.*)  >
 #   repo-local .stagehand.toml  >  THIS global file  >  provider defaults  >  built-in defaults
 #
-# This is the GLOBAL file. A repo-local file (./.stagehand.toml) and repo git config (stagehand.*)
+# This is the GLOBAL file. A repo-local file (./.stagehand.toml) and repo git config (stagecoach.*)
 # both override it; CLI flags and env vars override those.
 #
 # Environment variables (PRD §9.8 FR35) — override this file, are overridden by CLI flags:
@@ -262,11 +262,11 @@ const bootstrapHeader = `# Stagehand configuration file (populated bootstrap).
 #   STAGECOACH_COMMITS                    force exactly N commits when nothing is staged (PRD §9.14); 1 == --single
 #
 # Git config keys (PRD §9.8 FR36 / §16.3) — alternative to this file, scoped to one repo:
-#   git config stagehand.provider pi
-#   git config stagehand.model ""
-#   git config stagehand.timeout 120s
-#   git config stagehand.auto_stage_all true
-#   (read via ` + "`git config --get stagehand.<key>`" + `)
+#   git config stagecoach.provider pi
+#   git config stagecoach.model ""
+#   git config stagecoach.timeout 120s
+#   git config stagecoach.auto_stage_all true
+#   (read via ` + "`git config --get stagecoach.<key>`" + `)
 #
 # ---------------------------------------------------------------------------
 # CLI flags (PRD §15.2) — highest precedence; only an EXPLICITLY-passed flag overrides lower layers

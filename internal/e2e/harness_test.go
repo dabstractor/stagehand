@@ -58,7 +58,7 @@ func buildStagecoach(t *testing.T) string {
 		}
 		name := "stagehand"
 		if runtime.GOOS == "windows" {
-			name = "stagehand.exe"
+			name = "stagecoach.exe"
 		}
 		stagecoachBin = filepath.Join(dir, name)
 		build := exec.Command(goPath, "build", "-o", stagecoachBin,
@@ -170,7 +170,7 @@ strip_code_fence = true
 default_model = "stub"
 tooled_flags = ["--tooled"]
 ` + extras + "\n"
-	p := filepath.Join(t.TempDir(), "stagehand.toml")
+	p := filepath.Join(t.TempDir(), "stagecoach.toml")
 	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}

@@ -720,7 +720,7 @@ func TestResolveConfig_InjectedConfig(t *testing.T) {
 // TestGenerateCommit_GenerationConfigFile_OutputJSON_Issue4 proves PRD Issue 4: the [generation]
 // output="json" field (file-loader path) overrides the provider manifest's output="raw" and is
 // honored by ParseOutput end-to-end through buildDeps. Without the S1 bridge (~196-207 in
-// stagehand.go), res.Message would equal the raw JSON blob instead of the extracted field.
+// stagecoach.go), res.Message would equal the raw JSON blob instead of the extracted field.
 //
 // TDD check (manual, do not commit): comment out the S1 bridge block and re-run — this test FAILS
 // (raw blob observed instead of "feat: from json config").
@@ -770,7 +770,7 @@ func TestGenerateCommit_GenerationConfigFile_OutputJSON_Issue4(t *testing.T) {
 }
 
 // TestGenerateCommit_GitConfig_OutputJSON_Issue4 proves PRD Issue 4: git-config layer-4
-// `stagehand.output json` overrides the manifest's output="raw" and is honored by ParseOutput
+// `stagecoach.output json` overrides the manifest's output="raw" and is honored by ParseOutput
 // end-to-end. Uses t.Setenv("HOME", t.TempDir()) to isolate the global git config (mirrors
 // git_test.go:71).
 //
@@ -796,7 +796,7 @@ func TestGenerateCommit_GitConfig_OutputJSON_Issue4(t *testing.T) {
 
 	initRepo(t, repo)
 	commitRaw(t, repo, "initial")
-	runGit(t, repo, "config", "stagehand.output", "json") // Layer-4 override
+	runGit(t, repo, "config", "stagecoach.output", "json") // Layer-4 override
 	writeFile(t, repo, "new.txt", "data")
 	stageFile(t, repo, "new.txt")
 
@@ -814,7 +814,7 @@ func TestGenerateCommit_GitConfig_OutputJSON_Issue4(t *testing.T) {
 		t.Errorf("CommitSHA = %q, want empty (DryRun)", res.CommitSHA)
 	}
 	if res.Message != "feat: from git-config json" {
-		t.Errorf("Message = %q, want %q (git config stagehand.output=json must reach ParseOutput)",
+		t.Errorf("Message = %q, want %q (git config stagecoach.output=json must reach ParseOutput)",
 			res.Message, "feat: from git-config json")
 	}
 }

@@ -491,7 +491,7 @@ func writeBootstrapFile(cmd *cobra.Command, path, content string, force bool) er
 // exampleConfigTemplate is the commented example config written by `config init --template` (PRD §16.2 / FR38).
 // EVERY option line is commented out (#), so the file is INERT until the user uncomments it. This
 // template IS the Mode-A user-facing config documentation: the header explains the §9.8 precedence
-// order, STAGECOACH_* env vars, and `stagehand.*` git-config keys; the [defaults]/[generation]/
+// order, STAGECOACH_* env vars, and `stagecoach.*` git-config keys; the [defaults]/[generation]/
 // [provider.X] sections mirror §16.2 with documented default values and (for providers) field names
 // that match internal/provider/manifest.go toml tags.
 const exampleConfigTemplate = `# Stagehand configuration file (PRD §16.2).
@@ -501,10 +501,10 @@ const exampleConfigTemplate = `# Stagehand configuration file (PRD §16.2).
 # copy its line to a new (uncommented) line and adjust the value.
 #
 # Resolution precedence (highest -> lowest), PRD §9.8 FR34 / §16.1:
-#   CLI flags  >  STAGECOACH_* env vars  >  repo git config (stagehand.*)  >
+#   CLI flags  >  STAGECOACH_* env vars  >  repo git config (stagecoach.*)  >
 #   repo-local .stagehand.toml  >  THIS global file  >  provider defaults  >  built-in defaults
 #
-# This is the GLOBAL file. A repo-local file (./.stagehand.toml) and repo git config (stagehand.*)
+# This is the GLOBAL file. A repo-local file (./.stagehand.toml) and repo git config (stagecoach.*)
 # both override it; CLI flags and env vars override those.
 #
 # Environment variables (PRD §9.8 FR35) — override this file, are overridden by CLI flags:
@@ -534,11 +534,11 @@ const exampleConfigTemplate = `# Stagehand configuration file (PRD §16.2).
 #   stagehand config init --force # regenerate the bootstrap config, overwriting this file
 
 # Git config keys (PRD §9.8 FR36 / §16.3) — alternative to this file, scoped to one repo:
-#   git config stagehand.provider pi
-#   git config stagehand.model ""
-#   git config stagehand.timeout 120s
-#   git config stagehand.auto_stage_all true
-#   (read via ` + "`git config --get stagehand.<key>`" + `)
+#   git config stagecoach.provider pi
+#   git config stagecoach.model ""
+#   git config stagecoach.timeout 120s
+#   git config stagecoach.auto_stage_all true
+#   (read via ` + "`git config --get stagecoach.<key>`" + `)
 
 # ---------------------------------------------------------------------------
 # CLI flags (PRD §15.2) — highest precedence; only an EXPLICITLY-passed flag overrides lower layers

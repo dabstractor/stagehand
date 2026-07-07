@@ -119,7 +119,7 @@ func TestConfigGlobal_Isolation(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", cfg)
 
 	// Capture real global config state for a sentinel key (should never exist).
-	realBefore, _, _ := (&gitRunner{workDir: os.TempDir()}).ConfigGlobalGet(context.Background(), "stagehand.t2s1.isolation.sentinel")
+	realBefore, _, _ := (&gitRunner{workDir: os.TempDir()}).ConfigGlobalGet(context.Background(), "stagecoach.t2s1.isolation.sentinel")
 	t.Setenv("GIT_CONFIG_GLOBAL", cfg) // re-set after the above (the getter inherits env)
 
 	g := New(t.TempDir())
@@ -140,7 +140,7 @@ func TestConfigGlobal_Isolation(t *testing.T) {
 
 	// Verify the real global config is untouched (sentinel unchanged).
 	t.Setenv("GIT_CONFIG_GLOBAL", "") // clear so the next read hits the real config
-	realAfter, _, _ := (&gitRunner{workDir: os.TempDir()}).ConfigGlobalGet(context.Background(), "stagehand.t2s1.isolation.sentinel")
+	realAfter, _, _ := (&gitRunner{workDir: os.TempDir()}).ConfigGlobalGet(context.Background(), "stagecoach.t2s1.isolation.sentinel")
 	t.Setenv("GIT_CONFIG_GLOBAL", cfg) // restore for cleanup
 
 	if realBefore != realAfter {

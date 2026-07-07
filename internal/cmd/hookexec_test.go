@@ -40,7 +40,7 @@ output = "raw"
 strip_code_fence = true
 default_model = "stub"
 `
-	p := filepath.Join(t.TempDir(), "stagehand.toml")
+	p := filepath.Join(t.TempDir(), "stagecoach.toml")
 	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}

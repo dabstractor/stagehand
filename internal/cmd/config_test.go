@@ -486,8 +486,8 @@ func TestConfigInit_TemplateIsInert(t *testing.T) {
 	if !strings.Contains(content, "STAGECOACH_PROVIDER") {
 		t.Error("template missing STAGECOACH_PROVIDER env-var doc")
 	}
-	if !strings.Contains(content, "stagehand.provider") {
-		t.Error("template missing stagehand.provider git-key doc")
+	if !strings.Contains(content, "stagecoach.provider") {
+		t.Error("template missing stagecoach.provider git-key doc")
 	}
 }
 

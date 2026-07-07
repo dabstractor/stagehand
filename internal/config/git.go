@@ -111,126 +111,126 @@ func loadGitConfig(repoDir string) (*Config, error) {
 	c := &Config{} // ALL fields zero; only found keys are set below.
 
 	// --- strings (plain --get) ---
-	if v, found, err := gitConfigGet(repoDir, "stagehand.provider"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.provider"); err != nil {
 		return nil, err
 	} else if found {
 		c.Provider = v
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.model"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.model"); err != nil {
 		return nil, err
 	} else if found {
 		c.Model = v
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.output"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.output"); err != nil {
 		return nil, err
 	} else if found {
 		c.Output = &v
 	}
 	// §9.19 FR-F1/FR-F6 — format/locale: single-word string keys, raw copy (no validation here).
-	if v, found, err := gitConfigGet(repoDir, "stagehand.format"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.format"); err != nil {
 		return nil, err
 	} else if found {
 		c.Format = v
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.locale"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.locale"); err != nil {
 		return nil, err
 	} else if found {
 		c.Locale = v
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.template"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.template"); err != nil {
 		return nil, err
 	} else if found {
 		c.Template = v
 	}
 
 	// --- timeout: accepts both "90" (seconds) and "90s" (Go duration) forms. ---
-	if v, found, err := gitConfigGet(repoDir, "stagehand.timeout"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.timeout"); err != nil {
 		return nil, err
 	} else if found {
 		d, perr := parseTimeout(v) // parseTimeout handles both "90" and "90s"
 		if perr != nil {
-			return nil, fmt.Errorf("git config stagehand.timeout: %w", perr)
+			return nil, fmt.Errorf("git config stagecoach.timeout: %w", perr)
 		}
 		c.Timeout = d
 	}
 
 	// --- booleans (--bool canonicalizes; FINDING C) ---
-	if v, found, err := gitConfigBool(repoDir, "stagehand.autoStageAll"); err != nil { // camelCase!
+	if v, found, err := gitConfigBool(repoDir, "stagecoach.autoStageAll"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
 		c.AutoStageAll = v
 	}
-	if v, found, err := gitConfigBool(repoDir, "stagehand.verbose"); err != nil {
+	if v, found, err := gitConfigBool(repoDir, "stagecoach.verbose"); err != nil {
 		return nil, err
 	} else if found {
 		c.Verbose = v
 	}
-	if v, found, err := gitConfigBool(repoDir, "stagehand.stripCodeFence"); err != nil { // camelCase!
+	if v, found, err := gitConfigBool(repoDir, "stagecoach.stripCodeFence"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
 		c.StripCodeFence = &v
 	}
 	// §9.22 FR-P1 — push via git config (lowercase single-word key — no camelCase needed).
-	if v, found, err := gitConfigBool(repoDir, "stagehand.push"); err != nil {
+	if v, found, err := gitConfigBool(repoDir, "stagecoach.push"); err != nil {
 		return nil, err
 	} else if found {
 		c.Push = v
 	}
 	// §9.25 FR-V5 — noVerify via git config (camelCase key: git rejects underscores in the final segment,
 	// matching the autoStageAll/maxDiffBytes/stripCodeFence convention).
-	if v, found, err := gitConfigBool(repoDir, "stagehand.noVerify"); err != nil {
+	if v, found, err := gitConfigBool(repoDir, "stagecoach.noVerify"); err != nil {
 		return nil, err
 	} else if found {
 		c.NoVerify = v
 	}
 
 	// --- ints (plain --get -> Atoi) ---
-	if v, found, err := gitConfigGet(repoDir, "stagehand.maxDiffBytes"); err != nil { // camelCase!
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.maxDiffBytes"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
-		if err := parseInt(repoDir, "stagehand.maxDiffBytes", v, &c.MaxDiffBytes); err != nil {
+		if err := parseInt(repoDir, "stagecoach.maxDiffBytes", v, &c.MaxDiffBytes); err != nil {
 			return nil, err
 		}
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.maxMdLines"); err != nil { // camelCase!
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.maxMdLines"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
-		if err := parseInt(repoDir, "stagehand.maxMdLines", v, &c.MaxMdLines); err != nil {
+		if err := parseInt(repoDir, "stagecoach.maxMdLines", v, &c.MaxMdLines); err != nil {
 			return nil, err
 		}
 	}
 	// §9.1 FR3d — token_limit via git config (camelCase key). 0 = unset ⇒ legacy caps (no meaningful explicit 0).
-	if v, found, err := gitConfigGet(repoDir, "stagehand.tokenLimit"); err != nil { // camelCase!
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.tokenLimit"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
-		if err := parseInt(repoDir, "stagehand.tokenLimit", v, &c.TokenLimit); err != nil {
+		if err := parseInt(repoDir, "stagecoach.tokenLimit", v, &c.TokenLimit); err != nil {
 			return nil, err
 		}
 	}
 	// §9.1 FR3f — diff_context via git config (camelCase key, integer 0–3). Config.DiffContext is *int
 	// (S2): nil when the key is absent (found=false → overlay inherits the default *1); non-nil — incl.
 	// *0 — when found. The write is UNCONDITIONAL inside `found`: an explicit "git config
-	// stagehand.diffContext 0" must survive as intPtr(0) (0 = changed-lines-only is a first-class value).
-	if v, found, err := gitConfigGet(repoDir, "stagehand.diffContext"); err != nil { // camelCase!
+	// stagecoach.diffContext 0" must survive as intPtr(0) (0 = changed-lines-only is a first-class value).
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.diffContext"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
 		var n int
-		if err := parseInt(repoDir, "stagehand.diffContext", v, &n); err != nil {
+		if err := parseInt(repoDir, "stagecoach.diffContext", v, &n); err != nil {
 			return nil, err
 		}
 		c.DiffContext = intPtr(n) // *int: parse into local n (NOT &c.DiffContext which is **int), then wrap.
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.maxDuplicateRetries"); err != nil { // camelCase!
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.maxDuplicateRetries"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
-		if err := parseInt(repoDir, "stagehand.maxDuplicateRetries", v, &c.MaxDuplicateRetries); err != nil {
+		if err := parseInt(repoDir, "stagecoach.maxDuplicateRetries", v, &c.MaxDuplicateRetries); err != nil {
 			return nil, err
 		}
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.subjectTargetChars"); err != nil { // camelCase!
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.subjectTargetChars"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
-		if err := parseInt(repoDir, "stagehand.subjectTargetChars", v, &c.SubjectTargetChars); err != nil {
+		if err := parseInt(repoDir, "stagecoach.subjectTargetChars", v, &c.SubjectTargetChars); err != nil {
 			return nil, err
 		}
 	}

@@ -55,7 +55,7 @@ func setGitConfig(t *testing.T, dir, key, value string) {
 // ---------------------------------------------------------------------------
 
 func TestParseInt_Error(t *testing.T) {
-	err := parseInt("repo", "stagehand.timeout", "abc", new(int))
+	err := parseInt("repo", "stagecoach.timeout", "abc", new(int))
 	if err == nil {
 		t.Fatal("parseInt err=nil, want error for non-integer")
 	}
@@ -72,22 +72,22 @@ func TestLoadGitConfig_ReadsValues(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // isolate global git config (FINDING E)
 	repo := t.TempDir()
 	initRepo(t, repo)
-	setGitConfig(t, repo, "stagehand.provider", "pi")
-	setGitConfig(t, repo, "stagehand.model", "glm-5.2")
-	setGitConfig(t, repo, "stagehand.timeout", "90")
-	setGitConfig(t, repo, "stagehand.autoStageAll", "on") // --bool normalizes "on" -> true
-	setGitConfig(t, repo, "stagehand.verbose", "yes")     // "yes" -> true
-	setGitConfig(t, repo, "stagehand.maxDiffBytes", "12345")
-	setGitConfig(t, repo, "stagehand.stripCodeFence", "1") // "1" -> true
-	setGitConfig(t, repo, "stagehand.output", "json")
+	setGitConfig(t, repo, "stagecoach.provider", "pi")
+	setGitConfig(t, repo, "stagecoach.model", "glm-5.2")
+	setGitConfig(t, repo, "stagecoach.timeout", "90")
+	setGitConfig(t, repo, "stagecoach.autoStageAll", "on") // --bool normalizes "on" -> true
+	setGitConfig(t, repo, "stagecoach.verbose", "yes")     // "yes" -> true
+	setGitConfig(t, repo, "stagecoach.maxDiffBytes", "12345")
+	setGitConfig(t, repo, "stagecoach.stripCodeFence", "1") // "1" -> true
+	setGitConfig(t, repo, "stagecoach.output", "json")
 	// §9.19 FR-F1/FR-F6
-	setGitConfig(t, repo, "stagehand.format", "gitmoji")
-	setGitConfig(t, repo, "stagehand.locale", "de")
+	setGitConfig(t, repo, "stagecoach.format", "gitmoji")
+	setGitConfig(t, repo, "stagecoach.locale", "de")
 	// §9.22 FR-P1
-	setGitConfig(t, repo, "stagehand.push", "true")
+	setGitConfig(t, repo, "stagecoach.push", "true")
 	// §9.25 FR-V5 — noVerify via git config (camelCase key: git rejects underscores
 	// in the final segment, matching the autoStageAll/maxDiffBytes/stripCodeFence convention).
-	setGitConfig(t, repo, "stagehand.noVerify", "true")
+	setGitConfig(t, repo, "stagecoach.noVerify", "true")
 
 	cfg, err := loadGitConfig(repo)
 	if err != nil {
@@ -129,11 +129,11 @@ func TestLoadGitConfig_ReadsValues(t *testing.T) {
 	}
 	// §9.22 FR-P1 — push via git config
 	if !cfg.Push {
-		t.Errorf("Push=false want true (stagehand.push set)")
+		t.Errorf("Push=false want true (stagecoach.push set)")
 	}
 	// §9.25 FR-V5 — noVerify via git config
 	if !cfg.NoVerify {
-		t.Errorf("NoVerify=false want true (stagehand.noVerify set)")
+		t.Errorf("NoVerify=false want true (stagecoach.noVerify set)")
 	}
 }
 
@@ -144,7 +144,7 @@ func TestLoadGitConfig_ReadsValues(t *testing.T) {
 func TestLoadGitConfig_MissingKeysIgnored(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	repo := t.TempDir()
-	initRepo(t, repo) // no stagehand.* keys set
+	initRepo(t, repo) // no stagecoach.* keys set
 
 	cfg, err := loadGitConfig(repo)
 	if err != nil {
@@ -174,8 +174,8 @@ func TestLoadGitConfig_BoolNormalization(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	repo := t.TempDir()
 	initRepo(t, repo)
-	setGitConfig(t, repo, "stagehand.autoStageAll", "off")
-	setGitConfig(t, repo, "stagehand.stripCodeFence", "no")
+	setGitConfig(t, repo, "stagecoach.autoStageAll", "off")
+	setGitConfig(t, repo, "stagecoach.stripCodeFence", "no")
 
 	cfg, err := loadGitConfig(repo)
 	if err != nil {
@@ -188,13 +188,13 @@ func TestLoadGitConfig_BoolNormalization(t *testing.T) {
 		t.Errorf("StripCodeFence=%v want false (--bool 'no')", cfg.StripCodeFence)
 	}
 	// §9.22 FR-P1 — push=false via git config
-	setGitConfig(t, repo, "stagehand.push", "false")
+	setGitConfig(t, repo, "stagecoach.push", "false")
 	cfg, err = loadGitConfig(repo)
 	if err != nil {
 		t.Fatalf("loadGitConfig push err=%v, want nil", err)
 	}
 	if cfg.Push {
-		t.Errorf("Push=true want false (stagehand.push=false)")
+		t.Errorf("Push=true want false (stagecoach.push=false)")
 	}
 }
 
@@ -206,14 +206,14 @@ func TestLoadGitConfig_BadTimeout(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	repo := t.TempDir()
 	initRepo(t, repo)
-	setGitConfig(t, repo, "stagehand.timeout", "notanumber")
+	setGitConfig(t, repo, "stagecoach.timeout", "notanumber")
 
 	_, err := loadGitConfig(repo)
 	if err == nil {
 		t.Fatal("loadGitConfig err=nil, want non-nil for bad timeout")
 	}
-	if !strings.Contains(err.Error(), "stagehand.timeout") {
-		t.Errorf("err=%v, want it to contain 'stagehand.timeout'", err)
+	if !strings.Contains(err.Error(), "stagecoach.timeout") {
+		t.Errorf("err=%v, want it to contain 'stagecoach.timeout'", err)
 	}
 	if !strings.Contains(err.Error(), "invalid timeout") {
 		t.Errorf("err=%v, want it to contain 'invalid timeout'", err)
@@ -227,7 +227,7 @@ func TestLoadGitConfig_TimeoutDurationForm(t *testing.T) {
 	initRepo(t, repo)
 
 	// Integer form
-	setGitConfig(t, repo, "stagehand.timeout", "90")
+	setGitConfig(t, repo, "stagecoach.timeout", "90")
 	cfg, err := loadGitConfig(repo)
 	if err != nil {
 		t.Fatalf("loadGitConfig err=%v, want nil", err)
@@ -237,7 +237,7 @@ func TestLoadGitConfig_TimeoutDurationForm(t *testing.T) {
 	}
 
 	// Duration form
-	setGitConfig(t, repo, "stagehand.timeout", "2m30s")
+	setGitConfig(t, repo, "stagecoach.timeout", "2m30s")
 	cfg, err = loadGitConfig(repo)
 	if err != nil {
 		t.Fatalf("loadGitConfig err=%v, want nil", err)
@@ -270,10 +270,10 @@ func TestGitConfigGet_FoundMissing(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	repo := t.TempDir()
 	initRepo(t, repo)
-	setGitConfig(t, repo, "stagehand.provider", "pi")
+	setGitConfig(t, repo, "stagecoach.provider", "pi")
 
 	// Found
-	v, found, err := gitConfigGet(repo, "stagehand.provider")
+	v, found, err := gitConfigGet(repo, "stagecoach.provider")
 	if err != nil {
 		t.Fatalf("gitConfigGet err=%v, want nil", err)
 	}
@@ -285,7 +285,7 @@ func TestGitConfigGet_FoundMissing(t *testing.T) {
 	}
 
 	// Missing
-	v, found, err = gitConfigGet(repo, "stagehand.does.not.exist")
+	v, found, err = gitConfigGet(repo, "stagecoach.does.not.exist")
 	if err != nil {
 		t.Fatalf("gitConfigGet missing err=%v, want nil", err)
 	}
@@ -307,7 +307,7 @@ func TestLoadGitConfig_CamelCaseKeysOnly(t *testing.T) {
 	initRepo(t, repo)
 
 	// camelCase works
-	setGitConfig(t, repo, "stagehand.autoStageAll", "true")
+	setGitConfig(t, repo, "stagecoach.autoStageAll", "true")
 	cfg, err := loadGitConfig(repo)
 	if err != nil {
 		t.Fatalf("loadGitConfig err=%v, want nil", err)
@@ -317,7 +317,7 @@ func TestLoadGitConfig_CamelCaseKeysOnly(t *testing.T) {
 	}
 
 	// underscore key is rejected by git on WRITE (invalid key)
-	cmd := exec.Command("git", "-C", repo, "config", "stagehand.max_diff_bytes", "9")
+	cmd := exec.Command("git", "-C", repo, "config", "stagecoach.max_diff_bytes", "9")
 	if out, err := cmd.CombinedOutput(); err == nil {
 		// If git somehow accepted it (future git version?), that's unexpected but not a test failure
 		// — the PRP documents this. Log but don't fail.
@@ -348,9 +348,9 @@ func TestLoadGitConfig_OverlaysWithDefaults(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	repo := t.TempDir()
 	initRepo(t, repo)
-	setGitConfig(t, repo, "stagehand.provider", "pi")
-	setGitConfig(t, repo, "stagehand.timeout", "45")
-	setGitConfig(t, repo, "stagehand.maxMdLines", "7")
+	setGitConfig(t, repo, "stagecoach.provider", "pi")
+	setGitConfig(t, repo, "stagecoach.timeout", "45")
+	setGitConfig(t, repo, "stagecoach.maxMdLines", "7")
 
 	cfg := Defaults()
 	gc, err := loadGitConfig(repo)
@@ -444,7 +444,7 @@ func TestLoadGitConfig_TokenLimit_DiffContext(t *testing.T) {
 			repo := t.TempDir()
 			initRepo(t, repo)
 			if r.setVal != "" {
-				setGitConfig(t, repo, "stagehand.diffContext", r.setVal)
+				setGitConfig(t, repo, "stagecoach.diffContext", r.setVal)
 			}
 			cfg, err := loadGitConfig(repo)
 			if err != nil {
@@ -473,7 +473,7 @@ func TestLoadGitConfig_TokenLimit_DiffContext(t *testing.T) {
 			repo := t.TempDir()
 			initRepo(t, repo)
 			if r.setVal != "" {
-				setGitConfig(t, repo, "stagehand.tokenLimit", r.setVal)
+				setGitConfig(t, repo, "stagecoach.tokenLimit", r.setVal)
 			}
 			cfg, err := loadGitConfig(repo)
 			if err != nil {
@@ -498,8 +498,8 @@ func TestLoadGitConfig_BadTokenLimit_DiffContext(t *testing.T) {
 	for _, c := range []struct {
 		key, val string
 	}{
-		{"stagehand.diffContext", "abc"},
-		{"stagehand.tokenLimit", "NaN"},
+		{"stagecoach.diffContext", "abc"},
+		{"stagecoach.tokenLimit", "NaN"},
 	} {
 		c := c
 		t.Run(c.key+"="+c.val, func(t *testing.T) {
