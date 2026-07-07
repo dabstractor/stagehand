@@ -11,7 +11,7 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Hooks Runner Message-File Parity (Issues 1 & 2)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Fix the two hooks-runner defects in internal/hooks/runner.go that corrupt commit message content: (1) prepare-commit-msg invoked with argc=2 instead of argc=1, and (2) message file written without a trailing newline, causing append-style hooks to corrupt the subject line. Both fixes are in the same file and restore git's documented COMMIT_EDITMSG format and hook invocation contract.",
           "tasks": [
             {
@@ -43,14 +43,14 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Ensure message file has trailing newline before hooks run (Issue 2)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Git writes the commit message to the message file FOLLOWED BY A TRAILING NEWLINE. Stagehand writes finalMsg with NO trailing newline (runner.go:103). When a hook appends via echo >> $1, the append concatenates onto the subject line, corrupting it. Fix: ensure finalMsg ends with \\n before WriteString.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Add trailing newline to message file before prepare-commit-msg runs",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/git_hook_semantics.md §2 and architecture/hooks_runner_and_callers.md §2. Git's strbuf_complete_line() ensures COMMIT_EDITMSG always ends with \\n. Stagehand's runner.go:103 does msgFile.WriteString(finalMsg) with NO trailing newline. A prepare-commit-msg hook that does `echo 'Signed-off-by: Dev <dev@example.com>' >> \"$1\"` produces 'feat: changeSigned-off-by: Dev <dev@example.com>' (corrupted) instead of two clean lines. This is the HIGHEST-IMPACT bug.\n2. INPUT: The RunCommitHooks function at internal/hooks/runner.go:67. At line 91-103, finalMsg is the incoming message parameter (default from the generation pipeline). msgFile is a temp file (os.CreateTemp at line 97). The message is written at line 103 via msgFile.WriteString(finalMsg).\n3. LOGIC: (a) Write a FAILING test first: install a prepare-commit-msg that appends 'echo \"Signed-off-by: Dev <dev@example.com>\" >> \"$1\"', call RunCommitHooks with msg=\"feat: change\", assert the returned finalMsg has the Signed-off-by on a SEPARATE line (e.g. strings.Contains(finalMsg, \"\\nSigned-off-by:\") or split by \\n and check). Place in internal/hooks/runner_test.go. (b) Before the WriteString at line 103, add: if !strings.HasSuffix(finalMsg, \"\\n\") { finalMsg += \"\\n\" }. This mutates finalMsg BEFORE writing. The finalMsg is reassigned at line 131 from stripCommentLines(string(data), commentChar) which does TrimRight(\"\\n\"), so the mutation only affects the file content, not the return value. Mirrors git's strbuf_complete_line(). (c) Verify the existing TestRunCommitHooks_PrepareAndCommitMsg_SharedFile and TestRunCommitHooks_PrepareCommitMsg_Foreign_AnnotationReadBack still pass.\n4. OUTPUT: RunCommitHooks returns (finalTree, finalMsg, nil) as before — the trailing \\n is consumed by stripCommentLines on read-back. The file content fed to hooks now has the trailing \\n that git provides.\n5. DOCS: [Mode A] No external docs — the fix is internal. Add a brief in-source comment at the WriteString line noting git parity (strbuf_complete_line).",
@@ -70,21 +70,21 @@
           "type": "Milestone",
           "id": "P1.M2",
           "title": "noVerify Git-Config Layer (Issue 3)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Two compounding defects: (A) loadGitConfig() never queries stagehand.noVerify (grep returns 0 matches), so the git-config precedence layer is missing entirely. (B) The documented key name stagehand.no_verify (snake_case) is invalid for git — git rejects underscores in the final config key segment. Fix: add a gitConfigBool reader for stagehand.noVerify (camelCase, matching the codebase convention), and correct all doc references from stagehand.no_verify to stagehand.noVerify.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "Add git-config reader for stagehand.noVerify and correct key name in all docs",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add the missing gitConfigBool reader for stagehand.noVerify in loadGitConfig(), mirroring the existing stagehand.push reader at git.go:174. Correct the invalid snake_case key name in docs/cli.md, docs/configuration.md, and the config.go doc comment to camelCase stagehand.noVerify.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Add stagehand.noVerify reader in loadGitConfig + fix key name in docs and comments",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/010_49117f1f30ab/bugfix/001_d93268e01058/architecture/config_no_verify_layer.md and architecture/git_hook_semantics.md §4. Two defects: (A) loadGitConfig() in internal/config/git.go never queries any stagehand.no* key (grep returns 0). (B) The documented key 'stagehand.no_verify' is invalid — git rejects underscores in the final segment ('error: invalid key'). ALL existing multi-word keys use camelCase: autoStageAll, maxDiffBytes, tokenLimit, diffContext, etc. The overlay() function in file.go:351-353 already handles NoVerify correctly (if src.NoVerify { dst.NoVerify = true }). The env (load.go:315) and flag (load.go:447) layers use DIRECT set and are correct. The TOML file key [generation].no_verify stays snake_case (TOML permits underscores).\n2. INPUT: internal/config/git.go loadGitConfig() function (lines 106-260). The stagehand.push reader at line ~174 is the exact template. The NoVerify field on *Config is a bool (config.go:134). The overlay() in file.go:351-352 already copies it.\n3. LOGIC: (a) Write FAILING tests first: in internal/config/git_test.go TestLoadGitConfig_ReadsValues (line ~54), add `setGitConfig(t, repo, \"stagehand.noVerify\", \"true\")` and assert cfg.NoVerify == true. Also add a TestLoad_NoVerifyPrecedence in internal/config/load_test.go mirroring TestLoad_PushPrecedence (load_test.go:1389-1429): set git config noVerify=true, assert cfg.NoVerify; then set STAGEHAND_NO_VERIFY=false, assert cfg.NoVerify==false (env overrides git). (b) In loadGitConfig() (git.go), after the push reader block at ~line 177, add: if v, found, err := gitConfigBool(repoDir, \"stagehand.noVerify\"); err != nil { return nil, err } else if found { c.NoVerify = v }. Use camelCase 'noVerify' — NOT 'no_verify'. (c) Fix docs: docs/cli.md:44 — change 'stagehand.no_verify' to 'stagehand.noVerify' in the git-config column. docs/configuration.md:155 — change 'stagehand.no_verify' to 'stagehand.noVerify' in the precedence chain. internal/config/config.go:130 — change 'stagehand.no_verify' to 'stagehand.noVerify' in the doc comment. Do NOT change the TOML struct tag (config.go:134 'toml:\"no_verify\"') — TOML allows underscores. Do NOT touch overlay(), materialize(), loadEnv, loadFlags — they are all correct.\n4. OUTPUT: loadGitConfig now reads stagehand.noVerify from git config. The 5-layer precedence is complete. Users can run 'git config stagehand.noVerify true' and it works (no 'invalid key' error, value is read). The TOML key [generation].no_verify is unchanged.\n5. DOCS: [Mode A] docs/cli.md:44, docs/configuration.md:155, and internal/config/config.go:130 comment are updated AS PART OF this subtask (they reference the specific key name being fixed). No separate docs subtask for these per-file docs.",

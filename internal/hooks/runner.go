@@ -100,6 +100,13 @@ func RunCommitHooks(ctx context.Context, g git.Git, cfg config.Config, snapshotT
 	}
 	msgPath := msgFile.Name()
 	defer os.Remove(msgPath)
+	// git parity (strbuf_complete_line): git's COMMIT_EDITMSG always ends with \n so an append-style
+	// prepare-commit-msg/commit-msg hook (e.g. `echo "Signed-off-by: ..." >> "$1"`) starts on a new
+	// line, not concatenated onto the subject. Add a trailing \n if the message lacks one. The
+	// mutation is consumed on read-back: stripCommentLines does TrimRight("\n") (see read-back below).
+	if !strings.HasSuffix(finalMsg, "\n") {
+		finalMsg += "\n"
+	}
 	if _, werr := msgFile.WriteString(finalMsg); werr != nil {
 		msgFile.Close()
 		return "", "", fmt.Errorf("hooks: write message file: %w", werr)

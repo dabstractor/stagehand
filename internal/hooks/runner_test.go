@@ -183,6 +183,34 @@ func TestRunCommitHooks_CommitMsgAppends_Annotated(t *testing.T) {
 	}
 }
 
+// --- Issue 2: trailing newline before prepare-commit-msg (append-style hooks) ---
+
+// TestRunCommitHooks_PrepareCommitMsg_AppendOnNewLine verifies git parity for the hook message file:
+// git's strbuf_complete_line() ensures COMMIT_EDITMSG always ends with \n, so an append-style hook
+// (`echo "Signed-off-by: ..." >> "$1"`) starts on a NEW line instead of being concatenated onto
+// the subject. The test uses `echo` (NOT `printf '\n...'`) — echo appends WITHOUT a leading \n, which
+// is what exercises the bug (printf '\n...' masks it by creating the break via its own leading \n).
+func TestRunCommitHooks_PrepareCommitMsg_AppendOnNewLine(t *testing.T) {
+	repo, snapshotTree, parentSHA, g := primeRunnerRepo(t)
+	// echo (NOT printf '\n...') appends WITHOUT a leading \n — exercises the trailing-newline bug.
+	installHook(t, repo, "prepare-commit-msg", `echo "Signed-off-by: Dev <dev@example.com>" >> "$1"`)
+
+	_, finalMsg, err := RunCommitHooks(context.Background(), g, defaultCfg(), snapshotTree, parentSHA,
+		"feat: change", HookOpts{})
+	if err != nil {
+		t.Fatalf("RunCommitHooks err = %v, want nil", err)
+	}
+	// The Signed-off-by MUST be on a separate line (preceded by \n), NOT concatenated onto the subject.
+	// The corrupted output would be `feat: changeSigned-off-by: ...` — the bare "Signed-off-by:" substring
+	// IS present there, so the \n-line-boundary check is what distinguishes correct from corrupt.
+	if !strings.Contains(finalMsg, "\nSigned-off-by:") {
+		t.Errorf("Signed-off-by not on a separate line (Issue 2 regression); finalMsg=%q", finalMsg)
+	}
+	if !strings.HasPrefix(finalMsg, "feat: change") {
+		t.Errorf("finalMsg = %q, want the original subject preserved", finalMsg)
+	}
+}
+
 // --- 5. absent pre-commit → silent skip (finalTree=snapshotTree, no error) ---
 
 func TestRunCommitHooks_AbsentPreCommit_Skip(t *testing.T) {
