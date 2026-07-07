@@ -190,14 +190,14 @@
               "type": "Task",
               "id": "P1.M2.T2",
               "title": "Exit-path lock release via signal seam",
-              "status": "Planned",
+              "status": "Ready",
               "description": "The signal-rescue path (handle() → os.Exit) skips defer locker.Release(). Add lock.ReleaseCurrent (nil-safe package wrapper) and signal.Options.OnRescueExit (injected seam), call OnRescueExit before both exit branches in handle(), and wire it in main.go.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T2.S1",
                   "title": "ReleaseCurrent + OnRescueExit signal seam in handle()",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/011_98cef660a41d/architecture/lock_reaping.md. The signal package (internal/signal/signal.go) is deliberately stdlib-only — it cannot import internal/lock. Existing injectable seams in signal.Options: Kill, Exit, RescueFormat, Out — all defaulted in Install() and injectable for tests. The handle() function (signal.go:113-141) has two exit branches: h.opts.Exit(3) (post-snapshot rescue) and h.opts.Exit(exitCodeForSignal(sig)) (pre-snapshot 130/143). The lock is acquired at default_action.go:59 BEFORE the snapshot is armed, so BOTH branches can orphan the lock file. The lock package has a current atomic.Pointer[Locker] singleton (lock.go:60) with a nil-safe SetSnapshot wrapper (lock.go:163) that ReleaseCurrent mirrors.\n2. INPUT: The signal.Options struct (signal.go:31-47). The handle() function (signal.go:113-141). The lock.current singleton and Locker.Release() method (lock.go:123-135).\n3. LOGIC: (a) Add func ReleaseCurrent() to internal/lock/lock.go — mirror SetSnapshot: if l := current.Load(); l != nil { l.Release() }. Idempotent (Release's l.file==nil guard) and nil-safe (current==nil → no-op). (b) Add OnRescueExit func() field to signal.Options (signal.go:31). Default to func(){} in Install() (after line 85, mirroring the other defaults). (c) In handle() (signal.go:137 and 140), call h.opts.OnRescueExit() immediately BEFORE both h.opts.Exit(3) and h.opts.Exit(exitCodeForSignal(sig)). This ensures the lock file is removed before os.Exit skips the defer chain. Do NOT add OnRescueExit to RestoreDefault (that runs before update-ref on the success path; the defer Release handles cleanup there).\n4. OUTPUT: ReleaseCurrent in lock package. OnRescueExit seam in signal package. handle() releases the lock file before exiting on both signal paths.\n5. DOCS: [Mode A] Add a doc comment to OnRescueExit explaining it is the exit-path lock-release seam (called before os.Exit to prevent lock-file orphaning; stdlib-only signal package cannot import lock directly). Add a doc comment to ReleaseCurrent mirroring SetSnapshot's.",
@@ -211,7 +211,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T2.S2",
                   "title": "Wire OnRescueExit: lock.ReleaseCurrent in main.go",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T2.S1"
@@ -235,7 +235,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T3.S1",
                   "title": "Stale-file reaping tests (lock_test.go)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S2",

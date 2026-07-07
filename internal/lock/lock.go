@@ -200,6 +200,20 @@ func SetSnapshot(sha string) {
 	}
 }
 
+// ReleaseCurrent releases the current lock holder, if any (nil-safe no-op when
+// no lock is held). It is the exit-path seam for FR52 §18.5: signal.handle()
+// cannot import internal/lock (the signal package is stdlib-only), so the
+// signal handler calls an OnRescueExit callback (defaulted to a no-op; wired in
+// main.go to ReleaseCurrent) immediately before os.Exit — removing the lock
+// file that os.Exit's defer-skipping would otherwise orphan. Idempotent
+// (Release's l.file==nil guard) and nil-safe (current==nil → no-op), exactly
+// mirroring SetSnapshot.
+func ReleaseCurrent() {
+	if l := current.Load(); l != nil {
+		l.Release()
+	}
+}
+
 // lockDir returns the directory for lock files (mirrors config/globalConfigPath
 // but with NO CWD fallback — a lock in the repo is the §18.5 anti-pattern).
 // Resolution: XDG_RUNTIME_DIR → XDG_CACHE_HOME → ~/.cache/stagehand/locks.

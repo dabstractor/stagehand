@@ -41,6 +41,15 @@ type Options struct {
 
 	// Exit terminates the process (default os.Exit). Tests inject a recorder so os.Exit doesn't kill them.
 	Exit func(int)
+
+	// OnRescueExit is called immediately before the handler exits on BOTH signal
+	// paths (the post-snapshot rescue exit 3 AND the pre-snapshot 130/143 exit).
+	// It is the exit-path lock-release seam: wired in main.go to
+	// lock.ReleaseCurrent so the lock file is removed before os.Exit skips the
+	// deferred Release (FR52 §18.5). Defaulted to a no-op here so the signal
+	// package stays stdlib-only (it cannot import internal/lock) and so library
+	// use of pkg/stagehand (no Install wiring) is unaffected.
+	OnRescueExit func()
 }
 
 // Handler is the installed signal handler (singleton — see design-decisions F4). Created by Install;
@@ -83,6 +92,9 @@ func Install(parent context.Context, opts Options) (context.Context, *Handler) {
 	}
 	if opts.Exit == nil {
 		opts.Exit = os.Exit
+	}
+	if opts.OnRescueExit == nil {
+		opts.OnRescueExit = func() {} // no-op default; main.go wires lock.ReleaseCurrent (FR52 exit-path release)
 	}
 
 	ctx, cancel := context.WithCancel(parent)
@@ -134,9 +146,11 @@ func (h *Handler) handle(sig os.Signal) {
 
 	if tree != "" {
 		fmt.Fprintln(h.opts.Out, h.opts.RescueFormat(tree, parent, cand)) // Fprintln adds the trailing \n
+		h.opts.OnRescueExit()                                             // release the lock file before os.Exit orphans it (FR52 §18.5)
 		h.opts.Exit(3)                                                    // §18.2: post-snapshot → exit 3
 		return
 	}
+	h.opts.OnRescueExit()               // pre-snapshot exit too (lock is held from default_action.go:59)
 	h.opts.Exit(exitCodeForSignal(sig)) // 130 SIGINT / 143 SIGTERM — "just exit" (§18.4 step 2)
 }
 
