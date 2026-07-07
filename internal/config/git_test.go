@@ -85,6 +85,9 @@ func TestLoadGitConfig_ReadsValues(t *testing.T) {
 	setGitConfig(t, repo, "stagehand.locale", "de")
 	// §9.22 FR-P1
 	setGitConfig(t, repo, "stagehand.push", "true")
+	// §9.25 FR-V5 — noVerify via git config (camelCase key: git rejects underscores
+	// in the final segment, matching the autoStageAll/maxDiffBytes/stripCodeFence convention).
+	setGitConfig(t, repo, "stagehand.noVerify", "true")
 
 	cfg, err := loadGitConfig(repo)
 	if err != nil {
@@ -127,6 +130,10 @@ func TestLoadGitConfig_ReadsValues(t *testing.T) {
 	// §9.22 FR-P1 — push via git config
 	if !cfg.Push {
 		t.Errorf("Push=false want true (stagehand.push set)")
+	}
+	// §9.25 FR-V5 — noVerify via git config
+	if !cfg.NoVerify {
+		t.Errorf("NoVerify=false want true (stagehand.noVerify set)")
 	}
 }
 

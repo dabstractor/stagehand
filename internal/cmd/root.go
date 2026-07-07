@@ -216,7 +216,7 @@ func init() {
 	pf.BoolVar(&flagNoVerify, "no-verify", false,
 		"Bypass pre-commit and commit-msg hooks for this commit (mirrors git commit --no-verify; "+
 			"prepare-commit-msg and post-commit still run). (env STAGEHAND_NO_VERIFY, git "+
-			"stagehand.no_verify; default false.) (§9.25 FR-V5)")
+			"stagehand.noVerify; default false.) (§9.25 FR-V5)")
 	// §15.2 reasoning flags (FR-R6) — global + per-role; zero default; loadFlags reads via fs.Changed.
 	pf.StringVar(&flagReasoning, "reasoning", "",
 		"Global reasoning effort: off|low|medium|high (env STAGEHAND_REASONING; git stagehand.reasoning; default off for every role)")

@@ -176,6 +176,13 @@ func loadGitConfig(repoDir string) (*Config, error) {
 	} else if found {
 		c.Push = v
 	}
+	// §9.25 FR-V5 — noVerify via git config (camelCase key: git rejects underscores in the final segment,
+	// matching the autoStageAll/maxDiffBytes/stripCodeFence convention).
+	if v, found, err := gitConfigBool(repoDir, "stagehand.noVerify"); err != nil {
+		return nil, err
+	} else if found {
+		c.NoVerify = v
+	}
 
 	// --- ints (plain --get -> Atoi) ---
 	if v, found, err := gitConfigGet(repoDir, "stagehand.maxDiffBytes"); err != nil { // camelCase!

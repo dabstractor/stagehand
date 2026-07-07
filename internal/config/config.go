@@ -127,7 +127,7 @@ type Config struct {
 
 	// NoVerify is the §9.25 FR-V5 --no-verify hook bypass (mirrors `git commit --no-verify`).
 	// When true, skips pre-commit and commit-msg hooks (prepare-commit-msg and post-commit still run).
-	// Full 5-layer precedence: --no-verify / STAGEHAND_NO_VERIFY / stagehand.no_verify / [generation].no_verify,
+	// Full 5-layer precedence: --no-verify / STAGEHAND_NO_VERIFY / stagehand.noVerify / [generation].no_verify,
 	// default false — hooks run by default; --no-verify is the deliberate exception. FILE LAYER LIMITATION
 	// (same as Push): only-true-propagates — a file setting `no_verify = false` is a no-op; the flag/env
 	// layers can set it false. See cmd root.go + hooks.RunCommitHooks (M3).

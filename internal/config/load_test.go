@@ -1435,6 +1435,37 @@ func TestLoad_PushDefaultFalse(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Load — noVerify precedence (§9.25 FR-V5; mirrors TestLoad_PushPrecedence)
+// ---------------------------------------------------------------------------
+
+func TestLoad_NoVerifyPrecedence(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+
+	// Layer 4: git config sets noVerify=true (proves the git-config reader exists
+	// and reads stagehand.noVerify — the bug this task fixes).
+	setGitConfig(t, repo, "stagehand.noVerify", "true")
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	if !cfg.NoVerify {
+		t.Errorf("NoVerify=false want true (stagehand.noVerify=true via git config)")
+	}
+
+	// Layer 5: env overrides (DIRECT set — the escape hatch that CAN set false,
+	// unlike the file/git only-true-propagates layers).
+	t.Setenv("STAGEHAND_NO_VERIFY", "false")
+	cfg, err = Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	if cfg.NoVerify {
+		t.Errorf("NoVerify=true want false (STAGEHAND_NO_VERIFY=false > stagehand.noVerify=true)")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Load — ctx cancellation
 // ---------------------------------------------------------------------------
 
