@@ -48,7 +48,7 @@ description: |
       BinaryExtensions, Timeout), ResolveRoleModel(role, cfg) → (provider, model), config.Defaults().
     - internal/decompose/{stager,message,arbiter,chain,decompose}.go — DO NOT EXIST YET. This task
       creates ONLY planner.go (+ planner_test.go). Other tasks own the rest.
-    - cmd/, pkg/stagehand/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires callPlanner; NOT this task).
+    - cmd/, pkg/stagecoach/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires callPlanner; NOT this task).
 
   DELIVERABLES (2 new files, 0 edits to existing files, 0 breaking changes):
     CREATE internal/decompose/planner.go — package `decompose`; callPlanner (the exported-by-package-
@@ -108,7 +108,7 @@ touched; planning precedes all staging, so callPlanner performs ZERO git mutatio
 ## User Persona
 
 **Target User**: the decompose orchestrator (`internal/decompose/decompose.go`, P3.M4.T1.S1) and, by
-extension, the end user running `stagehand` on an un-staged working tree (the default action routes to
+extension, the end user running `stagecoach` on an un-staged working tree (the default action routes to
 decompose per FR-M1, P4.M1.T1.S1). planner.go is internal plumbing — NOT user-facing CLI text. The user
 controls commit granularity via `--commits N` (forced) vs default (auto-decompose) vs `--single`
 (bypass); callPlanner is the layer that turns the working-tree diff into a structured partition the
@@ -425,7 +425,7 @@ internal/decompose/planner_test.go     # NEW — stubtest + real-git integration
                                        #   single-shortcut; forced-count; parse-retry-then-success;
                                        #   safety-cap; single-without-message; unparseable-after-retry;
                                        #   timeout; unborn nil-examples.
-# go.mod/go.sum UNCHANGED. roles.go + prompt/* + provider/* + git/* + config/* + cmd/* + pkg/stagehand all UNCHANGED.
+# go.mod/go.sum UNCHANGED. roles.go + prompt/* + provider/* + git/* + config/* + cmd/* + pkg/stagecoach all UNCHANGED.
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -539,9 +539,9 @@ Task 1: CREATE internal/decompose/planner.go — package doc + imports + ErrPlan
     (callPlanner), the decompose analogue of generate.CommitStaged's generation loop specialized to the
     planner's JSON output + the single-shortcut + the safety cap. Note it performs ZERO git mutations
     (planning precedes all staging).
-  - IMPORTS: "context"; "errors"; "fmt"; "github.com/dustin/stagehand/internal/config";
-    "github.com/dustin/stagehand/internal/git"; "github.com/dustin/stagehand/internal/prompt";
-    "github.com/dustin/stagehand/internal/provider". (All already imported by roles.go — no new dep.)
+  - IMPORTS: "context"; "errors"; "fmt"; "github.com/dustin/stagecoach/internal/config";
+    "github.com/dustin/stagecoach/internal/git"; "github.com/dustin/stagecoach/internal/prompt";
+    "github.com/dustin/stagecoach/internal/provider". (All already imported by roles.go — no new dep.)
   - DEFINE `var ErrPlannerFailed = errors.New("decompose: planner failed")` with the doc comment above.
 
 Task 2: CREATE internal/decompose/planner.go — plannerExamples (private style-examples helper)
@@ -631,8 +631,8 @@ Task 4: CREATE internal/decompose/planner.go — callPlanner (the entry point)
 
 Task 5: CREATE internal/decompose/planner_test.go — fixture helpers (copied from generate_test.go)
   - IMPORTS: "context"; "errors"; "os"; "os/exec"; "strings"; "testing"; "time";
-    "github.com/dustin/stagehand/internal/config"; "github.com/dustin/stagehand/internal/git";
-    "github.com/dustin/stagehand/internal/prompt"; "github.com/dustin/stagehand/internal/stubtest".
+    "github.com/dustin/stagecoach/internal/config"; "github.com/dustin/stagecoach/internal/git";
+    "github.com/dustin/stagecoach/internal/prompt"; "github.com/dustin/stagecoach/internal/stubtest".
     Package: `decompose` (internal test — callPlanner/validatePlannerOutput/plannerExamples visible).
   - COPY the fixture helpers from generate_test.go verbatim: initRepo, writeFile, stageFile, commitRaw,
     headSHA, runGit, gitOut (they are unimportable from package decompose; generate_test owns its own
@@ -807,10 +807,10 @@ CONSUMER (NOT THIS TASK — P3.M4.T1.S1):
   - callPlanner returns prompt.PlannerOutput; the orchestrator branches: Single==true ⇒ single-shortcut
     (git add -A → snapshot → commit-tree → update-ref with out.Message, FR-M11); else loop concepts[].
   - ANY callPlanner error ⇒ the orchestrator surfaces it and exits NON-RESCUE (no snapshot taken).
-  - NO caller wiring in this task (do NOT touch cmd/ or pkg/stagehand/ or decompose.go).
+  - NO caller wiring in this task (do NOT touch cmd/ or pkg/stagecoach/ or decompose.go).
 
 NO DATABASE / NO CONFIG-FILE / NO ROUTE / NO git-mutation changes. go.mod/go.sum UNCHANGED. ZERO edits
-to any shipped file (roles.go, prompt/*, provider/*, git/*, config/*, cmd/*, pkg/stagehand all CONSUMED).
+to any shipped file (roles.go, prompt/*, provider/*, git/*, config/*, cmd/*, pkg/stagecoach all CONSUMED).
 ```
 
 ## Validation Loop
@@ -947,7 +947,7 @@ rg -n 'RescueError|WriteTree|CommitTree|UpdateRef|AddAll' internal/decompose/pla
 - ❌ Don't gate callPlanner on an empty diff — the orchestrator gates (FR-M1). Don't add a duplicate gate.
 - ❌ Don't perform ANY git mutation (WriteTree/CommitTree/UpdateRef/AddAll) in callPlanner — planning is
   read-only w.r.t. refs/index (only the read-only WorkingTreeDiff/RecentMessages).
-- ❌ Don't wire the orchestrator (cmd/, pkg/stagehand/, decompose.go) — this task ONLY implements
+- ❌ Don't wire the orchestrator (cmd/, pkg/stagecoach/, decompose.go) — this task ONLY implements
   callPlanner; P3.M4.T1.S1 consumes it.
 - ❌ Don't swallow errors (errcheck is on) — check Render, Execute's execErr, WorkingTreeDiff,
   RecentMessages; wrap genuine failures with `%w` + ErrPlannerFailed.

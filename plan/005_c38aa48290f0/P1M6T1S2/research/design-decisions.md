@@ -1,4 +1,4 @@
-# P1.M6.T1.S2 — `stagehand models [<provider>]`: Design Decisions & Evidence
+# P1.M6.T1.S2 — `stagecoach models [<provider>]`: Design Decisions & Evidence
 
 > Companion to `../PRP.md`. Captures the research that drove each decision so the PRP's tasks read as
 > obvious, and so a re-plan after a failure has the reasoning to pivot on.
@@ -61,8 +61,8 @@ which S2 treats as "command failed" → curated fallback). Rationale:
 - `signal.RegisterChild/ClearChild` (called inside Execute) are harmless for a non-generate-flow
   subcommand: the rescue signal handler is armed only in the generate pipeline, not for `models`, so
   the package-global child slot is set then cleared with no observer.
-- Optional `--verbose`: build `ui.NewVerbose(stderr, cfg.Verbose)` and pass it so `stagehand -v models`
-  prints `DEBUG: command:` + `DEBUG: raw output:` — consistent with the rest of stagehand. Pass nil if
+- Optional `--verbose`: build `ui.NewVerbose(stderr, cfg.Verbose)` and pass it so `stagecoach -v models`
+  prints `DEBUG: command:` + `DEBUG: raw output:` — consistent with the rest of stagecoach. Pass nil if
   cfg is nil/verbose off.
 
 Alternative (documented in PRP, not chosen): a local `exec.CommandContext` helper. Rejected as primary
@@ -108,17 +108,17 @@ Mirrors `internal/cmd/providers_test.go` helpers: `setupRepo`, `saveRootState`/`
 — N2).
 
 1. **Live-list happy path (stub binary):** put a fake `opencode` (shell script printing
-   `STAGEHAND_FAKE_MODELS`) on a temp PATH; `stagehand models opencode` (opencode is detected because
-   the fake is on PATH) → assert `STAGEHAND_FAKE_MODELS` appears under the `opencode:` heading.
+   `STAGECOACH_FAKE_MODELS`) on a temp PATH; `stagecoach models opencode` (opencode is detected because
+   the fake is on PATH) → assert `STAGECOACH_FAKE_MODELS` appears under the `opencode:` heading.
    Alternatively/also: a user-defined `[provider.stublist]` with `list_models_command=["stubbin","models"]`.
-2. **Fallback golden test (no binary needed):** `stagehand models claude` (claude has no
+2. **Fallback golden test (no binary needed):** `stagecoach models claude` (claude has no
    `list_models_command`, NOT detected → would error). To test the FALLBACK specifically, use a
    user-defined `[provider.fakep] command="stubbin"` with NO `list_models_command` and a fake `stubbin`
    on PATH (so it's detected) → assert the curated-style block prints. **Cleaner: test the pure
    renderer directly** (`printModelBlock(w, name, manifest, liveStdout, fallbackDate)`) with a fixed
    manifest + `DefaultModelsForProvider("claude")` → golden-string assertion (no PATH juggling). Do
    BOTH: a renderer unit test (deterministic golden) + a CLI integration test for the fallback path.
-3. **Command-FAILURE fallback:** fake `opencode` that `exit 1` → `stagehand models opencode` → curated
+3. **Command-FAILURE fallback:** fake `opencode` that `exit 1` → `stagecoach models opencode` → curated
    table on stdout + a stderr notice. Assert stdout has the curated footer AND stderr has the notice.
 4. **Error cases:** unknown provider (exit 1), undetected named provider (exit 1), bare `models` with
    nothing detected (exit 1), `--all` with nothing detected (exit 1), `--all` + arg (usage error exit 1).

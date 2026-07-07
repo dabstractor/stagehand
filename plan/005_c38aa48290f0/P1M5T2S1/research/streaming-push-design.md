@@ -75,37 +75,37 @@ only the wrapped error). The commits are already published — push failure does
 
 ## 6. The clean-push E2E scenario (a temp bare remote)
 
-The happy-path E2E (`stagehand --push` against a configured upstream) needs a throwaway remote:
+The happy-path E2E (`stagecoach --push` against a configured upstream) needs a throwaway remote:
 
 ```
 bare=$(mktemp -d); git init --bare "$bare"
-# in the working repo: set the upstream once (test setup, NOT stagehand's job)
+# in the working repo: set the upstream once (test setup, NOT stagecoach's job)
 git remote add origin "$bare"; git push -u origin HEAD
-# ... stagehand creates commits, then `--push` runs plain `git push` → succeeds, exit 0
+# ... stagecoach creates commits, then `--push` runs plain `git push` → succeeds, exit 0
 ```
 
-The no-upstream scenario deliberately does NOT run the `-u` setup → `git push` fails 128 → stagehand
+The no-upstream scenario deliberately does NOT run the `-u` setup → `git push` fails 128 → stagecoach
 prints "commits created; push failed" + the verbatim git stderr → exit 1. The skip-on-dry-run
-scenario runs `stagehand --dry-run --push` → the dry-run early-return fires before the push site → no
+scenario runs `stagecoach --dry-run --push` → the dry-run early-return fires before the push site → no
 push, exit 0.
 
 ## 7. Interaction with P1.M5.T1.S1 (`--edit`)
 
 `--edit` and `--push` are independent post-run conveniences on the same success path. `--edit` gates
 EACH commit's message (pre-publish, inside the orchestrator); `--push` runs ONCE after the ENTIRE
-run publishes (post-publish, in the CLI). They compose: `stagehand --edit --push` edits each message,
+run publishes (post-publish, in the CLI). They compose: `stagecoach --edit --push` edits each message,
 publishes, then pushes. Neither touches the other's code. The P1.M5.T1.S1 PRP does NOT add a push
 site; this PRP adds it. Both are `cfg.<Flag>`-gated no-ops when off → byte-identity when both unset.
 
 ## 8. Config surface (full 5-layer precedence, NOT flag-only)
 
 Unlike `--edit` (flag-only, FR-E1), `--push` gets the **full precedence stack** (FR-P1: `--push` /
-`STAGEHAND_PUSH` / `stagehand.push` / `[generation].push`, default false). This mirrors `Template`
+`STAGECOACH_PUSH` / `stagecoach.push` / `[generation].push`, default false). This mirrors `Template`
 (P1.M2.T2.S2), NOT `Context`. So:
 
 - `Config.Push bool \`toml:"push"\`` with `toml:"push"` (a config-file key, under `[generation]`).
 - `Defaults()` → `Push: false`.
-- `loadEnv`: `STAGEHAND_PUSH` (presence-semantic, bool — mirrors `STAGEHAND_VERBOSE`).
-- `loadGitConfig`: `stagehand.push` (the existing `stagehand.*` reader).
+- `loadEnv`: `STAGECOACH_PUSH` (presence-semantic, bool — mirrors `STAGECOACH_VERBOSE`).
+- `loadGitConfig`: `stagecoach.push` (the existing `stagecoach.*` reader).
 - `loadFlags`: `--push` (`fs.Changed("push")` → DIRECT set).
 - `root.go`: `pf.BoolVar(&flagPush, "push", false, "...")`.

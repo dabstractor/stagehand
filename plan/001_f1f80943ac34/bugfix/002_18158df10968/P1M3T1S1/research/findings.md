@@ -33,7 +33,7 @@ if code != 0 {
 	// raw multi-line stderr). `git ls-files -u` lists unmerged stage entries; non-empty ⇒ conflict.
 	// Failure path only (not hot). On any ls-files error, fall through to the detailed diagnostic.
 	if lsOut, _, _, lsErr := g.run(ctx, g.workDir, "ls-files", "-u"); lsErr == nil && strings.TrimSpace(lsOut) != "" {
-		return "", errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagehand")
+		return "", errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagecoach")
 	}
 	return "", fmt.Errorf("git write-tree failed (exit %d): %s", code, strings.TrimSpace(stderr))
 }
@@ -44,7 +44,7 @@ if code != 0 {
 - Non-conflict write-tree failure (rare: corrupted index) keeps the detailed diagnostic (incl. stderr).
 
 (Minimal acceptable variant, per contract: just drop the `%s` —
-`return "", errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagehand")`.
+`return "", errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagecoach")`.
 exit-128-on-populated-index is unambiguously unmerged in practice. Either is acceptable; PRP specifies
 the preferred variant as primary.)
 
@@ -52,12 +52,12 @@ the preferred variant as primary.)
 
 WriteTree callers (both return the error as-is, untouched by S1):
 - `internal/generate/generate.go:156` — `CommitStaged` step 3.
-- `pkg/stagehand/stagehand.go:260` — `runPipeline` step 3 (dry-run + SystemExtra).
+- `pkg/stagecoach/stagecoach.go:260` — `runPipeline` step 3 (dry-run + SystemExtra).
 
 Flow: WriteTree error → caller returns it → CLI `handleGenError` (`internal/cmd/default_action.go:188`)
-**default branch**: `return exitcode.New(exitcode.Error, err)` → exit 1; main prints `stagehand: <msg>`.
-A clean single-line `msg` ⇒ `stagehand: unresolved merge conflicts in the index — resolve them first,
-then re-run stagehand` (exit 1). STILL pre-generation (write-tree is step 3, before step-5 generation),
+**default branch**: `return exitcode.New(exitcode.Error, err)` → exit 1; main prints `stagecoach: <msg>`.
+A clean single-line `msg` ⇒ `stagecoach: unresolved merge conflicts in the index — resolve them first,
+then re-run stagecoach` (exit 1). STILL pre-generation (write-tree is step 3, before step-5 generation),
 STILL exit 1, STILL HEAD/index untouched. No RescueError/CASError/NothingToCommit reclassification.
 
 ## 5. Test — surgical additions to TestWriteTree_MergeConflict (writetree_test.go ~119-133)

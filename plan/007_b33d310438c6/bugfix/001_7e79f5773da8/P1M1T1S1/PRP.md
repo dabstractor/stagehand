@@ -128,7 +128,7 @@ contract named only ONE of the THREE breaking assertions — is surfaced with th
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/git/
     ├── truncatediff.go      # EDIT (1 line: truncation branch + "\n")
     └── truncatediff_test.go # EDIT (3 assertion updates + 4 new t.Run subtests)
@@ -137,7 +137,7 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/git/truncatediff.go      # truncation branch: sentinel + "\n"
     internal/git/truncatediff_test.go # 3 HasSuffix updates + 4 non-last-section subtests
@@ -350,7 +350,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/git/truncatediff.go internal/git/truncatediff_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -361,7 +361,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The truncation-application tests (3 updated subtests + 4 new subtests + all pass-through invariants)
 go test -race -run TestTruncateByWaterFill ./internal/git/ -v
@@ -373,7 +373,7 @@ go test -race -run TestTruncateByWaterFill ./internal/git/ -v
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green (fix is internal to the shared helper)
 go vet ./...                     # Expected: exit 0
@@ -386,7 +386,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 ### Level 4: The Bug-Is-Gone Check (direct assertion)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The 4 new subtests directly assert no glue. Cross-check the property holds for the shared helper by
 # running the whole git suite (which includes tokengate + difftokenlimit integration via real git):

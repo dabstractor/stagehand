@@ -3,7 +3,7 @@ name: "P1.M6.T1.S1 (bugfix Issue 1 doc-sync) — Update README.md and docs/cli.m
 description: |
 
   Documentation-only changeset-level sync (Mode B). The FR-R6 reasoning feature (`--reasoning`,
-  `--<role>-reasoning`, the shipped `planner = high` default, `[role.*] reasoning`, the `STAGEHAND_*`
+  `--<role>-reasoning`, the shipped `planner = high` default, `[role.*] reasoning`, the `STAGECOACH_*`
   env knobs) was made FUNCTIONAL for **pi** (`--thinking`) and **claude** (`--effort`) by the now-complete
   implementing subtasks (P1.M1.T1.S1/S2 populate `ReasoningLevels`; P1.M2.* resolve the message role on
   the single path; P1.M3.* index-sync; P1.M4.* bootstrap header env vars). Before them every provider's
@@ -13,7 +13,7 @@ description: |
   --reasoning high only promises an effect where it has one."
 
   CONTRACT (item_description §1–§5, verbatim):
-    1. RESEARCH: "README.md:121-122 advertises `stagehand --reasoning high` ('Use reasoning for deeper
+    1. RESEARCH: "README.md:121-122 advertises `stagecoach --reasoning high` ('Use reasoning for deeper
        analysis on the planner'). docs/cli.md:43 documents `--reasoning <level>` with default '(off;
        planner: high)'. Before this changeset, these claims were inert for every provider. After
        P1.M1.T1.S1/S2, reasoning now emits real tokens for claude (--effort) and pi (--thinking)."
@@ -21,7 +21,7 @@ description: |
        verified tokens from architecture/external_deps.md (pi=`--thinking`, claude=`--effort` — NOT the
        PRD's wrong `--thinking-effort` guess).
     3. LOGIC:
-       (A) README.md:121-122 — KEEP the `stagehand --reasoning high` example; ADD a note that the effect
+       (A) README.md:121-122 — KEEP the `stagecoach --reasoning high` example; ADD a note that the effect
            is provider-dependent (pi: --thinking, claude: --effort; other providers: graceful no-op).
            Do NOT remove the example.
        (B) docs/cli.md:43 — the `--reasoning` table row + default '(off; planner: high)' are now
@@ -52,7 +52,7 @@ description: |
       its effect on the generated config header is not part of user-facing README/cli prose.
 
   SUCCESS: README.md and docs/cli.md describe `--reasoning` as provider-dependent (pi=`--thinking`,
-  claude=`--effort`, others graceful no-op) while keeping the runnable `stagehand --reasoning high`
+  claude=`--effort`, others graceful no-op) while keeping the runnable `stagecoach --reasoning high`
   example; the `(off; planner: high)` default is retained and now accurate; docs/providers.md remains
   consistent; `grep -rn "thinking-effort"` over README.md/docs/providers/ stays empty;
   `npx markdownlint-cli2 README.md docs/cli.md docs/providers.md` reports 0 errors; `go build ./...`
@@ -72,7 +72,7 @@ has one."*
 
 **Deliverable** (2 modified files; 1 verify-only file; NO source, NO tests):
 1. `README.md` — one new `> [!NOTE]` provider-dependence callout inserted after the Multi-commit
-   decomposition code block (the lines 121–122 `stagehand --reasoning high` example stays verbatim).
+   decomposition code block (the lines 121–122 `stagecoach --reasoning high` example stays verbatim).
 2. `docs/cli.md` — the `--reasoning` Global-flags table-row Description cell (line 43) gets a concise
    provider-dependent qualifier; the default cell `"" (off; planner: high)` is kept; optionally a 1-line
    note in the Examples block (lines 212–213).
@@ -81,7 +81,7 @@ has one."*
    A). Leave byte-unchanged unless an inconsistency is found.
 
 **Success Definition**:
-- README.md keeps the runnable `stagehand --reasoning high` example and adds a note that the effect is
+- README.md keeps the runnable `stagecoach --reasoning high` example and adds a note that the effect is
   provider-dependent (pi: `--thinking`, claude: `--effort`; other providers: graceful no-op).
 - docs/cli.md's `--reasoning` row retains the `"" (off; planner: high)` default (now accurate) and adds
   a provider-dependent qualifier to the Description cell.
@@ -96,12 +96,12 @@ has one."*
 
 ## User Persona
 
-**Target User**: a Stagehand user (PRD §7 personas) who reads the README/CLI docs to learn what
+**Target User**: a Stagecoach user (PRD §7 personas) who reads the README/CLI docs to learn what
 `--reasoning high` does. Before the implementing subtasks, the flag was inert and the docs oversold it;
 the user would set it, see no behavior change, and lose trust. After this doc sync, the user knows
 exactly when the flag engages (pi/claude) and that it is an honest no-op (not an error) elsewhere.
 
-**Use Case**: user runs `stagehand --reasoning high` (or relies on the shipped `planner = high`
+**Use Case**: user runs `stagecoach --reasoning high` (or relies on the shipped `planner = high`
 default) with pi or claude → deeper reasoning actually engages; with another provider → it silently
 does nothing (FR-R6 graceful no-op), and the docs now say so.
 
@@ -134,7 +134,7 @@ one, an honest no-op where there isn't.
 Three documentation touchpoints, scoped exactly to the contract (A)/(B)/(C)/(D):
 
 1. **README.md (A)** — after the Multi-commit decomposition `bash` code block (which contains the
-   `stagehand --reasoning high` example at lines 121–122), insert a `> [!NOTE]` callout stating the
+   `stagecoach --reasoning high` example at lines 121–122), insert a `> [!NOTE]` callout stating the
    effect is provider-dependent: engages for **pi** (`--thinking`) and **claude** (`--effort`); other
    providers treat it as a graceful no-op (no error). The lines 121–122 example stays VERBATIM.
 2. **docs/cli.md (B)** — in the Global flags table, the `--reasoning` row (line 43): KEEP the default
@@ -149,7 +149,7 @@ Three documentation touchpoints, scoped exactly to the contract (A)/(B)/(C)/(D):
 
 ### Success Criteria
 
-- [ ] README.md keeps the `stagehand --reasoning high` example verbatim (lines 121–122 content preserved)
+- [ ] README.md keeps the `stagecoach --reasoning high` example verbatim (lines 121–122 content preserved)
       and adds a `> [!NOTE]` provider-dependence callout after the multi-commit code block.
 - [ ] docs/cli.md `--reasoning` table row keeps the `"" (off; planner: high)` default cell and adds a
       provider-dependent qualifier to the Description cell (pi: `--thinking`, claude: `--effort`; others
@@ -189,14 +189,14 @@ gate command, and the `--thinking-effort` anti-guard grep. No Go/registry/git kn
 - docfile: plan/003_6ce49c39466e/bugfix/001_ccbb2681877e/architecture/external_deps.md
   why: the VERIFIED flags from live `pi --help` / `claude --help`. pi: `--thinking <level>`
        (off,minimal,low,medium,high,xhigh). claude: `--effort <level>` (low,medium,high) — NOT
-       `--thinking-effort` (the PRD Suggested Fix was wrong). The Stagehand level→token mapping.
+       `--thinking-effort` (the PRD Suggested Fix was wrong). The Stagecoach level→token mapping.
   critical: claude uses `--effort` (NEVER `--thinking-effort`). pi uses `--thinking`. off → no tokens.
 
 # EDIT — README.md (insert ONE callout; keep lines 121-122 verbatim)
 - file: README.md   (EDIT: +1 `> [!NOTE]` block after the Multi-commit decomposition code block)
   section: the `### Multi-commit decomposition` section. The `bash` code block contains lines 121-122
-       (`# Use reasoning for deeper analysis on the planner` / `stagehand --reasoning high`). The block
-       closes with ``` (~line 130), then a blank line, then line ~132 `See [How Stagehand works…]`.
+       (`# Use reasoning for deeper analysis on the planner` / `stagecoach --reasoning high`). The block
+       closes with ``` (~line 130), then a blank line, then line ~132 `See [How Stagecoach works…]`.
        INSERT the `> [!NOTE]` callout in that gap (after the closing fence, before the `See` line).
   why: the contract (A) mandates KEEPING the example and ADDING a provider-dependence note. The
        post-code-block `> [!NOTE]` is the README's established idiom (the file already uses `> [!NOTE]`
@@ -214,7 +214,7 @@ gate command, and the `--thinking-effort` anti-guard grep. No Go/registry/git kn
        `"" (off; planner: high)` — KEEP it (it is now accurate: planner=high emits real tokens for
        pi/claude). The Description cell is `Global reasoning effort: off|low|medium|high` — APPEND the
        provider-dependent qualifier there. The Examples block (line ~212) has
-       `# Use reasoning for deeper analysis` / `stagehand --reasoning high` — optionally a 1-line note.
+       `# Use reasoning for deeper analysis` / `stagecoach --reasoning high` — optionally a 1-line note.
   why: the contract (B) keeps the default (now accurate) and "optionally" adds the provider-dependent
        note. The Description cell is the right home for the qualifier.
   pattern: keep the row's 6-column `|` structure EXACTLY (6 pipes per row). Do not add/remove columns.
@@ -292,7 +292,7 @@ docs/providers.md    # UNCHANGED (verify-only; edit ONLY if a real inconsistency
      anti-guard grep (`thinking-effort|thinking_effort`) MUST stay empty after your edits. -->
 
 <!-- CRITICAL (KEEP the README example): the contract (A) explicitly forbids removing the
-     `stagehand --reasoning high` example. Edit ONLY by ADDING a `> [!NOTE]` callout AFTER the code
+     `stagecoach --reasoning high` example. Edit ONLY by ADDING a `> [!NOTE]` callout AFTER the code
      fence closes — never edit lines 121-122, never move the example, never comment it out. -->
 
 <!-- CRITICAL (KEEP the cli.md default cell): the `"" (off; planner: high)` default is now ACCURATE
@@ -341,8 +341,8 @@ docs/providers.md    # UNCHANGED (verify-only; edit ONLY if a real inconsistency
 ```yaml
 Task 1: EDIT README.md — add the provider-dependence NOTE callout (contract A)
   - SITE: the `### Multi-commit decomposition` section. The `bash` code block (containing lines 121-122
-      `# Use reasoning for deeper analysis on the planner` / `stagehand --reasoning high`) closes with
-      ``` at ~line 130, followed by a blank line, then `See [How Stagehand works …` at ~line 132.
+      `# Use reasoning for deeper analysis on the planner` / `stagecoach --reasoning high`) closes with
+      ``` at ~line 130, followed by a blank line, then `See [How Stagecoach works …` at ~line 132.
   - ACTION: INSERT a `> [!NOTE]` callout in the gap (after the closing fence, before the `See` line),
       blank line before and after (MD031). KEEP lines 121-122 VERBATIM (do not edit the example).
   - CONTENT (suggested wording — match the verified tokens; pi=--thinking, claude=--effort):
@@ -368,12 +368,12 @@ Task 2: EDIT docs/cli.md — the --reasoning table-row Description cell (contrac
 
 Task 3 (OPTIONAL): EDIT docs/cli.md — the Examples block note (contract B, secondary)
   - SITE: the `## Examples` block, lines 212-213:
-      `# Use reasoning for deeper analysis` / `stagehand --reasoning high`
+      `# Use reasoning for deeper analysis` / `stagecoach --reasoning high`
   - ACTION: optionally tighten the comment to name the provider scope, e.g.:
       `# Use reasoning for deeper analysis (pi: --thinking, claude: --effort; others no-op)`
   - WHY: keeps the Examples block self-consistent with the table-row note (Task 2). OPTIONAL because the
       table row (Task 2) already carries the full qualifier; the contract marks the note as "optional".
-  - GOTCHA: keep the `stagehand --reasoning high` command verbatim. This is a one-line comment edit.
+  - GOTCHA: keep the `stagecoach --reasoning high` command verbatim. This is a one-line comment edit.
 
 Task 4 (VERIFY-ONLY): docs/providers.md — confirm consistency (contract C)
   - ACTION: RE-READ line 35 (the `reasoning_levels` schema-table row) and line 59 (the "Command
@@ -409,7 +409,7 @@ Task 5: VERIFY (run all gates; the contract's "TEST: verify by reading for consi
 <!-- Place it AFTER the multi-commit bash fence closes, BEFORE the "See" line. -->
 
 <!-- PATTERN (cli.md table cell edit — keep 6 columns): -->
-<!-- | `--reasoning <level>` | string | "" (off; planner: high) | `STAGEHAND_REASONING` | `stagehand.reasoning` | Global reasoning effort: off\|low\|medium\|high. Provider-dependent: engages for pi (`--thinking`) and claude (`--effort`); other providers are a graceful no-op (FR-R6). | -->
+<!-- | `--reasoning <level>` | string | "" (off; planner: high) | `STAGECOACH_REASONING` | `stagecoach.reasoning` | Global reasoning effort: off\|low\|medium\|high. Provider-dependent: engages for pi (`--thinking`) and claude (`--effort`); other providers are a graceful no-op (FR-R6). | -->
 <!--   (the off|low|medium|high pipes are CONTENT; the row still has exactly 6 field pipes) -->
 
 <!-- CRITICAL: claude = `--effort`, NEVER `--thinking-effort` (verified via claude --help; the PRD
@@ -425,7 +425,7 @@ Task 5: VERIFY (run all gates; the contract's "TEST: verify by reading for consi
 ```yaml
 README.md:
   - insert: "> [!NOTE] provider-dependence callout after the Multi-commit decomposition bash code block"
-  - preserve: "lines 121-122 (the stagehand --reasoning high example) VERBATIM"
+  - preserve: "lines 121-122 (the stagecoach --reasoning high example) VERBATIM"
 
 docs/cli.md:
   - edit: "--reasoning Global-flags table-row Description cell (line 43) += provider-dependent qualifier"
@@ -508,7 +508,7 @@ git diff --stat
 - [ ] `git status --porcelain` → README.md + docs/cli.md (+ providers.md ONLY if a real fix was needed).
 
 ### Feature Validation
-- [ ] README.md keeps the `stagehand --reasoning high` example verbatim and adds a provider-dependence
+- [ ] README.md keeps the `stagecoach --reasoning high` example verbatim and adds a provider-dependence
       `> [!NOTE]` callout (pi: `--thinking`, claude: `--effort`; others no-op) (contract A).
 - [ ] docs/cli.md `--reasoning` row keeps the `"" (off; planner: high)` default and adds the
       provider-dependent qualifier to the Description cell (contract B primary).
@@ -536,7 +536,7 @@ git diff --stat
 
 ## Anti-Patterns to Avoid
 
-- ❌ **Don't remove or rewrite the `stagehand --reasoning high` example.** Contract (A) explicitly says
+- ❌ **Don't remove or rewrite the `stagecoach --reasoning high` example.** Contract (A) explicitly says
   KEEP it (it now works for pi/claude). The edit is an ADDED `> [!NOTE]` callout, not a deletion.
 - ❌ **Don't use `--thinking-effort` for claude.** The verified flag is `--effort` (`claude --help`);
   `--thinking-effort` is the PRD's wrong guess. The §D anti-guard grep must stay empty. (gotcha)

@@ -10,7 +10,7 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` |
 | Edit target | `internal/provider/render.go` (exists; 1 method `Render` + type `CmdSpec`) |
 | S1 (TooledFlags) status | **LANDED & VERIFIED** — `manifest.go` has `TooledFlags []string` + `Experimental *bool`; `Resolve()` leaves TooledFlags as-is (nil stays nil) and defaults Experimental→`*false`. |
 | S2 (MergeManifest) status | Parallel (assumed landed per the contract — does NOT touch render.go; safe either way). |
@@ -31,7 +31,7 @@ args → default bare). This is why the contract mandates variadic over a requir
 | File:Line | Call (4 args) | Status after change |
 |---|---|---|
 | `internal/generate/generate.go:191` | `deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)` | UNCHANGED (bare) |
-| `pkg/stagehand/stagehand.go:304` | `deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)` | UNCHANGED (bare) |
+| `pkg/stagecoach/stagecoach.go:304` | `deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)` | UNCHANGED (bare) |
 | `internal/generate/realagent_test.go:70` | `m.Render(cfg.Model, cfg.Provider, "<system prompt>", "<staged diff>")` | UNCHANGED (bare) |
 | `internal/stubtest/stubtest_test.go` (×11) | `m.Render("", "", "", "payload…")` | UNCHANGED (bare) |
 | `internal/provider/render_test.go` (10 tests) | `…Render(model, provider, "<sys>", "<user>")` | UNCHANGED (bare) — byte-identical output |

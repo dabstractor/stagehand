@@ -6,7 +6,7 @@ The contract names TWO deliverables:
 
 | Deliverable | Location | Mode | What it uniquely catches |
 |---|---|---|---|
-| **E2E harness** (NEW) | `internal/e2e/` (`//go:build e2e`) | SUBPROCESS (drives compiled `stagehand` binary) | CLI routing + config-load + real-repo + real-agent bugs — the §20.5 "gap that let the bugs ship" |
+| **E2E harness** (NEW) | `internal/e2e/` (`//go:build e2e`) | SUBPROCESS (drives compiled `stagecoach` binary) | CLI routing + config-load + real-repo + real-agent bugs — the §20.5 "gap that let the bugs ship" |
 | **v2 stub suite EXTENSION** | `internal/decompose/decompose_test.go` (+1 test) | IN-PROCESS (stager seam) | Deterministic, CI-able multi-concept concurrent-change-exclusion (FR-M1b/M1c happy path) |
 
 The in-process v2 stub suite **already covers** scenarios 1, 5, 6, 7 (loop/arbiter/rescue/CAS) via the
@@ -14,14 +14,14 @@ stager seam + `dcmScriptArbiter`. So the e2e harness's UNIQUE value is the subpr
 
 ## 2. Why subprocess (not in-process) for the e2e harness
 
-§20.5 literally says "run `stagehand`" + "else the stub" (the stub = `cmd/stubagent`, which must be wired
+§20.5 literally says "run `stagecoach`" + "else the stub" (the stub = `cmd/stubagent`, which must be wired
 via a provider config to be usable by the binary). The cited bugs (planner-empty-output FR-R5b,
 concurrent-file FR-M1b) are ROUTING/real-repo behaviors the in-process library tests don't reach.
 
 **Stager wall:** `cmd/stubagent` is stdlib-only and CANNOT run `git add` (the tooled-stager behavior). So
 multi-concept decompose scenarios (1, 5, loop-6) **cannot run in stub mode via the binary** — the stub
 stager would produce no staged content → empty concepts. These scenarios in the e2e harness are therefore
-**REAL-only** (gated on `STAGEHAND_RUN_REAL=1`); their deterministic stub coverage lives in the in-process
+**REAL-only** (gated on `STAGECOACH_RUN_REAL=1`); their deterministic stub coverage lives in the in-process
 v2 suite (already present + the new concurrent-exclusion test).
 
 ## 3. Scenarios × reachability
@@ -30,10 +30,10 @@ v2 suite (already present + the new concurrent-exclusion test).
 |---|---|---|---|
 | 1 | nothing staged + N files → N commits (auto & --commits N) | NO (needs tooled stager) → REAL-only | real agent stages |
 | 2 | exactly one file → single commit, NO planner call (FR-M2b) | YES | one-file shortcut bypasses planner; "no planner call" via a CANARY planner provider (touches a marker if run → assert marker ABSENT) |
-| 3 | concurrent file mid-run → excluded + remains (FR-M1b/M1c) | YES (via one-file path) | freeze; sentinel written AFTER the stub `STAGEHAND_STUB_MARKER` appears (post-freeze, deterministic) |
+| 3 | concurrent file mid-run → excluded + remains (FR-M1b/M1c) | YES (via one-file path) | freeze; sentinel written AFTER the stub `STAGECOACH_STUB_MARKER` appears (post-freeze, deterministic) |
 | 4 | multi-backend agent, bare model → HARD ERROR (FR-R5b) | YES | custom `[provider.testmulti]` (provider_flag set) + `--model bare` → ResolveRoles/Render error, exit 1 |
 | 5 | arbiter reconciliation (new/tip/mid) | NO (needs stager) → REAL-only (specific modes pinned in-process via `dcmScriptArbiter`) | real smoke + in-process authoritative |
-| 6 | rescue mid-loop | partial: single/one-file rescue stub-reachable (empty stub output → exit 3); loop-rescue in-process | empty `STAGEHAND_STUB_OUT` |
+| 6 | rescue mid-loop | partial: single/one-file rescue stub-reachable (empty stub output → exit 3); loop-rescue in-process | empty `STAGECOACH_STUB_OUT` |
 | 7 | CAS abort (HEAD moved) | YES (single/one-file path) | stub MARKER + SLEEP → test moves HEAD → UpdateRefCAS fails → exit 1 |
 
 ## 4. Critical codebase facts (all verified)
@@ -47,7 +47,7 @@ v2 suite (already present + the new concurrent-exclusion test).
   `default_model`, `model_flag`, `provider_flag`, `tooled_flags`, `env` (sub-table `map[string]string`),
   `detect`.
 - **Env flow:** `executor.go:58-59` — `cmd.Env = spec.Env` (non-empty); `Render` builds
-  `os.Environ() + manifest.Env`. So stub knobs set on the **stagehand process env** inherit to the stub
+  `os.Environ() + manifest.Env`. So stub knobs set on the **stagecoach process env** inherit to the stub
   subprocess (one base config reused; per-scenario knobs on the process env).
 
 ### 4.2 Routing (default_action.go)
@@ -59,11 +59,11 @@ v2 suite (already present + the new concurrent-exclusion test).
 ### 4.3 The stub (`cmd/stubagent`, `internal/stubtest`)
 - `stubtest.Build(t)` compiles `./cmd/stubagent` ONCE per process (cached) → path. `stubtest.Manifest(bin, opts)`
   / `stubtest.NewScript(t, bin, responses)` build manifests.
-- Knobs (all `STAGEHAND_STUB_*`): `OUT` (single response), `SCRIPT`+`COUNTER` (call-varying), `EXIT`,
+- Knobs (all `STAGECOACH_STUB_*`): `OUT` (single response), `SCRIPT`+`COUNTER` (call-varying), `EXIT`,
   `SLEEP_MS`, `STDERR`, **`MARKER`** — "tells the test harness stdin drained + generation in-flight; must
   happen BEFORE the sleep so the test can race HEAD movement **deterministically**." Purpose-built for
   scenarios 3 & 7.
-- Build the stagehand binary: `go build -o <tmp> ./cmd/stagehand` (mirror stubtest.Build; resolve via import
+- Build the stagecoach binary: `go build -o <tmp> ./cmd/stagecoach` (mirror stubtest.Build; resolve via import
   path so cwd-independent).
 
 ### 4.4 The freeze (the heart of scenarios 2,3 + the v2 extension)
@@ -108,6 +108,6 @@ so the FR51b label format change cannot break it. Safe to run in parallel.
 - `make lint` = `golangci-lint run`.
 - `make coverage-gate` = ≥85% on `internal/{git,provider,generate,config}` (e2e + decompose_test are test-
   only → no production-package coverage regression).
-- E2E: `go test -tags e2e ./internal/e2e/ -v` (stub mode); `STAGEHAND_RUN_REAL=1 go test -tags e2e
+- E2E: `go test -tags e2e ./internal/e2e/ -v` (stub mode); `STAGECOACH_RUN_REAL=1 go test -tags e2e
   ./internal/e2e/ -v -timeout 30m` (real mode).
 - `go build ./...` (no tag) MUST stay green (e2e package is build-tagged test-only → excluded).

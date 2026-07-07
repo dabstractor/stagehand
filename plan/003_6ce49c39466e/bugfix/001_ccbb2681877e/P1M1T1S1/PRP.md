@@ -36,11 +36,11 @@ parity tests (DecodeParity + ReferenceFiles_DecodeParity) stay green. `go build/
 
 ## User Persona
 
-**Target User**: The Stagehand user who runs the planner (or any role) on `claude` and expects the
+**Target User**: The Stagecoach user who runs the planner (or any role) on `claude` and expects the
 documented `--reasoning high` (or the shipped `planner=high` default) to actually engage deeper
 reasoning — and the contributor wiring real per-role reasoning values (P1.M2).
 
-**Use Case**: `stagehand --provider claude --reasoning high` (or a decompose run whose planner resolves
+**Use Case**: `stagecoach --provider claude --reasoning high` (or a decompose run whose planner resolves
 to claude with `planner=high`) should invoke `claude … --effort high …`.
 
 **Pain Points Addressed**: Today the reasoning feature is completely inert for claude — `ReasoningLevels`
@@ -135,7 +135,7 @@ complete render-test (with the traced Args), the existing test helpers to reuse 
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/provider/
 │   ├── builtin.go            # EDIT (builtinClaude +ReasoningLevels; comments)
 │   ├── builtin_test.go       # EDIT (claudeTOML const +table; ClaudeFields +assertion)
@@ -150,7 +150,7 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/provider/builtin.go          # builtinClaude +ReasoningLevels +comment fixes
     internal/provider/builtin_test.go     # claudeTOML +table; ClaudeFields +assertion
@@ -379,7 +379,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S1):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l .                       # Expected: empty (run gofmt -w on any listed file)
 go vet ./internal/provider/...   # Expected: exit 0
@@ -389,7 +389,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new real-built-in render test
 go test -race -run 'TestRender_ClaudeReasoningEffortTokens' ./internal/provider/ -v
@@ -407,7 +407,7 @@ go test -race ./internal/provider/ -v
 ### Level 3: Whole-Repository Regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages pass
 go vet ./...                     # Expected: exit 0
@@ -420,7 +420,7 @@ git diff --stat -- internal/ providers/ docs/
 ### Level 4: Behavior Smoke (the contract's probe — optional)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Inline probe via a throwaway in-package test (delete after) — proves the data + guard end-to-end:
 cat > internal/provider/zz_smoke_test.go <<'EOF'

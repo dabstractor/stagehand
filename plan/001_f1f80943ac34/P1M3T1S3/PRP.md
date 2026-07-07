@@ -264,7 +264,7 @@ Blueprint. No executor/parse/CLI/git-plumbing knowledge required — S3 is one p
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — S3 adds NO dep: stdlib strings only)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — S3 adds NO dep: stdlib strings only)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — untouched (read-only ref: MaxDuplicateRetries default 3, SubjectTargetChars default 50)
@@ -277,7 +277,7 @@ internal/
     payload_test.go             # NEW (this subtask) ← TestBuildUserPayload_* (4 functions)
   provider/                     # P1.M2 (T1–T6) — untouched (render.go Render is read-only ref)
   ui/                           # P1.M4 (empty stub) — untouched
-cmd/stagehand/main.go           # stub — untouched
+cmd/stagecoach/main.go           # stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -759,7 +759,7 @@ SIBLING SUBTASKS (same package — already exist; do NOT edit):
 
 FROZEN FILES (do NOT edit):
   - internal/prompt/system.go, internal/prompt/system_test.go (S1/S2 own those), internal/provider/*,
-        internal/config/*, internal/git/*, cmd/stagehand/main.go, pkg/*, Makefile, go.mod, go.sum.
+        internal/config/*, internal/git/*, cmd/stagecoach/main.go, pkg/*, Makefile, go.mod, go.sum.
 ```
 
 ## Validation Loop

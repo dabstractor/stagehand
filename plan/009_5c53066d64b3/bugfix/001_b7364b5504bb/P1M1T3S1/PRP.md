@@ -22,7 +22,7 @@ description: |
 
 **Feature Goal**: Make the multi-turn fallback progress line (PRD §9.24 FR-T5, emitted on `os.Stderr` at
 fallback time) carry the per-chunk token budget (`cfg.MultiTurnChunkTokens`) that FR-T11 requires in the
-verbose surface — so a user running `stagehand --verbose` (or reading the fallback progress line) sees
+verbose surface — so a user running `stagecoach --verbose` (or reading the fallback progress line) sees
 the chunk size the large diff is being split into, not just the turn count and total wall-clock budget.
 
 **Deliverable** (1 production format-string change + 1 focused unit test + 1 small test helper):
@@ -43,7 +43,7 @@ shows ONLY generate.go + multiturn_test.go.
 ## User Persona
 
 **Target User**: The user whose large diff triggers the multi-turn fallback and who watches the terminal
-(or reads `--verbose` logs) to understand what stagehand is doing during the (potentially many-minute)
+(or reads `--verbose` logs) to understand what stagecoach is doing during the (potentially many-minute)
 N+1-turn run. Also the contributor copying this corrected gate into runPipeline/hook (P1.M2/P1.M3).
 
 **Use Case**: A user sees `↳ falling back to multi-turn: 9 turns, ~18m total` and wonders "how big is
@@ -197,7 +197,7 @@ inference required.
 ### Current Codebase Tree (this task's scope)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/generate/
     ├── generate.go         # EDIT: the progress Fprintf format string (2 args → 3 args)
     └── multiturn_test.go   # EDIT: +captureStderr helper +TestCommitStaged_MultiTurnProgressLine_ChunkTokens (+os/fmt imports)
@@ -206,7 +206,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/generate/generate.go         # the Fprintf: + "(chunks of ~%d tokens), " + cfg.MultiTurnChunkTokens arg
     internal/generate/multiturn_test.go   # +captureStderr +TestCommitStaged_MultiTurnProgressLine_ChunkTokens
@@ -217,7 +217,7 @@ stagehand/
 | `internal/generate/generate.go` | MODIFY (1 line) | The progress Fprintf: 2-arg → 3-arg format string (insert the per-chunk token budget). **Only production change.** |
 | `internal/generate/multiturn_test.go` | MODIFY (append helper + test + imports) | `captureStderr` helper + the focused progress-line test; add `os`/`fmt` imports if absent. |
 
-**Explicitly NOT touched**: `internal/generate/multiturn.go` (S1 ChunkCount), `internal/generate/generate_multiturn_test.go` (the RenderContract test — it does not capture the line), `internal/generate/{rescue,dedupe,finalize}.go` and their tests, `pkg/stagehand/stagehand.go` (P1.M2 — runPipeline), `internal/hook/exec.go` (P1.M3 — hook), `docs/*` (P1.M4), any other package, `PRD.md`, `tasks.json`, `prd_snapshot.md`, `plan/*`.
+**Explicitly NOT touched**: `internal/generate/multiturn.go` (S1 ChunkCount), `internal/generate/generate_multiturn_test.go` (the RenderContract test — it does not capture the line), `internal/generate/{rescue,dedupe,finalize}.go` and their tests, `pkg/stagecoach/stagecoach.go` (P1.M2 — runPipeline), `internal/hook/exec.go` (P1.M3 — hook), `docs/*` (P1.M4), any other package, `PRD.md`, `tasks.json`, `prd_snapshot.md`, `plan/*`.
 
 ### Known Gotchas of our codebase & toolchain
 
@@ -455,7 +455,7 @@ GATE: go test -race ./... → GREEN ; grep 'chunks of ~%d tokens' generate.go �
 NO-TOUCH (explicitly — owned by siblings):
   - internal/generate/multiturn.go (S1 ChunkCount), generate_multiturn_test.go (RenderContract — doesn't capture the line)
   - generate.go L311 + ~L307 comment (T2.S1 — Issue 4, parallel)
-  - pkg/stagehand/stagehand.go (P1.M2 — runPipeline), internal/hook/exec.go (P1.M3 — hook)
+  - pkg/stagecoach/stagecoach.go (P1.M2 — runPipeline), internal/hook/exec.go (P1.M3 — hook)
   - docs/* (P1.M4); PRD.md, tasks.json, prd_snapshot.md, plan/*
 
 DOWNSTREAM HOOKS (informational — owned by LATER subtasks):
@@ -468,7 +468,7 @@ DOWNSTREAM HOOKS (informational — owned by LATER subtasks):
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/generate/generate.go internal/generate/multiturn_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -482,7 +482,7 @@ go build ./...                   # Expected: exit 0 (format-string change; no si
 ### Level 2: The New Unit Test (the deliverable)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./internal/generate/ -v -run TestCommitStaged_MultiTurnProgressLine_ChunkTokens
 # Expected: PASS. The captured stderr visibly contains "chunks of ~4 tokens" + "falling back to multi-turn".
@@ -495,7 +495,7 @@ go test -race ./internal/generate/ -v -run 'TestMultiTurnTriggerGate_TruthTable|
 ### Level 3: Whole-Repository Regression + Scope Discipline
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...    # Expected: ALL packages green
 go vet ./...           # Expected: exit 0
@@ -513,14 +513,14 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 # Expected: internal/generate/generate.go + internal/generate/multiturn_test.go only.
 
 # Sibling/parallel territory UNTOUCHED:
-git diff --stat -- internal/generate/multiturn.go internal/generate/generate_multiturn_test.go pkg/stagehand/ internal/hook/ docs/
+git diff --stat -- internal/generate/multiturn.go internal/generate/generate_multiturn_test.go pkg/stagecoach/ internal/hook/ docs/
 # Expected: EMPTY (multiturn.go = S1; generate_multiturn_test.go = RenderContract, unchanged; P1.M2/P1.M3/docs untouched).
 ```
 
 ### Level 4: Behavioral Cross-Check (manual repro of the new progress line)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new test IS the behavioral proof (it captures os.Stderr and asserts the substring). For a manual
 # cross-check, build a tiny repo that triggers multi-turn and eyeball the stderr line. (The authoritative
@@ -547,7 +547,7 @@ go test -race ./internal/generate/ -v -run TestCommitStaged_MultiTurnProgressLin
 ### Scope Discipline Validation
 - [ ] ONLY `internal/generate/generate.go` + `internal/generate/multiturn_test.go` modified (`git diff --stat`).
 - [ ] Did NOT edit `multiturn.go` (S1), `generate_multiturn_test.go` (RenderContract), generate.go L311/~L307
-      comment (T2.S1), `pkg/stagehand/` (P1.M2), `internal/hook/` (P1.M3), docs (P1.M4).
+      comment (T2.S1), `pkg/stagecoach/` (P1.M2), `internal/hook/` (P1.M3), docs (P1.M4).
 - [ ] Did NOT modify `PRD.md`, `tasks.json`, `prd_snapshot.md`, or anything under `plan/`.
 
 ### Code Quality Validation
@@ -580,7 +580,7 @@ go test -race ./internal/generate/ -v -run TestCommitStaged_MultiTurnProgressLin
   count (payload-size-dependent) and the timeout — brittle. Assert the new field (`chunks of ~N tokens`)
   + a sanity `Contains("falling back to multi-turn")` (G7).
 - ❌ Don't touch `multiturn.go` (S1), `generate_multiturn_test.go` (RenderContract), generate.go L311/~L307
-  (T2.S1), `pkg/stagehand/` (P1.M2), `internal/hook/` (P1.M3), or docs (P1.M4).
+  (T2.S1), `pkg/stagecoach/` (P1.M2), `internal/hook/` (P1.M3), or docs (P1.M4).
 - ❌ Don't modify `PRD.md`, `tasks.json`, `prd_snapshot.md`, or anything under `plan/`.
 
 ---

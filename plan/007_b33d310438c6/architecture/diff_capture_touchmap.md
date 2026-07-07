@@ -113,7 +113,7 @@ from one place.
 |---|---|---|---|
 | 1 | `internal/generate/generate.go:163-169` | `CommitStaged` | `StagedDiff` |
 | 2 | `internal/hook/exec.go:104-110` | `Run` (hook path) | `StagedDiff` |
-| 3 | `pkg/stagehand/stagehand.go:423-429` | `runPipeline` | `StagedDiff` |
+| 3 | `pkg/stagecoach/stagecoach.go:423-429` | `runPipeline` | `StagedDiff` |
 | 4 | `internal/decompose/planner.go:69-75` | `callPlanner` | `TreeDiff` |
 | 5 | `internal/decompose/message.go:71-77` | `generateMessage` | `TreeDiff` |
 | 6 | `internal/decompose/decompose.go:608-614` | `runArbiter` caller (leftover diff) | `TreeDiff` |
@@ -207,14 +207,14 @@ if src.MaxMdLines != 0   { dst.MaxMdLines = src.MaxMdLines }
 
 **(c) git-config resolver** (`internal/config/git.go:181-205`) — `resolveGitConfig`:
 ```go
-if v, found, err := gitConfigGet(repoDir, "stagehand.maxDiffBytes"); err != nil { ... } else if found {
-    if err := parseInt(repoDir, "stagehand.maxDiffBytes", v, &c.MaxDiffBytes); err != nil { return nil, err }
+if v, found, err := gitConfigGet(repoDir, "stagecoach.maxDiffBytes"); err != nil { ... } else if found {
+    if err := parseInt(repoDir, "stagecoach.maxDiffBytes", v, &c.MaxDiffBytes); err != nil { return nil, err }
 }
-if v, found, err := gitConfigGet(repoDir, "stagehand.maxMdLines"); err != nil { ... } else if found {
-    if err := parseInt(repoDir, "stagehand.maxMdLines", v, &c.MaxMdLines); err != nil { return nil, err }
+if v, found, err := gitConfigGet(repoDir, "stagecoach.maxMdLines"); err != nil { ... } else if found {
+    if err := parseInt(repoDir, "stagecoach.maxMdLines", v, &c.MaxMdLines); err != nil { return nil, err }
 }
 ```
-**Add:** two parallel blocks for `stagehand.tokenLimit` and `stagehand.diffContext` (camelCase, per
+**Add:** two parallel blocks for `stagecoach.tokenLimit` and `stagecoach.diffContext` (camelCase, per
 the existing `maxDiffBytes`/`maxMdLines`/`stripCodeFence` convention). `parseInt` (`git.go:87`) and
 `gitConfigGet` (`git.go:48`) are the helpers — copy the exact 4-line pattern.
 
@@ -253,7 +253,7 @@ needed (they already take `opts StagedDiffOptions`).
 The diff string from all three diff methods is the **verbatim tail** of the user payload. Two builders:
 
 **(a) Message path** — `prompt.BuildUserPayload(diff, context, rejected)` (`internal/prompt/payload.go:131-172`).
-Called by `generate.go:217`, `hook/exec.go` (after line 110), `stagehand.go` (runPipeline). Assembly:
+Called by `generate.go:217`, `hook/exec.go` (after line 110), `stagecoach.go` (runPipeline). Assembly:
 ```
 userInstruction + "\n\n" + [contextBlock + "\n\n"] + diff   // diff appended verbatim
 ```
@@ -332,7 +332,7 @@ and add the 2 new fields to the 6 production call-site struct literals.
 config.toml / git-config / flags
    → Defaults() + materialize() + overlay()  [file.go]  + resolveGitConfig() [git.go]
    → config.Config{MaxDiffBytes, MaxMdLines, TokenLimit(NEW), DiffContext(NEW), ...}
-   → 6 call sites map cfg → git.StagedDiffOptions{...}        [generate/hook/stagehand/decompose]
+   → 6 call sites map cfg → git.StagedDiffOptions{...}        [generate/hook/stagecoach/decompose]
    → StagedDiff/TreeDiff/WorkingTreeDiff(opts)                [git.go: 642/1094/1228]
         ├─ Part 1: md per-file diff (+ -M/-U<n> NEW), line-capped
         ├─ binary/excluded placeholders (detectBinaryFiles/fileStatuses)

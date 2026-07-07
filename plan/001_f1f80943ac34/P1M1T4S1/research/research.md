@@ -2,7 +2,7 @@
 
 ## 1. What exists today (verified on disk)
 
-- `go.mod`: `module github.com/dustin/stagehand`, `go 1.22`, **no require block**, **no go.sum** (zero deps — T1.S1).
+- `go.mod`: `module github.com/dustin/stagecoach`, `go 1.22`, **no require block**, **no go.sum** (zero deps — T1.S1).
 - `internal/config/` exists but is **empty** (T1.S1 created the dir only).
 - No file imports `package config` anywhere (grep confirmed). Greenfield for this package.
 - `Makefile` targets: `build` (`go build -ldflags …`), `test` (`go test -race ./...`), `coverage`, `lint` (`golangci-lint run`). No `go mod tidy` gate in Makefile (but CI/lint may enforce tidiness — keep deps genuinely used).
@@ -47,7 +47,7 @@ scope for S1.
 | Output | [generation] | output | `toml:"output"` |
 | StripCodeFence | [generation] | strip_code_fence | `toml:"strip_code_fence"` |
 
-`NoColor` is TTY-aware / flag+env only (PRD §15.2 `--no-color` / `STAGEHAND_NO_COLOR` / `NO_COLOR`);
+`NoColor` is TTY-aware / flag+env only (PRD §15.2 `--no-color` / `STAGECOACH_NO_COLOR` / `NO_COLOR`);
 it has **no** config-file representation → `toml:"-"`. go-toml/v2 honors `toml:"-"` (encoding/json-
 aligned semantics); the test `TestNoColorExcludedFromTOML` proves it empirically.
 

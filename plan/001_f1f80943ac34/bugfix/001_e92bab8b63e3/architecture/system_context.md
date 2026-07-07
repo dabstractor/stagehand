@@ -1,4 +1,4 @@
-# System Context — Stagehand v1.0 Bugfix Pass
+# System Context — Stagecoach v1.0 Bugfix Pass
 
 > Synthesis of the four codebase recon reports (`seam_config_handoff.md`,
 > `seam_dryrun.md`, `seam_provider_preflight.md`, `seam_config_and_autostage.md`).
@@ -12,17 +12,17 @@ commit / "stage-while-generating" invariant (PRD §13.4 / §18.1) holds. The 7 i
 
 | Issue | Severity | Seam | File(s) |
 |-------|----------|------|---------|
-| 1 — `--config` ignored by default action | Major | config handoff | `pkg/stagehand/stagehand.go` (`resolveConfig`), `internal/cmd/default_action.go` |
-| 2 — `--dry-run` skips dup-check/retry | Major | dry-run pipeline | `pkg/stagehand/stagehand.go` (`runPipeline`) |
-| 3 — missing provider command → exit 3 (not 1) | Major | provider pre-flight | `pkg/stagehand/stagehand.go` (`buildDeps`) |
-| 4 — `[generation] output/strip_code_fence` never applied | Minor | cfg→manifest bridge | `pkg/stagehand/stagehand.go` (`buildDeps`) |
+| 1 — `--config` ignored by default action | Major | config handoff | `pkg/stagecoach/stagecoach.go` (`resolveConfig`), `internal/cmd/default_action.go` |
+| 2 — `--dry-run` skips dup-check/retry | Major | dry-run pipeline | `pkg/stagecoach/stagecoach.go` (`runPipeline`) |
+| 3 — missing provider command → exit 3 (not 1) | Major | provider pre-flight | `pkg/stagecoach/stagecoach.go` (`buildDeps`) |
+| 4 — `[generation] output/strip_code_fence` never applied | Minor | cfg→manifest bridge | `pkg/stagecoach/stagecoach.go` (`buildDeps`) |
 | 5 — §19 repo-local notice printed twice | Minor | config handoff (same as #1) | `internal/config/file.go` (side effect) |
-| 6 — `--dry-run` skips `write-tree` snapshot | Minor | dry-run pipeline (same as #2) | `pkg/stagehand/stagehand.go` (`runPipeline`) |
+| 6 — `--dry-run` skips `write-tree` snapshot | Minor | dry-run pipeline (same as #2) | `pkg/stagecoach/stagecoach.go` (`runPipeline`) |
 | 7 — "(0 files)" notice on clean tree | Minor | auto-stage UX | `internal/cmd/default_action.go` |
 
 ## 2. The central architectural seam: the config double-load
 
-Everything in Issues 1 and 5 flows from ONE line in `pkg/stagehand/stagehand.go:resolveConfig`:
+Everything in Issues 1 and 5 flows from ONE line in `pkg/stagecoach/stagecoach.go:resolveConfig`:
 
 ```go
 cfgPtr, err := config.Load(ctx, config.LoadOpts{RepoDir: repoDir, Flags: nil})
@@ -38,7 +38,7 @@ cfgPtr, err := config.Load(ctx, config.LoadOpts{RepoDir: repoDir, Flags: nil})
 
 The FIRST `config.Load` (in `internal/cmd/root.go` `PersistentPreRunE`) is correct — it passes
 `ConfigPathOverride: flagConfig` and `Flags: cmd.Flags()`. But `runDefault` calls
-`stagehand.GenerateCommit`, which **re-loads from scratch** and discards the CLI-resolved `cfg`.
+`stagecoach.GenerateCommit`, which **re-loads from scratch** and discards the CLI-resolved `cfg`.
 
 **Data flow:**
 ```
@@ -46,7 +46,7 @@ CLI ──► root.go PersistentPreRunE ──► config.Load(--config honored, 
                                                                                           │
         default_action.go runDefault ◄── Config() ─────────────────────────────────────────┘
                 │
-                └─► stagehand.GenerateCommit(Options{Provider,Model,Timeout,DryRun,Verbose,VerboseOn})
+                └─► stagecoach.GenerateCommit(Options{Provider,Model,Timeout,DryRun,Verbose,VerboseOn})
                                 │  (Options has NO Config/ConfigPath field → --config lost)
                                 ▼
                     resolveConfig ──► config.Load(RepoDir, Flags:nil)  ◄── BUG (notice #2, --config dropped)
@@ -88,7 +88,7 @@ Inside `runPipeline`, the dry-run branch is a **third, degraded implementation**
    `return errors.New("dry run: model produced no valid message")`. No FR29 parse-retry, no FR30-33
    duplicate rejection, no bounded loop. **(Issue 2.)**
 3. On timeout, dry-run returns the bare `ErrTimeout` sentinel (NOT a `*RescueError`, no TreeSHA),
-   which `TestGenerateCommit_Timeout/dryrun` (`stagehand_test.go:224-250`) currently **locks in**.
+   which `TestGenerateCommit_Timeout/dryrun` (`stagecoach_test.go:224-250`) currently **locks in**.
 
 The exact same loop body (generate→parse→dedupe with `rejected []string`, `parseFail`,
 `retryInstr`, `IsDuplicate`) already exists in `runPipeline` for the SystemExtra **commit** path
@@ -125,7 +125,7 @@ Current gaps the breakdown must close:
 
 Test harness primitives that already exist and should be reused:
 - `internal/stubtest` — stub-agent scripting (multi-line outputs, sleeps for timeout).
-- `pkg/stagehand/stagehand_test.go` `setupTestRepo` — temp repo + repo-local `.stagehand.toml`.
+- `pkg/stagecoach/stagecoach_test.go` `setupTestRepo` — temp repo + repo-local `.stagecoach.toml`.
 - `internal/cmd/default_action_test.go` `setupStubRepo` — full CLI seam via `rootCmd.SetArgs`.
 - `internal/config/file.go` package-level `noticeOut io.Writer` — swappable notice sink for tests.
 
@@ -134,7 +134,7 @@ Test harness primitives that already exist and should be reused:
 Per-file (Mode A, ride with the work):
 - `docs/cli.md` — `--config` flag table (Issue 1), dry-run description (Issues 2/6), exit-code table
   / failure modes (Issue 3: "agent missing → exit 1").
-- `docs/configuration.md` — `[generation]` output/strip_code_fence (Issue 4), `--config`/STAGEHAND_CONFIG.
+- `docs/configuration.md` — `[generation]` output/strip_code_fence (Issue 4), `--config`/STAGECOACH_CONFIG.
 - `docs/how-it-works.md` — failure-modes table (Issue 3: agent-missing pre-generation exit 1), dry-run
   pipeline fidelity (Issues 2/6).
 

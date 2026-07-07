@@ -77,7 +77,7 @@ force-break" / "never reap a live pid" invariant). Transitively, every user whos
 otherwise accumulate litter.
 
 **Use Case**: A user Ctrl-C's a run (or it crashes), orphaning a lock file with a now-dead pid; the next
-`stagehand` run's `Acquire` reaps it. These tests prove that reaping happens (dead pid) and that it is safe
+`stagecoach` run's `Acquire` reaps it. These tests prove that reaping happens (dead pid) and that it is safe
 (live/foreign/malformed files are never touched).
 
 **User Journey**: (test-only; no user surface) plant fixtures → `Acquire(repo)` → `reapStaleLocks` runs →
@@ -148,7 +148,7 @@ PRD/git-internals knowledge beyond "flock auto-releases; orphaned files are reap
        + parseContents (~L211) + writeContents (the `pid=%s\nhostname=%s\n...` format) + lockDir (~L165).
   why: the code these tests exercise. reapStaleLocks globs `*.lock`, parses c.Pid/c.Hostname, Atoi-continues
        on a malformed pid, and `os.Remove`s when processAlive is false. Acquire calls it after current.Store.
-       lockDir resolves `<xdg>/stagehand/locks` — the dir to plant fakes in.
+       lockDir resolves `<xdg>/stagecoach/locks` — the dir to plant fakes in.
   pattern: the tests drive Acquire (the public entry point that triggers reaping) and assert on-disk state
        via os.Stat. They do NOT call reapStaleLocks directly (it is unexported — fine, white-box — but
        driving it through Acquire also covers the wiring).
@@ -450,7 +450,7 @@ func TestAcquire_ReapingIdempotent(t *testing.T) {
 
 // THE planting sequence (fakes must be in the dir Acquire reaps):
 //   t.Setenv("XDG_RUNTIME_DIR", t.TempDir()); t.Setenv("XDG_CACHE_HOME", "")
-//   dir, _ := lockDir()                       // → <tmpdir>/stagehand/locks (white-box)
+//   dir, _ := lockDir()                       // → <tmpdir>/stagecoach/locks (white-box)
 //   os.MkdirAll(dir, 0o700)                   // before planting; Acquire's MkdirAll is then a no-op
 //   writeLockFile(t, filepath.Join(dir,"dead.lock"), ...)  // key=value format parseContents reads
 //   l, _ := Acquire(repo)                     // creates <hash>.lock + triggers reapStaleLocks(dir)
@@ -476,7 +476,7 @@ FROZEN / NOT-EDITED:
   - internal/lock/lock.go (reapStaleLocks + Acquire wiring — P1.M2.T1.S2, LANDED).
   - internal/lock/lock_unix.go + lock_windows.go (processAlive — P1.M2.T1.S1, LANDED).
   - internal/lock/lock_test.go (resetCurrent + existing tests — reused, not edited).
-  - internal/signal/* + cmd/stagehand/main.go (P1.M2.T2 exit-path release — different concern; P1.M2.T3.S2
+  - internal/signal/* + cmd/stagecoach/main.go (P1.M2.T2 exit-path release — different concern; P1.M2.T3.S2
     owns the signal-seam tests).
   - docs/* (DOCS: none — test-only).
   - go.mod / go.sum.
@@ -522,10 +522,10 @@ GOOS=windows go test ./internal/lock/ && echo "windows test OK (reaping tests ex
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm the production code + lock_test.go + platform files are byte-unchanged (test-only task):
-git diff --exit-code -- internal/lock/lock.go internal/lock/lock_unix.go internal/lock/lock_windows.go internal/lock/lock_test.go internal/signal cmd/stagehand docs && echo "production + lock_test.go + signal/main/docs UNCHANGED (expected)"
+git diff --exit-code -- internal/lock/lock.go internal/lock/lock_unix.go internal/lock/lock_windows.go internal/lock/lock_test.go internal/signal cmd/stagecoach docs && echo "production + lock_test.go + signal/main/docs UNCHANGED (expected)"
 # Confirm the 2 new tests + helper landed:
 grep -n 'func writeLockFile\|func TestAcquire_ReapsDeadPidFile_SparesLive\|func TestAcquire_ReapingIdempotent' internal/lock/lock_unix_test.go
 ```
@@ -584,7 +584,7 @@ grep -c 'SPARED\|should be SPARED\|should be PRESENT\|should be SKIPPED' interna
   Don't conflate the two.
 - ❌ **Don't plant fakes in the wrong dir.** They must be `*.lock` in the dir Acquire reaps (`filepath.Dir(path)`
   = `lockDir()`). Isolate XDG → `lockDir()` → `os.MkdirAll` → plant → `Acquire`. Planting in `t.TempDir()`
-  itself (not the `stagehand/locks` subdir) means reapStaleLocks never sees them.
+  itself (not the `stagecoach/locks` subdir) means reapStaleLocks never sees them.
 - ❌ **Don't forget to `os.MkdirAll(dir, 0o700)` before planting.** Acquire MkdirAll's the dir, but planting
   needs it first. (Acquire's MkdirAll is then a no-op.)
 - ❌ **Don't assert `l.path` present AFTER `l.Release()`.** Release removes the holder's OWN file (Issue 2).

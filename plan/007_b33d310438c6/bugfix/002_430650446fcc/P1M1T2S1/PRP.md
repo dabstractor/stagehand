@@ -39,7 +39,7 @@ proven). Existing tests stay green. `go vet ./...` + `gofmt -l .` clean. No file
 
 ## User Persona
 
-**Target User**: The Stagehand maintainer guarding the FR3d "payload always fits" contract + the FR3i section-splitting invariant against regressions, and any future contributor who might refactor `splitDiffSections` or the gate wiring.
+**Target User**: The Stagecoach maintainer guarding the FR3d "payload always fits" contract + the FR3i section-splitting invariant against regressions, and any future contributor who might refactor `splitDiffSections` or the gate wiring.
 
 **Use Case**: CI runs `go test ./internal/git/...`. If anyone reverts the S1 line-anchoring fix (or re-introduces an un-anchored split), these E2E tests fail loudly — catching a silent context-window overflow that the existing single-file/single-section tests cannot detect.
 
@@ -141,7 +141,7 @@ tests pass today and pin the fixed behavior.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/git/
     ├── difftokenlimit_test.go   # EDIT TARGET — append 3 tests + 2 helpers
     ├── git_test.go              # READ-ONLY — initRepo helper
@@ -155,7 +155,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only one existing file modified — no new files)
     internal/git/difftokenlimit_test.go   # +embeddedDiffLiteralBody + assertContentEmbeddedLiteralNotFragmented + 3 ContentEmbeddedDiffGitLiteral tests
 ```
@@ -447,7 +447,7 @@ DOWNSTREAM HOOKS (informational):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/git/difftokenlimit_test.go   # Expected: empty (run gofmt -w if listed)
 go vet ./internal/git/...                        # Expected: exit 0
@@ -459,7 +459,7 @@ go build ./...                                   # Expected: exit 0 (test-only; 
 ### Level 2: The Three New Tests (each must PASS)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Each ContentEmbeddedDiffGitLiteral test in isolation:
 go test -run TestStagedDiff_TokenLimitGt0_ContentEmbeddedDiffGitLiteral      ./internal/git/ -v
@@ -473,7 +473,7 @@ go test -run TestWorkingTreeDiff_TokenLimitGt0_ContentEmbeddedDiffGitLiteral ./i
 ### Level 3: Whole-Package + Whole-Repo Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test ./internal/git/...    # Expected: ALL green — 3 new tests + every existing test (incl. S1's pure
                               # truncatediff_test.go TestSplitDiffSections cases, which these complement).
@@ -487,7 +487,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 ### Level 4: The Bug-Is-Gone Property (direct cross-check)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The 3 new tests directly assert the fragmentation is gone. Cross-check by running the whole git suite
 # and grepping for the (now impossible) overflow in any failure output:

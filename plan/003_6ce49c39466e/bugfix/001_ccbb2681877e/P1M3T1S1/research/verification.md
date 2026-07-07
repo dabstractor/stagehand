@@ -70,7 +70,7 @@ on the UNFIXED tree first to confirm it reproduces the bug, then after the fix t
 
 P1.M2.T2.S1 (bugfix Issue 2, message-role provider) touches `internal/cmd/default_action.go`,
 `internal/config/roles.go`, `internal/generate/generate.go`, `internal/stubtest/stubtest.go`,
-`pkg/stagehand/stagehand.go`, `pkg/stagehand/stagehand_test.go` — **NOT** `internal/decompose/*`. This task
+`pkg/stagecoach/stagecoach.go`, `pkg/stagecoach/stagecoach_test.go` — **NOT** `internal/decompose/*`. This task
 (P1.M3.T1.S1) touches ONLY `internal/decompose/decompose.go` + `internal/decompose/decompose_test.go`.
 Zero file overlap ⇒ no merge conflict; the two are independent.
 

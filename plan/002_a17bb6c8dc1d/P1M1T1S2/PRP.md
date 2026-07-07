@@ -33,7 +33,7 @@ yields `*false`. `go build/vet/gofmt` clean; `go test -race ./...` green; no edi
 
 ## User Persona
 
-**Target User**: The Stagehand contributor wiring v2 provider/decompose features (T2 Render-mode, M2 agy
+**Target User**: The Stagecoach contributor wiring v2 provider/decompose features (T2 Render-mode, M2 agy
 + tooled-flags, P3 multi-commit stager). This is internal merge plumbing — no end-user surface yet.
 
 **Use Case**: When a user drops a `[provider.pi]` block in config setting only `tooled_flags` (to make pi
@@ -139,7 +139,7 @@ exact validation commands. The architecture delta §2 prescribes the merge lines
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/provider/
     ├── manifest.go        # READ-ONLY (S1 landed): has TooledFlags []string + Experimental *bool
     ├── merge.go           # EDIT TARGET (regime 1 +Experimental; regime 2 +TooledFlags; doc line 13)
@@ -153,7 +153,7 @@ stagehand/
 ### Desired Codebase Tree After S2
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/provider/merge.go        # +Experimental (regime 1), +TooledFlags (regime 2), +doc token
     internal/provider/merge_test.go   # sampleBase +2 fields; 4 extensions; 1 new test
@@ -391,7 +391,7 @@ DOWNSTREAM HOOKS (informational — implemented by LATER subtasks, NOT S2):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l .                      # Expected: empty (run `gofmt -w internal/provider/merge.go merge_test.go` if listed)
 go vet ./internal/provider/...  # Expected: exit 0
@@ -403,7 +403,7 @@ go build ./...                  # Expected: exit 0 (no signature change; callers
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Targeted: all merge tests (the changed + new)
 go test -race ./internal/provider/ -v -run 'TestMergeManifest'
@@ -419,7 +419,7 @@ go test -race ./internal/provider/ -v
 ### Level 3: Whole-Repository Regression (No Behavior Change Elsewhere)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...             # Expected: ALL packages pass (no other package edited)
 go vet ./...                    # Expected: exit 0
@@ -435,14 +435,14 @@ git diff --stat -- internal/provider/manifest.go || echo "OK: manifest.go untouc
 ### Level 4: Merge-Behavior Sanity (prove the override is no longer dropped)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Inline behavioral cross-check: override setting ONLY tooled_flags preserves every other field,
 # and the override value actually lands on the merged manifest. (The extended tests cover this; this
 # is a manual cross-check via a throwaway main.)
 cat > /tmp/sh_merge_test.go <<'EOF'
 package main
-import ("fmt"; "reflect"; "github.com/dustin/stagehand/internal/provider")
+import ("fmt"; "reflect"; "github.com/dustin/stagecoach/internal/provider")
 func boolPtr(b bool) *bool { return &b }
 func main() {
   base := provider.Manifest{}        // stand-in built-in (zero); resolve not needed for merge

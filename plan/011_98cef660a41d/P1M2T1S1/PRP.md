@@ -142,7 +142,7 @@ knowledge required — this is a pid-liveness helper mirroring an existing build
            processAlive stub (return true) after isWouldBlock. STAYS import-free (no os/syscall/errors).
   pattern: one-line `func processAlive(pid int, hostname string) bool { return true }` + doc comment.
 
-- file: internal/lock/lock.go   (package doc: stdlib-only leaf, no stagehand imports)
+- file: internal/lock/lock.go   (package doc: stdlib-only leaf, no stagecoach imports)
   why: confirms the package constraint (stdlib-only; no internal/* imports — processAlive uses only os/
        syscall/errors, all stdlib). DO NOT EDIT lock.go — S2 (reapStaleLocks) + the lock.go over-claim
        doc fixes are P1.M2.T1.S2's scope.
@@ -373,7 +373,7 @@ FROZEN / NOT-EDITED:
   - internal/lock/lock.go — S2 (P1.M2.T1.S2) owns reapStaleLocks + the 3 over-claim doc fixes (lock_reaping.md
     "Doc-Comment Corrections": package doc line 2, Locker doc line 31, Acquire doc line 67). Do NOT touch lock.go.
   - internal/lock/lock_test.go — the existing tests; processAlive tests go in the new lock_unix_test.go.
-  - internal/signal/* + cmd/stagehand/main.go — P1.M2.T2 owns the exit-path release (ReleaseCurrent +
+  - internal/signal/* + cmd/stagecoach/main.go — P1.M2.T2 owns the exit-path release (ReleaseCurrent +
     OnRescueExit seam). Different concern.
 
 DOWNSTREAM CONSUMER (do NOT implement here):
@@ -412,7 +412,7 @@ go test -race ./...              # full module — no regression.
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only the 3 files changed:
 git diff --name-only | grep -Ev '^internal/lock/lock_unix\.go$|^internal/lock/lock_windows\.go$|^internal/lock/lock_unix_test\.go$' \

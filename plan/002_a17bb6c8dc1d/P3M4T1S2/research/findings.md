@@ -94,7 +94,7 @@ generate" per the work item. decompose calls `generate.FormatRescueMulti(...)`.
   → **The loop CANNOT call RestoreDefault per-concept (it would kill the handler after concept 0).
   S2 uses SetSnapshot/ClearSnapshot toggling per-concept instead; RestoreDefault stays single-commit-
   only (CommitStaged's internal §18.4 step 3).**
-- signal imports NO stagehand packages (stdlib-only) → decompose → signal is NOT an import cycle.
+- signal imports NO stagecoach packages (stdlib-only) → decompose → signal is NOT an import cycle.
 - In tests without Install, SetSnapshot/ClearSnapshot are nil-safe no-ops.
 
 ## 6. Where the loop prints the rescue (Deps.Out — S2 adds it)

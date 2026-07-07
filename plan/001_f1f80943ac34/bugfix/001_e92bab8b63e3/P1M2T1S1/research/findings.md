@@ -6,7 +6,7 @@ narrow facts the S1 implementer needs.
 
 ## The edit (single chokepoint)
 
-`pkg/stagehand/stagehand.go` → `buildDeps` (line 154). Insert between `m.Validate()`
+`pkg/stagecoach/stagecoach.go` → `buildDeps` (line 154). Insert between `m.Validate()`
 (line 182) and `return generate.Deps{...}` (line 186):
 
 ```go
@@ -27,7 +27,7 @@ if !reg.IsInstalled(m) {
 - `exitcode.For` (`internal/exitcode/exitcode.go`) falls through every `errors.Is` branch
   (NothingToCommit/Timeout/Rescue/CAS) → final `return Error` → **exit 1**.
 - `internal/cmd/default_action.go` `handleGenError` generic branch → `exitcode.New(exitcode.Error, err)`
-  → main prints `stagehand: <msg>`. No rescue block.
+  → main prints `stagecoach: <msg>`. No rescue block.
 
 ## Why it fixes both pipelines AND leaves no dangling tree
 
@@ -58,5 +58,5 @@ Adding the check must NOT break existing tests. Reasoning (already proven by the
 
 ## What S1 explicitly does NOT do (owned by S2)
 
-- No new tests. `pkg/stagehand/stagehand_test.go` regression/missing-command tests are S2's scope
+- No new tests. `pkg/stagecoach/stagecoach_test.go` regression/missing-command tests are S2's scope
   (assert: NOT `*RescueError`, `exitcode.For(err)==1`, no dangling tree object).

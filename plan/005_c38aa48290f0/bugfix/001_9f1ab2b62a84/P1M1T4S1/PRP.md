@@ -44,11 +44,11 @@ on Windows), with a safe char-device fallback for any untested GOOS.
 
 ## User Persona (if applicable)
 
-**Target User**: A developer (or automation/CI script) running Stagehand non-interactively with stdin
+**Target User**: A developer (or automation/CI script) running Stagecoach non-interactively with stdin
 redirected from `/dev/null` — a ubiquitous pattern (`some-cmd < /dev/null`, `</dev/null` in cron,
 `head -c0 </dev/null`, git hooks spawned without a tty).
 
-**Use Case**: `stagehand config init --interactive --force < /dev/null` should print the clean FR-L3
+**Use Case**: `stagecoach config init --interactive --force < /dev/null` should print the clean FR-L3
 "`config init --interactive` requires a terminal on stdin" hint and exit 1 — NOT bypass the gate,
 print "Detected providers" + the prompt, then crash with "unexpected end of input".
 
@@ -478,7 +478,7 @@ CONFIG / DOCS: NONE. No config keys, no help text, no user-facing docs. IsTermin
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/ui/*.go
 git diff --stat                            # confirm ONLY internal/ui/ files changed (5 files: 4 new + output.go + output_test.go)
 go build ./...
@@ -525,13 +525,13 @@ git diff --stat go.mod go.sum
 ### Level 4: Integration (manual repro from the issue)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 
 # Issue-4 repro #1: config init --interactive < /dev/null must now hit the FR-L3 TTY gate (clean message).
-# (Run in a dir with no stagehand config, or use --force; set STAGEHAND_HOME to a temp dir to avoid clobbering.)
-export STAGEHAND_HOME=/tmp/sh-iss4
-rm -rf "$STAGEHAND_HOME"; mkdir -p "$STAGEHAND_HOME"
-/tmp/stagehand config init --interactive --force < /dev/null 2>/tmp/iss4.err; echo "exit=$?"
+# (Run in a dir with no stagecoach config, or use --force; set STAGECOACH_HOME to a temp dir to avoid clobbering.)
+export STAGECOACH_HOME=/tmp/sh-iss4
+rm -rf "$STAGECOACH_HOME"; mkdir -p "$STAGECOACH_HOME"
+/tmp/stagecoach config init --interactive --force < /dev/null 2>/tmp/iss4.err; echo "exit=$?"
 # Expected: exit 1 AND stderr contains the "requires a terminal" message; stderr does NOT contain
 #           "unexpected end of input". (Before the fix: exit 1 with "unexpected end of input".)
 grep -i "terminal" /tmp/iss4.err && echo "FR-L3 gate fired correctly"
@@ -539,7 +539,7 @@ grep -i "terminal" /tmp/iss4.err && echo "FR-L3 gate fired correctly"
 # Issue-4 repro #2: IsTerminal on /dev/null directly (the unit-level proof — run on Unix).
 cat > /tmp/iss4_probe.go <<'EOF'
 package main
-import ("fmt"; "os"; "github.com/dustin/stagehand/internal/ui")
+import ("fmt"; "os"; "github.com/dustin/stagecoach/internal/ui")
 func main() {
 	f, _ := os.Open("/dev/null"); defer f.Close()
 	fmt.Println("IsTerminal(/dev/null) =", ui.IsTerminal(f), "(want false)")

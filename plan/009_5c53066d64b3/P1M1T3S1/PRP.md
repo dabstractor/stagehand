@@ -209,7 +209,7 @@ the import (internal/git is already imported in the generate package), and the h
 ### Current Codebase Tree (this task's scope)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/generate/
     ├── generate.go       # READ-ONLY (S3 owns the trigger-gate insertion at ~:288)
     ├── rescue.go         # READ-ONLY (sibling — the pure-string-assembler style to mirror)
@@ -222,7 +222,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/generate/
     ├── multiturn.go      # NEW — chunk type + chunkPayload + advanceRunes + ceilDiv (pure string math)
     └── multiturn_test.go # NEW — 7 focused smoke tests (S4 extends with the exhaustive matrix)
@@ -332,7 +332,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagecoach/internal/git"
 )
 
 // chunk is one part of a multi-turn chunked payload (PRD §9.24 FR-T3). index/total carry the "PART i/N"
@@ -450,7 +450,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagecoach/internal/git"
 )
 
 // stripPartPrefix removes the leading "PART i/N:\n" line from a chunk's text, returning the body. Used
@@ -614,7 +614,7 @@ func TestChunkPayload_CeilRounding(t *testing.T) {
 ```yaml
 Task 1: CREATE internal/generate/multiturn.go
   - FILE: internal/generate/multiturn.go ; PACKAGE: generate.
-  - IMPORTS: fmt, strings, unicode/utf8 (stdlib) + github.com/dustin/stagehand/internal/git.
+  - IMPORTS: fmt, strings, unicode/utf8 (stdlib) + github.com/dustin/stagecoach/internal/git.
     (DECIDE: keep the `var _ = git.EstimateTokens` anchor OR drop the internal/git import and cite the
     /4 in a comment. The PRP's §"multiturn.go" note explains both; pick ONE. The smoke test imports
     internal/git regardless, so the dependency is exercised either way.)
@@ -626,7 +626,7 @@ Task 1: CREATE internal/generate/multiturn.go
 
 Task 2: CREATE internal/generate/multiturn_test.go
   - FILE: internal/generate/multiturn_test.go ; PACKAGE: generate (white-box — same as generate/*_test.go).
-  - IMPORTS: strings, testing (stdlib) + github.com/dustin/stagehand/internal/git (for
+  - IMPORTS: strings, testing (stdlib) + github.com/dustin/stagecoach/internal/git (for
     the EstimateTokens assertions in TestChunkPayload_PrefixOutsideBudget and _RuneBasedCJK).
   - WRITE the file verbatim from §"multiturn_test.go" above: stripPartPrefix helper + the 7 tests.
   - DO NOT: write the exhaustive edge matrix (S4), the trigger truth table (S4 — S3's gate), the
@@ -718,14 +718,14 @@ NO-TOUCH (explicitly — owned by siblings):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/generate/multiturn.go internal/generate/multiturn_test.go
 gofmt -l .                       # Expected: empty after the -w
 go vet ./internal/generate/...   # Expected: exit 0
 go build ./...                   # Expected: exit 0
 
-# Expected: zero errors. If `imported and not used: "github.com/dustin/stagehand/internal/git"` in
+# Expected: zero errors. If `imported and not used: "github.com/dustin/stagecoach/internal/git"` in
 # multiturn.go, you dropped the `var _ = git.EstimateTokens` anchor without adding a direct call —
 # either restore the anchor OR drop the import and cite the /4 in a comment (the PRP's §"multiturn.go"
 # note explains both options).
@@ -734,7 +734,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: The Smoke Tests (the deliverable)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./internal/generate/ -v -run TestChunkPayload
 # Expected: ALL 7 PASS:
@@ -750,7 +750,7 @@ go test -race ./internal/generate/ -v -run TestChunkPayload
 ### Level 3: Whole-Repository Regression + Scope Discipline
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...    # Expected: ALL packages green (two additive new files; no existing file touched)
 go vet ./...           # Expected: exit 0
@@ -777,7 +777,7 @@ git diff --stat -- internal/generate/generate.go internal/git/ internal/config/ 
 ### Level 4: Behavioral Cross-Check (manual repro of the chunk math)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Reproduce the core property by hand (mirrors what the smoke tests assert): a payload splits into N
 # chunks whose bodies concatenate back to the original, with no fractured line. The authoritative proof
@@ -785,7 +785,7 @@ cd /home/dustin/projects/stagehand
 cat > /tmp/sh_chunk.go <<'EOF'
 package main
 import ("fmt";"strings"
- "github.com/dustin/stagehand/internal/generate")
+ "github.com/dustin/stagecoach/internal/generate")
 func main() {
 	payload := strings.Repeat("line\n", 24) // 120 runes
 	chunks := generate.ChunkPayloadExported(payload, 1) // (see note below)

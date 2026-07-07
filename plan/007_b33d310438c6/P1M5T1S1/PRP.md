@@ -29,7 +29,7 @@ description: |
     describing FR3g/FR3e/FR3f/FR3h/FR3d-FR3i in user-facing prose + a cross-link to configuration.md.
 
   SCOPE BOUNDARY (do NOT edit):
-    - The existing `### Binary and non-text file filtering` and `### Payload exclusions (.stagehandignore)`
+    - The existing `### Binary and non-text file filtering` and `### Payload exclusions (.stagecoachignore)`
       subsections — they cover FR3a–c / FR-X correctly; the new subsection COMPLEMENTS (not duplicates) them.
     - Every other section of how-it-works.md (snapshot flow, stage-while-generating, decompose pipeline,
       safety/rescue, prompt engineering, hook mode).
@@ -59,7 +59,7 @@ reference in configuration.md.
   FR3d–FR3i in prose + a cross-link to `configuration.md#built-in-defaults`.
 
 **Success Definition**:
-- A reader of how-it-works.md can understand, end-to-end, what stagehand does to a diff before the agent
+- A reader of how-it-works.md can understand, end-to-end, what stagecoach does to a diff before the agent
   sees it: the skeleton completeness floor, compact deterministic renames, trimmed context, stripped index
   lines, and the two size-budget modes.
 - Every implementation claim matches the actual code (the skeleton header literal, `-M`/`-U<n>` always-on,
@@ -69,7 +69,7 @@ reference in configuration.md.
 
 ## User Persona
 
-**Target User**: the stagehand user reading "How it works" to understand what the tool sends to their model
+**Target User**: the stagecoach user reading "How it works" to understand what the tool sends to their model
 — especially a user deciding whether to set `token_limit` (their diff exceeds their model's context window),
 or wondering why their payload looks different (compact renames, `-U1`, no `index` lines, a numstat header).
 
@@ -160,7 +160,7 @@ skeleton in the Implementation Blueprint. No code reading beyond the verified-fa
 # MUST READ — the file being EDITED
 - file: docs/how-it-works.md   (EDIT — insert ONE new subsection)
   section: `## Multi-commit decomposition` → its trailing diff-capture cluster: `### Binary and non-text file
-       filtering` (currently the first diff-capture subsection) and `### Payload exclusions (.stagehandignore)`.
+       filtering` (currently the first diff-capture subsection) and `### Payload exclusions (.stagecoachignore)`.
        INSERT the new `### Diff capture pipeline` subsection IMMEDIATELY BEFORE `### Binary and non-text file
        filtering`.
   why: this is THE insertion point. The existing binary/exclusions subsections already scope themselves to
@@ -284,7 +284,7 @@ docs/how-it-works.md     # + `### Diff capture pipeline` subsection (FR3d–i pr
 ```yaml
 Task 1: LOCATE the insertion point in docs/how-it-works.md (READ, no edit yet)
   - FIND the heading `### Binary and non-text file filtering` (inside `## Multi-commit decomposition`,
-    near the end of that section, just before `### Payload exclusions (.stagehandignore)` and the
+    near the end of that section, just before `### Payload exclusions (.stagecoachignore)` and the
     `## Safety and the rescue protocol` top-level section).
   - CONFIRM the surrounding prose: that subsection opens "Binary files, lock files, snapshots, sourcemaps,
     and vendor directories are **excluded from every diff payload** — staged diff, working-tree snapshot,
@@ -303,7 +303,7 @@ Task 2: INSERT the new `### Diff capture pipeline` subsection (THE deliverable)
 
         ### Diff capture pipeline
 
-        Every diff payload Stagehand builds — the staged diff, the multi-commit working-tree snapshot, and
+        Every diff payload Stagecoach builds — the staged diff, the multi-commit working-tree snapshot, and
         the per-concept tree-to-tree diff — goes through the same capture pipeline before it reaches the
         agent. Five transforms run, in order, in every path:
 
@@ -336,7 +336,7 @@ Task 2: INSERT the new `### Diff capture pipeline` subsection (THE deliverable)
              (default 300000); over-cap sections are marked `... [diff truncated at N bytes]` /
              `... [diff truncated at N lines]`.
            - **Holistic token budget.** Set `token_limit` (for example `120000`) to cap the *whole* payload
-             — system prompt + style examples + the concatenated diff — to a token budget. Stagehand
+             — system prompt + style examples + the concatenated diff — to a token budget. Stagecoach
              reserves room for the prompt and examples, then allocates the remainder to the diff bodies with
              a **dynamic water-fill**: it sizes every file's body up front, and if they exceed the budget it
              finds a single water level `L` such that every file *smaller* than `L` is included whole and
@@ -457,7 +457,7 @@ git status --porcelain
 
 # The new subsection does NOT duplicate the binary/exclusion subsections' content:
 sed -n '/^### Diff capture pipeline/,/^### Binary and non-text file filtering/p' docs/how-it-works.md | \
-  grep -iE '\[binary\]|\[excluded\]|stagehandignore|lock file|sourcemap' && \
+  grep -iE '\[binary\]|\[excluded\]|stagecoachignore|lock file|sourcemap' && \
   echo "WARNING: new subsection duplicates binary/exclusion content (should only reference it in passing)" || \
   echo "OK: no binary/exclusion duplication"
 

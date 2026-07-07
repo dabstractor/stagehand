@@ -35,7 +35,7 @@ invokeStagerRetry → ErrStagerMovedHEAD
   → Decompose returns (DecomposeResult{Commits}, err)
   → runDecompose → handleDecomposeError(err)
   → NOT *RescueError / *CASError → exitcode.New(exitcode.Error, err)
-  → main: exitcode.For → 1, prints "stagehand: stager moved HEAD from ... to ..."
+  → main: exitcode.For → 1, prints "stagecoach: stager moved HEAD from ... to ..."
 ```
 No change needed in exitcode.go or handleDecomposeError. The `%w` wrap makes
 `errors.Is(err, ErrStagerMovedHEAD)` true (required for the unit test assertion).

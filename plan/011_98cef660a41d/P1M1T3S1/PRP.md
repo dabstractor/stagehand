@@ -188,7 +188,7 @@ only; T2.S2 touches internal/decompose/*). No inference required.
 ### Current Codebase Tree (this task's scope)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/git/
     ├── tokengate.go         # READ-ONLY (closedLoopGate :195, maxClosedLoopPasses :83)
     ├── tokengate_test.go    # EDIT (append TestClosedLoopGate_AdversarialDrift_GrowingMeasure)
@@ -198,7 +198,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/git/
     └── tokengate_test.go    # +1 test (TestClosedLoopGate_AdversarialDrift_GrowingMeasure); existing 5 unchanged
 ```
@@ -393,7 +393,7 @@ GATE: go test -race ./internal/git/ -run TestClosedLoopGate → ALL 6 green ; gi
 NO-TOUCH (explicitly — owned by siblings):
   - internal/git/tokengate.go (the gate — read-only), internal/git/tokens.go (EstimateTokens — read-only)
   - the 5 existing closedLoopGate tests (S1's territory — verify, don't edit)
-  - internal/decompose/* (T2.S2 — parallel wiring), internal/generate/* / pkg/stagehand/* / internal/hook/* (T2.S1 message-role sites)
+  - internal/decompose/* (T2.S2 — parallel wiring), internal/generate/* / pkg/stagecoach/* / internal/hook/* (T2.S1 message-role sites)
   - docs/* (P1.M3); PRD.md, tasks.json, prd_snapshot.md, plan/*
 
 DOWNSTREAM HOOK (informational — owned by the SIBLING, NOT this task):
@@ -407,7 +407,7 @@ DOWNSTREAM HOOK (informational — owned by the SIBLING, NOT this task):
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/git/tokengate_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -420,7 +420,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: The New Test + the Existing closedLoopGate Suite
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./internal/git/ -v -run TestClosedLoopGate
 # Expected: ALL 6 PASS:
@@ -436,7 +436,7 @@ go test -race ./internal/git/ -v -run TestClosedLoopGate
 ### Level 3: Whole-Repository Regression + Scope Discipline
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...    # Expected: ALL packages green (one additive test; no production change)
 go vet ./...           # Expected: exit 0
@@ -453,7 +453,7 @@ git diff --stat -- internal/git/tokengate.go internal/git/tokens.go internal/dec
 ### Level 4: Behavioral Cross-Check (manual repro of the bound)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new test IS the proof (it asserts calls ≤ maxClosedLoopPasses+1 with a counting measure). For a
 # manual cross-check, add a temporary t.Logf to print `calls` and confirm it equals maxClosedLoopPasses+1

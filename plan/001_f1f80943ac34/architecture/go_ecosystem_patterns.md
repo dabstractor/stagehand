@@ -15,7 +15,7 @@ This document provides concrete, idiomatic Go code patterns for all five archite
 
 ### 1.1 Command Tree Layout
 
-The standard pattern is a root command that holds global/persistent flags and subcommands organized into groups. Cobra automatically wires `./stagehand providers list` → `rootCmd → providersCmd → listCmd`.
+The standard pattern is a root command that holds global/persistent flags and subcommands organized into groups. Cobra automatically wires `./stagecoach providers list` → `rootCmd → providersCmd → listCmd`.
 
 ```go
 // cmd/root.go
@@ -29,7 +29,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-    Use:   "stagehand",
+    Use:   "stagecoach",
     Short: "AI-assisted code generation CLI",
     // Prevent cobra from printing errors/usage — we handle that ourselves.
     SilenceErrors: true,
@@ -191,8 +191,8 @@ import (
     "fmt"
     "os"
 
-    "stagehand/cmd"
-    "stagehand/internal/exitcode"
+    "stagecoach/cmd"
+    "stagecoach/internal/exitcode"
 )
 
 func main() {
@@ -243,7 +243,7 @@ For usage errors (exit code 2), wrap the error:
 func runProvidersList(cmd *cobra.Command, args []string) error {
     // Example: validate that at least something is configured.
     if len(config.Get().Provider) == 0 {
-        return exitcode.New(2, fmt.Errorf("no providers configured; run 'stagehand config init'"))
+        return exitcode.New(2, fmt.Errorf("no providers configured; run 'stagecoach config init'"))
     }
     // ...
 }
@@ -290,7 +290,7 @@ Load config once for all subcommands using `PersistentPreRunE`:
 
 ```go
 var rootCmd = &cobra.Command{
-    Use:   "stagehand",
+    Use:   "stagecoach",
     PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
         // Skip config loading for config init/path and help.
         if cmd.Name() == "init" || cmd.Name() == "path" {
@@ -319,10 +319,10 @@ var rootCmd = &cobra.Command{
 | Layer | Source | How to load |
 |-------|--------|-------------|
 | 1 | Built-in defaults | Hardcoded Go struct |
-| 2 | Global TOML (`~/.config/stagehand/config.toml`) | `go-toml/v2` unmarshal |
-| 3 | Repo-local TOML (`./.stagehand/config.toml`) | `go-toml/v2` unmarshal |
-| 4 | Git config (`git config stagehand.*`) | `git config --get` subprocess |
-| 5 | Environment variables (`STAGEHAND_PROVIDER_*`) | `os.Getenv` / `os.Environ` |
+| 2 | Global TOML (`~/.config/stagecoach/config.toml`) | `go-toml/v2` unmarshal |
+| 3 | Repo-local TOML (`./.stagecoach/config.toml`) | `go-toml/v2` unmarshal |
+| 4 | Git config (`git config stagecoach.*`) | `git config --get` subprocess |
+| 5 | Environment variables (`STAGECOACH_PROVIDER_*`) | `os.Getenv` / `os.Environ` |
 | 6 | CLI flags (`--provider`, `--model`, etc.) | cobra/pflag |
 | 7 | Interactive prompts (if needed) | stdin reader |
 
@@ -527,7 +527,7 @@ import (
     "strings"
 )
 
-// loadGitConfig reads stagehand.* entries from git config.
+// loadGitConfig reads stagecoach.* entries from git config.
 func loadGitConfig() (*Config, error) {
     // Use --list with a prefix filter.
     cmd := exec.Command("git", "config", "--list", "--local", "--null")
@@ -552,16 +552,16 @@ func loadGitConfig() (*Config, error) {
         }
         key, value := parts[0], parts[1]
 
-        // Map "stagehand.provider" → cfg.Defaults.Provider, etc.
+        // Map "stagecoach.provider" → cfg.Defaults.Provider, etc.
         switch {
-        case key == "stagehand.defaultprovider":
+        case key == "stagecoach.defaultprovider":
             cfg.Defaults.Provider = value
-        case key == "stagehand.defaultmodel":
+        case key == "stagecoach.defaultmodel":
             cfg.Defaults.Model = value
-        case strings.HasPrefix(key, "stagehand.provider."):
-            // e.g. stagehand.provider.openai.apikey → Provider["openai"].APIKey
-            // Parse: stagehand.provider.<name>.<field>
-            rest := strings.TrimPrefix(key, "stagehand.provider.")
+        case strings.HasPrefix(key, "stagecoach.provider."):
+            // e.g. stagecoach.provider.openai.apikey → Provider["openai"].APIKey
+            // Parse: stagecoach.provider.<name>.<field>
+            rest := strings.TrimPrefix(key, "stagecoach.provider.")
             parts := strings.SplitN(rest, ".", 2)
             if len(parts) != 2 {
                 continue
@@ -595,21 +595,21 @@ func applyProviderField(m *Manifest, field, value string) {
 ```go
 // loadEnv overlays environment variable overrides.
 func loadEnv(cfg *Config) {
-    // Convention: STAGEHAND_<SECTION>_<FIELD>
-    if v := os.Getenv("STAGEHAND_DEFAULT_PROVIDER"); v != "" {
+    // Convention: STAGECOACH_<SECTION>_<FIELD>
+    if v := os.Getenv("STAGECOACH_DEFAULT_PROVIDER"); v != "" {
         cfg.Defaults.Provider = v
     }
-    if v := os.Getenv("STAGEHAND_DEFAULT_MODEL"); v != "" {
+    if v := os.Getenv("STAGECOACH_DEFAULT_MODEL"); v != "" {
         cfg.Defaults.Model = v
     }
 
-    // Provider-specific: STAGEHAND_PROVIDER_OPENAI_API_KEY, etc.
+    // Provider-specific: STAGECOACH_PROVIDER_OPENAI_API_KEY, etc.
     for _, env := range os.Environ() {
-        if !strings.HasPrefix(env, "STAGEHAND_PROVIDER_") {
+        if !strings.HasPrefix(env, "STAGECOACH_PROVIDER_") {
             continue
         }
-        // STAGEHAND_PROVIDER_OPENAI_API_KEY=sk-...
-        rest := strings.TrimPrefix(env, "STAGEHAND_PROVIDER_")
+        // STAGECOACH_PROVIDER_OPENAI_API_KEY=sk-...
+        rest := strings.TrimPrefix(env, "STAGECOACH_PROVIDER_")
         eq := strings.IndexByte(rest, '=')
         if eq < 0 {
             continue
@@ -632,7 +632,7 @@ func loadEnv(cfg *Config) {
     }
 
     // Global API key shortcut.
-    if v := os.Getenv("STAGEHAND_API_KEY"); v != "" {
+    if v := os.Getenv("STAGECOACH_API_KEY"); v != "" {
         // Apply to the default provider.
         name := cfg.Defaults.Provider
         if name != "" {
@@ -697,7 +697,7 @@ func Load(configPathOverride string, flags *pflag.FlagSet) (*Config, error) {
     // Layer 1: built-in defaults.
     cfg := Defaults()
 
-    // Layer 2: global TOML (~/.config/stagehand/config.toml).
+    // Layer 2: global TOML (~/.config/stagecoach/config.toml).
     globalPath := globalConfigPath()
     if configPathOverride != "" {
         globalPath = configPathOverride // explicit --config takes priority
@@ -708,8 +708,8 @@ func Load(configPathOverride string, flags *pflag.FlagSet) (*Config, error) {
         overlay(cfg, g)
     }
 
-    // Layer 3: repo-local TOML (./.stagehand/config.toml).
-    repoPath := filepath.Join(".stagehand", "config.toml")
+    // Layer 3: repo-local TOML (./.stagecoach/config.toml).
+    repoPath := filepath.Join(".stagecoach", "config.toml")
     if r, err := loadTOML(repoPath); err != nil {
         return nil, err
     } else if r != nil {
@@ -738,13 +738,13 @@ func Load(configPathOverride string, flags *pflag.FlagSet) (*Config, error) {
 
 func globalConfigPath() string {
     if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-        return filepath.Join(xdg, "stagehand", "config.toml")
+        return filepath.Join(xdg, "stagecoach", "config.toml")
     }
     home, err := os.UserHomeDir()
     if err != nil {
         return "config.toml" // fallback to CWD
     }
-    return filepath.Join(home, ".config", "stagehand", "config.toml")
+    return filepath.Join(home, ".config", "stagecoach", "config.toml")
 }
 ```
 
@@ -911,7 +911,7 @@ func Run(ctx context.Context, name string, args []string, opts Options) (*Result
 // Run a provider CLI (e.g., a model API call) with a 30s timeout,
 // piping a prompt via stdin, and injecting the API key via env.
 result, err := execrun.Run(ctx,
-    "stagehand-provider-openai",
+    "stagecoach-provider-openai",
     []string{"--stream"},
     execrun.Options{
         Stdin:   "Generate a function that...",
@@ -1447,8 +1447,8 @@ import (
     "os/signal"
     "syscall"
 
-    "stagehand/cmd"
-    "stagehand/internal/exitcode"
+    "stagecoach/cmd"
+    "stagecoach/internal/exitcode"
 )
 
 func main() {
@@ -1491,7 +1491,7 @@ func Execute() error {
 ## Appendix B: go.mod Dependencies
 
 ```text
-module stagehand
+module stagecoach
 
 go 1.22
 

@@ -23,7 +23,7 @@ auto path byte-identical. Only non-ASCII byte today: em-dash (U+2014) in `antiRe
 1. `internal/generate/generate.go` `buildSystemPrompt` (314/321/327) — message role.
 2. `internal/decompose/message.go` `messageSystemPrompt` (229/236/242) — decompose message; also feeds the
    arbiter N+1 message via `generateMessage` → so arbiter N+1 inherits the fix.
-3. `pkg/stagehand/stagehand.go` (395/402/408) — **third verbatim copy** of the helper (easy to miss).
+3. `pkg/stagecoach/stagecoach.go` (395/402/408) — **third verbatim copy** of the helper (easy to miss).
 4. `internal/decompose/planner.go` `callPlanner` (84) — planner FR-M11 single-shortcut message is emitted
    BY the planner (validated at planner.go:150 `single==true ⇒ message non-empty`), so format/locale must
    reach the planner system prompt.
@@ -37,10 +37,10 @@ scaffold when `format != "auto"`, so the existing repo-age branch is untouched.
   output to a hand-built `const want`. KEEP these (update args to `…, "auto", ""`) — the FR-F1 proof.
 - Stub-agent system-prompt capture: stub manifest (`stubtest.Manifest`) uses `PromptDelivery:"stdin"` and
   NO `system_prompt_flag`, so `provider.Render` PREPENDS the system prompt into the stdin payload
-  (render.go:157). Capture via `t.Setenv("STAGEHAND_STUB_STDINFILE", file)` (read by
+  (render.go:157). Capture via `t.Setenv("STAGECOACH_STUB_STDINFILE", file)` (read by
   cmd/stubagent/main.go:36) then `os.ReadFile`. Model: `internal/generate/generate_test.go:555-592`.
 - Build/lint: `make test` (`go test -race ./...`), `make lint` (golangci-lint: errcheck,gosimple,govet,
-  ineffassign,staticcheck,unused; Go 1.22). Module `github.com/dustin/stagehand`. Coverage gate ≥85% on
+  ineffassign,staticcheck,unused; Go 1.22). Module `github.com/dustin/stagecoach`. Coverage gate ≥85% on
   internal/{git,provider,generate,config}.
 
 ## Spec ambiguity resolved (documented in PRP)

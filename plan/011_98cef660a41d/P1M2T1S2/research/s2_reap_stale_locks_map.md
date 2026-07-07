@@ -1,6 +1,6 @@
 # S2 Verified Touchpoint Map — reapStaleLocks + Acquire wiring + doc fixes (P1.M2.T1.S2)
 
-> Verified against the LIVE repo (module github.com/dustin/stagehand, 2026-07-07). Research only.
+> Verified against the LIVE repo (module github.com/dustin/stagecoach, 2026-07-07). Research only.
 > S1 (processAlive) is NOT yet in the live file (still Implementing) — S2 treats S1's PRP as a HARD
 > dependency. lock.go itself is fully verified.
 

@@ -97,12 +97,12 @@ no dependency change.
 
 ## User Persona
 
-**Target User**: a developer running `stagehand` with qwen-code (or gemini/agy) as their agent. After S2,
+**Target User**: a developer running `stagecoach` with qwen-code (or gemini/agy) as their agent. After S2,
 `config init` materializes qwen-code's per-role models (planner/message/arbiter uncommented if qwen-code is
 the default; commented otherwise), and gemini/agy users get the current flagship (`gemini-3.1-pro`) rather
 than the stale `gemini-2.5-pro`.
 
-**Use Case**: a user with qwen-code on `$PATH` runs `stagehand config init`; the bootstrap writes
+**Use Case**: a user with qwen-code on `$PATH` runs `stagecoach config init`; the bootstrap writes
 qwen-code's `[role.planner] model = "qwen3-coder-plus"` etc., and (because qwen-code can't stager) routes
 `[role.stager]` to the first stager-capable provider (pi/claude) with an annotation — exactly like gemini/agy.
 
@@ -549,7 +549,7 @@ FROZEN/LEAVE (do NOT edit):
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/config/role_defaults.go internal/config/role_defaults_test.go internal/config/bootstrap.go \
           internal/provider/builtin.go internal/provider/builtin_test.go
 go vet ./...
@@ -590,7 +590,7 @@ make build
 # (qwen-code is almost certainly NOT on $PATH in CI — exercise the data path directly:)
 cat > /tmp/qwen_check.go <<'EOF'
 package main
-import ("fmt"; "github.com/dustin/stagehand/internal/config")
+import ("fmt"; "github.com/dustin/stagecoach/internal/config")
 func main() {
   q := config.DefaultModelsForProvider("qwen-code")
   fmt.Printf("qwen-code: %+v\n", q)
@@ -603,13 +603,13 @@ go run /tmp/qwen_check.go
 rm -f /tmp/qwen_check.go
 
 # `providers show gemini` prints the refreshed default_model (gemini-3.1-pro):
-./bin/stagehand providers show gemini | grep -E 'gemini-3.1-pro|gemini-2.5' && echo "PASS: gemini default_model refreshed" || echo "FAIL"
+./bin/stagecoach providers show gemini | grep -E 'gemini-3.1-pro|gemini-2.5' && echo "PASS: gemini default_model refreshed" || echo "FAIL"
 ```
 
 ### Level 4: Regression & Audit
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go build ./...                 # whole module compiles
 go test ./...                  # FULL regression
 git status --short             # Expected: EXACTLY 8 modified files:

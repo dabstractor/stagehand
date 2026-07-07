@@ -20,9 +20,9 @@ Scout scope: extend the existing `internal/stubtest` stub-agent pattern for mult
 12. `internal/ui/verbose_test.go` (lines 1-200) — table-driven verbose tests; the pattern for any new verbose method.
 13. `internal/ui/output.go` (lines 1-200) — `UI` with `Progress`, `Success`, `Error`, plus pure helper `ProgressLabel(verb, model, provider string)`. The `"↳ "` prefix (line 19, `progressPrefix`) + `Progress` writing to STDERR (lines 121-125) is the FR-T5 seam.
 14. `internal/ui/output_test.go` (lines 200-290) — `TestProgress_PrefixAndStream`, `TestProgressLabel`. Byte-exact assertion pattern for any new progress line.
-15. `internal/cmd/default_action.go` (lines 160-205) — where the CLI emits the `"↳ Generating…"` line: `u.Progress(ui.ProgressLabel("Generating", labelModel, labelProvider))` (line 181) BEFORE `stagehand.GenerateCommit`.
+15. `internal/cmd/default_action.go` (lines 160-205) — where the CLI emits the `"↳ Generating…"` line: `u.Progress(ui.ProgressLabel("Generating", labelModel, labelProvider))` (line 181) BEFORE `stagecoach.GenerateCommit`.
 16. `internal/cmd/hookexec.go` (line 136) — hook path: `Progress: func() { u.Progress(ui.ProgressLabel("Generating", msgModel, labelProvider)) }`.
-17. `internal/e2e/harness_test.go` (lines 1-260) — the e2e subprocess harness: `buildStagehand`, `buildStub` (delegates to `stubtest.Build`), `writeStubConfig`, `stubEnv`, `runStagehand`, `newRepo`, `seedCommit`, `waitForMarker`.
+17. `internal/e2e/harness_test.go` (lines 1-260) — the e2e subprocess harness: `buildStagecoach`, `buildStub` (delegates to `stubtest.Build`), `writeStubConfig`, `stubEnv`, `runStagecoach`, `newRepo`, `seedCommit`, `waitForMarker`.
 18. `internal/e2e/scenarios_test.go` (lines 1-120) — the e2e scenarios. `S2_OneFile_NoPlannerCall` shows the dual-mode stub+real pattern + the canary-marker trick.
 
 ---
@@ -31,29 +31,29 @@ Scout scope: extend the existing `internal/stubtest` stub-agent pattern for mult
 
 ### 1. The stub-agent mechanism (extend this for multi-turn)
 
-**The binary** — `cmd/stubagent/main.go` — is a tiny Go binary compiled once per test process (`stubtest.Build`, `sync.Once`-cached). Behavior is driven ENTIRELY by `STAGEHAND_STUB_*` env vars that a test sets via the manifest's `Env` map. Critical flow (lines 27-95):
+**The binary** — `cmd/stubagent/main.go` — is a tiny Go binary compiled once per test process (`stubtest.Build`, `sync.Once`-cached). Behavior is driven ENTIRELY by `STAGECOACH_STUB_*` env vars that a test sets via the manifest's `Env` map. Critical flow (lines 27-95):
 
 ```go
 // 1. Drain stdin FIRST (deadlock guard)
-if sf := os.Getenv("STAGEHAND_STUB_STDINFILE"); sf != "" { ... tee ... } else { io.Copy(io.Discard, os.Stdin) }
-// 1b. readiness marker (STAGEHAND_STUB_MARKER)
-// 1c. argv capture (STAGEHAND_STUB_ARGSFILE)
-// 2. sleep (STAGEHAND_STUB_SLEEP_MS) AFTER drain
-// 3. stderr (STAGEHAND_STUB_STDERR)
+if sf := os.Getenv("STAGECOACH_STUB_STDINFILE"); sf != "" { ... tee ... } else { io.Copy(io.Discard, os.Stdin) }
+// 1b. readiness marker (STAGECOACH_STUB_MARKER)
+// 1c. argv capture (STAGECOACH_STUB_ARGSFILE)
+// 2. sleep (STAGECOACH_STUB_SLEEP_MS) AFTER drain
+// 3. stderr (STAGECOACH_STUB_STDERR)
 // 4. stdout: OUT (single) OR script-indexed line
-out := os.Getenv("STAGEHAND_STUB_OUT")
-if scriptFile := os.Getenv("STAGEHAND_STUB_SCRIPT"); scriptFile != "" {
+out := os.Getenv("STAGECOACH_STUB_OUT")
+if scriptFile := os.Getenv("STAGECOACH_STUB_SCRIPT"); scriptFile != "" {
     out = selectScripted(scriptFile)
 }
 fmt.Fprint(os.Stdout, out)
-os.Exit(envInt("STAGEHAND_STUB_EXIT", 0))
+os.Exit(envInt("STAGECOACH_STUB_EXIT", 0))
 ```
 
-**Call-varying mode** (`selectScripted`, lines 99-115) reads a script file line-by-line and advances a file-backed counter (`STAGEHAND_STUB_COUNTER`) so each fresh process gets the next line; after the list is exhausted it CLAMPS TO THE LAST line:
+**Call-varying mode** (`selectScripted`, lines 99-115) reads a script file line-by-line and advances a file-backed counter (`STAGECOACH_STUB_COUNTER`) so each fresh process gets the next line; after the list is exhausted it CLAMPS TO THE LAST line:
 
 ```go
 index := 0
-if counterFile := os.Getenv("STAGEHAND_STUB_COUNTER"); counterFile != "" {
+if counterFile := os.Getenv("STAGECOACH_STUB_COUNTER"); counterFile != "" {
     index = readCounter(counterFile)
     writeCounter(counterFile, index+1) // serial callers — no race
 }
@@ -63,23 +63,23 @@ return lines[index]
 
 This means **a multi-turn stub can ALREADY vary per invocation** — `NewScript(t, bin, []string{"turn1-out", "turn2-out", ...})` returns successive outputs. BUT: the counter is global to the script, keyed only on call-order. It does NOT key on a session id.
 
-**KEY GAP for "recalls prior-turn content by session id"**: the stub has no concept of `--session-id`. The `STAGEHAND_STUB_ARGSFILE` knob already writes the rendered argv to a file (NUL-joined, lines 33-37), so a test can OBSERVE that the multi-turn render variant emitted `--session-id <value>` — but the stub does not currently echo prior-turn content based on it. Two extension options (delta says "extend the existing pattern"):
-  - **(a) Cheap / recommended:** keep `NewScript` as the per-turn-output driver (it already returns 'ok' on priming turns then the message on the final turn — exactly the multi-turn test shape), AND add an assertion via `STAGEHAND_STUB_ARGSFILE` that the rendered argv for turn N contains `--session-id <stable-value>`. The stub does not need to recall content; the orchestrator's prompt builder does.
-  - **(b) If true session recall is needed in the stub:** add a new `STAGEHAND_STUB_SESSION_DIR` knob to `cmd/stubagent/main.go` keyed off the `--session-id` argv token; the stub writes each turn's stdin payload to `<dir>/<session-id>/<turn>` and prepends prior turns' content to stdout. This is more invasive.
+**KEY GAP for "recalls prior-turn content by session id"**: the stub has no concept of `--session-id`. The `STAGECOACH_STUB_ARGSFILE` knob already writes the rendered argv to a file (NUL-joined, lines 33-37), so a test can OBSERVE that the multi-turn render variant emitted `--session-id <value>` — but the stub does not currently echo prior-turn content based on it. Two extension options (delta says "extend the existing pattern"):
+  - **(a) Cheap / recommended:** keep `NewScript` as the per-turn-output driver (it already returns 'ok' on priming turns then the message on the final turn — exactly the multi-turn test shape), AND add an assertion via `STAGECOACH_STUB_ARGSFILE` that the rendered argv for turn N contains `--session-id <stable-value>`. The stub does not need to recall content; the orchestrator's prompt builder does.
+  - **(b) If true session recall is needed in the stub:** add a new `STAGECOACH_STUB_SESSION_DIR` knob to `cmd/stubagent/main.go` keyed off the `--session-id` argv token; the stub writes each turn's stdin payload to `<dir>/<session-id>/<turn>` and prepends prior turns' content to stdout. This is more invasive.
 
 **`stubtest.Options`** (`stubtest.go` lines 17-29) is the single struct to extend if a new knob is added:
 
 ```go
 type Options struct {
-    Out            string // STAGEHAND_STUB_OUT
-    Exit           int    // STAGEHAND_STUB_EXIT
-    SleepMS        int    // STAGEHAND_STUB_SLEEP_MS
-    Stderr         string // STAGEHAND_STUB_STDERR
-    Script         string // STAGEHAND_STUB_SCRIPT path
-    Counter        string // STAGEHAND_STUB_COUNTER path
+    Out            string // STAGECOACH_STUB_OUT
+    Exit           int    // STAGECOACH_STUB_EXIT
+    SleepMS        int    // STAGECOACH_STUB_SLEEP_MS
+    Stderr         string // STAGECOACH_STUB_STDERR
+    Script         string // STAGECOACH_STUB_SCRIPT path
+    Counter        string // STAGECOACH_STUB_COUNTER path
     Output         string
     StripCodeFence *bool
-    ArgsFile       string // STAGEHAND_STUB_ARGSFILE — observe rendered argv
+    ArgsFile       string // STAGECOACH_STUB_ARGSFILE — observe rendered argv
 }
 ```
 
@@ -155,7 +155,7 @@ func (u *UI) Progress(msg string) { fmt.Fprintln(u.stderr, progressPrefix+msg) }
   - Add a dedicated helper alongside `ProgressLabel` (e.g. `MultiTurnFallbackLabel(turns int, est string) string`) — pure, trivially unit-testable like `ProgressLabel`.
   - Or call `u.Progress(fmt.Sprintf("falling back to multi-turn: %d turns, ~%s total", turns, est))` directly at the fallback site inside the generate loop.
 
-The CLI/hook call sites are `internal/cmd/default_action.go:181` and `internal/cmd/hookexec.go:136`. NOTE: `CommitStaged` itself does NOT print progress directly — `Deps.Progress` is a `func()` callback (generate.go lines 24-28) invoked only by the hook layer; the default-action CLI prints the line itself before calling `stagehand.GenerateCommit`. So a fallback progress line should either (a) be emitted by `CommitStaged` via a NEW `Deps` callback, or (b) be surfaced through `Result`/error and printed by the CLI. The existing `Deps.Progress func()` is a `nil`-safe single-shot callback; a per-turn or fallback callback would be a new field.
+The CLI/hook call sites are `internal/cmd/default_action.go:181` and `internal/cmd/hookexec.go:136`. NOTE: `CommitStaged` itself does NOT print progress directly — `Deps.Progress` is a `func()` callback (generate.go lines 24-28) invoked only by the hook layer; the default-action CLI prints the line itself before calling `stagecoach.GenerateCommit`. So a fallback progress line should either (a) be emitted by `CommitStaged` via a NEW `Deps` callback, or (b) be surfaced through `Result`/error and printed by the CLI. The existing `Deps.Progress func()` is a `nil`-safe single-shot callback; a per-turn or fallback callback would be a new field.
 
 ### 5. Render unit-test pattern (for the multi-turn render variant)
 
@@ -184,7 +184,7 @@ Test
  │ stubtest.Build(t) ── compiles cmd/stubagent ONCE (sync.Once cache)
  │ stubtest.Manifest(bin, Options{...}) or NewScript(t, bin, []string{...})
  ▼
-provider.Manifest{Env: STAGEHAND_STUB_*}
+provider.Manifest{Env: STAGECOACH_STUB_*}
  │ m.Render(model, sys, payload, reasoning, mode...) ── render.go
  ▼
 provider.CmdSpec{Command, Args, Stdin, Env}
@@ -229,7 +229,7 @@ Third, for the FR-T5 progress line, open **`internal/ui/output.go:121` (`Progres
 
 ## Notes / Open Questions for the parent
 
-- **Stub session-recall**: `NewScript` already varies output per-invocation (call-order-indexed), which is enough to simulate "ok on priming turns, message on final turn". True recall-by-session-id requires a new stub knob (`STAGEHAND_STUB_SESSION_DIR`) — confirm whether the test contract needs the stub to ECHO prior-turn content, or only needs the orchestrator to RE-SEND prior-turn content (in which case `NewScript` + an `ArgsFile` assertion on `--session-id` suffices).
+- **Stub session-recall**: `NewScript` already varies output per-invocation (call-order-indexed), which is enough to simulate "ok on priming turns, message on final turn". True recall-by-session-id requires a new stub knob (`STAGECOACH_STUB_SESSION_DIR`) — confirm whether the test contract needs the stub to ECHO prior-turn content, or only needs the orchestrator to RE-SEND prior-turn content (in which case `NewScript` + an `ArgsFile` assertion on `--session-id` suffices).
 - **`Render` signature change**: adding `--session-id` requires either a new variadic option or a `RenderMultiTurn` mode + a session-value parameter. The variadic `mode` pattern (`RenderTooled`) keeps existing callers byte-identical and is the established convention.
 - **Progress emission site**: `CommitStaged` does not print progress itself (only `Deps.Progress`, a nil-safe hook callback). A fallback notice either needs a new `Deps` callback field or must be surfaced through `Result`/error and printed by the CLI (`default_action.go:181` / `hookexec.go:136`).
 - **`--no-session` lives in BOTH `BareFlags` and `TooledFlags`** of `builtinPi()` (`builtin.go:60` and `:92`). The multi-turn variant must drop it from whichever flag-set the multi-turn render path selects, and add `--session-id`.
@@ -258,7 +258,7 @@ Third, for the FR-T5 progress line, open **`internal/ui/output.go:121` (`Progres
     }
   ],
   "validationOutput": [
-    "No build/test commands run — scout/research role only; acceptance is the report content itself, written to /home/dustin/projects/stagehand/plan/009_5c53066d64b3/architecture/research-tests-ui.md."
+    "No build/test commands run — scout/research role only; acceptance is the report content itself, written to /home/dustin/projects/stagecoach/plan/009_5c53066d64b3/architecture/research-tests-ui.md."
   ],
   "residualRisks": [
     "none — no files modified; the report's open questions (stub session-recall design, Render signature change shape, progress emission site) are decision points for the parent, not risks introduced by this scout."

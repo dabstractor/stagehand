@@ -54,9 +54,9 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Surface the FR3d–FR3i diff-payload optimization (shipped by M2/M3/M4) on Stagehand's
+**Feature Goal**: Surface the FR3d–FR3i diff-payload optimization (shipped by M2/M3/M4) on Stagecoach's
 marketing surface. Today the README `## Features` table lists six capabilities but never tells a reader that
-stagehand trims and budgets the diff before the agent sees it — a user whose diff exceeds their model's
+stagecoach trims and budgets the diff before the agent sees it — a user whose diff exceeds their model's
 context window has no README-level hint that `token_limit` exists, and a user inspecting `--verbose` output
 (compact renames, `-U1`, a numstat skeleton header, `... [truncated]` markers) has no README context for any
 of it. Add ONE concise, accurate row to the Features table, and confirm the other overview docs (cli.md,
@@ -84,7 +84,7 @@ providers.md) are already consistent with the new config-only `[generation]` key
 
 ## User Persona
 
-**Target User**: the prospective stagehand user reading the README to decide whether to install/use it —
+**Target User**: the prospective stagecoach user reading the README to decide whether to install/use it —
 especially a user on a model with a tight context window (who needs to know `token_limit` exists), or a user
 who ran `--verbose`, saw a numstat skeleton / compact renames / `... [truncated]` markers, and wants a
 README-level explanation pointer.
@@ -98,7 +98,7 @@ informedly.
 (optional) configuration.md `#built-in-defaults` for the exact knob values/precedence → informed config.
 
 **Pain Points Addressed**: today the README never mentions the payload is optimized, so (a) a user hitting a
-context-window overflow has no idea stagehand can budget the diff, and (b) `--verbose` output that shows the
+context-window overflow has no idea stagecoach can budget the diff, and (b) `--verbose` output that shows the
 skeleton/truncation looks unfamiliar. One Features row + two cross-links closes both gaps without bloating
 the marketing surface.
 
@@ -260,7 +260,7 @@ README.md                    # + one "Payload optimization" row in ## Features.
 ### Known Gotchas of our codebase & Library Quirks
 
 ```markdown
-<!-- CRITICAL (hero pitch is FROZEN): do NOT edit README lines 1–6 — the top `>` blockquote ("Stagehand writes
+<!-- CRITICAL (hero pitch is FROZEN): do NOT edit README lines 1–6 — the top `>` blockquote ("Stagecoach writes
      your commit messages…") and the "v2.1 adds payload exclusions, message shaping, …" line. The contract says
      "keep the hero pitch intact." The edit is ONLY the Features table row. -->
 
@@ -310,7 +310,7 @@ README.md                    # + one "Payload optimization" row in ## Features.
 ```yaml
 Task 1: LOCATE the insertion point in README.md (READ, no edit yet)
   - FIND the `## Features` heading and its table. The FIRST data row is "Payload exclusions" (`.
-stagehandignore` / `--exclude` hide a file's diff from the model — never from the commit`).
+stagecoachignore` / `--exclude` hide a file's diff from the model — never from the commit`).
   - CONFIRM the row shape: `| <Capability> | <desc with a ([docs](docs/…#anchor)) link> |` — three cells,
     pipe-delimited, the description cell ending in a parenthesized docs link.
   - NOTE the hero pitch lives ABOVE `## Features` (the `>` blockquote + "v2.1 adds…" line) — DO NOT touch it.
@@ -357,7 +357,7 @@ Task 5: FINAL VALIDATION (docs-only gates)
 
 ```markdown
 <!-- PATTERN: mirror the Features table's existing row shape. "Payload exclusions" is:
-     `| Payload exclusions | `.stagehandignore` / `--exclude` hide a file's diff from the model — never from the commit ([docs](docs/configuration.md#exclusion-globs-generationexclude)). |`
+     `| Payload exclusions | `.stagecoachignore` / `--exclude` hide a file's diff from the model — never from the commit ([docs](docs/configuration.md#exclusion-globs-generationexclude)). |`
      The new row is the SAME shape: `| <Capability> | <desc with links> |`. -->
 
 <!-- PATTERN: cross-link like the rest of the README. Every Features row links to a specific anchor

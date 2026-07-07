@@ -2,7 +2,7 @@
 name: "P1.M4.T3.S1 — Implement `config upgrade` command (PRD §9.17 FR-B5, §15.3) + FR-B6 help de-duplication"
 description: |
 
-  Add `stagehand config upgrade` (internal/cmd/config.go): a cobra subcommand that rewrites an EXISTING
+  Add `stagecoach config upgrade` (internal/cmd/config.go): a cobra subcommand that rewrites an EXISTING
   global config IN PLACE to `config_version = CurrentConfigVersion` via a minimal TEXTUAL transform that
   preserves every other line (comments, ordering, user values — byte-for-byte). v2.0 has no removed/renamed
   keys, so the only edit is ensuring the top-level `config_version = 2` line is present/current; running
@@ -29,7 +29,7 @@ description: |
     - The config-file shape: top-level `config_version` (root metadata, toml:"config_version" on fileConfig),
       then `[defaults]`/`[generation]`/`[role.*]`/`[provider.*]` tables.
 
-  OUTPUT: `stagehand config upgrade` brings a config file up to CurrentConfigVersion; existing user values
+  OUTPUT: `stagecoach config upgrade` brings a config file up to CurrentConfigVersion; existing user values
   are preserved. `config`/`providers` help no longer duplicates their leaf list.
 
   DELIVERABLES (2 source files EDITED, 1 test file EDITED):
@@ -64,7 +64,7 @@ description: |
       Both append an AddCommand line in the SAME init() — add mine after the sibling's init/path lines.
     - root.go (shouldSkipConfigLoad) and providers.go (FR-B6 block) are NOT edited by the sibling → safe.
 
-  Deliverable: `stagehand config upgrade` rewrites the global config in place to config_version=2
+  Deliverable: `stagecoach config upgrade` rewrites the global config in place to config_version=2
   (preserving all other lines), errors clearly if the file is missing or malformed, is idempotent, and
   works outside a git repo; `config`/`providers --help` no longer duplicate their leaf list.
   `go build ./... && go test ./...` green; `go vet ./...` clean; go.mod/go.sum unchanged.
@@ -93,31 +93,31 @@ manual "Subcommands:" blocks from the `config` and `providers` parent commands (
    `runConfigUpgrade` tests (missing file / add / already-current / older-update / idempotent / malformed /
    extra-args / outside-repo).
 
-**Success Definition**: `make build && ./bin/stagehand config upgrade` on a config lacking
+**Success Definition**: `make build && ./bin/stagecoach config upgrade` on a config lacking
 `config_version` rewrites it in place adding `config_version = 2` while leaving every other line
 byte-identical (verified by diff), prints "Upgraded config at <path> to version 2.", exits 0; on a config
 already at version 2 it prints "already at version 2 (no changes)" and does NOT rewrite (byte-identical);
-on a missing file it exits 1 with "no config file at <path> (run 'stagehand config init' first)"; on
+on a missing file it exits 1 with "no config file at <path> (run 'stagecoach config init' first)"; on
 malformed TOML it exits 1 with "not valid TOML" and leaves the file unchanged; `config upgrade x` exits 1
-(NoArgs); it works from a non-git directory; running it twice is a no-op. `stagehand config --help` and
-`stagehand providers --help` show their leaves ONCE (under "Available Commands"), with no manual
+(NoArgs); it works from a non-git directory; running it twice is a no-op. `stagecoach config --help` and
+`stagecoach providers --help` show their leaves ONCE (under "Available Commands"), with no manual
 "Subcommands:" prose. `go test -race ./internal/cmd/` green; `go test ./...` no regression;
 `go vet ./...` clean; `gofmt -l` empty; go.mod/go.sum unchanged.
 
 ## User Persona
 
-**Target User**: A Stagehand user whose config predates the schema-version feature, OR who edited an older
+**Target User**: A Stagecoach user whose config predates the schema-version feature, OR who edited an older
 config by hand — they hit the load-time advisory ("config file has no config_version / is older … run
-'stagehand config upgrade'") and want a one-command remediation that does NOT discard their hand-tuned
+'stagecoach config upgrade'") and want a one-command remediation that does NOT discard their hand-tuned
 values.
 
-**Use Case**: `stagehand` prints the config_version advisory → user runs `stagehand config upgrade` →
+**Use Case**: `stagecoach` prints the config_version advisory → user runs `stagecoach config upgrade` →
 their config is rewritten in place with `config_version = 2` added and everything else intact → the next
-`stagehand` run is advisory-free.
+`stagecoach` run is advisory-free.
 
-**User Journey**: run stagehand → see advisory naming `config upgrade` → run `stagehand config upgrade`
-→ see "Upgraded config at ~/.config/stagehand/config.toml to version 2." → `git diff` the config (if
-version-controlled) shows ONLY the new `config_version` line → re-run stagehand → advisory gone. Re-running
+**User Journey**: run stagecoach → see advisory naming `config upgrade` → run `stagecoach config upgrade`
+→ see "Upgraded config at ~/.config/stagecoach/config.toml to version 2." → `git diff` the config (if
+version-controlled) shows ONLY the new `config_version` line → re-run stagecoach → advisory gone. Re-running
 `config upgrade` later says "already at version 2 (no changes)".
 
 **Pain Points Addressed**: (1) "the advisory told me to upgrade but I don't want to lose my config" —
@@ -128,7 +128,7 @@ idempotent (no-op the 2nd time).
 ## Why
 
 - **Closes the loop on PRD §9.17 FR-B5 (P0).** The P1.M4.T1.S1 load-time advisory (load.go:263
-  `configVersionNotice`) already prints *"Run 'stagehand config upgrade' …"* — the command it names MUST
+  `configVersionNotice`) already prints *"Run 'stagecoach config upgrade' …"* — the command it names MUST
   exist and behave as implied (in-place rewrite to CurrentConfigVersion, safe when already current).
 - **Preservation is the whole point.** FR-B5 explicitly requires preserving user values and (future)
   commenting-out removed keys — a TOML round-trip would strip every comment and reorder sections
@@ -143,7 +143,7 @@ idempotent (no-op the 2nd time).
 A new cobra subcommand `configUpgradeCmd` (`Use: "upgrade"`) registered under `configCmd`, with
 `runConfigUpgrade`:
 1. `path := config.GlobalConfigPath()`; `os.ReadFile(path)` → IsNotExist → exit 1 "no config file … (run
-   'stagehand config init' first)"; other read error → exit 1.
+   'stagecoach config init' first)"; other read error → exit 1.
 2. **Validity gate**: `toml.Unmarshal(data, &map[string]any{})` → on error, exit 1 "config %s is not valid
    TOML: %w" (refuse to mangle an unparseable file). Never marshal back.
 3. `newContent, changed := upgradeConfigVersion(string(data), config.CurrentConfigVersion)`.
@@ -176,7 +176,7 @@ block from `configCmd.Long` and `providersCmd.Long`.
 - [ ] Idempotent: `upgradeConfigVersion` applied twice → 2nd call `changed=false`, byte-identical; the
       Execute path on an already-current file does NOT rewrite.
 - [ ] FR-B6: `configCmd.Long` and `providersCmd.Long` contain NO manual "Subcommands:" block;
-      `stagehand config --help` / `stagehand providers --help` list leaves once under "Available Commands".
+      `stagecoach config --help` / `stagecoach providers --help` list leaves once under "Available Commands".
 - [ ] `go build ./... && go vet ./... && go test ./...` GREEN; `gofmt -l internal/cmd/` empty;
       go.mod/go.sum unchanged; only the 4 listed files differ (config.go, root.go, providers.go,
       config_test.go). runConfigInit/buildBootstrapConfig/exampleConfigTemplate UNCHANGED.
@@ -254,12 +254,12 @@ coordination map (F4). No git/prompt/provider/decompose knowledge required.
        not Defaults().ConfigVersion (which is the 0 "unset" sentinel — meaningless here).
 - file: internal/config/file.go   (READ GlobalConfigPath)
   section: `func GlobalConfigPath() string` (file.go:83). The read+write target. Tests: setupNoRepo sets
-       HOME=XDG=t.TempDir() → path is <tmp>/stagehand/config.toml.
+       HOME=XDG=t.TempDir() → path is <tmp>/stagecoach/config.toml.
 
 # MUST READ — the advisory that names this command (READ — proves the contract)
 - file: internal/config/load.go   (READ configVersionNotice)
   section: `configVersionNotice(fileLoaded, version)` (load.go:263) emits, for missing/older version:
-       *"Run 'stagehand config upgrade' or 'stagehand config init --force'."* (load.go:275-282).
+       *"Run 'stagecoach config upgrade' or 'stagecoach config init --force'."* (load.go:275-282).
   why: the advisory is the user-facing trigger for THIS command. The command's behavior (rewrite in place
        to CurrentConfigVersion; safe if already current) must match what the advisory implies.
 
@@ -272,7 +272,7 @@ coordination map (F4). No git/prompt/provider/decompose knowledge required.
   why: mirror these EXACTLY for the upgrade tests. upgradeConfigVersion is tested DIRECTLY (same package,
        pure) for determinism; runConfigUpgrade via Execute for I/O/error/missing/malformed.
   gotcha: each Execute test wraps in saveRootState/restoreRootState (rootCmd is a package global; flags/
-       args persist across parses). setupNoRepo makes GlobalConfigPath() deterministic (<tmp>/stagehand/…).
+       args persist across parses). setupNoRepo makes GlobalConfigPath() deterministic (<tmp>/stagecoach/…).
 
 - url: https://toml.io/en/v1.0.0#keys
   why: root (top-level) keys must precede [table] headers — drives the scan/break-at-first-table logic (D3).
@@ -333,9 +333,9 @@ internal/cmd/config_test.go       # EDIT — +upgradeConfigVersion pure tests + 
 // textually (regex), not from this map — the map is purely a syntax check.
 
 // GOTCHA (missing file → config init, NOT a fresh bootstrap — D6): upgrade targets an EXISTING file. IsNotExist
-// → exit 1 "no config file at %s (run 'stagehand config init' first)". Do NOT create a file (that's init's job).
+// → exit 1 "no config file at %s (run 'stagecoach config init' first)". Do NOT create a file (that's init's job).
 
-// GOTCHA (--config / STAGEHAND_CONFIG is intentionally NOT honored — D7): the work item INPUT names
+// GOTCHA (--config / STAGECOACH_CONFIG is intentionally NOT honored — D7): the work item INPUT names
 // GlobalConfigPath(). Upgrade is in shouldSkipConfigLoad (config.Load does NOT run), so the Layer-7 discovery
 // override is not resolved. Upgrade rewrites the GLOBAL file. Document this in the command's Long help.
 
@@ -372,13 +372,13 @@ internal/cmd/config_test.go       # EDIT — +upgradeConfigVersion pure tests + 
 // exampleConfigTemplate, configInitCmd flags, etc.). Add imports: "strconv", "regexp" (if used), and
 // `toml "github.com/pelletier/go-toml/v2"` for the validity gate. (fmt/os/path/filepath/cobra/config/exitcode already imported.)
 
-// configUpgradeCmd implements `stagehand config upgrade` (PRD §9.17 FR-B5). Rewrites an EXISTING global
+// configUpgradeCmd implements `stagecoach config upgrade` (PRD §9.17 FR-B5). Rewrites an EXISTING global
 // config in place so its top-level config_version equals CurrentConfigVersion, via a minimal TEXTUAL edit
 // that preserves every other line. Idempotent. Works outside a git repo (shouldSkipConfigLoad).
 var configUpgradeCmd = &cobra.Command{
 	Use:   "upgrade",
 	Short: "Upgrade an existing config to the current schema version",
-	Long: `Rewrite an existing Stagehand config file in place so its config_version matches this binary's
+	Long: `Rewrite an existing Stagecoach config file in place so its config_version matches this binary's
 current schema version (` + fmt.Sprintf("`config_version = %d`", config.CurrentConfigVersion) + `).
 
 Only the top-level config_version line is added or updated — every other line (your values, comments,
@@ -386,9 +386,9 @@ ordering) is preserved byte-for-byte. Running it twice is safe: a file already a
 left unchanged ("already up to date").
 
 This is the remediation the load-time advisory points at when a config has no config_version or an older
-one. It targets the GLOBAL config (the path printed by ` + "`stagehand config path`" + `).
+one. It targets the GLOBAL config (the path printed by ` + "`stagecoach config path`" + `).
 
-If no config file exists, run ` + "`stagehand config init`" + ` first. If the file is not valid TOML, it is
+If no config file exists, run ` + "`stagecoach config init`" + ` first. If the file is not valid TOML, it is
 left untouched and an error is printed.`,
 	Args:          cobra.NoArgs,
 	SilenceErrors: true,
@@ -404,7 +404,7 @@ func runConfigUpgrade(cmd *cobra.Command, args []string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return exitcode.New(exitcode.Error, fmt.Errorf("no config file at %s (run 'stagehand config init' first)", path))
+			return exitcode.New(exitcode.Error, fmt.Errorf("no config file at %s (run 'stagecoach config init' first)", path))
 		}
 		return exitcode.New(exitcode.Error, fmt.Errorf("read config %s: %w", path, err))
 	}
@@ -514,8 +514,8 @@ func init() {
 // (Sequence AFTER the sibling's init-line update. cobra auto-lists init/path/upgrade under "Available Commands".)
 var configCmd = &cobra.Command{
 	Use:   "config",
-	Short: "Manage the Stagehand config file",
-	Long: `Inspect, bootstrap, or upgrade the Stagehand global config file.`,
+	Short: "Manage the Stagecoach config file",
+	Long: `Inspect, bootstrap, or upgrade the Stagecoach global config file.`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 }
@@ -526,7 +526,7 @@ var configCmd = &cobra.Command{
 var providersCmd = &cobra.Command{
 	Use:   "providers",
 	Short: "Manage AI provider manifests",
-	Long: `Inspect the built-in and user-defined provider manifests Stagehand uses to generate commits.
+	Long: `Inspect the built-in and user-defined provider manifests Stagecoach uses to generate commits.
 
 User-defined providers (from the global or repo-local config file) override built-ins of the same
 name; new names add new providers (PRD §12.8).`,
@@ -593,8 +593,8 @@ Task 7: VERIFY (run all gates; fix before declaring done)
   - `go test ./...` → GREEN (no regression).
   - `gofmt -l internal/cmd/` empty.
   - `git diff --exit-code go.mod go.sum` → empty.
-  - `go run ./cmd/stagehand config --help` → leaves listed ONCE (Available Commands); no "Subcommands:" prose.
-  - `go run ./cmd/stagehand providers --help` → same.
+  - `go run ./cmd/stagecoach config --help` → leaves listed ONCE (Available Commands); no "Subcommands:" prose.
+  - `go run ./cmd/stagecoach providers --help` → same.
   - `git status` shows EXACTLY 4 files: config.go, root.go, providers.go, config_test.go. runConfigInit/
       buildBootstrapConfig/exampleConfigTemplate/default_action.go/role_defaults.go/registry.go UNCHANGED.
 ```
@@ -639,7 +639,7 @@ SCHEMA.VERSION (config.CurrentConfigVersion — read-only):
   - write: "upgradeConfigVersion sets/adds `config_version = CurrentConfigVersion` (the const =2)."
 
 PATH (config.GlobalConfigPath):
-  - read+write: "runConfigUpgrade reads + writes GlobalConfigPath(). --config/STAGEHAND_CONFIG NOT honored (D7)."
+  - read+write: "runConfigUpgrade reads + writes GlobalConfigPath(). --config/STAGECOACH_CONFIG NOT honored (D7)."
 
 VALIDITY (go-toml/v2):
   - gate: "toml.Unmarshal(data, &map[string]any{}) — reject ONLY syntax errors; never marshal back."
@@ -689,30 +689,30 @@ make build
 
 # --- missing file ---
 ( cd "$(mktemp -d)" && HOME="$PWD" XDG_CONFIG_HOME="$PWD" \
-  ../../bin/stagehand config upgrade ; echo "exit=$?" )
-# Expected: exit 1, message "no config file at ... (run 'stagehand config init' first)".
+  ../../bin/stagecoach config upgrade ; echo "exit=$?" )
+# Expected: exit 1, message "no config file at ... (run 'stagecoach config init' first)".
 
 # --- adds config_version, preserves the rest ---
 T=$(mktemp -d); export HOME="$T" XDG_CONFIG_HOME="$T"
-mkdir -p "$T/stagehand"
-printf '[defaults]\nprovider = "pi"\nmodel = ""\n' > "$T/stagehand/config.toml"
-./bin/stagehand config upgrade                                 # → "Upgraded ... to version 2."
-grep -q '^config_version = 2$' "$T/stagehand/config.toml" && echo "PASS: version present"
-grep -q 'provider = "pi"' "$T/stagehand/config.toml" && echo "PASS: user value preserved"
+mkdir -p "$T/stagecoach"
+printf '[defaults]\nprovider = "pi"\nmodel = ""\n' > "$T/stagecoach/config.toml"
+./bin/stagecoach config upgrade                                 # → "Upgraded ... to version 2."
+grep -q '^config_version = 2$' "$T/stagecoach/config.toml" && echo "PASS: version present"
+grep -q 'provider = "pi"' "$T/stagecoach/config.toml" && echo "PASS: user value preserved"
 # Expected: config_version = 2 added; provider = "pi" intact; ONLY the one line differs from the input.
 
 # --- idempotent (already current) ---
-cp "$T/stagehand/config.toml" /tmp/before
-./bin/stagehand config upgrade                                # → "... already at version 2 (no changes)."
-diff /tmp/before "$T/stagehand/config.toml" && echo "PASS: byte-identical (no rewrite)"
+cp "$T/stagecoach/config.toml" /tmp/before
+./bin/stagecoach config upgrade                                # → "... already at version 2 (no changes)."
+diff /tmp/before "$T/stagecoach/config.toml" && echo "PASS: byte-identical (no rewrite)"
 
 # --- malformed TOML is left untouched ---
-printf 'bad {toml\n' > "$T/stagehand/config.toml"
-./bin/stagehand config upgrade ; echo "exit=$?"
+printf 'bad {toml\n' > "$T/stagecoach/config.toml"
+./bin/stagecoach config upgrade ; echo "exit=$?"
 # Expected: exit 1, "not valid TOML"; file still "bad {toml" (NOT rewritten).
 
 # --- works outside a git repo (run from a plain dir) ---
-( cd "$(mktemp -d)" && HOME="$T" XDG_CONFIG_HOME="$T" /path/to/bin/stagehand config upgrade )
+( cd "$(mktemp -d)" && HOME="$T" XDG_CONFIG_HOME="$T" /path/to/bin/stagecoach config upgrade )
 # Expected: succeeds (shouldSkipConfigLoad("upgrade") — no git repo needed).
 
 # Expected: all the above behave as noted.
@@ -722,16 +722,16 @@ printf 'bad {toml\n' > "$T/stagehand/config.toml"
 
 ```bash
 # FR-B6 help de-dup — leaves listed ONCE, no manual "Subcommands:" prose:
-go run ./cmd/stagehand config --help    | grep -c "Subcommands:"     # expect 0
-go run ./cmd/stagehand providers --help | grep -c "Subcommands:"     # expect 0
-go run ./cmd/stagehand config --help    | grep -E "^  (init|path|upgrade) "   # expect 3 (Available Commands)
-go run ./cmd/stagehand providers --help | grep -E "^  (list|show) "           # expect 2
+go run ./cmd/stagecoach config --help    | grep -c "Subcommands:"     # expect 0
+go run ./cmd/stagecoach providers --help | grep -c "Subcommands:"     # expect 0
+go run ./cmd/stagecoach config --help    | grep -E "^  (init|path|upgrade) "   # expect 3 (Available Commands)
+go run ./cmd/stagecoach providers --help | grep -E "^  (list|show) "           # expect 2
 
 # Advisory round-trip: a no-version config warns; after upgrade it does not.
-T=$(mktemp -d); export HOME="$T" XDG_CONFIG_HOME="$T"; mkdir -p "$T/stagehand"
-printf '[defaults]\nprovider = "pi"\n' > "$T/stagehand/config.toml"
-( cd "$(mktemp -d)" && ../../bin/stagehand config path 2>&1 >/dev/null )   # advisory is on load — trigger any load
-# After: ./bin/stagehand config upgrade  →  the advisory's suggested remediation ran cleanly.
+T=$(mktemp -d); export HOME="$T" XDG_CONFIG_HOME="$T"; mkdir -p "$T/stagecoach"
+printf '[defaults]\nprovider = "pi"\n' > "$T/stagecoach/config.toml"
+( cd "$(mktemp -d)" && ../../bin/stagecoach config path 2>&1 >/dev/null )   # advisory is on load — trigger any load
+# After: ./bin/stagecoach config upgrade  →  the advisory's suggested remediation ran cleanly.
 
 # Race + full regression (the gate):
 go test -race ./...
@@ -787,7 +787,7 @@ gofmt -l internal/ pkg/ cmd/
   config with only `[defaults]` passes; reject ONLY syntax errors.
 - ❌ Don't overwrite runConfigInit/buildBootstrapConfig/exampleConfigTemplate or the sibling's flags — those
   belong to the parallel P1.M4.T2.S1. Coordinate ONLY on configCmd.Long (remove its "Subcommands:" block).
-- ❌ Don't honor `--config`/`STAGEHAND_CONFIG` — the contract names `GlobalConfigPath()`; upgrade is in
+- ❌ Don't honor `--config`/`STAGECOACH_CONFIG` — the contract names `GlobalConfigPath()`; upgrade is in
   shouldSkipConfigLoad (config.Load doesn't run), and the global file is the documented target.
 - ❌ Don't re-add a manual "Subcommands:" list after FR-B6 dedup — cobra's auto "Available Commands" is the
   single source; registering `configUpgradeCmd` makes it appear.

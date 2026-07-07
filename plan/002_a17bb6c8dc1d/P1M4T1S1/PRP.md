@@ -9,7 +9,7 @@ description: |
 
   CONTRACT (PRD §9.17 FR-B4): "Every config file carries config_version = <int>; the binary knows
   CurrentConfigVersion. On load: if the file's version is missing or older, print a clear warning naming
-  the mismatch and the remediation (stagehand config upgrade, or config init --force); if newer, warn that
+  the mismatch and the remediation (stagecoach config upgrade, or config init --force); if newer, warn that
   the file is ahead of the binary. Advisory only — no automatic migration."
 
   DELIVERABLES (one source edit, two test updates, one pure helper + Load wiring + new tests + a docs header):
@@ -68,9 +68,9 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Emit a clear, testable, stderr-routed ADVISORY warning whenever a loaded Stagehand config
+**Feature Goal**: Emit a clear, testable, stderr-routed ADVISORY warning whenever a loaded Stagecoach config
 FILE declares a `config_version` that is missing, older than, or newer than the compiled-in
-`CurrentConfigVersion` (PRD §9.17 FR-B4), pointing the user at `stagehand config upgrade` / `config init
+`CurrentConfigVersion` (PRD §9.17 FR-B4), pointing the user at `stagecoach config upgrade` / `config init
 --force`. The advisory is checked after all precedence overlays (highest-layer version wins), is purely
 informational (no auto-migration), and is suppressed entirely when no config file is loaded. This requires
 making `0` a genuine "no source declared a version" sentinel, which means `Defaults()` must stop pinning
@@ -87,7 +87,7 @@ unchanged):
 6. `internal/cmd/config.go` — `exampleConfigTemplate` header documents `config_version` + upgrade.
 
 **Success Definition**: a config file with `config_version = 1` → `Load()` prints
-`stagehand: config file uses schema version 1; current is 2. Run 'stagehand config upgrade' or 'stagehand
+`stagecoach: config file uses schema version 1; current is 2. Run 'stagecoach config upgrade' or 'stagecoach
 config init --force'.` to `noticeOut`; a file with NO `config_version` → prints the "missing" advisory; a
 file with `config_version = 3` → prints the "ahead" advisory; a file with `config_version = 2` → silent;
 NO config file at all → silent (fileLoaded guard). `configVersionNotice` unit-tests all 5 branches.
@@ -96,18 +96,18 @@ only the 6 listed files differ.
 
 ## User Persona
 
-**Target User**: The Stagehand user upgrading across schema versions (PRD §7.1 "the plan-holder"). When
-Stagehand bumps `CurrentConfigVersion` (a breaking config change), a user's existing config file is stale.
+**Target User**: The Stagecoach user upgrading across schema versions (PRD §7.1 "the plan-holder"). When
+Stagecoach bumps `CurrentConfigVersion` (a breaking config change), a user's existing config file is stale.
 The advisory tells them their config is old and exactly how to refresh it — without silently misbehaving
 or clobbering their hand-edits. Transitively: the future `config upgrade` (P1.M4.T3) and `config init
 --force` commands the advisory points to.
 
-**Use Case**: User upgrades stagehand; runs `stagehand`; sees `stagehand: config file uses schema version
-1; current is 2. Run 'stagehand config upgrade' or 'stagehand config init --force'.` on stderr; the commit
+**Use Case**: User upgrades stagecoach; runs `stagecoach`; sees `stagecoach: config file uses schema version
+1; current is 2. Run 'stagecoach config upgrade' or 'stagecoach config init --force'.` on stderr; the commit
 still proceeds (advisory only). Or: a hand-written config omits `config_version` → "missing" advisory
 nudges them to add it.
 
-**User Journey**: user runs `stagehand` → `Load()` resolves config (defaults→file→git→env→flags) → after
+**User Journey**: user runs `stagecoach` → `Load()` resolves config (defaults→file→git→env→flags) → after
 overlay, the advisory compares the highest-layer `config_version` to `CurrentConfigVersion` → if mismatched
 (and a file was loaded), the one-line warning prints to stderr → the pipeline continues normally.
 
@@ -248,7 +248,7 @@ the template-header doc content (given). No git/provider/prompt/decompose knowle
 
 # MUST READ — the DOCS target (the config init template)
 - file: internal/cmd/config.go   (EDIT exampleConfigTemplate header)
-  section: `const exampleConfigTemplate = \`# Stagehand configuration file …\`` — the inert, fully-commented
+  section: `const exampleConfigTemplate = \`# Stagecoach configuration file …\`` — the inert, fully-commented
        config (the Mode-A user-facing config documentation). Add a commented (`#`) header block documenting
        config_version + the upgrade mechanism. PLACE near the top (after the precedence block).
   why: the task's DOCS (Mode A) requirement: "Update the config init template header to document
@@ -263,7 +263,7 @@ the template-header doc content (given). No git/provider/prompt/decompose knowle
        only). §16.1 confirms config_version is METADATA, not a precedence layer (it never participates in
        value resolution — only the advisory reads it).
   critical: FR-B4's "advisory only — no automatic migration" (do NOT migrate); FR-B4's remediation wording
-       ("stagehand config upgrade, or config init --force") must appear in the message.
+       ("stagecoach config upgrade, or config init --force") must appear in the message.
 ```
 
 ### Current Codebase tree (relevant slice)
@@ -323,7 +323,7 @@ internal/cmd/config.go           # exampleConfigTemplate header + config_version
 // ConfigVersion (ordering immaterial).
 
 // GOTCHA (config_version is METADATA, not a precedence layer — §16.1): env (loadEnv) and flags (loadFlags)
-// do NOT set ConfigVersion (verified — no STAGEHAND_CONFIG_VERSION, no --config-version). So after Layer 4
+// do NOT set ConfigVersion (verified — no STAGECOACH_CONFIG_VERSION, no --config-version). So after Layer 4
 // (git, also no config_version), cfg.ConfigVersion is final; the end-of-Load placement is correct.
 
 // GOTCHA (keep CurrentConfigVersion=2): edit ONLY the Defaults() return value, not the const. The const is
@@ -359,14 +359,14 @@ func configVersionNotice(fileLoaded bool, version int) string {
 	case version == CurrentConfigVersion:
 		return ""
 	case version == 0:
-		return fmt.Sprintf("stagehand: config file has no config_version; current is %d. "+
-			"Run 'stagehand config upgrade' or 'stagehand config init --force'.\n", CurrentConfigVersion)
+		return fmt.Sprintf("stagecoach: config file has no config_version; current is %d. "+
+			"Run 'stagecoach config upgrade' or 'stagecoach config init --force'.\n", CurrentConfigVersion)
 	case version < CurrentConfigVersion:
-		return fmt.Sprintf("stagehand: config file uses schema version %d; current is %d. "+
-			"Run 'stagehand config upgrade' or 'stagehand config init --force'.\n", version, CurrentConfigVersion)
+		return fmt.Sprintf("stagecoach: config file uses schema version %d; current is %d. "+
+			"Run 'stagecoach config upgrade' or 'stagecoach config init --force'.\n", version, CurrentConfigVersion)
 	default: // version > CurrentConfigVersion
-		return fmt.Sprintf("stagehand: config file uses schema version %d; this binary supports up to %d. "+
-			"Upgrade stagehand, or run 'stagehand config init --force' to regenerate.\n", version, CurrentConfigVersion)
+		return fmt.Sprintf("stagecoach: config file uses schema version %d; this binary supports up to %d. "+
+			"Upgrade stagecoach, or run 'stagecoach config init --force' to regenerate.\n", version, CurrentConfigVersion)
 	}
 }
 ```
@@ -476,22 +476,22 @@ Task 6: EDIT internal/cmd/config.go — document config_version in the exampleCo
       after the existing "Resolution precedence" block, near the top) documenting:
       * config_version is a TOP-LEVEL metadata key (NOT under [defaults], NOT a precedence layer — §16.1).
       * The binary's CurrentConfigVersion; the file should match it.
-      * On load, a missing/older/newer config_version prints an advisory pointing at `stagehand config
+      * On load, a missing/older/newer config_version prints an advisory pointing at `stagecoach config
         upgrade` / `config init --force` (advisory only — no auto-migration).
-      * Example: `# config_version = 2   # schema version; matches ` + "`stagehand config upgrade`" + ``.
+      * Example: `# config_version = 2   # schema version; matches ` + "`stagecoach config upgrade`" + ``.
   - CONTENT (paste, keep every line commented `#`):
         # ---------------------------------------------------------------------------
         # config_version — schema version (PRD §9.17 FR-B4). Top-level metadata, NOT a [defaults] key and
-        # NOT a precedence layer (§16.1): it never overrides another field; it only tells stagehand which
+        # NOT a precedence layer (§16.1): it never overrides another field; it only tells stagecoach which
         # schema the file was written for. This binary supports config_version = 2.
         # ---------------------------------------------------------------------------
         # config_version = 2
         #
-        # On load, if this is missing/older than the binary's version, stagehand prints an advisory and
+        # On load, if this is missing/older than the binary's version, stagecoach prints an advisory and
         # points you at the remediation; it NEVER auto-migrates your file (no behavior change, just a
         # warning on stderr):
-        #   stagehand config upgrade      # rewrite this file in place to the current schema (P1.M4.T3)
-        #   stagehand config init --force # regenerate the bootstrap config, overwriting this file
+        #   stagecoach config upgrade      # rewrite this file in place to the current schema (P1.M4.T3)
+        #   stagecoach config init --force # regenerate the bootstrap config, overwriting this file
   - GOTCHA: keep every added line commented `#` (the file stays INERT). Do NOT uncomment any existing line.
       cmd/config_test.go (Contains + the uncommented-header check) stays green. P1.M4.T2 (populated init)
       should carry this note into its output — flag in a code comment if natural.
@@ -620,7 +620,7 @@ git status --porcelain
 # Confirm the LEAVE files are byte-unchanged:
 git diff --exit-code internal/config/file.go internal/config/git.go internal/config/roles.go \
   internal/config/role_defaults.go internal/provider internal/git internal/prompt internal/generate \
-  internal/ui pkg cmd/stagehand Makefile go.mod go.sum PRD.md providers \
+  internal/ui pkg cmd/stagecoach Makefile go.mod go.sum PRD.md providers \
   && echo "frozen files UNCHANGED (expected)"
 ```
 

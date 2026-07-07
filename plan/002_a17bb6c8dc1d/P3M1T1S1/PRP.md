@@ -3,7 +3,7 @@ name: "P3.M1.T1.S1 — Implement planner system prompt + JSON contract + assembl
 description: |
 
   CREATE ONE NEW FILE `internal/prompt/planner.go` in the existing `prompt` package: the **planner**
-  prompt half of stagehand's v2 multi-commit decomposition (PRD §17.5). The planner is a **bare** agent
+  prompt half of stagecoach's v2 multi-commit decomposition (PRD §17.5). The planner is a **bare** agent
   that receives the full working-tree diff (P2.M2.T2.S2) + the §17.1 style examples, decides whether the
   changeset is ONE commit or SEVERAL, partitions it into logical units, and — only if one — emits the
   message. Unlike v1's free-form commit messages (§17.4 raw output), the planner emits STRUCTURED JSON
@@ -101,7 +101,7 @@ whole-string `json.Unmarshal` with a brace-balanced fallback (mirroring provider
 ## User Persona
 
 **Target User**: the decompose planner agent invocation (internal code, P3.M2.T2.S1) and, by extension,
-the end user running `stagehand` on an un-staged working tree to get multiple logically-coherent commits.
+the end user running `stagecoach` on an un-staged working tree to get multiple logically-coherent commits.
 The planner prompt is NOT user-facing CLI text; it is the system prompt + user payload piped to the bare
 planner agent (PRD §13.6.2 / §17.5).
 

@@ -12,7 +12,7 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` |
 | Edit target | `internal/git/git.go` — the `StagedDiffOptions` struct (lines 36-44) |
 | Struct today | 4 fields: `MaxDiffBytes int`, `MaxMDLines int`, `Excludes []string`, `BinaryExtensions []string`. The three new fields are **ABSENT** (grep-confirmed). |
 | Baseline | `go test ./internal/git/` → **ok (cached)**; `go build ./internal/git/` → OK. |

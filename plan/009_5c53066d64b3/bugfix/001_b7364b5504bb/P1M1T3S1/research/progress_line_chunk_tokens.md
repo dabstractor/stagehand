@@ -1,6 +1,6 @@
 # Progress-line chunk-token budget (Issue 3 / FR-T11) — P1.M1.T3.S1 Research
 
-> Verified against the live repo (module `github.com/dustin/stagehand`, 2026-07-05). No files modified —
+> Verified against the live repo (module `github.com/dustin/stagecoach`, 2026-07-05). No files modified —
 > research only. This is a 0.5-point surgical fix: extend ONE `fmt.Fprintf` format string from 2 args to
 > 3 args, and add ONE focused unit test that captures `os.Stderr`.
 
@@ -148,7 +148,7 @@ is correct for ANY chunk value.
 
 - **Touched:** `internal/generate/generate.go` (1 Fprintf format string) + `internal/generate/multiturn_test.go`
   (1 new helper `captureStderr` + 1 new test + add `"os"`/`"fmt"` to imports if not present).
-- **NOT touched:** `internal/generate/multiturn.go` (S1 ChunkCount), `pkg/stagehand/stagehand.go` (P1.M2),
+- **NOT touched:** `internal/generate/multiturn.go` (S1 ChunkCount), `pkg/stagecoach/stagecoach.go` (P1.M2),
   `internal/hook/exec.go` (P1.M3), docs (P1.M4). The corrected progress line is the COPY SOURCE for
   P1.M2.T1.S2 / P1.M3.T1.S2 (they copy this gate).
 - **Parallel with T2.S1 (Issue 4, mtPayload):** T2.S1 edits generate.go:**311** + comment ~L307.

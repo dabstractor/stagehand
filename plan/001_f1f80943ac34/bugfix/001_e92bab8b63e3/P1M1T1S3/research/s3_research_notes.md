@@ -1,9 +1,9 @@
 # S3 Research Notes — Regression tests for `--config` honored (Issue 1) + §19 notice once (Issue 5)
 
-Scope: test-only. S1 (`pkg/stagehand.Options.Config` + `resolveConfig` skip-Load branch) and S2
+Scope: test-only. S1 (`pkg/stagecoach.Options.Config` + `resolveConfig` skip-Load branch) and S2
 (`runDefault` wires `Config: cfg`) are **confirmed landed** in source:
 
-- `pkg/stagehand/stagehand.go:126` → `if opts.Config != nil {` (S1 branch).
+- `pkg/stagecoach/stagecoach.go:126` → `if opts.Config != nil {` (S1 branch).
 - `internal/cmd/default_action.go:131` → `Config:    cfg,` (S2 wiring); the comment above it was
   rewritten by S2 to describe the single-Load injection path.
 
@@ -15,7 +15,7 @@ So the two regression tests run **green** against the current tree (they lock in
   `rootCmd.SetArgs(...)`. Helpers used: `saveRootState`/`restoreRootState` (root_test.go:105-130,
   reset flags + io + loadedCfg between runs), `initRepo`, `chdir`, `writeConfigFile`,
   `writeFile`/`stageFile`/`runGit`/`gitOut`/`headSHA`, `stubtest.Build(t)`.
-- `setupStubRepo` writes a `.stagehand.toml` defining **only** `[provider.stub]` (no top-level
+- `setupStubRepo` writes a `.stagecoach.toml` defining **only** `[provider.stub]` (no top-level
   `provider =`), so the §19 notice does **not** fire in any existing test. No existing test passes
   `--config`, and none asserts the notice count. (Matches seam_config_handoff.md §8.)
 
@@ -55,8 +55,8 @@ Rejected alternatives (documented in the PRP as fallbacks):
 
 ## 3. Exact notice text (for the count assertion)
 
-`file.go:244`: `fmt.Sprintf("stagehand: repo-local config (.stagehand.toml) sets provider to %q\n", cfg.Provider)`.
-Unique, stable needle: `"repo-local config (.stagehand.toml) sets provider to"`. Count via
+`file.go:244`: `fmt.Sprintf("stagecoach: repo-local config (.stagecoach.toml) sets provider to %q\n", cfg.Provider)`.
+Unique, stable needle: `"repo-local config (.stagecoach.toml) sets provider to"`. Count via
 `strings.Count(captured, needle)` → must be **1** (was 2 pre-S1/S2). It fires once per `config.Load`
 that runs Layer-3 `loadRepoLocalConfig`. Post-S1/S2 the seam does exactly ONE Load
 (`PersistentPreRunE`); `resolveConfig` skips its Load (opts.Config != nil). ⇒ 1.
@@ -71,10 +71,10 @@ Issue-1 regression. (Grep `\"stub\"` in `internal/provider/` → no hits.)
 
 ## 5. Why `--config` isolates the provider source for test (a)
 
-`LoadOpts.ConfigPathOverride` ("from --config (CLI); '' => fall back to STAGEHAND_CONFIG, then
+`LoadOpts.ConfigPathOverride` ("from --config (CLI); '' => fall back to STAGECOACH_CONFIG, then
 discovery" — load.go:14-20): when set, the `--config` file IS the global-file layer (it **replaces**
 discovery, not additive). Layer-3 `loadRepoLocalConfig` still runs regardless (only looks at
-`.stagehand.toml`). So test (a) must use a repo with NO `.stagehand.toml`; isolating HOME/XDG
+`.stagecoach.toml`). So test (a) must use a repo with NO `.stagecoach.toml`; isolating HOME/XDG
 (loadEnvSetup pattern) is cheap insurance against a stray real global config.
 
 ## 6. Pre-validation already honors `--config` (the misleading part of the bug)

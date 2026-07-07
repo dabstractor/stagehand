@@ -164,8 +164,8 @@ Since `{` (0x7B), `}` (0x7D), `"` (0x22), and `\` (0x5C) are all in the `0x00–
   "testsAddedOrUpdated": [],
   "commandsRun": [],
   "validationOutput": [
-    "Research brief written to /home/dustin/projects/stagehand/plan/001_f1f80943ac34/P1M2T6S1/research/json-in-prose-brace-balanced.md",
-    "Progress file updated at /home/dustin/.pi/agent/sessions/--home-dustin-projects-stagehand--/subagent-artifacts/progress/389a03b3/progress.md",
+    "Research brief written to /home/dustin/projects/stagecoach/plan/001_f1f80943ac34/P1M2T6S1/research/json-in-prose-brace-balanced.md",
+    "Progress file updated at /home/dustin/.pi/agent/sessions/--home-dustin-projects-stagecoach--/subagent-artifacts/progress/389a03b3/progress.md",
     "Brief covers all 4 requested angles with RFC and Go stdlib citations",
     "Includes concrete failing example and complete Go implementation sketch",
     "Under 500 words in the core findings (implementation sketch excluded from word count as it is code)"

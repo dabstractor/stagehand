@@ -4,7 +4,7 @@
 
 `internal/lock/lock.go` implements FR52 per-repo run lock:
 - Advisory `flock(LOCK_EX|LOCK_NB)` — auto-releases on process death (fd close at teardown)
-- Lock file: `XDG_RUNTIME_DIR/stagehand/locks/<sha256hex>.lock` (or cache dir fallback)
+- Lock file: `XDG_RUNTIME_DIR/stagecoach/locks/<sha256hex>.lock` (or cache dir fallback)
 - Contents: `pid=`, `hostname=`, `repo=`, `timestamp=`, `snapshot=`
 - `Release()`: close fd (release flock) → `os.Remove(path)` → clear singleton
 - `Acquire()`: open file → flock → write contents → store singleton
@@ -90,7 +90,7 @@ Both branches need coverage: the lock is acquired at `default_action.go:59` BEFO
 is armed (deep in `CommitStaged`/`runPipeline`). A Ctrl-C in the pre-snapshot window hits the
 130/143 branch and also orphans the file.
 
-### Wiring in `cmd/stagehand/main.go`
+### Wiring in `cmd/stagecoach/main.go`
 
 ```go
 signal.Install(ctx, signal.Options{

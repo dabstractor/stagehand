@@ -1,10 +1,10 @@
-name: "P1.M1.T1.S2 — .stagehandignore parser + gitignore-glob → :(exclude,glob) pathspec translator"
+name: "P1.M1.T1.S2 — .stagecoachignore parser + gitignore-glob → :(exclude,glob) pathspec translator"
 description: |
-  Add the second and third exclusion sources of PRD §9.18: a `.stagehandignore` loader (one glob per
+  Add the second and third exclusion sources of PRD §9.18: a `.stagecoachignore` loader (one glob per
   line, `#`/blank ignored, `!` skipped with a --verbose warning, missing file = no-op) and a PURE
   translation function that turns gitignore-style globs into git `:(exclude,glob)<pattern>` pathspecs.
   Ship `ResolveExcludePathspecs(cfg, repoRoot, v) ([]string, error)` returning the translated union of
-  `.stagehandignore` ∪ `cfg.Exclude` (the raw glob set S1 already resolved). Consumed by P1.M1.T2.S1,
+  `.stagecoachignore` ∪ `cfg.Exclude` (the raw glob set S1 already resolved). Consumed by P1.M1.T2.S1,
   which threads the result into `StagedDiffOptions.Excludes` on all three diff paths. This subtask does
   NOT touch any diff path, does NOT emit `[excluded]` placeholders, and does NOT resolve the config
   union (that is S1, already landed).
@@ -13,31 +13,31 @@ description: |
 
 ## Goal
 
-**Feature Goal**: A repo can carry a `.stagehandignore` file of gitignore-style globs, and every user
-exclusion glob (from `.stagehandignore` and from `cfg.Exclude`) is faithfully translated into a git
+**Feature Goal**: A repo can carry a `.stagecoachignore` file of gitignore-style globs, and every user
+exclusion glob (from `.stagecoachignore` and from `cfg.Exclude`) is faithfully translated into a git
 `:(exclude,glob)` pathspec that behaves like gitignore (`*` stops at `/`, `**` spans components,
 anchoring and `dir/` honored). The single entry point returns the ready-to-use pathspec union.
 
 **Deliverable**: A new package `internal/exclude` exposing:
 1. `TranslatePattern(glob string) string` — pure gitignore-glob → `:(exclude,glob)<core>` translator
    (golden-table tested; the load-bearing logic).
-2. `LoadStagehandIgnore(repoRoot string, v *ui.Verbose) ([]string, error)` — reads `<repoRoot>/.stagehandignore`,
+2. `LoadStagecoachIgnore(repoRoot string, v *ui.Verbose) ([]string, error)` — reads `<repoRoot>/.stagecoachignore`,
    returns the raw (untranslated) globs; skips blank/`#` lines; skips `!` lines with a `--verbose`
    warning; missing file ⇒ `(nil, nil)`.
 3. `ResolveExcludePathspecs(cfg config.Config, repoRoot string, v *ui.Verbose) ([]string, error)` —
-   translated union of `LoadStagehandIgnore(...)` ∪ `cfg.Exclude`, each run through `TranslatePattern`.
+   translated union of `LoadStagecoachIgnore(...)` ∪ `cfg.Exclude`, each run through `TranslatePattern`.
 
 Plus one small `internal/ui` addition: `func (v *Verbose) VerboseWarn(msg string)` for the `!`-line
 warning (same nil/off no-op guard idiom as the other `Verbose*` methods).
 
-Plus docs: a new `## .stagehandignore` section in `docs/configuration.md` (Mode A — rides WITH this
+Plus docs: a new `## .stagecoachignore` section in `docs/configuration.md` (Mode A — rides WITH this
 subtask): syntax, the no-negation rule, and the FR-X5 sentence "excluded from what the agent sees,
 still committed."
 
 **Success Definition**:
 - `TranslatePattern` maps every golden-table row in `research/gitignore-to-pathspec.md` exactly.
-- `LoadStagehandIgnore` parses per FR-X2 (blank/`#` ignored, `!` skipped+warned, missing ⇒ nil,nil).
-- `ResolveExcludePathspecs` returns `translate(.stagehandignore globs) ++ translate(cfg.Exclude)`.
+- `LoadStagecoachIgnore` parses per FR-X2 (blank/`#` ignored, `!` skipped+warned, missing ⇒ nil,nil).
+- `ResolveExcludePathspecs` returns `translate(.stagecoachignore globs) ++ translate(cfg.Exclude)`.
 - A real-git integration test confirms the emitted pathspecs actually exclude the intended paths
   (anchored, any-depth, `dir/`, embedded `*`, `**`) when handed to `git diff -- <pathspec…>`.
 - `go build ./...`, `go test ./internal/exclude/... ./internal/ui/...`, `go vet`, `golangci-lint` pass.
@@ -46,10 +46,10 @@ still committed."
 
 - **FR-X1 (PRD §9.18)** unions four exclusion sources. S1 (already landed) delivered sources (c)
   `[generation].exclude` and (d) `--exclude/-x` as raw globs in `cfg.Exclude`, plus the union machinery.
-  THIS subtask delivers source (b) `.stagehandignore` AND the translation step that every user source
+  THIS subtask delivers source (b) `.stagecoachignore` AND the translation step that every user source
   needs before it can reach git. Source (a) the built-in denylist stays separate — it is already
   pre-translated in `internal/git/git.go` (`defaultExcludes`) and is NOT this function's concern.
-- **FR-X2** fixes the exact `.stagehandignore` syntax and the no-negation rule; the translation is
+- **FR-X2** fixes the exact `.stagecoachignore` syntax and the no-negation rule; the translation is
   non-obvious because git's default pathspec matching is `fnmatch` WITHOUT `FNM_PATHNAME` (`*` crosses
   `/`), so gitignore semantics REQUIRE the `:(glob)` magic word (architecture/external_deps.md §4).
 - Output is the input contract for **P1.M1.T2.S1**, which sets `StagedDiffOptions.Excludes` from this
@@ -61,7 +61,7 @@ still committed."
 `ResolveExcludePathspecs` produces a `[]string` of `:(exclude,glob)…` pathspecs. Given:
 
 ```
-# .stagehandignore (repo root)
+# .stagecoachignore (repo root)
 *.min.js          # any-depth
 /dist/            # root dist/ dir contents only
 !keep.min.js      # SKIPPED — pathspecs cannot un-exclude (warned at --verbose)
@@ -77,17 +77,17 @@ and stderr (only with `--verbose`) shows one `DEBUG: ...` warning for the skippe
 
 ### Success Criteria
 
-- [ ] `internal/exclude/exclude.go` created with the three exported functions + the `.stagehandignore`
+- [ ] `internal/exclude/exclude.go` created with the three exported functions + the `.stagecoachignore`
       filename constant.
 - [ ] `TranslatePattern` implements the 5 rules (anchor strip, `dir/`→`/**`, any-depth `**/` prefix,
       `:(exclude,glob)` wrap) and passes the golden table verbatim.
-- [ ] `LoadStagehandIgnore` skips blank + `#` lines, skips `!` lines with a `VerboseWarn`, returns raw
+- [ ] `LoadStagecoachIgnore` skips blank + `#` lines, skips `!` lines with a `VerboseWarn`, returns raw
       globs, `(nil,nil)` on missing file, real error only on non-ENOENT read failure.
 - [ ] `ResolveExcludePathspecs` = translate(ignore-file) ++ translate(cfg.Exclude); order preserved.
 - [ ] `ui.Verbose.VerboseWarn` added with the standard `v==nil || v.w==nil || !v.on` no-op guard.
 - [ ] Golden-table unit tests for `TranslatePattern`; loader tests (blank/comment/`!`/missing/CRLF);
       one real-git integration test proving the semantics.
-- [ ] `docs/configuration.md` gains the `## .stagehandignore` section (syntax + no-negation + FR-X5).
+- [ ] `docs/configuration.md` gains the `## .stagecoachignore` section (syntax + no-negation + FR-X5).
 - [ ] NO diff-path changes, NO `[excluded]` placeholder work, NO config-resolution changes.
 
 ## All Needed Context
@@ -187,17 +187,17 @@ internal/
     verbose_test.go  # add a VerboseWarn test
   prompt/            # exemplar small pure-function package
 docs/
-  configuration.md   # ADD ## .stagehandignore section (Mode A)
+  configuration.md   # ADD ## .stagecoachignore section (Mode A)
 ```
 
 ### Desired Codebase tree (files added / changed)
 
 ```bash
-internal/exclude/exclude.go         # NEW — TranslatePattern, LoadStagehandIgnore, ResolveExcludePathspecs, filename const
+internal/exclude/exclude.go         # NEW — TranslatePattern, LoadStagecoachIgnore, ResolveExcludePathspecs, filename const
 internal/exclude/exclude_test.go    # NEW — golden-table + loader tests + real-git integration test
 internal/ui/verbose.go              # + VerboseWarn method
 internal/ui/verbose_test.go         # + VerboseWarn no-op/on test
-docs/configuration.md               # + ## .stagehandignore section (syntax, no-negation, FR-X5)
+docs/configuration.md               # + ## .stagecoachignore section (syntax, no-negation, FR-X5)
 ```
 
 ### Known Gotchas & Library Quirks
@@ -216,17 +216,17 @@ docs/configuration.md               # + ## .stagehandignore section (syntax, no-
 // "**/" prefix → "**/vendor/**".
 
 // CRITICAL: NO negation. A line starting with "!" is SKIPPED (never translated) + one VerboseWarn.
-// Never return an error for it. Missing .stagehandignore ⇒ (nil, nil), also never an error.
+// Never return an error for it. Missing .stagecoachignore ⇒ (nil, nil), also never an error.
 
 // CRITICAL: output is sources (b)+(c)+(d) ONLY. Do NOT fold in git.go's defaultExcludes (source (a)) —
 // that denylist is applied separately inside git.go. ResolveExcludePathspecs returns the USER union
-// (.stagehandignore ∪ cfg.Exclude), translated.
+// (.stagecoachignore ∪ cfg.Exclude), translated.
 
 // GOTCHA: import cycle. internal/exclude imports internal/config (for Config) and internal/ui (for
 // Verbose). config imports NEITHER; ui imports neither. So the graph is acyclic. Do NOT import
 // internal/git here (repoRoot is a plain string param — no git dependency needed).
 
-// GOTCHA: CRLF + trailing whitespace. Strip a trailing "\r" (Windows-authored .stagehandignore) and
+// GOTCHA: CRLF + trailing whitespace. Strip a trailing "\r" (Windows-authored .stagecoachignore) and
 // trailing spaces before classifying a line. A "#" only starts a comment at column 0 (after trim) —
 // gitignore treats "#" mid-pattern literally; keep it simple: trim, then check prefix.
 
@@ -243,20 +243,20 @@ docs/configuration.md               # + ## .stagehandignore section (syntax, no-
 // internal/exclude/exclude.go
 package exclude
 
-// StagehandIgnoreFile is the fixed repo-root filename (PRD §9.18 FR-X1b/FR-X2).
-const StagehandIgnoreFile = ".stagehandignore"
+// StagecoachIgnoreFile is the fixed repo-root filename (PRD §9.18 FR-X1b/FR-X2).
+const StagecoachIgnoreFile = ".stagecoachignore"
 
 // TranslatePattern converts one gitignore-style glob (relative to the repo root) into a single git
 // `:(exclude,glob)<core>` pathspec (PRD §9.18 FR-X2; architecture/external_deps.md §4).
 func TranslatePattern(glob string) string
 
-// LoadStagehandIgnore reads <repoRoot>/.stagehandignore and returns the raw (untranslated) globs.
+// LoadStagecoachIgnore reads <repoRoot>/.stagecoachignore and returns the raw (untranslated) globs.
 // Blank and `#`-comment lines are ignored; `!` (negation) lines are skipped with a VerboseWarn
 // (FR-X2: pathspecs cannot un-exclude). A missing file returns (nil, nil). Only a non-ENOENT read
 // error is returned as err.
-func LoadStagehandIgnore(repoRoot string, v *ui.Verbose) ([]string, error)
+func LoadStagecoachIgnore(repoRoot string, v *ui.Verbose) ([]string, error)
 
-// ResolveExcludePathspecs returns the translated UNION of the .stagehandignore globs and cfg.Exclude
+// ResolveExcludePathspecs returns the translated UNION of the .stagecoachignore globs and cfg.Exclude
 // (the S1-resolved raw union), each run through TranslatePattern. Order: ignore-file globs first, then
 // cfg.Exclude. Consumed by P1.M1.T2.S1 as StagedDiffOptions.Excludes.
 func ResolveExcludePathspecs(cfg config.Config, repoRoot string, v *ui.Verbose) ([]string, error)
@@ -268,25 +268,25 @@ func ResolveExcludePathspecs(cfg config.Config, repoRoot string, v *ui.Verbose) 
 Task 1: MODIFY internal/ui/verbose.go
   - IMPLEMENT: func (v *Verbose) VerboseWarn(msg string) printing "DEBUG: "+msg+"\n".
   - FOLLOW pattern: VerboseCommand's exact guard `if v == nil || v.w == nil || !v.on { return }`.
-  - PLACEMENT: next to VerboseRetry; add a doc comment citing FR-X2 (the .stagehandignore `!` warning).
+  - PLACEMENT: next to VerboseRetry; add a doc comment citing FR-X2 (the .stagecoachignore `!` warning).
 
 Task 2: MODIFY internal/ui/verbose_test.go
   - IMPLEMENT: test VerboseWarn writes "DEBUG: <msg>" when on, writes nothing when off / nil writer.
   - FOLLOW pattern: existing VerboseCommand/VerboseRetry table tests (bytes.Buffer sink).
 
 Task 3: CREATE internal/exclude/exclude.go
-  - IMPLEMENT: StagehandIgnoreFile const; TranslatePattern (the 5 rules); LoadStagehandIgnore; ResolveExcludePathspecs.
+  - IMPLEMENT: StagecoachIgnoreFile const; TranslatePattern (the 5 rules); LoadStagecoachIgnore; ResolveExcludePathspecs.
   - TranslatePattern rules (research/gitignore-to-pathspec.md):
       1. strip a leading "/" (record anchored=true).
       2. strip a trailing "/" (record dirOnly=true).
       3. hasInternalSlash = remaining contains "/".
       4. core = dirOnly ? p+"/**" : p ; if !anchored && !hasInternalSlash: core = "**/"+core.
       5. return ":(exclude,glob)"+core.
-  - LoadStagehandIgnore: os.ReadFile(filepath.Join(repoRoot, StagehandIgnoreFile)); on os.IsNotExist ⇒
+  - LoadStagecoachIgnore: os.ReadFile(filepath.Join(repoRoot, StagecoachIgnoreFile)); on os.IsNotExist ⇒
       return nil,nil; split lines; per line: strip trailing "\r", TrimSpace; skip "" and "#..."; if
-      HasPrefix "!" ⇒ v.VerboseWarn("skipping unsupported negation in .stagehandignore: "+line) and
+      HasPrefix "!" ⇒ v.VerboseWarn("skipping unsupported negation in .stagecoachignore: "+line) and
       continue; else append raw.
-  - ResolveExcludePathspecs: globs,err := LoadStagehandIgnore(...); if err return; out := make([]string,0);
+  - ResolveExcludePathspecs: globs,err := LoadStagecoachIgnore(...); if err return; out := make([]string,0);
       for each ignore glob append TranslatePattern(g); for each cfg.Exclude glob append TranslatePattern(g);
       return out,nil. (Empty union ⇒ empty/nil slice, nil err — a valid no-exclusions result.)
   - FOLLOW pattern: internal/prompt/payload.go (package doc comment, FR-referencing func comments).
@@ -295,7 +295,7 @@ Task 3: CREATE internal/exclude/exclude.go
 Task 4: CREATE internal/exclude/exclude_test.go
   - IMPLEMENT: (a) golden-table TestTranslatePattern covering every row in research + at least: `*.lock`,
       `/*.lock`, `vendor/`, `/build/`, `docs/*.md`, `node_modules`, `a/**/b.go`, `**/foo.txt`, `src/gen*.ts`.
-    (b) TestLoadStagehandIgnore: blank+comment ignored; `!` skipped and warns (assert buffer contains
+    (b) TestLoadStagecoachIgnore: blank+comment ignored; `!` skipped and warns (assert buffer contains
       DEBUG); CRLF handled; missing file ⇒ nil,nil; a genuine read error path (e.g. repoRoot is a file).
     (c) TestResolveExcludePathspecs: ignore-file globs THEN cfg.Exclude, all translated, order preserved;
       cfg.Exclude-only (no file); file-only (empty cfg); both empty ⇒ empty.
@@ -306,7 +306,7 @@ Task 4: CREATE internal/exclude/exclude_test.go
   - FOLLOW pattern: internal/git/stagediff_test.go temp-repo + runGit helper; t.Skip if git missing.
 
 Task 5: MODIFY docs/configuration.md  [Mode A — rides WITH this subtask]
-  - ADD a "## .stagehandignore" section: it lives at the repo root; one gitignore-style glob per line;
+  - ADD a "## .stagecoachignore" section: it lives at the repo root; one gitignore-style glob per line;
     blank + `#` lines ignored; **negation (`!`) is NOT supported** (patterns become git `:(exclude)`
     pathspecs, which cannot un-exclude — `!` lines are skipped with a `--verbose` warning); missing
     file = no-op. Unions with `[generation].exclude` and `--exclude/-x` (cross-ref §9.18 / the existing
@@ -341,13 +341,13 @@ func TranslatePattern(glob string) string {
     return ":(exclude,glob)" + core
 }
 
-// LoadStagehandIgnore — parse loop.
-data, err := os.ReadFile(filepath.Join(repoRoot, StagehandIgnoreFile))
+// LoadStagecoachIgnore — parse loop.
+data, err := os.ReadFile(filepath.Join(repoRoot, StagecoachIgnoreFile))
 if errors.Is(err, os.ErrNotExist) {
     return nil, nil // FR-X2: missing file = no-op
 }
 if err != nil {
-    return nil, fmt.Errorf("read %s: %w", StagehandIgnoreFile, err)
+    return nil, fmt.Errorf("read %s: %w", StagecoachIgnoreFile, err)
 }
 for _, raw := range strings.Split(string(data), "\n") {
     line := strings.TrimSpace(strings.TrimSuffix(raw, "\r"))
@@ -355,7 +355,7 @@ for _, raw := range strings.Split(string(data), "\n") {
         continue
     }
     if strings.HasPrefix(line, "!") {
-        v.VerboseWarn("ignoring unsupported negation pattern in .stagehandignore: " + line)
+        v.VerboseWarn("ignoring unsupported negation pattern in .stagecoachignore: " + line)
         continue // FR-X2: pathspecs have no un-exclude
     }
     globs = append(globs, line)
@@ -369,7 +369,7 @@ UPSTREAM (already done — consume, do not modify):
   - internal/config/config.go: cfg.Exclude []string (raw union from S1).
 
 THIS SUBTASK:
-  - internal/exclude/exclude.go: TranslatePattern, LoadStagehandIgnore, ResolveExcludePathspecs.
+  - internal/exclude/exclude.go: TranslatePattern, LoadStagecoachIgnore, ResolveExcludePathspecs.
   - internal/ui/verbose.go: VerboseWarn.
 
 DOWNSTREAM (out of scope — do NOT implement):
@@ -383,7 +383,7 @@ DOWNSTREAM (out of scope — do NOT implement):
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/exclude/exclude.go internal/exclude/exclude_test.go internal/ui/verbose.go
 go build ./...
 go vet ./internal/exclude/... ./internal/ui/...
@@ -415,7 +415,7 @@ go test ./internal/ui/... -run 'VerboseWarn' -v
 go test ./internal/exclude/... -run 'BehaveLikeGitignore' -v
 # The test builds a temp repo with, e.g.:
 #   top.lock, sub/nested.lock, dist/x.js, keep.js, docs/readme.md, sub/docs/other.md
-# Translates .stagehandignore {*.lock, /dist/, docs/*.md} and asserts (via git diff --name-only with
+# Translates .stagecoachignore {*.lock, /dist/, docs/*.md} and asserts (via git diff --name-only with
 # the pathspecs) that top.lock, sub/nested.lock, dist/x.js, docs/readme.md are EXCLUDED while keep.js
 # and sub/docs/other.md (docs/*.md is root-anchored) SURVIVE. Pin the dir-recursion nuance here.
 # Expected: pass; if the nuance test fails for a bareword dir, apply the research-documented fix.
@@ -437,11 +437,11 @@ npx --yes markdownlint-cli docs/configuration.md 2>/dev/null || echo "verify sec
 
 ### Feature
 - [ ] `TranslatePattern` matches the golden table exactly (anchor, `dir/`, `**`, embedded `*`, any-depth).
-- [ ] `LoadStagehandIgnore`: blank/`#` ignored; `!` skipped + `--verbose` warning; missing⇒nil,nil; real error surfaced.
-- [ ] `ResolveExcludePathspecs` = translate(.stagehandignore) ++ translate(cfg.Exclude), order preserved.
+- [ ] `LoadStagecoachIgnore`: blank/`#` ignored; `!` skipped + `--verbose` warning; missing⇒nil,nil; real error surfaced.
+- [ ] `ResolveExcludePathspecs` = translate(.stagecoachignore) ++ translate(cfg.Exclude), order preserved.
 - [ ] Real-git integration test proves the pathspecs exclude the intended paths.
 - [ ] `ui.Verbose.VerboseWarn` no-ops when off / nil (guard identical to siblings).
-- [ ] `docs/configuration.md` `## .stagehandignore` states syntax, no-negation, and FR-X5 payload-only sentence.
+- [ ] `docs/configuration.md` `## .stagecoachignore` states syntax, no-negation, and FR-X5 payload-only sentence.
 
 ### Scope Boundaries (do NOT cross)
 - [ ] No config-resolution changes (cfg.Exclude is S1's; read-only here).

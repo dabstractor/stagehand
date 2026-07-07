@@ -19,7 +19,7 @@ description: |
   mirrors SetSnapshot's style + names the FR52 §18.5 exit-path-release purpose.
 
   ⚠️ **THE second design call — `OnRescueExit` is the injectable-seam pattern (signal stays stdlib-only).**
-  `internal/signal` deliberately imports NO stagehand packages (its doc says so; `RescueFormat` avoids a
+  `internal/signal` deliberately imports NO stagecoach packages (its doc says so; `RescueFormat` avoids a
   signal↔generate cycle the same way). `OnRescueExit func()` is a new `Options` field alongside
   `RescueFormat`/`Out`/`Kill`/`Exit`, defaulted to `func(){}` (no-op) in `Install`. main.go (P1.M2.T2.S2)
   wires `OnRescueExit: lock.ReleaseCurrent`; THIS task ships the no-op default → **byte-identical behavior**
@@ -78,12 +78,12 @@ orphaning it. The signal package stays stdlib-only; this task ships the seam (no
 **Success Definition**: `go build ./...`, `go vet ./...`, `gofmt -l` clean; `go test -race ./...` green with
 existing tests UNCHANGED (the no-op default = byte-identical behavior). `ReleaseCurrent` is nil-safe +
 idempotent; `OnRescueExit` is defaulted + called on both exit branches; `RestoreDefault` is untouched; signal
-imports NO stagehand package; go.mod/go.sum unchanged; only `internal/lock/lock.go` + `internal/signal/signal.go`
+imports NO stagecoach package; go.mod/go.sum unchanged; only `internal/lock/lock.go` + `internal/signal/signal.go`
 touched.
 
 ## User Persona
 
-**Target User**: The user who Ctrl-C's a `stagehand` run. After S2 wires the seam, the signal-rescue exit
+**Target User**: The user who Ctrl-C's a `stagecoach` run. After S2 wires the seam, the signal-rescue exit
 removes the lock file (today `os.Exit` skips `defer Release`, orphaning it). Transitively the FR52 contention
 path + the reaping backstop (P1.M2.T1.S2): prevention (this seam) + backstop (reap-on-Acquire) together keep
 the lock directory clean.
@@ -92,7 +92,7 @@ the lock directory clean.
 lock file is orphaned (defer skipped). After this seam + S2's wiring, `OnRescueExit` (= `lock.ReleaseCurrent`)
 removes the file BEFORE `os.Exit`.
 
-**User Journey**: `stagehand` → `lock.Acquire` (default_action.go:59) → `defer Release` (:67) → snapshot
+**User Journey**: `stagecoach` → `lock.Acquire` (default_action.go:59) → `defer Release` (:67) → snapshot
 armed → Ctrl-C → `handle()` → print rescue → **`OnRescueExit()`** (release lock file) → `Exit(3)`. The defer
 never runs (os.Exit skips it), but `OnRescueExit` already removed the file.
 
@@ -129,7 +129,7 @@ no RestoreDefault change, no committed tests (P1.M2.T3.S2), no docs/how-it-works
 - [ ] `handle()` calls `h.opts.OnRescueExit()` immediately before `h.opts.Exit(3)` (post-snapshot rescue) AND
       before `h.opts.Exit(exitCodeForSignal(sig))` (pre-snapshot 130/143).
 - [ ] `RestoreDefault` is UNCHANGED (no OnRescueExit there — success path uses `defer Release`).
-- [ ] `internal/signal` imports NO stagehand package (stdlib-only — OnRescueExit is the seam, not an import).
+- [ ] `internal/signal` imports NO stagecoach package (stdlib-only — OnRescueExit is the seam, not an import).
 - [ ] `go build ./...`, `go vet ./...`, `gofmt -l internal/lock/ internal/signal/`, `go test -race ./...`
       clean/green; go.mod/go.sum unchanged; existing tests byte-unchanged; only the 2 files touched.
 
@@ -174,7 +174,7 @@ stdlib-only-seam pattern, and the no-committed-tests discipline. No PRD/git inte
        SetSnapshot. It calls Release (already idempotent + nil-safe on the Locker).
   pattern: copy SetSnapshot's shape: `func ReleaseCurrent() { if l := current.Load(); l != nil { l.Release() } }`.
   gotcha: ZERO new imports (lock.go is stdlib-only; ReleaseCurrent uses only current.Load + Release). The package
-           must STAY stdlib-only (no stagehand imports) — ReleaseCurrent is called via the seam, not by signal directly.
+           must STAY stdlib-only (no stagecoach imports) — ReleaseCurrent is called via the seam, not by signal directly.
 
 # The signal file (EDIT — add OnRescueExit + calls)
 - file: internal/signal/signal.go
@@ -259,7 +259,7 @@ go.mod / go.sum        # unchanged (no new dep; both packages stay stdlib-only)
 // Acquire wiring + 3 doc fixes; S1 adds ReleaseCurrent (after SetSnapshot). Different functions/regions → no
 // textual conflict. Do NOT touch docs/how-it-works.md (S2 owns it; it already mentions the signal-path release).
 
-// GOTCHA: the signal package doc comment says "imports NO stagehand packages (stdlib-only)" — keep it truthful.
+// GOTCHA: the signal package doc comment says "imports NO stagecoach packages (stdlib-only)" — keep it truthful.
 // Adding the OnRescueExit seam does NOT violate it (the seam is a func() field, not an import). Do NOT edit the
 // package doc unless to mention OnRescueExit is the lock-release seam (optional).
 ```
@@ -292,7 +292,7 @@ type Options struct {
 	// rescue exit 3 AND the pre-snapshot 130/143 exit). It is the exit-path lock-release seam: wired in main.go
 	// to lock.ReleaseCurrent so the lock file is removed before os.Exit skips the deferred Release (FR52 §18.5).
 	// Defaulted to a no-op here so the signal package stays stdlib-only (it cannot import internal/lock) and so
-	// library use of pkg/stagehand (no Install wiring) is unaffected.
+	// library use of pkg/stagecoach (no Install wiring) is unaffected.
 	OnRescueExit func()
 }
 
@@ -338,7 +338,7 @@ Task 3: signal.go — call OnRescueExit before BOTH exit branches in handle()
 Task 4: VERIFY (no further file change)
   - RUN `gofmt -w internal/lock/lock.go internal/signal/signal.go`; `go vet ./internal/lock/ ./internal/signal/`;
     `go build ./...`; `go test -race ./...` (no-op default = byte-identical → no regression).
-  - go.mod/go.sum byte-unchanged. signal imports NO stagehand package. RestoreDefault byte-unchanged.
+  - go.mod/go.sum byte-unchanged. signal imports NO stagecoach package. RestoreDefault byte-unchanged.
     Only the 2 files touched. NO committed tests (P1.M2.T3.S2).
   - THROWAWAY end-to-end sanity check (Level 3, non-committed): inject OnRescueExit=lock.ReleaseCurrent,
     Acquire a lock, call handle(SIGINT) with a recording Exit, assert the lock file is gone.
@@ -390,7 +390,7 @@ PACKAGE EDGES:
 FROZEN / NOT-EDITED:
   - internal/cmd/default_action.go (L59 Acquire + L67 defer Release — READ ONLY; the wiring is P1.M2.T2.S2
     in main.go, NOT here).
-  - cmd/stagehand/main.go (P1.M2.T2.S2 wires OnRescueExit: lock.ReleaseCurrent in the Install call).
+  - cmd/stagecoach/main.go (P1.M2.T2.S2 wires OnRescueExit: lock.ReleaseCurrent in the Install call).
   - internal/lock/{lock_unix,lock_windows,lock_test,lock_unix_test}.go (P1.M2.T1.S1/S2 + P1.M2.T3.S1).
   - internal/signal/signal_test.go (P1.M2.T3.S2 owns the exit-path-release tests).
   - docs/how-it-works.md (P1.M2.T1.S2 owns the reaping rewrites — already mention the signal-path release).
@@ -418,8 +418,8 @@ git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
 # Confirm ReleaseCurrent + OnRescueExit landed:
 grep -n 'func ReleaseCurrent' internal/lock/lock.go                  # 1 hit (after SetSnapshot)
 grep -c 'OnRescueExit' internal/signal/signal.go                     # ≥4: field + doc + Install default + 2 handle calls
-# Confirm signal still imports NO stagehand package (stdlib-only preserved):
-grep -n 'dustin/stagehand' internal/signal/signal.go && echo "BAD: signal imports a stagehand pkg" || echo "signal stdlib-only (good)"
+# Confirm signal still imports NO stagecoach package (stdlib-only preserved):
+grep -n 'dustin/stagecoach' internal/signal/signal.go && echo "BAD: signal imports a stagecoach pkg" || echo "signal stdlib-only (good)"
 # Confirm OnRescueExit is NOT in RestoreDefault:
 grep -A3 'func RestoreDefault' internal/signal/signal.go | grep 'OnRescueExit' && echo "BAD: in RestoreDefault" || echo "RestoreDefault clean (good)"
 ```
@@ -438,13 +438,13 @@ go test -race ./...                                 # full module — no regress
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only the 2 files changed:
 git diff --name-only | grep -Ev '^internal/lock/lock\.go$|^internal/signal/signal\.go$' \
   && echo "UNEXPECTED file changed" || echo "only lock.go + signal.go changed (good)"
 # Confirm RestoreDefault + main.go + default_action.go byte-unchanged:
-git diff --exit-code -- internal/cmd/default_action.go cmd/stagehand/main.go && echo "default_action.go + main.go UNCHANGED (expected — wiring is S2)"
+git diff --exit-code -- internal/cmd/default_action.go cmd/stagecoach/main.go && echo "default_action.go + main.go UNCHANGED (expected — wiring is S2)"
 # THROWAWAY end-to-end sanity check (NOT committed — P1.M2.T3.S2 owns committed tests). Confirms the seam works
 # once wired (this task ships the no-op default; the sanity check injects ReleaseCurrent to prove the mechanism):
 cat > /tmp/seam_sanity_test.go <<'EOF'
@@ -465,8 +465,8 @@ make lint 2>&1 | grep -iE 'ReleaseCurrent|OnRescueExit|unused|U1000' && echo "BA
 # Seam-completeness audit: OnRescueExit appears in (a) Options struct, (b) Install default, (c) handle() pre-Exit(3),
 # (d) handle() pre-Exit(exitCodeForSignal) — all 4 sites:
 grep -n 'OnRescueExit' internal/signal/signal.go
-# Stdlib-only audit: neither package gained a stagehand import:
-git diff internal/lock/lock.go internal/signal/signal.go | grep -E '^\+\s*"github.com/dustin' && echo "BAD: new stagehand import" || echo "no new stagehand imports (good)"
+# Stdlib-only audit: neither package gained a stagecoach import:
+git diff internal/lock/lock.go internal/signal/signal.go | grep -E '^\+\s*"github.com/dustin' && echo "BAD: new stagecoach import" || echo "no new stagecoach imports (good)"
 # Cross-platform build (signal compiles on Windows — OnRescueExit is a plain func() field; SIGTERM is a no-op there):
 GOOS=windows go build ./internal/signal/ && echo "windows build OK" || echo "windows build FAILED"
 ```
@@ -475,7 +475,7 @@ GOOS=windows go build ./internal/signal/ && echo "windows build OK" || echo "win
 
 ### Technical Validation
 
-- [ ] Level 1 clean: `gofmt -l`, `go vet ./...`, `go build ./...`, `go mod tidy` no-op; signal imports NO stagehand pkg.
+- [ ] Level 1 clean: `gofmt -l`, `go vet ./...`, `go build ./...`, `go mod tidy` no-op; signal imports NO stagecoach pkg.
 - [ ] Level 2 green: `go test -race ./...` (no-op default = byte-identical; existing tests unchanged; S1 adds none).
 - [ ] Level 3: binary builds; go.mod/go.sum unchanged; only lock.go + signal.go changed; default_action.go + main.go byte-unchanged.
 - [ ] Level 4: `make lint` green (no U1000/unused for ReleaseCurrent/OnRescueExit); `GOOS=windows go build ./internal/signal/` OK.
@@ -533,7 +533,7 @@ GOOS=windows go build ./internal/signal/ && echo "windows build OK" || echo "win
   test files are P1.M2.T3.S1/S2.
 - ❌ Don't change go.mod/go.sum or add files. One exported func + one Options field + two call insertions, in
   2 existing files.
-- ❌ Don't skip `go vet`/`go build`/`go test -race ./...`/`make lint`. They catch a malformed func, a stagehand
+- ❌ Don't skip `go vet`/`go build`/`go test -race ./...`/`make lint`. They catch a malformed func, a stagecoach
   import in signal (the stdlib-only audit), an unfired seam (the OnRescueExit count), and any regression from
   the (byte-identical) no-op default.
 

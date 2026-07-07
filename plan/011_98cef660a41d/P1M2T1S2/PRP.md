@@ -84,16 +84,16 @@ describe reaping; go.mod/go.sum byte-unchanged; zero new imports; only `internal
 
 ## User Persona
 
-**Target User**: The user whose lock directory (`$XDG_RUNTIME_DIR/stagehand/locks/` or cache fallback)
+**Target User**: The user whose lock directory (`$XDG_RUNTIME_DIR/stagecoach/locks/` or cache fallback)
 accumulates orphaned `*.lock` files from interrupted runs (Ctrl-C rescue, SIGKILL, crash). After S2, each
-`stagehand` run cleans up dead holders' files automatically. Transitively, the FR52 contention path (the next
+`stagecoach` run cleans up dead holders' files automatically. Transitively, the FR52 contention path (the next
 Acquire that would otherwise see a cluttered dir).
 
-**Use Case**: A user Ctrl-C's a `stagehand` run after the snapshot (signal-rescue `os.Exit` orphans the file),
-then re-runs `stagehand`. The re-run's `Acquire` takes its own flock, then `reapStaleLocks` removes the dead
+**Use Case**: A user Ctrl-C's a `stagecoach` run after the snapshot (signal-rescue `os.Exit` orphans the file),
+then re-runs `stagecoach`. The re-run's `Acquire` takes its own flock, then `reapStaleLocks` removes the dead
 (pid no longer alive) orphan. The directory stays bounded.
 
-**User Journey**: `stagehand` → `Acquire(repoPath)` → flock succeeds → writeContents + current.Store →
+**User Journey**: `stagecoach` → `Acquire(repoPath)` → flock succeeds → writeContents + current.Store →
 **reapStaleLocks(dir)** (S2) → for each `*.lock`, processAlive(pid, hostname)? dead → os.Remove; live → keep →
 proceed with the run.
 
@@ -332,7 +332,7 @@ func reapStaleLocks(dir string) {
 //   AFTER:  ...auto-releases on process death (SIGKILL, crash, power loss) — the LOCK never goes stale. Orphaned lock FILES (left by exits that bypass the deferred cleanup) are reaped by pid-liveness on the next Acquire, and the signal path releases the file before exiting.
 // Line 179 (the **Auto-release.** paragraph):
 //   BEFORE: **Auto-release.** The lock uses POSIX flock — it releases when the file descriptor or process closes. No stale locks, no PID-liveness checks, no reaping. On Windows, flock is a no-op stub; the §13.5 CAS is the guarantee there.
-//   AFTER:  **Auto-release + file reaping.** The lock uses POSIX flock — it releases when the file descriptor or process closes, so the LOCK is never stale. The lock FILE, however, is orphaned by exits that bypass the deferred cleanup (SIGKILL, crash, signal-rescue os.Exit); on the next Acquire, stagehand reaps every *.lock whose recorded pid is dead (kill(pid,0)→ESRCH), and the signal path releases the file before exiting. On Windows, flock is a no-op stub, reaping is a no-op too, and the §13.5 CAS is the guarantee there.
+//   AFTER:  **Auto-release + file reaping.** The lock uses POSIX flock — it releases when the file descriptor or process closes, so the LOCK is never stale. The lock FILE, however, is orphaned by exits that bypass the deferred cleanup (SIGKILL, crash, signal-rescue os.Exit); on the next Acquire, stagecoach reaps every *.lock whose recorded pid is dead (kill(pid,0)→ESRCH), and the signal path releases the file before exiting. On Windows, flock is a no-op stub, reaping is a no-op too, and the §13.5 CAS is the guarantee there.
 ```
 
 ### Implementation Tasks (ordered by dependencies)
@@ -422,13 +422,13 @@ GO MODULE (go.mod / go.sum): NONE — no new dep; all symbols already imported. 
 
 PACKAGE EDGES:
   - internal/lock → (stdlib only). reapStaleLocks calls processAlive (S1, same package, build-tag file).
-    NO new import. NO new module dep. The package stays a stdlib-only leaf (no stagehand imports).
+    NO new import. NO new module dep. The package stays a stdlib-only leaf (no stagecoach imports).
 
 FROZEN / NOT-EDITED:
   - internal/lock/lock_unix.go + lock_windows.go — S1's processAlive (the hard dep; frozen once landed).
   - internal/lock/lock_test.go + lock_unix_test.go — existing tests + S1's processAlive tests. P1.M2.T3.S1
     adds the committed reaping tests here. S2 adds NONE.
-  - internal/signal/* + cmd/stagehand/main.go — P1.M2.T2 owns the exit-path ReleaseCurrent + OnRescueExit
+  - internal/signal/* + cmd/stagecoach/main.go — P1.M2.T2 owns the exit-path ReleaseCurrent + OnRescueExit
     seam (the prevention half; this task is the reaping backstop). Different concern.
   - Acquire's flock/parseContents/HeldError logic — UNCHANGED (reapStaleLocks is ADDITIVE: one new call line).
 
@@ -473,13 +473,13 @@ go test -race ./...              # full module — no regression.
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only lock.go + docs/how-it-works.md changed:
 git diff --name-only | grep -Ev '^internal/lock/lock\.go$|^docs/how-it-works\.md$' \
   && echo "UNEXPECTED file changed" || echo "only lock.go + docs/how-it-works.md changed (good)"
 # Confirm the frozen S1/signal/test files are byte-unchanged:
-git diff --exit-code -- internal/lock/lock_unix.go internal/lock/lock_windows.go internal/lock/lock_test.go internal/lock/lock_unix_test.go internal/signal cmd/stagehand && echo "frozen files UNCHANGED (expected)"
+git diff --exit-code -- internal/lock/lock_unix.go internal/lock/lock_windows.go internal/lock/lock_test.go internal/lock/lock_unix_test.go internal/signal cmd/stagecoach && echo "frozen files UNCHANGED (expected)"
 # Confirm ALL 5 doc sites are fixed (no over-claim remains):
 grep -n 'no stale locks' internal/lock/lock.go && echo "BAD: lock.go over-claim remains" || echo "lock.go over-claims fixed (good)"
 grep -n 'no stale-lock reaping\|No stale locks' docs/how-it-works.md && echo "BAD: how-it-works over-claim remains" || echo "how-it-works over-claims fixed (good)"
@@ -568,7 +568,7 @@ GOOS=windows go build ./internal/lock/ && echo "windows build OK" || echo "windo
 - ❌ Don't leave any of the 5 doc sites unfixed. The "no stale locks"/"no reaping" claims are directly contradicted
   by this change. Fix lock.go:2/31/67 AND how-it-works.md:170/179 — the item is explicit these "MUST ride with the code".
 - ❌ Don't touch lock_unix.go/lock_windows.go (S1 — frozen), lock_test.go/lock_unix_test.go (S1 + P1.M2.T3.S1),
-  internal/signal/* or cmd/stagehand/main.go (P1.M2.T2 — the exit-path ReleaseCurrent seam). This task is
+  internal/signal/* or cmd/stagecoach/main.go (P1.M2.T2 — the exit-path ReleaseCurrent seam). This task is
   lock.go + docs/how-it-works.md ONLY.
 - ❌ Don't reap a file whose pid is alive. The safety invariant ("never reap a live pid") is encoded in
   processAlive's conservatism (alive/ambiguous → true); S2 trusts it. Do NOT add a secondary check that could

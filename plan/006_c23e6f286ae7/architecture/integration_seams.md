@@ -13,7 +13,7 @@
 // internal/cmd/default_action.go:48-55 (EXISTING)
 repoDir, err := os.Getwd()
 if err != nil {
-    return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: getwd: %w", err))
+    return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: getwd: %w", err))
 }
 g := git.New(repoDir)
 // ← ACQUIRE LOCK HERE. repoDir is the lock key. Everything below is "the run".
@@ -34,7 +34,7 @@ never reach `runDefault` — they bypass the lock naturally.
 
 ### `snapshot=` update is NOT in runDefault — it's in the library
 
-The snapshot is captured inside `stagehand.GenerateCommit` (→ `generate.CommitStaged`) and
+The snapshot is captured inside `stagecoach.GenerateCommit` (→ `generate.CommitStaged`) and
 inside `decompose.Decompose`. The holder publishes it via the lock package's singleton
 `lock.SetSnapshot(sha)` (see `system_context.md` §2). `runDefault` does NOT need to know the
 tree SHA.
@@ -61,7 +61,7 @@ const (
     Error           = 1
     NothingToCommit = 2
     Rescue          = 3
-    Busy            = 5   // NEW — another stagehand run holds the per-repo lock; retry later
+    Busy            = 5   // NEW — another stagecoach run holds the per-repo lock; retry later
     Timeout         = 124
 )
 ```
@@ -91,7 +91,7 @@ signal.SetSnapshot(treeSHA, parentSHA, "")
 ```
 
 `lock.SetSnapshot` is a no-op when no lock is held (tests, library-only use). Import:
-`import "github.com/dustin/stagehand/internal/lock"`.
+`import "github.com/dustin/stagecoach/internal/lock"`.
 
 ---
 
@@ -104,7 +104,7 @@ tStart, err := deps.Git.FreezeWorkingTree(ctx, baseTree)
 // ← ADD: lock.SetSnapshot(tStart)   (one line, after the freeze)
 ```
 
-Import: `import "github.com/dustin/stagehand/internal/lock"`.
+Import: `import "github.com/dustin/stagecoach/internal/lock"`.
 
 ---
 
@@ -114,13 +114,13 @@ Import: `import "github.com/dustin/stagehand/internal/lock"`.
 // internal/config/file.go:94-104 (EXISTING — the pattern to copy)
 func globalConfigPath() string {
     if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" && filepath.IsAbs(xdg) {
-        return filepath.Join(xdg, "stagehand", "config.toml")
+        return filepath.Join(xdg, "stagecoach", "config.toml")
     }
     home, err := os.UserHomeDir()
     if err != nil {
         return "config.toml" // last-resort fallback (CWD)
     }
-    return filepath.Join(home, ".config", "stagehand", "config.toml")
+    return filepath.Join(home, ".config", "stagecoach", "config.toml")
 }
 ```
 
@@ -128,16 +128,16 @@ func globalConfigPath() string {
 ```go
 func lockDir() (string, error) {
     if xdg := os.Getenv("XDG_RUNTIME_DIR"); xdg != "" && filepath.IsAbs(xdg) {
-        return filepath.Join(xdg, "stagehand", "locks"), nil
+        return filepath.Join(xdg, "stagecoach", "locks"), nil
     }
     if xdg := os.Getenv("XDG_CACHE_HOME"); xdg != "" && filepath.IsAbs(xdg) {
-        return filepath.Join(xdg, "stagehand", "locks"), nil
+        return filepath.Join(xdg, "stagecoach", "locks"), nil
     }
     home, err := os.UserHomeDir()
     if err != nil {
         return "", err // NO CWD fallback — a lock in the repo is the §18.5 anti-pattern
     }
-    return filepath.Join(home, ".cache", "stagehand", "locks"), nil
+    return filepath.Join(home, ".cache", "stagecoach", "locks"), nil
 }
 ```
 
@@ -165,14 +165,14 @@ The e2e harness (`internal/e2e/harness_test.go`) already has everything needed:
 
 ```go
 // harness_test.go:48-57 — compiles the binary ONCE
-build := exec.Command(goPath, "build", "-o", stagehandBin,
-    "github.com/dustin/stagehand/cmd/stagehand")
+build := exec.Command(goPath, "build", "-o", stagecoachBin,
+    "github.com/dustin/stagecoach/cmd/stagecoach")
 
 // harness_test.go:79-85 — creates a temp repo
 func newRepo(t *testing.T) string { ... git init ... }
 
 // harness_test.go:163-184 — invokes the subprocess
-func runStagehand(t *testing.T, bin, repo, cfg string, env []string, args ...string) e2eResult
+func runStagecoach(t *testing.T, bin, repo, cfg string, env []string, args ...string) e2eResult
 
 // harness_test.go:216-228 — deterministic concurrent-race primitive
 func waitForMarker(t *testing.T, path string, timeout time.Duration)
@@ -182,9 +182,9 @@ func waitForMarker(t *testing.T, path string, timeout time.Duration)
 1. `newRepo(t)` → seed a commit → stage a change.
 2. Write a **stub agent config** whose stub binary blocks on a marker file (sleeps until
    the marker appears) — so subprocess #1 holds the lock during generation.
-3. Launch stagehand subprocess #1 (`runStagehand` with the blocking stub) in a goroutine.
+3. Launch stagecoach subprocess #1 (`runStagecoach` with the blocking stub) in a goroutine.
 4. `waitForMarker` to confirm #1 has entered generation (holds the lock).
-5. Launch stagehand subprocess #2 against the **same** repo.
+5. Launch stagecoach subprocess #2 against the **same** repo.
 6. Assert: subprocess #2 exits `Busy` (code 5) and stderr contains the contention message.
 7. Write the marker to release #1; assert #1 commits successfully.
 8. Assert: no lock file contents remain stale (the file may persist but flock is released).
@@ -200,7 +200,7 @@ func waitForMarker(t *testing.T, path string, timeout time.Duration)
 
 | Doc | Section | What to add | Mode |
 |---|---|---|---|
-| `docs/cli.md` | `## Exit codes` (line ~366) | `5` row: "Busy — another stagehand run holds the per-repo lock" | A (rides with contention/wiring subtask) |
+| `docs/cli.md` | `## Exit codes` (line ~366) | `5` row: "Busy — another stagecoach run holds the per-repo lock" | A (rides with contention/wiring subtask) |
 | `docs/how-it-works.md` | `## Safety and the rescue protocol` | New `### Per-repo run lock (FR52)` subsection: two-stage defense, per-host limit, never-in-repo location, no-op fast path | A (rides with lock-primitive subtask) |
 | `docs/configuration.md` | (lock-file location) | Lock-file location resolution via `XDG_RUNTIME_DIR` / `XDG_CACHE_HOME` / `~/.cache` | A (rides with lock-primitive subtask) |
 | `README.md` | Safety section | Race-free / safe-to-double-invoke property alongside snapshot/atomic-commit pitch | B (final task) |

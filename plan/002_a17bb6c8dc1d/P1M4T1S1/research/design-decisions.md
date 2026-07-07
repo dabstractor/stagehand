@@ -91,15 +91,15 @@ advisory is skipped (correct — we're failing, not advising).
 
 ## 6. The three advisory messages (match the task wording + FR-B4)
 
-The task gives the older-case text verbatim: *"stagehand: config file uses schema version X; current is Y.
-Run 'stagehand config upgrade' or 'stagehand config init --force'."* Adapt per case (all `\n`-terminated,
+The task gives the older-case text verbatim: *"stagecoach: config file uses schema version X; current is Y.
+Run 'stagecoach config upgrade' or 'stagecoach config init --force'."* Adapt per case (all `\n`-terminated,
 matching `repoProviderNotice`):
 
-- **missing** (`version == 0`, fileLoaded): `stagehand: config file has no config_version; current is 2.
-  Run 'stagehand config upgrade' or 'stagehand config init --force'.\n` (no "version 0" — clearer).
+- **missing** (`version == 0`, fileLoaded): `stagecoach: config file has no config_version; current is 2.
+  Run 'stagecoach config upgrade' or 'stagecoach config init --force'.\n` (no "version 0" — clearer).
 - **older** (`0 < version < CurrentConfigVersion`): the task's text with X=version, Y=CurrentConfigVersion.
-- **ahead** (`version > CurrentConfigVersion`): `stagehand: config file uses schema version 3; this binary
-  supports up to 2. Upgrade stagehand, or run 'stagehand config init --force' to regenerate.\n`
+- **ahead** (`version > CurrentConfigVersion`): `stagecoach: config file uses schema version 3; this binary
+  supports up to 2. Upgrade stagecoach, or run 'stagecoach config init --force' to regenerate.\n`
 
 ## 7. DOCS (Mode A) — update the `config init` template header
 
@@ -107,7 +107,7 @@ The `config init` template is `exampleConfigTemplate` in `internal/cmd/config.go
 commented config — the Mode-A user-facing config documentation). ADD a header block (commented `#` lines,
 so the file stays inert and the cmd `Contains`/uncommented-header tests stay green) documenting:
 `config_version` is top-level metadata (NOT a precedence layer, §16.1), `CurrentConfigVersion`, the
-missing/older/ahead advisory behavior, and that `stagehand config upgrade` / `config init --force` remedy
+missing/older/ahead advisory behavior, and that `stagecoach config upgrade` / `config init --force` remedy
 staleness. PLACE it in the header near the precedence section. NOTE: P1.M4.T2 will rewrite `config init`
 to a POPULATED bootstrap (FR-B1) and retain this inert template behind `--template` (FR-B2); the
 config_version doc note should be carried into P1.M4.T2's populated output too — flag it for that task.

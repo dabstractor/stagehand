@@ -380,7 +380,7 @@ to paste (then adapt any verified names).
   the detected provider's `[role.*]` block UNCOMMENTED (FR-B1 step 3) and other installed providers'
   blocks COMMENTED (step 4). Interprets `stager==""` as "cannot be stager" and applies the FR-D4
   fallback (writes the stager block for the next TooledFlags-capable provider, annotated).
-- The public API `pkg/stagehand` (P4.M2) may expose `DefaultModelsForProvider`.
+- The public API `pkg/stagecoach` (P4.M2) may expose `DefaultModelsForProvider`.
 
 The `RoleModelDefaults` type + `DefaultModelsForProvider(name string) map[string]string` signatures are
 FROZEN after this subtask.

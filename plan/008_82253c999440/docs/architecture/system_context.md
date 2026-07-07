@@ -1,6 +1,6 @@
 # System Context — plan/008 (v2.2 delta)
 
-**Project:** stagehand — Go CLI for AI-generated commit messages via user-installed agent CLIs.
+**Project:** stagecoach — Go CLI for AI-generated commit messages via user-installed agent CLIs.
 **Codebase state:** v1 single-commit core + v2.0 multi-commit decomposition + v2.1 competitor-parity
 features (exclusions, format modes, hook mode, integrate, --edit/--push, discovery) are **implemented
 and tested**. This plan targets the **v2.2 delta** only.
@@ -15,12 +15,12 @@ provider / commit-CAS / lock / rescue changes.**
 | **A. Arbiter freeze parity** | FR-M1d (new); FR-M9/M10/M1b amended; §13.6.5; §20.2/§20.5 | **Loop hole OPEN.** Gate reads live `StatusPorcelain` (`decompose.go:217`); three resolution paths stage via live `AddAll`/`Add` (`chain.go:99,142,184,205,209`). `OverlayTreePaths` does NOT exist. The arbiter's *diff* input is ALREADY frozen (`TreeDiff(tipTree, tStart)` in `runArbiterPhase`). | **Phase 1** |
 | **B. Planner `files` + soft target + mode-conditional prompt** | FR-M3/M3b/M4 amended; §17.5/§17.6 | **Not implemented.** `PlannerCommit` has no `Files` (`planner.go:57`); single "Prefer FEWER commits" rules block; no soft target; no coverage check; stager has no `files` block. | **Phase 2** |
 | C. FR50 verbose (payload size + raw stderr) | FR50 | Already shipped (`ui/verbose.go`, `provider/executor.go`) | None |
-| D. `--version` VCS enrichment | build §21.1 | Already shipped (`cmd/stagehand/main.go:32-48`) | None |
+| D. `--version` VCS enrichment | build §21.1 | Already shipped (`cmd/stagecoach/main.go:32-48`) | None |
 
 ## 2. Architecture at a glance (relevant subsystems)
 
 ```
-cmd/stagehand/main.go            CLI entrypoint (unchanged by this delta)
+cmd/stagecoach/main.go            CLI entrypoint (unchanged by this delta)
 internal/git/git.go              Git interface + gitRunner impl (Phase 1: +OverlayTreePaths)
 internal/decompose/
   decompose.go                   Decompose() orchestrator; runArbiterPhase; the GATE (Phase 1)

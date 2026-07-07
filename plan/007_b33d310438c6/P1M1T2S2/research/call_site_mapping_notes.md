@@ -56,7 +56,7 @@ diff, err := deps.Git.StagedDiff(ctx, git.StagedDiffOptions{
 })
 ```
 **Site 2 — `internal/hook/exec.go:104` (`Run` hook path → `StagedDiff`):** identical shape, `cfg`.
-**Site 3 — `pkg/stagehand/stagehand.go:423` (`runPipeline` → `StagedDiff`):** identical shape, `cfg`.
+**Site 3 — `pkg/stagecoach/stagecoach.go:423` (`runPipeline` → `StagedDiff`):** identical shape, `cfg`.
 
 ### Shape B — `deps.Config` (sites 4-6)
 **Site 4 — `internal/decompose/planner.go:69` (`callPlanner` → `TreeDiff`):**
@@ -115,7 +115,7 @@ The 3 new `StagedDiffOptions` fields are **UNREAD** by the three diff functions 
 struct and die there (unread). Therefore:
 - Every existing diff test (stagediff/treediff/workingtreediff golden fixtures, ~57 test literals)
   passes UNCHANGED.
-- `go test ./internal/{generate,hook,decompose}` + `./pkg/stagehand` + `./internal/git` all green.
+- `go test ./internal/{generate,hook,decompose}` + `./pkg/stagecoach` + `./internal/git` all green.
 - The only NEW logic is `DiffContextValue` (nil→1, *0→0, *n→n) — a focused 3-case unit test covers it.
 
 ## 5. Scope boundaries (do NOT do)

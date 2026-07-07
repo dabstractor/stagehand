@@ -2,7 +2,7 @@
 name: "P1.M5.T4.S1 — README.md (hero, install, quick start, snapshot workflow, config, contributor guide, FAQ)"
 description: |
 
-  CREATE the repo-root **README.md** — Stagehand's primary marketing + onboarding surface — following
+  CREATE the repo-root **README.md** — Stagecoach's primary marketing + onboarding surface — following
   PRD §21.5's exact 10-section structure, using the **shipped** behavior of the already-implemented CLI
   (P1.M4.T1.S2), provider manifests (P1.M2.T2 / P1.M5.T2.S1), config system (P1.M1.T4 / P1.M4.T1.S4),
   and release tooling (P1.M5.T3.S2). No Go source is written. This is a single new Markdown file.
@@ -10,7 +10,7 @@ description: |
   CONTRACT (P1.M5.T4.S1, verbatim):
     1. RESEARCH NOTE: "PRD §21.5 README structure (10 sections): (1) Hero pitch (§5 verbatim candidate),
        (2) 30-sec demo (asciinema/gif placeholder), (3) 'Why not opencommit/aicommits?' (§4.3 coding-plan
-       paragraph), (4) Install (4 paths from §21.3), (5) Quick start (one `stagehand` invocation),
+       paragraph), (4) Install (4 paths from §21.3), (5) Quick start (one `stagecoach` invocation),
        (6) Configure agent (providers list → git config), (7) Snapshot workflow (§13.4 diagram),
        (8) Full CLI+config reference link, (9) Adding a new agent (§12.8 contributor hook),
        (10) FAQ / 'not for you if' (§7.4 anti-persona)."
@@ -30,7 +30,7 @@ description: |
     - `README.md` is the ONLY file this subtask creates/edits. ONE new file at repo root.
     - `docs/` directory + `docs/cli.md` / `docs/config.md` → P1.M5.T5.S1 (Planned). The README's
       §21.5 #8 "Full reference" link points at docs/ (secondary) but MUST additionally cite the living
-      `stagehand --help` + `stagehand config init` (primary) so it never dead-links before docs/ exists.
+      `stagecoach --help` + `stagecoach config init` (primary) so it never dead-links before docs/ exists.
     - `Makefile` (incl. `coverage-gate`) → P1.M5.T3.S3 (parallel). README may mention `make` build for
       contributors but does NOT own Makefile docs.
     - `.goreleaser.yaml`, `.github/workflows/*` → P1.M5.T3.S1/S2. README cites their install outputs
@@ -45,7 +45,7 @@ description: |
                        # GitHub-flavored Markdown; clean under markdownlint-cli2.
 
   SUCCESS: `markdownlint-cli2 README.md` → 0 errors; every command/snippet matches the real binary
-  (cross-checked via `stagehand --help` / `providers list` / `config path` after `make build`); all
+  (cross-checked via `stagecoach --help` / `providers list` / `config path` after `make build`); all
 10
   §21.5 sections present; the hero pitch, the §13.4 diagram, the 4 install commands, and the lazygit
   binding are reproduced VERBATIM; no dead links; `git status --short` shows ONLY `README.md`.
@@ -54,14 +54,14 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Ship a single, comprehensive `README.md` at the repo root that is Stagehand's
+**Feature Goal**: Ship a single, comprehensive `README.md` at the repo root that is Stagecoach's
 **primary marketing + onboarding surface** — a visitor who reads only this file can decide in 60
-seconds whether Stagehand is for them, install it, configure their agent, make their first
+seconds whether Stagecoach is for them, install it, configure their agent, make their first
 snapshot-based commit, and know how to contribute a new agent. It follows PRD §21.5's exact 10-section
 structure and reflects the **already-shipped** CLI/provider/config/release behavior (not aspirational
 features), because this is the final Mode-B doc sweep running last over accurate information.
 
-**Deliverable**: ONE new file: `README.md` at the repository root (`/home/dustin/projects/stagehand/README.md`).
+**Deliverable**: ONE new file: `README.md` at the repository root (`/home/dustin/projects/stagecoach/README.md`).
 Plain GitHub-flavored Markdown. ~300–600 lines. No other files touched.
 
 **Success Definition**:
@@ -71,11 +71,11 @@ Plain GitHub-flavored Markdown. ~300–600 lines. No other files touched.
 - The §13.4 stage-while-generating ASCII diagram is reproduced **character-for-character verbatim**.
 - The 4 install commands (Homebrew / go install / curl|sh / Scoop) are present and **verbatim** from §21.3.
 - The §15.5 lazygit `customCommands` binding is present verbatim.
-- Every CLI command shown in the README is **real** — verified against `bin/stagehand --help`,
+- Every CLI command shown in the README is **real** — verified against `bin/stagecoach --help`,
   `providers list`, `config path`, `--version` after `make build` (or against the stub agent where a
   real agent isn't installed).
-- No dead links: external links point at `github.com/dustin/stagehand` (matching goreleaser + go.mod);
-  internal links to `docs/` are paired with always-working `stagehand --help` / `config init` fallbacks.
+- No dead links: external links point at `github.com/dustin/stagecoach` (matching goreleaser + go.mod);
+  internal links to `docs/` are paired with always-working `stagecoach --help` / `config init` fallbacks.
 - `git status --short` shows ONLY `README.md`.
 
 ## User Persona
@@ -86,7 +86,7 @@ commit-message tool that spends their existing quota instead of a new API key. S
 **multi-agent tinkerer** (§7.3) who wants to add a new agent via a manifest.
 
 **Use Case**: A developer lands on the repo, reads the hero pitch, sees the "stage while it thinks"
-diagram, installs via one of 4 paths, runs `stagehand` once, and commits a real message using their
+diagram, installs via one of 4 paths, runs `stagecoach` once, and commits a real message using their
 installed agent — all within five minutes, no API key.
 
 **User Journey**:
@@ -94,8 +94,8 @@ installed agent — all within five minutes, no API key.
 2. Snapshot diagram (§13.4) → "generation time is no longer dead time."
 3. "Why not opencommit/aicommits?" (§4.3) → "they can't reach my coding plan; this can."
 4. Install (one of 4 paths).
-5. Quick start: `stagehand` → first snapshot commit.
-6. Configure: `stagehand providers list` → `git config stagehand.provider <name>`.
+5. Quick start: `stagecoach` → first snapshot commit.
+6. Configure: `stagecoach providers list` → `git config stagecoach.provider <name>`.
 7. (Optional) Add a new agent (§12.8) or wire lazygit (§15.5).
 8. "Not for you if…" (§7.4) → graceful exit for the no-CLI user.
 
@@ -113,7 +113,7 @@ HTTP-owning tools (opencommit/aicommits) to reuse a coding-plan subscription.
   avoids the classic failure of a README that promises a flag or command that doesn't exist.
 - **Positions the structural moat.** §4.3's trade-off ("give up control of the model call in exchange
   for access to the user's existing quota") is the entire product; the README must state it in 3
-  sentences so a visitor understands why Stagehand exists alongside opencommit/aicommits.
+  sentences so a visitor understands why Stagecoach exists alongside opencommit/aicommits.
 - **Onboards contributors.** §12.8's drop-a-manifest extensibility is the contributor hook; documenting
   it in the README (§21.5 #9) is how community support for new agents lands without a release.
 - **Honesty protects the install base.** §7.4's anti-persona ("not for you if you have no agent CLI")
@@ -132,10 +132,10 @@ author reproduces them exactly.
 | 2 | 30-second demo                   | new (placeholder)           | An asciinema/GIF placeholder block (not yet recorded).                           |
 | 3 | "Why not opencommit/aicommits?"  | §4.3                        | The structural-moat trade-off, in **3 sentences**.                               |
 | 4 | Install                          | §21.3 (verbatim)            | The 4 install paths (Homebrew, go install, curl\|sh, Scoop), verbatim.           |
-| 5 | Quick start                      | §15.5                       | One `stagehand` invocation + the `-a` checkpoint + `--dry-run` note.             |
-| 6 | Configure your agent             | §15.5 + S3/S4 CLI           | `providers list` → `git config stagehand.provider <name>` (+ `config init`).     |
+| 5 | Quick start                      | §15.5                       | One `stagecoach` invocation + the `-a` checkpoint + `--dry-run` note.             |
+| 6 | Configure your agent             | §15.5 + S3/S4 CLI           | `providers list` → `git config stagecoach.provider <name>` (+ `config init`).     |
 | 7 | The snapshot workflow            | §13.4 (verbatim diagram)    | The two-pane ASCII diagram, verbatim, + a one-paragraph payoff explanation.      |
-| 8 | Full CLI + config reference      | new + S1/S4                 | `stagehand --help` + `stagehand config init` (primary); link to `docs/` (secondary). |
+| 8 | Full CLI + config reference      | new + S1/S4                 | `stagecoach --help` + `stagecoach config init` (primary); link to `docs/` (secondary). |
 | 9 | Adding a new agent               | §12.8                       | The `[provider.<name>]` manifest example + `providers show` verification.        |
 | 10| FAQ / "not for you if…"          | §7.4                        | Plain anti-persona + 4–6 FAQ entries (security, multi-commit, style learning).   |
 
@@ -144,9 +144,9 @@ author reproduces them exactly.
 These are facts about the repo today; the README must handle each deliberately (full reasoning in
 `research/README_context.md` §6):
 
-- **GAP A — namespace.** `git remote` is `dabstractor/stagehand`, but `go.mod`, `.goreleaser.yaml`,
-  and §21.3 all use `github.com/dustin/stagehand`. **Use `dustin/stagehand` in every URL** (Homebrew
-  tap `dustin/tap`, Scoop `dustin/stagehand`, go-install path, curl|sh URL). This matches what the
+- **GAP A — namespace.** `git remote` is `dabstractor/stagecoach`, but `go.mod`, `.goreleaser.yaml`,
+  and §21.3 all use `github.com/dustin/stagecoach`. **Use `dustin/stagecoach` in every URL** (Homebrew
+  tap `dustin/tap`, Scoop `dustin/stagecoach`, go-install path, curl|sh URL). This matches what the
   released artifacts will use.
 - **GAP B — `install.sh` does not exist yet.** The curl|sh URL points at a release-time script that
   goreleaser does not yet generate. **Keep the §21.3 curl|sh command verbatim** (it is the intended
@@ -157,7 +157,7 @@ These are facts about the repo today; the README must handle each deliberately (
   (human-owned, out of scope). Preferred: a `<!-- TODO: add LICENSE file + badge -->` HTML comment so
   it is not forgotten.
 - **GAP D — `docs/` does not exist yet (P1.M5.T5.S1 owns it).** The §8 reference MUST NOT dead-link.
-  **Primary reference = `stagehand --help` and `stagehand config init`** (both ship today and ARE the
+  **Primary reference = `stagecoach --help` and `stagecoach config init`** (both ship today and ARE the
   living CLI/config reference). **Secondary = a relative link to `docs/`** (to be populated by
   P1.M5.T5). If `docs/` is empty at author time, the commands fully satisfy the reader.
 
@@ -167,8 +167,8 @@ These are facts about the repo today; the README must handle each deliberately (
 - [ ] §5 hero pitch blockquote verbatim; §13.4 diagram verbatim; 4 install commands verbatim;
       §15.5 lazygit binding verbatim.
 - [ ] `markdownlint-cli2 README.md` → 0 errors.
-- [ ] Every `stagehand …` command in the README is real (matches `bin/stagehand` after `make build`).
-- [ ] No dead links; namespace = `dustin/stagehand`; reference section uses `--help`/`config init`.
+- [ ] Every `stagecoach …` command in the README is real (matches `bin/stagecoach` after `make build`).
+- [ ] No dead links; namespace = `dustin/stagecoach`; reference section uses `--help`/`config init`.
 - [ ] Anti-persona ("not for you if") stated plainly.
 - [ ] `git status --short` shows ONLY `README.md`.
 
@@ -198,7 +198,7 @@ the codebase required beyond what is in this PRP.
 # --- the shipped code the README must match (READ to quote commands accurately) ---
 - file: internal/cmd/root.go
   why: the global flags (--provider/--model/--config/--timeout/--verbose/-v/--no-color/--all/-a/
-       --no-auto-stage/--dry-run) + cobra-builtin --version/--help. Quote `stagehand --help` output.
+       --no-auto-stage/--dry-run) + cobra-builtin --version/--help. Quote `stagecoach --help` output.
   pattern: the `pf.StringVar*`/`BoolVar*` registration block in init() is the authoritative flag list.
   gotcha: --version prints the ldflags-injected `version` ("dev" for a local build) — do NOT claim a
           specific release number in the README.
@@ -213,7 +213,7 @@ the codebase required beyond what is in this PRP.
        path). The `exampleConfigTemplate` const IS the canonical config reference (Mode-A docs) — the
        README §8 points users at `config init` to get it.
   pattern: the precedence comment block in exampleConfigTemplate (CLI > env > git-config > repo
-           .stagehand.toml > global file > provider defaults > built-in defaults) — quote it.
+           .stagecoach.toml > global file > provider defaults > built-in defaults) — quote it.
 
 - file: internal/cmd/default_action.go
   why: the success report format `[<7-char-sha>] <subject>` + file list, and the auto-stage notice
@@ -232,13 +232,13 @@ the codebase required beyond what is in this PRP.
            header comment is exactly the §12.8 contributor recipe.
 
 - file: .goreleaser.yaml
-  why: confirms the install-path namespaces (dustin/stagehand, dustin/homebrew-tap, dustin/scoop-bucket)
+  why: confirms the install-path namespaces (dustin/stagecoach, dustin/homebrew-tap, dustin/scoop-bucket)
        and the "ADJUST license" caveat. Anchors GAP A and GAP C.
   gotcha: its `release.github.owner: dustin` EXPLICITLY overrides the git-remote `dabstractor` — proof
-          that `dustin/stagehand` is the correct public namespace for the README.
+          that `dustin/stagecoach` is the correct public namespace for the README.
 
 - file: .gitignore
-  why: confirms `./.stagehand.toml` (repo-local config) is gitignored by default (§19) — relevant to
+  why: confirms `./.stagecoach.toml` (repo-local config) is gitignored by default (§19) — relevant to
        the §6 "configure" note ("per-repo; not committed"). No edit needed.
 
 # --- the PRD (authoritative spec — the verbatim blocks come from here) ---
@@ -249,7 +249,7 @@ the codebase required beyond what is in this PRP.
 - doc: PRD.md §15.5   (the verbatim lazygit customCommands binding + example invocations)
 - doc: PRD.md §4.3    (the "Why not opencommit/aicommits?" structural-moat paragraph → 3 sentences)
 - doc: PRD.md §12.8   (the "Adding a new agent" [provider.<name>] manifest example)
-- doc: PRD.md §7.4    (the anti-persona — "Stagehand is not for you if…")
+- doc: PRD.md §7.4    (the anti-persona — "Stagecoach is not for you if…")
 - doc: PRD.md §16.2   (the full config file example — source for the config-init template)
 
 # --- external (Markdown conventions + GitHub rendering) ---
@@ -269,18 +269,18 @@ the codebase required beyond what is in this PRP.
 ```bash
 README.md                      # ← DOES NOT EXIST YET. YOU CREATE THIS FILE.
 PRD.md                         # the spec (READ-only; verbatim blocks sourced from §5/§13.4/§21.3/§15.5).
-go.mod                         # module github.com/dustin/stagehand; go 1.22.
-Makefile                       # `make build` -> ./bin/stagehand; `make help` lists targets.
+go.mod                         # module github.com/dustin/stagecoach; go 1.22.
+Makefile                       # `make build` -> ./bin/stagecoach; `make help` lists targets.
 .goreleaser.yaml               # install-path namespaces (dustin/*) + license caveat.
 .github/workflows/             # ci.yml (S1), release.yml (S2). README cites outputs, doesn't edit.
-cmd/stagehand/main.go          # `var version = "dev"` (ldflags-injected) -> stagehand --version.
+cmd/stagecoach/main.go          # `var version = "dev"` (ldflags-injected) -> stagecoach --version.
 internal/cmd/{root,providers,config,default_action}.go  # the CLI surface to document.
 internal/provider/{builtin,registry}.go                 # 6 built-ins + auto-detect order.
 providers/{pi,claude,gemini,opencode,codex,cursor}.toml # shipped reference manifests (§9 template).
 docs/                          # DOES NOT EXIST — owned by P1.M5.T5.S1 (Planned). GAP D.
 install.sh                     # DOES NOT EXIST — release-time artifact. GAP B.
 LICENSE                        # DOES NOT EXIST — human-owned. GAP C.
-.stagehand.toml                # repo-local example override (gitignored). Not part of README.
+.stagecoach.toml                # repo-local example override (gitignored). Not part of README.
 ```
 
 ### Desired Codebase tree with files to be added/changed
@@ -301,14 +301,14 @@ README.md                      # CREATE — repo root. §21.5's 10 sections; ver
 #   Blueprint" verbatim. These are contractual ("Use the §5 hero pitch verbatim", "Include the §13.4
 #   diagram (ASCII)", "Document the 4 install paths").
 
-# CRITICAL (#2) — NAMESPACE = dustin/stagehand, NOT dabstractor. `git remote` says dabstractor, but
-#   go.mod + .goreleaser.yaml + §21.3 all say dustin/stagehand, and .goreleaser.yaml explicitly
+# CRITICAL (#2) — NAMESPACE = dustin/stagecoach, NOT dabstractor. `git remote` says dabstractor, but
+#   go.mod + .goreleaser.yaml + §21.3 all say dustin/stagecoach, and .goreleaser.yaml explicitly
 #   overrides the remote (`release.github.owner: dustin`). Every URL in the README (go-install path,
-#   curl|sh URL, Homebrew tap, Scoop bucket, repo/issue links) MUST use dustin/stagehand. A README
-#   that prints `go install github.com/dabstractor/stagehand/...` will produce a broken install.
+#   curl|sh URL, Homebrew tap, Scoop bucket, repo/issue links) MUST use dustin/stagecoach. A README
+#   that prints `go install github.com/dabstractor/stagecoach/...` will produce a broken install.
 
 # CRITICAL (#3) — NO DEAD LINKS. (a) GAP D: docs/ doesn't exist — the §8 reference section's PRIMARY
-#   citations are `stagehand --help` and `stagehand config init` (both ship today); the docs/ link is
+#   citations are `stagecoach --help` and `stagecoach config init` (both ship today); the docs/ link is
 #   SECONDARY and explicitly "growing". (b) GAP B: the curl|sh URL's install.sh doesn't exist yet —
 #   keep the §21.3 URL but add the "published with the first release" note. (c) Do NOT link to a
 #   specific release tag (none exists) — link to `releases/latest` or omit version pinning.
@@ -363,7 +363,7 @@ These four blocks are contractual ("verbatim"). Reproduce them character-for-cha
 **Block 1 — Hero pitch (§5)** — the §21.5 #1 hero, as a blockquote:
 
 ```markdown
-> **Stagehand writes your commit messages using the AI agent you already pay for.**
+> **Stagecoach writes your commit messages using the AI agent you already pay for.**
 > No API key. No per-token billing. It shells out to Claude Code, Codex, Gemini CLI, pi, opencode, or
 > Cursor — whatever you already have installed — and spends your existing coding-plan quota instead.
 > Stage while it thinks; it commits only what was staged when it started, atomically, and can never
@@ -374,16 +374,16 @@ These four blocks are contractual ("verbatim"). Reproduce them character-for-cha
 
 ```bash
 # Homebrew (macOS / Linuxbrew)
-brew install dustin/tap/stagehand
+brew install dustin/tap/stagecoach
 
 # Go install (anywhere with Go)
-go install github.com/dustin/stagehand/cmd/stagehand@latest
+go install github.com/dustin/stagecoach/cmd/stagecoach@latest
 
 # Direct binary (curl|sh one-liner from GitHub Releases)
-curl -fsSL https://github.com/dustin/stagehand/raw/main/install.sh | bash
+curl -fsSL https://github.com/dustin/stagecoach/raw/main/install.sh | bash
 
 # Windows (Scoop)
-scoop install dustin/stagehand
+scoop install dustin/stagecoach
 ```
 _Add under the curl|sh block (GAP B):_ `> [!NOTE] The install.sh script is published with the first
 release. Until then, use Homebrew, go install, or Scoop.`
@@ -394,13 +394,13 @@ release. Until then, use Homebrew, go install, or Scoop.`
 Pane A (lazygit / shell)        Pane B (shell)
 ─────────────────────────       ───────────────────────
 git add feature/login.js
-stagehand                     ┐
+stagecoach                     ┐
   ↳ snapshotting…             │  (user is free to work here)
   ↳ generating with pi…       │  git add docs/login.md
   ↳ (10s pass)                │  git add tests/login.test.js
   ↳ created abc1234           │  (these stay staged — NOT in abc1234)
                               ┘
-                                stagehand        # next run commits these
+                                stagecoach        # next run commits these
 ```
 _Follow with a one-paragraph payoff (your own words):_ snapshot-based commits mean generation time is
 no longer dead time — the in-flight commit only ever contains what was staged when it started, so you
@@ -412,7 +412,7 @@ can stage the next batch freely while the current message generates.
 # From lazygit config.yml:
 #   customCommands:
 #     - key: '<c-a>'
-#       command: 'stagehand'
+#       command: 'stagecoach'
 #       loadingText: 'Generating commit message…'
 #       output: 'none'
 ```
@@ -421,13 +421,13 @@ can stage the next batch freely while the current message generates.
 
 ```yaml
 Task 0: VERIFY inputs (RUN, no edit) — author the README against SHIPPED behavior, not memory
-  - RUN: `make build`            # produces ./bin/stagehand (the README's commands must match THIS)
-  - RUN: `./bin/stagehand --help`           # capture the real flag list + descriptions (§8, §5, §6)
-  - RUN: `./bin/stagehand --version`        # expect "dev" — do NOT hardcode a version in the README
-  - RUN: `./bin/stagehand providers list`   # capture the NAME/DETECTED/DEFAULT table (§6)
-  - RUN: `./bin/stagehand providers show pi` # capture a real merged manifest (§9 example)
-  - RUN: `./bin/stagehand config path`      # capture the global config path string (§6/§8)
-  - RUN: `./bin/stagehand config init` (in a throwaway dir / inspect the template) # the config reference (§8)
+  - RUN: `make build`            # produces ./bin/stagecoach (the README's commands must match THIS)
+  - RUN: `./bin/stagecoach --help`           # capture the real flag list + descriptions (§8, §5, §6)
+  - RUN: `./bin/stagecoach --version`        # expect "dev" — do NOT hardcode a version in the README
+  - RUN: `./bin/stagecoach providers list`   # capture the NAME/DETECTED/DEFAULT table (§6)
+  - RUN: `./bin/stagecoach providers show pi` # capture a real merged manifest (§9 example)
+  - RUN: `./bin/stagecoach config path`      # capture the global config path string (§6/§8)
+  - RUN: `./bin/stagecoach config init` (in a throwaway dir / inspect the template) # the config reference (§8)
   - READ: providers/pi.toml (cleanest §12.8 template); PRD §5/§13.4/§21.3/§15.5/§4.3/§7.4/§12.8.
   - NOTE every captured string so the README quotes the binary, not a guess.
 
@@ -440,33 +440,33 @@ Task 1: CREATE README.md — §21.5 sections 1–3 (Hero, Demo placeholder, "Why
     a non-existent GIF link (dead asset). A GitHub alert block works well here.
   - §3 "Why not opencommit/aicommits?": EXACTLY 3 sentences distilled from §4.3 (draft in
     research/README_context.md §9): (1) incumbents own the HTTP call so they can normalize providers
-    but cannot reach a coding-plan subscription (not reachable over the public API); (2) Stagehand
+    but cannot reach a coding-plan subscription (not reachable over the public API); (2) Stagecoach
     inverts the architecture — it shells out to your installed CLI agent, trading provider
     normalization for quota reuse; (3) that trade-off is the entire product, and the provider manifest
     (§12) makes the "give up normalization" part tolerable. Optionally a 2-row comparison table
-    (Incumbents: API-key, HTTP-owned, no stage-while-generating vs Stagehand: no key, shells out,
+    (Incumbents: API-key, HTTP-owned, no stage-while-generating vs Stagecoach: no key, shells out,
     snapshot commits) — keep it to the §4.3 facts.
 
 Task 2: CREATE README.md — §21.5 sections 4–6 (Install, Quick start, Configure)
   - §4 Install: paste Block 2 (§21.3) VERBATIM; add the GAP B note under curl|sh. Add a one-line
     "prerequisite: a coding-agent CLI already installed and on $PATH (pi, claude, gemini, opencode,
-    codex, or cursor)" — because Stagehand is useless without one (§7.4).
-  - §5 Quick start: one `stagehand` invocation (the happy path). Show: `git add -p` (or `git add`)
-    → `stagehand` → the success report `[abc1234] feat: add login flow`. Then the two one-liners from
-    §15.5: `stagehand -a` (stage everything + commit) and `stagehand --dry-run` (preview, commit
-    nothing). Keep it to ~6 lines — this is "one `stagehand` invocation" per the contract.
-  - §6 Configure your agent: `stagehand providers list` (shows the table; first ✓ DETECTED + "(default)"
-    is the auto-pick) → set a per-repo default: `git config stagehand.provider pi` (+ optional
-    `git config stagehand.model glm-5.2`). Mention `stagehand config init` writes a fully-commented
-    global config to `$(stagehand config path)` and the precedence (CLI > env > git-config > repo
-    .stagehand.toml > global). Quote the real `providers list` output you captured in Task 0.
+    codex, or cursor)" — because Stagecoach is useless without one (§7.4).
+  - §5 Quick start: one `stagecoach` invocation (the happy path). Show: `git add -p` (or `git add`)
+    → `stagecoach` → the success report `[abc1234] feat: add login flow`. Then the two one-liners from
+    §15.5: `stagecoach -a` (stage everything + commit) and `stagecoach --dry-run` (preview, commit
+    nothing). Keep it to ~6 lines — this is "one `stagecoach` invocation" per the contract.
+  - §6 Configure your agent: `stagecoach providers list` (shows the table; first ✓ DETECTED + "(default)"
+    is the auto-pick) → set a per-repo default: `git config stagecoach.provider pi` (+ optional
+    `git config stagecoach.model glm-5.2`). Mention `stagecoach config init` writes a fully-commented
+    global config to `$(stagecoach config path)` and the precedence (CLI > env > git-config > repo
+    .stagecoach.toml > global). Quote the real `providers list` output you captured in Task 0.
 
 Task 3: CREATE README.md — §21.5 sections 7–8 (Snapshot workflow, Full reference)
   - §7 Snapshot workflow: paste Block 3 (§13.4 diagram) VERBATIM in a ```text fence. Add the
     one-paragraph payoff (your words — generation time is no longer dead time; the commit only ever
     contains what was staged when it started). Optionally the Block 4 lazygit binding here OR in §5/§6.
-  - §8 Full CLI + config reference (GAP D — no dead links): PRIMARY = `stagehand --help` (every flag)
-    and `stagehand config init` (writes the full commented config = the canonical reference). SECONDARY
+  - §8 Full CLI + config reference (GAP D — no dead links): PRIMARY = `stagecoach --help` (every flag)
+    and `stagecoach config init` (writes the full commented config = the canonical reference). SECONDARY
     = a relative link `See the [docs/](docs/) for the full reference (growing).` State plainly that
     `--help` and `config init` are the authoritative, always-available reference today.
 
@@ -474,10 +474,10 @@ Task 4: CREATE README.md — §21.5 sections 9–10 (Adding a new agent, FAQ)
   - §9 Adding a new agent (§12.8 contributor hook): show dropping a `[provider.myagent]` block into the
     config file (mirror providers/pi.toml's field set: command, prompt_delivery, print_flag,
     model_flag, default_model, system_prompt_flag, bare_flags, output). Then verify with
-    `stagehand providers show myagent` and use with `stagehand --provider myagent`. Emphasize "no
+    `stagecoach providers show myagent` and use with `stagecoach --provider myagent`. Emphasize "no
     recompilation — community agents land via a manifest file" (§4.3 / §12.8). Point contributors at
     the 6 shipped `providers/*.toml` files as copy-paste templates.
-  - §10 FAQ / "not for you if…": lead with the §7.4 anti-persona, PLAINLY: "Stagehand is not for you
+  - §10 FAQ / "not for you if…": lead with the §7.4 anti-persona, PLAINLY: "Stagecoach is not for you
     if you don't have (and don't want) a coding-agent CLI installed — it has no model of its own.
     [opencommit](https://github.com/dlintw/opencommit) is the right tool for the no-CLI user." Then
     4–6 FAQ entries, each grounded in shipped behavior: (a) "Will it corrupt my repo?" → no;
@@ -487,13 +487,13 @@ Task 4: CREATE README.md — §21.5 sections 9–10 (Adding a new agent, FAQ)
     not in v1 (single commit); multi-commit decomposition is planned for v2 (§10.3). (d) "How does it
     match my style?" → learns from the last 20 commits, prohibits reusing their wording, guarantees no
     subject duplicates the last 50 (§5 #4). (e) "Which agents are supported?" → the 6 built-ins +
-    any [provider.<name>] you define. (f) "How do I see what command it runs?" → `stagehand --verbose`.
+    any [provider.<name>] you define. (f) "How do I see what command it runs?" → `stagecoach --verbose`.
 
 Task 5: REVIEW for accuracy + Mode-B honesty (READ the rendered README, no edit unless fixing)
-  - For EVERY `stagehand …`, `git …`, `brew …`, `go install …`, `scoop …` line in the README: confirm
+  - For EVERY `stagecoach …`, `git …`, `brew …`, `go install …`, `scoop …` line in the README: confirm
     it is real (matches Task 0 captures / §21.3 / §15.5). Fix any fiction.
   - Confirm the 4 verbatim blocks are byte-identical to the PRP's "Verbatim PRD blocks".
-  - Confirm GAP A (dustin/stagehand everywhere), GAP B (curl note), GAP C (no fabricated license),
+  - Confirm GAP A (dustin/stagecoach everywhere), GAP B (curl note), GAP C (no fabricated license),
     GAP D (--help/config-init primary, docs/ secondary).
   - Confirm no unshipped feature is documented as working (GOTCHA #4: v1 = single-commit).
 
@@ -511,13 +511,13 @@ Task 6: VALIDATE (run the Validation Loop L1–L3; fix until green; see Validati
 # heading order MUST follow it (Hero → Demo → Why-not → Install → Quick start → Configure → Snapshot
 # workflow → Full reference → Adding an agent → FAQ). Do not reorder "for flow" — the order is the spec.
 
-# PATTERN — quote the binary, not your memory. Before writing any `stagehand` example, run it (Task 0).
+# PATTERN — quote the binary, not your memory. Before writing any `stagecoach` example, run it (Task 0).
 # The flag is `--no-auto-stage` (not `--no-autostage`); the subcommand is `providers list` (not
 # `provider list`); `config init` REFUSES to overwrite (exit 1) — these details must be exact.
 
 # PATTERN — badges are DYNAMIC, never hardcoded. shields.io Go Reference, GitHub Workflow Status
 # (ci.yml), Go Report Card. NO version badge with a number (GOTCHA #5); NO license badge unless a
-# LICENSE file exists (GAP C). Example: ![CI](https://github.com/dustin/stagehand/actions/workflows/ci.yml/badge.svg)
+# LICENSE file exists (GAP C). Example: ![CI](https://github.com/dustin/stagecoach/actions/workflows/ci.yml/badge.svg)
 
 # PATTERN — use GitHub alerts for the GAP notes. `> [!NOTE]` / `> [!IMPORTANT]` render cleanly and are
 # not dead links. This is the idiomatic way to say "install.sh lands at first release" (GAP B) and
@@ -527,7 +527,7 @@ Task 6: VALIDATE (run the Validation Loop L1–L3; fix until green; see Validati
 # providers/pi.toml (the cleanest). Do not invent fields that the Manifest struct doesn't have
 # (internal/provider/manifest.go toml tags are the authoritative field list).
 
-# PATTERN — every external link uses dustin/stagehand. Homebrew tap, Scoop bucket, go-install path,
+# PATTERN — every external link uses dustin/stagecoach. Homebrew tap, Scoop bucket, go-install path,
 # curl|sh URL, repo/issues/releases links, badge URLs. (GAP A.)
 ```
 
@@ -535,7 +535,7 @@ Task 6: VALIDATE (run the Validation Loop L1–L3; fix until green; see Validati
 
 ```yaml
 NEW FILE (the ONLY artifact):
-  - CREATE: README.md at repo root (/home/dustin/projects/stagehand/README.md).
+  - CREATE: README.md at repo root (/home/dustin/projects/stagecoach/README.md).
 
 OPTIONAL CONFIG (doc tooling — allowed, not required):
   - IF markdownlint-cli2 fails on MD013/MD033/MD040 and you don't want inline disables: CREATE a
@@ -591,9 +591,9 @@ markdownlint-cli2 README.md   # a clean run covers both.
 ```bash
 # Build the binary the README's commands must match.
 make build
-BIN=./bin/stagehand
+BIN=./bin/stagecoach
 
-# (a) Every `stagehand` flag/subcommand shown in the README must exist on the binary:
+# (a) Every `stagecoach` flag/subcommand shown in the README must exist on the binary:
 $BIN --help | tee /tmp/help.txt
 #   for each flag in README (--provider/--model/--config/--timeout/--verbose/-v/--no-color/--all/-a/
 #   --no-auto-stage/--dry-run/--version): grep -c -- "<flag>" /tmp/help.txt  -> >= 1
@@ -610,7 +610,7 @@ grep -n 'toml:' internal/provider/manifest.go | sed 's/.*toml:"//; s/".*//' | so
 
 # (d) The install commands must match §21.3 verbatim (diff README's install block against the PRP's
 #     Block 2):
-grep -nA1 'brew install dustin/tap/stagehand\|go install github.com/dustin/stagehand\|install.sh\|scoop install dustin/stagehand' README.md
+grep -nA1 'brew install dustin/tap/stagecoach\|go install github.com/dustin/stagecoach\|install.sh\|scoop install dustin/stagecoach' README.md
 
 # Expected: every README command resolves to a real flag/subcommand/field; install block verbatim.
 ```
@@ -619,7 +619,7 @@ grep -nA1 'brew install dustin/tap/stagehand\|go install github.com/dustin/stage
 
 ```bash
 # (a) The 10 §21.5 sections as headings (adjust exact wording, but all 10 topics must appear):
-for h in "Stagehand writes your commit messages" "demo\|asciinema\|30-second" \
+for h in "Stagecoach writes your commit messages" "demo\|asciinema\|30-second" \
          "Why not\|opencommit\|aicommits" "Install" "Quick start\|Quickstart" \
          "Configure" "snapshot\|stage while\|Snapshot" "reference\|Reference\|--help" \
          "Adding a new agent\|new agent\|Extensib" "FAQ\|not for you"; do
@@ -630,16 +630,16 @@ done
 # (b) The 4 verbatim blocks (hero, diagram, install, lazygit) — substring presence:
 grep -q "No API key. No per-token billing" README.md               && echo "hero verbatim OK"     || echo "HERO MISSING"
 grep -q "Pane A (lazygit / shell)" README.md                       && echo "diagram verbatim OK" || echo "DIAGRAM MISSING"
-grep -q "brew install dustin/tap/stagehand" README.md             && echo "install verbatim OK" || echo "INSTALL MISSING"
+grep -q "brew install dustin/tap/stagecoach" README.md             && echo "install verbatim OK" || echo "INSTALL MISSING"
 grep -q "customCommands" README.md && grep -q "output: 'none'" README.md && echo "lazygit OK"     || echo "LAZYGIT MISSING"
 # Expected: all four OK.
 
 # (c) Gap handling:
-grep -q "dustin/stagehand" README.md && ! grep -qi "dabstractor" README.md && echo "namespace OK" || echo "NAMESPACE CHECK"
+grep -q "dustin/stagecoach" README.md && ! grep -qi "dabstractor" README.md && echo "namespace OK" || echo "NAMESPACE CHECK"
 grep -qiE "first release|install.sh" README.md                     && echo "GAP-B note OK"       || echo "GAP-B MISSING"
-grep -qiE "stagehand --help" README.md && grep -qiE "config init" README.md && echo "GAP-D primary OK" || echo "GAP-D MISSING"
+grep -qiE "stagecoach --help" README.md && grep -qiE "config init" README.md && echo "GAP-D primary OK" || echo "GAP-D MISSING"
 
-# Expected: namespace = dustin/stagehand (no dabstractor); GAP-B note present; §8 cites --help/config init.
+# Expected: namespace = dustin/stagecoach (no dabstractor); GAP-B note present; §8 cites --help/config init.
 ```
 
 ### Level 4: Render & Honesty (GitHub rendering + Mode-B accuracy)
@@ -650,7 +650,7 @@ gh api repos/{owner}/{repo}/contents/README.md >/dev/null 2>&1 || echo "(offline
 
 # (b) Dead-link audit — every URL in the README must resolve or be explicitly placeholder:
 grep -oE 'https?://[^ )"]+' README.md | sort -u
-#   eyeball: all should be dustin/stagehand or shields.io or a real doc site. No dabstractor. No
+#   eyeball: all should be dustin/stagecoach or shields.io or a real doc site. No dabstractor. No
 #   version-pinned release that doesn't exist. The curl|sh install.sh URL is OK ONLY with the GAP-B note.
 
 # (c) Mode-B honesty sweep — no unshipped feature documented as working:
@@ -670,11 +670,11 @@ git status --short
 ### Technical Validation
 
 - [ ] `markdownlint-cli2 README.md` exits 0 (L1).
-- [ ] Every README `stagehand`/`git`/`brew`/`go install`/`scoop` command is real (L2: matches `bin/stagehand`
+- [ ] Every README `stagecoach`/`git`/`brew`/`go install`/`scoop` command is real (L2: matches `bin/stagecoach`
       + §21.3 + §15.5).
 - [ ] All 10 §21.5 sections present (L3 grep checklist: 10× FOUND).
 - [ ] 4 verbatim blocks present (L3: hero + diagram + install + lazygit all OK).
-- [ ] Gap handling: namespace `dustin/stagehand` (no `dabstractor`); GAP-B note; GAP-C no fabricated
+- [ ] Gap handling: namespace `dustin/stagecoach` (no `dabstractor`); GAP-B note; GAP-C no fabricated
       license; GAP-D `--help`/`config init` primary + docs/ secondary (L3 + L4).
 - [ ] No dead links; no hardcoded release version; no unshipped feature documented as working (L4).
 
@@ -685,9 +685,9 @@ git status --short
 - [ ] The 4 §21.3 install paths are present verbatim.
 - [ ] The §15.5 lazygit binding is present verbatim.
 - [ ] "Why not opencommit/aicommits?" is exactly ~3 sentences, grounded in §4.3.
-- [ ] "Stagehand is not for you if…" (§7.4) is stated plainly, pointing the no-CLI user at opencommit.
+- [ ] "Stagecoach is not for you if…" (§7.4) is stated plainly, pointing the no-CLI user at opencommit.
 - [ ] §9 "Adding a new agent" mirrors a shipped manifest's field set + shows `providers show` verification.
-- [ ] Quick start shows one `stagehand` invocation + the success report format.
+- [ ] Quick start shows one `stagecoach` invocation + the success report format.
 
 ### Code Quality & Scope Validation
 
@@ -701,7 +701,7 @@ git status --short
 
 - [ ] README is self-contained: a new visitor can install, configure, commit, and contribute an agent
       from this file alone (+ the binary's `--help`/`config init`).
-- [ ] External links all use `github.com/dustin/stagehand`.
+- [ ] External links all use `github.com/dustin/stagecoach`.
 - [ ] The four GAPs are each handled deliberately (not silently papered over).
 
 ---
@@ -710,15 +710,15 @@ git status --short
 
 - ❌ Don't paraphrase the four verbatim blocks (hero, diagram, install, lazygit) — the contract says
       "verbatim." Copy them from "Implementation Blueprint" character-for-character.
-- ❌ Don't use `dabstractor/stagehand` in any URL — the public namespace is `dustin/stagehand`
+- ❌ Don't use `dabstractor/stagecoach` in any URL — the public namespace is `dustin/stagecoach`
       (go.mod + goreleaser + §21.3). A dabstractor URL is a broken install.
 - ❌ Don't link to `docs/` as the sole "Full reference" — docs/ doesn't exist yet (GAP D). Cite
-      `stagehand --help` and `stagehand config init` (which ship today) as the primary reference.
+      `stagecoach --help` and `stagecoach config init` (which ship today) as the primary reference.
 - ❌ Don't assert a license (MIT or otherwise) — there is no LICENSE file (GAP C). Omit the badge or
       gate it behind a real LICENSE file (human-owned).
 - ❌ Don't document an unshipped feature (multi-commit, `--split`, a specific version) as working — v1
       is single-commit; `--version` prints "dev" locally.
-- ❌ Don't invent a `stagehand` flag/subcommand from memory — run the binary (Task 0) and quote it.
+- ❌ Don't invent a `stagecoach` flag/subcommand from memory — run the binary (Task 0) and quote it.
 - ❌ Don't create LICENSE, install.sh, docs/, or edit source/Makefile/release files — this subtask is
       README.md (+ optionally a markdownlint config) ONLY.
 - ❌ Don't skip markdownlint because "it's just prose" — markdownlint-cli2 is installed and is the L1

@@ -93,7 +93,7 @@ the gotchas. An agent that has never seen this repo can complete it from this fi
       as a real commit, including retry) and print the message; do not commit"  → mirror for drift #1
     - line 30: "`--config` is honored by every command — including the default commit action, so a
       user-defined provider declared under `[provider.<name>]` in that file is usable with
-      `--provider <name>` on `stagehand` directly"  → mirror for drift #2 / #3
+      `--provider <name>` on `stagecoach` directly"  → mirror for drift #2 / #3
     - lines 80–81: exit-code table — `1` = "...**provider command missing on `$PATH` (checked before
       the snapshot)**..."  → mirror for drift #5
   critical: Do not contradict docs/cli.md. If you can't phrase something shorter for the README,
@@ -166,7 +166,7 @@ README.md                      # ← EDITED (5 prose touches); everything else u
 # Validation is: (1) markdownlint clean, (2) coherence vs docs/*.md, (3) anchor/badge integrity.
 # Do NOT "improve" code, config, or docs/*.md — those are owned by other tasks / already done.
 
-# GOTCHA: The README hero + badge use the path "dustin/stagehand" and the workflow
+# GOTCHA: The README hero + badge use the path "dustin/stagecoach" and the workflow
 # ".github/workflows/ci.yml". That file EXISTS — do not touch the badge.
 
 # GOTCHA: The precedence ORDER in the README line (~115) is ALREADY CORRECT and matches
@@ -187,55 +187,55 @@ Task 1: STRENGTHEN the Quick-start --dry-run comment  (drift #1, Issues 2/6)
   - FILE: README.md, the "## Quick start" fenced bash block, the 4th item (~lines 64-67).
   - CURRENT:
         # 4. Preview the message without committing
-        stagehand --dry-run
+        stagecoach --dry-run
   - CHANGE TO (substance, mirror docs/cli.md line 26): make the comment state that --dry-run runs
     the FULL pipeline — snapshot, generate, parse, duplicate-check, and retry — and prints the exact
     message a real commit would produce; it only skips creating the commit. Keep it ONE compact line.
   - EXAMPLE (adjust phrasing to taste, do not pad):
         # 4. Preview the real message (full pipeline: snapshot→generate→parse→dedupe→retry), no commit
-        stagehand --dry-run
+        stagecoach --dry-run
   - GOTCHA: must imply the message is identical to a real commit (FR49). Do NOT claim it is faster
     or partial.
 
 Task 2: FIX-INACCURACY — document --config and that the default action honors it  (drifts #2 & #3, Issue 1)
   - FILE: README.md, "## Configure your agent", near the **Config precedence** line (~115).
   - CURRENT: README never mentions --config. The precedence blurb reads:
-        **Config precedence** (highest → lowest): CLI flags > `STAGEHAND_*` env vars > repo
-        `git config` (`stagehand.*`) > repo `.stagehand.toml` > global config file > provider
+        **Config precedence** (highest → lowest): CLI flags > `STAGECOACH_*` env vars > repo
+        `git config` (`stagecoach.*`) > repo `.stagecoach.toml` > global config file > provider
         defaults > built-in defaults.
   - CHANGE: Keep the precedence list UNCHANGED (it is already correct). Add ONE short sentence
     (above or below it) stating that `--config <file>` overrides config-file discovery and is honored
-    by EVERY command — including the default `stagehand` commit action — so a provider declared under
+    by EVERY command — including the default `stagecoach` commit action — so a provider declared under
     `[provider.<name>]` in that file is usable with `--provider <name>` directly.
     Mirror docs/cli.md line 30 substance.
   - EXAMPLE (compact):
-        Point discovery at a specific file with `stagehand --config path/to/config.toml`. It is
+        Point discovery at a specific file with `stagecoach --config path/to/config.toml`. It is
         honored by every command — including the default commit action — so a provider declared under
         `[provider.<name>]` there is usable with `--provider <name>` directly.
-  - GOTCHA: `--config` is a discovery override, NOT a config field; `STAGEHAND_CONFIG` is its env
+  - GOTCHA: `--config` is a discovery override, NOT a config field; `STAGECOACH_CONFIG` is its env
     equivalent. Do not imply it sets any other value.
 
 Task 3: FIX-INACCURACY — note [generation] tuning now applies  (drift #4, Issue 4)
   - FILE: README.md, "## Configure your agent", the `config init` block (~104-110).
   - CURRENT:
         Or write a fully-commented global config file:
-        stagehand config init
-        # Wrote example config to ~/.config/stagehand/config.toml
+        stagecoach config init
+        # Wrote example config to ~/.config/stagecoach/config.toml
   - CHANGE: Add a short sentence noting the generated template includes a `[generation]` section
-    whose `output` ("raw"|"json") and `strip_code_fence` knobs tune how Stagehand parses agent output
+    whose `output` ("raw"|"json") and `strip_code_fence` knobs tune how Stagecoach parses agent output
     across ALL providers (overriding per-provider values). Mirror docs/configuration.md line 81.
   - EXAMPLE:
         The template also documents a `[generation]` section: `output` ("raw"|"json") and
-        `strip_code_fence` tune how Stagehand parses agent output across all providers (overriding
+        `strip_code_fence` tune how Stagecoach parses agent output across all providers (overriding
         per-provider values).
   - GOTCHA: This is the APPLY-not-REMOVE outcome (decisions.md D4). Frame it as a working capability.
 
 Task 4: STRENGTHEN — missing provider command fails fast (exit 1)  (drift #5, Issue 3)
   - FILE: README.md, "## Configure your agent" (next to the `providers list` DETECTED column) and/or
-          "## Adding a new agent" (next to `stagehand --provider myagent`).
+          "## Adding a new agent" (next to `stagecoach --provider myagent`).
   - CURRENT: providers list shows a DETECTED column; no statement of what happens if a provider's
              command is missing.
-  - CHANGE: Add ONE line: if the resolved provider's command isn't on `$PATH`, Stagehand fails fast
+  - CHANGE: Add ONE line: if the resolved provider's command isn't on `$PATH`, Stagecoach fails fast
     with exit 1 BEFORE taking any snapshot (a pre-flight check) — it does not arm a rescue.
     Mirror docs/cli.md exit-code table line 81.
   - EXAMPLE (near the providers list or the --provider example):

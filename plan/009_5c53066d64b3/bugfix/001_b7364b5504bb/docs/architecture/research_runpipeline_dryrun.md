@@ -1,6 +1,6 @@
 # Issue 1 — runPipeline (DryRun / SystemExtra) is missing the multi-turn fallback gate
 
-> Scope: `pkg/stagehand/stagehand.go::runPipeline` (lines 415–611) vs. the reference
+> Scope: `pkg/stagecoach/stagecoach.go::runPipeline` (lines 415–611) vs. the reference
 > implementation `internal/generate/generate.go::CommitStaged` (lines 138–475).
 > The reference (CommitStaged) carries the **FR-T1 multi-turn fallback trigger gate**
 > (generate.go:290–374); the mirror (runPipeline) does **NOT**. This is the MAJOR bug.
@@ -10,7 +10,7 @@
 
 ## 1. Files Retrieved
 
-1. `pkg/stagehand/stagehand.go` (full, 611 lines) — the public library surface; holds
+1. `pkg/stagecoach/stagecoach.go` (full, 611 lines) — the public library surface; holds
    `GenerateCommit` (132), the routing decision (160–165), and `runPipeline` (415–611).
    **This is the file that must change.**
 2. `internal/generate/generate.go` (138–390) — `CommitStaged`, the frozen/tested reference
@@ -24,15 +24,15 @@
    config fields + defaults.
 7. `internal/git/tokens.go:25` — `git.EstimateTokens` (exported, used by the gate's cond (b)).
 8. `internal/ui/verbose.go:103` — `Verbose.VerboseWarn` (exported, used by FR-T11 line).
-9. `pkg/stagehand/stagehand_test.go` (231–810, sampled) — existing DryRun/SystemExtra tests;
+9. `pkg/stagecoach/stagecoach_test.go` (231–810, sampled) — existing DryRun/SystemExtra tests;
    **none** exercise the multi-turn path on runPipeline (confirming the gap).
 
 ---
 
 ## 2. The routing decision (GenerateCommit)
 
-`GenerateCommit` (`pkg/stagehand/stagehand.go:132`) resolves config/deps, then routes.
-Exact code (`stagehand.go:160–165`):
+`GenerateCommit` (`pkg/stagecoach/stagecoach.go:132`) resolves config/deps, then routes.
+Exact code (`stagecoach.go:160–165`):
 
 ```go
 	// Common path: no DryRun, no SystemExtra → delegate to the frozen, tested orchestrator.
@@ -61,13 +61,13 @@ is purely an omission in the mirror — the fix is to port the gate verbatim, no
 
 ## 3. runPipeline generation loop (the heart of the bug)
 
-Function header (`stagehand.go:415`):
+Function header (`stagecoach.go:415`):
 ```go
 func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config,
 	systemExtra string, dryRun bool) (Result, error) {
 ```
 
-**Pre-loop var hoists (`stagehand.go:483–487`):**
+**Pre-loop var hoists (`stagecoach.go:483–487`):**
 ```go
 	retryInstr := *resolved.RetryInstruction
 	var rejected []string
@@ -76,7 +76,7 @@ func runPipeline(ctx context.Context, deps generate.Deps, cfg config.Config,
 	var lastCause error
 ```
 
-**Loop declaration and `payload` (`stagehand.go:489–492`):**
+**Loop declaration and `payload` (`stagecoach.go:489–492`):**
 ```go
 	for attempt := 0; attempt <= cfg.MaxDuplicateRetries; attempt++ {
 		payload := prompt.BuildUserPayload(diff, cfg.Context, rejected)   // <-- loop-scoped `:=`
@@ -93,7 +93,7 @@ difference is the structural root cause** that blocks a naive copy of the gate i
 the gate's "fast path" (`mtPayload := payload` when `cfg.TokenLimit == 0`) needs the last
 payload, which runPipeline has thrown away.
 
-**Rescue return (`stagehand.go:543–548`) — exactly where the gate must be inserted:**
+**Rescue return (`stagecoach.go:543–548`) — exactly where the gate must be inserted:**
 ```go
 	if !success {
 		return Result{}, &generate.RescueError{
@@ -215,7 +215,7 @@ When porting into runPipeline, prefix package-qualified calls with `generate.` /
 ## 6. Dry-run success path & early-return point
 
 After the gate + rescue, runPipeline runs the FR-E1 editor gate, then branches on `dryRun`
-(`stagehand.go:565–575`):
+(`stagecoach.go:565–575`):
 
 ```go
 	// ---- Dry-run success: skip commit-tree/update-ref. ----
@@ -238,7 +238,7 @@ falls through to the editor gate, then the `if dryRun` early-return fires exactl
 The same is true on the commit path — the gate is a pure "fill `msg`/`success`" transformation;
 all downstream plumbing is shared. **This is why the gate can be lifted verbatim.**
 
-The commit tail (`stagehand.go:577–610`) is untouched by the fix: `CommitTree` (581),
+The commit tail (`stagecoach.go:577–610`) is untouched by the fix: `CommitTree` (581),
 `signal.RestoreDefault()` (592), `UpdateRefCAS` (595), `CASError` mapping (596–600),
 `signal.ClearSnapshot()` (602), final `return Result{CommitSHA: newSHA, …}` (604).
 
@@ -246,7 +246,7 @@ The commit tail (`stagehand.go:577–610`) is untouched by the fix: `CommitTree`
 
 ## 7. RescueError type & user-facing message
 
-`internal/generate/generate.go:84–101` (type alias re-exported as `pkg/stagehand.RescueError`):
+`internal/generate/generate.go:84–101` (type alias re-exported as `pkg/stagecoach.RescueError`):
 
 ```go
 type RescueError struct {
@@ -259,16 +259,16 @@ type RescueError struct {
 func (e *RescueError) Error() string {
 	switch e.Kind {
 	case ErrTimeout:
-		return "stagehand: generation timed out after the snapshot was taken"
+		return "stagecoach: generation timed out after the snapshot was taken"
 	default:
-		return "stagehand: commit generation failed after retries"
+		return "stagecoach: commit generation failed after retries"
 	}
 }
 func (e *RescueError) Unwrap() error { return e.Kind }
 ```
 
-- Sentinel vars: `ErrTimeout = "stagehand: generation timed out"` (62),
-  `ErrRescue = "stagehand: commit generation failed after retries"` (67).
+- Sentinel vars: `ErrTimeout = "stagecoach: generation timed out"` (62),
+  `ErrRescue = "stagecoach: commit generation failed after retries"` (67).
 - **User-facing block** is NOT `Error()` — the CLI renders `generate.FormatRescue(treeSHA,
   parentSHA, candidate)` (rescue.go:43). The visible banner is `"❌ Commit generation failed.\n"`
   + the `git commit-tree … | xargs git update-ref HEAD` recipe, with the optional candidate note
@@ -283,13 +283,13 @@ func (e *RescueError) Unwrap() error { return e.Kind }
 Structurally the two loops are **identical except for two things**:
 
 ### Difference A — `payload` scoping (the blocker)
-| | CommitStaged (generate.go) | runPipeline (stagehand.go) |
+| | CommitStaged (generate.go) | runPipeline (stagecoach.go) |
 |---|---|---|
 | Decl | `var payload string` **before** loop (226) | `payload := …` **inside** loop (490) |
 | Survives loop? | ✅ yes → gate reads it (311) | ❌ no → gate cannot see it |
 
 ### Difference B — the FR-T1 multi-turn gate itself
-| | CommitStaged (generate.go) | runPipeline (stagehand.go) |
+| | CommitStaged (generate.go) | runPipeline (stagecoach.go) |
 |---|---|---|
 | Present? | ✅ 290–374 | ❌ absent |
 | `if !success { return …RescueError }` | nested under a second `if !success {}` (369) | bare return (544) |
@@ -334,7 +334,7 @@ The gate's condition (b) (`git.EstimateTokens(mtPayload) > cfg.MultiTurnChunkTok
 spot (generate.go:333) to compute `turns` for the `fmt.Fprintf(os.Stderr, "↳ falling back to
 multi-turn: %d turns, ~%dm total\n", turns, totalMin)` progress line.
 
-`pkg/stagehand` cannot call `chunkPayload` (it is unexported in `internal/generate`). Three
+`pkg/stagecoach` cannot call `chunkPayload` (it is unexported in `internal/generate`). Three
 options for the implementer (pick one; all keep scope narrow):
 
 1. **Export a tiny counter** — add `func ChunkCount(payload string, chunkTokens int) int`
@@ -356,7 +356,7 @@ The progress line is the *sole* external-visible behavioral delta between the tw
 
 ## 10. Precise insertion point & edit recipe
 
-**Edit 1 — hoist `payload` (`stagehand.go`, the var block ~484–487).**
+**Edit 1 — hoist `payload` (`stagecoach.go`, the var block ~484–487).**
 
 Before:
 ```go
@@ -374,7 +374,7 @@ After (add one line):
 	var payload string // hoisted: survives the loop for the FR-T1 multi-turn gate (mirrors CommitStaged)
 ```
 
-**Edit 2 — loop body, switch `:=` to `=` (`stagehand.go:490`).**
+**Edit 2 — loop body, switch `:=` to `=` (`stagecoach.go:490`).**
 
 Before:
 ```go
@@ -385,7 +385,7 @@ After:
 		payload = prompt.BuildUserPayload(diff, cfg.Context, rejected) // `=` not `:=` (payload hoisted above)
 ```
 
-**Edit 3 — insert the gate (`stagehand.go:543–548`).**
+**Edit 3 — insert the gate (`stagecoach.go:543–548`).**
 
 Before:
 ```go
@@ -454,9 +454,9 @@ use `generate.Run`; resolve the `chunkPayload`/`turns` line per §9 option 1–3
 	}
 ```
 
-`recent` is in scope (declared `stagehand.go:464` as `var recent []string`, populated when
+`recent` is in scope (declared `stagecoach.go:464` as `var recent []string`, populated when
 `!isUnborn`). All gate identifiers confirmed in scope per §4. Imports `fmt`, `os`, `time` already
-present in `stagehand.go` (lines 5–7) — needed only if the progress line is kept.
+present in `stagecoach.go` (lines 5–7) — needed only if the progress line is kept.
 
 ---
 
@@ -474,20 +474,20 @@ present in `stagehand.go` (lines 5–7) — needed only if the progress line is 
    CommitStaged. ✅
 4. **`dryRun` + multi-turn interaction** — verified in §6: the gate is purely `msg`/`success`-
    setting; dry-run early-return at line 565 fires correctly on a multi-turn win, and the
-   dangling-tree-in-dry-run note (stagehand.go:437 comment) still holds (tree is intentional
+   dangling-tree-in-dry-run note (stagecoach.go:437 comment) still holds (tree is intentional
    and harmless since commit-tree is skipped). No new dangling-tree concern.
-5. **Tests** — `pkg/stagehand/stagehand_test.go` has DryRun/SystemExtra tests (231–810) but
+5. **Tests** — `pkg/stagecoach/stagecoach_test.go` has DryRun/SystemExtra tests (231–810) but
    **none** assert multi-turn behavior on runPipeline. New tests should mirror
    `TestCommitStaged_MultiTurnFallbackSuccess` (generate_test.go:868) and
    `TestCommitStaged_MultiTurnSkipped_NonAppend` (895) on the `GenerateCommit` DryRun +
    SystemExtra paths. The existing `appendScriptManifest` helper + stub provider infra in
-   `pkg/stagehand/stagehand_test.go` is reusable.
+   `pkg/stagecoach/stagecoach_test.go` is reusable.
 
 ---
 
 ## 12. Start Here
 
-Open `pkg/stagehand/stagehand.go` and apply the three edits in §10 (hoist `payload` at 487,
+Open `pkg/stagecoach/stagecoach.go` and apply the three edits in §10 (hoist `payload` at 487,
 switch 490 to `=`, insert the gate at 543). Keep the canonical gate text open side-by-side at
 `internal/generate/generate.go:290–374`. Resolve the `chunkPayload` export (§9, option 1) in
 `internal/generate/multiturn.go:52` first if you want byte-identical UX; otherwise drop the

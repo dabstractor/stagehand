@@ -11,7 +11,7 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` |
 | Edit targets | `internal/cmd/root.go` (var + BoolVar), `docs/cli.md` (table row) |
 | Config.NoVerify | **LANDED** (S1 Complete) — config.go:128-134 (field) + :205 (default false). |
 | flagNoVerify today | ABSENT from root.go — `grep flagNoVerify root.go` → none. Genuine add. |
@@ -42,20 +42,20 @@ The --push registration is at lines 206-213 (multi-line help string, ending with
 ```go
 	pf.BoolVar(&flagNoVerify, "no-verify", false,
 		"Bypass pre-commit and commit-msg hooks for this commit (mirrors git commit --no-verify; "+
-			"prepare-commit-msg and post-commit still run). (env STAGEHAND_NO_VERIFY, git "+
-			"stagehand.no_verify; default false.) (§9.25 FR-V5)")
+			"prepare-commit-msg and post-commit still run). (env STAGECOACH_NO_VERIFY, git "+
+			"stagecoach.no_verify; default false.) (§9.25 FR-V5)")
 ```
 Mirrors --push's help structure: env/git-config/default citation + FR ref.
 
 ### 2.3 docs/cli.md — table row (after line 43, the --push row)
 Current (line 43-44):
 ```
-| `--push` | bool | false | `STAGEHAND_PUSH` | `stagehand.push` | Run plain `git push` ... (§9.22 FR-P1) |
+| `--push` | bool | false | `STAGECOACH_PUSH` | `stagecoach.push` | Run plain `git push` ... (§9.22 FR-P1) |
 | `--planner-provider <name>` | string | "" | ... |
 ```
 Target — insert the --no-verify row BETWEEN --push and --planner-provider:
 ```
-| `--no-verify` | bool | false | `STAGEHAND_NO_VERIFY` | `stagehand.no_verify` | Bypass `pre-commit` and `commit-msg` hooks for this commit (mirrors `git commit --no-verify`; `prepare-commit-msg` and `post-commit` still run). §9.25, FR-V5. |
+| `--no-verify` | bool | false | `STAGECOACH_NO_VERIFY` | `stagecoach.no_verify` | Bypass `pre-commit` and `commit-msg` hooks for this commit (mirrors `git commit --no-verify`; `prepare-commit-msg` and `post-commit` still run). §9.25, FR-V5. |
 ```
 
 ---
@@ -68,5 +68,5 @@ Target — insert the --no-verify row BETWEEN --push and --planner-provider:
 | D2 | BoolVar placement? | After the --push block (~line 213), before the reasoning flags comment (line 214). | The contract: "after the --push registration (~line 212)". |
 | D3 | Help text? | The verbatim text from the contract (env/git-config/default citation + FR-V5). | Mirrors --push's help structure exactly. |
 | D4 | Docs row placement? | After --push (line 43), before --planner-provider (line 44). | The contract: "after the --push row at line 43". Matches the PRD §15.2 ordering. |
-| D5 | Test? | NONE for this task. | The flag is a definition only; the loadFlags reader test (TestLoadFlags_NoVerify) is S2's. The validation is `go build` + `stagehand --help`. |
+| D5 | Test? | NONE for this task. | The flag is a definition only; the loadFlags reader test (TestLoadFlags_NoVerify) is S2's. The validation is `go build` + `stagecoach --help`. |
 | D6 | Direct read? | NEVER — the flag var is read ONLY via `fs.Changed`/`fs.GetBool` in loadFlags (S2). Same discipline as flagPush/flagEdit. | The contract: "never read directly (same discipline as flagPush)." |

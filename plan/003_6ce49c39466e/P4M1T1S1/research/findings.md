@@ -35,7 +35,7 @@ in `internal/cmd/default_action.go`. No file overlap. This task edits `internal/
   enumeration the planner line carries `(reasoning: high)`; the others omit it.
 - For the GENERATE path there is NO ResolveRoles call (single role = message = global). The resolved
   provider must be derived at the CLI: `cfg.Provider`, or `reg.DefaultProvider(installed)` when `""`
-  (mirror `pkg/stagehand.buildDeps`). Model = `cfg.Model` (empty ⇒ provider-only label per FR51b).
+  (mirror `pkg/stagecoach.buildDeps`). Model = `cfg.Model` (empty ⇒ provider-only label per FR51b).
 
 ### Verbose sink
 - `ui.Verbose` (verbose.go) has `VerboseCommand`/`VerboseRawOutput`/`VerboseRetry`, all `"DEBUG: …\n"` to
@@ -91,7 +91,7 @@ in the `--verbose` 4-role enumeration.
 EDIT internal/ui/output.go     — +ProgressLabel +invocation (unexported) ; update Progress doc comment.
 EDIT internal/ui/verbose.go    — +RoleLine +VerboseRoles.
 EDIT internal/cmd/default_action.go — generate label via ProgressLabel (+autodetect); runDecompose
-  captures roleModels + VerboseRoles + planner label; add `"github.com/dustin/stagehand/internal/ui"`
+  captures roleModels + VerboseRoles + planner label; add `"github.com/dustin/stagecoach/internal/ui"`
   import if not present (it IS already imported).
 EDIT tests: output_test.go (+TestProgressLabel_*), verbose_test.go (+TestVerboseRoles_*),
   default_action_test.go (+ label observable via errBuf, both paths).

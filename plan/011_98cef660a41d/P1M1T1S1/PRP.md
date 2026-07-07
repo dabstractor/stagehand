@@ -91,7 +91,7 @@ No wiring (S2), no e2e tests (S3), no external docs (internal API seam only).
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/git/
     ├── git.go           # EDIT: + MeasureAssembled field on StagedDiffOptions
     ├── tokengate.go     # EDIT: + closedLoopGate function + constants
@@ -298,7 +298,7 @@ DOWNSTREAM HOOKS:
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/git/git.go internal/git/tokengate.go internal/git/tokengate_test.go
 gofmt -l .            # Expected: empty
 go vet ./internal/git/...  # Expected: exit 0
@@ -308,7 +308,7 @@ go build ./...        # Expected: exit 0
 ### Level 2: Unit Tests
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go test -race ./internal/git/ -v -run TestClosedLoopGate   # all 5 cases pass
 go test -race ./internal/git/ -v                           # full git suite green
 ```
@@ -316,7 +316,7 @@ go test -race ./internal/git/ -v                           # full git suite gree
 ### Level 3: Whole-Repository Regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go test -race ./...   # Expected: ALL packages green
 git diff --stat       # Expected: internal/git/{git,tokengate,tokengate_test}.go only
 ```

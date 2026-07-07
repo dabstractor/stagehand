@@ -2,7 +2,7 @@
 
 > **Purpose:** Pin the exact test design for `internal/e2e/lock_scenarios_test.go` — the cross-process
 > regression net for PRD §18.5 (FR52 per-repo run lock). Built on the e2e harness primitives
-> (`newRepo`, `runStagehand`, `waitForMarker`, `writeStubConfig`, `stubEnv`) and the ALREADY-LANDED
+> (`newRepo`, `runStagecoach`, `waitForMarker`, `writeStubConfig`, `stubEnv`) and the ALREADY-LANDED
 > S2 contention wiring. Verification environment: git 2.54.0, go1.26.4 linux/amd64, 2026-07-03.
 
 ---
@@ -36,7 +36,7 @@ nothing to do — an in-progress run already covers your staged changes.
 
 **Busy (exit 5):** writes to stderr, returns `exitcode.New(exitcode.Busy, nil)`:
 ```
-stagehand: another stagehand run is already in progress on <repo> (pid <N> on <host>). Your newly-staged changes will remain staged — re-run stagehand after it finishes. Lock: <path>.
+stagecoach: another stagecoach run is already in progress on <repo> (pid <N> on <host>). Your newly-staged changes will remain staged — re-run stagecoach after it finishes. Lock: <path>.
 ```
 → assert `strings.Contains(res.Stderr, "already in progress")` + `res.ExitCode == 5`. The `<repo>` is the
 canonical repo path, so also assert `strings.Contains(res.Stderr, repo)`.
@@ -75,12 +75,12 @@ scenario (B) MUST have #2 stage nothing new.
 ## 4. The marker-timing invariant — why waitForMarker makes A/B/E deterministic
 
 The stub agent (cmd/stubagent/main.go) sequence:
-1. **drain stdin** (the prompt payload, sent by stagehand after WriteTree)
-2. **write STAGEHAND_STUB_MARKER** (readiness)
-3. sleep `STAGEHAND_STUB_SLEEP_MS`
-4. write `STAGEHAND_STUB_OUT`, exit
+1. **drain stdin** (the prompt payload, sent by stagecoach after WriteTree)
+2. **write STAGECOACH_STUB_MARKER** (readiness)
+3. sleep `STAGECOACH_STUB_SLEEP_MS`
+4. write `STAGECOACH_STUB_OUT`, exit
 
-Stagehand's single-commit path (generate.CommitStaged) BEFORE invoking the stub does:
+Stagecoach's single-commit path (generate.CommitStaged) BEFORE invoking the stub does:
 1. `WriteTree` → treeSHA
 2. `signal.SetSnapshot(treeSHA, ...)`
 3. `lock.SetSnapshot(treeSHA)` ← **publishes the snapshot to the lock file**
@@ -96,18 +96,18 @@ non-empty `snapshot=` line — so the no-op/busy split is decided purely by #2's
 ## 5. The blocking pattern — reuse the stub's timed sleep (NO new shell script needed)
 
 The contract mentions "a shell script or Go binary that sleeps on a marker file." But the EXISTING stub
-agent already supports `STAGEHAND_STUB_SLEEP_MS` (a timed sleep after the marker). This is the exact
+agent already supports `STAGECOACH_STUB_SLEEP_MS` (a timed sleep after the marker). This is the exact
 pattern `scenarios_test.go`'s S3 (`ConcurrentFile_Excluded`) and S7 (`CASAbort_HeadMoved`) already use:
 
 ```go
 resCh := make(chan e2eResult, 1)
-go func() { resCh <- runStagehand(t, bin, repo, cfg, env, "--provider", "stub") }()
+go func() { resCh <- runStagecoach(t, bin, repo, cfg, env, "--provider", "stub") }()
 waitForMarker(t, readiness, 10*time.Second)
 // ... launch #2 / mutate state ...
 res := <-resCh   // #1 finishes after its sleep
 ```
 
-Use `STAGEHAND_STUB_SLEEP_MS=3000` (3s) for #1 — long enough that #2 runs during the sleep, short enough
+Use `STAGECOACH_STUB_SLEEP_MS=3000` (3s) for #1 — long enough that #2 runs during the sleep, short enough
 to keep the suite fast. The goroutine + `resCh` lets the test assert #2's behavior mid-flight, then drain
 #1's result. **No new shell script or gate-marker binary is required** — reusing the timed stub is simpler
 and battle-tested. (The contract's "write the marker to release #1" is one option; the timed-sleep option
@@ -122,7 +122,7 @@ Verified against internal/cmd:
 
 All three have their OWN `RunE` and never reach `runDefault`, so they never acquire the lock. Against a
 repo where #1 holds the lock, they must NOT exit 5. Assert `res.ExitCode != 5` and stderr lacks
-"already in progress". (`runStagehand` already prepends `--config cfg --no-color`, so just pass the
+"already in progress". (`runStagecoach` already prepends `--config cfg --no-color`, so just pass the
 subcommand args.)
 
 ## 7. Dry-run goes through runDefault → acquires the lock (scenario E)
@@ -160,7 +160,7 @@ against the locked repo; each → exit != 5, no "already in progress"; drain #1.
 - Do NOT modify ANY production code — S2's wiring is landed; S3 is TEST-ONLY (`internal/e2e/`).
 - Do NOT touch `internal/lock/*`, `internal/exitcode/*`, `internal/cmd/*`, `internal/generate/*`,
   `internal/decompose/*`, the stub agent, the harness (`harness_test.go`).
-- Do NOT create a new blocking-stub binary/script — reuse `STAGEHAND_STUB_SLEEP_MS`.
+- Do NOT create a new blocking-stub binary/script — reuse `STAGECOACH_STUB_SLEEP_MS`.
 - Do NOT append to the large `scenarios_test.go` — create a NEW `lock_scenarios_test.go` (matches the
   `hook_scenarios_test.go` separation pattern; same `//go:build e2e`, same `package e2e`).
 - Do NOT edit `PRD.md`, `tasks.json`, `prd_snapshot.md`, docs, or `plan/*`.
@@ -170,7 +170,7 @@ against the locked repo; each → exit != 5, no "already in progress"; drain #1.
 | # | Point | Decision | Why |
 |---|---|---|---|
 | D1 | New file vs append to scenarios_test.go | NEW `lock_scenarios_test.go` | Matches hook_scenarios_test.go separation; keeps the contention suite isolated; same package reuses all helpers. |
-| D2 | Blocking mechanism | Reuse `STAGEHAND_STUB_SLEEP_MS` timed stub | Battle-tested (S3/S7); no second helper; deterministic via marker. The contract allows it ("or a Go binary"). |
+| D2 | Blocking mechanism | Reuse `STAGECOACH_STUB_SLEEP_MS` timed stub | Battle-tested (S3/S7); no second helper; deterministic via marker. The contract allows it ("or a Go binary"). |
 | D3 | How to force Busy (not no-op) in A/E | Contender stages an EXTRA file (tree differs) | §18.5: "genuine second batch is staged (diff non-empty)" → Busy. Same-index → no-op. THE crux. |
 | D4 | How to force no-op in B | Contender stages NOTHING new (tree matches snapshot) | §18.5: "path-diff is empty" → exit 0. |
 | D5 | Synchronization point | `waitForMarker(readiness)` | Marker written by stub AFTER stdin drain ⟹ AFTER WriteTree+SetSnapshot. Guarantees snapshot is published before #2 runs. |

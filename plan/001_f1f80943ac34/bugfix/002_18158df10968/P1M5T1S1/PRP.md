@@ -4,7 +4,7 @@ work_item: P1.M5.T1.S1 (bugfix-002)
 kind: documentation (Mode B — changeset-level README sweep)
 changeset: bugfix-002 (002_18158df10968) — second-pass QA bugfix
 depends_on:
-  - P1.M1.T1.S1 (Issue 1: explicit --config/STAGEHAND_CONFIG to a MISSING file → exit 1, not silent fallback)   ✅ Complete
+  - P1.M1.T1.S1 (Issue 1: explicit --config/STAGECOACH_CONFIG to a MISSING file → exit 1, not silent fallback)   ✅ Complete
   - P1.M2.T1.S1 (Issue 2: Config.Output → *string tri-state; stop defaulting Output/StripCodeFence in Defaults())  ✅ Complete
   - P1.M2.T1.S2 (Issue 2: buildDeps bridge overrides manifest only when [generation] explicitly set)              ✅ Complete
   - P1.M3.T1.S1 (Issue 3: merge-conflict clean message — NOT a README concern; owned by P1.M5.T1.S2 how-it-works) ✅ Complete
@@ -67,8 +67,8 @@ already-synced Mode-A docs (mirror the substance; keep README phrasing compact).
 
 | # | README location (line) | Current text (verbatim) | Issue | Drift | Type |
 |---|------------------------|-------------------------|-------|-------|------|
-| 1 | `## Configure your agent` — the `[generation]` NOTE (~119) | `> The template also documents a [generation] section: output ("raw" / "json") and strip_code_fence tune how Stagehand parses agent output across all providers (overriding per-provider values).` | 2 | "(overriding per-provider values)" is an **over-claim** bugfix-001 added and bugfix-002 reverses. `[generation]` is now an **opt-in override**; when omitted, the per-provider manifest value wins. | **Fix-inaccuracy** (reverses a stale claim) |
-| 2 | `## Configure your agent` — the `--config` paragraph (~121) | `Point discovery at a specific file with stagehand --config path/to/config.toml. It is honored by every command — including the default commit action — so a provider declared under [provider.<name>] there is usable with --provider <name> directly.` | 1 | Implies discovery-style tolerance; does NOT state that an explicit path to a MISSING file errors. A typo silently invokes a real agent. | **Fix-inaccuracy** |
+| 1 | `## Configure your agent` — the `[generation]` NOTE (~119) | `> The template also documents a [generation] section: output ("raw" / "json") and strip_code_fence tune how Stagecoach parses agent output across all providers (overriding per-provider values).` | 2 | "(overriding per-provider values)" is an **over-claim** bugfix-001 added and bugfix-002 reverses. `[generation]` is now an **opt-in override**; when omitted, the per-provider manifest value wins. | **Fix-inaccuracy** (reverses a stale claim) |
+| 2 | `## Configure your agent` — the `--config` paragraph (~121) | `Point discovery at a specific file with stagecoach --config path/to/config.toml. It is honored by every command — including the default commit action — so a provider declared under [provider.<name>] there is usable with --provider <name> directly.` | 1 | Implies discovery-style tolerance; does NOT state that an explicit path to a MISSING file errors. A typo silently invokes a real agent. | **Fix-inaccuracy** |
 | 3 | `## Quick start` (~66) and/or a FAQ entry | `# 4. Preview the real message (full pipeline: snapshot→generate→parse→dedupe→retry), no commit` | 4 | Dry-run is framed as a safe preview but a generation failure now exits **1** with a short message (not 3/124 + recovery recipe). Not mentioned. | **Strengthen** (optional, keep concise) |
 
 > The existing `> [!NOTE]` about a missing **provider command** failing fast with exit 1 (line 97,
@@ -110,9 +110,9 @@ command, and the gotchas. An agent who has never seen this repo can complete it 
       generation fails (timeout or parse/duplicate-check exhaustion), exits **1** with a short stderr
       message instead of exit 3/124 + the full recovery recipe (since no commit was ever intended)"
       → mirror for drift #3
-    - line 30: "An explicit `--config` (or `STAGEHAND_CONFIG`) pointing at a missing file errors with
+    - line 30: "An explicit `--config` (or `STAGECOACH_CONFIG`) pointing at a missing file errors with
       `config: config file not found: <path>` (exit 1) instead of silently falling back to provider
-      auto-detection. Only the discovery default (no `--config` or `STAGEHAND_CONFIG`) tolerates a missing
+      auto-detection. Only the discovery default (no `--config` or `STAGECOACH_CONFIG`) tolerates a missing
       global file."  → mirror for drift #2
     - line 86: "With `--dry-run`, generation failures (timeout or parse/duplicate-check exhaustion) report
       exit **1** with a short stderr message (not 3/124 + the recovery recipe)"  → mirror for drift #3
@@ -135,7 +135,7 @@ command, and the gotchas. An agent who has never seen this repo can complete it 
   section: "## The two seams this bugfix touches"
 
 - file: plan/001_f1f80943ac34/bugfix/002_18158df10968/architecture/issue_analysis.md
-  why: verified file:line evidence for all four issues (Issue 1: load.go:48-65; Issue 2: config.go:35-36,68-69 + stagehand.go:197-211; Issue 4: default_action.go:169-188).
+  why: verified file:line evidence for all four issues (Issue 1: load.go:48-65; Issue 2: config.go:35-36,68-69 + stagecoach.go:197-211; Issue 4: default_action.go:169-188).
 ```
 
 ### Current Codebase tree (documentation surface only)
@@ -179,7 +179,7 @@ README.md                      # ← EDITED (3 prose touches); everything else u
 # CRITICAL — Issue 1 vs the existing provider-command NOTE:
 # There are now TWO different "fails fast with exit 1" notes:
 #   - README line 97 (bugfix-001): a missing provider COMMAND (binary not on $PATH) → exit 1. STILL CORRECT. Do not touch.
-#   - README line 121 (this task): a missing config FILE (--config/STAGEHAND_CONFIG path) → exit 1. ADD this.
+#   - README line 121 (this task): a missing config FILE (--config/STAGECOACH_CONFIG path) → exit 1. ADD this.
 # Do NOT merge or confuse them; they are different failure modes (binary vs file). Keep both, distinct.
 
 # GOTCHA: This is a PROSE-ONLY task. There are no Go unit tests for README content.
@@ -210,7 +210,7 @@ Task 1: FIX-INACCURACY — reword the [generation] NOTE to opt-in override  (dri
   - FILE: README.md, "## Configure your agent", the `> [!NOTE]` at line ~119.
   - CURRENT (verbatim):
         > The template also documents a `[generation]` section: `output` ("raw"|"json") and
-        > `strip_code_fence` tune how Stagehand parses agent output across all providers
+        > `strip_code_fence` tune how Stagecoach parses agent output across all providers
         > (overriding per-provider values).
   - CHANGE: Remove "(overriding per-provider values)" and replace with the OPT-IN framing. State that
     these are an OPT-IN OVERRIDE: when `[generation]` (and git-config) omit them, the per-provider
@@ -218,7 +218,7 @@ Task 1: FIX-INACCURACY — reword the [generation] NOTE to opt-in override  (dri
     to force the value across ALL providers. Mirror docs/configuration.md line ~83 substance.
   - EXAMPLE (compact, adjust phrasing to taste — keep it ONE admonition):
         > The template also documents a `[generation]` section: `output` ("raw"|"json") and
-        > `strip_code_fence` are an **opt-in override** for how Stagehand parses agent output. When
+        > `strip_code_fence` are an **opt-in override** for how Stagecoach parses agent output. When
         > unset, the per-provider `[provider.<name>]` value is used (defaulting to `raw` / `true`); set
         > them under `[generation]` only to force the value across ALL providers.
   - CRITICAL: the word "override" may stay, but ONLY as "opt-in override" / "when set". The phrase
@@ -227,18 +227,18 @@ Task 1: FIX-INACCURACY — reword the [generation] NOTE to opt-in override  (dri
 Task 2: FIX-INACCURACY — clarify --config must point at an existing file  (drift #2, Issue 1)
   - FILE: README.md, "## Configure your agent", the --config paragraph at line ~121.
   - CURRENT (verbatim):
-        Point discovery at a specific file with `stagehand --config path/to/config.toml`. It is
+        Point discovery at a specific file with `stagecoach --config path/to/config.toml`. It is
         honored by every command — including the default commit action — so a provider declared under
         `[provider.<name>]` there is usable with `--provider <name>` directly.
   - CHANGE: Keep the "honored by every command / default action" sentence (still correct). ADD one
-    sentence: an explicit `--config` (or `STAGEHAND_CONFIG`) must point at an EXISTING file — a missing
+    sentence: an explicit `--config` (or `STAGECOACH_CONFIG`) must point at an EXISTING file — a missing
     path fails fast with exit 1 (`config file not found`) rather than silently falling back to
     auto-detection. Mirror docs/cli.md line 20 + line 30 substance.
   - EXAMPLE (append/interleave, keep compact):
-        Point discovery at a specific file with `stagehand --config path/to/config.toml`. It is
+        Point discovery at a specific file with `stagecoach --config path/to/config.toml`. It is
         honored by every command — including the default commit action — so a provider declared under
         `[provider.<name>]` there is usable with `--provider <name>` directly. The path must exist: an
-        explicit `--config` (or `STAGEHAND_CONFIG`) pointing at a missing file fails fast with exit 1
+        explicit `--config` (or `STAGECOACH_CONFIG`) pointing at a missing file fails fast with exit 1
         rather than silently falling back to auto-detection.
   - GOTCHA: distinguish from the provider-command NOTE at line 97 (binary vs file). Keep them separate.
 
@@ -247,7 +247,7 @@ Task 3: STRENGTHEN — note dry-run failure exits 1  (drift #3, Issue 4)
           "## FAQ" section. Keep it CONCISE — "do not bloat the README".
   - CURRENT Quick start comment (line 66):
         # 4. Preview the real message (full pipeline: snapshot→generate→parse→dedupe→retry), no commit
-        stagehand --dry-run
+        stagecoach --dry-run
   - CHANGE (preferred — one short note after the Quick start block, or a compact FAQ line): note that
     if generation fails (timeout or parse/duplicate-check exhaustion), `--dry-run` exits **1** with a
     short message — it does NOT print the full recovery recipe or exit 3/124, since no commit was ever

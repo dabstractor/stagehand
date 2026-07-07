@@ -1,6 +1,6 @@
 # Research Findings — P1.M4.T1.S1 (Apply cfg.Output/StripCodeFence onto the manifest in buildDeps)
 
-Research-only scout. All paths repo-relative. Working tree: `/home/dustin/projects/stagehand`.
+Research-only scout. All paths repo-relative. Working tree: `/home/dustin/projects/stagecoach`.
 
 ## 1. The seam that is missing
 
@@ -19,7 +19,7 @@ func ParseOutput(raw string, m Manifest) (msg string, ok bool, fellback bool) {
 ```
 ParseOutput has NO access to `config.Config`. Its only inputs are the raw stdout + the `Manifest`.
 
-`buildDeps` (pkg/stagehand/stagehand.go:154-198) builds the manifest from `cfg.Providers` (`[provider.X]`
+`buildDeps` (pkg/stagecoach/stagecoach.go:154-198) builds the manifest from `cfg.Providers` (`[provider.X]`
 overrides merged onto built-ins) and returns `generate.Deps{..., Manifest: m}`. It NEVER references
 `cfg.Output` / `cfg.StripCodeFence`. → the `[generation]` output/strip_code_fence values are dropped on
 the floor. This is the exact seam to close.
@@ -30,8 +30,8 @@ the floor. This is the exact seam to close.
   always-resolved scalars.
 - `Defaults()` (config.go:64-65): `Output: "raw"`, `StripCodeFence: true`.
 - file loader (file.go:151-155 materialize, 202-206 overlay) populates them from `[generation]`.
-- git-config loader (git.go:124-128 / 152-156) populates them from `stagehand.output` /
-  `stagehand.stripCodeFence` (camelCase key for the bool).
+- git-config loader (git.go:124-128 / 152-156) populates them from `stagecoach.output` /
+  `stagecoach.stripCodeFence` (camelCase key for the bool).
 - load.go layers them via overlay. No env/CLI layer sets them (intentional).
 - CONCLUSION: `cfg.Output` is always a non-empty "raw"|"json" (or whatever string the user typed);
   `cfg.StripCodeFence` is always a concrete bool by the time buildDeps runs.
@@ -95,7 +95,7 @@ default. Keep the asymmetry EXACTLY as specified.
 
 - The file.go "cannot set false via file" quirk (materialize line ~153: `if g.StripCodeFence { c.StripCodeFence = true }`).
   Via the FILE loader strip_code_fence can only be turned ON; turning it OFF requires git-config
-  (`stagehand.stripCodeFence false`) or a direct cfg injection. Contract item 3 explicitly forbids fixing
+  (`stagecoach.stripCodeFence false`) or a direct cfg injection. Contract item 3 explicitly forbids fixing
   this here. The git-config path still exercises the false case end-to-end.
 - The config-package loader tests that assert cfg.Output/cfg.StripCodeFence are populated — they stay.
 - Per-provider `[provider.X] output/strip_code_fence` override — still works (merged before buildDeps).
@@ -105,7 +105,7 @@ default. Keep the asymmetry EXACTLY as specified.
 - `docs/configuration.md`: "Built-in defaults" table lists `output`/`strip_code_fence` (lines ~78-79).
   Affirm these now apply to PARSING (override the per-manifest defaults). Also the `[generation]`
   example block (lines ~47-54) and the git-config-keys table (lines ~112-116, which currently LISTS
-  provider/model/timeout/auto_stage_all but OMITS stagehand.output / stagehand.stripCodeFence) — the
+  provider/model/timeout/auto_stage_all but OMITS stagecoach.output / stagecoach.stripCodeFence) — the
   git-config keys for these two fields exist (git.go reads them) and should be reflected for accuracy.
 - `internal/cmd/config.go` exampleConfigTemplate `[generation]` block (lines 154-162): the
   output/strip_code_fence comment lines are now accurate. Add a one-line note that these tune ALL
@@ -116,7 +116,7 @@ default. Keep the asymmetry EXACTLY as specified.
 - S2 (P1.M4.T1.S2) owns the dedicated end-to-end TEST that cfg Output/StripCodeFence reach ParseOutput.
   S1 ships the bridge + docs only. S1's own validation = build clean, vet clean, FULL existing suite
   still green (the change is additive; buildDeps' pre-flight/Validate contract is untouched). The existing
-  `TestGenerateCommit_MissingProviderCommand_Issue3` (stagehand_test.go:485) must still pass unchanged —
+  `TestGenerateCommit_MissingProviderCommand_Issue3` (stagecoach_test.go:485) must still pass unchanged —
   it exercises the same buildDeps tail below the insertion point.
 - P1.M4.T2 (Issue 7 auto-stage notice) is unrelated — no shared code.
 - P1.M5 (Mode B docs sweep) runs last and depends on every implementing subtask; S1's Mode A doc edits
@@ -129,4 +129,4 @@ default. Keep the asymmetry EXACTLY as specified.
 - `go test -race ./...` (Makefile `test`)
 - `make lint` (golangci-lint; .golangci.yml present)
 - `make coverage-gate` enforces >=85% on internal/{git,provider,generate,config} (not affected by this
-  pkg/stagehand + docs change, but run it to confirm no regression).
+  pkg/stagecoach + docs change, but run it to confirm no regression).

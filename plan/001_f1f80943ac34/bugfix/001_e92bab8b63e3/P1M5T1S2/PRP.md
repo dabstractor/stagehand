@@ -68,13 +68,13 @@ did** (do not repeat it) vs. what this task adds.
 | 3 | `docs/cli.md:81` | exit-code row: "**provider command missing on `$PATH` (checked before the snapshot)**" | 9b8dc15 |
 | 3 | `docs/how-it-works.md:57` | failure table row: "Agent missing on `$PATH` \| 1 (Error)" | 9b8dc15 |
 | 2,6 | `docs/cli.md:26` | `--dry-run` desc: "full generate→parse→duplicate-check pipeline (same as a real commit, including retry)…" | f8db87e |
-| 4 | `docs/configuration.md:~81` | "`output` and `strip_code_fence` … apply to parsing … override any per-provider `[provider.<name>]` defaults" + `stagehand.output`/`stagehand.stripCodeFence` git-config rows | f1ca18a |
+| 4 | `docs/configuration.md:~81` | "`output` and `strip_code_fence` … apply to parsing … override any per-provider `[provider.<name>]` defaults" + `stagecoach.output`/`stagecoach.stripCodeFence` git-config rows | f1ca18a |
 
 ### This task's edits
 
 | # | File (line) | Issue(s) | Drift | Type |
 |---|-------------|----------|-------|------|
-| A | `docs/configuration.md` (~31, "Config file paths" section) | 1 | Config-reference **overview prose** never mentions `--config <path>`/`STAGEHAND_CONFIG` as a discovery override honored by the default action (only the env-var table row names `STAGEHAND_CONFIG`; the precedence + paths sections a user reads to understand discovery omit it entirely) | **REQUIRED** |
+| A | `docs/configuration.md` (~31, "Config file paths" section) | 1 | Config-reference **overview prose** never mentions `--config <path>`/`STAGECOACH_CONFIG` as a discovery override honored by the default action (only the env-var table row names `STAGECOACH_CONFIG`; the precedence + paths sections a user reads to understand discovery omit it entirely) | **REQUIRED** |
 | B | `docs/providers.md` (~122, "Output parsing" section) | 4 | Manifest reference documents `output`/`strip_code_fence` as per-provider manifest fields but never notes a `[generation] output`/`strip_code_fence` value **overrides** them (the exact capability Issue 4 shipped) | RECOMMENDED |
 | C | `docs/cli.md` (line 26, `--dry-run` row) | 6 | The dry-run enumeration lists "generate→parse→duplicate-check" but omits the **snapshot** step; covered today only by the phrase "same as a real commit" (accurate by reference, implicit on the snapshot) | OPTIONAL polish |
 
@@ -99,7 +99,7 @@ file + the four `docs/*.md` files.
 # MUST READ — the files being swept (read each fully before editing)
 - file: docs/configuration.md
   why: PRIMARY edit target (Edit A). The config reference.
-  edit_at: "Config file paths" section, after the "Use `stagehand config path` … `config init`…" line (~31).
+  edit_at: "Config file paths" section, after the "Use `stagecoach config path` … `config init`…" line (~31).
 
 - file: docs/cli.md
   why: (1) OPTIONAL edit target (Edit C, --dry-run row line 26);
@@ -210,18 +210,18 @@ Task 1 (REQUIRED, Edit A): configuration.md — document the --config discovery 
   Issue: 1
   FILE: docs/configuration.md
   WHERE: "## Config file paths" section, immediately AFTER the line:
-         "Use `stagehand config path` to print the resolved global path. Use `stagehand config init` to write a fully-commented example to the global path."  (~line 31)
+         "Use `stagecoach config path` to print the resolved global path. Use `stagecoach config init` to write a fully-commented example to the global path."  (~line 31)
   DRIFT: the precedence + config-paths overview prose never tells a reader they can point discovery
-         at a specific file with --config / STAGEHAND_CONFIG, nor that it is honored by the default
+         at a specific file with --config / STAGECOACH_CONFIG, nor that it is honored by the default
          commit action (the exact behavior Issue 1 fixed). Only the env-var table row names it.
   ADD: ONE short sentence/paragraph. Mirror docs/cli.md:30 substance. Example (adjust phrasing,
        keep it compact — do NOT pad):
-         Point discovery at a specific file with `--config <path>` (or `STAGEHAND_CONFIG`). It
+         Point discovery at a specific file with `--config <path>` (or `STAGECOACH_CONFIG`). It
          overrides global/repo-local file discovery and is honored by every command — including the
          default commit action — so a provider declared under `[provider.<name>]` there is usable
          with `--provider <name>` directly.
   GOTCHA: `--config` is a discovery override, NOT a Config field and NOT a layer value (it replaces
-          which file Layer 3 reads). `STAGEHAND_CONFIG` is its env equivalent. Do not imply it sets
+          which file Layer 3 reads). `STAGECOACH_CONFIG` is its env equivalent. Do not imply it sets
           any other value, and do not reorder the precedence list.
 
 Task 2 (RECOMMENDED, Edit B): providers.md — note [generation] overrides manifest output/strip_code_fence
@@ -362,7 +362,7 @@ go build ./... && go vet ./... && go test ./... 2>&1 | tail -5
 
 ### Coherence (the four contract checks)
 
-- [ ] **A (REQUIRED):** `docs/configuration.md` overview prose now states `--config`/`STAGEHAND_CONFIG`
+- [ ] **A (REQUIRED):** `docs/configuration.md` overview prose now states `--config`/`STAGECOACH_CONFIG`
       override discovery and are honored by the default commit action (mirrors cli.md:30)
 - [ ] failure-modes table lists agent-missing → exit 1, pre-generation (Issue 3) — *verify present, unchanged*
 - [ ] dry-run overview states full pipeline incl snapshot, no stale "skips snapshot" claim (Issues 2/6)

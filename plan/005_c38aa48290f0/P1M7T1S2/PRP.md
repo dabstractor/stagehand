@@ -40,7 +40,7 @@ are owned by the parallel P1.M7.T1.S1; PRD.md / FUTURE_SPEC.md / tasks.json are 
 
 ## User Persona
 
-**Target User**: A user who runs `stagehand config init --template` to get the inert reference config and
+**Target User**: A user who runs `stagecoach config init --template` to get the inert reference config and
 reads its header to learn which schema the binary speaks — and any reader of the shipped docs who must not
 be misled by a claim that contradicts the shipped binary.
 
@@ -252,7 +252,7 @@ Task 3: VALIDATE — build, test, lint, and the post-fix grep gate
 // The exampleConfigTemplate config_version block AFTER the fix (matches config.CurrentConfigVersion = 3):
 //
 // # config_version — schema version (PRD §9.17 FR-B4). Top-level metadata, NOT a [defaults] key and
-// # NOT a precedence layer (§16.1): it never overrides another field; it only tells stagehand which
+// # NOT a precedence layer (§16.1): it never overrides another field; it only tells stagecoach which
 // # schema the file was written for. This binary supports config_version = 3.
 // # ---------------------------------------------------------------------------
 // # config_version = 3
@@ -283,7 +283,7 @@ NOT touched (scope fences):
 ### Level 1: Build & Compile (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 go build ./...
 # Expected: exit 0. The constant is a Go string; the two-digit edit cannot break compilation unless
 # whitespace/punctuation was accidentally altered. If it fails to compile, re-read the constant.
@@ -295,7 +295,7 @@ go vet ./internal/cmd/...
 ### Level 2: Unit Tests + Post-Fix Grep Gate (the PRIMARY gates)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 
 # (A) Tests governing the edit's safety. The --template equality test (config_test.go:438) compares the
 #     written file to exampleConfigTemplate by full-string equality — editing the constant keeps it green.
@@ -344,10 +344,10 @@ git status --porcelain
 ### Level 3: Behavior Check (the generated-template gate)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 # Confirm the user-facing artifact actually carries v3 after the edit (config init --template writes the constant).
 tmp=$(mktemp -d)
-STAGEHAND_CONFIG="$tmp/c.toml" go run ./cmd/stagehand config init --template --force >/dev/null 2>&1 || true
+STAGECOACH_CONFIG="$tmp/c.toml" go run ./cmd/stagecoach config init --template --force >/dev/null 2>&1 || true
 echo "=== generated --template config_version block ==="
 grep -A1 -B1 'config_version' "$tmp/c.toml" 2>/dev/null | head
 rm -rf "$tmp"
@@ -360,7 +360,7 @@ rm -rf "$tmp"
 ### Level 4: Documentation-Coherence Sweep (the clean-result-per-pattern record)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 # The deliverable is EVIDENCE the sweep was done. Capture each pattern's clean result for the commit message.
 cat <<'EOF'
 >>> Record these per-pattern results in the commit message (copy the CLEAN lines verbatim) <<<

@@ -45,7 +45,7 @@ In git's `prepare_to_commit()`, `strbuf_complete_line()` is called, which append
 doesn't already end with one.
 
 ### Why this matters
-Without trailing newline (stagehand's bug):
+Without trailing newline (stagecoach's bug):
 ```
 # File: "feat: change" (no \n)
 # After `echo 'Signed-off-by: Dev <dev@example.com>' >> "$1"`:
@@ -83,7 +83,7 @@ Exit code **1**. No commit object is created; HEAD and index unchanged.
 ### Key points
 - Applies to **both** hooks — the check runs once at the end, after both have had a chance to modify the file.
 - The hook itself exited 0 — it just emptied the file. This is NOT a hook failure.
-- `git commit --allow-empty-message` skips this check. Stagehand has no analog.
+- `git commit --allow-empty-message` skips this check. Stagecoach has no analog.
 
 ---
 
@@ -99,17 +99,17 @@ The variable name (last segment after final `.`) **does not allow underscores**.
 
 | Key                       | Valid? | Why                              |
 |---------------------------|--------|----------------------------------|
-| `stagehand.no_verify`     | **INVALID** | `_` rejected              |
-| `stagehand.noVerify`      | **VALID**   | All alphanumeric          |
-| `stagehand.no-verify`     | **VALID**   | Alphanumeric + `-`        |
-| `stagehand.noverify`      | **VALID**   | All alphanumeric          |
+| `stagecoach.no_verify`     | **INVALID** | `_` rejected              |
+| `stagecoach.noVerify`      | **VALID**   | All alphanumeric          |
+| `stagecoach.no-verify`     | **VALID**   | Alphanumeric + `-`        |
+| `stagecoach.noverify`      | **VALID**   | All alphanumeric          |
 
 Case-insensitive: `noVerify` = `noverify` = `NOVERIFY`. camelCase is for readability.
 
 ### Convention in this codebase
 ALL multi-word git-config keys use camelCase: `autoStageAll`, `maxDiffBytes`, `tokenLimit`,
 `diffContext`, `maxDuplicateRetries`, `subjectTargetChars`, `stripCodeFence`. The fix should use
-`stagehand.noVerify` to match.
+`stagecoach.noVerify` to match.
 
 ---
 

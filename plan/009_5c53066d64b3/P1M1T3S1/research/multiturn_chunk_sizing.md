@@ -1,6 +1,6 @@
 # multiturn.go chunk-sizing helper — P1.M1.T3.S1 Research
 
-> Verified against the live repo (module `github.com/dustin/stagehand`). The token estimator
+> Verified against the live repo (module `github.com/dustin/stagecoach`). The token estimator
 > `git.EstimateTokens` (internal/git/tokens.go:25) and the generate-package conventions are confirmed.
 > No files modified — research only.
 

@@ -59,16 +59,16 @@ From integration_seams.md §5 (verbatim target):
 ```go
 func lockDir() (string, error) {
     if xdg := os.Getenv("XDG_RUNTIME_DIR"); xdg != "" && filepath.IsAbs(xdg) {
-        return filepath.Join(xdg, "stagehand", "locks"), nil
+        return filepath.Join(xdg, "stagecoach", "locks"), nil
     }
     if xdg := os.Getenv("XDG_CACHE_HOME"); xdg != "" && filepath.IsAbs(xdg) {
-        return filepath.Join(xdg, "stagehand", "locks"), nil
+        return filepath.Join(xdg, "stagecoach", "locks"), nil
     }
     home, err := os.UserHomeDir()
     if err != nil {
         return "", err // NO CWD fallback — a lock in the repo is the §18.5 anti-pattern
     }
-    return filepath.Join(home, ".cache", "stagehand", "locks"), nil
+    return filepath.Join(home, ".cache", "stagecoach", "locks"), nil
 }
 ```
 Acquire MUST `os.MkdirAll(dir, 0o700)` before OpenFile (the resolved dir may not exist). CRITICAL: the
@@ -144,4 +144,4 @@ S1's HeldError surfaces the contents S2 needs; S1 does NOT decide no-op-vs-Busy.
   (FR52)` — two-stage defense (lock + CAS), per-host limit (shared/network FS = CAS's job), never-in-repo
   location rationale, no-op fast path (contender with nothing new staged → exit 0), flock auto-release.
 - docs/configuration.md: add a subsection on lock-file location resolution (XDG_RUNTIME_DIR →
-  XDG_CACHE_HOME → ~/.cache/stagehand/locks/<hash>.lock) + the never-in-repo rationale.
+  XDG_CACHE_HOME → ~/.cache/stagecoach/locks/<hash>.lock) + the never-in-repo rationale.

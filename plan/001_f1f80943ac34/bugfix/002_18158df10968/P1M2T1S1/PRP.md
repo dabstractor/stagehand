@@ -5,7 +5,7 @@
 > `Config.Output` a tri-state `*string` and stops seeding both `Output`/`StripCodeFence` in `Defaults()`,
 > then fixes the config-package loaders + tests. **The user-facing behavior** (the `buildDeps` bridge
 > that copies `cfg.Output`/`cfg.StripCodeFence` onto the manifest ONLY when explicitly set) **is S2's
-> scope** (`P1.M2.T1.S2`). Do NOT touch `pkg/stagehand/stagehand.go`.
+> scope** (`P1.M2.T1.S2`). Do NOT touch `pkg/stagecoach/stagecoach.go`.
 >
 > **No external research needed** — this is a mechanical pointer-ification inside the existing Go
 > config package, reusing the project's established `*bool`/`boolPtr` pattern. All required context is
@@ -131,19 +131,19 @@ internal/config/config_test.go # TestDefaults, TestTOMLMarshalKeysAndNoColorExcl
 internal/config/file_test.go   # TestLoadTOMLValid, TestOverlayPartial, TestOverlayStripCodeFenceFalse — EDIT
 internal/config/git_test.go    # 3 Output assertion sites — EDIT
 internal/provider/manifest.go  # Resolve() L138-148 — READ-ONLY (provides the raw/true fallback)
-pkg/stagehand/stagehand.go     # L206-208 — DO NOT TOUCH (S2 scope; transiently non-compiling after S1)
+pkg/stagecoach/stagecoach.go     # L206-208 — DO NOT TOUCH (S2 scope; transiently non-compiling after S1)
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
 
 ```go
-// CRITICAL (scope): S1 edits ONLY internal/config/*. S2 owns pkg/stagehand/stagehand.go:206-208.
+// CRITICAL (scope): S1 edits ONLY internal/config/*. S2 owns pkg/stagecoach/stagecoach.go:206-208.
 //   After S1: `go build ./internal/config/...` is GREEN, but `go build ./...` FAILS at
-//   pkg/stagehand/stagehand.go:206 (`if cfg.Output != ""` on a now-*string). This is EXPECTED and is
-//   resolved by S2 (`if cfg.Output != nil { m.Output = cfg.Output }`). Do NOT "fix" pkg/stagehand here.
+//   pkg/stagecoach/stagecoach.go:206 (`if cfg.Output != ""` on a now-*string). This is EXPECTED and is
+//   resolved by S2 (`if cfg.Output != nil { m.Output = cfg.Output }`). Do NOT "fix" pkg/stagecoach here.
 
 // CRITICAL (validation gate): the S1 success gate is scoped to ./internal/config/... — NOT go build ./... .
-//   Running `go build ./...` after S1 WILL error at pkg/stagehand; that is not an S1 failure.
+//   Running `go build ./...` after S1 WILL error at pkg/stagecoach; that is not an S1 failure.
 
 // GOTCHA (go-toml/v2 nil pointers): go-toml OMITS nil *string/*bool keys on marshal (free omitempty) —
 //   this is the SAME behavior provider.Registry.MarshalTOML already relies on in prod. So marshaling
@@ -213,7 +213,7 @@ Task 3: MODIFY internal/config/file.go :: overlay (~210-211)
   - WHY: src.Output is now *string; pointer copy is symmetric with the StripCodeFence overlay (213-214).
 
 Task 4: MODIFY internal/config/git.go :: loadGitConfig (~line 127)
-  - EDIT: in the `stagehand.output` block, replace `c.Output = v` with `c.Output = &v`.
+  - EDIT: in the `stagecoach.output` block, replace `c.Output = v` with `c.Output = &v`.
   - SAFETY: v is a fresh per-if local; &v is distinct each time (same as c.StripCodeFence = &v at 152-155).
   - GUARDRAIL: the StripCodeFence block (152-155) is unchanged.
 
@@ -276,7 +276,7 @@ CODE (config package): the 4 edit sites above (config.go, file.go ×2, git.go) +
 DATABASE: none.
 CONFIG: none (no new config keys; the [generation] output/strip_code_fence TOML keys are unchanged).
 ROUTES: none.
-DOWNSTREAM (NOT this task): pkg/stagehand/stagehand.go buildDeps (L206-208) is S2's bridge — it will be
+DOWNSTREAM (NOT this task): pkg/stagecoach/stagecoach.go buildDeps (L206-208) is S2's bridge — it will be
   changed to `if cfg.Output != nil { m.Output = cfg.Output }` (drop the local copy). S1 must NOT touch it.
 ```
 
@@ -285,7 +285,7 @@ DOWNSTREAM (NOT this task): pkg/stagehand/stagehand.go buildDeps (L206-208) is S
 ## Validation Loop
 
 > **The S1 gate is scoped to `./internal/config/...`.** `go build ./...` (whole repo) is EXPECTED to
-> fail at `pkg/stagehand/stagehand.go:206` until S2 lands — that is NOT an S1 failure.
+> fail at `pkg/stagecoach/stagecoach.go:206` until S2 lands — that is NOT an S1 failure.
 
 ### Level 1: Syntax & Type (run after Tasks 1-4)
 
@@ -295,7 +295,7 @@ go build ./internal/config/...
 go vet ./internal/config/...
 
 # If there are compile errors INSIDE internal/config, follow them (every cfg.Output != "" / Output: "..."
-# site is a pointer edit). If the only error is pkg/stagehand/stagehand.go:206, that is EXPECTED — stop.
+# site is a pointer edit). If the only error is pkg/stagecoach/stagecoach.go:206, that is EXPECTED — stop.
 ```
 
 ### Level 2: Config-package tests (run after Tasks 5-7)
@@ -317,8 +317,8 @@ go test ./internal/config/...
 ```bash
 # OPTIONAL sanity check: confirm the ONLY whole-repo compile break is the S2 site.
 go build ./... 2>&1 | grep -v '^#' | sed 's/:.*//;s/^# //' | sort -u
-# Expected: the only failing file is pkg/stagehand/stagehand.go (and only the cfg.Output site at ~206).
-# If ANY internal/config file appears here, that is a real S1 bug — fix it. Do NOT edit pkg/stagehand.
+# Expected: the only failing file is pkg/stagecoach/stagecoach.go (and only the cfg.Output site at ~206).
+# If ANY internal/config file appears here, that is a real S1 bug — fix it. Do NOT edit pkg/stagecoach.
 ```
 
 ### Level 4: Behavioral spot-check of the new default (proves the plumbing)
@@ -338,7 +338,7 @@ go test ./internal/config/... -run TestDefaults -v
 - [ ] `go vet ./internal/config/...` clean.
 - [ ] `gofmt -l internal/config/` reports nothing (run `gofmt -w` if it does).
 - [ ] `go test ./internal/config/...` — all PASS with the new nil-default contract.
-- [ ] (Sanity) the only whole-repo compile break is `pkg/stagehand/stagehand.go` (the S2 seam).
+- [ ] (Sanity) the only whole-repo compile break is `pkg/stagecoach/stagecoach.go` (the S2 seam).
 
 ### Feature Validation
 - [ ] `Config.Output` is `*string`; `Config.StripCodeFence` is unchanged (`*bool`).
@@ -349,7 +349,7 @@ go test ./internal/config/... -run TestDefaults -v
 
 ### Code Quality Validation
 - [ ] Reuses the existing `boolPtr`/`*bool` pattern (`strPtr` is its twin) — no new pattern invented.
-- [ ] No edits outside `internal/config/` (pkg/stagehand untouched — it is S2's scope).
+- [ ] No edits outside `internal/config/` (pkg/stagecoach untouched — it is S2's scope).
 - [ ] Test edits preserve each test's original INTENT (partial-overlay, nil-src-no-clobber,
       default-preserved), updated only for the new nil default.
 - [ ] No silent behavior change for installed providers (the manifest's Resolve() still yields raw/true).
@@ -363,9 +363,9 @@ go test ./internal/config/... -run TestDefaults -v
 
 ## Anti-Patterns to Avoid
 
-- ❌ **Don't run/require `go build ./...` as the S1 gate** — it will fail at `pkg/stagehand` (S2 seam).
+- ❌ **Don't run/require `go build ./...` as the S1 gate** — it will fail at `pkg/stagecoach` (S2 seam).
   The gate is `./internal/config/...`.
-- ❌ **Don't edit `pkg/stagehand/stagehand.go`** to "make it compile" — that is S2's scope; doing it here
+- ❌ **Don't edit `pkg/stagecoach/stagecoach.go`** to "make it compile" — that is S2's scope; doing it here
   duplicates S2 and breaks the task boundary.
 - ❌ **Don't change `Config.StripCodeFence`'s TYPE** — it is already `*bool`; only remove its
   `Defaults()` initializer.
@@ -387,4 +387,4 @@ go test ./internal/config/... -run TestDefaults -v
 current source. The -1 reserves for the `TestOverlayStripCodeFenceFalse` Case 2 intent-preservation
 judgment call (pre-set `dst.StripCodeFence = boolPtr(true)` to keep "nil src must not clobber"
 meaningful), which is spelled out explicitly. The one cross-task hazard (the transient
-`pkg/stagehand` compile break) is flagged prominently so the implementer does not over-reach into S2.
+`pkg/stagecoach` compile break) is flagged prominently so the implementer does not over-reach into S2.

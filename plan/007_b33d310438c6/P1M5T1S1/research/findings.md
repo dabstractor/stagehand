@@ -25,19 +25,19 @@ reflects the new diff-capture pipeline.
 ## 1. The file being edited — `docs/how-it-works.md` (266 lines, ~21KB)
 
 Current top-level structure:
-1. `# How Stagehand works`
+1. `# How Stagecoach works`
 2. `## The snapshot-based flow` (why not git commit / plumbing / invariants)
 3. `## Stage-while-generating`
 4. `## Multi-commit decomposition` (trigger / four roles / pipeline / key design points / safety)
    - `### Binary and non-text file filtering`  ← diff-capture content lives here (FR3a–c)
-   - `### Payload exclusions (.stagehandignore)`  ← FR-X
+   - `### Payload exclusions (.stagecoachignore)`  ← FR-X
 5. `## Safety and the rescue protocol`
 6. `## Prompt engineering`
 7. `## Hook mode vs the snapshot-based flow`
 
 **Diff-capture content today**: ONLY the `### Binary and non-text file filtering` subsection (binary/lock/
 snapshot/sourcemap/vendor exclusion + the `[binary] <status>\t<path>` placeholder, FR3a–c) + the
-`### Payload exclusions (.stagehandignore)` subsection (FR-X). **There is NO description of FR3d–FR3i**
+`### Payload exclusions (.stagecoachignore)` subsection (FR-X). **There is NO description of FR3d–FR3i**
 (skeleton, `-M`, `-U1`, index-strip, token_limit water-fill). That is the gap.
 
 **Placement decision**: add a NEW `### Diff capture pipeline` subsection IMMEDIATELY BEFORE the existing
@@ -87,7 +87,7 @@ The `[generation]` knobs are documented in TWO places in configuration.md:
 - `max_md_lines` (default 100) — per-file markdown line cap (legacy).
 - `token_limit` (default 0) — holistic token budget; 0 = unset ⇒ legacy caps; >0 supersedes both.
 - `diff_context` (default 1) — 0/1/3 unchanged-context-lines per hunk.
-- (binary: `binary_extensions`; exclusions: `[generation].exclude` / `.stagehandignore` — owned by the
+- (binary: `binary_extensions`; exclusions: `[generation].exclude` / `.stagecoachignore` — owned by the
   existing binary/exclusions subsections, NOT this task.)
 
 **Cross-link**: link to `configuration.md#built-in-defaults` (the section with the detailed token_limit /
@@ -101,7 +101,7 @@ actual on-disk name is lowercase — use `configuration.md` (the existing how-it
 
 ## 4. What NOT to touch (scope boundary)
 
-- The `### Binary and non-text file filtering` and `### Payload exclusions (.stagehandignore)` subsections
+- The `### Binary and non-text file filtering` and `### Payload exclusions (.stagecoachignore)` subsections
   STAY (they cover FR3a–c and FR-X correctly). The new pipeline subsection COMPLEMENTS them, placed before
   them. Do not duplicate binary/exclusion content.
 - No other section of how-it-works.md (snapshot flow, decompose pipeline, safety, prompt engineering, hook

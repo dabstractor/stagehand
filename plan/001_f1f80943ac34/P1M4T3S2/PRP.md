@@ -2,19 +2,19 @@
 name: "P1.M4.T3.S2 — Verbose mode (resolved command, raw output, retries to stderr) — PRD §9.13 FR50, §15.2, §19, Appendix B.4"
 description: |
 
-  Ship Stagehand's `--verbose` / `-v` / `STAGEHAND_VERBOSE=1` diagnostics (PRD §9.13 FR50, §15.2,
+  Ship Stagecoach's `--verbose` / `-v` / `STAGECOACH_VERBOSE=1` diagnostics (PRD §9.13 FR50, §15.2,
   §19): when verbose is on, print to STDERR (1) the resolved provider COMMAND (argv only — NEVER
   env, per §19 secret-handling), (2) the raw agent STDOUT, and (3) each RETRY attempt — each line
   prefixed `DEBUG: ` (the commit-pi convention named in the work-item contract). Implemented as a
   new nil-safe `*ui.Verbose` sink in a NEW file `internal/ui/verbose.go` (sibling to P1.M4.T3.S1's
   `output.go` — zero merge-conflict), threaded through `generate.Deps` and a new nil-safe param on
-  `provider.Execute`, exposed additively on the public `pkg/stagehand.Options` as `Verbose
+  `provider.Execute`, exposed additively on the public `pkg/stagecoach.Options` as `Verbose
   io.Writer`, and wired into the CLI via one line in `runDefault`.
 
   CONTRACT (work-item spec — verbatim):
-    1. RESEARCH: "PRD FR50 / §15.2. --verbose/-v / STAGEHAND_VERBOSE=1 prints: the resolved
+    1. RESEARCH: "PRD FR50 / §15.2. --verbose/-v / STAGECOACH_VERBOSE=1 prints: the resolved
        provider command, the raw agent stdout, and each retry attempt to stderr. commit-pi uses
-       VERBOSE=1 with DEBUG: prefix lines. STAGEHAND_VERBOSE=2 could print stdin contents (§19
+       VERBOSE=1 with DEBUG: prefix lines. STAGECOACH_VERBOSE=2 could print stdin contents (§19
        notes)."
     3. LOGIC: "Add verbose logging functions: `VerboseCommand(cmd string)`,
        `VerboseRawOutput(output string)`, `VerboseRetry(attempt int, reason string)` — all write to
@@ -25,7 +25,7 @@ description: |
 
   INPUT (upstream — all EXIST; CONSUME only, do NOT change their behavior):
     - `config.Config.Verbose bool` (config.go:21) — ALREADY resolved by every loader layer
-      (Defaults/TOML/git-config/STAGEHAND_VERBOSE env/--verbose flag; see design-decisions.md F1).
+      (Defaults/TOML/git-config/STAGECOACH_VERBOSE env/--verbose flag; see design-decisions.md F1).
       This task is the designated CONSUMER of that bool (config is the resolved snapshot).
     - `internal/ui` package from P1.M4.T3.S1 — owns the always-on `↳` Progress/color helpers in
       `output.go`. S2 ADDS a sibling `verbose.go`; it does NOT edit `output.go` (parallel-safe).
@@ -33,7 +33,7 @@ description: |
       consumes it. `VerboseCommand` logs `Command`+`Args` (argv), never `Env`.
 
   OUTPUT: the `internal/ui/verbose.go` sink + wiring through `generate.Deps`,
-  `provider.Execute`, `pkg/stagehand.Options`, and `internal/cmd/default_action.go`.
+  `provider.Execute`, `pkg/stagecoach.Options`, and `internal/cmd/default_action.go`.
 
   DELIVERABLES (2 NEW files + 5 EDITS):
     NEW  internal/ui/verbose.go         — `package ui`: `type Verbose`, `NewVerbose`, nil-safe
@@ -45,11 +45,11 @@ description: |
                                           (VerboseRawOutput) after Wait (success AND error paths).
     EDIT internal/generate/generate.go  — add `Verbose *ui.Verbose` to `Deps`; pass `deps.Verbose`
                                           to `Execute`; call `VerboseRetry` at the 2 retry sites.
-    EDIT pkg/stagehand/stagehand.go     — add `Verbose io.Writer` to `Options`; set
+    EDIT pkg/stagecoach/stagecoach.go     — add `Verbose io.Writer` to `Options`; set
                                           `deps.Verbose = ui.NewVerbose(opts.Verbose, cfg.Verbose)`;
                                           pass to the 2 `Execute` calls + add `VerboseRetry` in the
                                           runPipeline loop.
-    EDIT internal/cmd/default_action.go — add `Verbose: stderr` to the `stagehand.Options{}` call.
+    EDIT internal/cmd/default_action.go — add `Verbose: stderr` to the `stagecoach.Options{}` call.
     EDIT internal/provider/executor_test.go — append `nil` to the 9 `Execute(...)` calls
                                           (compiler-driven; nil-safe).
 
@@ -65,10 +65,10 @@ description: |
 
   DEPENDENCY GRAPH (CYCLE-FREE): `internal/ui` → stdlib only. `internal/provider` → `internal/ui`
   + `internal/signal`. `internal/generate` → `internal/{config,git,prompt,provider,signal,ui}`.
-  `pkg/stagehand` → `internal/{...}` incl. `ui`. No cycle (ui is a stdlib-only leaf).
+  `pkg/stagecoach` → `internal/{...}` incl. `ui`. No cycle (ui is a stdlib-only leaf).
 
   Deliverable: 2 NEW + 5 EDITS. `go build ./...` green; `go test -race ./internal/ui/ ./internal/provider/
-  ./internal/generate/ ./internal/cmd/ ./pkg/stagehand/ -v` green (new verbose tests pass; existing
+  ./internal/generate/ ./internal/cmd/ ./pkg/stagecoach/ -v` green (new verbose tests pass; existing
   tests unchanged in behavior — executor_test.go gets `nil` args, default_action_test.go's
   stdout-exact assertions stay green because verbose → stderr + off in those tests); `go vet ./...`
   clean; `gofmt -l` empty for all touched trees.
@@ -77,10 +77,10 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Implement PRD §9.13 FR50 / §15.2 / §19 verbose diagnostics for Stagehand: when
+**Feature Goal**: Implement PRD §9.13 FR50 / §15.2 / §19 verbose diagnostics for Stagecoach: when
 `cfg.Verbose` is true, emit to STDERR — with a `DEBUG: ` prefix — the resolved provider command
 (argv only, never env), the raw agent stdout, and each retry attempt. Provide a clean, nil-safe,
-injectable sink (`*ui.Verbose`) so the LIBRARY (`pkg/stagehand`) stays side-effect-free by default
+injectable sink (`*ui.Verbose`) so the LIBRARY (`pkg/stagecoach`) stays side-effect-free by default
 (writes only to a caller-supplied writer) while the CLI opts in by passing its stderr.
 
 **Deliverable** (2 NEW files + 5 EDITS — see the description block for the full list):
@@ -93,7 +93,7 @@ injectable sink (`*ui.Verbose`) so the LIBRARY (`pkg/stagehand`) stays side-effe
 2. NEW `internal/ui/verbose_test.go` — on/off/nil matrix + exact byte assertions.
 3. EDIT `internal/provider/executor.go` — `Execute` gains `vb *ui.Verbose`; logs argv + raw stdout.
 4. EDIT `internal/generate/generate.go` — `Deps.Verbose *ui.Verbose`; pass to Execute; retry logging.
-5. EDIT `pkg/stagehand/stagehand.go` — `Options.Verbose io.Writer`; construct sink; wire runPipeline.
+5. EDIT `pkg/stagecoach/stagecoach.go` — `Options.Verbose io.Writer`; construct sink; wire runPipeline.
 6. EDIT `internal/cmd/default_action.go` — `Options{..., Verbose: stderr}`.
 7. EDIT `internal/provider/executor_test.go` — append `nil` to the 9 `Execute(...)` calls.
 
@@ -103,22 +103,22 @@ zero-byte, exact formats); `go test -race ./internal/provider/ -v` green incl. a
 -race ./internal/generate/ -v` green incl. a NEW test proving `VerboseRetry` fires (1-based) on a
 duplicate via `stubtest.NewScript`; `go test -race ./...` green with **zero** behavioral change to
 existing tests (`default_action_test.go`'s `stdout == "feat: dry run"` still holds — verbose is off
-there AND writes to stderr); `make build` then `./bin/stagehand -v --dry-run` in a scratch repo
+there AND writes to stderr); `make build` then `./bin/stagecoach -v --dry-run` in a scratch repo
 prints `DEBUG: command: …` + `DEBUG: raw output:` to **stderr** while stdout stays the bare message.
 
 ## User Persona
 
-**Target User**: the Stagehand CLI user (PRD §7 "the plan-holder") debugging a misbehaving agent —
+**Target User**: the Stagecoach CLI user (PRD §7 "the plan-holder") debugging a misbehaving agent —
 "why did it generate *that*?" / "which command did it actually run?" / "why did it retry?" — and the
 contributor porting/tuning a provider manifest who needs to see the rendered argv. Secondary: a Go
-integrator of `pkg/stagehand` who wants diagnostics routed to their own writer.
+integrator of `pkg/stagecoach` who wants diagnostics routed to their own writer.
 
-**Use Case**: `stagehand -v` → see the exact `pi --model …` (or stub) command, the agent's raw
+**Use Case**: `stagecoach -v` → see the exact `pi --model …` (or stub) command, the agent's raw
 stdout (pre-parse, pre-fence-strip), and each `DEBUG: attempt N: …` retry on stderr; stdout keeps
-the clean commit report (or `--dry-run` message). Then `stagehand -v --dry-run 2>debug.log` to
+the clean commit report (or `--dry-run` message). Then `stagecoach -v --dry-run 2>debug.log` to
 capture a full diagnostic trace without polluting the piped message.
 
-**User Journey**: user runs `stagehand -v` → `DEBUG: command: <argv>` on stderr (confirms the
+**User Journey**: user runs `stagecoach -v` → `DEBUG: command: <argv>` on stderr (confirms the
 resolved provider+flags) → agent runs → `DEBUG: raw output:` on stderr (the unparsed message) → if
 duplicate: `DEBUG: attempt 1: subject "…" matches an existing commit` → `DEBUG: raw output:` for
 attempt 2 → commit report on stdout. With no `-v`: identical behavior, zero DEBUG output.
@@ -130,16 +130,16 @@ into what the agent returned before parsing/stripping → `DEBUG: raw output:`; 
 
 ## Why
 
-- **Closes PRD §9.13 FR50 (P1) + the §15.2 `--verbose`/`-v`/`STAGEHAND_VERBOSE` contract.** Without
+- **Closes PRD §9.13 FR50 (P1) + the §15.2 `--verbose`/`-v`/`STAGECOACH_VERBOSE` contract.** Without
   this, the verbose flag is wired into config (`cfg.Verbose` resolves correctly — F1) but produces
   NO output anywhere (F2: zero `DEBUG:`/`Verbose*` matches in the codebase). This task is the sole
   owner of the verbose *output*.
 - **Respects §19 secret-handling.** The §19 line "Logs in --verbose print the command and flags but
-  never stdin contents unless STAGEHAND_VERBOSE=2" + "never reads, logs, or transmits the agent's
+  never stdin contents unless STAGECOACH_VERBOSE=2" + "never reads, logs, or transmits the agent's
   credentials" is enforced by logging **argv only, never `spec.Env`** (which carries `*_API_KEY`).
   This is the #1 security gotcha and is non-negotiable (D6).
 - **Library-clean by construction.** Threading an `io.Writer` (not writing `os.Stderr` directly)
-  keeps `pkg/stagehand` side-effect-free for 3rd-party integrators; the CLI opts in via its stderr.
+  keeps `pkg/stagecoach` side-effect-free for 3rd-party integrators; the CLI opts in via its stderr.
   Matches the injectable-writer pattern already used by S1's `internal/ui.UI` (D8).
 - **Parallel-safe with P1.M4.T3.S1.** A NEW `internal/ui/verbose.go` (sibling file) means S2 never
   touches S1's `output.go` → no merge conflict whether S1 is in-flight or done (D2).
@@ -159,26 +159,26 @@ Wiring (5 edits):
 - **executor** (`provider.Execute`): new `vb *ui.Verbose` param; `vb.VerboseCommand(<argv>)` before
   `cmd.Start()`; `vb.VerboseRawOutput(out.String())` after `cmd.Wait()` on BOTH success and error
   returns (partial output aids diagnosis). argv = `strings.Join(append([]string{spec.Command}, spec.Args...), " ")`; **never** `spec.Env`.
-- **orchestrator** (`generate.CommitStaged` + `pkg/stagehand.runPipeline`): `deps.Verbose` passed to
+- **orchestrator** (`generate.CommitStaged` + `pkg/stagecoach.runPipeline`): `deps.Verbose` passed to
   `Execute`; `deps.Verbose.VerboseRetry(attempt+1, <reason>)` at the 2 retry `continue` sites
   (parse-fail, duplicate) in EACH loop.
-- **public API** (`pkg/stagehand.Options`): additive `Verbose io.Writer`; `GenerateCommit` sets
+- **public API** (`pkg/stagecoach.Options`): additive `Verbose io.Writer`; `GenerateCommit` sets
   `deps.Verbose = ui.NewVerbose(opts.Verbose, cfg.Verbose)`.
-- **CLI** (`runDefault`): `stagehand.Options{..., Verbose: stderr}` (one line).
+- **CLI** (`runDefault`): `stagecoach.Options{..., Verbose: stderr}` (one line).
 
 ### Success Criteria
 
 - [ ] `internal/ui/verbose.go` exists, `package ui`, **stdlib-only** imports (`fmt`, `io`, `os`,
-      `strings`). No stagehand imports (leaf) and no new `go.mod` deps.
+      `strings`). No stagecoach imports (leaf) and no new `go.mod` deps.
 - [ ] `NewVerbose(w, on)`; the 3 methods are **nil-safe** (`v==nil || v.w==nil || !v.on` → no-op, zero
       bytes/allocs); exact byte formats per the table above.
 - [ ] `provider.Execute` signature is `Execute(ctx, spec, timeout, vb *ui.Verbose)`; it logs argv
       (NEVER Env) before Start and raw stdout after Wait (both paths); `vb` nil-safe.
 - [ ] `generate.Deps` has `Verbose *ui.Verbose`; `CommitStaged` passes it to Execute and calls
       `VerboseRetry` (1-based) at the parse-fail + duplicate retry sites.
-- [ ] `pkg/stagehand.runPipeline` mirrors the wiring (Execute vb arg + the 2 retry logs); `Options`
+- [ ] `pkg/stagecoach.runPipeline` mirrors the wiring (Execute vb arg + the 2 retry logs); `Options`
       gains additive `Verbose io.Writer`; `deps.Verbose` constructed from `opts.Verbose`+`cfg.Verbose`.
-- [ ] `runDefault` passes `Verbose: stderr` (cmd.ErrOrStderr()) in `stagehand.Options`.
+- [ ] `runDefault` passes `Verbose: stderr` (cmd.ErrOrStderr()) in `stagecoach.Options`.
 - [ ] `executor_test.go`'s 9 `Execute(...)` calls append `nil` (compiler-driven); a NEW
       `TestExecute_Verbose` proves DEBUG command+raw-output land in an injected buffer.
 - [ ] `go test -race ./...` green; `default_action_test.go` UNCHANGED and still passing (stdout exact);
@@ -219,7 +219,7 @@ signal/color/config/dry-run internals required (all explicitly out of scope — 
   why: the SIBLING that creates `internal/ui/output.go` (the `↳` Progress/color layer). Its scope
        boundary lists verbose as "P1.M4.T3.S2" (owned by THIS task). Confirms `internal/ui` is
        stdlib-only (so provider/generate may import it) and that S1 does NOT touch
-       executor.go/generate.go/stagehand.go/default_action.go (no overlap with S2's edits).
+       executor.go/generate.go/stagecoach.go/default_action.go (no overlap with S2's edits).
   critical: do NOT edit `internal/ui/output.go` (S1 owns it); create `internal/ui/verbose.go` instead.
 
 - file: internal/provider/executor.go   (P1.M2.T5.S1 — Execute; S2 EDITS the signature + adds 2 logs)
@@ -242,7 +242,7 @@ signal/color/config/dry-run internals required (all explicitly out of scope — 
        `bytes.Buffer` + `ui.NewVerbose(&buf, true)` → assert buf Contains "DEBUG: command: cat" AND
        "DEBUG: raw output:".
   why: the signature change is compiler-driven — `go test ./internal/provider/` lists every call to fix.
-  gotcha: import `github.com/dustin/stagehand/internal/ui` in the test (provider pkg test → ui pkg).
+  gotcha: import `github.com/dustin/stagecoach/internal/ui` in the test (provider pkg test → ui pkg).
        The existing 9 tests pass `nil` so their behavior/assertions are unchanged.
 
 - file: internal/generate/generate.go   (P1.M3.T4.S2 — CommitStaged + Deps; S2 EDITS)
@@ -259,7 +259,7 @@ signal/color/config/dry-run internals required (all explicitly out of scope — 
   gotcha: do NOT log a retry for the SUCCESSFUL/final attempt (no VerboseRetry on the `break` path).
        Deps.Verbose nil-safe → existing generate_test.go Deps literals (no Verbose field) keep working.
 
-- file: pkg/stagehand/stagehand.go   (P1.M3.T5.S1 — GenerateCommit + runPipeline; S2 EDITS)
+- file: pkg/stagecoach/stagecoach.go   (P1.M3.T5.S1 — GenerateCommit + runPipeline; S2 EDITS)
   section: `type Options struct {...}` (add `Verbose io.Writer` — additive, stdlib type, doc'd
        additive-only); `GenerateCommit` after `buildDeps(...)` returns `deps` (set
        `deps.Verbose = ui.NewVerbose(opts.Verbose, cfg.Verbose)`); `runPipeline`'s dry-run
@@ -269,12 +269,12 @@ signal/color/config/dry-run internals required (all explicitly out of scope — 
   why: the SECOND code path (DryRun/SystemExtra) must also be verbose-wired (F4) or `--dry-run -v`
        stays silent. Options.Verbose is io.Writer (no internal/ui leak into the public surface); the
        *ui.Verbose is constructed internally.
-  pattern: import `github.com/dustin/stagehand/internal/ui`. The retry reasons match generate.go exactly.
+  pattern: import `github.com/dustin/stagecoach/internal/ui`. The retry reasons match generate.go exactly.
   gotcha: set deps.Verbose AFTER buildDeps (don't change buildDeps's signature — minimize churn).
        cfg.Verbose is the bool; opts.Verbose is the writer; nil writer ⇒ silent (library default).
 
 - file: internal/cmd/default_action.go   (P1.M4.T1.S2 — runDefault; S2 EDITS 1 line)
-  section: the `stagehand.GenerateCommit(ctx, stagehand.Options{Provider:..., Model:..., Timeout:...,
+  section: the `stagecoach.GenerateCommit(ctx, stagecoach.Options{Provider:..., Model:..., Timeout:...,
        DryRun: flagDryRun})` call — add `Verbose: stderr` (stderr is already `cmd.ErrOrStderr()` from
        the top of runDefault). This is the ONLY CLI change.
   why: opts in to verbose diagnostics on the CLI's stderr. cfg.Verbose (resolved by config) gates
@@ -287,7 +287,7 @@ signal/color/config/dry-run internals required (all explicitly out of scope — 
        retries". Already resolved by all 7 layers (F1).
   why: THIS is the bool NewVerbose consumes. Do NOT change its type (bool) or add VERBOSE=2 parsing
        (D9 — would need int config, owned by P1.M1.T4).
-  gotcha: ParseBool("2") errors → STAGEHAND_VERBOSE=2 currently fails config load; that's a KNOWN
+  gotcha: ParseBool("2") errors → STAGECOACH_VERBOSE=2 currently fails config load; that's a KNOWN
        future-enhancement boundary, not a bug to fix here.
 
 - file: internal/cmd/default_action_test.go   (P1.M4.T1.S2 — READ; the stream-contract LOCK)
@@ -322,7 +322,7 @@ signal/color/config/dry-run internals required (all explicitly out of scope — 
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                              # module github.com/dustin/stagehand ; go 1.22 ; UNCHANGED (no new deps)
+go.mod                              # module github.com/dustin/stagecoach ; go 1.22 ; UNCHANGED (no new deps)
 internal/
   ui/                               # created by P1.M4.T3.S1 (output.go) — S2 ADDS verbose.go here (sibling)
   provider/executor.go              # P1.M2.T5.S1 — Execute (S2 EDITS: +vb param, +2 logs)
@@ -334,7 +334,7 @@ internal/
   cmd/default_action_test.go        # P1.M4.T1.S2 — stream-contract assertions (READ; do NOT edit)
   cmd/root_test.go                  # P1.M4.T1.S1 — test conventions (READ; mirror)
   stubtest/stubtest.go              # P1.M3.T4.S1 — NewScript duplicate driver (READ; use)
-pkg/stagehand/stagehand.go          # P1.M3.T5.S1 — GenerateCommit + runPipeline (S2 EDITS: +Options.Verbose, +deps.Verbose, +Execute arg, +2 retry logs)
+pkg/stagecoach/stagecoach.go          # P1.M3.T5.S1 — GenerateCommit + runPipeline (S2 EDITS: +Options.Verbose, +deps.Verbose, +Execute arg, +2 retry logs)
 Makefile                            # build/test(-race)/vet/coverage/lint/clean (UNCHANGED)
 ```
 
@@ -346,7 +346,7 @@ internal/ui/verbose_test.go         # NEW — on/off/nil matrix + exact byte ass
 internal/provider/executor.go       # EDIT — Execute gains vb *ui.Verbose; log argv (pre-Start) + raw stdout (post-Wait, both paths).
 internal/provider/executor_test.go  # EDIT — append nil to 9 Execute calls; add TestExecute_Verbose.
 internal/generate/generate.go       # EDIT — Deps.Verbose; pass to Execute; VerboseRetry at 2 retry sites.
-pkg/stagehand/stagehand.go          # EDIT — Options.Verbose io.Writer; deps.Verbose=NewVerbose(...); wire runPipeline (Execute arg + 2 retry logs).
+pkg/stagecoach/stagecoach.go          # EDIT — Options.Verbose io.Writer; deps.Verbose=NewVerbose(...); wire runPipeline (Execute arg + 2 retry logs).
 internal/cmd/default_action.go      # EDIT — Options{..., Verbose: stderr} (1 line).
 # All other files UNCHANGED. config/*.go, internal/ui/output.go, generate/rescue.go, exitcode/*, signal/* UNCHANGED.
 ```
@@ -364,15 +364,15 @@ internal/cmd/default_action.go      # EDIT — Options{..., Verbose: stderr} (1 
 // existing test cfg.Verbose==false → Verbose is a no-op, so the stdout-exact assertions are safe; but
 // the design must make stdout leakage structurally impossible (Verbose has no stdout field at all).
 
-// CRITICAL (TWO code paths — F4): BOTH generate.CommitStaged AND pkg/stagehand.runPipeline contain a
+// CRITICAL (TWO code paths — F4): BOTH generate.CommitStaged AND pkg/stagecoach.runPipeline contain a
 // Render→Execute→dedupe loop. Wire verbose into BOTH (Execute vb arg + the 2 retry logs each) or
-// `stagehand -v --dry-run` stays silent (runPipeline is the DryRun path). Forgetting runPipeline is the
+// `stagecoach -v --dry-run` stays silent (runPipeline is the DryRun path). Forgetting runPipeline is the
 // #1 completeness bug.
 
 // GOTCHA (nil-safety is the threading mechanism): every *ui.Verbose method starts with
 // `if v == nil || v.w == nil || !v.on { return }`. Callers pass deps.Verbose (may be nil) and call
 // methods UNCONDITIONALLY — no `if deps.Verbose != nil { ... }` guards in the pipeline. Existing Deps
-// literals without a Verbose field (generate_test, stagehand_test) keep working (nil → no-op).
+// literals without a Verbose field (generate_test, stagecoach_test) keep working (nil → no-op).
 
 // GOTCHA (Execute signature change is compiler-driven — F3): Execute gains `vb *ui.Verbose` as the 4th
 // param. `go build ./... && go test ./internal/provider/` will list EVERY call site. Prod calls pass
@@ -401,7 +401,7 @@ internal/cmd/default_action.go      # EDIT — Options{..., Verbose: stderr} (1 
 // as a SIBLING file in package ui. Both files contribute to package ui with zero merge conflict.
 
 // GOTCHA (public API stays additive + stdlib-typed): Options.Verbose is `io.Writer` (stdlib), NOT
-// `*ui.Verbose` — internal/ui must NOT leak into the public pkg/stagehand surface. The *ui.Verbose is
+// `*ui.Verbose` — internal/ui must NOT leak into the public pkg/stagecoach surface. The *ui.Verbose is
 // constructed INSIDE GenerateCommit. nil Options.Verbose ⇒ silent (library default; a library has no
 // business writing to os.Stderr — D8).
 ```
@@ -421,7 +421,7 @@ import (
 	"strings"
 )
 
-// Verbose is Stagehand's --verbose diagnostics sink (PRD §9.13 FR50, §15.2, §19). When ON, it prints
+// Verbose is Stagecoach's --verbose diagnostics sink (PRD §9.13 FR50, §15.2, §19). When ON, it prints
 // the resolved provider command, the raw agent stdout, and each retry attempt to a writer (the CLI's
 // stderr) with a "DEBUG: " prefix (the commit-pi convention named in the work-item contract). When OFF
 // (the default), or when the receiver is nil, or when the writer is nil, EVERY method is a no-op
@@ -433,7 +433,7 @@ import (
 // VERBOSE=2 — see D9; Config.Verbose is a bool, so VERBOSE=2 is currently un-parseable and out of scope).
 //
 // The writer is INJECTABLE: the CLI passes cmd.ErrOrStderr() (stderr); a library consumer of
-// pkg/stagehand passes its own writer or nil. This keeps the library side-effect-free by default
+// pkg/stagecoach passes its own writer or nil. This keeps the library side-effect-free by default
 // (it never writes to os.Stderr directly). Sibling to output.go (P1.M4.T3.S1's ↳/color layer); this
 // file owns ONLY verbose diagnostics.
 type Verbose struct {
@@ -524,7 +524,7 @@ Task 2: CREATE internal/ui/verbose_test.go (pure unit tests; bytes.Buffer captur
   - COVERAGE: every method × {on, off, nil-receiver, nil-writer}. Assert EXACT bytes for the on cases.
 
 Task 3: EDIT internal/provider/executor.go (Execute gains vb param + 2 logs)
-  - FILE: EDIT internal/provider/executor.go. ADD import "github.com/dustin/stagehand/internal/ui"
+  - FILE: EDIT internal/provider/executor.go. ADD import "github.com/dustin/stagecoach/internal/ui"
       (strings is already imported).
   - CHANGE A (signature): `func Execute(ctx context.Context, spec CmdSpec, timeout time.Duration) (...)`
       → `func Execute(ctx context.Context, spec CmdSpec, timeout time.Duration, vb *ui.Verbose) (...)`.
@@ -542,7 +542,7 @@ Task 3: EDIT internal/provider/executor.go (Execute gains vb param + 2 logs)
   - GOTCHA: re-run executor_test.go — the compiler flags all 9 Execute calls; fix in Task 6.
 
 Task 4: EDIT internal/generate/generate.go (Deps.Verbose + Execute arg + 2 retry logs)
-  - FILE: EDIT internal/generate/generate.go. ADD import "github.com/dustin/stagehand/internal/ui".
+  - FILE: EDIT internal/generate/generate.go. ADD import "github.com/dustin/stagecoach/internal/ui".
   - CHANGE A (Deps field): add `Verbose *ui.Verbose // nil-safe --verbose diagnostics sink (P1.M4.T3.S2);
       logs retries here + passed to provider.Execute for command/raw-output logging` to the Deps struct.
   - CHANGE B (Execute arg): `out, _, execErr := provider.Execute(ctx, *spec, cfg.Timeout)` → append
@@ -556,8 +556,8 @@ Task 4: EDIT internal/generate/generate.go (Deps.Verbose + Execute arg + 2 retry
   - GOTCHA: do NOT add VerboseRetry on the success `break` path. attempt+1 ⇒ 1-based.
   - GOTCHA: Deps.Verbose nil-safe → existing generate_test.go Deps literals (no Verbose) keep working.
 
-Task 5: EDIT pkg/stagehand/stagehand.go (Options.Verbose + deps.Verbose + runPipeline wiring)
-  - FILE: EDIT pkg/stagehand/stagehand.go. ADD import "github.com/dustin/stagehand/internal/ui".
+Task 5: EDIT pkg/stagecoach/stagecoach.go (Options.Verbose + deps.Verbose + runPipeline wiring)
+  - FILE: EDIT pkg/stagecoach/stagecoach.go. ADD import "github.com/dustin/stagecoach/internal/ui".
   - CHANGE A (Options field): add `Verbose io.Writer // optional; when set AND cfg.Verbose, diagnostics
       (resolved command, raw output, retries) are written here (the CLI passes stderr). nil ⇒ silent.
       Additive-only (PRD §14.1).` to the Options struct (after Timeout).
@@ -576,7 +576,7 @@ Task 5: EDIT pkg/stagehand/stagehand.go (Options.Verbose + deps.Verbose + runPip
   - GOTCHA: nil opts.Verbose + cfg.Verbose=true ⇒ NewVerbose(nil,true) ⇒ silent (library default — D8).
 
 Task 6: EDIT internal/provider/executor_test.go (append nil to 9 calls + add TestExecute_Verbose)
-  - FILE: EDIT internal/provider/executor_test.go. ADD import "github.com/dustin/stagehand/internal/ui"
+  - FILE: EDIT internal/provider/executor_test.go. ADD import "github.com/dustin/stagecoach/internal/ui"
       + "bytes" (bytes likely already imported; check).
   - CHANGE A: every `Execute(<ctx>, <spec>, <dur>)` call → append `, nil` (4th arg). There are 9 (the
       compiler lists them on `go test`). Non-verbose existing tests pass nil → behavior unchanged.
@@ -595,7 +595,7 @@ Task 6: EDIT internal/provider/executor_test.go (append nil to 9 calls + add Tes
       the §19 security regression test.
 
 Task 7: EDIT internal/cmd/default_action.go (Options.Verbose: stderr — 1 line)
-  - FILE: EDIT internal/cmd/default_action.go. In the `stagehand.GenerateCommit(ctx, stagehand.Options{...})`
+  - FILE: EDIT internal/cmd/default_action.go. In the `stagecoach.GenerateCommit(ctx, stagecoach.Options{...})`
       literal, add `Verbose: stderr,` (stderr = cmd.ErrOrStderr(), already bound at the top of runDefault).
   - PRESERVE: everything else. printCommitReport/printDryRunMessage (stdout plain), handleGenError
       rescue/CAS (frozen), the auto-stage state machine — all UNCHANGED.
@@ -636,7 +636,7 @@ deps.Verbose.VerboseRetry(attempt+1, fmt.Sprintf("subject %q matches an existing
 deps.Verbose = ui.NewVerbose(opts.Verbose, cfg.Verbose)
 
 // CLI opt-in (Task 7). One field:
-stagehand.GenerateCommit(ctx, stagehand.Options{Provider: cfg.Provider, Model: cfg.Model,
+stagecoach.GenerateCommit(ctx, stagecoach.Options{Provider: cfg.Provider, Model: cfg.Model,
 	Timeout: cfg.Timeout, DryRun: flagDryRun, Verbose: stderr})
 ```
 
@@ -652,10 +652,10 @@ CONFIG (consumed, NOT modified):
 
 CLI (wired):
   - file: internal/cmd/default_action.go
-  - point: the stagehand.Options literal in runDefault → add `Verbose: stderr`.
+  - point: the stagecoach.Options literal in runDefault → add `Verbose: stderr`.
 
 PUBLIC API (additive):
-  - field: pkg/stagehand.Options.Verbose io.Writer — additive-only (PRD §14.1); stdlib type (no
+  - field: pkg/stagecoach.Options.Verbose io.Writer — additive-only (PRD §14.1); stdlib type (no
     internal/ui leak). nil ⇒ silent (library default).
 
 EXECUTOR (signature change — compiler-driven):
@@ -663,7 +663,7 @@ EXECUTOR (signature change — compiler-driven):
 
 ORCHESTRATOR (Deps field + retry logs):
   - struct: generate.Deps gains `Verbose *ui.Verbose`.
-  - loops: generate.CommitStaged AND pkg/stagehand.runPipeline both pass deps.Verbose to Execute and
+  - loops: generate.CommitStaged AND pkg/stagecoach.runPipeline both pass deps.Verbose to Execute and
     log VerboseRetry at the parse-fail + duplicate continue sites.
 
 SECURITY (PRD §19 — load-bearing):
@@ -681,9 +681,9 @@ SECURITY (PRD §19 — load-bearing):
 gofmt -w internal/ui/verbose.go internal/ui/verbose_test.go
 go vet ./internal/ui/
 
-# After editing executor.go / generate.go / stagehand.go / default_action.go / executor_test.go
-gofmt -w internal/provider/ internal/generate/ pkg/stagehand/ internal/cmd/
-go vet ./internal/provider/ ./internal/generate/ ./pkg/stagehand/ ./internal/cmd/
+# After editing executor.go / generate.go / stagecoach.go / default_action.go / executor_test.go
+gofmt -w internal/provider/ internal/generate/ pkg/stagecoach/ internal/cmd/
+go vet ./internal/provider/ ./internal/generate/ ./pkg/stagecoach/ ./internal/cmd/
 
 # Expected: zero errors. gofmt -l should be empty for all touched trees.
 gofmt -l internal/ pkg/ cmd/
@@ -722,8 +722,8 @@ make build
 cd /tmp && rm -rf vb-smoke && git init vb-smoke && cd vb-smoke &&
   git config user.email t@t.co && git config user.name t &&
   echo hi > a.txt && git add a.txt &&
-  STAGEHAND_PROVIDER=stub ./path/to/bin/stagehand -v --dry-run 2>debug.log 1>out.txt ||
-  ./path/to/bin/stagehand -v --dry-run 2>debug.log 1>out.txt
+  STAGECOACH_PROVIDER=stub ./path/to/bin/stagecoach -v --dry-run 2>debug.log 1>out.txt ||
+  ./path/to/bin/stagecoach -v --dry-run 2>debug.log 1>out.txt
 
 # Assertions:
 #   - out.txt == the generated message ONLY (no "DEBUG:", no "↳").           [FR50 / §15.5 pipe]
@@ -733,10 +733,10 @@ cd /tmp && rm -rf vb-smoke && git init vb-smoke && cd vb-smoke &&
 #   - `cat -v debug.log` shows NO ANSI escapes (verbose is plain text).      [D1]
 
 # Toggle sanity:
-#   stagehand --dry-run            # NO debug output (verbose off), message on stdout
-#   stagehand -v --dry-run         # DEBUG lines on STDERR, message still clean on stdout
-#   STAGEHAND_VERBOSE=1 stagehand --dry-run   # same as -v (env-driven)
-#   stagehand -v --dry-run 2>/dev/null | tee /tmp/msg.txt   # msg.txt is clean (stdout only)
+#   stagecoach --dry-run            # NO debug output (verbose off), message on stdout
+#   stagecoach -v --dry-run         # DEBUG lines on STDERR, message still clean on stdout
+#   STAGECOACH_VERBOSE=1 stagecoach --dry-run   # same as -v (env-driven)
+#   stagecoach -v --dry-run 2>/dev/null | tee /tmp/msg.txt   # msg.txt is clean (stdout only)
 ```
 
 ### Level 4: Creative & Domain-Specific Validation
@@ -745,11 +745,11 @@ cd /tmp && rm -rf vb-smoke && git init vb-smoke && cd vb-smoke &&
 # §19 secret-leak regression (the critical security check): force a provider whose env would carry a
 # fake secret, run -v, and assert the secret NEVER appears on stderr.
 cd /tmp/vb-smoke &&
-  SECRET_KEY=d0ntleakme ./path/to/bin/stagehand -v --dry-run 2>debug.log 1>/dev/null || true
+  SECRET_KEY=d0ntleakme ./path/to/bin/stagecoach -v --dry-run 2>debug.log 1>/dev/null || true
 grep -q "d0ntleakme" debug.log && echo "FAIL: secret leaked to stderr (§19 violation)" || echo "PASS: no secret leak"
 
 # Pipe-safety proof (FR51/§15.5 — verbose must not corrupt stdout):
-./path/to/bin/stagehand -v --dry-run 2>/dev/null | tee /tmp/msg.txt
+./path/to/bin/stagecoach -v --dry-run 2>/dev/null | tee /tmp/msg.txt
 grep -P '\x1b|DEBUG' /tmp/msg.txt && echo "FAIL: stdout polluted" || echo "PASS: stdout is the bare message"
 
 # Duplicate-retry verbose proof (Appendix B.4): set up a repo whose recent subject will collide, run -v,
@@ -782,15 +782,15 @@ gofmt -l internal/ pkg/ cmd/
       `"DEBUG: raw output:\n<out>"` (+ trailing `\n`); `VerboseRetry` writes
       `"DEBUG: attempt <n>: <reason>\n"` — all ONLY when on, all nil-safe (nil receiver / nil writer / off).
 - [ ] `provider.Execute` logs argv (pre-Start) + raw stdout (post-Wait, success AND error); NEVER Env.
-- [ ] `generate.CommitStaged` AND `pkg/stagehand.runPipeline` both pass `deps.Verbose` to Execute and log
+- [ ] `generate.CommitStaged` AND `pkg/stagecoach.runPipeline` both pass `deps.Verbose` to Execute and log
       `VerboseRetry` (1-based) at the parse-fail + duplicate retry sites.
 - [ ] `Options.Verbose io.Writer` (additive); CLI passes stderr; library nil ⇒ silent.
-- [ ] `stagehand -v --dry-run` prints DEBUG command + raw output to STDERR; stdout stays the bare message.
+- [ ] `stagecoach -v --dry-run` prints DEBUG command + raw output to STDERR; stdout stays the bare message.
 - [ ] §19: no env var / secret / stdin contents appear in verbose output (the security regression test passes).
 
 ### Code Quality Validation
 
-- [ ] `internal/ui/verbose.go` imports only stdlib (no stagehand package; no import-cycle risk).
+- [ ] `internal/ui/verbose.go` imports only stdlib (no stagecoach package; no import-cycle risk).
 - [ ] Follows existing patterns: injectable-writer (S1's UI), DI struct (generate.Deps), bytes.Buffer tests.
 - [ ] File placement matches the desired tree; `output.go` (S1) UNCHANGED.
 - [ ] Anti-patterns avoided (see below): no stdout verbose, no Env logging, no os.Stderr in library, no
@@ -800,7 +800,7 @@ gofmt -l internal/ pkg/ cmd/
 
 - [ ] Code is self-documenting (doc comments on Verbose + each method; §19 security rationale inlined;
       the future VERBOSE=2 hook noted in a comment).
-- [ ] No new env vars beyond the existing `STAGEHAND_VERBOSE` (already in §15.2 help).
+- [ ] No new env vars beyond the existing `STAGECOACH_VERBOSE` (already in §15.2 help).
 
 ---
 
@@ -808,15 +808,15 @@ gofmt -l internal/ pkg/ cmd/
 
 - ❌ Don't log `spec.Env` — it carries `*_API_KEY` credentials. VerboseCommand logs argv (Command+Args)
   ONLY. This is PRD §19 (line 1203) and is the #1 security rule (D6).
-- ❌ Don't write verbose output to stdout — it breaks `stagehand --dry-run | tee` / `git commit -F <(...)`
+- ❌ Don't write verbose output to stdout — it breaks `stagecoach --dry-run | tee` / `git commit -F <(...)`
   (§15.5) AND `default_action_test.go:272`'s exact `stdout == "feat: dry run"` equality. Verbose → the
   stderr writer ONLY (F7).
-- ❌ Don't write `os.Stderr` directly from `pkg/stagehand` — it's a library; thread an `io.Writer`
+- ❌ Don't write `os.Stderr` directly from `pkg/stagecoach` — it's a library; thread an `io.Writer`
   instead (nil ⇒ silent). The CLI opts in by passing its stderr (D8).
 - ❌ Don't edit `internal/ui/output.go` (P1.M4.T3.S1 owns it) — create `internal/ui/verbose.go` as a
   sibling (D2). Editing output.py risks a merge conflict with the parallel S1 work.
-- ❌ Don't wire only `generate.CommitStaged` and forget `pkg/stagehand.runPipeline` — runPipeline is the
-  DryRun/SystemExtra path; leaving it silent breaks `stagehand -v --dry-run` (F4).
+- ❌ Don't wire only `generate.CommitStaged` and forget `pkg/stagecoach.runPipeline` — runPipeline is the
+  DryRun/SystemExtra path; leaving it silent breaks `stagecoach -v --dry-run` (F4).
 - ❌ Don't implement VERBOSE=2 / stdin logging — `Config.Verbose` is a `bool` (`ParseBool("2")` errors);
   supporting it needs a cross-cutting int-config change owned by P1.M1.T4. S2 = VERBOSE=1 only (D9).
 - ❌ Don't reuse the `↳` (U+21B3) prefix for verbose — that's S1's always-on Progress layer. Verbose uses

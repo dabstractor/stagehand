@@ -1,10 +1,10 @@
 name: "P1.M2.T2.S2 — --template with mandatory $msg + shared message-finalization seam in all three commit paths"
 description: |
   Add the full-precedence `--template '<tpl>'` config surface (`[generation].template`,
-  `STAGEHAND_TEMPLATE`, `stagehand.template`, `--template`; FR-F8), HARD-error when the resolved value
+  `STAGECOACH_TEMPLATE`, `stagecoach.template`, `--template`; FR-F8), HARD-error when the resolved value
   lacks the literal `$msg`, and implement `ApplyTemplate(msg, tpl)` behind a NAMED shared seam
   `generate.FinalizeMessage(msg, cfg)` invoked AFTER parse/cleanup and BEFORE the duplicate check in
-  every commit path — the three generate/dedupe loops (generate.go, pkg/stagehand runPipeline,
+  every commit path — the three generate/dedupe loops (generate.go, pkg/stagecoach runPipeline,
   decompose message.go) plus the FR-M11 planner shortcut. So dedupe (§9.7) judges the templated subject,
   and every commit in a decompose run is templated uniformly. The seam is the explicit ordering slot
   where P1.M5.T1.S1 later inserts the `--edit` editor gate (editor slots AFTER template, per FR-E3).
@@ -14,12 +14,12 @@ description: |
 
 ## Goal
 
-**Feature Goal**: `stagehand --template '$msg (#205)'` wraps EVERY commit message a run produces (single
+**Feature Goal**: `stagecoach --template '$msg (#205)'` wraps EVERY commit message a run produces (single
 commit, every decompose commit, the FR-M11 shortcut, the arbiter N+1) by substituting the literal `$msg`
 with the full generated message — applied after parse/cleanup and before the duplicate check, so §9.7
 judges the final subject as it will land. A resolved template that lacks `$msg` is a hard configuration
 error at load. The template is resolved through the standard 5-layer precedence
-(`[generation].template` < `stagehand.template` < `STAGEHAND_TEMPLATE` < `--template`), exactly like
+(`[generation].template` < `stagecoach.template` < `STAGECOACH_TEMPLATE` < `--template`), exactly like
 `format`/`locale`. All of this funnels through ONE named seam — `generate.FinalizeMessage` — that
 P1.M5.T1.S1's `--edit` gate will extend.
 
@@ -29,7 +29,7 @@ P1.M5.T1.S1's `--edit` gate will extend.
 2. `Config.Template` field + full-precedence plumbing across config.go / file.go / git.go / load.go /
    root.go (mirroring `format`/`locale`).
 3. `validateTemplate` (hard `$msg` error) called once at the Load() tail.
-4. The seam invoked at 4 explicit sites (generate.go loop, stagehand.go runPipeline loop,
+4. The seam invoked at 4 explicit sites (generate.go loop, stagecoach.go runPipeline loop,
    decompose/message.go loop, decompose/decompose.go `runSingleShortcut`); arbiter/one-file/escape
    covered transitively.
 5. Unit + integration tests (ApplyTemplate/FinalizeMessage pure tests; validateTemplate table;
@@ -40,14 +40,14 @@ P1.M5.T1.S1's `--edit` gate will extend.
 
 **Success Definition**:
 - `template == ""` (default) → every commit path emits BYTE-IDENTICAL messages to today (all existing
-  generate/decompose/stagehand tests pass unchanged — the load-bearing regression guard).
+  generate/decompose/stagecoach tests pass unchanged — the load-bearing regression guard).
 - `--template '$msg (#205)'` → a generated `Fix the parser` lands as `Fix the parser (#205)`, and the
   dedupe check compares `Fix the parser (#205)` against recent subjects.
-- A resolved template `(#205)` (no `$msg`) → `stagehand` exits non-zero at config load with
+- A resolved template `(#205)` (no `$msg`) → `stagecoach` exits non-zero at config load with
   `template: invalid template "(#205)": must contain the literal $msg (e.g. "$msg (#205)")`.
 - On a decompose run, ALL commits (including the FR-M11 shortcut message and the arbiter N+1) carry the
   template.
-- `stagehand --template x` sets `cfg.Template`; `stagehand config init --template` still parses as the
+- `stagecoach --template x` sets `cfg.Template`; `stagecoach config init --template` still parses as the
   inert-reference-config bool (no collision).
 - `go build ./...`, `go test ./...`, `go vet ./...`, `golangci-lint run` all green.
 
@@ -56,20 +56,20 @@ P1.M5.T1.S1's `--edit` gate will extend.
 **Target User**: The "plan-holder" (PRD §7.1) working an issue tracker who wants every commit in a session
 tagged with a ticket/PR reference (`$msg (#205)`) or a fixed prefix, without hand-editing each message.
 
-**Use Case**: `stagehand --template '$msg (#812)'` on a multi-commit decompose run → every commit gets the
-`(#812)` suffix; or `stagehand.template = "[skip ci] $msg"` in repo git config for a docs repo.
+**Use Case**: `stagecoach --template '$msg (#812)'` on a multi-commit decompose run → every commit gets the
+`(#812)` suffix; or `stagecoach.template = "[skip ci] $msg"` in repo git config for a docs repo.
 
-**User Journey**: run `stagehand --template '$msg (#205)'` → `config.Load` resolves + validates
+**User Journey**: run `stagecoach --template '$msg (#205)'` → `config.Load` resolves + validates
 `cfg.Template` → each commit path generates a bare message, `FinalizeMessage` substitutes `$msg` → the
 dedupe check sees the final subject → the templated message lands via the normal plumbing path.
 
 **Pain Points Addressed**: incumbents (aicommits/opencommit) offer message templates; parity requires it.
-The wrinkle unique to stagehand: it must apply UNIFORMLY across a decomposed multi-commit run and be
+The wrinkle unique to stagecoach: it must apply UNIFORMLY across a decomposed multi-commit run and be
 visible to the dedupe check — both handled by putting it at the single pre-dedupe seam.
 
 ## Why
 
-- **FR-F8 (PRD §9.19)**: *"`--template '<tpl>'` / `STAGEHAND_TEMPLATE` / `stagehand.template` /
+- **FR-F8 (PRD §9.19)**: *"`--template '<tpl>'` / `STAGECOACH_TEMPLATE` / `stagecoach.template` /
   `[generation].template`, default empty. `<tpl>` must contain the literal `$msg` (hard error otherwise),
   which is replaced with the full generated message after parsing/cleanup and before the duplicate check
   (§9.7 must judge the final subject as it will land). Applies to every commit message in a run (all
@@ -96,7 +96,7 @@ one named finalization seam that substitutes `$msg` before the dedupe check.
       docstring.
 - [ ] `Config.Template string \`toml:"template"\`` + `Defaults()` `Template: ""`; plumbed across file/git/env/flag
       (mirroring `format`/`locale`) with `validateTemplate` at the Load() tail.
-- [ ] Seam invoked after `parseFail = false` / before `ExtractSubject` in generate.go, stagehand.go
+- [ ] Seam invoked after `parseFail = false` / before `ExtractSubject` in generate.go, stagecoach.go
       runPipeline, decompose/message.go; and on `plannerMsg` before the dup-check in `runSingleShortcut`.
 - [ ] Dedupe compares the TEMPLATED subject; a templated subject matching a recent subject triggers a retry.
 - [ ] Every commit in a decompose run is templated (shortcut, per-concept, arbiter N+1) — verified by test.
@@ -151,7 +151,7 @@ codebase knowledge can complete it from this document + codebase access._
   gotcha: "Same package — call FinalizeMessage unqualified. SetCandidate / rejected / candidate / msg MUST all
            observe the templated m ⇒ apply the seam BEFORE SetCandidate, at this single point."
 
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: CALL SITE #2 (runPipeline — the public-API copy of the loop, L480-532). Accept sequence: L518
        `parseFail = false` → L519 `signal.SetCandidate(m)` → L521 `subject := generate.ExtractSubject(m)`.
        cfg is `cfg` (config.Config). This package imports `generate`.
@@ -211,22 +211,22 @@ codebase knowledge can complete it from this document + codebase access._
   gotcha: "Template is a SCALAR (non-empty REPLACE), like format/locale — NOT a union like Exclude."
 
 - file: internal/config/git.go
-  why: git-config layer. stagehand.format(L130)/stagehand.locale(L135) — add a stagehand.template block
+  why: git-config layer. stagecoach.format(L130)/stagecoach.locale(L135) — add a stagecoach.template block
        right after L139, same shape (gitConfigGet → raw copy, no validation here).
   pattern: |
-    if v, found, err := gitConfigGet(repoDir, "stagehand.template"); err != nil {
+    if v, found, err := gitConfigGet(repoDir, "stagecoach.template"); err != nil {
         return nil, err
     } else if found {
         c.Template = v
     }
 
 - file: internal/config/load.go
-  why: env + flag layers + validation. loadEnv format/locale at L242-247 → add STAGEHAND_TEMPLATE.
+  why: env + flag layers + validation. loadEnv format/locale at L242-247 → add STAGECOACH_TEMPLATE.
        loadFlags format/locale at L336-345 → add --template. validateFormat call at L169 → add
        validateTemplate call right after. Add the validateTemplate func near validateFormat (L356).
   pattern: |
     // loadEnv (after L247):
-    if v, ok := os.LookupEnv("STAGEHAND_TEMPLATE"); ok && v != "" { cfg.Template = v }
+    if v, ok := os.LookupEnv("STAGECOACH_TEMPLATE"); ok && v != "" { cfg.Template = v }
     // loadFlags (after L345):
     if fs.Changed("template") { if v, err := fs.GetString("template"); err == nil { cfg.Template = v } }
     // Load() tail (after the validateFormat block, L171):
@@ -236,7 +236,7 @@ codebase knowledge can complete it from this document + codebase access._
         if tpl == "" || strings.Contains(tpl, "$msg") { return nil }
         return fmt.Errorf("invalid template %q: must contain the literal $msg (e.g. %q)", tpl, "$msg (#205)")
     }
-  gotcha: "STAGEHAND_TEMPLATE uses the SAME presence-semantic (ok && v != \"\") as STAGEHAND_FORMAT. Validate
+  gotcha: "STAGECOACH_TEMPLATE uses the SAME presence-semantic (ok && v != \"\") as STAGECOACH_FORMAT. Validate
            ONCE on the fully-resolved value (not per-layer), exactly like validateFormat."
 
 - file: internal/cmd/root.go
@@ -247,7 +247,7 @@ codebase knowledge can complete it from this document + codebase access._
     // after the --locale StringVar:
     pf.StringVar(&flagTemplate, "template", "",
         "Wrap every commit message: the literal $msg is replaced with the generated message, e.g. "+
-            "\"$msg (#205)\" (env STAGEHAND_TEMPLATE; git stagehand.template; [generation].template; "+
+            "\"$msg (#205)\" (env STAGECOACH_TEMPLATE; git stagecoach.template; [generation].template; "+
             "default empty). Must contain $msg. (Distinct from `config init --template`.)")
   gotcha: |
     COBRA COLLISION (safe): `config init` has a LOCAL bool `--template` (cmd/config.go L144). The global
@@ -284,9 +284,9 @@ codebase knowledge can complete it from this document + codebase access._
        bool row at L106 — leave it; it is a different command (disambiguate, do not merge).
   critical: |
     Global-flags row:
-    | `--template <tpl>` | string | "" | `STAGEHAND_TEMPLATE` | `stagehand.template` | Wrap every commit message: `$msg` is replaced with the generated message, e.g. `"$msg (#205)"`. Must contain the literal `$msg` (else hard error, exit 1). Applies to every commit in a run. Also `[generation].template`. Distinct from `config init --template`. |
+    | `--template <tpl>` | string | "" | `STAGECOACH_TEMPLATE` | `stagecoach.template` | Wrap every commit message: `$msg` is replaced with the generated message, e.g. `"$msg (#205)"`. Must contain the literal `$msg` (else hard error, exit 1). Applies to every commit in a run. Also `[generation].template`. Distinct from `config init --template`. |
     Env/git row (L168-169 block):
-    | `--template` | `STAGEHAND_TEMPLATE` | `stagehand.template` |
+    | `--template` | `STAGECOACH_TEMPLATE` | `stagecoach.template` |
 
 - file: docs/configuration.md
   why: Mode-A docs. Mirror format/locale across: the file-format [generation] example (L104-105), the
@@ -294,8 +294,8 @@ codebase knowledge can complete it from this document + codebase access._
   critical: |
     File example (after L105): # template = ""       # wrap every message; must contain literal $msg, e.g. "$msg (#205)"
     Defaults table:   | `template` | `""` | `config.Defaults()` (§9.19 FR-F8) |
-    Env table:        | `STAGEHAND_TEMPLATE` | `--template` | Message template; `$msg` = generated message; must contain `$msg` (hard error) | `STAGEHAND_TEMPLATE='$msg (#205)' stagehand` |
-    Git table:        | `stagehand.template` | string | `git config --get stagehand.template` | Message template; the literal `$msg` is replaced with the generated message. Must contain `$msg` (hard error, exit 1). |
+    Env table:        | `STAGECOACH_TEMPLATE` | `--template` | Message template; `$msg` = generated message; must contain `$msg` (hard error) | `STAGECOACH_TEMPLATE='$msg (#205)' stagecoach` |
+    Git table:        | `stagecoach.template` | string | `git config --get stagecoach.template` | Message template; the literal `$msg` is replaced with the generated message. Must contain `$msg` (hard error, exit 1). |
 ```
 
 ### Current Codebase tree (relevant slice)
@@ -310,12 +310,12 @@ internal/decompose/
   message.go       # EDIT — CALL SITE #3 (L161-163, generateMessage loop)
   decompose.go     # EDIT — CALL SITE #4 (runSingleShortcut L322-323)
   chain.go         # UNCHANGED (arbiter N+1 reuses generateMessage — transitively templated)
-pkg/stagehand/stagehand.go # EDIT — CALL SITE #2 (runPipeline L518-519)
+pkg/stagecoach/stagecoach.go # EDIT — CALL SITE #2 (runPipeline L518-519)
 internal/config/
   config.go        # EDIT — Config.Template field + Defaults()
   file.go          # EDIT — fileGeneration.Template + materialize + merge
-  git.go           # EDIT — stagehand.template gitConfigGet
-  load.go          # EDIT — STAGEHAND_TEMPLATE env, --template flag, validateTemplate + call
+  git.go           # EDIT — stagecoach.template gitConfigGet
+  load.go          # EDIT — STAGECOACH_TEMPLATE env, --template flag, validateTemplate + call
   load_test.go     # EDIT — validateTemplate table + template precedence test
 internal/cmd/
   root.go          # EDIT — flagTemplate var + --template StringVar
@@ -327,21 +327,21 @@ docs/configuration.md  # EDIT — template across file/defaults/env/git tables
 ### Desired Codebase tree
 
 One new file (`internal/generate/finalize.go`) + its test (`internal/generate/finalize_test.go`). All
-else is edits. `ApplyTemplate`/`FinalizeMessage` live in `generate` (imported by decompose + pkg/stagehand;
+else is edits. `ApplyTemplate`/`FinalizeMessage` live in `generate` (imported by decompose + pkg/stagecoach;
 already imports config) so all four call sites reach them with no new import edges.
 
 ### Known Gotchas of our codebase & Library Quirks
 
 ```go
 // CRITICAL (byte-identity): template=="" MUST reproduce today's bytes in EVERY path. ApplyTemplate
-// short-circuits `if tpl == "" { return msg }`. All existing generate/decompose/stagehand tests must pass
+// short-circuits `if tpl == "" { return msg }`. All existing generate/decompose/stagecoach tests must pass
 // UNCHANGED — that is the regression guard proving the seam is transparent when the feature is off.
 
 // CRITICAL (ordering — FR-F8): apply the seam AFTER provider.ParseOutput succeeds (parseFail = false) and
 // BEFORE ExtractSubject/IsDuplicate. The dedupe check (§9.7) MUST see the templated subject. Placing it
 // after dedupe would let a templated subject collide with history undetected.
 
-// CRITICAL (candidate/rescue): in generate.go and stagehand.go the seam goes BEFORE signal.SetCandidate(m)
+// CRITICAL (candidate/rescue): in generate.go and stagecoach.go the seam goes BEFORE signal.SetCandidate(m)
 // so the rescue candidate note shows the message that would land. rejected/candidate/msg all use templated m.
 
 // CRITICAL (transitive coverage): only 4 explicit edits. Arbiter N+1 (chain.go resolveNewCommit) and the
@@ -378,7 +378,7 @@ package generate
 import (
 	"strings"
 
-	"github.com/dustin/stagehand/internal/config"
+	"github.com/dustin/stagecoach/internal/config"
 )
 
 // ApplyTemplate applies the §9.19 FR-F8 message template: every literal "$msg" in tpl is replaced with the
@@ -425,11 +425,11 @@ Task 3: EDIT internal/config/file.go — [generation].template decode + material
   - materialize (mirror Format, ~L239): `if g.Template != "" { c.Template = g.Template }`.
   - merge (mirror Format, ~L370): `if src.Template != "" { dst.Template = src.Template }`.
 
-Task 4: EDIT internal/config/git.go — stagehand.template
-  - ADD a gitConfigGet("stagehand.template") block after L139 (same shape as stagehand.locale).
+Task 4: EDIT internal/config/git.go — stagecoach.template
+  - ADD a gitConfigGet("stagecoach.template") block after L139 (same shape as stagecoach.locale).
 
 Task 5: EDIT internal/config/load.go — env + flag + validation
-  - loadEnv (after L247): `if v, ok := os.LookupEnv("STAGEHAND_TEMPLATE"); ok && v != "" { cfg.Template = v }`.
+  - loadEnv (after L247): `if v, ok := os.LookupEnv("STAGECOACH_TEMPLATE"); ok && v != "" { cfg.Template = v }`.
   - loadFlags (after L345): `if fs.Changed("template") { if v, err := fs.GetString("template"); err == nil { cfg.Template = v } }`.
   - ADD validateTemplate(tpl string) error near validateFormat (L356).
   - CALL it at the Load() tail after the validateFormat block (L171).
@@ -442,7 +442,7 @@ Task 6: EDIT internal/cmd/root.go — register --template (global persistent str
 Task 7: EDIT the 4 seam sites — invoke FinalizeMessage after parse, before dedupe
   - internal/generate/generate.go: insert `m = FinalizeMessage(m, cfg)` after L237 (`parseFail = false`),
     before L238 (`signal.SetCandidate(m)`).
-  - pkg/stagehand/stagehand.go: insert `m = generate.FinalizeMessage(m, cfg)` after L518, before L519.
+  - pkg/stagecoach/stagecoach.go: insert `m = generate.FinalizeMessage(m, cfg)` after L518, before L519.
   - internal/decompose/message.go: insert `m = generate.FinalizeMessage(m, deps.Config)` after L161, before L163.
   - internal/decompose/decompose.go (runSingleShortcut): change L322 to
     `msg := generate.FinalizeMessage(plannerMsg, deps.Config)` and pass `msg` (templated) to dupCheckMessage (L323).
@@ -455,7 +455,7 @@ Task 8: CREATE internal/generate/finalize_test.go
 
 Task 9: EDIT internal/config/load_test.go — validateTemplate + precedence
   - Table (mirror validateFormat): valid "", "$msg", "$msg (#205)", "[skip ci] $msg"; invalid "(#205)", "${msg}", "msg".
-  - Template precedence: [generation].template < stagehand.template < STAGEHAND_TEMPLATE < --template.
+  - Template precedence: [generation].template < stagecoach.template < STAGECOACH_TEMPLATE < --template.
   - Load rejects a resolved no-$msg template (assert the "template: invalid template" error).
 
 Task 10: ADD integration tests (dedupe-sees-templated + uniform decompose)
@@ -466,7 +466,7 @@ Task 10: ADD integration tests (dedupe-sees-templated + uniform decompose)
     (per-concept + the FR-M11 shortcut path). Mirror the existing decompose orchestration test harness.
 
 Task 11: ADD the config-init collision regression test (internal/cmd)
-  - Assert `stagehand config init --template` parses the LOCAL bool (true) and `stagehand --template x`
+  - Assert `stagecoach config init --template` parses the LOCAL bool (true) and `stagecoach --template x`
     sets cfg.Template — the two flags do not clash. Mirror any existing cmd flag test.
 
 Task 12: EDIT docs/cli.md + docs/configuration.md
@@ -516,16 +516,16 @@ if err := validateTemplate(cfg.Template); err != nil { return nil, fmt.Errorf("t
 ```yaml
 CONFIG (this subtask OWNS the field + full precedence):
   - add: Config.Template `toml:"template"` (config.go) + Defaults() Template: "".
-  - wire: file.go ([generation].template decode+materialize+merge), git.go (stagehand.template),
-          load.go (STAGEHAND_TEMPLATE env + --template flag), root.go (--template global flag).
+  - wire: file.go ([generation].template decode+materialize+merge), git.go (stagecoach.template),
+          load.go (STAGECOACH_TEMPLATE env + --template flag), root.go (--template global flag).
   - validate: validateTemplate at the Load() tail (hard $msg error).
 
 GENERATE PACKAGE (owns the seam):
   - new: internal/generate/finalize.go (ApplyTemplate + FinalizeMessage).
-  - the seam is imported/called by generate.go, decompose (message.go + decompose.go), pkg/stagehand.
+  - the seam is imported/called by generate.go, decompose (message.go + decompose.go), pkg/stagecoach.
 
 SEAM SITES (4):
-  - generate.go loop, stagehand.go runPipeline loop, decompose/message.go loop, decompose runSingleShortcut.
+  - generate.go loop, stagecoach.go runPipeline loop, decompose/message.go loop, decompose runSingleShortcut.
   - transitive: arbiter N+1 (chain.go), one-file short-circuit, --single escape — NO edits.
 
 ORDERING CONTRACT (published for P1.M5.T1.S1):
@@ -544,10 +544,10 @@ OUT OF SCOPE:
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/generate/finalize.go internal/generate/finalize_test.go \
         internal/config/config.go internal/config/file.go internal/config/git.go internal/config/load.go \
-        internal/cmd/root.go internal/generate/generate.go pkg/stagehand/stagehand.go \
+        internal/cmd/root.go internal/generate/generate.go pkg/stagecoach/stagecoach.go \
         internal/decompose/message.go internal/decompose/decompose.go
 go build ./...   # all 4 seam sites + the new file must compile
 go vet ./...
@@ -562,19 +562,19 @@ go test ./internal/generate/... -v   # ApplyTemplate/FinalizeMessage + dedupe-se
 go test ./internal/config/... -v     # validateTemplate table + template precedence + no-$msg load rejection
 go test ./internal/decompose/... -v  # uniform template across a decompose run (shortcut + per-concept)
 go test ./internal/cmd/... -v        # config init --template bool vs root --template string (collision)
-go test ./pkg/stagehand/... -v       # runPipeline threads the template
+go test ./pkg/stagecoach/... -v       # runPipeline threads the template
 ```
 
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 # Flag exists + disambiguated:
-/tmp/stagehand --help 2>&1 | grep -A2 -- '--template'
-/tmp/stagehand config init --help 2>&1 | grep -- '--template'   # still the inert-config bool
+/tmp/stagecoach --help 2>&1 | grep -A2 -- '--template'
+/tmp/stagecoach config init --help 2>&1 | grep -- '--template'   # still the inert-config bool
 # Hard error on a resolved no-$msg template:
-STAGEHAND_TEMPLATE='(#205)' /tmp/stagehand --dry-run 2>&1 | grep 'must contain the literal $msg'
-# Optional stub-agent smoke: with STAGEHAND_TEMPLATE='$msg (#205)' and a stub agent, --dry-run prints the
+STAGECOACH_TEMPLATE='(#205)' /tmp/stagecoach --dry-run 2>&1 | grep 'must contain the literal $msg'
+# Optional stub-agent smoke: with STAGECOACH_TEMPLATE='$msg (#205)' and a stub agent, --dry-run prints the
 # templated message (mirror internal/generate/generate_test.go's stub pattern).
 ```
 
@@ -586,14 +586,14 @@ make coverage-gate      # ≥85% on core packages
 golangci-lint run ./...
 
 # Byte-identity guard: with template=="" every commit path equals the pre-change output — all pre-existing
-# generate/decompose/stagehand tests MUST pass UNCHANGED (they never set cfg.Template).
+# generate/decompose/stagecoach tests MUST pass UNCHANGED (they never set cfg.Template).
 ```
 
 ## Final Validation Checklist
 
 ### Technical Validation
 - [ ] `go build ./...` compiles (all 4 seam sites + finalize.go).
-- [ ] `go test ./...` green; pre-existing generate/decompose/stagehand tests pass unchanged (empty-template byte-identity).
+- [ ] `go test ./...` green; pre-existing generate/decompose/stagecoach tests pass unchanged (empty-template byte-identity).
 - [ ] `go vet ./...` + `golangci-lint run` clean; `gofmt` no diff.
 
 ### Feature Validation
@@ -614,7 +614,7 @@ golangci-lint run ./...
 ### Documentation & Deployment
 - [ ] docs/cli.md `--template` row (with $msg contract + hard error) + env/git row; config-init row untouched.
 - [ ] docs/configuration.md `template` key across file/defaults/env/git tables.
-- [ ] STAGEHAND_TEMPLATE / stagehand.template / [generation].template all documented.
+- [ ] STAGECOACH_TEMPLATE / stagecoach.template / [generation].template all documented.
 
 ---
 
@@ -639,7 +639,7 @@ pure functions, four insertion points with exact line numbers and anchor lines, 
 verbatim from the `format`/`locale` precedent (six spots, all located), the validation mirroring
 `validateFormat`, and the transitive-coverage proof that only four edits achieve "every commit message in a
 run." The two genuine judgment calls — (1) seam placement in `generate` (resolved by the import graph:
-decompose + pkg/stagehand already depend on generate) and (2) the `config init --template` cobra collision
+decompose + pkg/stagecoach already depend on generate) and (2) the `config init --template` cobra collision
 (resolved by pflag's AddFlagSet skip semantics, and backed by a regression test) — are both settled and
-test-locked. The −1 is residual risk in the decompose/stagehand integration tests needing the existing stub
+test-locked. The −1 is residual risk in the decompose/stagecoach integration tests needing the existing stub
 harness wired correctly; the pure-function and config tests are mechanical.

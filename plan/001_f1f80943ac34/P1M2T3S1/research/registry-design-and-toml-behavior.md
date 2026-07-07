@@ -198,4 +198,4 @@ is therefore in-scope for this subtask even though the contract's method list do
 - NEW: `internal/provider/registry.go`, `internal/provider/registry_test.go`.
 - UNCHANGED: `manifest.go`/`manifest_test.go` (S1), `merge.go`/`merge_test.go` (S2),
   `builtin.go`/`builtin_test.go` (S2 + parallel S3), all of `internal/config/*`, `internal/git/*`,
-  `cmd/stagehand/main.go`, `Makefile`, `go.mod`, `go.sum`.
+  `cmd/stagecoach/main.go`, `Makefile`, `go.mod`, `go.sum`.

@@ -32,7 +32,7 @@ distinct from the non-zero scalar cascade and the list-REPLACE used by `BinaryEx
 - `cfg.Exclude` contains the concatenation (union) of every glob from: global-file
   `[generation].exclude`, repo-file `[generation].exclude`, and every `--exclude/-x` occurrence.
 - Patterns are stored **raw** (e.g. `*.lock`, `vendor/*`) — NOT translated to `:(exclude)` pathspecs.
-- There is **no** `STAGEHAND_*` env var and **no** `stagehand.*` git-config key for exclusions
+- There is **no** `STAGECOACH_*` env var and **no** `stagecoach.*` git-config key for exclusions
   (FR-X1: the env-list quoting trap is deliberately avoided).
 - `go build ./...`, `go test ./internal/config/... ./internal/cmd/...`, `go vet`, and `golangci-lint`
   all pass.
@@ -40,9 +40,9 @@ distinct from the non-zero scalar cascade and the list-REPLACE used by `BinaryEx
 ## Why
 
 - **FR-X1 (PRD §9.18)** requires exclusion patterns to come from a *union* of four sources: the
-  built-in denylist, `.stagehandignore` (S2), the `[generation].exclude` config array, and the
+  built-in denylist, `.stagecoachignore` (S2), the `[generation].exclude` config array, and the
   repeatable `--exclude/-x` flag. This subtask delivers the two config/flag sources plus the union
-  machinery; `.stagehandignore` and the pathspec translation land in S2, and application to the diff
+  machinery; `.stagecoachignore` and the pathspec translation land in S2, and application to the diff
   paths lands in T2.S1.
 - Every existing list-valued key (`BinaryExtensions`) REPLACES across layers. Exclusions must
   ACCUMULATE — a repo cannot be forced to *lose* a globally-excluded pattern. This is the one place
@@ -57,17 +57,17 @@ distinct from the non-zero scalar cascade and the list-REPLACE used by `BinaryEx
 A user can persist exclusion globs in config and/or pass them ad-hoc on the CLI:
 
 ```toml
-# ~/.config/stagehand/config.toml
+# ~/.config/stagecoach/config.toml
 [generation]
 exclude = ["*.min.js", "dist/*"]
 ```
 ```toml
-# ./.stagehand.toml
+# ./.stagecoach.toml
 [generation]
 exclude = ["testdata/*"]
 ```
 ```bash
-stagehand -x '*.snap' --exclude 'coverage/*'
+stagecoach -x '*.snap' --exclude 'coverage/*'
 ```
 → `cfg.Exclude == ["*.min.js", "dist/*", "testdata/*", "*.snap", "coverage/*"]` (order: global,
 then repo, then flags — pure accumulation).
@@ -136,7 +136,7 @@ the precise merge semantics. An implementer with no prior codebase knowledge can
         if vals, err := fs.GetStringArray("exclude"); err == nil {
             cfg.Exclude = append(cfg.Exclude, vals...)  // UNION — flags ADD to the union, not replace
         }
-    - loadEnv(): add NOTHING. There is deliberately NO STAGEHAND_EXCLUDE (FR-X1 quoting trap).
+    - loadEnv(): add NOTHING. There is deliberately NO STAGECOACH_EXCLUDE (FR-X1 quoting trap).
   gotcha: For a UNION key "precedence" means accumulate, not override — the flag APPENDS to whatever
           the config files contributed; it does not replace. This is intentional and differs from
           every scalar flag in loadFlags (which set DIRECTLY).
@@ -146,7 +146,7 @@ the precise merge semantics. An implementer with no prior codebase knowledge can
   pattern: |
     - Declare a package var near the behavioral-flags block: `var flagExclude []string`.
     - Register in init(): pf.StringArrayVarP(&flagExclude, "exclude", "x", nil,
-        "Exclude matching files from the agent payload (unions with .stagehandignore and "+
+        "Exclude matching files from the agent payload (unions with .stagecoachignore and "+
         "[generation].exclude; never excluded from the commit)")
   gotcha: Use StringArrayVarP (NOT StringSliceVarP). StringSlice comma-splits each value, which
           would corrupt a glob that contains a comma; StringArray treats each -x occurrence as one
@@ -282,7 +282,7 @@ Task 4: MODIFY internal/config/load.go
       if vals, err := fs.GetStringArray("exclude"); err == nil {
           cfg.Exclude = append(cfg.Exclude, vals...)   // UNION — flags accumulate onto the config set
       }
-  - CONFIRM: loadEnv() gets NO STAGEHAND_EXCLUDE handling (FR-X1). Add a one-line comment there noting
+  - CONFIRM: loadEnv() gets NO STAGECOACH_EXCLUDE handling (FR-X1). Add a one-line comment there noting
     the deliberate omission so a future maintainer does not "helpfully" add it.
   - DEPENDENCIES: Tasks 1 & 3.
   - PLACEMENT: loadFlags() after the decompose-flags block.
@@ -303,7 +303,7 @@ Task 7: MODIFY docs/cli.md and docs/configuration.md  [Mode A — rides WITH thi
   - docs/cli.md: add a Global-flags table row after --max-commits (line ~36):
       | `--exclude <glob>`, `-x` | string (repeatable) | — | — | — | Exclude matching files from the
       agent payload (placeholder line instead; never excluded from the commit). Unions with
-      `.stagehandignore` and `[generation].exclude`. |
+      `.stagecoachignore` and `[generation].exclude`. |
   - docs/configuration.md: document `[generation].exclude` in the File format / [generation] area
     and state plainly it UNIONS across the global and repo files (and with --exclude/-x) rather than
     overriding — cite §16.1 union-not-override semantics. Note there is NO env var / git-config key.
@@ -351,7 +351,7 @@ CLI FLAG:
   - read:   internal/config/load.go loadFlags() via fs.GetStringArray + append
 
 DOWNSTREAM (out of scope, do not implement):
-  - S2 (P1.M1.T1.S2): translate cfg.Exclude globs → :(exclude,glob) pathspecs + .stagehandignore.
+  - S2 (P1.M1.T1.S2): translate cfg.Exclude globs → :(exclude,glob) pathspecs + .stagecoachignore.
   - T2.S1 (P1.M1.T2.S1): thread pathspecs into StagedDiff/WorkingTreeDiff/TreeDiff + [excluded] placeholders.
 ```
 
@@ -360,7 +360,7 @@ DOWNSTREAM (out of scope, do not implement):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/config/config.go internal/config/file.go internal/config/load.go internal/cmd/root.go
 go build ./...
 go vet ./internal/config/... ./internal/cmd/...
@@ -384,7 +384,7 @@ go test ./internal/config/... ./internal/cmd/...
 #  4. Load global+repo: global [generation].exclude=["g1"], repo=["r1"] → cfg.Exclude==["g1","r1"].
 #  5. Load with flags: fs.Set("exclude","f1") twice (or Set two values) + config → union in order
 #     [global..., repo..., flag...].
-#  6. No env var: STAGEHAND_EXCLUDE set in env is IGNORED (cfg.Exclude does not contain it).
+#  6. No env var: STAGECOACH_EXCLUDE set in env is IGNORED (cfg.Exclude does not contain it).
 #  7. Absent everywhere → cfg.Exclude == nil (or empty), no panic.
 
 # Expected: all pass. Note: to Set a StringArray flag twice in a test, call fs.Set("exclude","a")
@@ -394,14 +394,14 @@ go test ./internal/config/... ./internal/cmd/...
 ### Level 3: Integration Testing (build the binary, exercise the flag)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 
 # Confirm the flag is registered with the -x shorthand and repeatable:
-/tmp/stagehand --help 2>&1 | grep -E '\-x, --exclude'
+/tmp/stagecoach --help 2>&1 | grep -E '\-x, --exclude'
 
 # Confirm end-to-end resolution via --verbose on a throwaway repo (no commit needed — dry-run):
 tmp=$(mktemp -d); cd "$tmp"; git init -q; printf 'a\n' > a.txt; git add a.txt
-/tmp/stagehand --dry-run -x '*.snap' --exclude 'dist/*' --verbose 2>&1 | head -30
+/tmp/stagecoach --dry-run -x '*.snap' --exclude 'dist/*' --verbose 2>&1 | head -30
 # Expected: no crash; the two globs are part of the resolved exclusion set once S2/T2 consume them.
 # (In THIS subtask they are only resolved into cfg.Exclude; visible plumbing arrives with T2.)
 cd - >/dev/null; rm -rf "$tmp"
@@ -431,7 +431,7 @@ npx --yes markdownlint-cli docs/cli.md docs/configuration.md 2>/dev/null || \
 - [ ] `cfg.Exclude` is the ordered union of global-file, repo-file, and `--exclude/-x` globs.
 - [ ] Globs stored raw (untranslated) — no `:(exclude)` prefix added here.
 - [ ] `--exclude`/`-x` is repeatable (StringArray) and each occurrence is a literal value.
-- [ ] No `STAGEHAND_EXCLUDE` env var and no `stagehand.*` git-config key added.
+- [ ] No `STAGECOACH_EXCLUDE` env var and no `stagecoach.*` git-config key added.
 - [ ] `overlay()` UNIONS exclude while `BinaryExtensions` still REPLACES (regression-safe).
 
 ### Code Quality Validation
@@ -441,7 +441,7 @@ npx --yes markdownlint-cli docs/cli.md docs/configuration.md 2>/dev/null || \
 - [ ] docs/cli.md + docs/configuration.md state "payload-only, still committed" and union-not-override.
 
 ### Scope Boundaries (do NOT cross)
-- [ ] No `.stagehandignore` parsing (that is S2).
+- [ ] No `.stagecoachignore` parsing (that is S2).
 - [ ] No glob→pathspec translation (that is S2).
 - [ ] No changes to StagedDiff/WorkingTreeDiff/TreeDiff or `[excluded]` placeholders (that is T2.S1).
 - [ ] No env var, no git-config key (permanent per FR-X1).
@@ -451,7 +451,7 @@ npx --yes markdownlint-cli docs/cli.md docs/configuration.md 2>/dev/null || \
 ## Anti-Patterns to Avoid
 - ❌ Don't copy BinaryExtensions' REPLACE merge — Exclude must UNION (append).
 - ❌ Don't use StringSlice (comma-splitting) — use StringArray for globs.
-- ❌ Don't add STAGEHAND_EXCLUDE or a git-config key (FR-X1 forbids both).
+- ❌ Don't add STAGECOACH_EXCLUDE or a git-config key (FR-X1 forbids both).
 - ❌ Don't translate globs to `:(exclude)` pathspecs here — S2 owns translation.
 - ❌ Don't make the flag "override" the config set — it accumulates onto it.
 - ❌ Don't add dedup logic unless a test requires it — the contract says accumulate.

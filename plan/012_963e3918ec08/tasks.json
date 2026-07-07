@@ -440,14 +440,14 @@
               "type": "Task",
               "id": "P1.M5.T1",
               "title": "Historical plan artifacts rename",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Rename stagehand references in the plan/ directory's historical planning documents (task breakdowns, PRP files, architecture research from previous implementation phases).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M5.T1.S1",
                   "title": "Bulk rename stagehand references in plan/ directory files",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M4.T2.S2"

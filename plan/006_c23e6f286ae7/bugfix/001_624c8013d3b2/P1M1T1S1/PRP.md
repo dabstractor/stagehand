@@ -7,7 +7,7 @@ description: |
   (T_start) the contender cannot reproduce from a lock-free index `write-tree` (it returns baseTree =
   HEAD^{tree}), so the contender always exits `5` (Busy), never 0. Rewrite the "Safe to run twice."
   paragraph so the exit-0 promise is scoped to the STAGED (single-commit) path and add that the decompose
-  path exits `5` (Busy). Preserve the per-host/CAS caveat sentence and the line 328 "No. Stagehand uses
+  path exits `5` (Busy). Preserve the per-host/CAS caveat sentence and the line 328 "No. Stagecoach uses
   git write-tree…" sentence unchanged. NO code changes. docs/cli.md:379 and docs/how-it-works.md:155 are
   sibling subtasks (S2/S3) — NOT this one.
 ---
@@ -30,11 +30,11 @@ coherent; markdown is valid; no code/test files are touched; `go test ./...` is 
 
 ## User Persona
 
-**Target User**: The Stagehand user reading the README's "Will it corrupt my repo?" FAQ — especially
-someone binding `stagehand` to a keybind (lazygit/double-tap) who relies on the "safe to run twice"
+**Target User**: The Stagecoach user reading the README's "Will it corrupt my repo?" FAQ — especially
+someone binding `stagecoach` to a keybind (lazygit/double-tap) who relies on the "safe to run twice"
 claim, and a reviewer auditing the README for accuracy against the implemented FR52 behavior.
 
-**Use Case**: A user double-invokes `stagehand` on a dirty, un-staged working tree (the decompose
+**Use Case**: A user double-invokes `stagecoach` on a dirty, un-staged working tree (the decompose
 trigger) and wants to know what happens. The current README implicitly promises exit 0; the fixed README
 tells them it exits Busy (5) and why.
 
@@ -63,7 +63,7 @@ the rest of the safety documentation once a user observes the mismatch.
 
 A single-paragraph rewrite of the `**Safe to run twice.**` paragraph at `README.md:330`. The exit-0
 promise becomes path-scoped (single-commit only); a new clause documents the decompose path exits Busy.
-Everything else in the FAQ answer (line 328's "No. Stagehand uses `git write-tree`…" and the per-host/CAS
+Everything else in the FAQ answer (line 328's "No. Stagecoach uses `git write-tree`…" and the per-host/CAS
 parenthetical) is preserved.
 
 ### Success Criteria
@@ -74,7 +74,7 @@ parenthetical) is preserved.
 - [ ] The single-commit path still documents BOTH outcomes: exit `0` (nothing to do) AND exit `5` (Busy
       if genuinely new work is staged).
 - [ ] The per-host/shared-filesystem CAS caveat sentence is preserved (unchanged or lightly carried over).
-- [ ] Line 328 ("No. Stagehand uses `git write-tree`…") is UNCHANGED.
+- [ ] Line 328 ("No. Stagecoach uses `git write-tree`…") is UNCHANGED.
 - [ ] The FAQ heading line 326 ("### Will it corrupt my repo?") is UNCHANGED.
 - [ ] NO code files, NO test files, NO other doc files are touched (docs/cli.md:379 = S2;
       docs/how-it-works.md:155 = S3; PRD.md / tasks.json / prd_snapshot.md / plan/* untouched).
@@ -103,7 +103,7 @@ the implementer understands the *why* behind the wording, not just the *what*.
 
 # The file under edit
 - file: README.md
-  why: "EDIT line 330 ONLY (the '**Safe to run twice.**' paragraph). Lines 326 (heading) and 328 ('No. Stagehand uses git write-tree…') are UNCHANGED. The per-host/CAS parenthetical at the end of line 330 is PRESERVED."
+  why: "EDIT line 330 ONLY (the '**Safe to run twice.**' paragraph). Lines 326 (heading) and 328 ('No. Stagecoach uses git write-tree…') are UNCHANGED. The per-host/CAS parenthetical at the end of line 330 is PRESERVED."
   pattern: "The current paragraph is one long line (markdown) with bold lead-in '**Safe to run twice.**', two exit-code cases (0 / 5), and a trailing '(On a shared filesystem…)' caveat. The rewrite keeps that shape but splits the exit-0 case to the single-commit path and adds the decompose-path Busy clause."
   gotcha: "Do NOT change line 328. Do NOT edit the heading (326). Keep the CAS caveat sentence. Do NOT touch docs/cli.md:379 or docs/how-it-works.md:155 — those are sibling subtasks (S2/S3)."
 ```
@@ -111,14 +111,14 @@ the implementer understands the *why* behind the wording, not just the *what*.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── README.md          # EDIT line 330 (the 'Safe to run twice' paragraph)
 ```
 
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── README.md          # line 330 rewritten (path-scoped exit-0 + decompose→Busy); rest unchanged
 ```
 
@@ -132,7 +132,7 @@ P1.M1.T1.S3), any `.go` file (no code change), `PRD.md`, `tasks.json`, `prd_snap
 ### Known Gotchas of our Codebase & Library Quirks
 
 ```markdown
-<!-- CRITICAL: edit ONLY the "**Safe to run twice.**" paragraph (README.md:330). Line 328 ("No. Stagehand
+<!-- CRITICAL: edit ONLY the "**Safe to run twice.**" paragraph (README.md:330). Line 328 ("No. Stagecoach
      uses `git write-tree` + `git commit-tree` + `git update-ref`…") is the FAQ's lead answer and MUST
      stay verbatim — it is correct and unrelated. The heading (326) stays. -->
 
@@ -163,7 +163,7 @@ N/A — documentation-only. No types, no code.
 Task 1: REWRITE the '**Safe to run twice.**' paragraph (README.md:330)
   - LOCATE: README.md, the line beginning "**Safe to run twice.**" (line 330), under the
     "### Will it corrupt my repo?" heading (line 326).
-  - PRESERVE VERBATIM: line 328 ("No. Stagehand uses `git write-tree`…byte-for-byte unchanged…") and the
+  - PRESERVE VERBATIM: line 328 ("No. Stagecoach uses `git write-tree`…byte-for-byte unchanged…") and the
     heading (line 326). Do not touch them.
   - REPLACE the current paragraph (the single long line) with a path-scoped version. Adapt the contract's
     suggested phrasing to the README's voice; keep the bold lead-in, the two single-commit outcomes, add
@@ -206,7 +206,7 @@ Task 2: VERIFY (doc-only validation)
 ```markdown
 <!-- === UNCHANGED context (for reference — DO NOT edit) === -->
 <!-- line 326:  ### Will it corrupt my repo? -->
-<!-- line 328:  No. Stagehand uses `git write-tree` + `git commit-tree` + `git update-ref` (atomic snapshot commits). A failed generation leaves the repo byte-for-byte unchanged — it never touches the live index during generation. -->
+<!-- line 328:  No. Stagecoach uses `git write-tree` + `git commit-tree` + `git update-ref` (atomic snapshot commits). A failed generation leaves the repo byte-for-byte unchanged — it never touches the live index during generation. -->
 ```
 
 ### Integration Points
@@ -233,7 +233,7 @@ DOWNSTREAM HOOKS (informational — sibling/later subtasks):
 ### Level 1: Doc Lint & Sanity (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (if markdownlint available — project has .markdownlint.json)
 markdownlint README.md 2>/dev/null || npx -y markdownlint-cli2 README.md 2>/dev/null || echo "markdownlint not installed; skip (visual check only)"
@@ -247,7 +247,7 @@ git diff --stat
 ### Level 2: Build/Test Sanity (no code changed → must stay green)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go build ./...     # Expected: exit 0 (doc change; confirms no accidental source clobber)
 go test ./...      # Expected: all green (doc change; confirms nothing else touched)
@@ -256,7 +256,7 @@ go test ./...      # Expected: all green (doc change; confirms nothing else touc
 ### Level 3: Prose Accuracy Check (the real validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Read the FAQ paragraph and verify each claim against the implemented behavior:
 sed -n '326,332p' README.md
@@ -267,13 +267,13 @@ sed -n '326,332p' README.md
 #   3. The DECOMPOSE path is documented as exit 5 (Busy), with the "working-tree snapshot a contender
 #      can't reproduce" rationale.
 #   4. The per-host/shared-filesystem CAS caveat is present.
-#   5. Lines 326 (heading) and 328 ("No. Stagehand uses git write-tree…") are UNCHANGED.
+#   5. Lines 326 (heading) and 328 ("No. Stagecoach uses git write-tree…") are UNCHANGED.
 ```
 
 ### Level 4: Cross-Doc Coherence (light — full sweep is S3)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Confirm the exit codes/wording are consistent in spirit with the sibling docs (S2/S3 will fully align;
 # here just flag gross contradictions). The "nothing to do — an in-progress run already covers your
@@ -295,7 +295,7 @@ grep -n "nothing to do\|Safe to run twice\|exits .0.\|Busy" README.md docs/cli.m
 - [ ] The single-commit path documents BOTH exit 0 (nothing to do) AND exit 5 (Busy if new work staged).
 - [ ] The **decompose path** is documented as exit 5 (Busy) with the working-tree-snapshot rationale.
 - [ ] The per-host/CAS caveat sentence is preserved.
-- [ ] Lines 326 (heading) and 328 ("No. Stagehand uses `git write-tree`…") are UNCHANGED.
+- [ ] Lines 326 (heading) and 328 ("No. Stagecoach uses `git write-tree`…") are UNCHANGED.
 
 ### Scope Discipline Validation
 
@@ -317,7 +317,7 @@ grep -n "nothing to do\|Safe to run twice\|exits .0.\|Busy" README.md docs/cli.m
   single-commit (staged) path.
 - ❌ Don't drop the single-commit path's Busy case. Only the *unconditional* "exits 0" framing is wrong;
   the single-commit path still exits Busy when genuinely new work is staged — keep both outcomes.
-- ❌ Don't change line 328 ("No. Stagehand uses `git write-tree`…") or the heading (326). They are correct
+- ❌ Don't change line 328 ("No. Stagecoach uses `git write-tree`…") or the heading (326). They are correct
   and unrelated to the lock contention behavior.
 - ❌ Don't drop the per-host/shared-filesystem CAS caveat — it's true for both paths and belongs in the
   scoped paragraph.

@@ -1,7 +1,7 @@
 # P4.M2.T2.S1 — Verified Current State of the Codebase
 
-> Captured 2026-07-01 via runtime execution of a freshly-built `./cmd/stagehand` binary
-> (`go build -o /tmp/stagehand-verify ./cmd/stagehand`) and source inspection. This is the
+> Captured 2026-07-01 via runtime execution of a freshly-built `./cmd/stagecoach` binary
+> (`go build -o /tmp/stagecoach-verify ./cmd/stagecoach`) and source inspection. This is the
 > EVIDENCE base for the PRP. All three contract items are ALREADY satisfied — the task's
 > deliverable value is VERIFICATION + REGRESSION-TEST HARDENING (locking the behavior in).
 
@@ -20,14 +20,14 @@ func init() {
 }
 ```
 
-**Runtime evidence** — `stagehand config --help` "Available Commands" section:
+**Runtime evidence** — `stagecoach config --help` "Available Commands" section:
 ```
 Available Commands:
   init        Bootstrap a working config (auto-detects your agent)
   path        Print the resolved global config path
   upgrade     Upgrade an existing config to the current schema version
 ```
-`stagehand config upgrade --help` prints its Long help and exits 0 (command is reachable + executable).
+`stagecoach config upgrade --help` prints its Long help and exits 0 (command is reachable + executable).
 
 **Existing test coverage**: `TestConfigUpgrade_*` (8 tests in config_test.go) execute the command via
 `rootCmd.SetArgs([]string{"config", "upgrade"})` and it runs — which *implicitly* proves registration.
@@ -39,11 +39,11 @@ But NO test explicitly asserts "upgrade" appears in `config`'s Available Command
 
 `configCmd.Long`:
 ```go
-Long: `Inspect, bootstrap, or upgrade the Stagehand global config file.`,
+Long: `Inspect, bootstrap, or upgrade the Stagecoach global config file.`,
 ```
 `providersCmd.Long`:
 ```go
-Long: `Inspect the built-in and user-defined provider manifests Stagehand uses to generate commits.
+Long: `Inspect the built-in and user-defined provider manifests Stagecoach uses to generate commits.
 User-defined providers (from the global or repo-local config file) override built-ins of the same
 name; new names add new providers (PRD §12.8).`,
 ```
@@ -64,7 +64,7 @@ Nothing locks FR-B6 in — a future edit that re-adds a manual block would pass 
 because `config init` is in `shouldSkipConfigLoad` (root.go) and never runs `config.Load`, so it reads
 them via `cmd.Flags().GetBool/GetString` in `runConfigInit` (NOT via the root flag set).
 
-**Runtime evidence** — `stagehand config init --help` "Flags:" section:
+**Runtime evidence** — `stagecoach config init --help` "Flags:" section:
 ```
 Flags:
       --force             Overwrite an existing config file
@@ -91,7 +91,7 @@ Run in an isolated `HOME=/tmp/sh-lifecycle`:
 6. written config contains `config_version = 2` (bootstrap.go:117 `fmt.Fprintf(&b, "config_version = %d\n", CurrentConfigVersion)`) ✓
 7. `config upgrade` on fresh-init'd config → "already at version 2 (no changes)" exit 0 ✓
 8. rewrite `config_version = 1` → `config upgrade` → "Upgraded … to version 2" exit 0 ✓
-9. `config upgrade` with no file → "no config file … (run 'stagehand config init' first)" exit 1 ✓
+9. `config upgrade` with no file → "no config file … (run 'stagecoach config init' first)" exit 1 ✓
 
 `CurrentConfigVersion = 2` (config.go:18). `GenerateBootstrapConfig` (bootstrap.go:20) writes the
 populated config INCLUDING the uncommented `config_version` line.
@@ -108,8 +108,8 @@ is explicitly OUT OF SCOPE for this task (scope discipline). Do not touch it her
 
 From `internal/cmd/config_test.go` + `root_test.go`:
 - `func setupNoRepo(t *testing.T) (home, plainDir, globalDir string)` — sets `HOME`+`XDG_CONFIG_HOME`
-  to a temp `home`, chdir into `plainDir`; returns `globalDir = filepath.Join(home, "stagehand")`.
-  (XDG=home → global config path = `home/stagehand/config.toml`.)
+  to a temp `home`, chdir into `plainDir`; returns `globalDir = filepath.Join(home, "stagecoach")`.
+  (XDG=home → global config path = `home/stagecoach/config.toml`.)
 - `func writeConfigFile(t *testing.T, dir, relPath, body string) string` (root_test.go:61).
 - `func saveRootState(t *testing.T) (_ []string, origOut, origErr io.Writer, origRunE func(*cobra.Command, []string) error)` (root_test.go:105).
 - `func restoreRootState(t *testing.T, _ []string, origOut, origErr io.Writer, origRunE func(*cobra.Command, []string) error)` (root_test.go:111).

@@ -9,7 +9,7 @@ The item says "in internal/git (or a small internal/util)". There is NO `interna
 creating one for a single 2-line function is over-engineering. The PRIMARY consumer is the diff pipeline
 (internal/git) for M4.T2's water-fill; the SECONDARY consumer is S2 (prompt-reserve measurement at the 6
 call sites). Verified reachability: every S2 call-site package (generate/generate.go, decompose/*,
-pkg/stagehand, cmd/*) ALREADY imports `internal/git` (grep confirmed) — so an EXPORTED `EstimateTokens` in
+pkg/stagecoach, cmd/*) ALREADY imports `internal/git` (grep confirmed) — so an EXPORTED `EstimateTokens` in
 `internal/git` is reachable by all consumers with NO new import edge and NO cycle. `internal/prompt` does
 NOT import `internal/git` (grep confirmed) and is not a consumer (the prompt-reserve measurement happens at
 the orchestrator/call-site layer, not in the prompt builders). So: NEW `internal/git/tokens.go`, `package
@@ -74,7 +74,7 @@ The item is explicit: "This is the SINGLE estimator used by S2 (prompt reserve) 
 (per-file body token estimates) and the level-solver arithmetic. Both MUST use the same `ceil(runes/4)` so
 the budget arithmetic is internally consistent (a token measured one place equals a token measured another).
 Do NOT add a `chars/3` variant, a line-based variant, or a per-provider tokenizer hook in this (or any)
-subtask — the model-agnostic design (N2: stagehand never loads a tokenizer) depends on ONE formula.
+subtask — the model-agnostic design (N2: stagecoach never loads a tokenizer) depends on ONE formula.
 
 ## 5. Tests: NEW `internal/git/tokens_test.go`, table-test mirroring `TestIsBinaryByExtension`
 

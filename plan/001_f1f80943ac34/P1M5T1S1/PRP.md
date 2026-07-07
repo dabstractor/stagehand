@@ -11,7 +11,7 @@ description: |
   invariants via raw git queries before/after:
 
     (I1) Idempotent index  — `git diff --cached --name-only` AND `git diff --cached` byte-identical.
-    (I2) Atomic HEAD       — `git rev-parse HEAD` unchanged by Stagehand (CAS: == the externally-moved commit).
+    (I2) Atomic HEAD       — `git rev-parse HEAD` unchanged by Stagecoach (CAS: == the externally-moved commit).
     (I3) Snapshot immutability — `git cat-file -p <TREE_SHA>` byte-identical AFTER staging extra content.
 
   CONTRACT (P1.M5.T1.S1, verbatim):
@@ -53,7 +53,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Give Stagehand a first-class, CI-runnable property/invariant test suite that
+**Feature Goal**: Give Stagecoach a first-class, CI-runnable property/invariant test suite that
 **proves the §18.1 safety guarantee** ("any code path that does not reach a successful `update-ref`
 leaves the repository byte-for-byte unchanged, modulo dangling objects") across **every** post-snapshot
 §18.2 failure path — not as scattered per-test checks, but as one auditable, table-driven "property".
@@ -69,7 +69,7 @@ the `internal/stubtest` fake agent.
 - For EVERY failure-mode subtest, after `CommitStaged` returns its (non-nil) error:
   - **I1 (idempotent index):** `git diff --cached --name-only` AND the full `git diff --cached` are
     byte-identical to the pre-run snapshot.
-  - **I2 (atomic HEAD):** `git rev-parse HEAD` is unchanged by Stagehand. For CAS, HEAD == the
+  - **I2 (atomic HEAD):** `git rev-parse HEAD` is unchanged by Stagecoach. For CAS, HEAD == the
     externally-moved concurrent commit (proving the orchestrator neither landed nor forced).
   - **I3 (snapshot immutability):** the `TreeSHA` carried by the error (`*RescueError` or
     `*CASError`) resolves via `git cat-file -t` to `tree`, and `git cat-file -p <treeSHA>` is
@@ -81,7 +81,7 @@ the `internal/stubtest` fake agent.
 
 ## User Persona
 
-**Target User**: the Stagehand maintainer / release engineer (PRD §20). This is test infrastructure,
+**Target User**: the Stagecoach maintainer / release engineer (PRD §20). This is test infrastructure,
 not a user-facing feature.
 
 **Use Case**: run `go test -race ./internal/generate/ -run TestInvariants -v` (locally and in CI) to
@@ -242,7 +242,7 @@ cmd/stubagent/main.go         # P1.M3.T4.S1 — the fake agent binary (READ only
 internal/git/git.go           # P1.M1.T2/T3 — git boundary (READ only)
 internal/signal/signal.go     # P1.M4.T2 — nil-safe wrappers (no handler installed → no-op) (READ only)
 Makefile                      # test / coverage / vet / lint targets (UNCHANGED)
-go.mod                        # module github.com/dustin/stagehand ; go 1.22 (UNCHANGED — no new deps)
+go.mod                        # module github.com/dustin/stagecoach ; go 1.22 (UNCHANGED — no new deps)
 ```
 
 ### Desired Codebase tree with files to be added
@@ -475,7 +475,7 @@ func assertInvariants(t *testing.T, repo string, before repoSnapshot, treeSHA, w
 	if got := gitOut(t, repo, "diff", "--cached"); got != before.indexFull {
 		t.Errorf("I1 (idempotent index) full diff mutated: before=%q after=%q", before.indexFull, got)
 	}
-	// I2: atomic HEAD — unchanged by Stagehand (CAS: == the externally-moved commit).
+	// I2: atomic HEAD — unchanged by Stagecoach (CAS: == the externally-moved commit).
 	if wantHead == "" {
 		wantHead = before.head
 	}
@@ -573,7 +573,7 @@ COVERAGE (PRD §20.3 ≥85% on internal/generate):
   - this suite ADDS coverage (more failure-path exercise of CommitStaged). It can only help the gate.
 
 PARALLEL COORDINATION (P1.M5.T1.S2 — real-agent integration scaffold, Planned):
-  - S2 adds a //go:build integration_real suite (opt-in, STAGEHAND_RUN_REAL=1). It does NOT touch
+  - S2 adds a //go:build integration_real suite (opt-in, STAGECOACH_RUN_REAL=1). It does NOT touch
     internal/generate/invariants_test.go. Zero overlap. The two are complementary: S1 = stub invariants
     (CI), S2 = real-agent smoke (manual).
 ```

@@ -76,7 +76,7 @@ lossless multi-turn fallback (§9.24) and how to disable it for pi via config.
 **Use Case**: A reader opens providers.md to see the manifest schema and immediately understands
 `session_mode` exists, that only pi is verified-append today, and that adding another provider is gated on
 a real FR-T9 verification — not a guess. A pi user drops `[provider.pi] session_mode = ""` into
-`.stagehand.toml` to force one-shot+rescue; configuration.md now tells them that works (S2 semantics).
+`.stagecoach.toml` to force one-shot+rescue; configuration.md now tells them that works (S2 semantics).
 
 **Pain Points Addressed**: Without S5, providers.md claims "21 fields" and omits `session_mode` entirely
 (stale since S1 landed) — a reader has no idea the field exists or that only pi supports multi-turn.
@@ -290,7 +290,7 @@ The S2 override semantics (explicit "" disables, omit inherits) is quoted from P
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/provider/
 │   ├── render.go            # READ-ONLY (S3 LANDED): RenderMultiTurn at :203
 │   ├── render_test.go       # EDIT: + TestRenderMultiTurn_GoldenTable, + TestRenderMultiTurn_SessionIDStableAcrossTurns
@@ -306,7 +306,7 @@ stagehand/
 ### Desired Codebase Tree After S5
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/provider/render_test.go  # +2 tests (table-driven golden + cross-turn session-ID stability)
     docs/providers.md                 # schema 21→22, +session_mode row, +FR-T9/pi-only prose note
@@ -408,10 +408,10 @@ Task 1: render_test.go — TestRenderMultiTurn_GoldenTable (the §5 golden/table
 
 Task 2: render_test.go — TestRenderMultiTurn_SessionIDStableAcrossTurns (case c — the real gap)
   - LOCATE: immediately after Task 1's test (still before the helpers divider).
-  - SHAPE: mint ONE sessionID literal (e.g. "stagehand-stability-probe"); loop over turns 1, 2, 3; for each,
+  - SHAPE: mint ONE sessionID literal (e.g. "stagecoach-stability-probe"); loop over turns 1, 2, 3; for each,
     call RenderMultiTurn and assert the SAME id appears after --session-id.
   - ASSERT:
-      * const sid = "stagehand-stability-probe"
+      * const sid = "stagecoach-stability-probe"
       * for turn := 1; turn <= 3; turn++ {
             spec, err := mtPiManifest().RenderMultiTurn("zai/glm-5.2", "<sys>", "<p>", "", sid, turn)
             if err != nil { t.Fatalf("turn %d: %v", turn, err) }
@@ -497,9 +497,9 @@ func TestRenderMultiTurn_GoldenTable(t *testing.T) {
 		sessionID             string
 		wantSysPromptPresent  bool
 	}{
-		{"pi_turn1_session_id_and_sys_prompt_no_no_session", 1, "stagehand-gt-t1", true},
-		{"pi_turn2_session_id_present_sys_prompt_absent",    2, "stagehand-gt-t1", false},
-		{"pi_turn3_session_id_still_present_sys_prompt_absent", 3, "stagehand-gt-t1", false},
+		{"pi_turn1_session_id_and_sys_prompt_no_no_session", 1, "stagecoach-gt-t1", true},
+		{"pi_turn2_session_id_present_sys_prompt_absent",    2, "stagecoach-gt-t1", false},
+		{"pi_turn3_session_id_still_present_sys_prompt_absent", 3, "stagecoach-gt-t1", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -532,7 +532,7 @@ func TestRenderMultiTurn_SessionIDStableAcrossTurns(t *testing.T) {
 	// FR-T6: the orchestrator mints ONE session id and re-invokes it every turn. S3's per-turn tests use a
 	// shared literal but never EXPLICITLY assert the id renders identically across turns. This test pins
 	// that invariant: a single id must appear after --session-id on turn 1, 2, AND 3.
-	const sid = "stagehand-stability-probe"
+	const sid = "stagecoach-stability-probe"
 	for turn := 1; turn <= 3; turn++ {
 		spec, err := mtPiManifest().RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", sid, turn)
 		if err != nil {
@@ -561,7 +561,7 @@ After the `provider_flag` row, before the `bare_flags` row:
 <!-- === docs/providers.md — the prose note (new subsection under "## The schema") === -->
 ### Multi-turn capability (`session_mode`)
 
-A provider supports Stagehand's **lossless multi-turn fallback** (§9.24 — used when a one-shot generation
+A provider supports Stagecoach's **lossless multi-turn fallback** (§9.24 — used when a one-shot generation
 repeatedly fails on a diff too large for a single reliable request) if and only if re-invoking the SAME
 session id appends a turn the model can recall. The `session_mode` manifest field declares this:
 
@@ -638,7 +638,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S5):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/provider/render_test.go     # realign the new tests (markdown docs are not gofmt'd)
 gofmt -l .                                    # Expected: empty after the -w
@@ -649,7 +649,7 @@ go build ./...                                # Expected: exit 0
 ### Level 2: Unit Tests — the 2 new tests + the S3 regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The 6 RenderMultiTurn tests: S3's 4 (a/b/d/e) MUST stay green + S5's 2 new ones pass.
 go test -race -run 'TestRenderMultiTurn' ./internal/provider/ -v
@@ -670,7 +670,7 @@ go test -race ./internal/provider/ -v
 ### Level 3: Whole-Repository Regression + the docs grep verification
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green
 go vet ./...                     # Expected: exit 0
@@ -694,7 +694,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/ providers/
 ### Level 4: Docs Render Smoke (verify the markdown is well-formed + the schema row parses)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Confirm the schema table still has a consistent row count (the new row inserted cleanly between
 # provider_flag and bare_flags — not appended at the end, not splitting another row):

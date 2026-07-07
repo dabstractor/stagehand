@@ -15,7 +15,7 @@ so `internal/ui/` is created fresh with just `output.go`. No `internal/ui` dir e
 **D2 — Color gate = pure function `ResolveColor(noColor, isTTY bool) bool`.** Decouples the
 untestable TTY check from the testable flag/env logic (the work item explicitly says "can't easily
 test TTY in unit tests; test the flag/env logic"). Body: `!noColor && !noColorEnvSet() && isTTY`.
-`noColor` is `cfg.NoColor` (already folds `--no-color` Layer 7 + `STAGEHAND_NO_COLOR` Layer 5).
+`noColor` is `cfg.NoColor` (already folds `--no-color` Layer 7 + `STAGECOACH_NO_COLOR` Layer 5).
 `noColorEnvSet()` reads the bare `NO_COLOR` env (NOT yet handled by config — confirmed grep).
 Caller passes `isTTY = IsTerminal(os.Stdout)`.
 
@@ -24,7 +24,7 @@ philosophy (`procgroup_windows.go` uses `syscall.NewLazyDLL`, not `golang.org/x/
 `golang.org/x/term`. See external-research.md §2 for the heuristic + its accepted gotcha.
 
 **D4 — `NO_COLOR` via `os.LookupEnv("NO_COLOR")` with `ok && v != ""`.** Byte-identical idiom to
-`config/load.go` line 112 (`STAGEHAND_NO_COLOR`). Matches current no-color.org spec ("present and not
+`config/load.go` line 112 (`STAGECOACH_NO_COLOR`). Matches current no-color.org spec ("present and not
 an empty string"). There is NO "force color" override in v1 (`CLICOLOR_FORCE` out of scope).
 
 **D5 — `UI` type holds `stdout, stderr io.Writer` + resolved `color bool`.** Writers are injected
@@ -49,9 +49,9 @@ newline). Ellipsis `…` is U+2026 (matches PRD; do NOT use "...").
 
 **D9 — Wiring into `default_action.go` is SAFE vs the parallel P1.M4.T2.S1.** T2.S1 edits ONLY
 `main.go`, `internal/provider/executor.go`, `internal/generate/generate.go`,
-`pkg/stagehand/stagehand.go` (its PRP "SCOPE BOUNDARY" lists root.go/config.go/providers.go/
+`pkg/stagecoach/stagecoach.go` (its PRP "SCOPE BOUNDARY" lists root.go/config.go/providers.go/
 default_action.go as DO-NOT-TOUCH siblings). So editing `default_action.go` here cannot conflict.
-We do NOT touch generate.go/executor.go/main.go/stagehand.go (T2.S1 owns them).
+We do NOT touch generate.go/executor.go/main.go/stagecoach.go (T2.S1 owns them).
 
 **D10 — What stays UNCHANGED (frozen / out of scope):**
 - `generate.FormatRescue` output (the §18.3 rescue block) — frozen, byte-for-byte; do NOT colorize the
@@ -64,13 +64,13 @@ We do NOT touch generate.go/executor.go/main.go/stagehand.go (T2.S1 owns them).
 ## Findings
 
 **F1 — `cfg.NoColor` is already a resolved Config field (`config.go` line 24, `toml:"-"`).** It is set
-by Layer 5 (`STAGEHAND_NO_COLOR`, `load.go:112`) and Layer 7 (`--no-color`, `loadFlags:151`). Its own
+by Layer 5 (`STAGECOACH_NO_COLOR`, `load.go:112`) and Layer 7 (`--no-color`, `loadFlags:151`). Its own
 comment says: *"NoColor is ultimately TTY-aware in the UI layer"* and *"set by UI layer (P1.M4.T3.S1)"*
 — i.e. THIS task is the designated owner of the final TTY/NO_COLOR resolution. The UI layer ADDS the
 bare `NO_COLOR` env + the `isTTY(stdout)` check on top of `cfg.NoColor`.
 
 **F2 — The bare `NO_COLOR` env var is NOT handled anywhere yet.** `grep -rn "NO_COLOR\b" internal/`
-shows only `STAGEHAND_NO_COLOR` in config. The `NO_COLOR` comment in `config.go:23` is a forward
+shows only `STAGECOACH_NO_COLOR` in config. The `NO_COLOR` comment in `config.go:23` is a forward
 pointer to this task. ⇒ `internal/ui` owns `noColorEnvSet()`.
 
 **F3 — `default_action_test.go` locks the stream contract.** Key assertions (must not break):
@@ -96,7 +96,7 @@ and `" (<model>)"` only when `cfg.Model != ""`. Auto (the common case) → `"↳
 by the parallel T2.S1), so it is OUT OF SCOPE here; the pre-call generic label is the v1 surface.
 
 **F6 — No import cycle.** `internal/ui` imports only stdlib (`fmt`, `io`, `os`). `internal/cmd`
-imports `internal/ui` (one-way). `internal/ui` imports NOTHING from stagehand — so any package may
+imports `internal/ui` (one-way). `internal/ui` imports NOTHING from stagecoach — so any package may
 import it freely (incl. future signal/provider packages) without a cycle. Mirrors `internal/exitcode`
 (which imports only `internal/generate`) — but `ui` is even cleaner: stdlib-only.
 
@@ -105,7 +105,7 @@ import it freely (incl. future signal/provider packages) without a cycle. Mirror
 `internal/ui/output_test.go` (pure unit tests; no real TTY needed):
 - `TestResolveColor_Logic`: matrix over (noColor, isTTY) → expected bool. (4 cases.)
 - `TestResolveColor_NoColorEnv`: `t.Setenv("NO_COLOR", "1")` → false; `t.Setenv("NO_COLOR","")` →
-  isTTY-gated (i.e. env empty does NOT disable); unset → isTTY-gated. Also assert `STAGEHAND_*`
+  isTTY-gated (i.e. env empty does NOT disable); unset → isTTY-gated. Also assert `STAGECOACH_*`
   independence (NO_COLOR is a separate var).
 - `TestColorHelpers_NoOpWhenColorOff`: `ui.New(&out,&err,false)` → `Green("x")=="x"`,
   `Progress("m")` writes `"↳ m\n"` plain, `Success`/`Error` plain.

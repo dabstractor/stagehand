@@ -4,21 +4,21 @@
 
 All e2e files carry `//go:build e2e` (line 1). Run the whole package:
 `go test -tags e2e ./internal/e2e/...`. Default `go test ./...` skips it. Binaries are
-built once per process via `sync.Once` (`buildStagehand`, `buildStub`).
+built once per process via `sync.Once` (`buildStagecoach`, `buildStub`).
 
 ## Harness primitives to reuse (`internal/e2e/harness_test.go`)
 
 | Helper | Purpose |
 |--------|---------|
-| `buildStagehand(t)` | Builds `cmd/stagehand` → cached bin path. |
+| `buildStagecoach(t)` | Builds `cmd/stagecoach` → cached bin path. |
 | `buildStub(t)` | Builds `cmd/stubagent` → cached bin path. |
 | `newRepo(t)` | `t.TempDir()` + `git init -q` + local user.name/email. |
 | `seedCommit(t, repo, name, body)` | Write file + `git add` + `git commit -m "seed: <name>"`. |
 | `writeFile(t, repo, name, body)` | Write a working-tree file (does NOT stage). |
 | `stageFile(t, repo, name)` | `git add <name>`. |
 | `writeStubConfig(t, stubBin, extras)` | Writes base TOML (`config_version=3`, `[provider.stub]`, output=raw, strip_code_fence, default_model=stub, tooled_flags). `extras` appended for extra sections. Returns path. |
-| `stubEnv(map)` | `os.Environ()` + the given `STAGEHAND_STUB_*` knobs as `K=V`. |
-| `runStagehand(t, bin, repo, cfg, env, args...)` | Runs the compiled binary (cwd=repo, 60s timeout, `--config cfg --no-color` + args). Returns `e2eResult{Stdout, Stderr, ExitCode}`. |
+| `stubEnv(map)` | `os.Environ()` + the given `STAGECOACH_STUB_*` knobs as `K=V`. |
+| `runStagecoach(t, bin, repo, cfg, env, args...)` | Runs the compiled binary (cwd=repo, 60s timeout, `--config cfg --no-color` + args). Returns `e2eResult{Stdout, Stderr, ExitCode}`. |
 | `waitForMarker(t, path, timeout)` | Polls a marker file's existence at 20ms cadence. The deterministic gate for two-process coordination. |
 | `commitCount(t, repo)` / `headSHA(t, repo)` / `statusPorcelain(t, repo)` | Git inspection helpers. |
 
@@ -27,21 +27,21 @@ built once per process via `sync.Once` (`buildStagehand`, `buildStub`).
 ```go
 readiness := t.TempDir() + "/ready.marker"
 holderEnv := stubEnv(map[string]string{
-    "STAGEHAND_STUB_OUT":      "feat: a",
-    "STAGEHAND_STUB_MARKER":   readiness,
-    "STAGEHAND_STUB_SLEEP_MS": "3000",   // holder holds the lock ~3s
+    "STAGECOACH_STUB_OUT":      "feat: a",
+    "STAGECOACH_STUB_MARKER":   readiness,
+    "STAGECOACH_STUB_SLEEP_MS": "3000",   // holder holds the lock ~3s
 })
 resCh := make(chan e2eResult, 1)
-go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
 waitForMarker(t, readiness, 10*time.Second) // holder drained stdin + published snapshot + sleeping
-contenderEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: a"})
-res2 := runStagehand(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
+contenderEnv := stubEnv(map[string]string{"STAGECOACH_STUB_OUT": "feat: a"})
+res2 := runStagecoach(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
 // assert res2.ExitCode + res2.Stderr
 res := <-resCh // drain holder; assert holder + commit count
 ```
 
 The stub (`cmd/stubagent/main.go`) ordering contract: **drain stdin → write marker → sleep
-(STAGEHAND_STUB_SLEEP_MS) → write stdout (STAGEHAND_STUB_OUT) → exit**. So `waitForMarker`
+(STAGECOACH_STUB_SLEEP_MS) → write stdout (STAGECOACH_STUB_OUT) → exit**. So `waitForMarker`
 returning means the holder has consumed the prompt, published its snapshot, and is now
 sleeping with the lock held.
 
@@ -57,7 +57,7 @@ complete the decompose. Two facts make this reachable with the stub:
 1. **The FR-M2b one-file shortcut bypasses the planner entirely.** With EXACTLY one
    untracked file and auto mode (`Commits=0`, the default), `Decompose` takes
    `runOneFileShortcut` (`decompose.go:187`) which uses ONLY the MESSAGE role (the same agent
-   the single-commit path uses). The stub's single-response `STAGEHAND_STUB_OUT` satisfies
+   the single-commit path uses). The stub's single-response `STAGECOACH_STUB_OUT` satisfies
    the message role. So the stub IS sufficient for a one-file decompose holder.
 
 2. **`SetSnapshot(tStart)` at line 169 runs BEFORE the message-role agent call.** The order
@@ -87,21 +87,21 @@ t.Run("F_DecomposeAccidentalDoubleRun_Busy", func(t *testing.T) {
 
     readiness := t.TempDir() + "/ready.marker"
     holderEnv := stubEnv(map[string]string{
-        "STAGEHAND_STUB_OUT":      "feat: add feature",
-        "STAGEHAND_STUB_MARKER":   readiness,
-        "STAGEHAND_STUB_SLEEP_MS": "4000",
+        "STAGECOACH_STUB_OUT":      "feat: add feature",
+        "STAGECOACH_STUB_MARKER":   readiness,
+        "STAGECOACH_STUB_SLEEP_MS": "4000",
     })
     // base config: defaults enable decompose (auto_stage_all=true, commits=0, single=false)
     cfg := writeStubConfig(t, stub, "")
 
     resCh := make(chan e2eResult, 1)
-    go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+    go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
     waitForMarker(t, readiness, 10*time.Second) // holder: FreezeWorkingTree → SetSnapshot(tStart) → message-gen sleep
 
     // contender: same dirty tree, still nothing staged → handleLockContention:
     //   WriteTree() returns baseTree (index reset to baseTree by holder); snap = tStart ≠ baseTree → Busy(5)
-    contenderEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: add feature"})
-    res2 := runStagehand(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
+    contenderEnv := stubEnv(map[string]string{"STAGECOACH_STUB_OUT": "feat: add feature"})
+    res2 := runStagecoach(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
 
     if res2.ExitCode != 5 {
         t.Fatalf("contender exit = %d, want 5 (Busy) — decompose no-op fast path is structurally impossible; stderr:\n%s", res2.ExitCode, res2.Stderr)

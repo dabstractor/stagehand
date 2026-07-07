@@ -98,7 +98,7 @@ shorter; gofmt realigns the block automatically. RUN `gofmt -w` after the edits 
 
 S1 = the 3 struct/seed additions (Config struct, fileGeneration struct, Defaults()) + the recommended
 TestDefaults assertions. NOTHING ELSE.
-- NOT S1: materialize/overlay field-merge (S2 = P1.M1.T1.S2), git-config keys stagehand.tokenLimit/
+- NOT S1: materialize/overlay field-merge (S2 = P1.M1.T1.S2), git-config keys stagecoach.tokenLimit/
   diffContext (S3 = P1.M1.T1.S3), bootstrap template + docs/CONFIGURATION.md (S4 = P1.M1.T1.S4).
 - NOT S1: any consumer (StagedDiffOptions, the 6 call sites, the diff functions) — those are P1.M1.T2 /
   P1.M2+.

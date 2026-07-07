@@ -8,12 +8,12 @@ Mode-A file — the README + docs/README.md job is DISCOVERY (surface + link), n
 
 | # | Capability (milestone) | User surface | Documented at | README's job |
 |---|---|---|---|---|
-| 1 | Payload exclusions (M1, §9.18) | `.stagehandignore`, `--exclude`/`-x`, `[generation].exclude` | `docs/configuration.md` §"Exclusion globs (`[generation].exclude`)" + "`.stagehandignore`"; `docs/how-it-works.md` §"Payload exclusions (.stagehandignore)" | capabilities list; link configuration.md |
+| 1 | Payload exclusions (M1, §9.18) | `.stagecoachignore`, `--exclude`/`-x`, `[generation].exclude` | `docs/configuration.md` §"Exclusion globs (`[generation].exclude`)" + "`.stagecoachignore`"; `docs/how-it-works.md` §"Payload exclusions (.stagecoachignore)" | capabilities list; link configuration.md |
 | 2 | Message shaping (M2, §9.19) | `--format`/`-locale`/`-context`/`-template` (auto\|conventional\|gitmoji\|plain) | `docs/how-it-works.md` §"Format modes and locale"; `docs/configuration.md` ([generation] keys) | capabilities list; link how-it-works.md |
-| 3 | Git hook mode (M3, §9.20) | `stagehand hook install\|uninstall\|status`, `hook exec` | `docs/cli.md` §`hook *`; `docs/how-it-works.md` §"Hook mode vs the snapshot-based flow" / §"Trade-off inversion (FR-H7)" / §"When to use which" | capabilities list; FAQ entry (FR-H7 trade-off); link how-it-works.md |
-| 4 | Tool integrations (M4, §9.21) | `stagehand integrate install git-alias\|lazygit` (+ `list`/`remove`) | `docs/cli.md` §`integrate *` (incl. `git-alias`, `lazygit`, no-mangle protocol) | REPLACE the manual lazygit YAML snippet; keep YAML as collapsible alternative; mention gitui blocked (FUTURE_SPEC.md) |
-| 5 | `--edit` / `--push` (M5, §9.22) | `--edit`, `--push`/`STAGEHAND_PUSH` | `docs/cli.md` (global flags table); `docs/how-it-works.md` "Stage-while-editing (FR-E2)"; `docs/configuration.md` (STAGEHAND_PUSH) | capabilities list (brief); link cli.md |
-| 6 | Discovery (M6, §9.23) | `stagehand models [<provider>]`, `config init --interactive` | `docs/cli.md` §`models [<provider>]` + §`config init` (`--interactive` per P1.M6.T2.S1) | capabilities list; "Configure your agent" section links both |
+| 3 | Git hook mode (M3, §9.20) | `stagecoach hook install\|uninstall\|status`, `hook exec` | `docs/cli.md` §`hook *`; `docs/how-it-works.md` §"Hook mode vs the snapshot-based flow" / §"Trade-off inversion (FR-H7)" / §"When to use which" | capabilities list; FAQ entry (FR-H7 trade-off); link how-it-works.md |
+| 4 | Tool integrations (M4, §9.21) | `stagecoach integrate install git-alias\|lazygit` (+ `list`/`remove`) | `docs/cli.md` §`integrate *` (incl. `git-alias`, `lazygit`, no-mangle protocol) | REPLACE the manual lazygit YAML snippet; keep YAML as collapsible alternative; mention gitui blocked (FUTURE_SPEC.md) |
+| 5 | `--edit` / `--push` (M5, §9.22) | `--edit`, `--push`/`STAGECOACH_PUSH` | `docs/cli.md` (global flags table); `docs/how-it-works.md` "Stage-while-editing (FR-E2)"; `docs/configuration.md` (STAGECOACH_PUSH) | capabilities list (brief); link cli.md |
+| 6 | Discovery (M6, §9.23) | `stagecoach models [<provider>]`, `config init --interactive` | `docs/cli.md` §`models [<provider>]` + §`config init` (`--interactive` per P1.M6.T2.S1) | capabilities list; "Configure your agent" section links both |
 
 ## Verified doc anchors (GitHub slug algorithm: lowercase, spaces→`-`, strip most punctuation)
 
@@ -24,10 +24,10 @@ Level-2 gate does this programmatically):
 - `docs/how-it-works.md#hook-mode-vs-the-snapshot-based-flow`
 - `docs/how-it-works.md#when-to-use-which`
 - `docs/how-it-works.md#format-modes-and-locale`
-- `docs/how-it-works.md#payload-exclusions-stagehandignore` ← "### Payload exclusions (.stagehandignore)" — the `(` strips, `.` strips
+- `docs/how-it-works.md#payload-exclusions-stagecoachignore` ← "### Payload exclusions (.stagecoachignore)" — the `(` strips, `.` strips
 - `docs/how-it-works.md#multi-commit-decomposition`
 - `docs/configuration.md#exclusion-globs-generationexclude` ← "### Exclusion globs (`[generation].exclude`)" — backticks strip
-- `docs/configuration.md#stagehandignore` ← "### `.stagehandignore`" — backtick strips
+- `docs/configuration.md#stagecoachignore` ← "### `.stagecoachignore`" — backtick strips
 - `docs/configuration.md#bootstrap-config-init` ← "### Bootstrap (`config init`)"
 - `docs/cli.md#hook-install` ← "### `hook install`" — backtick strips
 - `docs/cli.md#integrate-install-target` ← "### `integrate install <target>…`"
@@ -40,20 +40,20 @@ Level-2 gate does this programmatically):
 ### lazygit customCommands (the manual-YAML alternative must match this — docs/cli.md ~L287)
 ```yaml
 customCommands:
-  - key: '<c-a>'                       # stagehand-integration
+  - key: '<c-a>'                       # stagecoach-integration
     context: 'files'
-    command: 'stagehand'
+    command: 'stagecoach'
     loadingText: 'Generating commit message…'
     output: 'none'
-    description: 'stagehand: AI commit'
+    description: 'stagecoach: AI commit'
 ```
-Default key `<c-a>`; install cmd `stagehand integrate install lazygit` (or `--key '<c-s>'`); remove
-targets the `# stagehand-integration` MARKER (not the key). Manual install = paste this YAML block.
+Default key `<c-a>`; install cmd `stagecoach integrate install lazygit` (or `--key '<c-s>'`); remove
+targets the `# stagecoach-integration` MARKER (not the key). Manual install = paste this YAML block.
 
 ### FR-H7 trade-off (docs/how-it-works.md §228–250) — the FAQ entry must match
-- Snapshot flow (default `stagehand`): atomic, stage-while-generating, rescue protocol, BUT bypasses
+- Snapshot flow (default `stagecoach`): atomic, stage-while-generating, rescue protocol, BUT bypasses
   pre-commit hooks (husky/lint-staged/`.pre-commit-config.yaml` do NOT run — built via plumbing).
-- Hook mode (`stagehand hook install` + `git commit`): pre-commit hooks honored, never-block contract
+- Hook mode (`stagecoach hook install` + `git commit`): pre-commit hooks honored, never-block contract
   (failure → exit 0, empty editor), BUT no snapshot/atomicity, latency inside the commit.
 - The two COMPOSE: hook for `git commit`, flagship for the atomic path.
 

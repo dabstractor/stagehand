@@ -207,7 +207,7 @@ internal/signal/
   signal_windows.go          # exitCodeForSignal equivalent (LANDED) — NO edit
   signal_test.go             # installTestHandler + 10 existing tests + contains helper — EDIT (APPEND 3 OnRescueExit tests)
   signal_integration_test.go # //go:build !windows — real-binary SIGINT tests (NOT this task) — NO edit
-cmd/stagehand/main.go        # OnRescueExit: lock.ReleaseCurrent wiring (LANDED, P1.M2.T2.S2) — NO edit
+cmd/stagecoach/main.go        # OnRescueExit: lock.ReleaseCurrent wiring (LANDED, P1.M2.T2.S2) — NO edit
 internal/lock/*              # ReleaseCurrent + lock package (LANDED, P1.M2.T1/T2) — NO edit
 go.mod / go.sum              # unchanged (stdlib only: bytes/context/os/syscall/testing — all already imported)
 ```
@@ -264,7 +264,7 @@ go.mod / go.sum              # unchanged (stdlib only: bytes/context/os/syscall/
 // has the exitCodeForSignal equivalent). Adding a build tag would needlessly exclude these tests from Windows CI.
 
 // GOTCHA (do NOT send a real SIGINT or build a real binary): that's signal_integration_test.go's job (it's
-// //go:build !windows + builds cmd/stagehand). These are pure in-process unit tests via the recording seam.
+// //go:build !windows + builds cmd/stagecoach). These are pure in-process unit tests via the recording seam.
 ```
 
 ## Implementation Blueprint
@@ -472,7 +472,7 @@ FROZEN / NOT-EDITED:
   - internal/signal/signal.go (OnRescueExit seam + handle() — P1.M2.T2.S1, LANDED).
   - internal/signal/signal_unix.go + signal_windows.go (exitCodeForSignal — LANDED).
   - internal/signal/signal_integration_test.go (real-binary SIGINT tests — //go:build !windows; NOT this task).
-  - cmd/stagehand/main.go (OnRescueExit: lock.ReleaseCurrent wiring — P1.M2.T2.S2, LANDED).
+  - cmd/stagecoach/main.go (OnRescueExit: lock.ReleaseCurrent wiring — P1.M2.T2.S2, LANDED).
   - internal/lock/* (ReleaseCurrent + lock package + P1.M2.T3.S1's reaping tests — LANDED / parallel, different file).
   - docs/* (DOCS: none — test-only; P1.M3 owns the changeset doc sync).
   - go.mod / go.sum.
@@ -519,10 +519,10 @@ GOOS=windows go test ./internal/signal/ && echo "windows test OK (signal_test.go
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm the production code + the platform files + main.go + the lock package + integration test are byte-unchanged:
-git diff --exit-code -- internal/signal/signal.go internal/signal/signal_unix.go internal/signal/signal_windows.go internal/signal/signal_integration_test.go cmd/stagehand/main.go internal/lock docs && echo "production + platform + main + lock + integration-test + docs UNCHANGED (expected — test-only)"
+git diff --exit-code -- internal/signal/signal.go internal/signal/signal_unix.go internal/signal/signal_windows.go internal/signal/signal_integration_test.go cmd/stagecoach/main.go internal/lock docs && echo "production + platform + main + lock + integration-test + docs UNCHANGED (expected — test-only)"
 ```
 
 ### Level 4: Creative & Domain-Specific Validation
@@ -572,7 +572,7 @@ grep -c 'h.handle(os.Interrupt)' internal/signal/signal_test.go   # → 3 (one p
 ## Anti-Patterns to Avoid
 
 - ❌ **Don't send a REAL signal or build a real binary.** That's `signal_integration_test.go`'s job (`//go:build
-  !windows`, builds cmd/stagehand). These are pure in-process unit tests: `installTestHandler(t, opts)` →
+  !windows`, builds cmd/stagecoach). These are pure in-process unit tests: `installTestHandler(t, opts)` →
   `h.handle(os.Interrupt)` directly. handle() was extracted from run() for exactly this (no goroutine timing).
 - ❌ **Don't assert ordering with a timer / sleep / channel.** handle() is synchronous in one goroutine — use the
   contract's flag technique: OnRescueExit sets `rescueFired`, Exit reads it into `exitSawRescueFired`. A reversed

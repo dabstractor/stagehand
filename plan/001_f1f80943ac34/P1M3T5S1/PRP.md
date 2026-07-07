@@ -2,17 +2,17 @@
 name: "P1.M3.T5.S1 — GenerateCommit public API (Options + Result + thin wrapper) — PRD §14.1 / Appendix E item 6"
 description: |
 
-  Implement Stagehand's PUBLIC library surface in `pkg/stagehand/stagehand.go` (PRD §14.1): the
+  Implement Stagecoach's PUBLIC library surface in `pkg/stagecoach/stagecoach.go` (PRD §14.1): the
   `Options` and `Result` structs and the `GenerateCommit(ctx, opts) (Result, error)` entry point that an
   integrator (git GUI, pre-commit hook, CI step) imports as
-  `import "github.com/dustin/stagehand/pkg/stagehand"` (US12). The surface is intentionally tiny
+  `import "github.com/dustin/stagecoach/pkg/stagecoach"` (US12). The surface is intentionally tiny
   (PRD §14.1): the point is to let an integrator call the core without reimplementing it, NOT to be a
   rich library.
 
   ONE deliverable, a NEW file, NO edits to existing code:
-  **CREATE `pkg/stagehand/stagehand.go`** (`package stagehand`) — the public types + the entry point +
+  **CREATE `pkg/stagecoach/stagecoach.go`** (`package stagecoach`) — the public types + the entry point +
   the typed-error re-exports + Go-doc comments marking the API `// Stable as of v1.0` (Appendix E item 6,
-  additive-only Options). Plus **CREATE `pkg/stagehand/stagehand_test.go`** (`package stagehand`) —
+  additive-only Options). Plus **CREATE `pkg/stagecoach/stagecoach_test.go`** (`package stagecoach`) —
   integration tests driving `GenerateCommit` at the public boundary with the stub provider
   (`internal/stubtest`) against real temp git repos (mirrors `internal/generate/generate_test.go`).
 
@@ -31,7 +31,7 @@ description: |
        `Registry.DefaultProvider`), `Validate()` it, construct `generate.Deps{Git: git.New(repoDir),
        Manifest: manifest}`.
     3. **Common path** (`!opts.DryRun && opts.SystemExtra == ""`): delegate to
-       `generate.CommitStaged(ctx, deps, cfg)`, map `generate.Result` → `stagehand.Result` (drop
+       `generate.CommitStaged(ctx, deps, cfg)`, map `generate.Result` → `stagecoach.Result` (drop
        `Changes`). This honors "calls CommitStaged" for the primary path and reuses the tested atomic
        commit with zero duplication.
     4. **Advanced path** (`opts.DryRun || opts.SystemExtra != ""`): the frozen `generate.CommitStaged`
@@ -47,7 +47,7 @@ description: |
   observes a cancelled `ctx` only), the `--dry-run` FLAG plumbing (P1.M4.T4 — the CLI just sets
   `opts.DryRun` and calls GenerateCommit), property tests (P1.M5.T1), or ANY change to
   `internal/generate`, `internal/config`, `internal/provider`, `internal/git`, or `internal/prompt`. It
-  MODIFIES NOTHING under `internal/`; it only ADDS `pkg/stagehand/{stagehand.go,stagehand_test.go}`. It
+  MODIFIES NOTHING under `internal/`; it only ADDS `pkg/stagecoach/{stagecoach.go,stagecoach_test.go}`. It
   adds NO dependency (`go mod tidy` is a no-op — stdlib + same-module internals only).
 
   INPUT (upstream — READ-ONLY contracts, already built): `generate.CommitStaged`/`Deps`/`Result`/
@@ -59,61 +59,61 @@ description: |
   `NewScript`/`Env`).
 
   OUTPUT (downstream consumers): the CLI default action (P1.M4.T1.S2) is "parse flags → maybe auto-stage
-  → `stagehand.GenerateCommit(ctx, opts)` → print result"; the `--dry-run` flag (P1.M4.T4) just sets
-  `opts.DryRun`. Library consumers (US12) import `pkg/stagehand` directly. The `Options`/`Result`/
+  → `stagecoach.GenerateCommit(ctx, opts)` → print result"; the `--dry-run` flag (P1.M4.T4) just sets
+  `opts.DryRun`. Library consumers (US12) import `pkg/stagecoach` directly. The `Options`/`Result`/
   `GenerateCommit`/error surface is the FROZEN v1.0 public API (Appendix E item 6: additive-only Options).
 
   ⚠️ **Do NOT modify `generate.CommitStaged` / `Deps` / `config.Config` to add a DryRun or SystemExtra
   seam.** P1.M3.T4.S2 is a frozen, READ-ONLY contract running in parallel; touching `internal/generate`
   or `internal/config` would conflict. The DryRun + SystemExtra logic lives ENTIRELY in
-  `pkg/stagehand/stagehand.go` (see design-decisions §0). (design §0)
-  ⚠️ **`stagehand.Result` has NO `Changes` field** (PRD §14.1 — "intentionally tiny"). The delegation
-  path maps `generate.Result` → `stagehand.Result` by DROPPING `Changes`. Do not expose the internal
+  `pkg/stagecoach/stagecoach.go` (see design-decisions §0). (design §0)
+  ⚠️ **`stagecoach.Result` has NO `Changes` field** (PRD §14.1 — "intentionally tiny"). The delegation
+  path maps `generate.Result` → `stagecoach.Result` by DROPPING `Changes`. Do not expose the internal
   `[]git.FileChange` on the public surface. (design §1)
   ⚠️ **Tests can't import the git/generate fixture helpers** — they're package-private in `_test.go`.
   Copy the ~25-line `initRepo`/`writeFile`/`stageFile`/`headSHA`/`commitRaw`/`gitOut`/`runGit` set into
-  `stagehand_test.go` (same approach P1.M3.T4.S2 took). (design §8)
+  `stagecoach_test.go` (same approach P1.M3.T4.S2 took). (design §8)
 
-  Deliverable: CREATE `pkg/stagehand/stagehand.go` + `pkg/stagehand/stagehand_test.go`. Imports only
+  Deliverable: CREATE `pkg/stagecoach/stagecoach.go` + `pkg/stagecoach/stagecoach_test.go`. Imports only
   stdlib + same-module `internal/*`. `go mod tidy` MUST be a no-op. Touches ONLY these two NEW files.
 
 ---
 
 ## Goal
 
-**Feature Goal**: Ship Stagehand's public library surface (PRD §14.1) — a tiny, stable, v1.0 Go API that
-an integrator imports as `github.com/dustin/stagehand/pkg/stagehand` and calls `GenerateCommit(ctx, opts)`
+**Feature Goal**: Ship Stagecoach's public library surface (PRD §14.1) — a tiny, stable, v1.0 Go API that
+an integrator imports as `github.com/dustin/stagecoach/pkg/stagecoach` and calls `GenerateCommit(ctx, opts)`
 to generate (and, unless `DryRun`, create) a commit from the currently-staged index, reusing the full
 internal pipeline (config resolution → manifest resolution → `generate.CommitStaged`, or a self-contained
 path when `DryRun`/`SystemExtra` are set). Mark it `// Stable as of v1.0` with additive-only `Options`
 (Appendix E item 6).
 
 **Deliverable** (two NEW files, nothing else touched):
-1. **`pkg/stagehand/stagehand.go`** — `package stagehand`. The public `Options` and `Result` structs
+1. **`pkg/stagecoach/stagecoach.go`** — `package stagecoach`. The public `Options` and `Result` structs
    (PRD §14.1 shapes), `GenerateCommit(ctx, opts) (Result, error)`, the typed-error re-exports
    (`ErrNothingToCommit`/`ErrTimeout`/`ErrRescue`/`ErrCASFailed` + `RescueError`/`CASError` aliases), an
    unexported `runPipeline` for the DryRun/SystemExtra path, an unexported `resolveConfig` +
    `resolveManifest`/`buildDeps`, and a package doc comment. Go-doc comments on every exported symbol.
-2. **`pkg/stagehand/stagehand_test.go`** — `package stagehand`. Integration tests driving `GenerateCommit`
+2. **`pkg/stagecoach/stagecoach_test.go`** — `package stagecoach`. Integration tests driving `GenerateCommit`
    end-to-end with the stub provider (`stubtest`) against real temp git repos. Own git fixture helpers.
 
-**Success Definition**: `go build ./...` succeeds; `go test -race ./pkg/stagehand/` is green; `go test
--race ./...` shows NO regression; `go vet ./pkg/stagehand/` clean; `gofmt -l pkg/stagehand/` empty;
+**Success Definition**: `go build ./...` succeeds; `go test -race ./pkg/stagecoach/` is green; `go test
+-race ./...` shows NO regression; `go vet ./pkg/stagecoach/` clean; `gofmt -l pkg/stagecoach/` empty;
 `golangci-lint run` (if available) clean; go.mod/go.sum byte-unchanged; every other file byte-unchanged.
-A library consumer can `import "github.com/dustin/stagehand/pkg/stagehand"` and call `GenerateCommit`.
+A library consumer can `import "github.com/dustin/stagecoach/pkg/stagecoach"` and call `GenerateCommit`.
 
 ## User Persona
 
 **Target User**: The library integrator (PRD §7 "the plan-holder" extending their toolchain; US12) — a
-git GUI, a pre-commit hook, or a CI step that wants Stagehand's commit-generation WITHOUT reimplementing
+git GUI, a pre-commit hook, or a CI step that wants Stagecoach's commit-generation WITHOUT reimplementing
 it or shelling out to the CLI. Transitively: the CLI itself (P1.M4.T1.S2) is a thin shell over this API
 ("parse flags → maybe auto-stage → `GenerateCommit` → print result").
 
-**Use Case**: An integrator writes `res, err := stagehand.GenerateCommit(ctx, stagehand.Options{
+**Use Case**: An integrator writes `res, err := stagecoach.GenerateCommit(ctx, stagecoach.Options{
 Provider: "claude", Timeout: 60*time.Second })` and, on success, reads `res.Subject` / `res.CommitSHA`.
 For a pre-commit preview they add `DryRun: true` and read `res.Message` without committing.
 
-**User Journey**: (internal) integrator imports `pkg/stagehand` → constructs `Options` → calls
+**User Journey**: (internal) integrator imports `pkg/stagecoach` → constructs `Options` → calls
 `GenerateCommit` → the API resolves config + manifest + repo, drives the pipeline, returns `Result` (or a
 typed error the integrator maps to their own UX). No CLI, no flags, no subprocess orchestration required.
 
@@ -125,13 +125,13 @@ solved by the `// Stable as of v1.0` doc + additive-only `Options` promise.
 ## Why
 
 - **It IS the library surface (PRD §14.1).** The CLI is "essentially: parse flags → maybe auto-stage →
-  `stagehand.GenerateCommit(ctx, opts)` → print result." Keeping the CLI a thin shell over the library
+  `stagecoach.GenerateCommit(ctx, opts)` → print result." Keeping the CLI a thin shell over the library
   GUARANTEES v2 can reuse `GenerateCommit` in a loop (multi-commit decomposition, PRD §10.3).
 - **Unblocks the CLI + closes the pipeline.** P1.M4.T1.S2 (default action), P1.M4.T4 (dry-run flag), and
   US12 (library consumers) all wait on this entry point. It is the last slice before the UX layer.
 - **Honors Appendix E item 6.** The recommendation was: "ship it, mark it `// Stable as of v1.0`, keep
   `Options` additive-only." This subtask does exactly that.
-- **No new dependency, additive only.** Two NEW files under `pkg/stagehand/`; `internal/*` untouched.
+- **No new dependency, additive only.** Two NEW files under `pkg/stagecoach/`; `internal/*` untouched.
 
 ## What
 
@@ -143,10 +143,10 @@ installs a signal handler (those are the CLI's job). It returns a typed `Result`
 
 ### Success Criteria
 
-- [ ] `pkg/stagehand/stagehand.go` exists, `package stagehand`, imports `context`/`errors`/`fmt`/`os`/
-      `strings` + `github.com/dustin/stagehand/internal/{config,generate,git,prompt,provider}` ONLY (NO
+- [ ] `pkg/stagecoach/stagecoach.go` exists, `package stagecoach`, imports `context`/`errors`/`fmt`/`os`/
+      `strings` + `github.com/dustin/stagecoach/internal/{config,generate,git,prompt,provider}` ONLY (NO
       third-party). Exports `Options`, `Result`, `GenerateCommit`, `ErrNothingToCommit`, `ErrTimeout`,
-      `ErrRescue`, `ErrCASFailed`, `RescueError`, `CASError`. Has a `// Package stagehand …` doc.
+      `ErrRescue`, `ErrCASFailed`, `RescueError`, `CASError`. Has a `// Package stagecoach …` doc.
 - [ ] `Options`/`Result` match PRD §14.1 VERBATIM (field names, types, order). `Result` has NO `Changes`.
 - [ ] `GenerateCommit` resolves config (`config.Load` + Provider/Model/Timeout overrides), resolves the
       manifest (registry + auto-detect + `Validate`), constructs `Deps`, and: in the common path delegates
@@ -155,11 +155,11 @@ installs a signal handler (those are the CLI's job). It returns a typed `Result`
       call). SystemExtra is appended to the system prompt in `runPipeline`.
 - [ ] Every exported symbol has a Go-doc comment; `GenerateCommit`/`Options`/`Result` carry the
       `// Stable as of v1.0` note (Appendix E item 6) and the "caller must stage first" contract.
-- [ ] `pkg/stagehand/stagehand_test.go` exists, `package stagehand`, drives `GenerateCommit` via
+- [ ] `pkg/stagecoach/stagecoach_test.go` exists, `package stagecoach`, drives `GenerateCommit` via
       `stubtest` against temp git repos, and passes: commit-success; DryRun; nothing-staged; provider
       override; timeout.
-- [ ] `go build ./...` succeeds; `go test -race ./...` green; `go vet ./pkg/stagehand/` clean;
-      `gofmt -l pkg/stagehand/` empty; go.mod/go.sum byte-unchanged; every other file byte-unchanged.
+- [ ] `go build ./...` succeeds; `go test -race ./...` green; `go vet ./pkg/stagecoach/` clean;
+      `gofmt -l pkg/stagecoach/` empty; go.mod/go.sum byte-unchanged; every other file byte-unchanged.
 
 ## All Needed Context
 
@@ -287,7 +287,7 @@ knowledge required.
        git.RecentMessages(ctx,20). Append `"\n\n"+SystemExtra` when SystemExtra != "" (design §6).
        `payload := prompt.BuildUserPayload(diff, rejected)` each attempt; on parse-fail retry prepend
        `*resolved.RetryInstruction+"\n\n"`.
-  gotcha: generate.buildSystemPrompt is UNEXPORTED — pkg/stagehand writes its OWN equivalent (a few lines
+  gotcha: generate.buildSystemPrompt is UNEXPORTED — pkg/stagecoach writes its OWN equivalent (a few lines
           calling the prompt builders). This is NOT duplication of IP — it reuses the same builder funcs.
 
 - file: internal/generate/dedupe.go + rescue.go   (P1.M3.T2/T3 — READ for the EXPORTED helpers; do NOT edit)
@@ -319,7 +319,7 @@ knowledge required.
 - file: internal/generate/generate_test.go   (P1.M3.T4.S2 — READ for the TEST PATTERN + fixtures; do NOT edit)
   section: the fixture helpers `initRepo`/`writeFile`/`stageFile`/`headSHA`/`commitRaw`/`gitOut`/`runGit`
        + the scenario structure (success, dedupe, parse-fail, CAS, root).
-  why: stagehand_test.go MIRRORS this file's approach (real git + stub provider + temp repos) at the
+  why: stagecoach_test.go MIRRORS this file's approach (real git + stub provider + temp repos) at the
        public boundary. The fixtures are package-private + in _test.go → UNIMPORTABLE — copy them.
   gotcha: copy the helpers verbatim (initRepo sets repo-local user.name/user.email so commit-tree works).
           Use t.TempDir() for the repo. chdir is NOT needed — pass the repo dir to git via the fixtures'
@@ -329,19 +329,19 @@ knowledge required.
 - url: (PRD §14.1 + §14 layout + Appendix E item 6 — already in context as selected_prd_content `h3.51`/
        `h2.14`/`h2.28`; ALSO plan/001_f1f80943ac34/prd_snapshot.md and architecture/system_context.md)
   why: §14.1 is the AUTHORITATIVE public-surface spec (Options/Result/GenerateCommit verbatim). §14 shows
-       pkg/stagehand/stagehand.go as the PUBLIC API file. Appendix E item 6 mandates "Stable as of v1.0"
+       pkg/stagecoach/stagecoach.go as the PUBLIC API file. Appendix E item 6 mandates "Stable as of v1.0"
        + additive-only Options.
   critical: §14.1's "The CLI's main.go is essentially: parse flags → maybe auto-stage →
-            stagehand.GenerateCommit(ctx, opts) → print result" — GenerateCommit must be reusable by both
+            stagecoach.GenerateCommit(ctx, opts) → print result" — GenerateCommit must be reusable by both
             the CLI and direct library callers. Result.CommitSHA is "empty if DryRun or not committed."
 ```
 
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED)
 go.sum                          # unchanged
-cmd/stagehand/main.go           # stub (P1.M1.T1) — UNCHANGED
+cmd/stagecoach/main.go           # stub (P1.M1.T1) — UNCHANGED
 cmd/stubagent/main.go           # P1.M3.T4.S1 (stub binary) — UNCHANGED
 internal/
   config/{config,load,git,file}.go   # P1.M1.T4 — Config/Load/LoadOpts (read-only ref)
@@ -354,18 +354,18 @@ internal/
   provider/{manifest,registry,render,executor,parse}.go  # P1.M2 — Manifest/Registry/Render/Execute/ParseOutput (ref)
   stubtest/stubtest.go          # P1.M3.T4.S1 — Build/Options/Manifest/NewScript (FROZEN ref)
 pkg/
-  stagehand/                    # EMPTY dir — this subtask creates stagehand.go + stagehand_test.go here
+  stagecoach/                    # EMPTY dir — this subtask creates stagecoach.go + stagecoach_test.go here
 Makefile                        # build/test(-race)/coverage/lint/clean/help — UNCHANGED
 ```
 
 ### Desired Codebase tree with files to be added
 
 ```bash
-pkg/stagehand/stagehand.go         # NEW — package stagehand. Options, Result, GenerateCommit(ctx,opts),
+pkg/stagecoach/stagecoach.go         # NEW — package stagecoach. Options, Result, GenerateCommit(ctx,opts),
                                    #        typed-error re-exports (ErrNothingToCommit/ErrTimeout/ErrRescue/
                                    #        ErrCASFailed + RescueError/CASError aliases), unexported
                                    #        resolveConfig + buildDeps + runPipeline. Go-doc comments, v1.0.
-pkg/stagehand/stagehand_test.go    # NEW — integration tests via stubtest + temp git repos. Own fixture
+pkg/stagecoach/stagecoach_test.go    # NEW — integration tests via stubtest + temp git repos. Own fixture
                                    #        helpers (initRepo/writeFile/stageFile/headSHA/commitRaw/gitOut/runGit).
                                    #        Scenarios: commit-success, DryRun, nothing-staged, provider-override, timeout.
 # All other files UNCHANGED. go.mod/go.sum UNCHANGED.
@@ -377,14 +377,14 @@ pkg/stagehand/stagehand_test.go    # NEW — integration tests via stubtest + te
 // CRITICAL (frozen CommitStaged, design §0): generate.CommitStaged ALWAYS commits and builds its OWN
 // system prompt. It has NO DryRun flag and NO SystemExtra parameter (on it, Deps, or Config). Do NOT add
 // one — P1.M3.T4.S2 is a read-only parallel contract; modifying internal/generate/internal/config would
-// conflict. DryRun + SystemExtra are honored by runPipeline (unexported) in pkg/stagehand, which reuses
+// conflict. DryRun + SystemExtra are honored by runPipeline (unexported) in pkg/stagecoach, which reuses
 // the SAME exported primitives (git.Git, prompt.*, provider.{Render,Execute,ParseOutput},
 // generate.{ExtractSubject,IsDuplicate,RescueError,CASError}). The common path (!DryRun && SystemExtra=="")
 // delegates to CommitStaged.
 
-// CRITICAL (Result shape, design §1): stagehand.Result is PRD §14.1's shape — {CommitSHA, Subject,
-// Message, Provider, Model}. NO Changes. The delegation path maps generate.Result → stagehand.Result by
-// DROPPING the internal []git.FileChange. runPipeline constructs stagehand.Result directly.
+// CRITICAL (Result shape, design §1): stagecoach.Result is PRD §14.1's shape — {CommitSHA, Subject,
+// Message, Provider, Model}. NO Changes. The delegation path maps generate.Result → stagecoach.Result by
+// DROPPING the internal []git.FileChange. runPipeline constructs stagecoach.Result directly.
 
 // CRITICAL (opts override precedence, design §3): apply opts.Provider/Model/Timeout AFTER config.Load,
 // guarding non-zero (opts.Timeout==0 means "not set" → keep cfg.Timeout; opts.Provider/Model "" → inherit).
@@ -412,9 +412,9 @@ pkg/stagehand/stagehand_test.go    # NEW — integration tests via stubtest + te
 // (t.Chdir, Go 1.24+) OR the test sets up the repo in a dir and chdir's into it — SEE design §8.
 
 // GOTCHA (fixtures unimportable, design §8): the git/generate _test.go fixture helpers are package-private.
-// Copy the ~25-line set into stagehand_test.go (initRepo sets repo-local user.name/email for commit-tree).
+// Copy the ~25-line set into stagecoach_test.go (initRepo sets repo-local user.name/email for commit-tree).
 
-// GOTCHA (no third-party import, design §9): pkg/stagehand imports stdlib (context/errors/fmt/os/strings)
+// GOTCHA (no third-party import, design §9): pkg/stagecoach imports stdlib (context/errors/fmt/os/strings)
 // + same-module internal/* ONLY. go mod tidy is a no-op. Do NOT import pflag/go-toml directly (config.Load
 // and provider.DecodeUserOverrides handle those internally).
 
@@ -428,8 +428,8 @@ pkg/stagehand/stagehand_test.go    # NEW — integration tests via stubtest + te
 ### Data models and structure
 
 ```go
-// pkg/stagehand/stagehand.go
-package stagehand
+// pkg/stagecoach/stagecoach.go
+package stagecoach
 
 import (
 	"context"
@@ -439,11 +439,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/prompt"
-	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/prompt"
+	"github.com/dustin/stagecoach/internal/provider"
 )
 
 // Options configures a GenerateCommit call. All fields are optional (zero value ⇒ inherit the resolved
@@ -470,7 +470,7 @@ type Result struct {
 	Model     string // the resolved model
 }
 
-// ---- Typed-error re-exports (so library consumers import only pkg/stagehand) ----
+// ---- Typed-error re-exports (so library consumers import only pkg/stagecoach) ----
 // These ARE the generate-package symbols (alias / same sentinel), so errors.Is / errors.As work
 // uniformly whether the error came from the delegation path (CommitStaged) or runPipeline.
 
@@ -492,9 +492,9 @@ type CASError = generate.CASError
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: CREATE pkg/stagehand/stagehand.go — public types + error re-exports + package doc
-  - FILE: NEW pkg/stagehand/stagehand.go. PACKAGE: `package stagehand`.
-  - DOC: `// Package stagehand is Stagehand's public library surface (PRD §14.1). The entry point is
+Task 1: CREATE pkg/stagecoach/stagecoach.go — public types + error re-exports + package doc
+  - FILE: NEW pkg/stagecoach/stagecoach.go. PACKAGE: `package stagecoach`.
+  - DOC: `// Package stagecoach is Stagecoach's public library surface (PRD §14.1). The entry point is
       GenerateCommit, which generates (and, unless Options.DryRun, creates) a commit from the
       currently-staged index. The surface is intentionally tiny: an integrator imports this package
       instead of reimplementing the pipeline or shelling out to the CLI. // Stable as of v1.0.`
@@ -504,14 +504,14 @@ Task 1: CREATE pkg/stagehand/stagehand.go — public types + error re-exports + 
       re-exports (4 vars + 2 type aliases — see "Data models").
   - NAMING: exported types CamelCase (Options, Result, RescueError, CASError); error vars Err*;
       unexported helpers lowerCamelCase (resolveConfig, buildDeps, runPipeline). PLACEMENT: all in
-      pkg/stagehand/stagehand.go.
+      pkg/stagecoach/stagecoach.go.
 
 Task 2: IMPLEMENT resolveConfig(ctx, opts) (config.Config, string, error)
   - SIGNATURE: `func resolveConfig(ctx context.Context, opts Options) (config.Config, string, error)`.
       Returns (cfg, repoDir, err). repoDir = os.Getwd() (Options has no RepoDir).
-  - BODY: repoDir, err := os.Getwd(); if err != nil { return config.Config{}, "", fmt.Errorf("stagehand:
+  - BODY: repoDir, err := os.Getwd(); if err != nil { return config.Config{}, "", fmt.Errorf("stagecoach:
       getwd: %w", err) }. cfgPtr, err := config.Load(ctx, config.LoadOpts{RepoDir: repoDir, Flags: nil});
-      if err != nil { return config.Config{}, "", fmt.Errorf("stagehand: load config: %w", err) }.
+      if err != nil { return config.Config{}, "", fmt.Errorf("stagecoach: load config: %w", err) }.
       cfg := *cfgPtr (copy to a value). Apply opts overrides (HIGHEST precedence — caller intent):
       if opts.Provider != "" { cfg.Provider = opts.Provider }; if opts.Model != "" { cfg.Model =
       opts.Model }; if opts.Timeout != 0 { cfg.Timeout = opts.Timeout }. return cfg, repoDir, nil.
@@ -521,14 +521,14 @@ Task 2: IMPLEMENT resolveConfig(ctx, opts) (config.Config, string, error)
 Task 3: IMPLEMENT buildDeps(cfg, repoDir) (generate.Deps, error)
   - SIGNATURE: `func buildDeps(cfg config.Config, repoDir string) (generate.Deps, error)`.
   - BODY: overrides, err := provider.DecodeUserOverrides(cfg.Providers); if err != nil { return
-      generate.Deps{}, fmt.Errorf("stagehand: provider overrides: %w", err) }. reg :=
+      generate.Deps{}, fmt.Errorf("stagecoach: provider overrides: %w", err) }. reg :=
       provider.NewRegistry(overrides). name := cfg.Provider. if name == "" { installed := []string{};
       for _, m := range reg.List() { if reg.IsInstalled(m) { installed = append(installed, m.Name) } };
       name = reg.DefaultProvider(installed) }. if name == "" { return generate.Deps{},
-      fmt.Errorf("stagehand: no provider configured and none of the built-ins (%s) are installed",
+      fmt.Errorf("stagecoach: no provider configured and none of the built-ins (%s) are installed",
       strings.Join([]string{"pi","claude","gemini","opencode","codex","cursor"}, ", ")) }. m, ok :=
-      reg.Get(name); if !ok { return generate.Deps{}, fmt.Errorf("stagehand: unknown provider %q",
-      name) }. if err := m.Validate(); err != nil { return generate.Deps{}, fmt.Errorf("stagehand:
+      reg.Get(name); if !ok { return generate.Deps{}, fmt.Errorf("stagecoach: unknown provider %q",
+      name) }. if err := m.Validate(); err != nil { return generate.Deps{}, fmt.Errorf("stagecoach:
       provider %q: %w", name, err) }. return generate.Deps{Git: git.New(repoDir), Manifest: m}, nil.
   - GOTCHA: do NOT Resolve() here (CommitStaged/Render resolve). DefaultProvider returns "" if no
       preferred built-in is installed → clear error. (design §4)
@@ -552,8 +552,8 @@ Task 4: IMPLEMENT GenerateCommit(ctx, opts) (Result, error) — the dispatcher
       }
       // Advanced path: DryRun and/or SystemExtra → self-contained (CommitStaged can't honor these).
       return runPipeline(ctx, deps, cfg, opts.SystemExtra, opts.DryRun)
-  - GOTCHA: the delegation maps generate.Result → stagehand.Result DROPPING Changes. The advanced path
-      returns a stagehand.Result directly. Both paths return the SAME typed errors (runPipeline reuses
+  - GOTCHA: the delegation maps generate.Result → stagecoach.Result DROPPING Changes. The advanced path
+      returns a stagecoach.Result directly. Both paths return the SAME typed errors (runPipeline reuses
       generate's errors — design §7).
 
 Task 5: IMPLEMENT runPipeline(ctx, deps, cfg, systemExtra, dryRun) (Result, error) — the advanced path
@@ -580,14 +580,14 @@ Task 5: IMPLEMENT runPipeline(ctx, deps, cfg, systemExtra, dryRun) (Result, erro
       if dryRun {
           payload := prompt.BuildUserPayload(diff, nil)
           spec, rerr := deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)
-          if rerr != nil { return Result{}, fmt.Errorf("stagehand: render: %w", rerr) }
+          if rerr != nil { return Result{}, fmt.Errorf("stagecoach: render: %w", rerr) }
           out, _, execErr := provider.Execute(ctx, *spec, cfg.Timeout)
           if execErr != nil {
               if errors.Is(execErr, context.DeadlineExceeded) { return Result{}, ErrTimeout }
-              return Result{}, fmt.Errorf("stagehand: generate: %w", execErr)
+              return Result{}, fmt.Errorf("stagecoach: generate: %w", execErr)
           }
           msg, ok, _ := provider.ParseOutput(out, deps.Manifest)
-          if !ok { return Result{}, errors.New("stagehand: dry run: model produced no valid message") }
+          if !ok { return Result{}, errors.New("stagecoach: dry run: model produced no valid message") }
           return Result{CommitSHA: "", Subject: generate.ExtractSubject(msg), Message: msg,
               Provider: deps.Manifest.Name, Model: model}, nil
       }
@@ -598,7 +598,7 @@ Task 5: IMPLEMENT runPipeline(ctx, deps, cfg, systemExtra, dryRun) (Result, erro
           payload := prompt.BuildUserPayload(diff, rejected)
           if parseFail { payload = retryInstr + "\n\n" + payload }
           spec, rerr := deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)
-          if rerr != nil { return Result{}, fmt.Errorf("stagehand: render: %w", rerr) }
+          if rerr != nil { return Result{}, fmt.Errorf("stagecoach: render: %w", rerr) }
           out, _, execErr := provider.Execute(ctx, *spec, cfg.Timeout)
           if execErr != nil {
               if errors.Is(execErr, context.DeadlineExceeded) {
@@ -653,8 +653,8 @@ Task 6: IMPLEMENT buildSysPrompt(ctx, g, cfg, isUnborn) (string, error) — unex
   - NOTE: this mirrors generate.buildSystemPrompt (unexported — can't import). It reuses the prompt
       builders; NOT IP duplication. (design §6 gotcha)
 
-Task 7: CREATE pkg/stagehand/stagehand_test.go — integration tests (stub + temp git repos)
-  - FILE: NEW pkg/stagehand/stagehand_test.go. PACKAGE: `package stagehand`.
+Task 7: CREATE pkg/stagecoach/stagecoach_test.go — integration tests (stub + temp git repos)
+  - FILE: NEW pkg/stagecoach/stagecoach_test.go. PACKAGE: `package stagecoach`.
   - FIXTURES: copy the ~25-line helper set from internal/generate/generate_test.go (initRepo/writeFile/
       stageFile/headSHA/commitRaw/gitOut/runGit) — they're package-private + unimportable. Use
       t.TempDir() for the repo. Set repo-local identity (initRepo does `git config user.name/email`).
@@ -673,9 +673,9 @@ Task 7: CREATE pkg/stagehand/stagehand_test.go — integration tests (stub + tem
       GenerateCommit with opts.Provider="stub". (NOTE: because GenerateCommit calls config.Load which
       DISCARDS a hand-built cfg, the test must instead construct cfg via config.Defaults() + set
       cfg.Providers, then call resolveConfig/buildDeps... but those are unexported. RESOLUTION: the test
-      calls the PUBLIC GenerateCommit and relies on a repo-local .stagehand.toml or env to set the
-      provider — OR expose a thin test seam. SIMPLEST WORKABLE: write a temp .stagehand.toml with a
-      [provider.stub] table pointing at the stub binary into the temp repo, set STAGEHAND_CONFIG or rely
+      calls the PUBLIC GenerateCommit and relies on a repo-local .stagecoach.toml or env to set the
+      provider — OR expose a thin test seam. SIMPLEST WORKABLE: write a temp .stagecoach.toml with a
+      [provider.stub] table pointing at the stub binary into the temp repo, set STAGECOACH_CONFIG or rely
       on repo-local discovery, and call GenerateCommit with opts.Provider="stub".) — SEE the dedicated
       note below; pick the approach that compiles against the frozen config.Load.
   - SCENARIOS:
@@ -693,7 +693,7 @@ Task 7: CREATE pkg/stagehand/stagehand_test.go — integration tests (stub + tem
         ErrTimeout) (DryRun path) OR errors.As(err, &RescueError{})+ErrTimeout (commit path).
   - COVERAGE: all 5 Options fields exercised (Provider, Model, SystemExtra, DryRun, Timeout). DryRun +
       nothing-staged + timeout are the error-contract assertions.
-  - PLACEMENT: pkg/stagehand/stagehand_test.go.
+  - PLACEMENT: pkg/stagecoach/stagecoach_test.go.
 ```
 
 **NOTE on Task 7 stub registration (read carefully):** `GenerateCommit` calls `config.Load`, which
@@ -701,17 +701,17 @@ reads from disk (TOML/git-config/env) — a hand-built `config.Config` is NOT ac
 signature. To drive the stub through the registry at the PUBLIC boundary, the test registers the stub as
 a repo-local provider. The cleanest go-1.22 approach:
 1. `bin := stubtest.Build(t)`; `repo := t.TempDir()`.
-2. Write `repo/.stagehand.toml` containing a `[provider.stub]` table whose `command = "<bin>"`,
+2. Write `repo/.stagecoach.toml` containing a `[provider.stub]` table whose `command = "<bin>"`,
    `prompt_delivery = "stdin"`, `output = "raw"` (the shape `loadRepoLocalConfig` decodes — see
-   `internal/config/file.go` `loadRepoLocalConfig`, which reads CWD `.stagehand.toml`).
+   `internal/config/file.go` `loadRepoLocalConfig`, which reads CWD `.stagecoach.toml`).
 3. `chdir` into `repo` (Chdir+Cleanup); `initRepo`; seed a commit; stage a change.
-4. `res, err := stagehand.GenerateCommit(ctx, stagehand.Options{Provider: "stub", DryRun: true})`.
-Because `config.Load`'s Layer 3 reads CWD `.stagehand.toml`, the `[provider.stub]` override is merged into
+4. `res, err := stagecoach.GenerateCommit(ctx, stagecoach.Options{Provider: "stub", DryRun: true})`.
+Because `config.Load`'s Layer 3 reads CWD `.stagecoach.toml`, the `[provider.stub]` override is merged into
 `cfg.Providers`, `DecodeUserOverrides` yields the stub manifest, and `opts.Provider="stub"` selects it.
 Verify against `loadRepoLocalConfig`'s exact decode shape (read `internal/config/file.go`); if the raw
 `command` path with backslashes on Windows is an issue, use forward slashes or `filepath.ToSlash`. If the
-repo-local TOML approach proves brittle, FALL BACK to setting `STAGEHAND_PROVIDER` + a global
-`$XDG_CONFIG_HOME/stagehand/config.toml` — but prefer repo-local (self-contained per test).
+repo-local TOML approach proves brittle, FALL BACK to setting `STAGECOACH_PROVIDER` + a global
+`$XDG_CONFIG_HOME/stagecoach/config.toml` — but prefer repo-local (self-contained per test).
 
 ### Implementation Patterns & Key Details
 
@@ -736,7 +736,7 @@ func GenerateCommit(ctx context.Context, opts Options) (Result, error) {
 // Validate()s. Tests register a stub via a repo-local [provider.stub] TOML override + opts.Provider.
 func buildDeps(cfg config.Config, repoDir string) (generate.Deps, error) {
 	overrides, err := provider.DecodeUserOverrides(cfg.Providers) // nil-safe
-	if err != nil { return generate.Deps{}, fmt.Errorf("stagehand: provider overrides: %w", err) }
+	if err != nil { return generate.Deps{}, fmt.Errorf("stagecoach: provider overrides: %w", err) }
 	reg := provider.NewRegistry(overrides)
 	name := cfg.Provider
 	if name == "" {
@@ -747,11 +747,11 @@ func buildDeps(cfg config.Config, repoDir string) (generate.Deps, error) {
 		name = reg.DefaultProvider(installed) // "" if no preferred built-in installed
 	}
 	if name == "" {
-		return generate.Deps{}, fmt.Errorf("stagehand: no provider configured and none of the built-ins are installed")
+		return generate.Deps{}, fmt.Errorf("stagecoach: no provider configured and none of the built-ins are installed")
 	}
 	m, ok := reg.Get(name)
-	if !ok { return generate.Deps{}, fmt.Errorf("stagehand: unknown provider %q", name) }
-	if err := m.Validate(); err != nil { return generate.Deps{}, fmt.Errorf("stagehand: provider %q: %w", name, err) }
+	if !ok { return generate.Deps{}, fmt.Errorf("stagecoach: unknown provider %q", name) }
+	if err := m.Validate(); err != nil { return generate.Deps{}, fmt.Errorf("stagecoach: provider %q: %w", name, err) }
 	return generate.Deps{Git: git.New(repoDir), Manifest: m}, nil
 }
 
@@ -775,9 +775,9 @@ GIT (read + write via CommitStaged / runPipeline):
   - writes (commit path only): WriteTree, CommitTree, UpdateRefCAS. DryRun writes NOTHING.
 
 DOWNSTREAM (the public API is the FROZEN v1.0 surface):
-  - CLI (P1.M4.T1.S2): parse flags → maybe auto-stage → stagehand.GenerateCommit(ctx, opts) → print.
+  - CLI (P1.M4.T1.S2): parse flags → maybe auto-stage → stagecoach.GenerateCommit(ctx, opts) → print.
   - CLI --dry-run (P1.M4.T4): sets opts.DryRun = true; calls GenerateCommit; prints Message.
-  - Library consumers (US12): import "github.com/dustin/stagehand/pkg/stagehand".
+  - Library consumers (US12): import "github.com/dustin/stagecoach/pkg/stagecoach".
   - Options is ADDITIVE-ONLY (Appendix E item 6): new fields OK; never remove/rename existing.
 ```
 
@@ -787,30 +787,30 @@ DOWNSTREAM (the public API is the FROZEN v1.0 surface):
 
 ```bash
 # Run after creating each file — fix before proceeding.
-gofmt -w pkg/stagehand/stagehand.go pkg/stagehand/stagehand_test.go
-go vet ./pkg/stagehand/
+gofmt -w pkg/stagecoach/stagecoach.go pkg/stagecoach/stagecoach_test.go
+go vet ./pkg/stagecoach/
 go build ./...
 
 # Project-wide
-make build            # go build -ldflags … -o bin/stagehand ./cmd/stagehand (must succeed)
+make build            # go build -ldflags … -o bin/stagecoach ./cmd/stagecoach (must succeed)
 make lint             # golangci-lint run (if available) — must be clean
 
-# Expected: Zero errors. gofmt -l pkg/stagehand/ must be EMPTY (go-doc comments + struct formatting).
+# Expected: Zero errors. gofmt -l pkg/stagecoach/ must be EMPTY (go-doc comments + struct formatting).
 ```
 
 ### Level 2: Unit / Integration Tests (Component Validation)
 
 ```bash
 # Test the public API as created.
-go test -race ./pkg/stagehand/ -v
+go test -race ./pkg/stagecoach/ -v
 
 # Full suite — must show NO regression in the internal packages.
 go test -race ./...
 
 # Coverage (if desired)
-go test -coverprofile=coverage.out ./pkg/stagehand/ && go tool cover -func=coverage.out
+go test -coverprofile=coverage.out ./pkg/stagecoach/ && go tool cover -func=coverage.out
 
-# Expected: all stagehand tests pass; the 5 scenarios (success, DryRun, nothing-staged, provider-
+# Expected: all stagecoach tests pass; the 5 scenarios (success, DryRun, nothing-staged, provider-
 # override, timeout) green; existing internal/* tests still green.
 ```
 
@@ -821,7 +821,7 @@ go test -coverprofile=coverage.out ./pkg/stagehand/ && go tool cover -func=cover
 go build ./...
 
 # Smoke-test the public import compiles from an external-style call (in-repo):
-go vet ./pkg/stagehand/
+go vet ./pkg/stagecoach/
 
 # Manual library-shape check (the types/options compile and are addressable):
 cat <<'EOF' | go run /dev/stdin
@@ -830,18 +830,18 @@ import (
   "context"
   "fmt"
   "time"
-  "github.com/dustin/stagehand/pkg/stagehand"
+  "github.com/dustin/stagecoach/pkg/stagecoach"
 )
 func main() {
-  opts := stagehand.Options{Provider: "pi", Model: "", SystemExtra: "refs ticket #42", DryRun: false, Timeout: 30*time.Second}
+  opts := stagecoach.Options{Provider: "pi", Model: "", SystemExtra: "refs ticket #42", DryRun: false, Timeout: 30*time.Second}
   _ = opts
   // We do NOT call GenerateCommit here (no staged changes / no git repo in this throwaway main);
   // this only verifies the public types + import path compile.
-  fmt.Println("stagehand public surface OK")
+  fmt.Println("stagecoach public surface OK")
   _ = context.Background()
 }
 EOF
-# Expected: "stagehand public surface OK" — proves the import path + Options/Result types are usable.
+# Expected: "stagecoach public surface OK" — proves the import path + Options/Result types are usable.
 
 # DryRun round-trip in a real temp repo (manual, optional):
 #   mkdir -p /tmp/shtest && cd /tmp/shtest && git init -q && git config user.name t && git config user.email t@t
@@ -855,17 +855,17 @@ EOF
 
 ```bash
 # Stability-promise check (Appendix E item 6): grep the Go-doc comments.
-grep -n "Stable as of v1.0" pkg/stagehand/stagehand.go
+grep -n "Stable as of v1.0" pkg/stagecoach/stagecoach.go
 # Expected: matches on Package doc, Options, Result, GenerateCommit.
 
 # Additive-only sanity: Options/Result match PRD §14.1 field-for-field.
-grep -nA8 "type Options struct" pkg/stagehand/stagehand.go
-grep -nA7 "type Result struct"  pkg/stagehand/stagehand.go
+grep -nA8 "type Options struct" pkg/stagecoach/stagecoach.go
+grep -nA7 "type Result struct"  pkg/stagecoach/stagecoach.go
 # Expected: Options has exactly {Provider, Model, SystemExtra, DryRun, Timeout};
 #           Result has exactly {CommitSHA, Subject, Message, Provider, Model} (NO Changes).
 
 # Anti-rename guard: the public symbols exist and are exported.
-go doc ./pkg/stagehand
+go doc ./pkg/stagecoach
 # Expected: lists Options, Result, GenerateCommit, ErrNothingToCommit, ErrTimeout, ErrRescue,
 #           ErrCASFailed, RescueError, CASError.
 ```
@@ -875,10 +875,10 @@ go doc ./pkg/stagehand
 ### Technical Validation
 
 - [ ] All 4 validation levels completed successfully.
-- [ ] `go test -race ./pkg/stagehand/ -v` green (5 scenarios).
+- [ ] `go test -race ./pkg/stagecoach/ -v` green (5 scenarios).
 - [ ] `go test -race ./...` green (NO regression in internal/*).
-- [ ] `go vet ./pkg/stagehand/` clean; `go build ./...` succeeds.
-- [ ] `gofmt -l pkg/stagehand/` empty; `golangci-lint run` clean (if available).
+- [ ] `go vet ./pkg/stagecoach/` clean; `go build ./...` succeeds.
+- [ ] `gofmt -l pkg/stagecoach/` empty; `golangci-lint run` clean (if available).
 - [ ] go.mod/go.sum byte-UNCHANGED (`go mod tidy` is a no-op); every other file byte-unchanged.
 
 ### Feature Validation
@@ -889,15 +889,15 @@ go doc ./pkg/stagehand
 - [ ] `SystemExtra` is appended to the system prompt in `runPipeline` (forces the advanced path).
 - [ ] Provider/Model/Timeout opts overrides take precedence over file/env/git-config.
 - [ ] Manifest resolved via registry (cfg.Provider or auto-detect); `Validate()`d before use.
-- [ ] Typed errors re-exported; `errors.Is(err, stagehand.ErrCASFailed)` /
-      `errors.As(err, &stagehand.RescueError{})` work across both paths.
+- [ ] Typed errors re-exported; `errors.Is(err, stagecoach.ErrCASFailed)` /
+      `errors.As(err, &stagecoach.RescueError{})` work across both paths.
 
 ### Code Quality Validation
 
 - [ ] Every exported symbol has a Go-doc comment; `// Stable as of v1.0` on Package/Options/Result/
       GenerateCommit (Appendix E item 6).
 - [ ] Follows existing codebase patterns (Deps DI, ctx-first, typed errors, no printing/exiting).
-- [ ] File placement matches the desired tree; only `pkg/stagehand/{stagehand.go,stagehand_test.go}` added.
+- [ ] File placement matches the desired tree; only `pkg/stagecoach/{stagecoach.go,stagecoach_test.go}` added.
 - [ ] Anti-patterns avoided (no os.Exit, no signal handler, no shelling out except via git.Git/Execute).
 - [ ] No third-party import; only stdlib + same-module internal/*.
 
@@ -912,7 +912,7 @@ go doc ./pkg/stagehand
 ## Anti-Patterns to Avoid
 
 - ❌ Don't add a DryRun/SystemExtra seam to `generate.CommitStaged`/`Deps`/`config.Config` — P1.M3.T4.S2
-  is a frozen, read-only parallel contract. Honor them via `runPipeline` in `pkg/stagehand` instead.
+  is a frozen, read-only parallel contract. Honor them via `runPipeline` in `pkg/stagecoach` instead.
 - ❌ Don't make `GenerateCommit` a 3-line wrapper that always calls `CommitStaged` — that would COMMIT on
   DryRun (defeating it) and DROP SystemExtra (a v1-stable defect). Dispatch (design §0).
 - ❌ Don't expose `Changes` on the public `Result` — PRD §14.1 is "intentionally tiny."
@@ -935,7 +935,7 @@ Rationale: the upstream contracts are fully quoted (CommitStaged, Load, Registry
 stubtest) and the central design decision (delegate-for-common + runPipeline-for-advanced) is documented
 in depth (design-decisions §0). The two residual risks that keep this from a 9-10: (1) the **stub
 registration at the public boundary** (Task 7) — `GenerateCommit` resolves the manifest via `config.Load`
-+ the registry, so the test must register the stub through a repo-local `.stagehand.toml` `[provider.stub]`
++ the registry, so the test must register the stub through a repo-local `.stagecoach.toml` `[provider.stub]`
 override rather than a direct `stubtest.Manifest` call; the exact TOML shape that `loadRepoLocalConfig`
 decodes must be verified against `internal/config/file.go` (read it). (2) `runPipeline`'s commit branch
 **mirrors `CommitStaged`** — a faithful re-implementation is required; the implementer should read

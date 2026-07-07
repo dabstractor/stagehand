@@ -3,7 +3,7 @@ name: "P1.M1.T1.S2 — Create Makefile with build/test/lint/coverage targets"
 description: |
   Add the repository `Makefile` (PRD §21.1) exposing six developer/CI targets — `build`, `test`,
   `lint`, `coverage`, `install`, `clean` — plus a `VERSION` variable (`dev` default) wired into the
-  `-ldflags "-X main.version=…"` injection pattern. `make build` produces `./bin/stagehand`; this is
+  `-ldflags "-X main.version=…"` injection pattern. `make build` produces `./bin/stagecoach`; this is
   the entry point for every later subtask's validation loop and the CI matrix (§20.4). Pure build
   tooling — no user-facing surface, no dependencies, no Go source changes.
 ---
@@ -11,7 +11,7 @@ description: |
 ## Goal
 
 **Feature Goal**: Provide a single, conventional `Makefile` at the repo root that gives every
-Stagehand contributor and the CI pipeline one-command access to build, test (with `-race`),
+Stagecoach contributor and the CI pipeline one-command access to build, test (with `-race`),
 report coverage, lint, install, and clean — with version stamping ready for release via ldflags.
 
 **Deliverable**: One new file — `Makefile` (repo root) — containing exactly six targets
@@ -19,7 +19,7 @@ report coverage, lint, install, and clean — with version stamping ready for re
 `VERSION ?= dev` variable feeding `-X main.version=$(VERSION)` through `LDFLAGS`, and proper
 `.PHONY` declarations. No other files touched.
 
-**Success Definition**: `make build` produces an executable `./bin/stagehand`; `make test` runs
+**Success Definition**: `make build` produces an executable `./bin/stagecoach`; `make test` runs
 `go test -race ./...` and exits 0; `make coverage` writes `coverage.out` and prints the
 per-function coverage table; `make install` places the binary in `$GOPATH/bin`; `make clean`
 removes `bin/ coverage.out dist/`; `make lint` is wired to `golangci-lint run` (verified via
@@ -27,13 +27,13 @@ dry-run since the binary is absent from this dev box). `make` with no argument d
 
 ## User Persona
 
-**Target User**: The Stagehand contributor (developers of subtasks T2–T5, M2–M5) and the CI runner.
+**Target User**: The Stagecoach contributor (developers of subtasks T2–T5, M2–M5) and the CI runner.
 
 **Use Case**: Every later subtask's "Validation Loop" section references `make build` / `make test`
 etc. Contributors type `make <target>` instead of remembering long `go build -ldflags …` invocations;
 CI invokes the same targets so local and CI behavior are identical.
 
-**User Journey**: `git clone` → `make build` → run `./bin/stagehand` → `make test` before pushing.
+**User Journey**: `git clone` → `make build` → run `./bin/stagecoach` → `make test` before pushing.
 At release: `make build VERSION=v1.2.3` (or goreleaser sets `VERSION`) → the stamped binary reports
 its version via `main.version`.
 
@@ -42,12 +42,12 @@ paths); guarantees the `-ldflags` version-injection convention is encoded in one
 
 ## Why
 
-- **PRD §21.1 is explicit:** `make build` → `./bin/stagehand`, plus `make test`, `make lint`,
+- **PRD §21.1 is explicit:** `make build` → `./bin/stagecoach`, plus `make test`, `make lint`,
   `make coverage`, and version injection via `-ldflags "-X main.version=…"`. This subtask delivers
   exactly that surface.
 - **Foundation for the entire validation strategy.** Every subsequent subtask's PRP "Validation
   Loop" (Levels 1–4) is written against `go build ./...` / `go test ./...`; the Makefile is the
-  friendly wrapper around those commands plus the canonical output path (`./bin/stagehand`).
+  friendly wrapper around those commands plus the canonical output path (`./bin/stagecoach`).
 - **Locks the version-injection contract now** so P1.M4.T1 (which adds `var version string` to
   `main.go`) and P1.M5.T3.S2 (goreleaser) both have a single, agreed mechanism to plug into.
 - **Prerequisite for CI (P1.M5.T3.S1):** the GitHub Actions matrix invokes `make build`, `make
@@ -65,15 +65,15 @@ installed by CI / locally on demand).
 
 | Target | Command | Contract source |
 |--------|---------|-----------------|
-| `build` | `go build -ldflags "$(LDFLAGS)" -o bin/stagehand ./cmd/stagehand` | §21.1 base + "VERSION for ldflags pattern" |
+| `build` | `go build -ldflags "$(LDFLAGS)" -o bin/stagecoach ./cmd/stagecoach` | §21.1 base + "VERSION for ldflags pattern" |
 | `test` | `go test -race ./...` | "go test ./…" + "Use `go test -race` in the test target" |
 | `lint` | `golangci-lint run` | "golangci-lint run" + §20.4 |
 | `coverage` | `go test -coverprofile=coverage.out ./… && go tool cover -func=coverage.out` | contract verbatim |
-| `install` | `go install -ldflags "$(LDFLAGS)" ./cmd/stagehand` | "go install ./cmd/stagehand" |
+| `install` | `go install -ldflags "$(LDFLAGS)" ./cmd/stagecoach` | "go install ./cmd/stagecoach" |
 | `clean` | `rm -rf bin/ coverage.out dist/` | contract verbatim |
 
-> **`build` uses ldflags — see "Why VERSION is not dead code" under Gotchas.** The `-o bin/stagehand
-> ./cmd/stagehand` tail is preserved exactly as the contract states; `-ldflags` is added because the
+> **`build` uses ldflags — see "Why VERSION is not dead code" under Gotchas.** The `-o bin/stagecoach
+> ./cmd/stagecoach` tail is preserved exactly as the contract states; `-ldflags` is added because the
 > contract separately instructs "Add a `VERSION` variable defaulting to `dev` for the ldflags pattern"
 > and §21.1 says version is injected via ldflags. Without ldflags in `build`, `VERSION` would be
 > unreferenced dead code.
@@ -87,7 +87,7 @@ installed by CI / locally on demand).
 - [ ] `build` & `install` pass `-ldflags "$(LDFLAGS)"`.
 - [ ] `test` uses `-race`.
 - [ ] `.PHONY` lists all targets (none are file-based).
-- [ ] `make build` produces an executable `./bin/stagehand` (exit 0).
+- [ ] `make build` produces an executable `./bin/stagecoach` (exit 0).
 - [ ] `make test` exits 0 (even with zero test files — verified).
 - [ ] `make coverage` writes `coverage.out` and prints the `-func` table (exit 0).
 - [ ] `make clean` removes `bin/`, `coverage.out`, `dist/`.
@@ -109,7 +109,7 @@ the exact validation commands with expected exit codes. No inference required.
 ```yaml
 # MUST READ — the spec sources for the targets and the version pattern
 - file: PRD.md
-  why: "§21.1 Build: make build → ./bin/stagehand; make test/lint/coverage; version via -ldflags -X main.version. §20.4 CI matrix lists golangci-lint/govulncheck (goreleaser=§21.2). §21.4 Versioning: semver; v1.0.0 = feature-complete."
+  why: "§21.1 Build: make build → ./bin/stagecoach; make test/lint/coverage; version via -ldflags -X main.version. §20.4 CI matrix lists golangci-lint/govulncheck (goreleaser=§21.2). §21.4 Versioning: semver; v1.0.0 = feature-complete."
   critical: "§21.1 is the literal contract for these targets. Do NOT add govulncheck/release/coverage-gate targets — they belong to P1.M5.T3 (CI/release). This subtask owns ONLY the 6 targets + VERSION var."
 
 - docfile: plan/001_f1f80943ac34/P1M1T1S2/research/makefile_verification.md
@@ -117,8 +117,8 @@ the exact validation commands with expected exit codes. No inference required.
   critical: "The #1 failure mode is TAB-vs-spaces in recipe lines. Use the provided heredoc; verify with grep -P '^\t' Makefile."
 
 - docfile: plan/001_f1f80943ac34/P1M1T1S1/PRP.md
-  why: "The CONTRACT for the inputs this Makefile consumes: module path github.com/dustin/stagehand, go 1.22, entrypoint at ./cmd/stagehand (stub main.go), .gitignore already lists /bin/ *.test coverage.out /dist/."
-  critical: "S1 is being implemented IN PARALLEL. The Makefile FILE can be created now, but VALIDATION (make build/test/coverage) requires S1's go.mod + cmd/stagehand/main.go to already exist. If validating before S1 lands, run the targets in a throwaway module per the research note, or sequence after S1."
+  why: "The CONTRACT for the inputs this Makefile consumes: module path github.com/dustin/stagecoach, go 1.22, entrypoint at ./cmd/stagecoach (stub main.go), .gitignore already lists /bin/ *.test coverage.out /dist/."
+  critical: "S1 is being implemented IN PARALLEL. The Makefile FILE can be created now, but VALIDATION (make build/test/coverage) requires S1's go.mod + cmd/stagecoach/main.go to already exist. If validating before S1 lands, run the targets in a throwaway module per the research note, or sequence after S1."
 
 - docfile: plan/001_f1f80943ac34/architecture/go_ecosystem_patterns.md
   why: "Appendix B shows the target go.mod shape (module + go 1.22) and confirms the -ldflags -X main.version convention used by goreleaser-compatible builds."
@@ -137,13 +137,13 @@ the exact validation commands with expected exit codes. No inference required.
 ### Current Codebase Tree (after P1.M1.T1.S1 lands)
 
 ```bash
-stagehand/
+stagecoach/
 ├── .gitignore            # from S1 — already has /bin/ *.test coverage.out /dist/
 ├── PRD.md
-├── go.mod                # from S1 — module github.com/dustin/stagehand, go 1.22
-├── cmd/stagehand/main.go # from S1 — stub: package main; func main(){}
+├── go.mod                # from S1 — module github.com/dustin/stagecoach, go 1.22
+├── cmd/stagecoach/main.go # from S1 — stub: package main; func main(){}
 ├── internal/{config,provider,prompt,git,generate,ui}/   # from S1 — empty dirs
-├── pkg/stagehand/        # from S1 — empty
+├── pkg/stagecoach/        # from S1 — empty
 ├── providers/            # from S1 — empty
 ├── docs/                 # from S1 — empty
 └── plan/                 # unchanged
@@ -152,7 +152,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 ├── ... (everything above, unchanged)
 └── Makefile              # NEW — this subtask's ONLY deliverable
 ```
@@ -191,13 +191,13 @@ govulncheck wiring, any `*.go` source.
 #   zero *_test.go files exist (prints "[no test files]"). VERIFIED. So `make test` / `make coverage`
 #   are safe to run immediately after scaffolding; coverage ramps up in M1.T2+.
 
-# GOTCHA: `go install ./cmd/stagehand` writes to $GOPATH/bin (= ~/go/bin when GOBIN unset), NOT ./bin.
+# GOTCHA: `go install ./cmd/stagecoach` writes to $GOPATH/bin (= ~/go/bin when GOBIN unset), NOT ./bin.
 #   That is correct/expected for the `install` target — it differs from `build` (which writes ./bin).
 
-# WHY VERSION is not dead code: the contract states both "build (go build -o bin/stagehand ./cmd/stagehand)"
+# WHY VERSION is not dead code: the contract states both "build (go build -o bin/stagecoach ./cmd/stagecoach)"
 # AND "Add a VERSION variable defaulting to dev for the ldflags pattern" + §21.1 "version injected via
 # -ldflags at release". A VERSION var that build never reads would be dead code. Coherent reading:
-# build = the base command PLUS -ldflags "$(LDFLAGS)". The -o and ./cmd/stagehand args are preserved verbatim.
+# build = the base command PLUS -ldflags "$(LDFLAGS)". The -o and ./cmd/stagecoach args are preserved verbatim.
 ```
 
 ## Implementation Blueprint
@@ -206,7 +206,7 @@ govulncheck wiring, any `*.go` source.
 
 ```yaml
 Task 1: CREATE the Makefile at repo root (EXACT content below — recipe lines use TABs)
-  - FILE: /home/dustin/projects/stagehand/Makefile
+  - FILE: /home/dustin/projects/stagecoach/Makefile
   - CREATE via heredoc (preserves TABs literally — DO NOT substitute spaces for the leading \t):
       cat > Makefile <<'EOF'
       <exact content from "The Canonical Makefile" below>
@@ -214,19 +214,19 @@ Task 1: CREATE the Makefile at repo root (EXACT content below — recipe lines u
   - NAMING: filename exactly `Makefile` (capital M, no extension). NOT `makefile` or `GNUmakefile`.
   - PLACEMENT: repo root (alongside go.mod). NOT in cmd/ or a subdir.
   - VERIFY TABS: `grep -Pc '^\t' Makefile` → must print 8 (one per recipe line).
-  - DEPENDENCY (for validation only): requires P1.M1.T1.S1's go.mod + cmd/stagehand/main.go to exist.
+  - DEPENDENCY (for validation only): requires P1.M1.T1.S1's go.mod + cmd/stagecoach/main.go to exist.
     If S1 hasn't landed, the FILE can still be created; defer the make-build/test/coverage runs.
 
 Task 2: VALIDATE — run each target and confirm the documented exit code
   - RUN (in repo root, after S1 has landed go.mod + main.go):
       make -n lint                 # dry-run → must print: golangci-lint run   (no execution)
-      make build                   # exit 0; produces ./bin/stagehand (executable)
-      test -x ./bin/stagehand && echo OK   # binary is executable
+      make build                   # exit 0; produces ./bin/stagecoach (executable)
+      test -x ./bin/stagecoach && echo OK   # binary is executable
       make test                    # exit 0 (prints "[no test files]" — fine)
       make coverage                # exit 0; writes coverage.out; prints the -func table
-      make install                 # exit 0; binary at $GOPATH/bin/stagehand
+      make install                 # exit 0; binary at $GOPATH/bin/stagecoach
       make clean                   # exit 0; bin/ coverage.out dist/ removed
-      make                         # no-arg → runs build (default goal); produces ./bin/stagehand
+      make                         # no-arg → runs build (default goal); produces ./bin/stagecoach
       make build VERSION=v9.9.9    # exit 0; confirms VERSION override works
   - FOR lint (real run, optional): install golangci-lint first:
       # see https://golangci-lint.run/usage/install/  (binary installer recommended over `go install`)
@@ -247,13 +247,13 @@ Task 3: SCOPE-CHECK — confirm no collateral files were created/modified
 > TAB (U+0009). Comments (lines starting with `#`) and variable assignments may use spaces.
 
 ```makefile
-## Stagehand — build, test, lint, coverage, and install targets. (PRD §21.1)
+## Stagecoach — build, test, lint, coverage, and install targets. (PRD §21.1)
 ##
 ## Usage:  make <target>
 ##
 ## Targets:
-##   build      Compile the stagehand binary to ./bin/stagehand
-##   install    Install stagehand into $GOPATH/bin
+##   build      Compile the stagecoach binary to ./bin/stagecoach
+##   install    Install stagecoach into $GOPATH/bin
 ##   test       Run all tests with the race detector enabled
 ##   coverage   Run tests and print per-function coverage
 ##   lint       Run golangci-lint
@@ -271,16 +271,16 @@ VERSION ?= dev
 
 # --- Paths & flags --------------------------------------------------------------
 BIN_DIR  := bin
-BIN      := $(BIN_DIR)/stagehand
-MAIN_PKG := ./cmd/stagehand
+BIN      := $(BIN_DIR)/stagecoach
+MAIN_PKG := ./cmd/stagecoach
 LDFLAGS  := -X main.version=$(VERSION)
 
 .PHONY: build install test coverage lint clean help
 
-build: ## Compile the stagehand binary to ./bin/stagehand
+build: ## Compile the stagecoach binary to ./bin/stagecoach
 →	go build -ldflags "$(LDFLAGS)" -o $(BIN) $(MAIN_PKG)
 
-install: ## Install stagehand into $GOPATH/bin
+install: ## Install stagecoach into $GOPATH/bin
 →	go install -ldflags "$(LDFLAGS)" $(MAIN_PKG)
 
 test: ## Run all tests with the race detector enabled
@@ -317,7 +317,7 @@ clean=1 + help=1 = 8).
 # flags are added later. Quoting it keeps it a single argv element to the linker.
 
 # === Why .PHONY ===
-# `make build` produces a file named `bin/stagehand`, and there's no source file literally named
+# `make build` produces a file named `bin/stagecoach`, and there's no source file literally named
 # `build`/`test`/etc., but declaring them PHONY guarantees make re-runs them every invocation and
 # never mistakes a same-named file for an up-to-date target. Standard for Go Makefiles.
 
@@ -331,8 +331,8 @@ clean=1 + help=1 = 8).
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" (from S1's go.mod) → MAIN_PKG ./cmd/stagehand resolves
-  - entrypoint:  ./cmd/stagehand (from S1) → build/install targets reference it
+  - module path: "github.com/dustin/stagecoach" (from S1's go.mod) → MAIN_PKG ./cmd/stagecoach resolves
+  - entrypoint:  ./cmd/stagecoach (from S1) → build/install targets reference it
   - go directive: 1.22 (from S1) → all go subcommands work under the 1.26.4 toolchain
 
 GITIGNORE (consumed, not modified):
@@ -352,7 +352,7 @@ LATER-SUBTASK HOOKS (informational — do NOT implement now):
 ### Level 1: Makefile Syntax (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # TAB integrity — every recipe line must start with a real TAB (expect 8)
 grep -Pc '^\t' Makefile                       # Expected: 8
@@ -369,12 +369,12 @@ make help                                     # Expected: prints the target tabl
 ### Level 2: Build & Test Targets (requires P1.M1.T1.S1 to have landed)
 
 ```bash
-cd /home/dustin/projects/stagehand
-# Precondition: go.mod + cmd/stagehand/main.go exist (P1.M1.T1.S1 delivered them).
+cd /home/dustin/projects/stagecoach
+# Precondition: go.mod + cmd/stagecoach/main.go exist (P1.M1.T1.S1 delivered them).
 
 make build                                    # Expected: exit 0
-test -x ./bin/stagehand && echo "binary OK"   # Expected: binary OK (executable)
-./bin/stagehand; echo "run exit=$?"           # Expected: exit 0 (no-op stub)
+test -x ./bin/stagecoach && echo "binary OK"   # Expected: binary OK (executable)
+./bin/stagecoach; echo "run exit=$?"           # Expected: exit 0 (no-op stub)
 
 make test                                     # Expected: exit 0 (prints "[no test files]")
 
@@ -387,14 +387,14 @@ make                                          # Expected: runs `build` (default 
 ### Level 3: Coverage, Install, Clean, Lint
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 make coverage                                 # Expected: exit 0; creates coverage.out
 test -f coverage.out && echo "coverage OK"    # Expected: coverage OK
 go tool cover -func=coverage.out              # Expected: prints table (0.0% until tests land in M1.T2+)
 
 make install                                  # Expected: exit 0
-test -x "$(go env GOPATH)/bin/stagehand" && echo "install OK"   # Expected: install OK
+test -x "$(go env GOPATH)/bin/stagecoach" && echo "install OK"   # Expected: install OK
 
 make clean                                    # Expected: exit 0
 test ! -e bin && test ! -e coverage.out && echo "clean OK"      # Expected: clean OK
@@ -409,7 +409,7 @@ make -n lint                                  # Expected: prints exactly "golang
 ### Level 4: Scope & Conventions
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # ONLY the Makefile was added by this subtask
 git status --porcelain                        # Expected (this subtask's contribution): "?? Makefile"
@@ -428,10 +428,10 @@ test ! -d .github/workflows && echo "OK: no CI workflow files (that's P1.M5.T3.S
 
 - [ ] `grep -Pc '^\t' Makefile` returns `8` (all recipe lines are TAB-indented).
 - [ ] `make help` exits 0 and prints the target table (no `missing separator`).
-- [ ] `make build` exits 0 and produces executable `./bin/stagehand`.
+- [ ] `make build` exits 0 and produces executable `./bin/stagecoach`.
 - [ ] `make test` exits 0.
 - [ ] `make coverage` exits 0, writes `coverage.out`, prints the `-func` table.
-- [ ] `make install` exits 0; binary present at `$(go env GOPATH)/bin/stagehand`.
+- [ ] `make install` exits 0; binary present at `$(go env GOPATH)/bin/stagecoach`.
 - [ ] `make clean` exits 0; `bin/`, `coverage.out`, `dist/` are gone.
 - [ ] `make -n lint` prints exactly `golangci-lint run`.
 - [ ] `make` (no arg) runs `build` (default goal).
@@ -450,7 +450,7 @@ test ! -d .github/workflows && echo "OK: no CI workflow files (that's P1.M5.T3.S
 - [ ] Created ONLY `Makefile` — no `.golangci.yml`, no CI workflow, no goreleaser config, no README.
 - [ ] Did NOT add a govulncheck target (CI matrix owns it → P1.M5.T3.S1).
 - [ ] Did NOT add a coverage ≥85% gate (→ P1.M5.T3.S3).
-- [ ] Did NOT modify `go.mod`, `.gitignore`, `cmd/stagehand/main.go`, or any file under `plan/`.
+- [ ] Did NOT modify `go.mod`, `.gitignore`, `cmd/stagecoach/main.go`, or any file under `plan/`.
 - [ ] Did NOT add Go source files or dependencies.
 
 ---
@@ -479,7 +479,7 @@ toolchain (GNU Make 4.4.1 / go1.26.4): the ldflags `-X` no-op on a missing symbo
 no-test-files exit 0 for `test`/`coverage`, the `$GOPATH/bin` install destination, and the
 documented absence of `golangci-lint` (mitigated with `make -n lint`). The only residual uncertainty
 (not 10/10) is the parallel-execution sequencing: the Makefile can be authored before P1.M1.T1.S1
-lands, but running `make build`/`test`/`coverage` requires S1's `go.mod` + `cmd/stagehand/main.go`.
+lands, but running `make build`/`test`/`coverage` requires S1's `go.mod` + `cmd/stagecoach/main.go`.
 This is explicitly called out in the validation preconditions so the implementing agent sequences
 correctly. The TAB-vs-spaces trap — the single most common Makefile authoring failure — is
 front-loaded as the #1 gotcha with a heredoc fix and a `grep -Pc '^\t'` gate.

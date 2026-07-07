@@ -154,7 +154,7 @@ No porcelain, no shell, no `cmd.Dir`/`os.Chdir` (inherited from `run()`).
 ### Context Completeness Check
 
 _If someone knew nothing about this codebase, would they have everything needed to implement this
-successfully?_ **Yes.** This PRP gives: the exact module path (`github.com/dustin/stagehand`); the
+successfully?_ **Yes.** This PRP gives: the exact module path (`github.com/dustin/stagecoach`); the
 exact three files to touch (and the exact one line to remove from `git_test.go`); the exact `run()`
 contract; the exact method body (empirically verified against git 2.54.0); the empirically-pinned
 exit codes (unborn=128, non-repo=128, born=0); the central `\n`-vs-`%x00` design call with empirical
@@ -275,11 +275,11 @@ required.
 > non-overlapping with T3.S3's edits.
 
 ```bash
-stagehand/
+stagecoach/
 ├── PRD.md
-├── go.mod                # module github.com/dustin/stagehand, go 1.22, NO deps
+├── go.mod                # module github.com/dustin/stagecoach, go 1.22, NO deps
 ├── Makefile              # build/test/lint/coverage/install/clean (test = go test -race ./...)
-├── cmd/stagehand/main.go # stub
+├── cmd/stagecoach/main.go # stub
 ├── internal/
 │   └── git/
 │       ├── git.go        # imports AFTER T3.S3: bytes, context, errors, fmt, io, os/exec, strconv,
@@ -308,7 +308,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     └── git/
         ├── git.go                  # MODIFIED — RecentSubjects stub → real (NO import change,
@@ -646,7 +646,7 @@ func TestRecentSubjects_NExceedsCommits(t *testing.T) {
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" → package import path "github.com/dustin/stagehand/internal/git"
+  - module path: "github.com/dustin/stagecoach" → package import path "github.com/dustin/stagecoach/internal/git"
   - go directive: 1.22 → context, errors.Is, strings, fmt.Sprintf, t.Setenv (1.17+) all available
   - deps: ZERO new imports; go.mod unchanged (stdlib only)
 

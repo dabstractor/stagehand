@@ -12,7 +12,7 @@
 - **S2 (P1.M3.T1.S2) owns `file.go`:** the `fileRoleConfig` decode struct, the extended `fileGeneration`
   (+`max_commits`, +`binary_extensions`), `fileConfig.ConfigVersion`, and the `materialize()`/`overlay()`
   wiring that copies file values into the new `Config` fields. S1 only creates the TARGET fields S2 writes.
-- **P1.M3.T2 owns `load.go`:** `STAGEHAND_<ROLE>_{PROVIDER,MODEL}` + `STAGEHAND_COMMITS` env,
+- **P1.M3.T2 owns `load.go`:** `STAGECOACH_<ROLE>_{PROVIDER,MODEL}` + `STAGECOACH_COMMITS` env,
   `--commits`/`--single`/`--max-commits`/`--<role>-*` flags, and `ResolveRoleModel`. S1 only creates the
   fields these set (`cfg.Commits`, `cfg.Single`, `cfg.Roles`).
 - **Why split it this way:** adding the fields first means every later subtask compiles against a stable

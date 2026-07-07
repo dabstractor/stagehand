@@ -11,14 +11,14 @@
 > preserving the detailed diagnostic for a genuine non-conflict write-tree failure. Exit-code semantics,
 > the call sites, and all other failure modes are unchanged. S1 also makes two surgical test additions
 > and runs a verify-and-skip docs gate. **It does NOT** add a pre-WriteTree conflict pre-check elsewhere
-> (generate.go / stagehand.go / default_action.go), refactor `run()`, or change any exit code.
+> (generate.go / stagecoach.go / default_action.go), refactor `run()`, or change any exit code.
 
 ---
 
 ## Goal
 
 **Feature Goal**: `git.WriteTree` returns a single clean error line — `"unresolved merge conflicts in
-the index — resolve them first, then re-run stagehand"` — when `git write-tree` fails due to unmerged
+the index — resolve them first, then re-run stagecoach"` — when `git write-tree` fails due to unmerged
 index entries (exit 128), instead of dumping git's raw multi-line stderr. PRD §13.5's "resolve merge
 conflicts first" guidance is honored, and the message still contains the substring
 `unresolved merge conflicts` so the existing test assertion holds.
@@ -36,8 +36,8 @@ conflicts first" guidance is honored, and the message still contains the substri
    planning time: none exists → no doc edit is required for S1.)
 
 **Success Definition**:
-- An unresolved-merge-conflict run prints exactly one clean line (`stagehand: unresolved merge conflicts
-  in the index — resolve them first, then re-run stagehand`) and exits **1**, with the model never
+- An unresolved-merge-conflict run prints exactly one clean line (`stagecoach: unresolved merge conflicts
+  in the index — resolve them first, then re-run stagecoach`) and exits **1**, with the model never
   invoked and HEAD/index untouched — identical behavior, cleaner message.
 - A non-conflict write-tree failure (rare) still surfaces the detailed diagnostic (exit code + stderr).
 - `go build ./...`, `go vet ./...`, `gofmt -l` clean, and the **entire existing** `go test -race ./...`
@@ -47,7 +47,7 @@ conflicts first" guidance is honored, and the message still contains the substri
 
 ## Why
 
-- **PRD §13.5**: *"Unresolved merge conflicts in the index: `write-tree` fails. Stagehand aborts before
+- **PRD §13.5**: *"Unresolved merge conflicts in the index: `write-tree` fails. Stagecoach aborts before
   any generation with 'resolve merge conflicts first.'"* and the **§18.2 failure table** (merge
   conflicts → exit **1**). The behavior is correct; the message is not.
 - **Root cause** (verified: `architecture/issue_analysis.md` ISSUE 3): `WriteTree` on `code != 0` returns
@@ -59,7 +59,7 @@ conflicts first" guidance is honored, and the message still contains the substri
   failure (write-tree is step 3, pre-generation). After the fix, the failure is still pre-generation /
   exit 1, but the message is the single PRD-prescribed line.
 - **Fix value**: localized to one method (`WriteTree`); both call sites
-  (`generate.go:156` / `stagehand.go:260`) propagate the error as-is, and `handleGenError`'s default
+  (`generate.go:156` / `stagecoach.go:260`) propagate the error as-is, and `handleGenError`'s default
   branch already maps a plain error to exit 1 — so the cleaner message requires **no** caller changes.
 
 ---
@@ -84,7 +84,7 @@ becomes (preferred variant — detects the conflict via `ls-files -u` and preser
 		// non-empty stdout ⇒ unresolved conflicts. Failure path only (not hot); on any ls-files error
 		// fall through to the detailed diagnostic so a genuine non-conflict failure isn't hidden.
 		if lsOut, _, _, lsErr := g.run(ctx, g.workDir, "ls-files", "-u"); lsErr == nil && strings.TrimSpace(lsOut) != "" {
-			return "", errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagehand")
+			return "", errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagecoach")
 		}
 		return "", fmt.Errorf("git write-tree failed (exit %d): %s", code, strings.TrimSpace(stderr))
 	}
@@ -109,7 +109,7 @@ on any `code != 0` (exit-128 on a populated index is unambiguously unmerged in p
 
 ```go
 	if code != 0 {
-		return "", errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagehand")
+		return "", errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagecoach")
 	}
 ```
 
@@ -121,11 +121,11 @@ a reviewer objects to the extra failure-path git call.
 
 Both callers return the `WriteTree` error as-is (do NOT touch them):
 - `internal/generate/generate.go:156` — `CommitStaged` step 3: `treeSHA, err := deps.Git.WriteTree(ctx)`.
-- `pkg/stagehand/stagehand.go:260` — `runPipeline` step 3: `treeSHA, err := deps.Git.WriteTree(ctx)`.
+- `pkg/stagecoach/stagecoach.go:260` — `runPipeline` step 3: `treeSHA, err := deps.Git.WriteTree(ctx)`.
 
 The error flows: caller returns it → CLI `handleGenError` (`internal/cmd/default_action.go:188`)
 **default branch** `return exitcode.New(exitcode.Error, err)` → exit **1**; main prints
-`stagehand: <clean msg>`. A clean single-line `msg` produces exactly one line of output. No
+`stagecoach: <clean msg>`. A clean single-line `msg` produces exactly one line of output. No
 `*RescueError`/`*CASError`/`ErrNothingToCommit` reclassification (those are distinct branches checked
 earlier in `handleGenError`).
 
@@ -150,7 +150,7 @@ S1 surgical avoids colliding with that future work item.
       `fatal: git-write-tree` / `error building trees`.
 - [ ] Exit code is unchanged (still **1**, via `handleGenError` default branch); the model is never
       invoked (write-tree is step 3, pre-generation); HEAD/index untouched.
-- [ ] Both call sites (`generate.go:156`, `stagehand.go:260`) are byte-for-byte unchanged.
+- [ ] Both call sites (`generate.go:156`, `stagecoach.go:260`) are byte-for-byte unchanged.
 - [ ] `TestWriteTree_MergeConflict` passes with the two new noise-absence assertions added; every other
       test stays green.
 - [ ] Docs grep gate passes (no doc quotes the merge-conflict wording).
@@ -191,14 +191,14 @@ are all below.
 # Why a clean message still exits 1 (propagation path)
 - file: internal/cmd/default_action.go
   why: handleGenError (L188) default branch: `return exitcode.New(exitcode.Error, err)` → exit 1; main
-       prints `stagehand: <msg>`. A plain error (not *RescueError/*CASError/ErrNothingToCommit) hits this
+       prints `stagecoach: <msg>`. A plain error (not *RescueError/*CASError/ErrNothingToCommit) hits this
        branch — so a cleaner WriteTree message needs NO caller change.
   section: "func handleGenError" — the final `return exitcode.New(exitcode.Error, err)` line.
 
 # Call sites (do NOT change — confirm the error propagates as-is)
 - file: internal/generate/generate.go
   why: CommitStaged step 3 (L156): `treeSHA, err := deps.Git.WriteTree(ctx)` → returns err unchanged.
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: runPipeline step 3 (L260): `treeSHA, err := deps.Git.WriteTree(ctx)` → returns err unchanged.
 
 # The test to extend (fixture reused as-is)
@@ -222,7 +222,7 @@ are all below.
 internal/git/git.go              # WriteTree (L219) — THE EDIT SITE (if code!=0 block L224-226); run() (L95) seam
 internal/git/writetree_test.go   # TestWriteTree_MergeConflict (L119-133) + makeMergeConflict (L22-68)
 internal/generate/generate.go    # CommitStaged step 3 (L156) — caller, UNCHANGED
-pkg/stagehand/stagehand.go       # runPipeline step 3 (L260) — caller, UNCHANGED
+pkg/stagecoach/stagecoach.go       # runPipeline step 3 (L260) — caller, UNCHANGED
 internal/cmd/default_action.go   # handleGenError default branch (L188) — exit 1, UNCHANGED
 docs/how-it-works.md             # failure-modes table (L53) — verify-only (no merge-conflict row)
 ```
@@ -342,7 +342,7 @@ Task 3: VERIFY docs (Mode A — gate, not an edit task)
 // returned by run().
 //
 // GOTCHA: the conflict message is a SINGLE line. errors.New("…") has no trailing newline; main's
-// `stagehand: <msg>` print adds one. Do not embed "\n" in the message.
+// `stagecoach: <msg>` print adds one. Do not embed "\n" in the message.
 //
 // WHY a probe (not just dropping %s): write-tree can fail for non-conflict reasons (rare: corrupted
 // index). The ls-files -u probe returns the clean message ONLY when conflicts are confirmed, preserving
@@ -386,7 +386,7 @@ go test -race ./...
 #   * TestWriteTree_StagedFiles / _EmptyIndex — happy path; code==0; the if-block is never entered.
 #   * TestWriteTree_GitBinaryMissing — run() returns err (LookPath fails) before the if-code block.
 #   * TestWriteTree_ContextCancelled — run() returns context.Canceled before the if-code block.
-#   * generate/stagehand tests — callers return the WriteTree error as-is; exit-1 semantics unchanged.
+#   * generate/stagecoach tests — callers return the WriteTree error as-is; exit-1 semantics unchanged.
 ```
 
 > **If a previously-green test now fails**: it is almost certainly `TestWriteTree_MergeConflict` failing
@@ -398,7 +398,7 @@ go test -race ./...
 ### Level 3: Manual / end-to-end (proves the clean message; mirrors the bug repro)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 
 TMP=$(mktemp -d) && cd "$TMP"
 git init -q && git config user.email t@t.com && git config user.name t
@@ -408,14 +408,14 @@ git checkout -q master 2>/dev/null || git checkout -q -b master   # branch-name 
 printf 'lm\n' > f.txt && git commit -q -am m
 git merge o           # -> CONFLICT (expected non-zero)
 
-# point stagehand at any stub/installed provider (merge conflict is detected pre-generation, so the
+# point stagecoach at any stub/installed provider (merge conflict is detected pre-generation, so the
 # provider is never invoked — a stub is fine; even a missing one won't change the conflict message).
 printf '[provider.stub]\ncommand = "/bin/true"\noutput = "raw"\nstrip_code_fence = true\n' > config.toml
 echo staged > s.txt && git add s.txt   # stage something so write-tree is reached
 
-/tmp/stagehand --config config.toml 2>&1; echo "EXIT=$?"
+/tmp/stagecoach --config config.toml 2>&1; echo "EXIT=$?"
 # EXPECT (after fix): a SINGLE clean line, e.g.
-#   stagehand: unresolved merge conflicts in the index — resolve them first, then re-run stagehand
+#   stagecoach: unresolved merge conflicts in the index — resolve them first, then re-run stagecoach
 #   EXIT=1
 # AND: NO "fatal: git-write-tree", NO "error building trees", NO "<file>: unmerged (...)" lines.
 # AND: HEAD/index untouched (the conflict is still there): git ls-files -u  # still lists unmerged entries.
@@ -448,7 +448,7 @@ grep -rn -i "merge.conflict\|unresolved\|resolve.*merge\|unmerged" docs/ README.
 - [ ] The clean message contains `unresolved merge conflicts` and contains **none** of
       `fatal: git-write-tree` / `error building trees`.
 - [ ] Exit code unchanged (still **1**); the model is never invoked; HEAD/index untouched.
-- [ ] Both call sites (`generate.go:156`, `stagehand.go:260`) are unchanged.
+- [ ] Both call sites (`generate.go:156`, `stagecoach.go:260`) are unchanged.
 
 ### Code Quality Validation
 - [ ] Single, surgical block edit in `WriteTree`; no edits to `run()`, other git methods, the call sites,
@@ -470,7 +470,7 @@ grep -rn -i "merge.conflict\|unresolved\|resolve.*merge\|unmerged" docs/ README.
   §13.5 wording) depend on it.
 - ❌ **Don't change the call sites or `handleGenError`** — the error propagates as-is to exit 1; no caller
   change is needed or wanted.
-- ❌ **Don't add a pre-WriteTree conflict pre-check in `generate.go`/`stagehand.go`/`default_action.go`** —
+- ❌ **Don't add a pre-WriteTree conflict pre-check in `generate.go`/`stagecoach.go`/`default_action.go`** —
   the fix belongs inside `WriteTree` (single chokepoint, both call sites covered).
 - ❌ **Don't refactor `run()` or add a new git-exec helper** — reuse `g.run(ctx, g.workDir, "ls-files", "-u")`.
 - ❌ **Don't change any exit code** — a plain error already maps to exit 1 via the default branch.

@@ -1,7 +1,7 @@
 # Code Context — PRD Issues 4 & 7
 
 Research-only scout report. No code was changed. Quotes are from the working tree at
-`/home/dustin/projects/stagehand` (commit-clean). All file paths are repo-relative.
+`/home/dustin/projects/stagecoach` (commit-clean). All file paths are repo-relative.
 
 ---
 
@@ -57,18 +57,18 @@ type fileGeneration struct {
 	}
 ```
 
-### A.3 git.go — read from `stagehand.*` git-config keys
+### A.3 git.go — read from `stagecoach.*` git-config keys
 
 `internal/config/git.go:124-128` and `git.go:152-156`:
 
 ```go
-	if v, found, err := gitConfigGet(repoDir, "stagehand.output"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.output"); err != nil {
 		return nil, err
 	} else if found {
 		c.Output = v
 	}
 	...
-	if v, found, err := gitConfigBool(repoDir, "stagehand.stripCodeFence"); err != nil { // camelCase!
+	if v, found, err := gitConfigBool(repoDir, "stagecoach.stripCodeFence"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
 		c.StripCodeFence = v
@@ -126,7 +126,7 @@ the manifest's resolved pointer fields. It has no access to `cfg` at all.
 These are `*string` / `*bool` pointers (the override-signal design). `Resolve()` (manifest.go:151-159)
 fills nils with `DefaultOutput="raw"` / `DefaultStripCodeFence=true`.
 
-The manifest consumed by `ParseOutput` is built in **`pkg/stagehand/stagehand.go:buildDeps`**
+The manifest consumed by `ParseOutput` is built in **`pkg/stagecoach/stagecoach.go:buildDeps`**
 (stages 3–5 at buildDeps). `buildDeps` constructs the registry from `cfg.Providers` (the `[provider.X]`
 map) + `BuiltinManifests()`, then `reg.Get(name)` returns the merged manifest:
 
@@ -166,13 +166,13 @@ both under `[generation]`:
 # strip_code_fence      = true    # remove ` fences from agent output
 ```
 
-And the git-config header documents `stagehand.output` / `stagehand.stripCodeFence` indirectly via the
-`stagehand.*` example block. So users are told these knobs work — but they do not.
+And the git-config header documents `stagecoach.output` / `stagecoach.stripCodeFence` indirectly via the
+`stagecoach.*` example block. So users are told these knobs work — but they do not.
 
 ### A.8 Integration point / decision
 
 The exact seam where `cfg.Output` / `cfg.StripCodeFence` SHOULD be applied onto the manifest is
-**`pkg/stagehand/stagehand.go` → `buildDeps`**, after `m, ok := reg.Get(name)` and before
+**`pkg/stagecoach/stagecoach.go` → `buildDeps`**, after `m, ok := reg.Get(name)` and before
 `return generate.Deps{...}`. Concretely, after the existing `m.Validate()` call, one would:
 
 ```go
@@ -330,13 +330,13 @@ with an em-dash (—, U+2014) and "files" always plural (no singular form). The 
 - `internal/config/config_test.go:46-49` — asserts `Defaults()` sets `Output="raw"`, `StripCodeFence=true`.
 - `internal/config/file_test.go:81-82, 118, 140` — asserts `materialize`/`overlay` copy Output/StripCodeFence.
 - `internal/config/git_test.go:108-112, 133-140, 163, 345-346` — asserts `loadGitConfig` reads
-  `stagehand.output` / `stagehand.stripCodeFence`.
+  `stagecoach.output` / `stagecoach.stripCodeFence`.
 - **No test** asserts that `cfg.Output`/`cfg.StripCodeFence` ever reach `ParseOutput` — because they
   don't. `internal/provider/parse_test.go` exercises `ParseOutput` exclusively via hand-built `Manifest`
   values; it never touches `config.Config`.
 
 If the chosen fix is "apply cfg → manifest in buildDeps," add a test in
-`pkg/stagehand/stagehand_test.go` that sets `[generation] output="json"` + `strip_code_fence=false` in
+`pkg/stagecoach/stagecoach_test.go` that sets `[generation] output="json"` + `strip_code_fence=false` in
 config and asserts the resulting `deps.Manifest` carries those values (and that `ParseOutput` then
 honors them). If the chosen fix is "remove the fields," delete the config tests listed above.
 
@@ -359,7 +359,7 @@ honors them). If the chosen fix is "remove the fields," delete the config tests 
 **Config flow (Part A):**
 `config.Load` (load.go) runs the 7-layer resolver → `*Config`. `Config.Output`/`Config.StripCodeFence`
 are populated by `Defaults()` + `materialize`/`overlay` (file.go) + `loadGitConfig` (git.go). The
-resolved `cfg` is passed to `pkg/stagehand.GenerateCommit` → `buildDeps(cfg, repoDir)`. `buildDeps`
+resolved `cfg` is passed to `pkg/stagecoach.GenerateCommit` → `buildDeps(cfg, repoDir)`. `buildDeps`
 builds the provider `Manifest` from `BuiltinManifests()` + `cfg.Providers` (`[provider.X]`), via
 `provider.NewRegistry` + `MergeManifest`. The manifest's `Output`/`StripCodeFence` pointer fields are
 what `provider.ParseOutput` actually reads. **There is no cfg→manifest bridge for these two fields** —
@@ -370,7 +370,7 @@ the seam is missing.
 `cfg.AutoStageAll`, it calls `g.AddAll` then `g.StagedFileCount`, prints the FR18 notice to stderr, then
 re-checks `HasStagedChanges`; if still false, returns exit-2 "Nothing to commit." On a clean tree
 `AddAll` is a no-op and `StagedFileCount` returns 0, so the notice reads "(0 files)" right before the
-exit-2. The generation pipeline (`pkg/stagehand.GenerateCommit` → `generate.CommitStaged`) is only
+exit-2. The generation pipeline (`pkg/stagecoach.GenerateCommit` → `generate.CommitStaged`) is only
 reached when something is staged; it independently returns `ErrNothingToCommit` if the staged diff is
 empty, which `handleGenError` (default_action.go:179) also maps to exit-2 "Nothing to commit."
 
@@ -378,7 +378,7 @@ empty, which `handleGenError` (default_action.go:179) also maps to exit-2 "Nothi
 
 ## Start Here
 
-**Part A:** open `pkg/stagehand/stagehand.go` (`buildDeps`, ~line 155) — this is the single seam. Decide
+**Part A:** open `pkg/stagecoach/stagecoach.go` (`buildDeps`, ~line 155) — this is the single seam. Decide
 apply-vs-remove; the parent must pick. If applying, the edit is ~5 lines after `m.Validate()`. If
 removing, the edit touches config.go / file.go / git.go / config.go template + ~6 test files.
 

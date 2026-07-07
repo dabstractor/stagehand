@@ -26,7 +26,7 @@ description: |
   `TooledFlags = ["--no-extensions","--no-skills","--no-prompt-templates","--no-context-files","--no-session"]`
   (the 5 remaining bare flags — still chrome-less + ephemeral). pi has NO `--allowed-tools`/`--tools`
   equivalent (external_deps.md §pi shows only all-or-nothing `--no-tools`), so pi's stager safety is enforced
-  by the STAGER TASK PROMPT (§17.6) + stagehand's ref-mutation monopoly (§13.6.2/§19), NOT by flag-scoping.
+  by the STAGER TASK PROMPT (§17.6) + stagecoach's ref-mutation monopoly (§13.6.2/§19), NOT by flag-scoping.
   Do NOT invent a non-existent allowlist flag. See research §1.
 
   ⚠️ **THE #3 design call — claude tooled = tools ENABLED + a git/read/edit allowlist.** claude's bare mode
@@ -100,15 +100,15 @@ providers' `TooledFlags` stay nil (their parity still green); gemini/agy/opencod
 **Target User**: The stager role (P3.M2.T3) — the per-concept staging agent that must run `git add` and
 apply hunks. It calls `manifest.Render(model, provider, sys, user, RenderTooled)`. Only a provider with
 non-empty `TooledFlags` can fill it; FR-D4 falls back to the next stager-capable provider when the chosen
-default can't. Transitively, every user who runs multi-commit decomposition (`stagehand --commits`).
+default can't. Transitively, every user who runs multi-commit decomposition (`stagecoach --commits`).
 
-**Use Case**: A user runs `stagehand --commits` on a dirty tree. The planner proposes N concepts. For each,
+**Use Case**: A user runs `stagecoach --commits` on a dirty tree. The planner proposes N concepts. For each,
 the stager (a pi or claude manifest rendered in `RenderTooled`) stages exactly concept[i]'s subset. pi's
 tooled profile runs with its native tools on (no chrome); claude's runs with a git/read/edit allowlist.
 
 **User Journey**: (internal, v2) config picks a stager-capable provider → `Render(...,RenderTooled)` → argv
 uses `tooled_flags` (not `bare_flags`) → executor runs the tooled agent → it mutates the index only →
-stagehand snapshots the frozen tree and commits. This subtask is what makes pi/claude ELIGIBLE for that role.
+stagecoach snapshots the frozen tree and commits. This subtask is what makes pi/claude ELIGIBLE for that role.
 
 **Pain Points Addressed**: Without non-empty `TooledFlags`, pi/claude render-tooled ERRORS ("tooled mode
 requires non-empty tooled_flags") → no provider can stager → multi-commit decomposition can't run. This
@@ -302,7 +302,7 @@ go.mod / go.sum            # UNCHANGED (pure data + docs; no new dep)
 
 // CRITICAL (#2 — pi has NO git allowlist): pi's TooledFlags = bare MINUS --no-tools (5 flags). pi's --help
 // (external_deps.md §pi) shows only all-or-nothing --no-tools; there is NO --allowed-tools/--tools. Do NOT
-// invent one. pi's stager safety = stager task prompt (§17.6) + stagehand's ref-mutation monopoly, not flag-scoping.
+// invent one. pi's stager safety = stager task prompt (§17.6) + stagecoach's ref-mutation monopoly, not flag-scoping.
 
 // CRITICAL (#3 — claude --allowed-tools TO CONFIRM): external_deps.md §claude records --tools; the item
 // CONTRACT + codebase render fixtures use --allowed-tools. HONOR --allowed-tools (verbatim per item) but
@@ -357,7 +357,7 @@ func builtinPi() Manifest {
 		// TOOLED MODE (v2 §11.5 — the stager role). pi has no git-scoped allowlist (--help shows only the
 		// all-or-nothing --no-tools), so pi's tooled profile = the bare invocation MINUS --no-tools: pi's
 		// native tool system ON, everything else still off (chrome-less + ephemeral). The stager's safety
-		// (git-only, never commit/update-ref/push) is enforced by the stager task prompt (§17.6) + stagehand's
+		// (git-only, never commit/update-ref/push) is enforced by the stager task prompt (§17.6) + stagecoach's
 		// monopoly on ref mutations (§13.6.2/§19), not by flag-scoping.
 		TooledFlags: []string{
 			"--no-extensions",
@@ -605,11 +605,11 @@ go build ./...   # Expect clean.
 go test ./...    # Expect all PASS. If a non-provider package breaks, it is unrelated — investigate, do NOT
                  # revert the TooledFlags change (it is pure additive data + docs).
 # Smoke the CLI show output (tooled_flags now appears for pi/claude):
-go build -o /tmp/stagehand ./cmd/stagehand
-/tmp/stagehand providers show pi 2>/dev/null | grep "tooled_flags"     # → tooled_flags = [...] (non-empty)
-/tmp/stagehand providers show claude 2>/dev/null | grep "tooled_flags" # → tooled_flags = [...]
+go build -o /tmp/stagecoach ./cmd/stagecoach
+/tmp/stagecoach providers show pi 2>/dev/null | grep "tooled_flags"     # → tooled_flags = [...] (non-empty)
+/tmp/stagecoach providers show claude 2>/dev/null | grep "tooled_flags" # → tooled_flags = [...]
 # Confirm the five non-stager providers show NO tooled_flags (nil → omitted on marshal):
-/tmp/stagehand providers show gemini 2>/dev/null | grep -c "tooled_flags"   # → 0 (absent)
+/tmp/stagecoach providers show gemini 2>/dev/null | grep -c "tooled_flags"   # → 0 (absent)
 
 # Straggler grep — confirm ONLY pi+claude have non-empty TooledFlags in the source:
 grep -n 'TooledFlags:' internal/provider/builtin.go   # MUST show exactly 2 hits (pi + claude)
@@ -662,7 +662,7 @@ go test ./internal/provider/ -run 'TestBuiltinManifests_RenderedCommand_(Pi|Clau
   and providers/{pi,claude}.toml must ALL carry the IDENTICAL array. One stale/omitted entry (non-nil ≠ nil)
   fails BOTH DecodeParity oracles. The single `"Bash(git:*),Read,Edit"` element must be byte-identical everywhere.
 - ❌ **Don't invent a pi git-allowlist flag.** pi's `--help` shows only all-or-nothing `--no-tools`. pi's tooled
-  profile = bare MINUS `--no-tools` (tools on, no chrome). Safety is via the stager prompt + stagehand's
+  profile = bare MINUS `--no-tools` (tools on, no chrome). Safety is via the stager prompt + stagecoach's
   ref-mutation monopoly, not flag-scoping. Do NOT add a `--tools`/`--allowed-tools` to pi.
 - ❌ **Don't use `--tools` for claude.** The item CONTRACT says `--allowed-tools`; the codebase render fixtures
   agree. Honor it (with a # TO CONFIRM). The first real stager run verifies; if wrong, swap the token later.

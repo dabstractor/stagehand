@@ -3,19 +3,19 @@ name: "P1.M4.T1.S1 (bugfix Issue 4) — Add reasoning env vars to bootstrapHeade
 description: |
 
   Header-only consistency fix (Issue 4, minor). The generated config's `bootstrapHeader` constant
-  (internal/config/bootstrap.go) documents every `STAGEHAND_*` env knob EXCEPT the reasoning ones that
+  (internal/config/bootstrap.go) documents every `STAGECOACH_*` env knob EXCEPT the reasoning ones that
   shipped with FR-R6. Add the 2 missing reasoning env-var lines so the header matches docs/cli.md and
   docs/configuration.md. No behavior change — the header IS the documentation; updating it IS the work.
 
   CONTRACT (item_description §3 — verbatim strings + placement): inside the `bootstrapHeader` raw string,
-  insert TWO lines AFTER the per-role `STAGEHAND_ARBITER_PROVIDER / _MODEL` line and BEFORE
-  `STAGEHAND_COMMITS`:
-    #   STAGEHAND_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)
-    #   STAGEHAND_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)
-  Then add a regression test asserting `buildBootstrapConfig` output contains `STAGEHAND_REASONING` and
-  `STAGEHAND_<ROLE>_REASONING`.
+  insert TWO lines AFTER the per-role `STAGECOACH_ARBITER_PROVIDER / _MODEL` line and BEFORE
+  `STAGECOACH_COMMITS`:
+    #   STAGECOACH_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)
+    #   STAGECOACH_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)
+  Then add a regression test asserting `buildBootstrapConfig` output contains `STAGECOACH_REASONING` and
+  `STAGECOACH_<ROLE>_REASONING`.
 
-  CRITICAL CORRECTION (item_description §1): do NOT add `STAGEHAND_MAX_COMMITS` — it is NOT an env var.
+  CRITICAL CORRECTION (item_description §1): do NOT add `STAGECOACH_MAX_COMMITS` — it is NOT an env var.
   `load.go:301` reads `max-commits` only as a CLI FLAG (`fs.Changed` + `fs.GetInt`, no `os.LookupEnv`);
   docs/cli.md shows `—` in its env column. The `--max-commits` flag is already documented in the header's
   CLI-flags section; adding an env line would be FALSE documentation. Add ONLY the 2 reasoning lines.
@@ -30,19 +30,19 @@ description: |
   CLI section's established compact form (research design-decisions §2). Use the task's 2 verbatim lines.
 
   SCOPE BOUNDARY (what this does NOT do): NO new env vars (the 5 are already real — load.go:181 global +
-  :215 per-role loop); NO `STAGEHAND_MAX_COMMITS`; NO edits to load.go/loadEnv (reasoning already wired);
+  :215 per-role loop); NO `STAGECOACH_MAX_COMMITS`; NO edits to load.go/loadEnv (reasoning already wired);
   NO behavior change (header-only); NO docs-file edits (P1.M6.T1.S1 owns README/cli.md/providers.md sync;
   the bootstrapHeader is a separate doc surface). This is the smallest possible fix for Issue 4.
 
   INPUT (upstream — read-only): `bootstrapHeader` const + `buildBootstrapConfig` (bootstrap.go); the
   `assertContains`/`strings.Contains` test pattern (bootstrap_test.go). Verified the 5 reasoning env vars
-  are real (load.go) and that `STAGEHAND_MAX_COMMITS` is not.
+  are real (load.go) and that `STAGECOACH_MAX_COMMITS` is not.
 
   OUTPUT (downstream): the generated config header (written by `config init` / the first-run fallback)
   now documents the reasoning env vars, consistent with docs/cli.md:43-49 + docs/configuration.md:152-156.
 
   ⚠️ Insert the EXACT 2 verbatim lines between the ARBITER and COMMITS lines (item_description §3).
-  ⚠️ Do NOT add STAGEHAND_MAX_COMMITS (item_description §1 correction — it's a flag, not an env var).
+  ⚠️ Do NOT add STAGECOACH_MAX_COMMITS (item_description §1 correction — it's a flag, not an env var).
   ⚠️ Keep the lines as comments (`#`-prefixed) inside the raw string — the header must stay inert/comments.
 
   Deliverable: 2 modified files; `go build ./... && go test ./...` green; go.mod/go.sum unchanged.
@@ -53,36 +53,36 @@ description: |
 
 **Feature Goal**: Close the header-only docs-drift of Issue 4 — the `bootstrapHeader` constant that
 prefaces every generated config (populated bootstrap via `config init` + first-run fallback) omits the
-FR-R6 reasoning env vars. Add the 2 missing lines (`STAGEHAND_REASONING` global +
-`STAGEHAND_<ROLE>_REASONING` per-role) so the generated header documents all `STAGEHAND_*` knobs,
+FR-R6 reasoning env vars. Add the 2 missing lines (`STAGECOACH_REASONING` global +
+`STAGECOACH_<ROLE>_REASONING` per-role) so the generated header documents all `STAGECOACH_*` knobs,
 matching docs/cli.md and docs/configuration.md. No behavior change.
 
 **Deliverable** (2 files; go.mod unchanged):
 1. `internal/config/bootstrap.go` — insert 2 reasoning env-var lines into the `bootstrapHeader` raw string
-   (after `STAGEHAND_ARBITER_PROVIDER / _MODEL`, before `STAGEHAND_COMMITS`).
+   (after `STAGECOACH_ARBITER_PROVIDER / _MODEL`, before `STAGECOACH_COMMITS`).
 2. `internal/config/bootstrap_test.go` — `TestBuildBootstrapConfig_HeaderDocumentsReasoningEnvVars`
-   asserting the output contains `STAGEHAND_REASONING` and `STAGEHAND_<ROLE>_REASONING`.
+   asserting the output contains `STAGECOACH_REASONING` and `STAGECOACH_<ROLE>_REASONING`.
 
-**Success Definition**: `buildBootstrapConfig("pi", nil)` output contains both `STAGEHAND_REASONING` and
-`STAGEHAND_<ROLE>_REASONING`; the new test FAILS without the fix and PASSES with it; the existing
+**Success Definition**: `buildBootstrapConfig("pi", nil)` output contains both `STAGECOACH_REASONING` and
+`STAGECOACH_<ROLE>_REASONING`; the new test FAILS without the fix and PASSES with it; the existing
 bootstrap tests stay green (TOML still valid — header is all comments); `go build ./... &&
 go test ./...` green; go.mod/go.sum byte-unchanged; only the 2 listed files differ.
 
 ## User Persona
 
-**Target User**: The Stagehand user reading a generated config to discover available env knobs (PRD §7.1
-"the plan-holder"). They open `~/.config/stagehand/config.toml` (written by `config init`) and scan the
-header to see what `STAGEHAND_*` vars they can set. Today the reasoning vars are invisible there even
+**Target User**: The Stagecoach user reading a generated config to discover available env knobs (PRD §7.1
+"the plan-holder"). They open `~/.config/stagecoach/config.toml` (written by `config init`) and scan the
+header to see what `STAGECOACH_*` vars they can set. Today the reasoning vars are invisible there even
 though they're real and documented elsewhere — a confusing inconsistency.
 
 **Use Case**: User wants to pin reasoning effort for one run without editing the file: they look in the
-generated header for the env-var name, find `STAGEHAND_REASONING` / `STAGEHAND_<ROLE>_REASONING`, and run
-`STAGEHAND_PLANNER_REASONING=high stagehand`.
+generated header for the env-var name, find `STAGECOACH_REASONING` / `STAGECOACH_<ROLE>_REASONING`, and run
+`STAGECOACH_PLANNER_REASONING=high stagecoach`.
 
-**User Journey**: user runs `stagehand config init` → the populated config (prefaced by `bootstrapHeader`)
+**User Journey**: user runs `stagecoach config init` → the populated config (prefaced by `bootstrapHeader`)
 is written → user reads the header → sees the reasoning env vars documented alongside provider/model/commits.
 
-**Pain Points Addressed**: docs drift — a real, loadEnv-read env var (`STAGEHAND_REASONING`, FR-R6) was
+**Pain Points Addressed**: docs drift — a real, loadEnv-read env var (`STAGECOACH_REASONING`, FR-R6) was
 invisible in the generated config's header, so users had to find docs/cli.md to discover it. Now the
 header is the single self-consistent reference.
 
@@ -104,15 +104,15 @@ helper). No new code paths, no new types, no new deps, no behavior change, no ot
 ### Success Criteria
 
 - [ ] `internal/config/bootstrap.go`: `bootstrapHeader` contains the 2 verbatim lines, placed AFTER
-      `#   STAGEHAND_ARBITER_PROVIDER / _MODEL   per-role override: leftover arbiter` and BEFORE
-      `#   STAGEHAND_COMMITS   …`.
+      `#   STAGECOACH_ARBITER_PROVIDER / _MODEL   per-role override: leftover arbiter` and BEFORE
+      `#   STAGECOACH_COMMITS   …`.
 - [ ] The 2 lines are EXACTLY:
-      `#   STAGEHAND_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)`
-      `#   STAGEHAND_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)`
-- [ ] NO `STAGEHAND_MAX_COMMITS` line is added (it's a flag, not an env var — item_description §1).
+      `#   STAGECOACH_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)`
+      `#   STAGECOACH_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)`
+- [ ] NO `STAGECOACH_MAX_COMMITS` line is added (it's a flag, not an env var — item_description §1).
 - [ ] `internal/config/bootstrap_test.go`: `TestBuildBootstrapConfig_HeaderDocumentsReasoningEnvVars`
-      asserts `buildBootstrapConfig("pi", nil)` output contains both `STAGEHAND_REASONING` and
-      `STAGEHAND_<ROLE>_REASONING` (uses the existing `assertContains` helper).
+      asserts `buildBootstrapConfig("pi", nil)` output contains both `STAGECOACH_REASONING` and
+      `STAGECOACH_<ROLE>_REASONING` (uses the existing `assertContains` helper).
 - [ ] The new test FAILS without the header edit and PASSES with it (real regression guard).
 - [ ] `go build ./... && go vet ./... && go test ./...` GREEN; `gofmt -l internal/` clean;
       go.mod/go.sum byte-unchanged; only `bootstrap.go` + `bootstrap_test.go` differ.
@@ -131,7 +131,7 @@ string-literal edit + a `strings.Contains` test.
 ```yaml
 # MUST READ — the AUTHORITATIVE design decisions
 - docfile: plan/003_6ce49c39466e/bugfix/001_ccbb2681877e/P1M4T1S1/research/design-decisions.md
-  why: the 6 decisions. §0 (the exact 2 lines + insertion spot), §1 (DO NOT add STAGEHAND_MAX_COMMITS —
+  why: the 6 decisions. §0 (the exact 2 lines + insertion spot), §1 (DO NOT add STAGECOACH_MAX_COMMITS —
        it's a flag), §2 (the <ROLE> shorthand is consistent with the CLI-flags section), §3 (the 5 env
        vars are real — load.go:181/215), §4 (no test pins exact header content → safe), §5 (the new test),
        §6 (no conflict with parallel P1.M3.T1.S1).
@@ -139,13 +139,13 @@ string-literal edit + a `strings.Contains` test.
 
 # MUST READ — the file to edit (the bootstrapHeader const + buildBootstrapConfig)
 - file: internal/config/bootstrap.go   (EDIT bootstrapHeader; READ buildBootstrapConfig)
-  section: `const bootstrapHeader = \`# Stagehand configuration file (populated bootstrap).\n…\`` — the
+  section: `const bootstrapHeader = \`# Stagecoach configuration file (populated bootstrap).\n…\`` — the
        raw-string header. The env-var block lists PROVIDER/MODEL/TIMEOUT/CONFIG/VERBOSE/NO_COLOR, the 4
-       per-role `_PROVIDER / _MODEL` lines, then `STAGEHAND_COMMITS`. `buildBootstrapConfig` prepends it
+       per-role `_PROVIDER / _MODEL` lines, then `STAGECOACH_COMMITS`. `buildBootstrapConfig` prepends it
        via `b.WriteString(bootstrapHeader)` (so its output — and the test target — includes the header).
-  why: this is THE file to edit. The insertion point is between the `STAGEHAND_ARBITER_PROVIDER / _MODEL`
-       line and the `STAGEHAND_COMMITS` line.
-  pattern: every env-var line is `#   STAGEHAND_<NAME>   <description>` (3-space indent after `#`).
+  why: this is THE file to edit. The insertion point is between the `STAGECOACH_ARBITER_PROVIDER / _MODEL`
+       line and the `STAGECOACH_COMMITS` line.
+  pattern: every env-var line is `#   STAGECOACH_<NAME>   <description>` (3-space indent after `#`).
   gotcha: the raw string uses `+` concatenation for backticks (`+ "`" + `) — stay INSIDE the raw-string
        segment for the insertion (no backtick handling needed at the insertion point). Keep lines `#`-
        prefixed (the header is inert comments).
@@ -164,18 +164,18 @@ string-literal edit + a `strings.Contains` test.
 
 # MUST READ — proves the 5 env vars are real + the max-commits correction
 - file: internal/config/load.go   (READ ONLY — do NOT edit)
-  section: `loadEnv` — `os.LookupEnv("STAGEHAND_REASONING")` (line 181 → cfg.Reasoning) + the per-role
+  section: `loadEnv` — `os.LookupEnv("STAGECOACH_REASONING")` (line 181 → cfg.Reasoning) + the per-role
        loop `os.LookupEnv(prefix + "_REASONING")` over roleNames={planner,stager,message,arbiter} (line
        215 → cfg.setRoleReasoning). AND `loadFlags` line 301: `fs.Changed("max-commits")` + `fs.GetInt`
-       (a CLI FLAG, NOT os.LookupEnv → STAGEHAND_MAX_COMMITS does not exist).
+       (a CLI FLAG, NOT os.LookupEnv → STAGECOACH_MAX_COMMITS does not exist).
   why: confirms the 2 reasoning lines document REAL env vars (so the header is truthful) and that
-       STAGEHAND_MAX_COMMITS must NOT be added (§1).
+       STAGECOACH_MAX_COMMITS must NOT be added (§1).
   critical: do NOT add a max-commits env line. load.go reads it only as a flag.
 
 # The documented wording the header must match (READ ONLY)
 - file: docs/cli.md   (lines 43-49, 164-170)
-  why: the canonical env-var table. `STAGEHAND_REASONING` = "Global reasoning effort: off|low|medium|high";
-       the 4 per-role `STAGEHAND_<ROLE>_REASONING`. The header's 2 new lines mirror this wording.
+  why: the canonical env-var table. `STAGECOACH_REASONING` = "Global reasoning effort: off|low|medium|high";
+       the 4 per-role `STAGECOACH_<ROLE>_REASONING`. The header's 2 new lines mirror this wording.
 - file: docs/configuration.md   (lines 152-156)
   why: the second canonical source documenting the same 5 reasoning env vars. Consistency target.
 
@@ -209,13 +209,13 @@ internal/config/bootstrap_test.go   # + TestBuildBootstrapConfig_HeaderDocuments
 ### Known Gotchas of our codebase & Library Quirks
 
 ```go
-// CRITICAL (do NOT add STAGEHAND_MAX_COMMITS, design §1): Issue 4's prose says "reasoning (and max-commits)"
+// CRITICAL (do NOT add STAGECOACH_MAX_COMMITS, design §1): Issue 4's prose says "reasoning (and max-commits)"
 //   but item_description §1 corrects it — max-commits is a CLI FLAG (load.go:301 fs.Changed+fs.GetInt), NOT
 //   an env var (no os.LookupEnv; docs/cli.md env column is "—"). Adding it would be FALSE documentation.
 //   Add ONLY the 2 reasoning lines.
 
 // CRITICAL (verbatim lines + exact spot, design §0): insert the EXACT 2 lines (item_description §3) AFTER
-//   the `STAGEHAND_ARBITER_PROVIDER / _MODEL` line and BEFORE `STAGEHAND_COMMITS`. Don't reword them.
+//   the `STAGECOACH_ARBITER_PROVIDER / _MODEL` line and BEFORE `STAGECOACH_COMMITS`. Don't reword them.
 
 // GOTCHA (<ROLE> literal is intentional, design §2): the per-role reasoning line uses the literal
 //   `<ROLE>` shorthand, matching the header's CLI-flags section (`--<role>-provider`, "(role =
@@ -229,8 +229,8 @@ internal/config/bootstrap_test.go   # + TestBuildBootstrapConfig_HeaderDocuments
 // GOTCHA (header is inert comments): every header line starts with `#`. Keep the 2 new lines `#`-prefixed
 //   so the generated config stays valid TOML (the TestBuildBootstrapConfig_ValidTOML test unmarshals it).
 
-// GOTCHA (the 2 assertions are independent): `STAGEHAND_REASONING` is NOT a substring of
-//   `STAGEHAND_<ROLE>_REASONING` (the latter has `<ROLE>_` between STAGEHAND_ and REASONING). So the test
+// GOTCHA (the 2 assertions are independent): `STAGECOACH_REASONING` is NOT a substring of
+//   `STAGECOACH_<ROLE>_REASONING` (the latter has `<ROLE>_` between STAGECOACH_ and REASONING). So the test
 //   must assert BOTH strings — asserting only the global one would not catch a missing per-role line.
 
 // GOTCHA (no parallel conflict, design §6): the running P1.M3.T1.S1 edits decompose.go/roles.go/generate.go/
@@ -252,13 +252,13 @@ internal/config/bootstrap_test.go   # + TestBuildBootstrapConfig_HeaderDocuments
 Task 1: EDIT internal/config/bootstrap.go — insert the 2 reasoning env-var lines into bootstrapHeader
   - FILE: internal/config/bootstrap.go, `const bootstrapHeader`.
   - LOCATE the env-var block. Find the line:
-        #   STAGEHAND_ARBITER_PROVIDER / _MODEL   per-role override: leftover arbiter
+        #   STAGECOACH_ARBITER_PROVIDER / _MODEL   per-role override: leftover arbiter
     and the line immediately after it:
-        #   STAGEHAND_COMMITS                    force exactly N commits when nothing is staged (PRD §9.14); 1 == --single
+        #   STAGECOACH_COMMITS                    force exactly N commits when nothing is staged (PRD §9.14); 1 == --single
   - INSERT these EXACT 2 lines BETWEEN them (preserve the 3-space-after-# indent + the description column):
-        #   STAGEHAND_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)
-        #   STAGEHAND_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)
-  - DO NOT add any STAGEHAND_MAX_COMMITS line (design §1 — it is a flag, not an env var).
+        #   STAGECOACH_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)
+        #   STAGECOACH_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)
+  - DO NOT add any STAGECOACH_MAX_COMMITS line (design §1 — it is a flag, not an env var).
   - DO NOT touch any other part of bootstrap.go (buildBootstrapConfig, GenerateBootstrapConfig, the CLI-
       flags section, generationCommented — all unchanged). The `--max-commits` FLAG is already documented
       in the header's CLI-flags section; that's correct and stays.
@@ -271,8 +271,8 @@ Task 2: EDIT internal/config/bootstrap_test.go — add the regression test
         func TestBuildBootstrapConfig_HeaderDocumentsReasoningEnvVars(t *testing.T) {
             content := buildBootstrapConfig("pi", nil)
             assertContains(t, content,
-                "STAGEHAND_REASONING",
-                "STAGEHAND_<ROLE>_REASONING",
+                "STAGECOACH_REASONING",
+                "STAGECOACH_<ROLE>_REASONING",
             )
         }
   - PLACE it among the other `TestBuildBootstrapConfig_*` functions (before the Helpers section). It uses
@@ -294,7 +294,7 @@ Task 3: VERIFY (run all gates; fix before declaring done)
 
 ```go
 // PATTERN: the bootstrapHeader env-var line (3-space indent, name + description):
-//   #   STAGEHAND_<NAME>   <description>
+//   #   STAGECOACH_<NAME>   <description>
 // Mirror it exactly. The 2 new lines match this shape (the description column isn't perfectly aligned
 // across the whole block — the existing provider/model lines are longer — so match the task's verbatim
 // spacing, not a computed column).
@@ -316,8 +316,8 @@ Task 3: VERIFY (run all gates; fix before declaring done)
 
 ```yaml
 HEADER.ENV_BLOCK:
-  - insert: "2 lines (STAGEHAND_REASONING + STAGEHAND_<ROLE>_REASONING) between ARBITER_PROVIDER and COMMITS"
-  - do-not-add: "STAGEHAND_MAX_COMMITS (flag, not env — design §1)"
+  - insert: "2 lines (STAGECOACH_REASONING + STAGECOACH_<ROLE>_REASONING) between ARBITER_PROVIDER and COMMITS"
+  - do-not-add: "STAGECOACH_MAX_COMMITS (flag, not env — design §1)"
 
 TEST.SURFACE:
   - add: "TestBuildBootstrapConfig_HeaderDocumentsReasoningEnvVars (strings.Contains via assertContains)"
@@ -339,11 +339,11 @@ FROZEN/LEAVE (do NOT edit):
 gofmt -w internal/config/bootstrap.go internal/config/bootstrap_test.go
 go vet ./internal/config/
 # Confirm the 2 lines landed in the right spot (between ARBITER_PROVIDER and COMMITS):
-grep -n -A1 'STAGEHAND_REASONING ' internal/config/bootstrap.go    # expect the REASONING line + the <ROLE>_REASONING line
-grep -n 'STAGEHAND_MAX_COMMITS' internal/config/bootstrap.go       # expect NO match (must not be added)
+grep -n -A1 'STAGECOACH_REASONING ' internal/config/bootstrap.go    # expect the REASONING line + the <ROLE>_REASONING line
+grep -n 'STAGECOACH_MAX_COMMITS' internal/config/bootstrap.go       # expect NO match (must not be added)
 # Confirm go.mod/go.sum unchanged:
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
-# Expected: go vet clean; the 2 reasoning lines present; NO STAGEHAND_MAX_COMMITS line.
+# Expected: go vet clean; the 2 reasoning lines present; NO STAGECOACH_MAX_COMMITS line.
 ```
 
 ### Level 2: Unit tests (the new test + no regression)
@@ -379,11 +379,11 @@ git diff --exit-code internal/config/load.go docs/cli.md docs/configuration.md g
 ```bash
 # No server/DB/subprocess. Verify by reasoning + Level 2:
 #   1. The 2 new lines document REAL env vars — re-confirm load.go reads them:
-grep -n 'STAGEHAND_REASONING"\|"_REASONING"' internal/config/load.go   # expect the global (:181) + per-role loop (:215)
+grep -n 'STAGECOACH_REASONING"\|"_REASONING"' internal/config/load.go   # expect the global (:181) + per-role loop (:215)
 #   2. The header is INERT (all '#') — the generated config stays valid TOML:
 go test ./internal/config/ -run TestBuildBootstrapConfig_ValidTOML -v   # PASS
 #   3. NO false max-commits env line was added (truthful docs):
-! grep -q 'STAGEHAND_MAX_COMMITS' internal/config/bootstrap.go && echo "OK: no false max-commits env line"
+! grep -q 'STAGECOACH_MAX_COMMITS' internal/config/bootstrap.go && echo "OK: no false max-commits env line"
 ```
 
 ## Final Validation Checklist
@@ -395,14 +395,14 @@ go test ./internal/config/ -run TestBuildBootstrapConfig_ValidTOML -v   # PASS
 - [ ] `git status` shows EXACTLY 2 modified files (bootstrap.go, bootstrap_test.go); every LEAVE file unchanged.
 
 ### Feature Validation
-- [ ] `bootstrapHeader` contains `STAGEHAND_REASONING` (global) and `STAGEHAND_<ROLE>_REASONING` (per-role).
-- [ ] The 2 lines are placed between `STAGEHAND_ARBITER_PROVIDER / _MODEL` and `STAGEHAND_COMMITS`.
-- [ ] NO `STAGEHAND_MAX_COMMITS` line was added (it's a flag, not an env var).
+- [ ] `bootstrapHeader` contains `STAGECOACH_REASONING` (global) and `STAGECOACH_<ROLE>_REASONING` (per-role).
+- [ ] The 2 lines are placed between `STAGECOACH_ARBITER_PROVIDER / _MODEL` and `STAGECOACH_COMMITS`.
+- [ ] NO `STAGECOACH_MAX_COMMITS` line was added (it's a flag, not an env var).
 - [ ] The lines are `#`-commented (header stays inert; generated config stays valid TOML).
 - [ ] `TestBuildBootstrapConfig_HeaderDocumentsReasoningEnvVars` PASSES (and fails without the edit).
 
 ### Code Quality Validation
-- [ ] The 2 lines match the existing env-var line shape (`#   STAGEHAND_<NAME>   <desc>`).
+- [ ] The 2 lines match the existing env-var line shape (`#   STAGECOACH_<NAME>   <desc>`).
 - [ ] The `<ROLE>` shorthand matches the header's CLI-flags-section `--<role>-…` precedent (consistent).
 - [ ] The new test mirrors `bootstrap_test.go`'s `assertContains`/`strings.Contains` style (no new pattern).
 - [ ] Anti-patterns avoided (see below); no out-of-scope churn; no new dependency.
@@ -415,7 +415,7 @@ go test ./internal/config/ -run TestBuildBootstrapConfig_ValidTOML -v   # PASS
 
 ## Anti-Patterns to Avoid
 
-- ❌ **Don't add `STAGEHAND_MAX_COMMITS`.** Issue 4's prose mentions "max-commits" but item_description §1
+- ❌ **Don't add `STAGECOACH_MAX_COMMITS`.** Issue 4's prose mentions "max-commits" but item_description §1
   corrects it: `max-commits` is a CLI FLAG (load.go:301), NOT an env var (no `os.LookupEnv`; docs/cli.md
   env column is "—"). Adding it would be FALSE documentation. (§1)
 - ❌ **Don't reword the 2 lines.** item_description §3 gives them verbatim. Use them exactly (the `<ROLE>`
@@ -425,7 +425,7 @@ go test ./internal/config/ -run TestBuildBootstrapConfig_ValidTOML -v   # PASS
   `--<role>-…` precedent. (§2)
 - ❌ **Don't exact-match the header in the test.** Use `strings.Contains` (the `assertContains` helper) —
   the existing `bootstrap_test.go` style. Exact-match would be brittle and isn't needed. (§5)
-- ❌ **Don't assert only `STAGEHAND_REASONING`.** It's NOT a substring of `STAGEHAND_<ROLE>_REASONING`;
+- ❌ **Don't assert only `STAGECOACH_REASONING`.** It's NOT a substring of `STAGECOACH_<ROLE>_REASONING`;
   assert BOTH so a missing per-role line is caught. (gotcha)
 - ❌ **Don't touch load.go, docs/cli.md, docs/configuration.md, or any other file.** Reasoning is already
   wired in loadEnv; docs sync is P1.M6.T1.S1's job; this subtask is the header-only fix. (scope boundary)

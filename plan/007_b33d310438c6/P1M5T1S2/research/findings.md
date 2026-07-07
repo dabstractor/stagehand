@@ -21,7 +21,7 @@ flag — confirm no flag was added and the docs don't claim one).
 ## 2. README.md structure + the insertion point (the ONE edit)
 
 `README.md` (~20KB) is the marketing surface. Relevant structure:
-- **Hero pitch** (lines 1–6): the top blockquote ("Stagehand writes your commit messages…") + the
+- **Hero pitch** (lines 1–6): the top blockquote ("Stagecoach writes your commit messages…") + the
   "v2.1 adds payload exclusions, message shaping, …" line. **MUST STAY INTACT** — do not touch.
 - **`## Features` table** (6 rows): Payload exclusions, Message shaping, Git hook mode, Tool
   integrations, `--edit`/`--push`, Discovery. Each row is `| <Capability> | <one-line desc> ([docs](anchor)) |`.
@@ -33,7 +33,7 @@ are thematically adjacent (exclusions HIDE files from the payload; optimization 
 two rows read coherently together. Existing row shape (mirror exactly):
 
 ```
-| Payload exclusions | `.stagehandignore` / `--exclude` hide a file's diff from the model — never from the commit ([docs](docs/configuration.md#exclusion-globs-generationexclude)). |
+| Payload exclusions | `.stagecoachignore` / `--exclude` hide a file's diff from the model — never from the commit ([docs](docs/configuration.md#exclusion-globs-generationexclude)). |
 ```
 
 **Proposed new row (concise, accurate, hero-pitch-safe, dual cross-link):**

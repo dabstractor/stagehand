@@ -65,7 +65,7 @@ moves; the test DESIGN is exactly the contract's.
 To make reapStaleLocks see the fakes, they must be `*.lock` files in the SAME dir Acquire reaps
 (`filepath.Dir(path)` = the resolved lock dir). Sequence:
 1. Isolate XDG: `t.Setenv("XDG_RUNTIME_DIR", t.TempDir())` + `t.Setenv("XDG_CACHE_HOME", "")`.
-2. Resolve the dir via the package's own `lockDir()` (white-box): `dir, _ := lockDir()` → `<tmpdir>/stagehand/locks`.
+2. Resolve the dir via the package's own `lockDir()` (white-box): `dir, _ := lockDir()` → `<tmpdir>/stagecoach/locks`.
 3. `os.MkdirAll(dir, 0o700)` (Acquire's own MkdirAll is then a no-op; planting needs the dir to exist first).
 4. Write each fake via a helper:
 ```go
@@ -132,7 +132,7 @@ import would fail vet — but S1's tests still use it, so it stays). All stdlib;
 - `internal/lock/lock_unix.go` / `lock_windows.go` (processAlive — P1.M2.T1.S1, LANDED).
 - `internal/lock/lock_test.go` (existing tests — the contract's helpers/pattern are reused, not edited;
   resetCurrent stays there and is visible to lock_unix_test.go on Unix).
-- `internal/signal/*` + `cmd/stagehand/main.go` (P1.M2.T2 exit-path release — different concern).
+- `internal/signal/*` + `cmd/stagecoach/main.go` (P1.M2.T2 exit-path release — different concern).
 - `docs/*` (DOCS: none — test-only).
 - go.mod / go.sum (stdlib only).
 

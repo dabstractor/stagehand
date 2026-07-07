@@ -65,7 +65,7 @@ description: |
       message.go (+ message_test.go).
     - internal/signal/* — DO NOT IMPORT. generateMessage/publishCommit are SIGNAL-FREE (findings §8:
       RestoreDefault is one-shot; loop-scoped signal arming is P3.M4.T1.S2's job).
-    - cmd/, pkg/stagehand/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires generateMessage/publishCommit).
+    - cmd/, pkg/stagecoach/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires generateMessage/publishCommit).
 
   DELIVERABLES (2 new files, 0 edits to existing files, 0 breaking changes):
     CREATE internal/decompose/message.go — package `decompose`; ErrMessageFailed + ErrPublicationFailed
@@ -141,7 +141,7 @@ orchestrator (P3.M4.T1.S1).
 ## User Persona
 
 **Target User**: the decompose orchestrator (`internal/decompose/decompose.go`, P3.M4.T1.S1) and, by
-extension, the end user running `stagehand` on an un-staged working tree (the default action routes to
+extension, the end user running `stagecoach` on an un-staged working tree (the default action routes to
 decompose per FR-M1). message.go is internal plumbing — NOT user-facing CLI text. The user never invokes
 the message role directly; the orchestrator calls generateMessage once per (non-skipped) concept from the
 planner's partition, possibly overlapped with the next stager, then publishCommit to land the commit.
@@ -473,7 +473,7 @@ internal/stubtest/
   stubtest.go         # READ (test infra): Build, Manifest (bare — fine for the message role), NewScript.
 internal/generate/
   generate_test.go    # READ (test pattern): fixture helpers (copy + msg*-rename) + the canonical tests.
-go.mod / go.sum       # UNCHANGED (module github.com/dustin/stagehand; generate is a new decompose import
+go.mod / go.sum       # UNCHANGED (module github.com/dustin/stagecoach; generate is a new decompose import
                       #   but generate is already a package — no new module deps).
 .golangci.yml         # READ: errcheck/gosimple/govet/ineffassign/staticcheck/unused.
 ```
@@ -493,7 +493,7 @@ internal/decompose/message_test.go     # NEW — stubtest (bare stubtest.Manifes
                                       #   generateMessage success/dedupe-retry/parse-rescue/timeout/empty-diff;
                                       #   publishCommit success/root-commit/CAS-failure.
 # go.mod/go.sum UNCHANGED. roles.go + planner.go + stager.go + generate/* + git/* + prompt/* + provider/*
-# + config/* + cmd/* + pkg/stagehand all UNCHANGED.
+# + config/* + cmd/* + pkg/stagecoach all UNCHANGED.
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -613,9 +613,9 @@ Task 1: CREATE internal/decompose/message.go — package doc + imports + sentine
     publishCommit is the CommitTree + UpdateRefCAS pair (a CAS-protected publication step). Note both are
     SIGNAL-FREE primitives consumed by the orchestrator (P3.M4.T1.S1).
   - IMPORTS: "context"; "errors"; "fmt"; "strings";
-    "github.com/dustin/stagehand/internal/config"; "github.com/dustin/stagehand/internal/generate";
-    "github.com/dustin/stagehand/internal/git"; "github.com/dustin/stagehand/internal/prompt";
-    "github.com/dustin/stagehand/internal/provider".
+    "github.com/dustin/stagecoach/internal/config"; "github.com/dustin/stagecoach/internal/generate";
+    "github.com/dustin/stagecoach/internal/git"; "github.com/dustin/stagecoach/internal/prompt";
+    "github.com/dustin/stagecoach/internal/provider".
     (NO "ui" — deps.Verbose is the ui.Verbose handle via Deps; no direct ui symbol. NO "signal" — findings §8.
     Verify at Task 7: drop any unused import (golangci/unused + go vet reject it). All these are already
     used by roles.go EXCEPT generate — confirm generate is imported (RescueError/CASError/ExtractSubject/
@@ -750,9 +750,9 @@ Task 5: CREATE internal/decompose/message_test.go — package + imports + msg*-p
   - PACKAGE: `decompose` (internal test — generateMessage/publishCommit/ErrMessageFailed/ErrPublicationFailed
     visible).
   - IMPORTS: "context"; "errors"; "os"; "os/exec"; "regexp"; "strings"; "testing"; "time";
-    "github.com/dustin/stagehand/internal/config"; "github.com/dustin/stagehand/internal/generate";
-    "github.com/dustin/stagehand/internal/git"; "github.com/dustin/stagehand/internal/provider";
-    "github.com/dustin/stagehand/internal/stubtest".
+    "github.com/dustin/stagecoach/internal/config"; "github.com/dustin/stagecoach/internal/generate";
+    "github.com/dustin/stagecoach/internal/git"; "github.com/dustin/stagecoach/internal/provider";
+    "github.com/dustin/stagecoach/internal/stubtest".
     (NOTE: only import what each test uses; drop unused. generate for RescueError/CASError/ErrTimeout/
     ErrRescue; git for git.New + StagedDiffOptions; provider for provider.Manifest; regexp for the shaRe.
     prompt is NOT needed (generateMessage takes tree SHAs, not concepts).)
@@ -933,7 +933,7 @@ CONSUMED-BY (NOT this task — the orchestrator P3.M4.T1.S1 wires these):
 NO CONFIG CHANGES: generateMessage + publishCommit read existing Config fields only (Timeout,
   MaxDuplicateRetries, MaxDiffBytes, MaxMdLines, BinaryExtensions, SubjectTargetChars). No new config keys.
 
-NO ROUTE/CLI CHANGES: internal package; no cmd/ or pkg/stagehand edits (the orchestrator P3.M4.T1.S1 +
+NO ROUTE/CLI CHANGES: internal package; no cmd/ or pkg/stagecoach edits (the orchestrator P3.M4.T1.S1 +
   CLI P4 wire these).
 ```
 

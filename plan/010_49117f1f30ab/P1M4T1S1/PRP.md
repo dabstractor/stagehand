@@ -18,10 +18,10 @@ description: |
           to the frozen snapshot … `--no-verify` skips pre-commit + commit-msg (mirrors git)".
         - the Hook-mode block: reframe — no longer "the way to get hooks"; it remains the bridge for plain
           `git commit` from IDEs (hooks honored there too, but no snapshot guarantees; latency inside commit).
-        - "When to use which": the two modes COMPOSE (a user who always invokes `stagehand` gets hook
+        - "When to use which": the two modes COMPOSE (a user who always invokes `stagecoach` gets hook
           coverage WITHOUT installing hook mode; hook mode covers `git commit` from an IDE). Cross-link the
           M3.T2.S1 subsection (#commit-hooks-on-the-plumbing-path) and §9.25.
-    (b) README.md — rewrite the stale FAQ + add a one-line feature mention: hooks run on every `stagehand`
+    (b) README.md — rewrite the stale FAQ + add a one-line feature mention: hooks run on every `stagecoach`
           commit (atomic + stage-while-generating preserved); `--no-verify` mirrors git.
     VERIFY: grep the whole docs/ tree ( + README.md) for bypass/Bypasses/"pre-commit hooks do NOT run" and
     confirm every STALE claim is updated (distinguishing the correct unrelated "bypass" hits — §2).
@@ -78,7 +78,7 @@ behavior and the M3.T2.S1 feature subsection above them.
    reframed (bridge for `git commit`, not the hooks source); (3) "When to use which" reframed (the modes
    compose); (4) the M3.T2.S1 subsection's "is being reconciled" parenthelial → a clean cross-link.
 2. `README.md` — 2 edits: (1) rewrite the "Does it run my pre-commit hooks?" FAQ (the stale claim); (2) add
-   one Features-table row for "Commit hooks on every `stagehand` commit".
+   one Features-table row for "Commit hooks on every `stagecoach` commit".
 
 **Success Definition**: no occurrence of "Bypasses pre-commit hooks" / "pre-commit hooks do not run" /
 "bypassed" (in the hooks sense) remains in how-it-works.md or README.md; the comparison section states the
@@ -89,22 +89,22 @@ byte-unchanged; `git status` shows ONLY the two files; `go build ./... && go tes
 
 ## User Persona
 
-**Target User**: The reader deciding whether `stagehand` will run their hooks (husky, lint-staged,
+**Target User**: The reader deciding whether `stagecoach` will run their hooks (husky, lint-staged,
 conventional-commit lint, a formatter, post-commit notifications). Pre-§9.25 the docs told them hooks were
-bypassed on the `stagehand` path and hook mode was the only fix — wrong now. After this sync the docs match
-the code: hooks run on every `stagehand` commit (atomic + stage-while-generating preserved), and hook mode
+bypassed on the `stagecoach` path and hook mode was the only fix — wrong now. After this sync the docs match
+the code: hooks run on every `stagecoach` commit (atomic + stage-while-generating preserved), and hook mode
 is only for when they commit via plain `git commit`.
 
 **Use Case**: A husky/lint-staged user reads the README FAQ or the how-it-works comparison to decide
-whether `stagehand` is safe for their workflow. They see: yes, hooks run; `--no-verify` for a one-off; hook
+whether `stagecoach` is safe for their workflow. They see: yes, hooks run; `--no-verify` for a one-off; hook
 mode optional (only for IDE `git commit`).
 
-**User Journey**: user opens README → Features row "Commit hooks on every `stagehand` commit" → FAQ "Does
+**User Journey**: user opens README → Features row "Commit hooks on every `stagecoach` commit" → FAQ "Does
 it run my pre-commit hooks?" → "Yes (v2.4)…" → (optional) how-it-works comparison + the M3.T2.S1 subsection
 for the full scope/freeze/failure detail.
 
 **Pain Points Addressed**: Stale/misleading docs — a hooks-reliant user would wrongly conclude they MUST
-install hook mode (forfeiting atomicity) to get hooks, or that `stagehand` silently skips their lint. Both
+install hook mode (forfeiting atomicity) to get hooks, or that `stagecoach` silently skips their lint. Both
 gaps closed.
 
 ## Why
@@ -112,7 +112,7 @@ gaps closed.
 - **It IS the Mode-B docs half of the §9.25 changeset.** M1–M3 shipped the feature (plumbing path runs
   hooks); the docs were not reconciled. codebase_reality.md §8 names this as "the headline Mode B rewrite."
 - **Prevents a false impression that costs users the atomic path.** The old framing ("bypasses hooks → use
-  hook mode") pushed hook-reliant users toward hook mode (no snapshot/atomicity) when `stagehand` itself now
+  hook mode") pushed hook-reliant users toward hook mode (no snapshot/atomicity) when `stagecoach` itself now
   covers them.
 - **Keeps the docs self-consistent.** The M3.T2.S1 subsection (above the comparison) documents the feature
   and flags the comparison as "being reconciled" — leaving that unresolved makes the doc contradict itself.
@@ -127,22 +127,22 @@ doc files.
 
 - [ ] **how-it-works.md** Snapshot-flow bullet: "Bypasses pre-commit hooks … do NOT run" is GONE, replaced
       by a "Honors pre-commit hooks" bullet stating the repo's pre-commit → prepare-commit-msg → commit-msg
-      → post-commit run around every `stagehand` commit, scoped to the frozen snapshot (freeze holds), and
+      → post-commit run around every `stagecoach` commit, scoped to the frozen snapshot (freeze holds), and
       `--no-verify` skips pre-commit + commit-msg (mirrors `git commit --no-verify`).
 - [ ] **how-it-works.md** Hook-mode bullet: the "Pre-commit hooks honored: the commit flows through the
       standard `git commit` path" framing is GONE; reframed to: hook mode is the bridge for plain
       `git commit` from an IDE/tool (hooks honored there via real `git commit`, but no snapshot guarantees,
       no stage-while-generating, latency inside the commit). The Never-block / No-rescue bullets stay.
-- [ ] **how-it-works.md** "When to use which": reframed — `stagehand` directly is the day-to-day default
+- [ ] **how-it-works.md** "When to use which": reframed — `stagecoach` directly is the day-to-day default
       (atomic + stage-while-generating + now hooks); hook mode only for plain `git commit` from an IDE; the
-      two COMPOSE (§9.25 covers `stagehand`, hook mode covers `git commit`); cross-link
+      two COMPOSE (§9.25 covers `stagecoach`, hook mode covers `git commit`); cross-link
       `#commit-hooks-on-the-plumbing-path`.
 - [ ] **how-it-works.md** M3.T2.S1 subsection trailing parenthetical: "is being reconciled in the v2.4 docs
       rewrite" is GONE; replaced by a clean forward cross-link to the (now-reconciled) comparison section.
 - [ ] **README.md** FAQ "Does it run my pre-commit hooks?": "do not run / bypassed" is GONE; rewritten to
       "Yes — as of v2.4 …" (hooks run scoped to the snapshot; `--no-verify`; hook mode for `git commit`;
       cross-link `#commit-hooks-on-the-plumbing-path`).
-- [ ] **README.md** Features table: ONE new row "Commit hooks on every `stagehand` commit" added (after the
+- [ ] **README.md** Features table: ONE new row "Commit hooks on every `stagecoach` commit" added (after the
       "Git hook mode" row), cross-linking `#commit-hooks-on-the-plumbing-path`. The existing "Git hook mode"
       row stays (complementary).
 - [ ] VERIFY grep: `grep -rniE "bypass|pre-commit hooks do NOT run" docs/ README.md` shows NO stale hooks
@@ -289,7 +289,7 @@ README.md           # *** EDIT *** — the Features table (L59-71) + the FAQ (L3
      "### Trade-off inversion (FR-H7)" → #trade-off-inversion-fr-h7. Verify the cross-links resolve. -->
 
 <!-- GOTCHA (the README "Git hook mode" row STAYS, design §5): it documents hook mode (the `git commit`
-     bridge). The NEW row documents hooks on the `stagehand` path. They are complementary — do not merge or
+     bridge). The NEW row documents hooks on the `stagecoach` path. They are complementary — do not merge or
      delete the existing row. -->
 ```
 
@@ -311,7 +311,7 @@ Task 1: EDIT docs/how-it-works.md — edit (1): the Snapshot-flow "Bypasses" bul
       do NOT run on the generated commit."
   - REPLACE that bullet (verbatim target, from the task):
       - **Honors pre-commit hooks**: the repository's pre-commit → prepare-commit-msg → commit-msg →
-        post-commit hooks run around every stagehand commit, scoped to the frozen snapshot (so the
+        post-commit hooks run around every stagecoach commit, scoped to the frozen snapshot (so the
         stage-while-generating freeze holds). `--no-verify` skips pre-commit + commit-msg (mirrors `git
         commit --no-verify`). See [Commit hooks on the plumbing path](#commit-hooks-on-the-plumbing-path).
   - GOTCHA: keep the bullet's place in the Snapshot-flow list. The other Snapshot bullets (Atomic /
@@ -322,7 +322,7 @@ Task 2: EDIT docs/how-it-works.md — edit (2): the Hook-mode "Pre-commit hooks 
       the standard `git commit` path, so husky, lint-staged, and any other `pre-commit` hooks run normally."
   - REPLACE (reframe — hook mode is NO LONGER "the way to get hooks"; it's the `git commit` bridge):
       - **The bridge for plain `git commit`**: hook mode covers the case where you commit via `git commit`
-        from an IDE or another tool instead of invoking `stagehand`. Hooks run there too (real `git
+        from an IDE or another tool instead of invoking `stagecoach`. Hooks run there too (real `git
         commit`), but there is no snapshot, no atomicity guarantee, and no stage-while-generating —
         generation latency happens inside the commit.
   - GOTCHA: the other Hook-mode bullets (No snapshot guarantees / Never-block contract / No rescue protocol)
@@ -330,15 +330,15 @@ Task 2: EDIT docs/how-it-works.md — edit (2): the Hook-mode "Pre-commit hooks 
 
 Task 3: EDIT docs/how-it-works.md — edit (3): "When to use which" reframed (the modes compose)
   - LOCATE "### When to use which" (3 bullets). REPLACE the 3 bullets with:
-      - Use **`stagehand` directly** (the snapshot flow) for day-to-day commits: it's atomic,
+      - Use **`stagecoach` directly** (the snapshot flow) for day-to-day commits: it's atomic,
         stage-while-generating, and — as of v2.4 — honors your repository's hooks (`--no-verify` for a
         one-off skip).
       - Install **hook mode** only if you commit via plain `git commit` from an IDE or lazygit instead of
-        invoking `stagehand` — it fills the message without blocking, with hooks honored but no snapshot
+        invoking `stagecoach` — it fills the message without blocking, with hooks honored but no snapshot
         guarantees.
       - The two **compose**: [Commit hooks on the plumbing path](#commit-hooks-on-the-plumbing-path) (§9.25)
-        covers `stagehand` commits; hook mode covers `git commit` commits.
-  - GOTCHA: the thrust flips — `stagehand` is the day-to-day default (it now has hooks); hook mode is the
+        covers `stagecoach` commits; hook mode covers `git commit` commits.
+  - GOTCHA: the thrust flips — `stagecoach` is the day-to-day default (it now has hooks); hook mode is the
       opt-in for the `git commit` case. KEEP the "### When to use which" header.
 
 Task 4: EDIT docs/how-it-works.md — edit (4): the M3.T2.S1 subsection's "is being reconciled" parenthetical
@@ -355,22 +355,22 @@ Task 5: EDIT README.md — edit (5): rewrite the "Does it run my pre-commit hook
   - LOCATE "### Does it run my pre-commit hooks?" and its answer (the "pre-commit hooks do not run …
       bypassed … install hook mode" text).
   - REPLACE the answer paragraph(s) with:
-      Yes. As of v2.4, the default `stagehand` command runs your repository's standard commit hooks
+      Yes. As of v2.4, the default `stagecoach` command runs your repository's standard commit hooks
       (`pre-commit` → `prepare-commit-msg` → `commit-msg` → `post-commit`) around every commit, scoped to
       the frozen snapshot — so atomicity and stage-while-generating are preserved (a `pre-commit`
       formatter's fixes are included; a hook that stages brand-new content aborts the run). `--no-verify`
       skips `pre-commit` and `commit-msg` only, mirroring `git commit --no-verify`. **Hook mode**
-      (`stagehand hook install`) remains for when you commit via plain `git commit` from an IDE — the two
-      compose (§9.25 covers `stagehand`; hook mode covers `git commit`). See [Commit hooks on the plumbing
+      (`stagecoach hook install`) remains for when you commit via plain `git commit` from an IDE — the two
+      compose (§9.25 covers `stagecoach`; hook mode covers `git commit`). See [Commit hooks on the plumbing
       path](docs/how-it-works.md#commit-hooks-on-the-plumbing-path).
   - GOTCHA: this fixes the stale "do not run / bypassed" claim (the VERIFY target). Keep the "### Does it
-      run my pre-commit hooks?" header. If the old answer had a `stagehand hook install` code block, you may
+      run my pre-commit hooks?" header. If the old answer had a `stagecoach hook install` code block, you may
       keep a trimmed one-liner or drop it (the FAQ now leads with "Yes").
 
 Task 6: EDIT README.md — edit (6): add ONE Features-table row
   - LOCATE the "## Features" table. Find the "Git hook mode" row (cross-links #trade-off-inversion-fr-h7).
   - INSERT a new row IMMEDIATELY AFTER it:
-      | Commit hooks on every `stagehand` commit | As of v2.4, your repo's `pre-commit` → `prepare-commit-msg` → `commit-msg` → `post-commit` hooks run around every `stagehand` commit, scoped to the frozen snapshot (atomic + stage-while-generating preserved); `--no-verify` mirrors git ([how it works](docs/how-it-works.md#commit-hooks-on-the-plumbing-path)). |
+      | Commit hooks on every `stagecoach` commit | As of v2.4, your repo's `pre-commit` → `prepare-commit-msg` → `commit-msg` → `post-commit` hooks run around every `stagecoach` commit, scoped to the frozen snapshot (atomic + stage-while-generating preserved); `--no-verify` mirrors git ([how it works](docs/how-it-works.md#commit-hooks-on-the-plumbing-path)). |
   - GOTCHA: keep the existing "Git hook mode" row (complementary). The new row cross-links the M3.T2.S1
       subsection anchor. One row (the task says "a sentence or two").
 
@@ -396,14 +396,14 @@ Task 7: VERIFY (Mode B validation)
         --no-verify; cross-link #commit-hooks-on-the-plumbing-path).
     (2) Hook-mode "Pre-commit hooks honored" bullet → "The bridge for plain `git commit`" (hooks honored
         there too, but no snapshot/atomicity/stage-while-generating; latency inside commit).
-    (3) "When to use which" 3 bullets → reframed (`stagehand` = day-to-day default w/ hooks; hook mode =
+    (3) "When to use which" 3 bullets → reframed (`stagecoach` = day-to-day default w/ hooks; hook mode =
         `git commit` opt-in; compose; cross-link).
     (4) M3.T2.S1 subsection trailing "is being reconciled" parenthetical → clean cross-link to the
         comparison section.
   README.md:
     (5) "Does it run my pre-commit hooks?" FAQ → "Yes (v2.4)…" (scoped to snapshot; --no-verify; hook mode
         for git commit; cross-link).
-    (6) Features table: + one "Commit hooks on every `stagehand` commit" row (after "Git hook mode").
+    (6) Features table: + one "Commit hooks on every `stagecoach` commit" row (after "Git hook mode").
 
 <!-- THE accuracy pins (don't get these wrong):
   - Hooks run "scoped to the FROZEN snapshot" (FR-V3) — pre-commit sees a throwaway index from T_start,
@@ -456,10 +456,10 @@ CROSS-LINKS (must resolve): #commit-hooks-on-the-plumbing-path (the M3.T2.S1 sub
 # Confirm the 6 edits landed at the right content anchors:
 grep -n "Honors pre-commit hooks" docs/how-it-works.md                       # edit (1)
 grep -n "bridge for plain" docs/how-it-works.md                              # edit (2)
-grep -n "stagehand.*directly.*day-to-day\|two.*compose" docs/how-it-works.md # edit (3)
+grep -n "stagecoach.*directly.*day-to-day\|two.*compose" docs/how-it-works.md # edit (3)
 grep -n "is being reconciled" docs/how-it-works.md || echo "OK: stale parenthetical removed (edit 4)"
 grep -n "As of v2.4.*standard commit hooks\|Yes.*pre-commit hooks" README.md # edit (5)
-grep -n "Commit hooks on every.*stagehand.*commit" README.md                 # edit (6)
+grep -n "Commit hooks on every.*stagecoach.*commit" README.md                 # edit (6)
 # Confirm the cross-link targets exist (anchors resolve):
 grep -nE "^## (Commit hooks on the plumbing path|Hook mode vs the snapshot-based flow)|^### Trade-off inversion" docs/how-it-works.md
 # Expected: all 6 edits present; the 3 headers exist (so the 3 cross-link slugs resolve). Read the rendered
@@ -521,12 +521,12 @@ grep -ni "compose" docs/how-it-works.md README.md
       skips pre-commit + commit-msg; cross-link).
 - [ ] **(2)** Hook-mode bullet is reframed ("the bridge for plain `git commit`"; hooks honored there too,
       but no snapshot/atomicity/stage-while-generating).
-- [ ] **(3)** "When to use which" reframed (`stagehand` = day-to-day default w/ hooks; hook mode = `git
+- [ ] **(3)** "When to use which" reframed (`stagecoach` = day-to-day default w/ hooks; hook mode = `git
       commit` opt-in; compose; cross-link).
 - [ ] **(4)** M3.T2.S1 subsection's "is being reconciled" parenthetical replaced with a clean cross-link.
 - [ ] **(5)** README FAQ rewritten ("Yes (v2.4)…"; scoped to snapshot; `--no-verify`; hook mode for `git
       commit`; cross-link).
-- [ ] **(6)** README Features table has the new "Commit hooks on every `stagehand` commit" row (existing
+- [ ] **(6)** README Features table has the new "Commit hooks on every `stagecoach` commit" row (existing
       "Git hook mode" row kept).
 - [ ] VERIFY grep: the 4 stale hooks claims are GONE; the 6 correct unrelated "bypass" hits are unchanged.
 - [ ] Cross-links resolve (`#commit-hooks-on-the-plumbing-path`, `#hook-mode-vs-the-snapshot-based-flow`,
@@ -560,9 +560,9 @@ grep -ni "compose" docs/how-it-works.md README.md
 - ❌ **Don't say `--no-verify` "skips all hooks".** FR-V5: it skips ONLY pre-commit + commit-msg;
   prepare-commit-msg and post-commit STILL run. (gotcha)
 - ❌ **Don't frame hook mode as "the way to get hooks".** Post-§9.25 it's the bridge for plain `git commit`
-  from an IDE; `stagehand` itself honors hooks. (§1)
+  from an IDE; `stagecoach` itself honors hooks. (§1)
 - ❌ **Don't delete the README "Git hook mode" Features row.** It's complementary to the new row (hook mode
-  = `git commit`; new row = `stagehand`). Keep both. (§5)
+  = `git commit`; new row = `stagecoach`). Keep both. (§5)
 - ❌ **Don't leave the M3.T2.S1 "is being reconciled" parenthetical.** Once the comparison is rewritten,
   it's self-referential/stale. Replace with a clean cross-link. (§3)
 - ❌ **Don't touch docs/cli.md / docs/configuration.md / docs/providers.md.** Their --no-verify /

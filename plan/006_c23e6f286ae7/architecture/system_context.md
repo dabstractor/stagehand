@@ -3,7 +3,7 @@
 > **Status:** Researched & validated against the live codebase (2026-07-03).
 > The entire v2.0/v3/v2.1 core is implemented and green. This delta adds exactly **one**
 > new feature: FR52 — a per-repo advisory `flock`-based run lock that prevents two
-> concurrent `stagehand` commit-producing processes from racing on the same repository.
+> concurrent `stagecoach` commit-producing processes from racing on the same repository.
 
 ---
 
@@ -26,10 +26,10 @@ point and adds one new package; it does not modify the commit/rescue/CAS logic.
 | **FreezeWorkingTree (decompose T_start)** | `internal/decompose/decompose.go` | ~164 | `tStart, err := deps.Git.FreezeWorkingTree(ctx, baseTree)` → `lock.SetSnapshot(tStart)` goes here. |
 | **UpdateRefCAS (the second defense)** | `internal/git/git.go` | 519 | `func (g *gitRunner) UpdateRefCAS(ctx, ref, newSHA, expectedOld string) error`. `ErrCASFailed` at line 511. **Unchanged** — the lock is defense-in-depth over this. |
 | **Exit-code registry** | `internal/exitcode/exitcode.go` | 22–30 | Constants: `Success=0, Error=1, NothingToCommit=2, Rescue=3, Timeout=124`. `Busy` (=5) is added here. `For()` at line 52 maps errors → codes. |
-| **XDG dir-resolution pattern** | `internal/config/file.go` | 94–104 | `globalConfigPath()`: `XDG_CONFIG_HOME` (if abs) → `~/.config/stagehand/config.toml`. Mirror for `XDG_RUNTIME_DIR` / `XDG_CACHE_HOME` / `~/.cache`. **Difference:** lock dir has NO CWD last-resort (must fail loud — a lock in the repo is the anti-pattern §18.5 rejects). |
+| **XDG dir-resolution pattern** | `internal/config/file.go` | 94–104 | `globalConfigPath()`: `XDG_CONFIG_HOME` (if abs) → `~/.config/stagecoach/config.toml`. Mirror for `XDG_RUNTIME_DIR` / `XDG_CACHE_HOME` / `~/.cache`. **Difference:** lock dir has NO CWD last-resort (must fail loud — a lock in the repo is the anti-pattern §18.5 rejects). |
 | **Signal handler (singleton)** | `internal/signal/signal.go` | 64–186 | `var active atomic.Pointer[Handler]`; `SetSnapshot()`/`ClearSnapshot()` are package-level singleton calls from generate/decompose. **The lock mirrors this pattern** for `lock.SetSnapshot()`. |
 | **Platform split pattern** | `internal/signal/signal_unix.go` / `signal_windows.go` | 1–5 | `//go:build !windows` / `//go:build windows`. The lock package uses the same split: `lock_unix.go` (flock) / `lock_windows.go` (no-op stub). |
-| **E2E harness** | `internal/e2e/harness_test.go` | 48–228 | `buildStagehand` compiles the binary; `newRepo` creates a temp repo; `runStagehand` invokes the subprocess; `waitForMarker` is a deterministic concurrent-race primitive. |
+| **E2E harness** | `internal/e2e/harness_test.go` | 48–228 | `buildStagecoach` compiles the binary; `newRepo` creates a temp repo; `runStagecoach` invokes the subprocess; `waitForMarker` is a deterministic concurrent-race primitive. |
 
 ---
 
@@ -37,12 +37,12 @@ point and adds one new package; it does not modify the commit/rescue/CAS logic.
 
 ### Location — per-system, per-user runtime dir, NEVER inside the repo
 
-PRD §18.5 explicitly rejects `.git/stagehand.lock` (pollutes `git status`, committable,
+PRD §18.5 explicitly rejects `.git/stagecoach.lock` (pollutes `git status`, committable,
 ambiguous across worktrees, lost on clone). The lock lives in:
 
-1. `$XDG_RUNTIME_DIR/stagehand/locks/<hash>.lock` (preferred — tmpfs, per-login, auto-cleaned)
-2. Else `$XDG_CACHE_HOME/stagehand/locks/<hash>.lock`
-3. Else `~/.cache/stagehand/locks/<hash>.lock`
+1. `$XDG_RUNTIME_DIR/stagecoach/locks/<hash>.lock` (preferred — tmpfs, per-login, auto-cleaned)
+2. Else `$XDG_CACHE_HOME/stagecoach/locks/<hash>.lock`
+3. Else `~/.cache/stagecoach/locks/<hash>.lock`
 
 `<hash>` = `sha256` hex of the repository's **canonical absolute path** (symlinks resolved
 via `filepath.EvalSymlinks` so two terminals in the same repo via different paths hash
@@ -69,7 +69,7 @@ None of it is used for stale-lock reaping (flock handles that).
 
 ### Contention behavior — no-op fast path or Busy refusal
 
-When `LOCK_NB` fails (another stagehand holds the lock):
+When `LOCK_NB` fails (another stagecoach holds the lock):
 
 1. **No-op fast path (exit 0):** If the holder published `snapshot=` AND the contender's own
    `git write-tree` (index-read-only, safe to take without the lock) produces a byte-identical
@@ -78,8 +78,8 @@ When `LOCK_NB` fails (another stagehand holds the lock):
    staged changes."*
 
 2. **Busy refusal (exit `Busy=5`):** Otherwise read the holder's `pid`/`hostname`/`repo` and
-   exit non-zero with: *"stagehand: another stagehand run is already in progress on `<repo>`
-   (pid `<N>` on `<host>`). Your newly-staged changes will remain staged — re-run `stagehand`
+   exit non-zero with: *"stagecoach: another stagecoach run is already in progress on `<repo>`
+   (pid `<N>` on `<host>`). Your newly-staged changes will remain staged — re-run `stagecoach`
    after it finishes. Lock: `<path>`."* Never block; never force-break the lock.
 
 ### Scope — commit-producing actions only
@@ -128,7 +128,7 @@ Wiring points (one-line additions):
 ## 3. Import graph (no cycles)
 
 ```
-internal/lock          → stdlib + golang.org/x/sys (LEAF — no stagehand imports)
+internal/lock          → stdlib + golang.org/x/sys (LEAF — no stagecoach imports)
 internal/generate      → internal/lock (NEW — alongside existing internal/signal)
 internal/decompose     → internal/lock (NEW — alongside existing internal/signal)
 internal/cmd           → internal/lock (NEW — acquire/release in runDefault)
@@ -160,8 +160,8 @@ for a defense-in-depth layer.
 
 | Layer | What it prevents | Scope | Mechanism |
 |---|---|---|---|
-| **Run lock (FR52, NEW)** | Two `stagehand` processes on the same repo/host racing on HEAD (the common local accidental double-run) | Per-host | `flock(LOCK_EX\|LOCK_NB)` — non-blocking, auto-released |
-| **CAS update-ref (§13.5, EXISTING)** | Any concurrent HEAD movement (cross-host shared FS, another tool, a non-stagehand process) | Universal | `git update-ref HEAD <new> <old>` — atomic, refuses to clobber |
+| **Run lock (FR52, NEW)** | Two `stagecoach` processes on the same repo/host racing on HEAD (the common local accidental double-run) | Per-host | `flock(LOCK_EX\|LOCK_NB)` — non-blocking, auto-released |
+| **CAS update-ref (§13.5, EXISTING)** | Any concurrent HEAD movement (cross-host shared FS, another tool, a non-stagecoach process) | Universal | `git update-ref HEAD <new> <old>` — atomic, refuses to clobber |
 
 Both stay. The lock makes the common local race impossible to stumble into; the CAS catches
 everything else (including the shared-filesystem case the lock cannot cover).

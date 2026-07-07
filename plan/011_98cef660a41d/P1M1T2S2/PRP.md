@@ -38,7 +38,7 @@ the closure is nil (the gate doesn't run; byte-identical legacy path). `go build
 
 ## User Persona
 
-**Target User**: The user who sets `token_limit` and runs `stagehand` in decompose mode (multiple
+**Target User**: The user who sets `token_limit` and runs `stagecoach` in decompose mode (multiple
 commits), relying on the FR3j guarantee that NONE of the role prompts (planner, per-concept message,
 arbiter) ever exceeds `token_limit`. Also the contributor implementing P1.M1.T3 (the closed-loop
 invariant E2E tests).
@@ -110,7 +110,7 @@ front-loads the one real trap — the planner variable is `sysPrompt`, not the c
 ```yaml
 # MUST READ — the FR3j spec + the wiring architecture
 - file: PRD.md
-  why: "§9.1 FR3j (closed-loop budget guarantee): 'after the water-fill produces the gated diff, stagehand
+  why: "§9.1 FR3j (closed-loop budget guarantee): 'after the water-fill produces the gated diff, stagecoach
         assembles the actual full prompt — the system prompt plus [the role's payload builder](gatedDiff) —
         measures it with the SAME EstimateTokens used for sizing, and if it exceeds token_limit, reduces the
         body budget by the overshoot and re-applies the per-file truncation. Invariant:
@@ -202,19 +202,19 @@ front-loads the one real trap — the planner variable is `sysPrompt`, not the c
 ### Current Codebase Tree (relevant slice — T1.S1 + T1.S2 LANDED; S1 parallel)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/decompose/
     ├── message.go      # EDIT (site 4): generateMessage TreeDiff (~line 91)  [MESSAGE role]
     ├── planner.go      # EDIT (site 5): callPlanner TreeDiff (~line 80)       [PLANNER role]
     └── decompose.go    # EDIT (site 6): runArbiterPhase TreeDiff (~line 663)  [ARBITER role]
 # (internal/git/git.go MeasureAssembled field + closedLoopGate = T1.S1/S2 LANDED, read-only)
-# (internal/generate/generate.go, pkg/stagehand/stagehand.go, internal/hook/exec.go = S1, parallel)
+# (internal/generate/generate.go, pkg/stagecoach/stagecoach.go, internal/hook/exec.go = S1, parallel)
 ```
 
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/decompose/message.go    # +MeasureAssembled closure (message role, BuildUserPayload)
     internal/decompose/planner.go    # +MeasureAssembled closure (planner role, BuildPlannerUserPayload)
@@ -228,7 +228,7 @@ stagehand/
 | `internal/decompose/decompose.go` | MODIFY | Add the closure to `runArbiterPhase`'s TreeDiff StagedDiffOptions (arbiter role). |
 
 **Explicitly NOT touched**: `internal/git/git.go` + `tokengate.go` (T1.S1 field + T1.S2 gate — LANDED),
-the 3 message-role `StagedDiff` sites (`internal/generate/generate.go`, `pkg/stagehand/stagehand.go`,
+the 3 message-role `StagedDiff` sites (`internal/generate/generate.go`, `pkg/stagecoach/stagecoach.go`,
 `internal/hook/exec.go` — S1, parallel), any tests (P1.M1.T3), any docs, `PRD.md`, `tasks.json`,
 `prd_snapshot.md`, `plan/*`.
 
@@ -388,7 +388,7 @@ Task 4: VALIDATE (no new test — P1.M1.T3 owns the closed-loop invariant tests;
         grep -n 'BuildUserPayload(gatedDiff\|BuildPlannerUserPayload(gatedDiff\|BuildArbiterUserPayload(arbiterCommits, gatedDiff' internal/decompose/*.go
         # EXPECT: one match per site (3 total).
   - RUN (scope grep):
-        git diff --stat -- internal/git/ internal/generate/ pkg/stagehand/ internal/hook/
+        git diff --stat -- internal/git/ internal/generate/ pkg/stagecoach/ internal/hook/
         # EXPECT: EMPTY (only the 3 decompose files changed).
   - FIX-FORWARD: `undefined: plannerSys` = used the contract label instead of `sysPrompt` (G1);
                  `cannot use gatedDiff as []ArbiterCommit` = swapped the arbiter builder args (G3).
@@ -438,7 +438,7 @@ GATE: go build ./... → OK; go test ./... green (closure nil when TokenLimit==0
 
 NO-TOUCH (explicitly):
   - internal/git/git.go, tokengate.go (T1.S1 field + T1.S2 gate — LANDED)
-  - internal/generate/generate.go, pkg/stagehand/stagehand.go, internal/hook/exec.go (S1 — parallel message-role sites)
+  - internal/generate/generate.go, pkg/stagecoach/stagecoach.go, internal/hook/exec.go (S1 — parallel message-role sites)
   - tests (P1.M1.T3), docs, PRD.md, tasks.json, prd_snapshot.md, plan/*
 
 DOWNSTREAM HOOKS (informational):
@@ -451,7 +451,7 @@ DOWNSTREAM HOOKS (informational):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/decompose/   # Expected: empty (run gofmt -w if listed)
 go vet ./internal/decompose/... # Expected: exit 0
@@ -464,7 +464,7 @@ go build ./...                  # Expected: exit 0 (closure field; no signature 
 ### Level 2: Wiring + Regression (existing suite stays green — no new test in S2)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The wiring is present (3 var decls + 3 conditionals + 3 literal fields = 9 hits):
 grep -n 'measureAssembled' internal/decompose/message.go internal/decompose/planner.go internal/decompose/decompose.go
@@ -488,14 +488,14 @@ go test ./...                      # Expected: ALL packages green.
 ### Level 3: Scope Discipline (only the 3 decompose files changed)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # ONLY the 3 decompose files changed.
 git diff --stat -- internal/ pkg/ cmd/ docs/
 # Expected: internal/decompose/message.go + planner.go + decompose.go only.
 
 # T1's territory (git.go/tokengate.go) + S1's territory (message-role StagedDiff sites) UNTOUCHED:
-git diff --stat -- internal/git/ internal/generate/generate.go pkg/stagehand/stagehand.go internal/hook/exec.go
+git diff --stat -- internal/git/ internal/generate/generate.go pkg/stagecoach/stagecoach.go internal/hook/exec.go
 # Expected: EMPTY.
 
 # Confirm the diff is exactly the 3 intended hunks (eyeball the patch):
@@ -506,7 +506,7 @@ git diff -- internal/decompose/
 ### Level 4: Closed-Loop Activation (the FR3j guarantee lights up for decompose roles)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # When TokenLimit != 0, the closure is non-nil → closedLoopGate (T1.S2) re-measures the role's assembled
 # prompt and re-trims if over. When TokenLimit == 0, the closure is nil → first-cut only (nil-safe).

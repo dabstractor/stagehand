@@ -126,7 +126,7 @@ implementer doesn't pre-empt S2's design.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/config/
     ├── config.go        # EDIT: Config struct (+2 fields) + Defaults() (+2 seeds)
     ├── config_test.go   # EDIT (recommended): TestDefaults (+2 assertions)
@@ -136,7 +136,7 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/config/config.go        # Config +TokenLimit +DiffContext; Defaults() +TokenLimit:0 +DiffContext:1
     internal/config/config_test.go   # TestDefaults +TokenLimit==0 +DiffContext==1 (recommended)
@@ -308,7 +308,7 @@ DEFAULTS (internal/config/config.go Defaults):
 
 NO-TOUCH (explicitly — owned by sibling/later subtasks):
   - internal/config/file.go materialize/overlay      # S2 (P1.M1.T1.S2): wire fileGeneration→Config; DiffContext → *int
-  - internal/config/git.go                            # S3 (P1.M1.T1.S3): stagehand.tokenLimit / stagehand.diffContext keys
+  - internal/config/git.go                            # S3 (P1.M1.T1.S3): stagecoach.tokenLimit / stagecoach.diffContext keys
   - internal/config/bootstrap.go + docs/CONFIGURATION.md  # S4 (P1.M1.T1.S4): template + docs
   - internal/git StagedDiffOptions + 6 call sites     # P1.M1.T2
   - the 3 diff functions (buildDiffArgs, -M/-U, index strip)  # P1.M2+
@@ -317,7 +317,7 @@ NO-TOUCH (explicitly — owned by sibling/later subtasks):
 DOWNSTREAM HOOKS (informational — S2/S3/S4 own):
   - S2: add `if g.TokenLimit != 0 { c.TokenLimit = g.TokenLimit }` to materialize + overlay; change
         fileGeneration.DiffContext to *int and copy non-nil into Config.DiffContext (resolving the 0-vs-unset).
-  - S3: read stagehand.tokenLimit / stagehand.diffContext git-config keys into Config.
+  - S3: read stagecoach.tokenLimit / stagecoach.diffContext git-config keys into Config.
   - S4: add `token_limit` / `diff_context` to the bootstrap template + docs/CONFIGURATION.md.
 ```
 
@@ -326,7 +326,7 @@ DOWNSTREAM HOOKS (informational — S2/S3/S4 own):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/config/config.go internal/config/file.go internal/config/config_test.go   # realign the struct fields
 gofmt -l .                       # Expected: empty after the -w
@@ -337,7 +337,7 @@ go build ./...                   # Expected: exit 0 (new fields compile; nothing
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # TestDefaults now also checks TokenLimit==0 / DiffContext==1 (Task 4)
 go test -race -run TestDefaults ./internal/config/ -v
@@ -351,7 +351,7 @@ go test -race ./internal/config/ -v
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green (S1 adds dead fields; no behavior change)
 go vet ./...                     # Expected: exit 0
@@ -364,7 +364,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 ### Level 4: Dead-Field Confirmation (the new fields are unconsumed)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Nothing reads cfg.TokenLimit / cfg.DiffContext yet (S2 wires them). Confirm:
 grep -rn "\.TokenLimit\|\.DiffContext" --include="*.go" internal/ pkg/ cmd/ | grep -v "_test.go" | grep -v "/plan/"

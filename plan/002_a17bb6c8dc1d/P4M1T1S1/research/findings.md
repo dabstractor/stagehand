@@ -12,19 +12,19 @@ P4.M1.T1.S1  deps: ['P3.M4.T1.S1', 'P1.M3.T2.S1']   (this task)
 P4.M2.T1.S1  deps: ['P3.M4.T1.S1']                   (public Decompose API — Planned, AFTER)
 ```
 
-**P4.M1.T1.S1 does NOT depend on P4.M2.T1.S1.** Therefore `pkg/stagehand.Decompose` does NOT exist when
-this task is implemented. The contract text says "The decompose CLI path calls pkg/stagehand.Decompose
+**P4.M1.T1.S1 does NOT depend on P4.M2.T1.S1.** Therefore `pkg/stagecoach.Decompose` does NOT exist when
+this task is implemented. The contract text says "The decompose CLI path calls pkg/stagecoach.Decompose
 (P4.M2.T1.S1)" — but that is a FORWARD REFERENCE that cannot compile yet.
 
 ### Resolution (verified)
 The decompose CLI branch MUST call `internal/decompose.Decompose` DIRECTLY (building `decompose.Deps` via
 `decompose.ResolveRoles` in the CLI layer). Verified import graph:
-- `internal/decompose` imports NONE of `internal/cmd` / `pkg/stagehand` (grep confirmed — only mentions are
+- `internal/decompose` imports NONE of `internal/cmd` / `pkg/stagecoach` (grep confirmed — only mentions are
   in doc comments). So `internal/cmd → internal/decompose` is cycle-free.
-- `internal/cmd/default_action.go` already imports `pkg/stagehand` (for `GenerateCommit`); adding the
+- `internal/cmd/default_action.go` already imports `pkg/stagecoach` (for `GenerateCommit`); adding the
   `internal/decompose` import is safe.
 
-P4.M2.T1.S1 will later (a) add `pkg/stagehand.Decompose` as a thin wrapper encapsulating the Deps
+P4.M2.T1.S1 will later (a) add `pkg/stagecoach.Decompose` as a thin wrapper encapsulating the Deps
 construction, and (b) SWAP this CLI call site to use it. The exit-code mapping, result printing, and
 double-print-suppression logic this task writes transfer directly. **This is a documented coordination
 point**, not a blocker.
@@ -92,7 +92,7 @@ The orchestrator derives each role's MODEL from `deps.Config` via `config.Resolv
 the resolved cfg as `deps.Config` and the post-ResolveRoles `RoleManifests` as `deps.Roles`.
 
 ```go
-overrides, err := provider.DecodeUserOverrides(cfg.Providers)   // mirror pkg/stagehand.buildDeps
+overrides, err := provider.DecodeUserOverrides(cfg.Providers)   // mirror pkg/stagecoach.buildDeps
 reg := provider.NewRegistry(overrides)
 roleManifests, _, err := decompose.ResolveRoles(*cfg, reg)       // 2nd return (RoleModels) unused by CLI
 if err != nil { return exitcode.New(exitcode.Error, fmt.Errorf("decompose: %w", err)) }
@@ -124,7 +124,7 @@ func handleDecomposeError(err error) error {
     if errors.As(err, &re) || errors.As(err, &ce) {   // DecomposeRescueError unwraps to *RescueError
         return exitcode.New(exitcode.For(err), nil)   // SILENT (loop printed) — main's ""-guard skips print
     }
-    return exitcode.New(exitcode.Error, err)           // planner/safety/infra — main prints "stagehand: …"
+    return exitcode.New(exitcode.Error, err)           // planner/safety/infra — main prints "stagecoach: …"
 }
 ```
 `errors.As(err, &re)` matches `*DecomposeRescueError` via its Unwrap chain WITHOUT the CLI naming/importing
@@ -155,7 +155,7 @@ per-concept (P3.M4.T1.S2). **No signal change in this task** — the signal-awar
 ## Testing strategy (full pipeline is covered in internal/decompose; CLI tests ROUTING+WIRING+MAPPING)
 
 cmd tests use `rootCmd.SetOut/SetErr/SetArgs` + `Execute(context.Background())`; fixtures: `setupStubRepo`
-(temp repo + stub provider in `.stagehand.toml`), `stubtest.Build`. `TestFlags_RegisteredAndDefaults`
+(temp repo + stub provider in `.stagecoach.toml`), `stubtest.Build`. `TestFlags_RegisteredAndDefaults`
 (root_test.go) is a table of {name, shorthand, defValue} asserting `pf.Lookup`.
 
 1. **Flag registration** — extend the `TestFlags_RegisteredAndDefaults` table: commits(0), single(false),
@@ -167,7 +167,7 @@ cmd tests use `rootCmd.SetOut/SetErr/SetArgs` + `Execute(context.Background())`;
 4. **Execute-level --single opt-out** — dirty unstaged tree + stub provider + `--single` ⇒ single path ⇒
    AddAll ⇒ GenerateCommit ⇒ 1 new commit, err==nil. (Proves opt-out routing end-to-end.)
 5. **Execute-level decompose routing entered** — dirty unstaged tree + stub provider (NO tooled_flags),
-   bare `stagehand` ⇒ shouldDecompose⇒runDecompose⇒ResolveRoles ⇒ stager fallback fails ⇒ err contains
+   bare `stagecoach` ⇒ shouldDecompose⇒runDecompose⇒ResolveRoles ⇒ stager fallback fails ⇒ err contains
    "stager"/"tooled", exitcode 1. (Proves decompose routing entered; GenerateCommit never calls
    ResolveRoles, so this error is unique to the decompose path. Full happy-path decompose needs a real
    tooled stager agent — NOT feasible with the bare stub harness — and is covered in internal/decompose.)

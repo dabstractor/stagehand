@@ -16,15 +16,15 @@ description: |
   VERIFIED CURRENT STATE (captured 2026-07-01 — re-confirm at implementation time; see research file):
   ───────────────────────────────────────────────────────────────────────────────────────────────────
   1. `configUpgradeCmd` IS registered: `internal/cmd/config.go` `init()` calls
-     `configCmd.AddCommand(configUpgradeCmd)`. Runtime: `stagehand config --help` lists `upgrade` in
-     "Available Commands"; `stagehand config upgrade --help` prints help + exits 0.
+     `configCmd.AddCommand(configUpgradeCmd)`. Runtime: `stagecoach config --help` lists `upgrade` in
+     "Available Commands"; `stagecoach config upgrade --help` prints help + exits 0.
   2. FR-B6 IS applied: `grep -rn "Subcommands" internal/cmd/` → NONE. `configCmd.Long` and
      `providersCmd.Long` contain only prose; cobra's auto "Available Commands" is the single source.
      Runtime: each leaf (config: init/path/upgrade; providers: list/show) appears EXACTLY ONCE.
   3. `config init` flags ARE wired: `config.go` `init()` registers `--provider`/`--force`/`--template`
      as LOCAL flags on `configInitCmd` (correct — config init is in `shouldSkipConfigLoad`, so it reads
      them via `cmd.Flags().Get*` in `runConfigInit`, NOT via root's persistent set / config.Load).
-     Runtime: all three appear in `stagehand config init --help`.
+     Runtime: all three appear in `stagecoach config init --help`.
   Full lifecycle WORKS: init writes a POPULATED config (with `config_version = 2`); `config upgrade` on
   it reports "already up to date"; an older (`config_version = 1`) file upgrades to 2; no-file errors
   pointing at `config init`. (`CurrentConfigVersion = 2`; `GenerateBootstrapConfig` writes the version.)
@@ -32,10 +32,10 @@ description: |
   ───────────────────────────────────────────────────────────────────────────────────────────────────
   CRITICAL SCOPE BOUNDARY — PARALLEL COORDINATION WITH P4.M2.T1.S1 (READ THIS FIRST):
   ───────────────────────────────────────────────────────────────────────────────────────────────────
-  P4.M2.T1.S1 is being implemented IN PARALLEL and EDITS `pkg/stagehand/stagehand.go` +
-  `pkg/stagehand/stagehand_test.go` (the public Decompose API). It does NOT touch `internal/cmd/`. This
+  P4.M2.T1.S1 is being implemented IN PARALLEL and EDITS `pkg/stagecoach/stagecoach.go` +
+  `pkg/stagecoach/stagecoach_test.go` (the public Decompose API). It does NOT touch `internal/cmd/`. This
   task edits ONLY `internal/cmd/config_test.go` + `internal/cmd/providers_test.go` (test files). The two
-  tasks touch DISJOINT files → no merge conflict. Do NOT edit `pkg/stagehand/*` (parallel ownership).
+  tasks touch DISJOINT files → no merge conflict. Do NOT edit `pkg/stagecoach/*` (parallel ownership).
   Do NOT edit production source in `internal/cmd/config.go`/`providers.go`/`root.go` UNLESS the defensive
   conditional below fires (an item is unexpectedly missing) — the code is already correct.
 
@@ -43,7 +43,7 @@ description: |
     - internal/cmd/config.go, providers.go, root.go — production source is CORRECT as-is; edit ONLY if
       the defensive conditional fires (item missing at impl time). Any edit here risks racing the
       parallel tree / the already-complete P1.M4.* work.
-    - pkg/stagehand/* — OWNED BY P4.M2.T1.S1 (parallel). DO NOT TOUCH.
+    - pkg/stagecoach/* — OWNED BY P4.M2.T1.S1 (parallel). DO NOT TOUCH.
     - internal/config/* (GlobalConfigPath, GenerateBootstrapConfig, CurrentConfigVersion, Load) — CONSUMED.
     - PRD.md, tasks.json, .gitignore — NEVER modify.
 
@@ -58,8 +58,8 @@ description: |
   SUCCESS: `go build ./... && go vet ./... && go test -race ./internal/cmd/...` green; `golangci-lint run`
   clean; `gofmt -l internal/` empty; the strengthened tests FAIL if a manual "Subcommands:" block is
   re-added or `configUpgradeCmd` is unregistered (regression locked in); the lifecycle test proves
-  init→upgrade end-to-end; runtime `stagehand config`/`stagehand config init --help`/`stagehand config
-  upgrade --help`/`stagehand providers` match the contract (no duplication, upgrade registered, flags
+  init→upgrade end-to-end; runtime `stagecoach config`/`stagecoach config init --help`/`stagecoach config
+  upgrade --help`/`stagecoach providers` match the contract (no duplication, upgrade registered, flags
   wired). go.mod/go.sum UNCHANGED.
 
 ---
@@ -88,11 +88,11 @@ tests that encode FR-B6 + the registration + the lifecycle as executable, failin
    `"Available Commands:"` exactly once (FR-B6 positive). (`list`+`show` presence is already asserted.)
 
 **Success Definition**:
-- **Verification (runtime, must hold — re-run at impl time)**: `stagehand config` help lists `init`,
+- **Verification (runtime, must hold — re-run at impl time)**: `stagecoach config` help lists `init`,
   `path`, `upgrade` each EXACTLY ONCE under "Available Commands" with no "Subcommands:" block;
-  `stagehand providers` help lists `list`, `show` each EXACTLY ONCE with no "Subcommands:" block;
-  `stagehand config init --help` shows `--provider`/`--force`/`--template` in its "Flags:" section;
-  `stagehand config upgrade --help` is reachable and exits 0.
+  `stagecoach providers` help lists `list`, `show` each EXACTLY ONCE with no "Subcommands:" block;
+  `stagecoach config init --help` shows `--provider`/`--force`/`--template` in its "Flags:" section;
+  `stagecoach config upgrade --help` is reachable and exits 0.
 - **Regression lock-in**: the strengthened config + providers tests FAIL if (a) a manual "Subcommands:"
   block is re-added to either parent's `Long`, OR (b) `configCmd.AddCommand(configUpgradeCmd)` is removed
   (the `upgrade`-presence assertion fails). The lifecycle test proves init→upgrade end-to-end.
@@ -104,18 +104,18 @@ tests that encode FR-B6 + the registration + the lifecycle as executable, failin
 
 ## User Persona
 
-**Target User**: a Stagehand end user running the CLI (`stagehand config …`, `stagehand providers …`) —
+**Target User**: a Stagecoach end user running the CLI (`stagecoach config …`, `stagecoach providers …`) —
 specifically a new user bootstrapping their config (`config init`) and a returning user refreshing it
 after an upgrade (`config upgrade`). Transitive: the maintainer, who must not let FR-B6's help
 de-duplication silently regress.
 
-**Use Case**: the user runs `stagehand config` to discover the available config subcommands, `stagehand
-config init` to bootstrap a working config, and later `stagehand config upgrade` after a binary upgrade
+**Use Case**: the user runs `stagecoach config` to discover the available config subcommands, `stagecoach
+config init` to bootstrap a working config, and later `stagecoach config upgrade` after a binary upgrade
 that bumped the schema version. They expect clean, non-redundant help and a working init→upgrade flow.
 
-**User Journey**: (1) `stagehand config` → sees init/path/upgrade once each; (2) `stagehand config init`
-→ "Wrote config to …"; (3) [binary upgrade] `stagehand config upgrade` → "Upgraded … to version N" (or
-"already up to date"); (4) `stagehand config path` → confirms the file location.
+**User Journey**: (1) `stagecoach config` → sees init/path/upgrade once each; (2) `stagecoach config init`
+→ "Wrote config to …"; (3) [binary upgrade] `stagecoach config upgrade` → "Upgraded … to version N" (or
+"already up to date"); (4) `stagecoach config path` → confirms the file location.
 
 **Pain Points Addressed**: (a) redundant help text (the v1 `config` help showed init/path twice — once in
 prose, once in Available Commands) that confuses discovery; (b) a `config upgrade` command that was
@@ -125,7 +125,7 @@ un-tested init→upgrade lifecycle that could break silently.
 ## Why
 
 - **Business value**: closes the v2 config-CLI surface (PRD §9.17, §15.3, G8). FR-B6's help de-duplication
-  is a documented, user-facing quality fix (the v1 `stagehand config` output was redundant); the
+  is a documented, user-facing quality fix (the v1 `stagecoach config` output was redundant); the
   `config upgrade` command (FR-B5) is the remediation the load-time `config_version` advisory points
   users at. This task ensures both are wired, verified, and regression-proofed.
 - **Integration with existing features**: `config upgrade` (P1.M4.T3.S1) consumes `config.CurrentConfigVersion`
@@ -141,12 +141,12 @@ un-tested init→upgrade lifecycle that could break silently.
 ## What
 
 **User-visible behavior** (CLI help — must hold; verified at runtime, locked in by tests):
-- `stagehand config` (bare or `--help`) prints the `config` Short/Long prose + a single cobra
+- `stagecoach config` (bare or `--help`) prints the `config` Short/Long prose + a single cobra
   "Available Commands:" block listing `init`, `path`, `upgrade` each EXACTLY ONCE. NO "Subcommands:" block.
-- `stagehand providers` (bare or `--help`) prints the `providers` prose + a single "Available Commands:"
+- `stagecoach providers` (bare or `--help`) prints the `providers` prose + a single "Available Commands:"
   block listing `list`, `show` each EXACTLY ONCE. NO "Subcommands:" block.
-- `stagehand config init --help` shows `--provider`, `--force`, `--template` in its local "Flags:" section.
-- `stagehand config upgrade --help` is reachable and exits 0.
+- `stagecoach config init --help` shows `--provider`, `--force`, `--template` in its local "Flags:" section.
+- `stagecoach config upgrade --help` is reachable and exits 0.
 
 **Functional behavior** (lifecycle — verified, locked in by the new lifecycle test):
 - `config init` (populated, default) writes a config containing an uncommented `config_version = 2` and
@@ -160,9 +160,9 @@ production source edits (defensive conditional below excepted).
 
 ### Success Criteria
 
-- [ ] Runtime verification (re-run at impl time): `stagehand config` help has NO "Subcommands:" block;
-      `config upgrade` appears once in "Available Commands"; `stagehand providers` help has NO
-      "Subcommands:" block; `stagehand config init --help` shows the 3 flags; `config upgrade --help`
+- [ ] Runtime verification (re-run at impl time): `stagecoach config` help has NO "Subcommands:" block;
+      `config upgrade` appears once in "Available Commands"; `stagecoach providers` help has NO
+      "Subcommands:" block; `stagecoach config init --help` shows the 3 flags; `config upgrade --help`
       exits 0. (Commands in §Validation Loop Level 3.)
 - [ ] `TestConfigGroup_NoSubcommandPrintsHelp` (strengthened) asserts: help contains `"upgrade"` AND
       `"Available Commands:"`; help does NOT contain `"Subcommands:"`.
@@ -225,7 +225,7 @@ per item. The runtime verification commands are executable as-is.
         ADDS the config init step first) + TestConfigInit_Populated_WritesWorkingConfig (for the populated
         assertions)."
   gotcha: "setupNoRepo sets XDG_CONFIG_HOME=home (temp), so config.GlobalConfigPath() resolves to
-        <home>/stagehand/config.toml (globalDir = filepath.Join(home,'stagehand')). Use config.GlobalConfigPath()
+        <home>/stagecoach/config.toml (globalDir = filepath.Join(home,'stagecoach')). Use config.GlobalConfigPath()
         to read the written file (NOT a hardcoded path). The existing tests read via os.ReadFile(config.GlobalConfigPath())."
 
 - file: internal/cmd/providers_test.go   # EDIT TARGET (strengthen 1 test)
@@ -249,7 +249,7 @@ per item. The runtime verification commands are executable as-is.
 - file: internal/cmd/providers.go   # CONSUMED (read-only unless defensive conditional fires)
   why: "providersCmd (Long = prose only). If a manual 'Subcommands:' block is present (defensive case),
         delete it from the Long string."
-  gotcha: "providersCmd has NO RunE → bare 'stagehand providers' prints help (cobra default). Same for
+  gotcha: "providersCmd has NO RunE → bare 'stagecoach providers' prints help (cobra default). Same for
         configCmd. This is WHY the bare-command help test works without a RunE."
 
 - file: internal/cmd/root.go   # CONSUMED (read-only)
@@ -282,7 +282,7 @@ internal/cmd/
 internal/config/
   config.go              # CONSUMED — CurrentConfigVersion=2, GlobalConfigPath
   bootstrap.go           # CONSUMED — GenerateBootstrapConfig (writes populated config + config_version)
-pkg/stagehand/*          # OWNED BY P4.M2.T1.S1 (parallel) — DO NOT TOUCH
+pkg/stagecoach/*          # OWNED BY P4.M2.T1.S1 (parallel) — DO NOT TOUCH
 ```
 
 ### Desired Codebase tree (files this task EDITS — no production source, no new files)
@@ -325,7 +325,7 @@ internal/cmd/providers_test.go  # +strengthen TestProvidersGroup_NoSubcommandPri
 //   to configInitCmd)" is the chosen design. Verify they appear in `config init --help` "Flags:".
 
 // G-SETUPNOREPO-XDG: setupNoRepo(t) sets BOTH HOME and XDG_CONFIG_HOME to the same temp home. So
-//   config.GlobalConfigPath() = <home>/stagehand/config.toml (XDG=home → $XDG_CONFIG_HOME/stagehand/config.toml).
+//   config.GlobalConfigPath() = <home>/stagecoach/config.toml (XDG=home → $XDG_CONFIG_HOME/stagecoach/config.toml).
 //   Always read the written file via os.ReadFile(config.GlobalConfigPath()), never a hardcoded path.
 
 // G-ROOTCMD-IS-GLOBAL-MUTABLE: rootCmd is a package global mutated by SetOut/SetErr/SetArgs in every test.
@@ -348,7 +348,7 @@ internal/cmd/providers_test.go  # +strengthen TestProvidersGroup_NoSubcommandPri
 
 // G-DEFENSIVE-CONDITIONAL (ONLY if an item is missing at impl time): Re-run §Validation Loop Level 3 first.
 //   If (1) `config upgrade` is NOT in `config` help → add `configCmd.AddCommand(configUpgradeCmd)` to
-//   config.go init(). If (2) `stagehand config`/`providers` help CONTAINS "Subcommands:" → delete that
+//   config.go init(). If (2) `stagecoach config`/`providers` help CONTAINS "Subcommands:" → delete that
 //   manual block from the respective Long string. If (3) a config-init flag is missing from `config init
 //   --help` → add its `configInitCmd.Flags().*(name, default, usage)` line to config.go init(). Each is a
 //   one-line edit mirroring the existing siblings. Document any such edit in the commit message. (Per the
@@ -367,7 +367,7 @@ No new data models. This task adds/strengthens TEST FUNCTIONS only. The consumed
 
 ```yaml
 Task 0: VERIFY the current state (no edits — run the runtime gates first)
-  - BUILD: go build -o /tmp/sh-verify ./cmd/stagehand
+  - BUILD: go build -o /tmp/sh-verify ./cmd/stagecoach
   - RUN: /tmp/sh-verify config --help        → assert "Available Commands:" present, "Subcommands:" absent,
           "upgrade" listed once.
   - RUN: /tmp/sh-verify providers --help     → assert "Available Commands:" present, "Subcommands:" absent.
@@ -413,7 +413,7 @@ Task 3: EDIT internal/cmd/config_test.go — ADD TestConfigLifecycle_InitThenUpg
             _, origOut, origErr, origRunE := saveRootState(t)
             defer restoreRootState(t, nil, origOut, origErr, origRunE)
 
-            setupNoRepo(t) // temp HOME+XDG; chdir to a non-git dir; global = <home>/stagehand/config.toml
+            setupNoRepo(t) // temp HOME+XDG; chdir to a non-git dir; global = <home>/stagecoach/config.toml
 
             // (1) config init — populated bootstrap (no --template, no --provider → auto-detect/default "pi")
             rootCmd.SetOut(io.Discard)
@@ -459,7 +459,7 @@ Task 3: EDIT internal/cmd/config_test.go — ADD TestConfigLifecycle_InitThenUpg
     config init → use → config upgrade lifecycle"). The UNIQUE value vs the existing TestConfigUpgrade_*
     tests is that it starts from the POPULATED bootstrap output (proving GenerateBootstrapConfig writes a
     correct config_version that upgrade tolerates), rather than a hand-written writeConfigFile.
-  - GOTCHA: setupNoRepo sets XDG_CONFIG_HOME=home → GlobalConfigPath = <home>/stagehand/config.toml. Use
+  - GOTCHA: setupNoRepo sets XDG_CONFIG_HOME=home → GlobalConfigPath = <home>/stagecoach/config.toml. Use
     config.GlobalConfigPath() to read. config init with no installed provider auto-defaults to "pi" — fine,
     the test does not assert a specific provider, only that the file is populated + has config_version=2.
     Do NOT pass --template (that writes the INERT config, which has config_version COMMENTED OUT → the
@@ -513,7 +513,7 @@ ROOT (internal/cmd/root.go): CONSUMED — shouldSkipConfigLoad. No changes.
 CONFIG PACKAGE (internal/config): CONSUMED — CurrentConfigVersion(=2), GlobalConfigPath,
   GenerateBootstrapConfig (writes populated config + config_version). No changes.
 TESTS (internal/cmd/{config,providers}_test.go): EDIT — strengthen 2 tests + add 1 lifecycle test.
-PARALLEL (pkg/stagehand/*): NOT TOUCHED — owned by P4.M2.T1.S1.
+PARALLEL (pkg/stagecoach/*): NOT TOUCHED — owned by P4.M2.T1.S1.
 ```
 
 ## Validation Loop
@@ -541,7 +541,7 @@ go build ./internal/cmd/... && go vet ./internal/cmd/...
 # The strengthened + new tests, plus the full cmd suite.
 go test -race ./internal/cmd/... -v -run 'TestConfigGroup_NoSubcommandPrintsHelp|TestProvidersGroup_NoSubcommandPrintsHelp|TestConfigLifecycle_InitThenUpgrade'
 go test -race ./internal/cmd/...          # full cmd suite — must stay green (no regressions)
-go test -race ./...                        # whole repo (sanity — parallel P4.M2.T1.S1 pkg/stagehand tests are independent)
+go test -race ./...                        # whole repo (sanity — parallel P4.M2.T1.S1 pkg/stagecoach tests are independent)
 
 # Expected: all pass. If TestConfigLifecycle_InitThenUpgrade fails on 'config_version = 2', the
 # GenerateBootstrapConfig contract changed — investigate (do not relax the assertion without reason).
@@ -551,7 +551,7 @@ go test -race ./...                        # whole repo (sanity — parallel P4.
 
 ```bash
 # Build a fresh binary and exercise the user-visible contract (re-verify; this is Task 0 + final gate).
-go build -o /tmp/sh-verify ./cmd/stagehand
+go build -o /tmp/sh-verify ./cmd/stagecoach
 
 # (1) config parent help — FR-B6 (config): NO "Subcommands:", upgrade listed once.
 /tmp/sh-verify config --help > /tmp/cfg.txt 2>&1
@@ -574,7 +574,7 @@ grep -q -- "--provider" /tmp/init.txt && grep -q -- "--force" /tmp/init.txt && g
 # (5) Full lifecycle in an isolated HOME (mirrors TestConfigLifecycle_InitThenUpgrade at the shell):
 export HOME=$(mktemp -d); export XDG_CONFIG_HOME="$HOME"
 /tmp/sh-verify config init
-grep -q "^config_version = 2" "$HOME/stagehand/config.toml" && echo "OK: populated config_version=2"
+grep -q "^config_version = 2" "$HOME/stagecoach/config.toml" && echo "OK: populated config_version=2"
 /tmp/sh-verify config upgrade | grep -q "no changes" && echo "OK: upgrade already-current"
 
 # Expected: every "OK:" line prints. If any (1)-(4) check fails, apply G-DEFENSIVE-CONDITIONAL.
@@ -610,8 +610,8 @@ grep -q "^config_version = 2" "$HOME/stagehand/config.toml" && echo "OK: populat
 
 ### Feature Validation
 
-- [ ] `stagehand config` help lists init/path/upgrade each ONCE, no "Subcommands:" block (FR-B6 config).
-- [ ] `stagehand providers` help lists list/show each ONCE, no "Subcommands:" block (FR-B6 providers).
+- [ ] `stagecoach config` help lists init/path/upgrade each ONCE, no "Subcommands:" block (FR-B6 config).
+- [ ] `stagecoach providers` help lists list/show each ONCE, no "Subcommands:" block (FR-B6 providers).
 - [ ] `config upgrade` registered + reachable (registration verified + asserted).
 - [ ] `config init` flags (--provider/--force/--template) wired + asserted in help.
 - [ ] Full init→upgrade lifecycle works (populated config_version=2 → upgrade already-current) —
@@ -648,6 +648,6 @@ grep -q "^config_version = 2" "$HOME/stagehand/config.toml" && echo "OK: populat
 - ❌ Don't pass `--template` in the lifecycle test — it writes the INERT config (config_version COMMENTED
   OUT), which would fail the config_version assertion by design.
 - ❌ Don't hardcode the global config path in tests — use `config.GlobalConfigPath()` (setupNoRepo sets
-  XDG_CONFIG_HOME=home → path = <home>/stagehand/config.toml).
-- ❌ Don't touch `pkg/stagehand/*` — owned by the parallel P4.M2.T1.S1 task.
+  XDG_CONFIG_HOME=home → path = <home>/stagecoach/config.toml).
+- ❌ Don't touch `pkg/stagecoach/*` — owned by the parallel P4.M2.T1.S1 task.
 - ❌ Don't add new exported symbols or change go.mod — this is a test-hardening task.

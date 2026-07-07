@@ -8,7 +8,7 @@ description: |
   partial/empty lock file (the residual race window that Issue 4a / P1.M2.T3.S1 narrows but cannot fully
   eliminate — `flock`'s advisory semantics + a contender's separate `os.ReadFile` open/read/close), those
   three diagnostic fields are empty strings and the message renders as
-  `"stagehand: another stagehand run is already in progress on  (pid  on ). …"` — ugly, uninformative, with
+  `"stagecoach: another stagecoach run is already in progress on  (pid  on ). …"` — ugly, uninformative, with
   double-space artifacts. Fix: BEFORE the `fmt.Fprintf`, substitute sensible fallbacks — `Repo==""` →
   `"an unknown repo"`, `Pid==""` → `"<unknown>"`, `Hostname==""` → `"<unknown>"`. `Path` is passed through
   unchanged (it is the lock file path from `lockPath`, always non-empty). The message tone, the no-op fast
@@ -72,7 +72,7 @@ no file outside `internal/cmd/default_action.go` + `internal/cmd/lock_contention
 
 ## User Persona
 
-**Target User**: A developer who accidentally double-runs `stagehand` (or runs it in two terminals on the
+**Target User**: A developer who accidentally double-runs `stagecoach` (or runs it in two terminals on the
 same repo) AND whose contender process loses the flock race during the (now ~zero-width, but residual)
 empty-file window. Transitively PRD §18.5 "Mechanism" / "Contention behavior" (the contender reads the
 holder's `snapshot=` + `pid`/`hostname`/`repo` for the Busy message).
@@ -309,8 +309,8 @@ guards before the Busy `fmt.Fprintf`.
 // 		hostname = "<unknown>"
 // 	}
 // 	fmt.Fprintf(stderr,
-// 		"stagehand: another stagehand run is already in progress on %s (pid %s on %s). "+
-// 			"Your newly-staged changes will remain staged — re-run stagehand after it finishes. Lock: %s.\n",
+// 		"stagecoach: another stagecoach run is already in progress on %s (pid %s on %s). "+
+// 			"Your newly-staged changes will remain staged — re-run stagecoach after it finishes. Lock: %s.\n",
 // 		repo, pid, hostname, heldErr.Path)
 // 	return exitcode.New(exitcode.Busy, nil) // exit 5, SILENT
 ```
@@ -443,8 +443,8 @@ if hostname == "" {
 	hostname = "<unknown>"
 }
 fmt.Fprintf(stderr,
-	"stagehand: another stagehand run is already in progress on %s (pid %s on %s). "+
-		"Your newly-staged changes will remain staged — re-run stagehand after it finishes. Lock: %s.\n",
+	"stagecoach: another stagecoach run is already in progress on %s (pid %s on %s). "+
+		"Your newly-staged changes will remain staged — re-run stagecoach after it finishes. Lock: %s.\n",
 	repo, pid, hostname, heldErr.Path) // ← 3 locals + Path (always non-empty)
 
 // WHY locals (not mutating heldErr.Contents): cleaner, leaves heldErr untouched for caller inspection, and
@@ -522,7 +522,7 @@ go test -race ./...               # Full suite — NO regressions (the guard is 
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only the two listed files changed:
 git diff --name-only | grep -Ev 'internal/cmd/default_action\.go|internal/cmd/lock_contention_test\.go' \

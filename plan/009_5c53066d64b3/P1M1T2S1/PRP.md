@@ -114,7 +114,7 @@ pointer pattern, with the AutoStageAll/MaxDuplicateRetries precedents), and conf
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/config/
     ├── config.go        # EDIT: Config struct (2 fields) + Defaults() (2 entries)
     └── config_test.go   # EDIT: TestDefaults (2 assertions)
@@ -124,7 +124,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/config/config.go        # +MultiTurnFallback bool + MultiTurnChunkTokens int (struct + Defaults)
     internal/config/config_test.go   # +2 TestDefaults assertions
@@ -330,7 +330,7 @@ DOWNSTREAM HOOKS (informational — owned by LATER subtasks):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/config/   # Expected: empty (run gofmt -w if listed — re-aligns the struct/Defaults columns)
 go vet ./internal/config/... # Expected: exit 0
@@ -342,7 +342,7 @@ go build ./...               # Expected: exit 0 (adding fields + defaults breaks
 ### Level 2: Unit Tests (TestDefaults pins the new defaults)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test ./internal/config/ -v -run TestDefaults
 
@@ -355,7 +355,7 @@ go test ./internal/config/   # Expected: ok (the whole config suite is green)
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test ./...    # Expected: ALL packages green (only the resolved Config gained 2 fields + defaults)
 go vet ./...     # Expected: exit 0
@@ -368,7 +368,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 ### Level 4: Field-Presence + Default Cross-Check
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The two fields exist on the struct with the right types (plain bool/int) + TOML tags + FR citations.
 grep -n 'MultiTurnFallback\b\|MultiTurnChunkTokens\b' internal/config/config.go

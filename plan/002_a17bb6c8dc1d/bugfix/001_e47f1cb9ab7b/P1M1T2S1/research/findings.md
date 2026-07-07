@@ -22,10 +22,10 @@ Existing `TestRunDefault_VerboseFlag` proves it: it asserts `"DEBUG: command:"` 
 ### G2 — Manifest env OVERRIDES t.Setenv (last-wins in exec.Cmd.Env)
 `internal/provider/render.go` builds `spec.Env = os.Environ() + manifest.Env entries`
 (manifest appended LAST → exec last-wins → manifest OVERRIDES parent env). So if
-`[provider.pi.env] STAGEHAND_STUB_OUT = "feat: test"` is in the config, a `t.Setenv(
-"STAGEHAND_STUB_OUT", ...)` CANNOT change it. Because the two subtests need DIFFERENT
+`[provider.pi.env] STAGECOACH_STUB_OUT = "feat: test"` is in the config, a `t.Setenv(
+"STAGECOACH_STUB_OUT", ...)` CANNOT change it. Because the two subtests need DIFFERENT
 stub outputs (single path = a commit message; decompose path = planner JSON), the test
-must set `STAGEHAND_STUB_OUT` via `t.Setenv` and OMIT it from `[provider.pi.env]` —
+must set `STAGECOACH_STUB_OUT` via `t.Setenv` and OMIT it from `[provider.pi.env]` —
 exactly like the existing `setupStubRepo` helper does. (Putting a fixed value in
 `[provider.pi.env]` is fine only for a single-output test.)
 
@@ -59,11 +59,11 @@ single-commit subtest CAN use `--dry-run` (and should — it mirrors the PRD rep
 and avoids mutating HEAD).
 
 ### G6 — Isolate HOME / XDG_CONFIG_HOME (avoid the test machine's global config leaking)
-`config.Load` with `STAGEHAND_CONFIG` set uses that path as the global file, but the
+`config.Load` with `STAGECOACH_CONFIG` set uses that path as the global file, but the
 registry still merges built-in defaults + any global config. Set HOME/XDG to a temp dir
 (mirror `TestRunDefault_ConfigFlagHonored_Issue1`). Also ensure the repo has NO
-`.stagehand.toml` so repo-local discovery doesn't double-merge — the provider comes ONLY
-from the `STAGEHAND_CONFIG` file.
+`.stagecoach.toml` so repo-local discovery doesn't double-merge — the provider comes ONLY
+from the `STAGECOACH_CONFIG` file.
 
 ## Assertion precision
 The progress label prints `"Generating with pi…"` / `"Decomposing with pi…"` to stderr

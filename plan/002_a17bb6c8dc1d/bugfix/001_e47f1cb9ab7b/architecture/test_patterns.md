@@ -36,7 +36,7 @@ m := stubtest.NewScript(t, bin, []string{"feat: first", "feat: second"})
 m := stubtest.Manifest(bin, stubtest.Options{Out: "feat: x", SleepMS: 400})
 ```
 
-The stub reads `STAGEHAND_STUB_OUT` from its env to determine the response. The stubtest.Manifest
+The stub reads `STAGECOACH_STUB_OUT` from its env to determine the response. The stubtest.Manifest
 factory sets this up in the manifest's `Env` map.
 
 ### Integration Tests (CLI-level)
@@ -59,7 +59,7 @@ factory sets this up in the manifest's `Env` map.
 | 1 | `generate_test.go`, `decompose/{planner,stager,message,arbiter}_test.go`, `default_action_test.go` | Assert rendered CmdSpec has correct `--provider` token |
 | 2 | `provider/builtin_test.go`, `decompose/decompose_test.go` | Assert tightened TooledFlags; assert HEAD-guard violation |
 | 3 | `git/git_test.go` (or new `logrange_test.go`), `decompose/decompose_test.go` | Assert post-arbiter SHAs are accurate/resolvable |
-| 4 | `config/file_test.go`, `cmd/config_test.go` | Assert `--config`/`STAGEHAND_CONFIG` honored |
+| 4 | `config/file_test.go`, `cmd/config_test.go` | Assert `--config`/`STAGECOACH_CONFIG` honored |
 | 5 | `config/bootstrap_test.go` | Assert pi bootstrap has empty models |
 
 ## Build & Test Commands

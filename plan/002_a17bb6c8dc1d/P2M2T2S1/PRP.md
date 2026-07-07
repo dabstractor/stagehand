@@ -93,7 +93,7 @@ command, return its trimmed stdout, surface non-zero exits and infrastructural f
 ## User Persona
 
 **Target User**: the decompose orchestrator (internal code, P3.M4.T1.S1), and by extension the end
-user running `stagehand` on an un-staged working tree to get multiple logically-coherent commits.
+user running `stagecoach` on an un-staged working tree to get multiple logically-coherent commits.
 StatusPorcelain is NOT a user-facing CLI flag; it is the arbiter-trigger primitive the orchestrator
 queries after the commit loop completes.
 

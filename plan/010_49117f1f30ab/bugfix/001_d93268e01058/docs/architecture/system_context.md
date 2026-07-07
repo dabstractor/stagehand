@@ -2,7 +2,7 @@
 
 ## Overview
 
-This bugfix addresses 4 Major issues + 1 Minor test-quality gap in stagehand's
+This bugfix addresses 4 Major issues + 1 Minor test-quality gap in stagecoach's
 commit-path hook execution feature (v2.4, FR-V1–V8). The core mechanism works
 (ordering, --no-verify scope, FR-V3 freeze, FR-V7 rescue, post-commit best-effort,
 FR-V4 recursion prevention are all correct), but four divergences from documented
@@ -16,7 +16,7 @@ git parity need fixing.
 | `internal/config/git.go` | 3 | Git-config layer — missing noVerify reader |
 | `internal/config/config.go` | 3 | Doc comment key name |
 | `internal/generate/generate.go` | 4 | CommitStaged — empty guard after hooks |
-| `pkg/stagehand/stagehand.go` | 4 | runPipeline — empty guard after hooks |
+| `pkg/stagecoach/stagecoach.go` | 4 | runPipeline — empty guard after hooks |
 | `internal/decompose/message.go` | 4 | publishCommit — empty guard after hooks |
 | `internal/generate/finalize.go` | 4 | ErrEmptyMessage sentinel (existing, reused) |
 | `internal/decompose/message_test.go` | 5 | Test assertion tightening |
@@ -39,16 +39,16 @@ git parity need fixing.
 - **Highest-impact bug**: corrupts Signed-off-by trailers and append-style hooks.
 
 ### Issue 3 (Major): Missing noVerify git-config reader + invalid key name
-- **Bug A**: `loadGitConfig()` never queries `stagehand.noVerify` (grep returns 0 matches).
-- **Bug B**: Docs say `stagehand.no_verify` (snake_case) but git rejects underscores in final key segment.
-- **Fix A**: Add `gitConfigBool(repoDir, "stagehand.noVerify")` mirroring the `push` reader at git.go:174.
-- **Fix B**: Update docs to `stagehand.noVerify` (camelCase). TOML file key stays `no_verify`.
+- **Bug A**: `loadGitConfig()` never queries `stagecoach.noVerify` (grep returns 0 matches).
+- **Bug B**: Docs say `stagecoach.no_verify` (snake_case) but git rejects underscores in final key segment.
+- **Fix A**: Add `gitConfigBool(repoDir, "stagecoach.noVerify")` mirroring the `push` reader at git.go:174.
+- **Fix B**: Update docs to `stagecoach.noVerify` (camelCase). TOML file key stays `no_verify`.
 - **Location**: `internal/config/git.go` (~after line 177), `docs/cli.md:44`, `docs/configuration.md:155`, `internal/config/config.go:130`.
 
 ### Issue 4 (Major): No empty-message guard after hooks
 - **Bug**: After `RunCommitHooks` returns, all 3 callers (CommitStaged, runPipeline, publishCommit) pass the hook-adjusted msg to CommitTree with NO empty check.
 - **Fix**: After `RunCommitHooks` returns, check if the finalized message is empty (after trimming) and abort (return `ErrEmptyMessage`, exit 1, mirroring `EditMessage`'s existing guard).
-- **Location**: 3 sites — `generate.go:431`, `stagehand.go:~672`, `message.go:~233`.
+- **Location**: 3 sites — `generate.go:431`, `stagecoach.go:~672`, `message.go:~233`.
 
 ### Issue 5 (Minor): Loose test assertions mask Issue 2
 - **Bug**: 3 decompose hook tests use `strings.Contains(logMsg, "[HOOK-RAN]")` which passes even with the corruption from Issue 2.

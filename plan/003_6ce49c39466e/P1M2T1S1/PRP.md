@@ -2,10 +2,10 @@
 name: "P1.M2.T1.S1 — Config reasoning field: RoleConfig.Reasoning + global default + file/overlay/env/flag plumbing"
 description: |
   Thread a per-role + global `reasoning` level (`off|low|medium|high`, PRD §9.15 FR-R6 / §16.4 / §15.2)
-  end-to-end through the Stagehand config layer so it reaches `provider.Manifest.Render(...)` as the 4th
+  end-to-end through the Stagecoach config layer so it reaches `provider.Manifest.Render(...)` as the 4th
   positional arg (the `reasoning` parameter landed by P1.M1.T1.S1, already implemented). This subtask owns
   ONLY the CONFIG plumbing + the SINGLE-COMMIT path; the multi-role decompose wiring is the NEXT subtask
-  (P1.M2.T1.S2: ResolveRoles v3 + RoleModels.Reasoning + 4 decompose Render call sites + pkg/stagehand
+  (P1.M2.T1.S2: ResolveRoles v3 + RoleModels.Reasoning + 4 decompose Render call sites + pkg/stagecoach
   RoleModel). Spec: PRD §16.4 (per-role provider/model/reasoning), §9.15 FR-R1–R6, §16.2 (`[defaults]
   reasoning`), §15.2 flag table (`--reasoning`, `--<role>-reasoning`). Research:
   `plan/003_6ce49c39466e/architecture/scout_config_model.md` §(b)/(c)/(h).
@@ -50,12 +50,12 @@ description: |
 
   SCOPE BOUNDARY vs P1.M2.T1.S2 (next): S1 = config struct fields + file/materialize/overlay + loadEnv/loadFlags
   + setRoleReasoning + root.go flag registration + ResolveRoleModel 3-return + single-commit Render reasoning
-  (generate.go + pkg/stagehand) + roles_test.go. S2 = ResolveRoles v3 (RoleModels.Reasoning) + the 4 decompose
-  role Render reasoning args + pkg/stagehand RoleModel + FR-R5b model-prefix guard. Do NOT implement S2's
+  (generate.go + pkg/stagecoach) + roles_test.go. S2 = ResolveRoles v3 (RoleModels.Reasoning) + the 4 decompose
+  role Render reasoning args + pkg/stagecoach RoleModel + FR-R5b model-prefix guard. Do NOT implement S2's
   pieces here.
 
   Deliverable: edits to `internal/config/{config,file,load,roles}.go`, `internal/cmd/root.go`,
-  `internal/generate/generate.go`, `pkg/stagehand/stagehand.go`, plus build-green arity fixes in
+  `internal/generate/generate.go`, `pkg/stagecoach/stagecoach.go`, plus build-green arity fixes in
   `internal/decompose/{roles,planner,stager,message,arbiter}.go` and test updates in
   `internal/config/roles_test.go`. NO new files, NO new deps, NO go.mod change, NO `docs/*.md` edits (DOCS is
   Mode A — inline RoleConfig comment + flag help text ride with the code). INPUT = P1.M1.T1.S1 (Render takes
@@ -65,7 +65,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Add a normalized `reasoning` level (`off|low|medium|high`) to Stagehand's config model at
+**Feature Goal**: Add a normalized `reasoning` level (`off|low|medium|high`) to Stagecoach's config model at
 TWO granularities — a global `[defaults].reasoning` and a per-role `[role.<role>].reasoning` — and plumb it
 through every config layer (file decode → materialize → overlay → env → flag) so that `ResolveRoleModel`
 returns `(provider, model, reasoning)` and the single-commit generation path passes it to
@@ -85,8 +85,8 @@ lowest-resolution fallback. Close the FR-R3 flag gap so all four roles (incl. `m
    `if src.Reasoning != "" { dst.Reasoning = src.Reasoning }` and a per-role field-merge branch
    `if rc.Reasoning != "" { existing.Reasoning = rc.Reasoning }`.
 3. **`internal/config/load.go`** — (a) add `func (c *Config) setRoleReasoning(role, reasoning string)`
-   (mirror `setRoleModel`'s map-value-copy write-back); (b) `loadEnv`: add global `STAGEHAND_REASONING` and a
-   per-role `STAGEHAND_<ROLE>_REASONING` branch in the existing loop; (c) `loadFlags`: add global `--reasoning`
+   (mirror `setRoleModel`'s map-value-copy write-back); (b) `loadEnv`: add global `STAGECOACH_REASONING` and a
+   per-role `STAGECOACH_<ROLE>_REASONING` branch in the existing loop; (c) `loadFlags`: add global `--reasoning`
    and a per-role `<role>-reasoning` branch in the existing loop.
 4. **`internal/config/roles.go`** — (a) add `var defaultRoleReasoning = map[string]string{"planner": "high"}`
    (the FR-R6 shipped fallback; off is the zero value so only planner is explicit); (b) change
@@ -95,7 +95,7 @@ lowest-resolution fallback. Close the FR-R3 flag gap so all four roles (incl. `m
 5. **`internal/cmd/root.go`** — register global `--reasoning` + per-role `--{planner,stager,message,arbiter}-reasoning`
    + `--message-provider` + `--message-model` (FR-R3 complete flag surface); add the corresponding `flag*`
    package vars; help text names env/git-config (Mode A docs).
-6. **`internal/generate/generate.go`** + **`pkg/stagehand/stagehand.go`** — change the single-commit
+6. **`internal/generate/generate.go`** + **`pkg/stagecoach/stagecoach.go`** — change the single-commit
    `Render(cfg.Model, sysPrompt, payload, "")` call's 4th arg from `""` to `cfg.Reasoning`.
 7. **BUILD-GREEN arity fixes**: `internal/decompose/{roles,planner,stager,message,arbiter}.go` — add `, _` to
    discard the new `ResolveRoleModel` reasoning return (5 sites; behavior unchanged; `TODO(P1.M2.T1.S2)`).
@@ -105,7 +105,7 @@ lowest-resolution fallback. Close the FR-R3 flag gap so all four roles (incl. `m
 **Success Definition**: `go build ./...`, `go vet ./...`, `gofmt -l` clean; `go test -race ./...` green
 (existing tests stay green, updated/new tests pass); `ResolveRoleModel` returns 3 values with the
 per-role→global→shipped(planner=high) precedence; `[defaults].reasoning` / `[role.X].reasoning` /
-`STAGEHAND_REASONING` / `STAGEHAND_<ROLE>_REASONING` / `--reasoning` / `--<role>-reasoning` all override the
+`STAGECOACH_REASONING` / `STAGECOACH_<ROLE>_REASONING` / `--reasoning` / `--<role>-reasoning` all override the
 resolved reasoning at the correct precedence; the single-commit path passes `cfg.Reasoning` to Render; every
 role (incl. message) exposes `--<role>-reasoning`; go.mod/go.sum byte-unchanged; no new files outside the
 listed edits.
@@ -114,10 +114,10 @@ listed edits.
 
 **Target User**: Downstream (a) **P1.M2.T1.S2** (consumes the 3-return `ResolveRoleModel` to build
 `RoleModels.Reasoning` and wire the 4 decompose Render reasoning args), (b) the **single-commit generation
-path** (`generate.CommitStaged`, `pkg/stagehand.GenerateCommit`) which now forwards reasoning to Render, and
+path** (`generate.CommitStaged`, `pkg/stagecoach.GenerateCommit`) which now forwards reasoning to Render, and
 (c) transitively every user who wants per-role thinking/reasoning effort (FR-R6) on a supported provider.
 
-**Use Case**: `stagehand --reasoning high` (global) or `stagehand --planner-reasoning high` (per-role), or
+**Use Case**: `stagecoach --reasoning high` (global) or `stagecoach --planner-reasoning high` (per-role), or
 `[role.planner] reasoning = "high"` in config, sets the reasoning level that Render appends via the
 provider's `reasoning_levels` manifest table (P1.M1.T1.S1). A user who sets nothing gets the shipped
 planner=high / others=off defaults.
@@ -159,14 +159,14 @@ shipped planner=high fallback, and forwarded to `Render` on the single-commit pa
       copies global + per-role reasoning (non-zero); `overlay` merges global + per-role reasoning (non-zero
       field-merge, mirroring Provider/Model).
 - [ ] `setRoleReasoning(role, reasoning string)` exists and uses the map-value-copy write-back idiom;
-      `loadEnv` handles `STAGEHAND_REASONING` + per-role `STAGEHAND_<ROLE>_REASONING`; `loadFlags` handles
+      `loadEnv` handles `STAGECOACH_REASONING` + per-role `STAGECOACH_<ROLE>_REASONING`; `loadFlags` handles
       `--reasoning` + per-role `<role>-reasoning` (gated on `fs.Changed`).
 - [ ] `ResolveRoleModel(role, cfg) (provider, model, reasoning string)` resolves reasoning per-role → global
       → `defaultRoleReasoning[role]`; `defaultRoleReasoning == {"planner":"high"}`.
 - [ ] `root.go` registers `--reasoning`, `--planner-reasoning`, `--stager-reasoning`, `--message-reasoning`,
       `--arbiter-reasoning`, `--message-provider`, `--message-model` (zero defaults; help text names env +
       git-config).
-- [ ] `generate.go` and `pkg/stagehand/stagehand.go` single-commit `Render(...)` calls pass `cfg.Reasoning`
+- [ ] `generate.go` and `pkg/stagecoach/stagecoach.go` single-commit `Render(...)` calls pass `cfg.Reasoning`
       (4th arg) instead of `""`.
 - [ ] The 5 decompose non-test `ResolveRoleModel` call sites compile (`, _` discard); `roles_test.go` (7
       tests) is migrated to 3-return with reasoning assertions.
@@ -188,7 +188,7 @@ internals needed beyond "Render takes reasoning as the 4th arg".
 # MUST READ - Include these in your context window
 - docfile: plan/003_6ce49c39466e/P1M2T1S1/research/reasoning_plumbing.md
   why: the verified touchpoint list — exact line numbers for every edit, the 5 non-test + 7 test
-       ResolveRoleModel callers, the single-commit Render sites (generate.go:196 + pkg/stagehand:461), the
+       ResolveRoleModel callers, the single-commit Render sites (generate.go:196 + pkg/stagecoach:461), the
        bootstrap-doesn't-write-reasoning confirmation, and the setRole* write-back idiom.
   critical: the arity change breaks 12 call sites — ALL must be updated or the module won't build. The 5
        decompose non-test sites get a `, _` discard (S2 wires behavior); the 7 roles_test.go sites get full
@@ -203,7 +203,7 @@ internals needed beyond "Render takes reasoning as the 4th arg".
        loops + root.go flag-registration gap (no message-*).
   critical: §(c) "Single-commit path does NOT call ResolveRoleModel — it reads cfg.Model/cfg.Provider
        directly via buildDeps. So a global reasoning default must be read there too." ⇒ generate.go +
-       pkg/stagehand read cfg.Reasoning directly (NOT ResolveRoleModel).
+       pkg/stagecoach read cfg.Reasoning directly (NOT ResolveRoleModel).
 
 - file: PRD.md
   section: "9.15 Per-role provider/model configuration (FR-R1–R6)" (h3.31), "16.4 Per-role provider/model
@@ -237,7 +237,7 @@ internals needed beyond "Render takes reasoning as the 4th arg".
        four roles incl. message — the per-role loops already cover message for provider/model.
   pattern: setRoleProvider/setRoleModel (L33-52) use map-value-copy write-back (`rc := c.Roles[role]; rc.X=v;
        c.Roles[role]=rc`) — setRoleReasoning MUST mirror this (the write-back is load-bearing; Go maps return
-       copies). loadEnv global (STAGEHAND_PROVIDER ~L161) + per-role loop (~L190); loadFlags global
+       copies). loadEnv global (STAGECOACH_PROVIDER ~L161) + per-role loop (~L190); loadFlags global
        (fs.Changed("provider") ~L213) + per-role loop (~L243).
 
 - file: internal/config/roles.go
@@ -253,7 +253,7 @@ internals needed beyond "Render takes reasoning as the 4th arg".
   pattern: mirror `pf.StringVar(&flagPlannerModel, "planner-model", "", "…")` — register the 7 new flags
        (reasoning ×5 incl. message; message-provider; message-model) bound to new flag* vars.
 
-- file: internal/generate/generate.go   (L196) and pkg/stagehand/stagehand.go (L461)
+- file: internal/generate/generate.go   (L196) and pkg/stagecoach/stagecoach.go (L461)
   why: the two single-commit Render call sites. Both currently pass reasoning=`""` (4th arg).
   pattern: `deps.Manifest.Render(cfg.Model, sysPrompt, payload, "")` → `…, cfg.Reasoning)`. (Render sig from
        P1.M1.T1.S1: `Render(model, sysPrompt, userPayload, reasoning string, mode ...RenderMode)`.)
@@ -286,8 +286,8 @@ internal/generate/
   generate.go          # CommitStaged single-commit Render (L196)                    ← EDIT (reasoning "" → cfg.Reasoning)
 internal/decompose/
   roles.go planner.go stager.go message.go arbiter.go  # ResolveRoleModel callers    ← EDIT (build-green `, _` discard ×5)
-pkg/stagehand/
-  stagehand.go         # GenerateCommit single-commit Render (L461)                  ← EDIT (reasoning "" → cfg.Reasoning)
+pkg/stagecoach/
+  stagecoach.go         # GenerateCommit single-commit Render (L461)                  ← EDIT (reasoning "" → cfg.Reasoning)
 internal/provider/
   render.go            # Render(model, sysPrompt, userPayload, reasoning, mode...)   ← (INPUT from P1.M1.T1.S1; NO edit)
 go.mod / go.sum        # unchanged (no new dep)
@@ -467,8 +467,8 @@ Task 2: file.go — thread reasoning through fileDefaults/fileRoleConfig/materia
 
 Task 3: load.go — setRoleReasoning + loadEnv + loadFlags
   - ADD func (c *Config) setRoleReasoning(role, reasoning string) per the Data Models block (write-back idiom).
-  - loadEnv GLOBAL: `if v, ok := os.LookupEnv("STAGEHAND_REASONING"); ok && v != "" { cfg.Reasoning = v }`
-    (near the STAGEHAND_MODEL branch).
+  - loadEnv GLOBAL: `if v, ok := os.LookupEnv("STAGECOACH_REASONING"); ok && v != "" { cfg.Reasoning = v }`
+    (near the STAGECOACH_MODEL branch).
   - loadEnv PER-ROLE loop: add `if v, ok := os.LookupEnv(prefix + "_REASONING"); ok && v != "" { cfg.setRoleReasoning(role, v) }`
     (after the _MODEL branch in the roleNames loop).
   - loadFlags GLOBAL: `if fs.Changed("reasoning") { if v, err := fs.GetString("reasoning"); err == nil { cfg.Reasoning = v } }`
@@ -487,13 +487,13 @@ Task 5: root.go — register 7 flags (close the FR-R3 gap)
     flagArbiterReasoning, flagMessageProvider, flagMessageModel (in the decompose/per-role vars block).
   - REGISTER in init(): `--reasoning` (global), `--planner-reasoning`, `--stager-reasoning`,
     `--message-reasoning`, `--arbiter-reasoning`, `--message-provider`, `--message-model` — all zero default,
-    StringVar, help text naming `STAGEHAND_*` env + `stagehand.role.<role>` git-config (mirror the planner-model line's help style; Mode A docs).
+    StringVar, help text naming `STAGECOACH_*` env + `stagecoach.role.<role>` git-config (mirror the planner-model line's help style; Mode A docs).
   - GOTCHA: load.go already loops all four roles incl. message — registering the flags is what makes
     fs.Changed("message-*") true when passed.
 
 Task 6: single-commit path — forward cfg.Reasoning to Render
   - internal/generate/generate.go:196: `Render(cfg.Model, sysPrompt, payload, "")` → `…, cfg.Reasoning)`.
-  - pkg/stagehand/stagehand.go:461: `Render(cfg.Model, sysPrompt, payload, "")` → `…, cfg.Reasoning)`.
+  - pkg/stagecoach/stagecoach.go:461: `Render(cfg.Model, sysPrompt, payload, "")` → `…, cfg.Reasoning)`.
   - GOTCHA: read cfg.Reasoning DIRECTLY (these paths read cfg.Model directly too, NOT ResolveRoleModel).
 
 Task 7: build-green arity fixes — the 5 decompose ResolveRoleModel call sites
@@ -518,7 +518,7 @@ Task 8: roles_test.go — migrate 7 tests to 3-return + reasoning assertions
     TestResolveRoleModel_ReasoningGlobalFallback (no per-role → global); TestResolveRoleModel_PlannerShippedDefault
     (Defaults(), planner → "high", message → "").
   - ALSO add reasoning cases to file_test.go (materialize/overlay reasoning copy) + load_test.go
-    (STAGEHAND_REASONING / --reasoning / per-role) if those suites assert field coverage — at minimum ensure
+    (STAGECOACH_REASONING / --reasoning / per-role) if those suites assert field coverage — at minimum ensure
     they still compile/pass (Reasoning is a new field; existing struct literals/DeepEquals are unaffected).
 
 Task 9: VERIFY (no further file change)
@@ -591,8 +591,8 @@ FROZEN / NOT-EDITED (do NOT touch):
 DOWNSTREAM CONTRACT (hand-off to P1.M2.T1.S2 — do NOT implement here):
   - ResolveRoleModel now returns (provider, model, reasoning). S2's ResolveRoles consumes the 3rd value into
     RoleModels.<Role>.Reasoning and passes it to the 4 decompose Render(...) calls (replacing the `, _`
-    discards from Task 7). S2 ALSO adds pkg/stagehand RoleModel.Reasoning + applyRoleOverride.
-  - The single-commit path (generate.go + pkg/stagehand) already forwards cfg.Reasoning after S1 (done here).
+    discards from Task 7). S2 ALSO adds pkg/stagecoach RoleModel.Reasoning + applyRoleOverride.
+  - The single-commit path (generate.go + pkg/stagecoach) already forwards cfg.Reasoning after S1 (done here).
 
 NO DATABASE / NO ROUTES / NO NEW FILES / NO CLI WIRING BEYOND FLAG REGISTRATION.
 ```
@@ -605,7 +605,7 @@ NO DATABASE / NO ROUTES / NO NEW FILES / NO CLI WIRING BEYOND FLAG REGISTRATION.
 gofmt -w internal/config/config.go internal/config/file.go internal/config/load.go internal/config/roles.go \
   internal/config/roles_test.go internal/cmd/root.go internal/generate/generate.go \
   internal/decompose/roles.go internal/decompose/planner.go internal/decompose/stager.go \
-  internal/decompose/message.go internal/decompose/arbiter.go pkg/stagehand/stagehand.go
+  internal/decompose/message.go internal/decompose/arbiter.go pkg/stagecoach/stagecoach.go
 test -z "$(gofmt -l internal/ pkg/)" && echo "gofmt clean" || echo "GOFMT DIRTY"
 go vet ./...                       # Expect zero diagnostics (catches a missed arity call site).
 go build ./...                     # Whole module compiles (the 5 decompose `, _` discards are load-bearing here).
@@ -620,26 +620,26 @@ git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
 go test -race ./internal/config/ -v          # roles_test.go (3-return + reasoning) + file_test/load_test (reasoning cases)
 go test -race ./internal/generate/ -v        # generate (reasoning now reaches Render; stub manifests unaffected)
 go test -race ./internal/decompose/ -v       # the 5 `, _` discard sites compile + existing ResolveRoles tests stay green
-go test -race ./pkg/stagehand/ -v            # GenerateCommit forwards cfg.Reasoning
+go test -race ./pkg/stagecoach/ -v            # GenerateCommit forwards cfg.Reasoning
 go test -race ./internal/cmd/ -v             # flag registration (--reasoning, --message-*, per-role) + load wiring
 go test -race ./...                          # Full suite — NO regressions.
 # Expected: all PASS. Key new assertions: planner→high shipped default (Defaults()); per-role reasoning
-#   overrides global; STAGEHAND_REASONING / --reasoning / STAGEHAND_<ROLE>_REASONING / --<role>-reasoning
+#   overrides global; STAGECOACH_REASONING / --reasoning / STAGECOACH_<ROLE>_REASONING / --<role>-reasoning
 #   override at correct precedence; [defaults].reasoning / [role.X].reasoning decode+merge.
 ```
 
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm no file outside the listed edits was touched (frozen-file gate):
-git diff --name-only | grep -Ev 'internal/config/(config|file|load|roles|roles_test)\.go|internal/cmd/root\.go|internal/generate/generate\.go|internal/decompose/(roles|planner|stager|message|arbiter)\.go|pkg/stagehand/stagehand\.go|internal/config/(file_test|load_test)\.go' \
+git diff --name-only | grep -Ev 'internal/config/(config|file|load|roles|roles_test)\.go|internal/cmd/root\.go|internal/generate/generate\.go|internal/decompose/(roles|planner|stager|message|arbiter)\.go|pkg/stagecoach/stagecoach\.go|internal/config/(file_test|load_test)\.go' \
   && echo "UNEXPECTED file changed" || echo "only listed files changed (good)"
 # Flag-surface sanity (FR-R3): all four roles incl. message expose reasoning + provider + model + a global.
-/tmp/stagehand --help 2>&1 | grep -E -- '--reasoning|--planner-reasoning|--stager-reasoning|--message-reasoning|--arbiter-reasoning|--message-provider|--message-model' \
+/tmp/stagecoach --help 2>&1 | grep -E -- '--reasoning|--planner-reasoning|--stager-reasoning|--message-reasoning|--arbiter-reasoning|--message-provider|--message-model' \
   && echo "all reasoning + message-* flags registered"
-# Resolve-precedence smoke (optional throwaway): build a pflag.FlagSet + cfg, set STAGEHAND_PLANNER_REASONING=high
+# Resolve-precedence smoke (optional throwaway): build a pflag.FlagSet + cfg, set STAGECOACH_PLANNER_REASONING=high
 # + [defaults].reasoning=off, call config.ResolveRoleModel("planner", cfg) → expect "high" (per-role beats global).
 ```
 
@@ -661,7 +661,7 @@ git diff --name-only | grep -Ev 'internal/config/(config|file|load|roles|roles_t
 
 - [ ] Level 1 clean: `go build ./...`, `go vet ./...`, `gofmt -l internal/ pkg/`, `go mod tidy` no-op;
       `git diff --exit-code go.mod go.sum` empty.
-- [ ] Level 2 green: `go test -race ./...` (config + generate + decompose + pkg/stagehand + cmd).
+- [ ] Level 2 green: `go test -race ./...` (config + generate + decompose + pkg/stagecoach + cmd).
 - [ ] Level 3: binary builds; go.mod/go.sum unchanged; only listed files changed; all 7 flags registered.
 
 ### Feature Validation
@@ -672,7 +672,7 @@ git diff --name-only | grep -Ev 'internal/config/(config|file|load|roles|roles_t
 - [ ] `ResolveRoleModel` returns `(provider, model, reasoning)`; reasoning = per-role → global →
       `defaultRoleReasoning[role]` (planner=high).
 - [ ] root.go registers `--reasoning` + 4×`--<role>-reasoning` + `--message-provider` + `--message-model`.
-- [ ] generate.go + pkg/stagehand single-commit Render passes `cfg.Reasoning`.
+- [ ] generate.go + pkg/stagecoach single-commit Render passes `cfg.Reasoning`.
 - [ ] 5 decompose call sites compile (`, _`); roles_test.go migrated (planner→high asserted).
 
 ### Code Quality Validation
@@ -680,7 +680,7 @@ git diff --name-only | grep -Ev 'internal/config/(config|file|load|roles|roles_t
 - [ ] Mirrors existing patterns: plain-string field like Provider/Model; setRoleReasoning mirrors setRoleModel;
       materialize/overlay mirror Provider/Model branches; flag registration mirrors planner-model.
 - [ ] Reasoning is a plain string (NOT *string); defaultRoleReasoning has only `{"planner":"high"}`.
-- [ ] No scope creep into S2 (RoleModels.Reasoning / decompose Render reasoning args / pkg/stagehand RoleModel)
+- [ ] No scope creep into S2 (RoleModels.Reasoning / decompose Render reasoning args / pkg/stagecoach RoleModel)
       or P1.M3 (config_version bump) or P1.M4 (bootstrap).
 - [ ] Anti-patterns avoided (see below).
 
@@ -700,7 +700,7 @@ git diff --name-only | grep -Ev 'internal/config/(config|file|load|roles|roles_t
 - ❌ Don't apply the shipped `planner=high` default ABOVE the global `[defaults].reasoning`. The item + FR-R6
   make it the LOWEST fallback layer (per-role → global → shipped). `defaultRoleReasoning = {"planner":"high"}`
   only; off is the zero value.
-- ❌ Don't route the single-commit path (generate.go / pkg/stagehand) through `ResolveRoleModel`. Those paths
+- ❌ Don't route the single-commit path (generate.go / pkg/stagecoach) through `ResolveRoleModel`. Those paths
   read `cfg.Model` directly; read `cfg.Reasoning` directly too (4th Render arg). For the message role it's
   identical anyway (message ships off="").
 - ❌ Don't forget the map-value-copy write-back in `setRoleReasoning` (`c.Roles[role] = rc`). Without it the

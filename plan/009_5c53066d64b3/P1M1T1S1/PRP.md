@@ -119,7 +119,7 @@ explained with its reason (go-toml no omitempty). The S1/S2/S3/S4/S5 boundary is
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/provider/
     ├── manifest.go        # EDIT: + SessionMode field (struct); + Resolve default; + Validate enum
     └── manifest_test.go   # EDIT: +4 test extensions (BadSessionMode, Resolve default, explicit-preserve)
@@ -128,7 +128,7 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/provider/manifest.go        # +SessionMode field + Resolve default + Validate enum
     internal/provider/manifest_test.go   # +4 test assertions
@@ -336,7 +336,7 @@ DOWNSTREAM HOOKS (informational — S2/S3/S4 own):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/provider/manifest.go internal/provider/manifest_test.go   # realign the struct block
 gofmt -l .                       # Expected: empty after the -w
@@ -347,7 +347,7 @@ go build ./...                   # Expected: exit 0 (new field; nothing reads it
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The Validate + Resolve tests (incl. the new BadSessionMode + the Resolve extensions)
 go test -race ./internal/provider/ -v -run 'TestValidate|TestResolve'
@@ -362,7 +362,7 @@ go test -race ./internal/provider/ -v
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green (S1 adds a dead field; no behavior change)
 go vet ./...                     # Expected: exit 0
@@ -375,7 +375,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/ providers/
 ### Level 4: Dead-Field Confirmation (the field is unconsumed)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Nothing reads m.SessionMode / r.SessionMode yet (S3/S4 wire them). Confirm:
 grep -rn "\.SessionMode" --include="*.go" internal/ pkg/ cmd/ | grep -v "_test.go" | grep -v "/plan/"

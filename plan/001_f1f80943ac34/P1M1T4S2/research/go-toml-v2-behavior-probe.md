@@ -102,13 +102,13 @@ Marshaling the nested `fileConfig` produced `model = ''`, `max_md_lines = 0`, `v
 section marshals as a parent `[provider]` table with `[provider.<name>]` subtables (valid TOML, §16.2
 shape). Relevant only for `config init` (P1.M4.T1.S4), NOT for S2 (S2 only reads, never writes files).
 
-## Finding E — repo-local path is `.stagehand.toml` (file), NOT `.stagehand/config.toml` (dir) ⚠️
+## Finding E — repo-local path is `.stagecoach.toml` (file), NOT `.stagecoach/config.toml` (dir) ⚠️
 
-- Contract (P1.M1.T4.S2 point 1) + PRD §16.1 (h3.57 item 4): repo-local = **`./.stagehand.toml`**
+- Contract (P1.M1.T4.S2 point 1) + PRD §16.1 (h3.57 item 4): repo-local = **`./.stagecoach.toml`**
   (a file in the repo root).
-- arch `go_ecosystem_patterns.md` §2.8 uses **`filepath.Join(".stagehand", "config.toml")`** (a
+- arch `go_ecosystem_patterns.md` §2.8 uses **`filepath.Join(".stagecoach", "config.toml")`** (a
   directory) — this is INCONSISTENT with the contract/PRD.
-- **Resolution:** the contract + PRD win. `repoLocalConfigPath() == ".stagehand.toml"`. The arch §2.8
+- **Resolution:** the contract + PRD win. `repoLocalConfigPath() == ".stagecoach.toml"`. The arch §2.8
   snippet is the *global-path* + *Load-orchestration* pattern reference, NOT the repo-path authority.
 
 ## Decision summary carried into the PRP

@@ -44,7 +44,7 @@ description: |
 shipped v2.0 binary and the PRD, so that every doc reflects the complete v2.0 feature set and contains
 no stale v1-only statements. The headline is **multi-commit decomposition**: a new user reading the
 README or docs/how-it-works.md must be able to discover it, understand the four-role pipeline, and run
-`stagehand --commits 3` / `--single` / `--planner-model …` from the docs alone.
+`stagecoach --commits 3` / `--single` / `--planner-model …` from the docs alone.
 
 **Deliverable**: Six EDITED Markdown files (no new files):
 1. `README.md` — hero pitch mentions multi-commit; new "Multi-commit decomposition" section; updated
@@ -67,7 +67,7 @@ README or docs/how-it-works.md must be able to discover it, understand the four-
 - **No stale v1 statements**: `grep` for the known-stale strings (below) returns ZERO hits across all
   six files.
 - **Binary is authoritative**: every CLI flag, env var, provider name, and config key documented MATCHES
-  the shipped binary (verified by running `stagehand --help` / `config init --help` / `config upgrade
+  the shipped binary (verified by running `stagecoach --help` / `config init --help` / `config upgrade
   --help` / `providers list` and diffing against the docs). In particular the provider preference order
   is exactly `pi, opencode, cursor, agy, gemini, codex, claude` (7 providers) everywhere it appears.
 - **New-user discoverability**: the README + docs/how-it-works.md explain multi-commit decomposition
@@ -79,15 +79,15 @@ README or docs/how-it-works.md must be able to discover it, understand the four-
 
 ## User Persona
 
-**Target User**: a NEW Stagehand user (the PRD §7.1 "plan-holder") reading the docs to discover and use
+**Target User**: a NEW Stagecoach user (the PRD §7.1 "plan-holder") reading the docs to discover and use
 v2.0 features. Secondary: a returning v1 user surprised that `pi`'s default changed / that bare
-`stagehand` with a dirty tree now decomposes.
+`stagecoach` with a dirty tree now decomposes.
 
-**Use Case**: the user clones the repo, reads README.md to understand what stagehand does, runs
+**Use Case**: the user clones the repo, reads README.md to understand what stagecoach does, runs
 `config init`, and wants to (a) commit a dirty working tree as multiple logical commits, (b) route
 planning to a big model, (c) know which provider is auto-selected and why pi's default changed.
 
-**User Journey**: README hero → "Multi-commit decomposition" section → `stagehand --commits 3` →
+**User Journey**: README hero → "Multi-commit decomposition" section → `stagecoach --commits 3` →
 "Configure your agent" → `config init` (populated) → docs/cli.md for the full flag table →
 docs/how-it-works.md for the pipeline → docs/configuration.md for per-role models.
 
@@ -113,7 +113,7 @@ the docs; (c) v2 flags that exist in `--help` but not in any doc.
 
 **User-visible behavior** (the rendered docs):
 - **README.md** hero mentions multi-commit decomposition as a workflow property; a new section shows
-  the dirty-tree → `stagehand` → N commits flow with a short example; the competitive table shows
+  the dirty-tree → `stagecoach` → N commits flow with a short example; the competitive table shows
   multi-commit = Yes; the FAQ answers "Can it write multiple commits?" with YES + how; the provider
   list shows agy; the config section shows `config init` (populated) + `config upgrade`.
 - **docs/how-it-works.md** has a "Multi-commit decomposition" section with the planner→stager→message→
@@ -155,7 +155,7 @@ G-FLAG-DESC-ACCURACY), the docs describe the ACTUAL implemented behavior, not th
 - [ ] docs/README.md index descriptions match (7 providers; v2.0 note; correct flag count wording).
 - [ ] All six files pass `npx --yes markdownlint-cli2` (repo `.markdownlint.json`); internal doc links
       resolve (no broken `docs/*.md` / `../README.md` links).
-- [ ] Cross-checked against the binary: `stagehand --help` / `config init --help` / `config upgrade
+- [ ] Cross-checked against the binary: `stagecoach --help` / `config init --help` / `config upgrade
       --help` / `providers list` flag/provider names match the docs exactly.
 
 ## All Needed Context
@@ -187,15 +187,15 @@ sections to draw prose from are cited with their anchors.
         ASCII pipeline diagram to render. §9.14 FR-M1–M12 are the behavioral requirements."
   critical: "The trigger is NOTHING STAGED + dirty tree — if something is staged, the single-commit path
         runs unchanged (§13.6.1 / N1). The stager is the ONLY role that mutates the index (git add); all
-        ref mutations are stagehand's (commit-tree/update-ref). Generation overlaps staging but
+        ref mutations are stagecoach's (commit-tree/update-ref). Generation overlaps staging but
         publication is serialized."
 
 - url: PRD.md §15.5 (Example invocations) + §9.1 (FR3a-c binary filtering) + §16.4 (per-role config)
   why: "§15.5 has the ready-made v2 example invocations (--commits 3 / --single / --planner-model /
-        per-repo .stagehand.toml) — copy/adapt these into README + cli.md examples. §9.1 FR3a-c is the
+        per-repo .stagecoach.toml) — copy/adapt these into README + cli.md examples. §9.1 FR3a-c is the
         binary-filtering behavior to add a one-line note for in how-it-works.md. §16.4 is the per-role
         config block."
-  critical: "§15.5's per-repo example uses .stagehand.toml with [role.planner] provider+model — keep
+  critical: "§15.5's per-repo example uses .stagecoach.toml with [role.planner] provider+model — keep
         that exact shape. FR3c: binary filtering applies in EVERY diff path (staged, working-tree
         snapshot, concept diff) with an identical '<status>\t[binary] <path>' placeholder."
 
@@ -204,14 +204,14 @@ sections to draw prose from are cited with their anchors.
         decoupled-from-z.ai posture (pi default_model is now ''/OpenAI, NOT glm/zai), the tier→role
         strategy (planner=smart, stager=mid, message=fast, arbiter=mid)."
   critical: "FR-D2: pi no longer ships glm/zai as default — the README/providers docs must NOT claim pi
-        defaults to glm/zai (the current README's `git config stagehand.model glm-5.2` example is a
+        defaults to glm/zai (the current README's `git config stagecoach.model glm-5.2` example is a
         PERSONAL override, fine to keep as an example but do not call it 'the default')."
 
 # CODEBASE FILES — edit targets (all 6 are Markdown; verified current state per file below)
 - file: README.md   # EDIT (the marketing surface, PRD §21.5) — MATERIALLY STALE
   why: "The headline file. Currently v1-only: hero omits multi-commit; FAQ §'Can it write multiple
         commits?' says 'Not in v1 — planned for v2' (FALSE); provider order 'pi, claude, gemini,
-        opencode, codex, cursor' (WRONG); 'git config stagehand.model glm-5.2' example; config init
+        opencode, codex, cursor' (WRONG); 'git config stagecoach.model glm-5.2' example; config init
         described as 'fully-commented global config file' (v1 inert, now populated); no v2 flags;
         competitive table has no multi-commit row."
   pattern: "Follow the §21.5 10-point structure that the file ALREADY uses (hero → demo → why-not →
@@ -237,8 +237,8 @@ sections to draw prose from are cited with their anchors.
         and the arbiter leftover reconciliation. ADD a short 'Binary/non-text filtering' note (FR3a-c)
         under the diff-capture context."
   gotcha: "The decompose section must emphasize the SAME safety invariants as the single-commit section
-        (snapshot-based, CAS update-ref, stagehand owns all ref mutations). The stager mutating the
-        index is the ONE exception — frame it as 'scoped strictly to staging; stagehand owns commit/
+        (snapshot-based, CAS update-ref, stagecoach owns all ref mutations). The stager mutating the
+        index is the ONE exception — frame it as 'scoped strictly to staging; stagecoach owns commit/
         update-ref/push'. Cross-link to configuration.md for per-role models and cli.md for the flags."
 
 - file: docs/cli.md   # EDIT — MATERIALLY STALE (v1-only)
@@ -254,17 +254,17 @@ sections to draw prose from are cited with their anchors.
         the 'config init' section to populated (flags --provider/--force/--template). FIX the providers
         list auto-detect order. ADD v2 rows to the flag↔env↔git-config map. ADD v2 examples (§15.5)."
   gotcha: "G-FLAG-DESC-ACCURACY: the binary's --commits/--max-commits flag DESCRIPTION STRINGS cite
-        '(env/git stagehand.commits)' and '(env/git stagehand.max_commits)' but those env/git keys DO
-        NOT EXIST in the implementation (only STAGEHAND_COMMITS exists for --commits; --max-commits has
+        '(env/git stagecoach.commits)' and '(env/git stagecoach.max_commits)' but those env/git keys DO
+        NOT EXIST in the implementation (only STAGECOACH_COMMITS exists for --commits; --max-commits has
         NO env and NO git key, only the [generation].max_commits config-file field). Document the ACTUAL
         behavior (see GROUND-TRUTH table), NOT the flag's aspirational description string. There is NO
         --message-provider/--message-model flag (message role inherits the global default) — do not
-        invent one; only document the env (STAGEHAND_MESSAGE_*) for it."
+        invent one; only document the env (STAGECOACH_MESSAGE_*) for it."
 
 - file: docs/configuration.md   # EDIT — SMALL ADDITIONS (mostly already v2-correct)
   why: "ALREADY has: 7-layer precedence, populated bootstrap (config init writes config_version=2 +
         [defaults] + [role.*]), per-role config explanation. MISSING: a 'config upgrade' section, the
-        per-role ENV vars (STAGEHAND_<ROLE>_*) + per-role FLAGS (--<role>-provider/--<role>-model), and
+        per-role ENV vars (STAGECOACH_<ROLE>_*) + per-role FLAGS (--<role>-provider/--<role>-model), and
         the decompose config keys (commits/single/max_commits under [generation])."
   pattern: "VERIFY the populated-bootstrap + config_version content is accurate (it is — from P1.M4).
         ADD a '### Schema versioning (`config upgrade`)' subsection under Bootstrap, documenting the
@@ -294,7 +294,7 @@ sections to draw prose from are cited with their anchors.
         flags'; providers.md → '7 built-in providers … agy'. Update the 'new in v1.0' note to v2.0.
         KEEP the 'binary is authoritative' contract line — that is a correctness guarantee the docs must
         now actually satisfy."
-  gotcha: "Do NOT remove the 'If anything here disagrees with stagehand --help, the binary is
+  gotcha: "Do NOT remove the 'If anything here disagrees with stagecoach --help, the binary is
         authoritative' note — that is the contract this whole task exists to honor."
 
 # RESEARCH NOTES (written by this PRP's research phase — read for full ground truth)
@@ -340,19 +340,19 @@ pi, opencode, cursor, agy, gemini, codex, claude
 
 | Flag | Type | Default | Env var | Git config | Notes |
 |---|---|---|---|---|---|
-| `--commits` | int | `0` | `STAGEHAND_COMMITS` | *(none)* | 0=auto-decompose; ≥2=force exactly N; 1≡`--single` |
+| `--commits` | int | `0` | `STAGECOACH_COMMITS` | *(none)* | 0=auto-decompose; ≥2=force exactly N; 1≡`--single` |
 | `--single` | bool | `false` | *(none)* | *(none)* | bypass decompose → v1 single-commit |
 | `--no-decompose` | bool | `false` | *(none)* | *(none)* | alias for `--single` |
 | `--max-commits` | int | `12` | *(none)* | *(none)* | safety cap; also `[generation].max_commits` in config |
-| `--planner-provider` | string | `""` | `STAGEHAND_PLANNER_PROVIDER` | *(none)* | per-role |
-| `--planner-model` | string | `""` | `STAGEHAND_PLANNER_MODEL` | *(none)* | per-role |
-| `--stager-provider` | string | `""` | `STAGEHAND_STAGER_PROVIDER` | *(none)* | per-role |
-| `--stager-model` | string | `""` | `STAGEHAND_STAGER_MODEL` | *(none)* | per-role |
-| `--arbiter-provider` | string | `""` | `STAGEHAND_ARBITER_PROVIDER` | *(none)* | per-role |
-| `--arbiter-model` | string | `""` | `STAGEHAND_ARBITER_MODEL` | *(none)* | per-role |
+| `--planner-provider` | string | `""` | `STAGECOACH_PLANNER_PROVIDER` | *(none)* | per-role |
+| `--planner-model` | string | `""` | `STAGECOACH_PLANNER_MODEL` | *(none)* | per-role |
+| `--stager-provider` | string | `""` | `STAGECOACH_STAGER_PROVIDER` | *(none)* | per-role |
+| `--stager-model` | string | `""` | `STAGECOACH_STAGER_MODEL` | *(none)* | per-role |
+| `--arbiter-provider` | string | `""` | `STAGECOACH_ARBITER_PROVIDER` | *(none)* | per-role |
+| `--arbiter-model` | string | `""` | `STAGECOACH_ARBITER_MODEL` | *(none)* | per-role |
 
 **There is NO `--message-provider`/`--message-model` FLAG.** The message role has env vars
-(`STAGEHAND_MESSAGE_PROVIDER`/`STAGEHAND_MESSAGE_MODEL`) + config (`[role.message]`) but NO CLI flag —
+(`STAGECOACH_MESSAGE_PROVIDER`/`STAGECOACH_MESSAGE_MODEL`) + config (`[role.message]`) but NO CLI flag —
 it inherits the global `--provider`/`--model`. Document the env+config for message, NOT a flag.
 
 **Default-action routing** (`internal/cmd/default_action.go:shouldDecompose`) — decompose runs IFF:
@@ -385,7 +385,7 @@ overwrite unless `--force` (exit 1).
 
 **config upgrade** (`internal/cmd/config.go`): NO flags. Rewrites the GLOBAL config's top-level
 `config_version` line to the current version (2) in place; preserves every other line byte-for-byte.
-Output: no file → `no config file at <path> (run 'stagehand config init' first)` exit 1; invalid TOML →
+Output: no file → `no config file at <path> (run 'stagecoach config init' first)` exit 1; invalid TOML →
 exit 1 untouched; already current → `Config at <path> is already at version 2 (no changes).` exit 0;
 upgraded → `Upgraded config at <path> to version 2.` exit 0. Idempotent. The load-time advisory
 (when config_version is missing/older/newer) points users at `config upgrade` or `config init --force`.
@@ -420,24 +420,24 @@ docs/providers.md         # ~fixed auto-detect order (one sentence)
 
 ```markdown
 <!-- G-BINARY-IS-AUTHORITATIVE (the master constraint): docs/README.md declares "If anything here
-     disagrees with stagehand --help, the binary is authoritative." EVERY flag name, env var, provider
+     disagrees with stagecoach --help, the binary is authoritative." EVERY flag name, env var, provider
      name, config key, and the provider ORDER in the docs must match the shipped binary. Before
-     finalizing, run: `stagehand --help`, `stagehand config init --help`, `stagehand config upgrade
-     --help`, `stagehand providers list` — and diff the docs against them. The GROUND-TRUTH tables above
+     finalizing, run: `stagecoach --help`, `stagecoach config init --help`, `stagecoach config upgrade
+     --help`, `stagecoach providers list` — and diff the docs against them. The GROUND-TRUTH tables above
      are pre-extracted from the binary; trust them over the binary's own flag-description strings (next). -->
 
 <!-- G-FLAG-DESC-ACCURACY (IMPORTANT — a real accuracy trap): the binary's --commits flag description
-     string says "(env/git stagehand.commits)" and --max-commits says "(env/git stagehand.max_commits)".
-     These are ASPIRATIONAL/INACCURATE vs the implementation: STAGEHAND_COMMITS exists, but there is NO
-     STAGEHAND_MAX_COMMITS env var and NO git `stagehand.commits` / `stagehand.max_commits` key. The docs
+     string says "(env/git stagecoach.commits)" and --max-commits says "(env/git stagecoach.max_commits)".
+     These are ASPIRATIONAL/INACCURATE vs the implementation: STAGECOACH_COMMITS exists, but there is NO
+     STAGECOACH_MAX_COMMITS env var and NO git `stagecoach.commits` / `stagecoach.max_commits` key. The docs
      must describe the ACTUAL behavior (see the GROUND-TRUTH table), NOT copy the flag's description
-     string. If you `stagehand --help` and copy the --commits line verbatim, you'll reintroduce a lie.
-     Document: --commits = flag + STAGEHAND_COMMITS env (no git key); --max-commits = flag +
+     string. If you `stagecoach --help` and copy the --commits line verbatim, you'll reintroduce a lie.
+     Document: --commits = flag + STAGECOACH_COMMITS env (no git key); --max-commits = flag +
      [generation].max_commits config (NO env, NO git key). -->
 
 <!-- G-NO-MESSAGE-FLAG (IMPORTANT): there is NO --message-provider / --message-model CLI flag. Only
      planner/stager/arbiter have per-role flags. The message role is reachable via env
-     (STAGEHAND_MESSAGE_PROVIDER/MODEL) + config ([role.message]) but NOT a flag — it inherits the global
+     (STAGECOACH_MESSAGE_PROVIDER/MODEL) + config ([role.message]) but NOT a flag — it inherits the global
      --provider/--model. Do NOT invent a --message-* flag in the cli.md table. Document the env+config
      for message, and note "no flag; inherits the global default". -->
 
@@ -452,7 +452,7 @@ docs/providers.md         # ~fixed auto-detect order (one sentence)
 
 <!-- G-FAQ-LIE (the single most damaging stale statement): README.md FAQ "Can it write multiple
      commits?" answers "Not in v1 — v1 creates a single commit per invocation. Multi-commit hunk
-     decomposition is planned for v2." This is now FALSE. Rewrite to YES: bare `stagehand` with a dirty
+     decomposition is planned for v2." This is now FALSE. Rewrite to YES: bare `stagecoach` with a dirty
      tree + nothing staged auto-decomposes; `--commits N` forces the count; `--single` keeps v1
      behavior. This is the headline v2 feature. -->
 
@@ -463,7 +463,7 @@ docs/providers.md         # ~fixed auto-detect order (one sentence)
 
 <!-- G-PI-DEFAULT-DECOUPLED (FR-D2): do NOT describe pi as defaulting to glm/zai. pi's default_model is
      now "" (decoupled from the author's personal z.ai subscription). The README's `git config
-     stagehand.model glm-5.2` example is fine as a *per-repo override example* but must not be framed as
+     stagecoach.model glm-5.2` example is fine as a *per-repo override example* but must not be framed as
      "the default". If you keep it, add a one-line note that it's an override. -->
 
 <!-- G-MARKDOWNLINT-RULES: .markdownlint.json disables MD013 (line length — long lines/tables OK),
@@ -499,7 +499,7 @@ accurately in the prose/tables of the edited Markdown.
 
 ```yaml
 Task 0: RE-VERIFY ground truth against the binary (no edits — do first, ~2 min)
-  - BUILD: go build -o /tmp/sh-doc ./cmd/stagehand
+  - BUILD: go build -o /tmp/sh-doc ./cmd/stagecoach
   - RUN: /tmp/sh-doc --help                          → capture the exact flag list/descriptions
   - RUN: /tmp/sh-doc config init --help              → confirm --provider/--force/--template
   - RUN: /tmp/sh-doc config upgrade --help           → confirm it exists, exits 0
@@ -537,8 +537,8 @@ Task 3: EDIT docs/cli.md — the largest single-file edit (flags table + routing
        "already at version 2 (no changes)" / "Upgraded … to version 2" / errors if no file; idempotent;
        the load-time advisory points here.
   - 3e. FIX the "providers list" auto-detect order note → pi, opencode, cursor, agy, gemini, codex, claude.
-  - 3f. ADD rows to the flag↔env↔git-config map: the per-role flags (env STAGEHAND_<ROLE>_*; no git key),
-       --commits (env STAGEHAND_COMMITS; no git key), --single/--no-decompose/--max-commits (no env, no
+  - 3f. ADD rows to the flag↔env↔git-config map: the per-role flags (env STAGECOACH_<ROLE>_*; no git key),
+       --commits (env STAGECOACH_COMMITS; no git key), --single/--no-decompose/--max-commits (no env, no
        git — note max-commits config field). Document message role as env+config only (no flag).
   - 3g. ADD v2 examples (from PRD §15.5): --commits 3; --single; --planner-model/--planner-provider.
 
@@ -547,10 +547,10 @@ Task 4: EDIT docs/configuration.md — ADD missing pieces (per-role env/flag + c
   - 4a. ADD a "### Schema versioning (`config upgrade`)" subsection under Bootstrap: config_version
        advisory (missing/older/newer → warning pointing at upgrade or init --force) + the upgrade command
        behavior (GROUND-TRUTH strings). config_version = 2 is current.
-  - 4b. ADD the per-role env vars (STAGEHAND_PLANNER_*/STAGER_*/MESSAGE_*/ARBITER_*) + per-role flags
+  - 4b. ADD the per-role env vars (STAGECOACH_PLANNER_*/STAGER_*/MESSAGE_*/ARBITER_*) + per-role flags
        (--planner-provider/--planner-model/etc.) to the env/flag reference. Note message has no flag.
   - 4c. ADD the decompose config keys note: commits/single are flag/env (no config-file block of their
-       own; single is reached via --single/--no-decompose/STAGEHAND_COMMITS=1); max_commits lives under
+       own; single is reached via --single/--no-decompose/STAGECOACH_COMMITS=1); max_commits lives under
        [generation] (default 12). NO git-config keys for any of these.
 
 Task 5: EDIT docs/how-it-works.md — ADD the decompose pipeline + binary filtering (the architectural centerpiece)
@@ -560,7 +560,7 @@ Task 5: EDIT docs/how-it-works.md — ADD the decompose pipeline + binary filter
        the overlapped loop (stager[i+1] ∥ message[i]; tree[i] frozen before stager[i+1] starts; concept
        diff is tree[i-1]→tree[i], never index-vs-HEAD); serialized publication (CAS update-ref); the
        arbiter leftover reconciliation (§13.6.5). Emphasize the SAME safety invariants (snapshot-based,
-       CAS, stagehand owns all ref mutations; stager is the one index-mutating exception, scoped to add).
+       CAS, stagecoach owns all ref mutations; stager is the one index-mutating exception, scoped to add).
        Cross-link to configuration.md (per-role models) + cli.md (flags).
   - 5b. ADD a short "### Binary and non-text file filtering" note (FR3a-c): binary/lock/snapshot/
        sourcemap/vendor files are excluded from every diff payload (staged, working-tree snapshot,
@@ -572,7 +572,7 @@ Task 6: EDIT README.md — the marketing surface (largest narrative edit)
        existing "stage while it thinks / never corrupt / atomic" framing; add "and can split a dirty
        tree into a sequence of clean commits" (paraphrase §1 item 3 / §5 #6).
   - 6b. QUICK START: after the single-commit steps, INSERT a "### Multi-commit decomposition"
-       subsection: dirty tree + nothing staged → bare `stagehand` auto-decomposes; `--commits 3` forces;
+       subsection: dirty tree + nothing staged → bare `stagecoach` auto-decomposes; `--commits 3` forces;
        `--single` keeps v1. One short example block (PRD §15.5).
   - 6c. "Configure your agent": FIX the preference order (→ pi, opencode, cursor, agy, gemini, codex,
        claude); UPDATE the providers list example to show agy; UPDATE config init to POPULATED + mention
@@ -605,21 +605,21 @@ Task 7: VALIDATE (no edits)
 <!-- Pattern: flag tables in cli.md. The existing Global flags table has columns
      Flag | Type | Default | Env var | Git config | Description. ADD the v2 rows with the SAME columns.
      For flags with no env/git analog, put "—" in those cells (matching the existing --all/--no-auto-stage
-     style). For --commits put "STAGEHAND_COMMITS" in env and "—" in git. NEVER copy the binary's
-     "(env/git stagehand.commits)" description string (G-FLAG-DESC-ACCURACY). -->
+     style). For --commits put "STAGECOACH_COMMITS" in env and "—" in git. NEVER copy the binary's
+     "(env/git stagecoach.commits)" description string (G-FLAG-DESC-ACCURACY). -->
 
 <!-- Pattern: the "binary is authoritative" contract. docs/README.md already states docs defer to
-     stagehand --help. Honor it: if --help shows a flag, document it; if a doc claims a flag/env/key
+     stagecoach --help. Honor it: if --help shows a flag, document it; if a doc claims a flag/env/key
      that --help (or the source) doesn't have, remove it. The GROUND-TRUTH tables are the verified
      intersection of "what the docs should say" and "what the binary actually does." -->
 
 <!-- Pattern: per-role precedence one-liner (configuration.md + cli.md). Precedence (highest wins):
-     flag > env (STAGEHAND_<ROLE>_*) > per-role config ([role.<role>]) > global config ([defaults]) >
+     flag > env (STAGECOACH_<ROLE>_*) > per-role config ([role.<role>]) > global config ([defaults]) >
      built-in manifest default. The message role omits the flag layer. Stager falls back to the next
      stager-capable provider if its resolved provider can't serve (tooled_flags empty). -->
 
 <!-- Pattern: the FAQ rewrite (README.md). Replace the lie with a 3-line answer:
-     "Yes. Run `stagehand` with a dirty working tree and nothing staged, and it decomposes the changes
+     "Yes. Run `stagecoach` with a dirty working tree and nothing staged, and it decomposes the changes
      into a sequence of logically-coherent commits automatically. Force a count with `--commits 3`, or
      keep the one-commit behavior with `--single`. See [Multi-commit decomposition](#…)." -->
 ```
@@ -635,10 +635,10 @@ DOCS CROSS-LINKS (Markdown relative links — keep the existing conventions):
   - docs/providers.md → ../providers/ (toml files), configuration.md (per-role). Existing.
   - docs/README.md → ../README.md (quick start), each docs/*.md (index). Existing + refresh text.
 BINARY CONTRACT (the docs must match):
-  - stagehand --help          → the global flags table (incl. v2 flags).
-  - stagehand config init --help → the config init flags (--provider/--force/--template).
-  - stagehand config upgrade --help → exists (the new subcommand section).
-  - stagehand providers list  → the provider order + (default) marker + agy.
+  - stagecoach --help          → the global flags table (incl. v2 flags).
+  - stagecoach config init --help → the config init flags (--provider/--force/--template).
+  - stagecoach config upgrade --help → exists (the new subcommand section).
+  - stagecoach providers list  → the provider order + (default) marker + agy.
 PARALLEL TASK (P4.M2.T2.S1):
   - Touches ONLY internal/cmd/{config,providers}_test.go (Go tests). DISJOINT from these 6 Markdown
     files → NO merge conflict. It LOCKS IN config upgrade registration + help dedup + config init flags
@@ -686,7 +686,7 @@ grep -rn "new in v1.0" docs/README.md                     # the version note (�
 
 ```bash
 # Build and capture the binary's actual surface; diff against the docs.
-go build -o /tmp/sh-doc ./cmd/stagehand
+go build -o /tmp/sh-doc ./cmd/stagecoach
 
 # (1) Global flags — every flag in --help must appear in docs/cli.md's table (and vice versa).
 /tmp/sh-doc --help > /tmp/help.txt
@@ -751,7 +751,7 @@ grep -n -i "experimental" docs/providers.md
 - [ ] Level 1 green: `npx --yes markdownlint-cli2 README.md 'docs/**/*.md'` reports zero errors (or, if
       offline, manual check of fence tags / trailing ws / blanks-around-fences passes).
 - [ ] Level 2 green: every stale-statement grep returns ZERO hits.
-- [ ] Level 3 green: every documented flag/provider/order matches `stagehand --help` / `config init
+- [ ] Level 3 green: every documented flag/provider/order matches `stagecoach --help` / `config init
       --help` / `config upgrade --help` / `providers list`.
 - [ ] Level 4 green: discoverability greps hit; link check reports no BROKEN LINKs; agy + experimental
       present.

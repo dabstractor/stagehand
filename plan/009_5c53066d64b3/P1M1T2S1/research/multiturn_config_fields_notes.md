@@ -11,7 +11,7 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` |
 | Edit target | `internal/config/config.go` (Config struct + Defaults() + TestDefaults assertion in config_test.go) |
 | Fields today | ABSENT — `grep MultiTurnFallback|MultiTurnChunkTokens|multi_turn internal/config/config.go` → none. Genuine add. |
 | Baseline | `go test ./internal/config/` → **ok (1.657s)**. |

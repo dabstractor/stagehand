@@ -65,7 +65,7 @@ token_limit test proves chunkPayload's N is TokenLimit-independent and documents
 **Use Case**: Tests (a)–(c) guard `chunkPayload`'s lossless/no-fracture/labeling invariants against
 refactor regressions. Test (d) guards the FR-T1 gate — a future change that accidentally drops a condition
 (or inverts one) is caught by the truth table. Test (e) documents that token_limit is architecturally
-separate from multi-turn chunking. The docs subsection tells a user with a 266K-token diff why stagehand
+separate from multi-turn chunking. The docs subsection tells a user with a 266K-token diff why stagecoach
 silently re-delivers it across N+1 turns instead of rescuing.
 
 **User Journey**: A maintainer edits `multiturn.go` or the gate in `generate.go` → `go test -race
@@ -303,7 +303,7 @@ validation commands. No inference required.
 ### Current Codebase Tree (this task's scope — multiturn_test.go + how-it-works.md)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/generate/
 │   ├── multiturn.go          # READ-ONLY (S1/S2 — chunkPayload, Run, chunk, preambleFmt, finalInstruction)
 │   ├── multiturn_test.go     # EDIT (file 1): + ceil-math / boundaries / prefix / truth-table / token-limit tests
@@ -318,7 +318,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/generate/
 │   └── multiturn_test.go     # + TestChunkPayload_CeilMath, _NoFracturedBoundaries, _PartPrefixMonotonic,
 │                             #   TestMultiTurnTriggerGate_TruthTable, TestChunkPayload_TokenLimitNonInteraction,
@@ -414,7 +414,7 @@ imports (`bytes`, `errors`, `ui`).
 
 ```yaml
 Task 1: MODIFY internal/generate/multiturn_test.go (imports — add bytes, errors, ui)
-  - EDIT the import block: add "bytes", "errors" (stdlib, gofmt-sorted) and "github.com/dustin/stagehand/
+  - EDIT the import block: add "bytes", "errors" (stdlib, gofmt-sorted) and "github.com/dustin/stagecoach/
     internal/ui" (internal group). Result includes the existing context/strings/testing/unicode-utf8 +
     config/git/provider/stubtest + the three new.
   - DO NOT remove any existing import (unicode/utf8 stays — used by the existing _RuneBasedCJK test).
@@ -705,7 +705,7 @@ func TestMultiTurnGate_TokenLimitNotATerm(t *testing.T) {
 ```markdown
 ## Multi-turn generation fallback
 
-For diffs too large for a single reliable request, stagehand has an optional **multi-turn** generation
+For diffs too large for a single reliable request, stagecoach has an optional **multi-turn** generation
 path (PRD §9.24). It exists because a provider's *per-request* reliability ceiling can lie well below its
 advertised context window: a huge one-shot request may return empty or unparseable output even though the
 model can handle the same content delivered in smaller pieces.

@@ -99,7 +99,7 @@ roles.go + hooks/* + generate/* byte-unchanged.
 
 ## User Persona
 
-**Target User**: A user who runs `stagehand` (decompose mode — nothing staged, multiple concepts) in a repo
+**Target User**: A user who runs `stagecoach` (decompose mode — nothing staged, multiple concepts) in a repo
 with commit hooks (husky, lint-staged, a conventional-commit `commit-msg`, a `prepare-commit-msg` that
 appends a ticket ref). Before this task, decompose's plumbing path (`commit-tree` + `update-ref`) ran NO
 hooks — so each per-concept commit silently bypassed the user's `pre-commit` formatter, `commit-msg` lint,
@@ -108,14 +108,14 @@ the hooks scoped to that concept's tree, and the mid-chain rebuild stays determi
 the verbatim-reused messages). Transitively: P1.M4.T1 (the docs Mode B rewrite documenting the decompose
 hook composition).
 
-**Use Case**: A user with a `prepare-commit-msg` hook that appends `[PROJ-123]` runs `stagehand` on a
+**Use Case**: A user with a `prepare-commit-msg` hook that appends `[PROJ-123]` runs `stagecoach` on a
 3-concept working tree. Each per-concept commit's message gets `[PROJ-123]` appended (scoped — `pre-commit`
 sees only that concept's files). If the arbiter amends the tip, the tip's message is re-annotated (`git
 commit --amend` parity). If the arbiter rebuilds mid-chain, the non-target commits keep their ORIGINAL
 messages verbatim (the rebuild is a deterministic reconstruction, not a re-commit). A `pre-commit` that
 exits 1 aborts the run with the rescue recipe (FR-V7) and leaves HEAD + the index untouched.
 
-**User Journey**: `stagehand` (decompose) → planner → per-concept stager → `publishCommit(tree[i], …)` →
+**User Journey**: `stagecoach` (decompose) → planner → per-concept stager → `publishCommit(tree[i], …)` →
 **RunCommitHooks(tree[i], …)** [pre-commit scoped to tree[i]; prepare/commit-msg on the message] →
 `CommitTree(finalTree, …)` → `UpdateRefCAS` → `RunPostCommit` → next concept. Arbiter (if leftovers):
 `resolveNewCommit`/`resolveTipAmend` (run hooks) or `resolveMidChain` (hook-free).
@@ -162,7 +162,7 @@ fields, no interface, no adapter, no caller edits, no docs.
       before `ReadTree(tStart)`). On `herr` → `return herr`. Each site's CAS expected-old + `handleUpdateRefErr`
       are UNCHANGED.
 - [ ] `chain.go` `resolveMidChain` is byte-unchanged (NO hooks — §20.2 fidelity).
-- [ ] `message.go` + `chain.go` import blocks add `"github.com/dustin/stagehand/internal/hooks"`.
+- [ ] `message.go` + `chain.go` import blocks add `"github.com/dustin/stagecoach/internal/hooks"`.
 - [ ] `message_test.go` adds: a publishCommit test with a `prepare-commit-msg` that appends → the landed
       commit's message carries the append; a publishCommit test with a `pre-commit` exit 1 →
       `*generate.RescueError` + HEAD unchanged.
@@ -378,7 +378,7 @@ go.mod / go.sum       # UNCHANGED (internal/hooks is internal; no new module).
 
 ```yaml
 Task 1: EDIT internal/decompose/message.go — publishCommit: INSERT A + INSERT B + import
-  - ADD "github.com/dustin/stagehand/internal/hooks" to the import block.
+  - ADD "github.com/dustin/stagecoach/internal/hooks" to the import block.
   - INSERT A (between the `parents` build and `deps.Git.CommitTree`):
       finalTree, finalMsg, herr := hooks.RunCommitHooks(ctx, deps.Git, deps.Config, tree, parentSHA, msg,
           hooks.HookOpts{DryRun: false, Verbose: deps.Verbose})
@@ -391,7 +391,7 @@ Task 1: EDIT internal/decompose/message.go — publishCommit: INSERT A + INSERT 
   - GOTCHA: use finalTree/finalMsg in CommitTree (NOT the original tree/msg). INSERT B's return is discarded.
 
 Task 2: EDIT internal/decompose/chain.go — resolveNewCommit + resolveTipAmend: INSERT A+B each; import
-  - ADD "github.com/dustin/stagehand/internal/hooks" to the import block.
+  - ADD "github.com/dustin/stagecoach/internal/hooks" to the import block.
   - resolveNewCommit INSERT A (before its `CommitTree(treePrime, parents, msg)`):
       finalTree, finalMsg, herr := hooks.RunCommitHooks(ctx, deps.Git, deps.Config, treePrime, tipSHA, msg,
           hooks.HookOpts{DryRun: false, Verbose: deps.Verbose})
@@ -542,7 +542,7 @@ FROZEN/LEAVE (do NOT edit):
   - internal/decompose/decompose.go (callers — publishCommit runs hooks internally), roles.go (Deps — NO Hooks
         field), arbiter.go, planner.go, stager.go.
   - internal/hooks/* (runner.go/adapter.go/subset.go — P1.M3.T1/M1.T2), internal/generate/* (P1.M3.T2.S1),
-        internal/git/*, internal/cmd/*, pkg/stagehand/*, internal/signal/*, internal/hook/*, internal/lock/*, docs/*.
+        internal/git/*, internal/cmd/*, pkg/stagecoach/*, internal/signal/*, internal/hook/*, internal/lock/*, docs/*.
   - PRD.md, go.mod, Makefile. resolveMidChain (chain.go) — byte-unchanged. The existing decompose/chain tests.
 ```
 
@@ -555,7 +555,7 @@ gofmt -w internal/decompose/message.go internal/decompose/chain.go internal/deco
 go vet ./internal/decompose/
 go build ./...
 # Confirm the inserts + the import:
-grep -n 'hooks.RunCommitHooks\|hooks.RunPostCommit\|"github.com/dustin/stagehand/internal/hooks"' internal/decompose/message.go internal/decompose/chain.go
+grep -n 'hooks.RunCommitHooks\|hooks.RunPostCommit\|"github.com/dustin/stagecoach/internal/hooks"' internal/decompose/message.go internal/decompose/chain.go
 # Confirm resolveMidChain has NO hooks.RunCommitHooks (the §20.2 invariant):
 ! grep -n 'hooks.RunCommitHooks' <(sed -n '/func resolveMidChain/,/^func /p' internal/decompose/chain.go) && echo "resolveMidChain hook-free (expected §20.2)" || echo "FAIL: resolveMidChain wired to hooks"
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
@@ -590,7 +590,7 @@ go test ./...    # Expect all PASS (decompose + hooks + generate + repo-wide). P
 git diff --name-only | grep -E 'internal/decompose/(message|chain)\.go|internal/decompose/(message|chain)_test\.go' && echo "(expected files)"
 # Confirm the frozen files are byte-unchanged:
 git diff --exit-code internal/decompose/decompose.go internal/decompose/roles.go internal/decompose/arbiter.go \
-  internal/hooks internal/generate internal/git internal/cmd pkg/stagehand internal/signal internal/hook internal/lock \
+  internal/hooks internal/generate internal/git internal/cmd pkg/stagecoach internal/signal internal/hook internal/lock \
   docs PRD.md go.mod Makefile && echo "frozen files UNCHANGED (expected)"
 # Confirm resolveMidChain is byte-unchanged:
 git diff internal/decompose/chain.go | grep -E '^[+-].*(resolveMidChain|OverlayTreePaths)' && echo "WARN: resolveMidChain touched" || echo "resolveMidChain UNCHANGED (expected §20.2)"

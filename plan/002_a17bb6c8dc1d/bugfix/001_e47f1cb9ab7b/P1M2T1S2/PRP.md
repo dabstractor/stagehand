@@ -12,7 +12,7 @@
 ## Goal
 
 **Feature Goal**: Replace the current **soft-language** comments on pi's tooled profile (which imply
-the stager's safety comes from "stagehand's ref-mutation monopoly") with **honest** comments that
+the stager's safety comes from "stagecoach's ref-mutation monopoly") with **honest** comments that
 clearly state pi's stager is **INSTRUCTIONALLY** constrained (via the §17.6 stager task prompt) and
 **BEST-EFFORT** guarded (via the P1.M2.T1.S3 HEAD-movement guard), **NOT** structurally/flag-scoped —
 and that a misbehaving pi stager **CAN** run `git commit`/`push`/`update-ref`/`rm -rf`. This eliminates
@@ -42,7 +42,7 @@ go test ./...` stay GREEN (comments don't affect compilation/tests).
   the stager from running `git add` at all. So unlike claude (prong a), pi's profile **cannot be
   tightened** — the honest remedy is **accurate documentation**, not a flag change.
 - **Current comments use soft language**: they say stager safety is "via the stager task prompt +
-  stagehand's ref-mutation monopoly … not by flag-scoping." That buries the lede — "ref-mutation
+  stagecoach's ref-mutation monopoly … not by flag-scoping." That buries the lede — "ref-mutation
   monopoly" only holds if the stager *cannot* mutate refs itself, which for pi is **not** flag-enforced.
   A reader auditing safety would be misled into thinking §19's structural guarantee covers pi.
 - **The real safety net for pi is the S3 HEAD-movement guard** (defense-in-depth): it snapshots HEAD
@@ -104,7 +104,7 @@ all below.
 # EDIT SITE 1 — the Go source comment
 - file: internal/provider/builtin.go
   why: builtinPi() TooledFlags comment block (lines ~59-63). Currently uses soft language
-       ("enforced by the stager task prompt + stagehand's monopoly … not by flag-scoping"). Rewrite it.
+       ("enforced by the stager task prompt + stagecoach's monopoly … not by flag-scoping"). Rewrite it.
   pattern: The comment sits immediately ABOVE the `TooledFlags: []string{ ... }` literal. Keep the
            literal untouched. The surrounding Manifest fields (BareFlags above, Output/StripCodeFence
            below) are unchanged.
@@ -115,7 +115,7 @@ all below.
 # EDIT SITE 2 — the Mode A reference doc
 - file: providers/pi.toml
   why: The `# --- tooled mode (v2; §11.5: the stager role) ---` comment block above the `tooled_flags`
-       array. Currently soft ("stager safety is via the stager task prompt + stagehand's ref-mutation
+       array. Currently soft ("stager safety is via the stager task prompt + stagecoach's ref-mutation
        monopoly, not flag-scoping"). Rewrite it. This file is HUMAN-READABLE REFERENCE DOCUMENTATION
        mirroring builtinPi() byte-for-byte (see its header comment) — it is NOT loaded at runtime.
   pattern: TOML `#` comments. The `tooled_flags = [ ... ]` ARRAY VALUE stays byte-for-byte identical;
@@ -190,7 +190,7 @@ The current block (lines ~59-63), immediately above `TooledFlags: []string{`:
 		// TOOLED MODE (v2 §11.5 — the stager role). pi has no git-scoped allowlist (--help shows only the
 		// all-or-nothing --no-tools), so pi's tooled profile = the bare invocation MINUS --no-tools: pi's
 		// native tool system ON, everything else still off (chrome-less + ephemeral). The stager's safety
-		// (git-only, never commit/update-ref/push) is enforced by the stager task prompt (§17.6) + stagehand's
+		// (git-only, never commit/update-ref/push) is enforced by the stager task prompt (§17.6) + stagecoach's
 		// monopoly on ref mutations (§13.6.2/§19), not by flag-scoping.
 ```
 
@@ -213,7 +213,7 @@ Replace with (keep the `TooledFlags: []string{ ... }` literal BELOW it byte-for-
 		//   2. BEST-EFFORT guarded — by the HEAD-movement defense-in-depth check (P1.M2.T1.S3): HEAD is
 		//      snapshotted before each stager call and the run aborts (treated as a safety violation) if HEAD
 		//      has moved when the stager returns. THE SAFETY NET IS THIS GUARD, NOT FLAG-SCOPING.
-		// (stagehand's ref-mutation monopoly, §13.6.2/§19, holds only insofar as the stager cannot itself
+		// (stagecoach's ref-mutation monopoly, §13.6.2/§19, holds only insofar as the stager cannot itself
 		// move a ref — for pi that relies on the §17.6 prompt + the S3 guard, not on TooledFlags.)
 ```
 
@@ -225,7 +225,7 @@ The current block (the `# --- tooled mode ...` prose above `tooled_flags = [`):
 # --- tooled mode (v2; §11.5: the stager role) ---
 # pi's tooled profile = bare MINUS --no-tools: pi's native tool system ON,
 # everything else still off (chrome-less + ephemeral). pi has NO git-scoped allowlist flag;
-# stager safety is via the stager task prompt + stagehand's ref-mutation monopoly, not flag-scoping.
+# stager safety is via the stager task prompt + stagecoach's ref-mutation monopoly, not flag-scoping.
 ```
 
 Replace with (keep the `tooled_flags = [ ... ]` array BELOW it byte-for-byte unchanged):
@@ -292,7 +292,7 @@ Task 2: MODIFY providers/pi.toml :: tooled-mode comment (Mode A)
 CODE: none (comment-only — no TooledFlags value, no logic, no signature change).
 DATABASE: none.
 CONFIG: none (providers/pi.toml is reference documentation, not loaded at runtime; the [provider.pi]
-        override path reads .stagehand.toml, not this file).
+        override path reads .stagecoach.toml, not this file).
 ROUTES: none.
 SIGNALS: none.
 DOWNSTREAM: none — S1 (claude) is merged; S3 (HEAD guard) is independent. This is the last documentation
@@ -348,9 +348,9 @@ grep -n "monopoly on ref mutations\|ref-mutation monopoly, not flag-scoping" \
 ### Level 4: providers show spot-check (the comment does NOT change runtime output — sanity)
 
 ```bash
-# OPTIONAL: `stagehand providers show pi` prints the manifest VALUE (TooledFlags), not these comments.
+# OPTIONAL: `stagecoach providers show pi` prints the manifest VALUE (TooledFlags), not these comments.
 # So its output is unchanged. This is just a sanity check that nothing executable drifted.
-go build -o /tmp/stagehand ./cmd/stagehand && /tmp/stagehand providers show pi | grep -A6 tooled_flags
+go build -o /tmp/stagecoach ./cmd/stagecoach && /tmp/stagecoach providers show pi | grep -A6 tooled_flags
 # Expected: the same 5 --no-* flags as before (unchanged).
 ```
 

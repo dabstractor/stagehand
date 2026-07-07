@@ -3,7 +3,7 @@ name: "P1.M2.T2.S1 — Subset-check helper + re-tree-on-permitted-mutation logic
 description: |
   The FR-V3 freeze-enforcement backstop for scoped `pre-commit` (PRD §9.25 FR-V3). After the hook runs
   against a throwaway index primed from the snapshot tree (P1.M2.T1.S2's `ReadTreeInto`/`WriteTreeFrom`),
-  stagehand must verify the hook introduced NO new paths: a formatter modifying/deleting an existing
+  stagecoach must verify the hook introduced NO new paths: a formatter modifying/deleting an existing
   snapshot file is PERMITTED (the commit re-trees to the hook's output); a hook that ADDS a path not in the
   snapshot is a HARD ERROR (it would sweep concurrent work into the commit, violating the §5
   stage-while-generating freeze). Deliverable: `enforceSubset(ctx, g git.Git, snapshotTree, postTree string)
@@ -76,17 +76,17 @@ offending path(s) when the hook added a path not in the snapshot (would sweep co
 regression). Concretely: a permitted M (formatter reformats a snapshot file) → nil; a permitted D (hook
 removes a staged file) → nil; a forbidden A (new file) → `errors.Is(err, ErrHookSweptConcurrentWork)` with
 the path named; a rename → forbidden (shows as A under no-`-M`); DiffTreeNameStatus git failure → wrapped
-non-sentinel error. go.mod unchanged (no new dep — `internal/git` is the only stagehand import).
+non-sentinel error. go.mod unchanged (no new dep — `internal/git` is the only stagecoach import).
 
 ## User Persona
 
 **Target User**: The commit-hooks runner (P1.M3.T1 — `internal/hooks.RunPreCommit`) which calls
 `enforceSubset` between `WriteTreeFrom` (capture postTree) and `commit-tree`. Transitively every user who
-runs `stagehand` on a repo with a `pre-commit` hook (US19, FR-V1): their hook fires on the snapshotted
+runs `stagecoach` on a repo with a `pre-commit` hook (US19, FR-V1): their hook fires on the snapshotted
 content, and a hook that tries to sweep in unstaged concurrent work is caught and aborted rather than
 silently committed.
 
-**Use Case**: A user has a `pre-commit` formatter (prettier/gofmt). `stagehand` snapshots the index, runs
+**Use Case**: A user has a `pre-commit` formatter (prettier/gofmt). `stagecoach` snapshots the index, runs
 the formatter scoped to T_start. The formatter reformats an existing file (permitted → re-tree, the commit
 reflects the fix) — but if the formatter (or a misbehaving hook) stages a NEW file the user didn't stage,
 enforceSubset aborts with a clear error rather than committing the user's half-finished work.
@@ -288,7 +288,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagecoach/internal/git"
 )
 
 // ErrHookSweptConcurrentWork is the sentinel for an FR-V3 FREEZE violation by a scoped pre-commit hook:
@@ -494,7 +494,7 @@ go test -race ./...   # full module — no regression (the new package is additi
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only the 2 new files changed:
 git diff --name-only | grep -Ev '^internal/hooks/subset\.go$|^internal/hooks/subset_test\.go$' \

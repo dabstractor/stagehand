@@ -9,7 +9,7 @@ Three §20.2 invariants, asserted across §18.2 failure paths:
 
 1. **Idempotent index** — after any failure path, `git diff --cached --name-only` is identical to
    before the run (no index mutation).
-2. **Atomic HEAD** — after a CAS failure, `git rev-parse HEAD` is unchanged (by Stagehand).
+2. **Atomic HEAD** — after a CAS failure, `git rev-parse HEAD` is unchanged (by Stagecoach).
 3. **Snapshot immutability** — `git cat-file -p <TREE_SHA>` is stable across the run regardless of
    subsequent staging.
 
@@ -65,7 +65,7 @@ Source: `internal/generate/generate.go` lines:
 - `stubtest.Build(t)` — compiles `cmd/stubagent` ONCE per test process (cached, `sync.Once`); skips if
   no `go` on PATH. Returns the binary path.
 - `stubtest.Manifest(bin, stubtest.Options{...})` — returns a `provider.Manifest` with the stub wired.
-  Knobs (→ `STAGEHAND_STUB_*` env):
+  Knobs (→ `STAGECOACH_STUB_*` env):
   - `Out string` — single-response stdout (script=="" mode).
   - `Exit int` — non-zero exit (failed-agent sim).
   - `SleepMS int` — `time.Sleep` AFTER draining stdin (slow/timeout/async sim).
@@ -192,7 +192,7 @@ gofmt -l internal/generate/   # must be empty
 make coverage       # go test -coverprofile=coverage.out ./... + go tool cover -func
 ```
 
-`go.mod`: module `github.com/dustin/stagehand`, go 1.22. NO new deps (stdlib + existing internal
+`go.mod`: module `github.com/dustin/stagecoach`, go 1.22. NO new deps (stdlib + existing internal
 imports: `context`, `errors`, `strings`, `testing`, `time`, `config`, `git`, `stubtest`). The new
 file imports only what `generate_test.go` already imports.
 

@@ -42,7 +42,7 @@ internal implementation details (the split mechanism) in user-facing docs").
 - ~107 comment: `# token_limit = 0 # holistic token budget (0 = unset ⇒ use the caps above); FR3d` — accurate.
 - ~131 defaults table row: `| token_limit | 0 | config.Defaults() (§9.1 FR3d — unset ⇒ legacy caps) |` — accurate.
 - ~146 prose: "**`token_limit`** … so the payload always fits your model's context window **without
-  Stagehand maintaining a per-model context registry** (§9.1 FR3d)." — "always fits" is the INTENDED
+  Stagecoach maintaining a per-model context registry** (§9.1 FR3d)." — "always fits" is the INTENDED
   behavior the fix RESTORES. Now TRUE again. No edit.
 
 Verdict: **ACCURATE / no edit.** (NOTE: the `diff_context` "range 0–3 — out-of-range rejected at config

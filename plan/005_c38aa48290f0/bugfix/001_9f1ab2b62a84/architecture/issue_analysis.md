@@ -3,7 +3,7 @@
 ## Issue 1 (Major): `integrate install lazygit` silently creates duplicate `<c-a>` key binding
 
 ### Root Cause
-`lazygitEntry.Install()` (`internal/cmd/integrate_lazygit.go`, ~line 163-178) delegates entirely to `integrate.Apply(ActionUpsert)` with **no foreign-key check**. `lazygitTarget.Upsert()` (~line 80-110) only looks for the **marker** (`isStagehandItem` checks `item.Content[1].LineComment` contains `lazygitMarker`). An unmarked entry sharing the same key is invisible to Upsert, so it **APPENDS** a new marked entry → two `customCommands` entries bound to `<c-a>`.
+`lazygitEntry.Install()` (`internal/cmd/integrate_lazygit.go`, ~line 163-178) delegates entirely to `integrate.Apply(ActionUpsert)` with **no foreign-key check**. `lazygitTarget.Upsert()` (~line 80-110) only looks for the **marker** (`isStagecoachItem` checks `item.Content[1].LineComment` contains `lazygitMarker`). An unmarked entry sharing the same key is invisible to Upsert, so it **APPENDS** a new marked entry → two `customCommands` entries bound to `<c-a>`.
 
 Because `customCommands` is a YAML *sequence*, two entries can legally share a key (unlike git config where a single key maps to one value). So the install produces a real conflicting duplicate.
 
@@ -15,15 +15,15 @@ Mirror the git-alias target's foreign-conflict handling. The helper `lazygitTarg
 2. Parse with a throwaway `lazygitTarget{key: e.key}` (`tgt.Parse(data)`).
 3. Call `tgt.findKeyItem(e.key)` to check for an unmarked conflicting entry.
 4. If found, print a WARNING to `opts.Out`:
-   `WARNING: a %s binding already exists (not managed by stagehand); installing will create a duplicate customCommands entry — use --key to choose a different binding.`
+   `WARNING: a %s binding already exists (not managed by stagecoach); installing will create a duplicate customCommands entry — use --key to choose a different binding.`
 5. Proceed with `integrate.Apply(ActionUpsert)` as before (the diff+confirm flow lets the user decline).
 
-This surfaces the conflict in ALL cases: interactive (WARNING + diff + confirm prompt), and `--yes` (WARNING + immediate write). It restores parity with git-alias's `WARNING: alias.<name> is currently set to "<value>" (not stagehand) — it will be overwritten.`
+This surfaces the conflict in ALL cases: interactive (WARNING + diff + confirm prompt), and `--yes` (WARNING + immediate write). It restores parity with git-alias's `WARNING: alias.<name> is currently set to "<value>" (not stagecoach) — it will be overwritten.`
 
 **Pattern reference** (`integrate_gitalias.go` ~line 130-137):
 ```go
 if found { // foreign (not ours) — surface before overwriting (FR-I4)
-    preview += fmt.Sprintf("\nWARNING: %s is currently set to %q (not stagehand) — it will be overwritten.\n",
+    preview += fmt.Sprintf("\nWARNING: %s is currently set to %q (not stagecoach) — it will be overwritten.\n",
         e.aliasKey(), cur)
 }
 ```

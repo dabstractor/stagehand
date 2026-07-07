@@ -44,10 +44,10 @@ for attempt := 0; attempt <= cfg.MaxDuplicateRetries; attempt++ {
     out, _, execErr := provider.Execute(ctx, *spec, cfg.Timeout, deps.Verbose) // 167
     if execErr != nil {
         if errors.Is(execErr, context.DeadlineExceeded) {
-            return errors.New("stagehand: hook generation timed out") // 170-171, no retry; never-block
+            return errors.New("stagecoach: hook generation timed out") // 170-171, no retry; never-block
         }
         if errors.Is(execErr, context.Canceled) {
-            return errors.New("stagehand: hook generation cancelled") // 173-174
+            return errors.New("stagecoach: hook generation cancelled") // 173-174
         }
         // Non-zero exit (*exec.ExitError): fall through to ParseOutput (partial stdout may be valid). 176
     }
@@ -68,7 +68,7 @@ for attempt := 0; attempt <= cfg.MaxDuplicateRetries; attempt++ {
     return WriteMessageFile(msgFile, m)                               // 201, SUCCESS
 }
 // 204: exhaustion after bounded retries
-return fmt.Errorf("stagehand: hook generation failed after %d retries", cfg.MaxDuplicateRetries) // 205
+return fmt.Errorf("stagecoach: hook generation failed after %d retries", cfg.MaxDuplicateRetries) // 205
 ```
 
 ### Loop structure
@@ -82,8 +82,8 @@ return fmt.Errorf("stagehand: hook generation failed after %d retries", cfg.MaxD
 
 ### Exhaustion handling (exec.go:204-205)
 - **Warning printed?** NO. `exec.go` itself prints nothing. It returns the descriptive error
-  `"stagehand: hook generation failed after %d retries"`. The single stderr line is emitted by the
-  **cmd layer** (`hookexec.go:69` `fmt.Fprintf(stderr, "stagehand: %s\n", err)` inside `neverBlock`).
+  `"stagecoach: hook generation failed after %d retries"`. The single stderr line is emitted by the
+  **cmd layer** (`hookexec.go:69` `fmt.Fprintf(stderr, "stagecoach: %s\n", err)` inside `neverBlock`).
 - **Empty message written to commit-msg file?** NO. `WriteMessageFile` (exec.go:201) is invoked ONLY on
   the success path. On exhaustion (and on timeout/cancel/render-error) the `msgFile` is left byte-for-byte
   untouched. Verified by `TestRun_DuplicateRejected` and `TestRun_StubExit1_NeverBlock`, which assert the
@@ -102,7 +102,7 @@ states the invariant: *"...any failure → descriptive error, <msg-file> UNTOUCH
 **(b) `cmd/hookexec.go:67-72` — the `neverBlock` closure:**
 ```go
 neverBlock := func(err error) error {
-    fmt.Fprintf(stderr, "stagehand: %s\n", err)  // ONE stderr line
+    fmt.Fprintf(stderr, "stagecoach: %s\n", err)  // ONE stderr line
     if flagHookExecStrict {
         return exitcode.New(exitcode.Error, nil)  // --strict → exit 1, aborts the commit (silent)
     }
@@ -238,7 +238,7 @@ does not change that mapping — it only adds one more success opportunity.
            }
        }
    }
-   return fmt.Errorf("stagehand: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
+   return fmt.Errorf("stagecoach: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
    ```
    (`generate.ChunkPayload` is currently unexported as `chunkPayload` (multiturn.go:52) — it would need
    exporting, OR the turn-count estimate can reuse `git.EstimateTokens(mtPayload)/cfg.MultiTurnChunkTokens`
@@ -285,7 +285,7 @@ an accuracy update, not a blocker.
    not. In production `deps.Verbose` is always non-nil (`hookexec.go:120`). Propagation should pick one
    style (the snippet above keeps the hook's nil-guard for safety).
 3. **Multi-turn turn-timeout surfacing.** The one-shot timeout path returns a specific
-   `"stagehand: hook generation timed out"` message (exec.go:170). A multi-turn turn-timeout surfaces as
+   `"stagecoach: hook generation timed out"` message (exec.go:170). A multi-turn turn-timeout surfaces as
    `cause` (multiturn.go:142/152/163/173) and would currently fall through to the generic exhaustion
    error. Acceptable for FR-H5 (still exit 0), but the stderr line is less specific. Optional: wrap
    `cause` into a clearer message.

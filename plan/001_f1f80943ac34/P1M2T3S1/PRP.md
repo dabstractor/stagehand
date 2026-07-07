@@ -120,7 +120,7 @@ shows the default; `providers show <name>` prints the manifest as TOML) and the 
 (P1.M3.T4 — resolves the active provider manifest before rendering/executing). Transitively FR46/FR47/FR48
 and every user story routed through "call an agent".
 
-**Use Case**: A user runs `stagehand` with `[provider.pi] default_model = "glm-5.2"` in their config.
+**Use Case**: A user runs `stagecoach` with `[provider.pi] default_model = "glm-5.2"` in their config.
 The config loader (P1.M1.T4) populates `config.Providers["pi"]` (raw map). The wiring layer calls
 `overrides, _ := provider.DecodeUserOverrides(config.Providers)` then `reg := provider.NewRegistry(overrides)`.
 `reg.Get("pi")` returns the MERGED pi manifest (glm-5.2 model, everything else inherited). The renderer
@@ -284,7 +284,7 @@ required — the registry is a pure data structure over already-landed types.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; require go-toml/v2 v2.4.2 + pflag v1.0.10  (UNCHANGED)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; require go-toml/v2 v2.4.2 + pflag v1.0.10  (UNCHANGED)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — FROZEN, do NOT touch; do NOT import from provider
@@ -300,7 +300,7 @@ internal/
     builtin_test.go             # S2+S3 — tests  (do NOT edit)
     registry.go                 # NEW (this subtask) ← Registry + 6 methods + DecodeUserOverrides + preferredBuiltins
     registry_test.go            # NEW (this subtask) ← ~12 test groups (white-box)
-cmd/stagehand/main.go           # `package main; func main(){}` stub — untouched
+cmd/stagecoach/main.go           # `package main; func main(){}` stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -781,7 +781,7 @@ FROZEN FILES (do NOT edit):
   - internal/provider/merge.go + merge_test.go (S2): MergeManifest is a CONTRACT.
   - internal/provider/builtin.go + builtin_test.go (S2 + parallel S3): BuiltinManifests() (6 keys) is a
         CONTRACT.
-  - internal/config/* (P1.M1.T4), internal/git/* (P1.M1.T2/T3), cmd/stagehand/main.go, Makefile.
+  - internal/config/* (P1.M1.T4), internal/git/* (P1.M1.T2/T3), cmd/stagecoach/main.go, Makefile.
 
 DOWNSTREAM CONTRACTS (do NOT implement here — just honor the shapes they will consume):
   - P1.M4.T1.S3 (providers list/show): reg.List() → render rows (name, installed=reg.IsInstalled(m),
@@ -840,7 +840,7 @@ go test -race ./...
 
 ```bash
 # Build + scope/additive checks:
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"   # main.go stub still links.
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"   # main.go stub still links.
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum unchanged"
 # Confirm this subtask touched ONLY the two new files:
 git diff --exit-code -- internal/config internal/git cmd Makefile \

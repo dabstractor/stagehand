@@ -1,11 +1,11 @@
 ---
-name: "P1.M2.T1.S2 — ResolveRoles v3: model-prefix FR-R5b guard + RoleModels.Reasoning + 4 decompose callers + pkg/stagehand RoleModel"
+name: "P1.M2.T1.S2 — ResolveRoles v3: model-prefix FR-R5b guard + RoleModels.Reasoning + 4 decompose callers + pkg/stagecoach RoleModel"
 description: |
   Wire the per-role `reasoning` level (landed in config by P1.M2.T1.S1's 3-return `ResolveRoleModel`) into the
-  multi-commit decompose pipeline and the public `pkg/stagehand` API, AND re-add the FR-R5b guard in
+  multi-commit decompose pipeline and the public `pkg/stagecoach` API, AND re-add the FR-R5b guard in
   `ResolveRoles` using the new model-prefix semantics (the old `inferenceProvider`/`DefaultProvider` guard was
   REMOVED in P1.M1.T1.S1 and MUST be replaced). PRD spec: §9.15 FR-R5b/FR-R6, §12.2 (Render chokepoint), §16.4
-  (per-role), §14.1 (pkg/stagehand). Research: `architecture/scout_config_model.md` §(c), `scout_render_callsites.md`
+  (per-role), §14.1 (pkg/stagecoach). Research: `architecture/scout_config_model.md` §(c), `scout_render_callsites.md`
   §A, and `research/s2_touchpoint_map.md` (the authoritative test-rework + wiring map).
 
   ⚠️ **THE central design call — the FR-R5b guard is now a MODEL-PREFIX check (not a DefaultProvider check).**
@@ -36,34 +36,34 @@ description: |
   `grep -n 'withInferenceProvider\|"no inference provider"\|default_provider' roles_test.go` MUST be empty after.
   See `research/s2_touchpoint_map.md` §1.
 
-  ⚠️ **THE fourth design call — pkg/stagehand: add `Reasoning` to `RoleModel` ONLY (NOT `Options`); thread
+  ⚠️ **THE fourth design call — pkg/stagecoach: add `Reasoning` to `RoleModel` ONLY (NOT `Options`); thread
   through `applyRoleOverride` + the per-role gate.** `RoleModel{Provider,Model}` → `+ Reasoning string`
   (additive, zero-value ⇒ off, backward compatible — §14.1 "additive-only"). `applyRoleOverride` gains a
   `if rm.Reasoning != "" { rc.Reasoning = rm.Reasoning }` branch + early-return guard adds `&& rm.Reasoning == ""`.
-  `resolveDecomposeConfig`'s per-role gate (stagehand.go ~261) adds `|| opts.<X>.Reasoning != ""` so a
+  `resolveDecomposeConfig`'s per-role gate (stagecoach.go ~261) adds `|| opts.<X>.Reasoning != ""` so a
   reasoning-only override triggers the merge. `Options` has NO Reasoning field and the item does NOT add one —
   the single-commit path's reasoning = `cfg.Reasoning` from config.Load (S1's plumbing). Message has no RoleModel
   field (existing DecomposeOptions design; message reasoning = global cfg.Reasoning) — out of scope.
 
   ⚠️ **THE fifth design call — item (e) "verify the generate single-commit path passes global reasoning" is
-  VERIFY-only.** `generate.go` CommitStaged + `pkg/stagehand` runPipeline must pass `cfg.Reasoning` (NOT the
+  VERIFY-only.** `generate.go` CommitStaged + `pkg/stagecoach` runPipeline must pass `cfg.Reasoning` (NOT the
   literal `""`) as Render's 4th arg — that change is S1's Task 6. S2 VERIFIES both sites; if either is still
   the literal `""` (S1 mid-flight — the repo currently has a transient `root.go` redeclaration error from S1),
   flip it to `cfg.Reasoning` (one-liner; build stays green). Do NOT add Reasoning to Options.
 
   Deliverable (edits to existing files only — NO new files, NO new deps, NO go.mod change): `internal/decompose/
-  {roles,planner,message,arbiter,stager}.go`, `internal/decompose/roles_test.go`, `pkg/stagehand/stagehand.go`,
+  {roles,planner,message,arbiter,stager}.go`, `internal/decompose/roles_test.go`, `pkg/stagecoach/stagecoach.go`,
   and (verify-only) `internal/generate/generate.go`. INPUT = S1's 3-return `ResolveRoleModel` + `RoleConfig.Reasoning`
   + `defaultRoleReasoning` + the single-commit `cfg.Reasoning` Render arg (S1) + P1.M1.T1.S1's Render (4th arg
   reasoning) + the model-prefix chokepoint guard. OUTPUT = every decompose Render call passes a real resolved
-  reasoning; FR-R5b enforced at BOTH ResolveRoles (role-named) and Render (chokepoint); `pkg/stagehand` RoleModel
+  reasoning; FR-R5b enforced at BOTH ResolveRoles (role-named) and Render (chokepoint); `pkg/stagecoach` RoleModel
   carries reasoning end-to-end. DOCS = Mode A (inline doc comments on ResolveRoles/RoleModel/DecomposeOptions ride
   with the code; NO docs/*.md edits — changeset doc sync is P4.M2.T1).
 
   SCOPE BOUNDARY vs neighbors: S1 = config reasoning field + ResolveRoleModel 3-return + single-commit Render
   reasoning + root.go flags + roles_test.go(config). P1.M3 = config version bump/migration. P2 = qwen-code. P3.M4
   = decompose orchestrator (Deps threading). S2 = ResolveRoles guard rework + RoleModels.Reasoning + the 4
-  decompose Render reasoning args + pkg/stagehand RoleModel.Reasoning. Do NOT touch root.go (S1 mid-flight), do
+  decompose Render reasoning args + pkg/stagecoach RoleModel.Reasoning. Do NOT touch root.go (S1 mid-flight), do
   NOT bump CurrentConfigVersion (P1.M3.T1.S1), do NOT edit render.go/manifest.go/role_defaults.go, do NOT edit
   docs/*.md.
 ---
@@ -73,7 +73,7 @@ description: |
 **Feature Goal**: Complete the v3 per-role reasoning + model-prefix story on the DECOMPOSE + public-LIBRARY
 side: (1) re-add the FR-R5b guard in `decompose.ResolveRoles` using the model-prefix semantics (replacing the
 removed DefaultProvider guard); (2) thread resolved per-role reasoning into the four decompose `Render` call
-sites and into `RoleModels` (via `setRole`); (3) add `Reasoning` to the public `pkg/stagehand.RoleModel` and
+sites and into `RoleModels` (via `setRole`); (3) add `Reasoning` to the public `pkg/stagecoach.RoleModel` and
 thread it through `applyRoleOverride` + the per-role merge gate; (4) verify the single-commit path forwards
 `cfg.Reasoning` to Render. FR-R5b is then enforced at two layers (ResolveRoles role-named + Render chokepoint),
 and every Render call site passes a real resolved reasoning value.
@@ -87,11 +87,11 @@ and every Render call site passes a real resolved reasoning value.
 2. **`internal/decompose/{planner,message,arbiter,stager}.go`** — each: `_, mdl, _ := ResolveRoleModel(...)`
    → `_, mdl, rsn := …`; the `Render(mdl, sysPrompt, payload, "", mode)` call → `…, rsn, mode)`; refresh the
    "v3 FR-R5b … P1.M2 wires real per-role reasoning" comment block (the TODO is now resolved).
-3. **`pkg/stagehand/stagehand.go`** — (a) `RoleModel` gains `Reasoning string` (+ Mode A doc); (b)
+3. **`pkg/stagecoach/stagecoach.go`** — (a) `RoleModel` gains `Reasoning string` (+ Mode A doc); (b)
    `applyRoleOverride` gains the Reasoning field-merge branch + updated early-return guard; (c)
    `resolveDecomposeConfig`'s per-role gate adds `|| opts.<X>.Reasoning != ""`; (d) Mode A doc refresh on
    `DecomposeOptions`.
-4. **`internal/generate/generate.go`** + **`pkg/stagehand/stagehand.go` (runPipeline)** — VERIFY the
+4. **`internal/generate/generate.go`** + **`pkg/stagecoach/stagecoach.go` (runPipeline)** — VERIFY the
    single-commit `Render(...)` 4th arg is `cfg.Reasoning` (not `""`); flip if still literal `""`.
 5. **`internal/decompose/roles_test.go`** — rework the 3 dead FR-R5b tests to model-prefix semantics; keep
    `BareModelOnClaude_NoError`; remove `withInferenceProvider`; add reasoning-threading assertions
@@ -102,7 +102,7 @@ and every Render call site passes a real resolved reasoning value.
 decompose Render call passes a resolved `rsn` (no remaining literal `""` 4th arg in decompose);
 `ResolveRoles` rejects a bare model on a multi-provider with a role-named `"must be inference/model"` error and
 accepts a slash-prefix model; `RoleModels.X.Reasoning` carries the resolved reasoning (planner="high" shipped
-default, others ""/off via ResolveRoleModel); `pkg/stagehand.RoleModel{Reasoning:"high"}` flows through
+default, others ""/off via ResolveRoleModel); `pkg/stagecoach.RoleModel{Reasoning:"high"}` flows through
 `applyRoleOverride` into `cfg.Roles[role].Reasoning`; the single-commit Render arg is `cfg.Reasoning`;
 go.mod/go.sum byte-unchanged; no new files; no edits to root.go/render.go/manifest.go/role_defaults.go/docs.
 
@@ -110,11 +110,11 @@ go.mod/go.sum byte-unchanged; no new files; no edits to root.go/render.go/manife
 
 **Target User**: (a) the **multi-commit decompose pipeline** — the planner/stager/message/arbiter agents now
 receive a resolved reasoning level (FR-R6) per role, and a misconfigured bare-model-on-pi is caught early with
-a role-named error (FR-R5b); (b) **library consumers** of `pkg/stagehand.Decompose` who set per-role reasoning
+a role-named error (FR-R5b); (b) **library consumers** of `pkg/stagecoach.Decompose` who set per-role reasoning
 via `DecomposeOptions{Planner: RoleModel{Reasoning:"high"}}`; (c) downstream **P3.M4 orchestrator** work that
 consumes `RoleModels` + the validated manifests.
 
-**Use Case**: `stagehand --planner-reasoning high --planner-model zai/glm-5.2` (or
+**Use Case**: `stagecoach --planner-reasoning high --planner-model zai/glm-5.2` (or
 `DecomposeOptions{Planner: RoleModel{Provider:"pi", Model:"zai/glm-5.2", Reasoning:"high"}}`) routes the
 planner to pi with high reasoning; a typo `--planner-model glm-5.2` (no slash on the multi-provider pi) is
 rejected by `ResolveRoles` with `"role \"planner\": model \"glm-5.2\" on pi must be inference/model …"` BEFORE
@@ -136,7 +136,7 @@ multi-commit path + the public API.
 - **Makes reasoning reachable on the multi-commit path.** S1 landed the config plumbing + the single-commit
   Render arg; S2 is the decompose-side + public-API contract that makes per-role reasoning actually reach the
   four agents.
-- **Completes the pkg/stagehand v3 surface.** `RoleModel.Reasoning` is the last additive field the library API
+- **Completes the pkg/stagecoach v3 surface.** `RoleModel.Reasoning` is the last additive field the library API
   needs for FR-R6 per-role reasoning (§14.1 additive-only guarantee preserved).
 - **Back-compatible.** Zero-value `RoleModel`/`RoleConfig` ⇒ reasoning "" ⇒ graceful no-op (FR-R6); a bare
   model on a single-backend provider is still fine (only pi-style multi-providers are guarded).
@@ -144,7 +144,7 @@ multi-commit path + the public API.
 ## What
 
 A compiled decompose layer where `ResolveRoles` re-validates FR-R5b via the model prefix and carries resolved
-reasoning in `RoleModels`; the four role Render calls pass that reasoning; and `pkg/stagehand.RoleModel`
+reasoning in `RoleModels`; the four role Render calls pass that reasoning; and `pkg/stagecoach.RoleModel`
 exposes reasoning end-to-end. No new types beyond the `Reasoning` field on `RoleModel`; no new files; no
 dependency change.
 
@@ -160,12 +160,12 @@ dependency change.
 - [ ] The 4 decompose Render callers (`planner.go:96`, `message.go:127`, `arbiter.go:95`, `stager.go:87`)
       each capture `_, mdl, rsn := config.ResolveRoleModel("<role>", deps.Config)` and pass `rsn` as Render's
       4th arg (NO remaining literal `""` 4th arg in `internal/decompose/`).
-- [ ] `pkg/stagehand.RoleModel` has `Reasoning string` (after `Model`); `applyRoleOverride` has a
+- [ ] `pkg/stagecoach.RoleModel` has `Reasoning string` (after `Model`); `applyRoleOverride` has a
       `if rm.Reasoning != "" { rc.Reasoning = rm.Reasoning }` branch and its early-return guard is
       `if rm.Provider == "" && rm.Model == "" && rm.Reasoning == "" { return }`; `resolveDecomposeConfig`'s
       per-role gate includes `|| opts.Planner.Reasoning != "" || opts.Stager.Reasoning != "" ||
       opts.Arbiter.Reasoning != ""`.
-- [ ] `generate.go` CommitStaged Render + `pkg/stagehand` runPipeline Render pass `cfg.Reasoning` (4th arg),
+- [ ] `generate.go` CommitStaged Render + `pkg/stagecoach` runPipeline Render pass `cfg.Reasoning` (4th arg),
       NOT `""`.
 - [ ] `roles_test.go`: the 3 dead FR-R5b tests reworked to model-prefix semantics (assert `"must be
       inference/model"`); `BareModelOnClaude_NoError` kept; `withInferenceProvider` removed;
@@ -214,7 +214,7 @@ git/generation internals beyond "Render takes reasoning as the 4th positional ar
 
 - file: PRD.md
   section: "9.15 Per-role provider/model configuration" (h3.31) — esp. FR-R5b + FR-R6; "12.2 Command rendering
-           algorithm" (h3.44); "16.4 Per-role provider/model configuration" (h3.69); "14.1 pkg/stagehand" (h3.60)
+           algorithm" (h3.44); "16.4 Per-role provider/model configuration" (h3.69); "14.1 pkg/stagecoach" (h3.60)
   why: FR-R5b fixes the exact guard + error (`model %q on %s must be inference/model, e.g. zai/glm-5.2`) and
        the TWO-layer enforcement ("role resolution re-checks it earlier for a role-named error" + "Authoritative
        enforcement lives at Render"). FR-R6 fixes the graceful-no-op rule (reasoning never errors). §16.4 fixes
@@ -247,7 +247,7 @@ git/generation internals beyond "Render takes reasoning as the 4th positional ar
   gotcha: stager.go's Render call is `Render(mdl, "", task, "", provider.RenderTooled)` — sysPrompt is the
        literal `""` (2nd arg); reasoning is the 4th `""`. Change ONLY the 4th arg → `rsn`.
 
-- file: pkg/stagehand/stagehand.go   (RoleModel ~74, applyRoleOverride ~274, resolveDecomposeConfig gate ~261)
+- file: pkg/stagecoach/stagecoach.go   (RoleModel ~74, applyRoleOverride ~274, resolveDecomposeConfig gate ~261)
   why: the public API surface. RoleModel gets Reasoning; applyRoleOverride field-merges it; the gate admits it.
   pattern: mirror the Provider/Model handling in applyRoleOverride + the gate exactly (`!= ""` non-zero merge).
   gotcha: DecomposeOptions has NO Message RoleModel (message reasoning = global cfg.Reasoning) — do NOT add one.
@@ -282,8 +282,8 @@ internal/decompose/
   stager.go            # stageConcept Render ( mdl, "",  task,  "", Tooled)      ← EDIT (rsn)
   roles_test.go        # TestResolveRoles_FR5b_* + TestIsMultiProvider + helpers ← EDIT (rework + assertions)
   *_test.go            # planner/message/arbiter/stager/chain/decompose tests   ← (VERIFY still green)
-pkg/stagehand/
-  stagehand.go         # RoleModel + applyRoleOverride + resolveDecomposeConfig + Decompose + runPipeline     ← EDIT
+pkg/stagecoach/
+  stagecoach.go         # RoleModel + applyRoleOverride + resolveDecomposeConfig + Decompose + runPipeline     ← EDIT
 internal/generate/
   generate.go          # CommitStaged single-commit Render                                                     ← (VERIFY cfg.Reasoning)
 internal/cmd/
@@ -322,7 +322,7 @@ go.mod / go.sum        # unchanged (no new dep)
 // CRITICAL: change ONLY the Render 4th positional arg in the 4 callers ("" → rsn). stager.go's Render is
 // Render(mdl, "", task, "", RenderTooled) — the 2nd arg "" is sysPrompt (stager has none); change the 4th "".
 
-// GOTCHA: pkg/stagehand Options has NO Reasoning field and S2 does NOT add one. The single-commit path reads
+// GOTCHA: pkg/stagecoach Options has NO Reasoning field and S2 does NOT add one. The single-commit path reads
 // cfg.Reasoning (from config.Load, S1's plumbing). Item (e) is VERIFY-only — ensure generate.go + runPipeline
 // pass cfg.Reasoning (flip any lingering literal "" — S1 is mid-flight, the repo currently has a transient
 // root.go redeclaration error).
@@ -346,7 +346,7 @@ go.mod / go.sum        # unchanged (no new dep)
 ### Data models and structure
 
 ```go
-// pkg/stagehand/stagehand.go — RoleModel gains Reasoning (additive, §14.1)
+// pkg/stagecoach/stagecoach.go — RoleModel gains Reasoning (additive, §14.1)
 // A zero value ⇒ inherit global; a non-empty field overrides just that field (FR-R3 field-merge).
 type RoleModel struct {
 	Provider  string
@@ -397,7 +397,7 @@ func setRole(rm *RoleManifests, rmodels *RoleModels, role string, m provider.Man
 ```
 
 ```go
-// pkg/stagehand/stagehand.go — applyRoleOverride gains Reasoning field-merge (+ updated early-return guard)
+// pkg/stagecoach/stagecoach.go — applyRoleOverride gains Reasoning field-merge (+ updated early-return guard)
 func applyRoleOverride(roles map[string]config.RoleConfig, role string, rm RoleModel) {
 	if rm.Provider == "" && rm.Model == "" && rm.Reasoning == "" {
 		return
@@ -447,7 +447,7 @@ Task 2: the 4 decompose Render callers — capture rsn + pass to Render
     the 2nd arg "" (sysPrompt) is unchanged.
   - VERIFY: `grep -rn 'Render(mdl,' internal/decompose/*.go` shows NO remaining literal `""` 4th arg.
 
-Task 3: pkg/stagehand — RoleModel.Reasoning + applyRoleOverride + the per-role gate
+Task 3: pkg/stagecoach — RoleModel.Reasoning + applyRoleOverride + the per-role gate
   - RoleModel: add `Reasoning string` (after Model) with a one-line FR-R6 comment; refresh the doc to mention
     reasoning (Mode A); keep the "Stable as of v2.0" (additive-only — §14.1).
   - applyRoleOverride: early-return guard → `if rm.Provider == "" && rm.Model == "" && rm.Reasoning == ""`;
@@ -460,7 +460,7 @@ Task 3: pkg/stagehand — RoleModel.Reasoning + applyRoleOverride + the per-role
 Task 4: VERIFY (and fix-if-needed) the single-commit Render reasoning arg
   - internal/generate/generate.go (CommitStaged): confirm `deps.Manifest.Render(cfg.Model, sysPrompt, payload,
     cfg.Reasoning)` — the 4th arg is cfg.Reasoning, NOT "". If it is still "", flip it.
-  - pkg/stagehand/stagehand.go (runPipeline, ~L461): confirm `deps.Manifest.Render(cfg.Model, sysPrompt,
+  - pkg/stagecoach/stagecoach.go (runPipeline, ~L461): confirm `deps.Manifest.Render(cfg.Model, sysPrompt,
     payload, cfg.Reasoning)`. If still "", flip it.
   - GOTCHA: read cfg.Reasoning DIRECTLY (these paths read cfg.Model directly, NOT ResolveRoleModel). This is
     S1's Task 6; S2 only verifies/ensures. If you flip a literal "" to cfg.Reasoning you are completing S1's
@@ -485,7 +485,7 @@ Task 5: roles_test.go — rework the FR-R5b tests + add reasoning assertions
 
 Task 6: VERIFY (no further file change)
   - RUN the full Validation Loop. go.mod/go.sum byte-unchanged. No edits to root.go/render.go/manifest.go/
-    role_defaults.go/docs. `go test -race ./internal/decompose/ ./pkg/stagehand/ ./internal/generate/ ./...` green.
+    role_defaults.go/docs. `go test -race ./internal/decompose/ ./pkg/stagecoach/ ./internal/generate/ ./...` green.
 ```
 
 ### Implementation Patterns & Key Details
@@ -563,7 +563,7 @@ GO MODULE (go.mod / go.sum):
 PACKAGE EDGES:
   - internal/decompose → internal/config (ResolveRoleModel, RoleConfig), internal/provider (Manifest, Render).
     NO new import (strings is stdlib). 
-  - pkg/stagehand → internal/decompose (ResolveRoles, RoleModels), internal/config (RoleConfig). NO new import.
+  - pkg/stagecoach → internal/decompose (ResolveRoles, RoleModels), internal/config (RoleConfig). NO new import.
 
 FROZEN / NOT-EDITED (do NOT touch):
   - internal/cmd/root.go — S1 mid-flight (transient redeclaration errors while S1 adds reasoning/message-* flags).
@@ -572,7 +572,7 @@ FROZEN / NOT-EDITED (do NOT touch):
     FR-D4 model table are INPUTS. defaultRoleReasoning lives in roles.go(config), NOT decompose.
   - internal/config/config.go const CurrentConfigVersion — P1.M3.T1.S1 bumps it.
   - docs/*.md — DOCS is Mode A (inline comments only); changeset doc sync is P4.M2.T1.
-  - pkg/stagehand.Options — NO Reasoning field (single-commit reasoning = cfg.Reasoning from config.Load).
+  - pkg/stagecoach.Options — NO Reasoning field (single-commit reasoning = cfg.Reasoning from config.Load).
 
 DOWNSTREAM CONTRACT (hand-off):
   - P3.M4 orchestrator consumes RoleModels (now carrying Reasoning) + the validated RoleManifests; it threads
@@ -590,7 +590,7 @@ NO DATABASE / NO ROUTES / NO NEW FILES / NO CLI WIRING (root.go is S1's) / NO CO
 ```bash
 gofmt -w internal/decompose/roles.go internal/decompose/planner.go internal/decompose/message.go \
   internal/decompose/arbiter.go internal/decompose/stager.go internal/decompose/roles_test.go \
-  pkg/stagehand/stagehand.go
+  pkg/stagecoach/stagecoach.go
 test -z "$(gofmt -l internal/ pkg/)" && echo "gofmt clean" || echo "GOFMT DIRTY"
 go vet ./...          # Expect zero diagnostics (catches a missed call-site arg, an unused rsn, a stale helper).
 go build ./...        # Whole module compiles. NOTE: if root.go still has S1's transient redeclaration errors,
@@ -600,7 +600,7 @@ git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
 grep -n 'must be inference/model' internal/decompose/roles.go          # the guard error (1 hit)
 grep -rn 'Render(mdl,' internal/decompose/*.go | grep '", provider'    # MUST be empty — no literal "" 4th arg left
 grep -n 'withInferenceProvider\|"no inference provider"\|default_provider' internal/decompose/roles_test.go  # MUST be empty
-grep -n 'Reasoning' pkg/stagehand/stagehand.go                          # RoleModel.Reasoning + applyRoleOverride + gate
+grep -n 'Reasoning' pkg/stagecoach/stagecoach.go                          # RoleModel.Reasoning + applyRoleOverride + gate
 # Expected: clean. If `go build` fails ONLY on root.go redeclarations, that is S1 mid-flight — leave root.go.
 ```
 
@@ -608,7 +608,7 @@ grep -n 'Reasoning' pkg/stagehand/stagehand.go                          # RoleMo
 
 ```bash
 go test -race ./internal/decompose/ -v   # reworked FR-R5b tests + reasoning assertions + stager-fallback + isMultiProvider
-go test -race ./pkg/stagehand/ -v        # RoleModel.Reasoning flows via applyRoleOverride; Decompose single+multi
+go test -race ./pkg/stagecoach/ -v        # RoleModel.Reasoning flows via applyRoleOverride; Decompose single+multi
 go test -race ./internal/generate/ -v    # single-commit passes cfg.Reasoning (verify)
 go test -race ./...                      # Full suite — NO regressions (config/provider tests untouched stay green).
 # Expected: all PASS. Key assertions: bare-model-on-pi ⇒ "must be inference/model" (role-named); slash-prefix ⇒
@@ -619,10 +619,10 @@ go test -race ./...                      # Full suite — NO regressions (config
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"   # (once S1's root.go lands)
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"   # (once S1's root.go lands)
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm no file outside the listed edits was touched (frozen-file gate):
-git diff --name-only | grep -Ev 'internal/decompose/(roles|planner|message|arbiter|stager|roles_test)\.go|pkg/stagehand/stagehand\.go|internal/generate/generate\.go' \
+git diff --name-only | grep -Ev 'internal/decompose/(roles|planner|message|arbiter|stager|roles_test)\.go|pkg/stagecoach/stagecoach\.go|internal/generate/generate\.go' \
   && echo "UNEXPECTED file changed (root.go = S1 mid-flight, OK; anything else = investigate)" || echo "only listed files changed (good)"
 # Reasoning end-to-end smoke (throwaway, optional): build a DecomposeOptions{Planner: RoleModel{Reasoning:"high"}}
 # + a stub registry, call resolveDecomposeConfig, assert cfg.Roles["planner"].Reasoning=="high"; then call
@@ -648,7 +648,7 @@ git diff --name-only | grep -Ev 'internal/decompose/(roles|planner|message|arbit
 
 - [ ] Level 1 clean: `go build ./...`, `go vet ./...`, `gofmt -l internal/ pkg/`, `go mod tidy` no-op;
       `git diff --exit-code go.mod go.sum` empty. (root.go transient errors = S1 mid-flight, not S2.)
-- [ ] Level 2 green: `go test -race ./...` (decompose reworked tests + reasoning assertions + pkg/stagehand + generate).
+- [ ] Level 2 green: `go test -race ./...` (decompose reworked tests + reasoning assertions + pkg/stagecoach + generate).
 - [ ] Level 3: binary builds; go.mod/go.sum unchanged; only listed files changed (root.go excepted as S1's).
 
 ### Feature Validation
@@ -658,7 +658,7 @@ git diff --name-only | grep -Ev 'internal/decompose/(roles|planner|message|arbit
       absent; `isMultiProvider` unchanged; `"strings"` imported.
 - [ ] `ResolveRoles` captures `rsn` and `setRole` populates `RoleModels.X.Reasoning` (planner="high" shipped default).
 - [ ] The 4 decompose Render callers pass `rsn` as Render's 4th arg (no literal `""` 4th arg in decompose).
-- [ ] `pkg/stagehand.RoleModel` has `Reasoning`; `applyRoleOverride` field-merges it; the per-role gate admits it.
+- [ ] `pkg/stagecoach.RoleModel` has `Reasoning`; `applyRoleOverride` field-merges it; the per-role gate admits it.
 - [ ] Single-commit Render (generate.go + runPipeline) passes `cfg.Reasoning`.
 - [ ] The 3 dead FR-R5b tests reworked; `withInferenceProvider` removed; `BareModelOnClaude_NoError` kept;
       reasoning assertions present.
@@ -691,7 +691,7 @@ git diff --name-only | grep -Ev 'internal/decompose/(roles|planner|message|arbit
   (same as they re-derive `mdl`) — Deps has no Models field by design (orchestrator retains RoleModels; P3.M4).
 - ❌ Don't leave the 3 dead FR-R5b tests asserting `"no inference provider"` / using `withInferenceProvider`.
   Rework them to `"must be inference/model"` + slash-prefix fixtures, or the suite fails to compile/assert.
-- ❌ Don't add `Reasoning` to `pkg/stagehand.Options`. The item scopes it to `RoleModel` only. The single-commit
+- ❌ Don't add `Reasoning` to `pkg/stagecoach.Options`. The item scopes it to `RoleModel` only. The single-commit
   path reads `cfg.Reasoning` (config.Load). Item (e) is VERIFY-only.
 - ❌ Don't edit `internal/cmd/root.go` (S1 mid-flight — transient `flagPlannerProvider redeclared` errors are
   S1's, not S2's), `render.go`/`manifest.go`, `role_defaults.go`, `config/roles.go`, or `docs/*.md`.

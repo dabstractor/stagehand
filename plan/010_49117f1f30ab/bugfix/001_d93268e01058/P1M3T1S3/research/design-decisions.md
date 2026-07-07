@@ -2,7 +2,7 @@
 
 The non-obvious calls for the Issue-4 guard on the THIRD and final call site. Ground truth: Bug-Fix
 PRD §h3.3 (Issue 4), the work-item CONTRACT, the S1/S2 sibling PRPs (the same-pattern precedent — S1
-shipped `generate.CommitStaged`'s guard, S2 ships `pkg/stagehand.runPipeline`'s), and the actual code at
+shipped `generate.CommitStaged`'s guard, S2 ships `pkg/stagecoach.runPipeline`'s), and the actual code at
 `internal/decompose/message.go` (`publishCommit`) + `internal/decompose/message_test.go` + `internal/decompose/decompose.go`
 (`runLoop`) + `internal/generate/finalize.go` (`ErrEmptyMessage`) + `internal/exitcode/exitcode.go`.
 
@@ -17,11 +17,11 @@ Issue 4 names THREE call sites that all lack the post-`RunCommitHooks` empty-mes
 | Call site | File | Status | Owner |
 |-----------|------|--------|-------|
 | `generate.CommitStaged` | `internal/generate/generate.go:436-439` | **DONE** | S1 (P1.M3.T1.S1) |
-| `pkg/stagehand.runPipeline` | `pkg/stagehand/stagehand.go` (after hooks block) | **IMPLEMENTING** (parallel) | S2 (P1.M3.T1.S2) |
+| `pkg/stagecoach.runPipeline` | `pkg/stagecoach/stagecoach.go` (after hooks block) | **IMPLEMENTING** (parallel) | S2 (P1.M3.T1.S2) |
 | `decompose.publishCommit` | `internal/decompose/message.go` (after `if herr != nil`) | **THIS TASK** | S3 |
 
 S3 edits `internal/decompose/message.go` (+ its test) ONLY. Do NOT touch `internal/generate/*` (S1),
-`pkg/stagehand/*` (S2), `runLoop`, `Decompose()`, the CLI, or any other file. The three guards are
+`pkg/stagecoach/*` (S2), `runLoop`, `Decompose()`, the CLI, or any other file. The three guards are
 independent (one per call site); S3 is the decompose one.
 
 ---
@@ -57,7 +57,7 @@ Two `publishCommit`-specific details (vs S1/S2):
 
 ## §2 — BARE error (NOT a *RescueError, NOT a *CASError) → exit 1
 
-`generate.ErrEmptyMessage` (finalize.go:45: `var ErrEmptyMessage = errors.New("stagehand: empty commit
+`generate.ErrEmptyMessage` (finalize.go:45: `var ErrEmptyMessage = errors.New("stagecoach: empty commit
 message — aborted")`) is a BARE `error`, not `*generate.RescueError` (which would be exit 3 / a rescue)
 and not `*generate.CASError` (which would be the §13.5 partial-commit CAS path). The CLI maps it to exit 1
 via the EXISTING `exitcode.For` (exitcode.go:65: `if errors.Is(err, generate.ErrEmptyMessage) { ... return
@@ -131,11 +131,11 @@ Issue 4 notes both hooks trigger the bug — but `commit-msg` is the cleaner rep
 ## §5 — No new imports (either file)
 
 - `internal/decompose/message.go` ALREADY imports `"strings"` (line 34) and
-  `"github.com/dustin/stagehand/internal/generate"` (line 37 — for `RescueError`, `CASError`,
+  `"github.com/dustin/stagecoach/internal/generate"` (line 37 — for `RescueError`, `CASError`,
   `ExtractSubject`, `IsDuplicate`, `FinalizeMessage`, `EditMessage`). The guard uses `strings.TrimSpace` +
   `generate.ErrEmptyMessage` ⇒ NO new import.
 - `internal/decompose/message_test.go` ALREADY imports `"errors"` (line 6), `"strings"` (line 11), and
-  `"github.com/dustin/stagehand/internal/generate"` (line 16). The test uses `errors.Is` +
+  `"github.com/dustin/stagecoach/internal/generate"` (line 16). The test uses `errors.Is` +
   `generate.ErrEmptyMessage` ⇒ NO new import.
 
 `go mod tidy` is a no-op; `git diff --exit-code go.mod go.sum` is empty.

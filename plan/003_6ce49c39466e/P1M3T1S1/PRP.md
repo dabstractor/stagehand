@@ -127,8 +127,8 @@ the raw map, `cfg.ConfigVersion == 3`, and a one-time deprecation notice; a sing
 `default_provider`, or pi routes to the wrong backend (the original FR-R5b bug). And the **decompose /
 generate pipelines** whose `Render(model,…)` now expects the slash-prefix (FR-R5b, P1.M2.T1.S2).
 
-**Use Case**: A user upgrades the stagehand binary (v3) but keeps their v2 `~/.config/stagehand/config.toml`
-with `[provider.pi] default_provider = "zai"` and `[defaults] model = "glm-5.2"`. On load, stagehand folds
+**Use Case**: A user upgrades the stagecoach binary (v3) but keeps their v2 `~/.config/stagecoach/config.toml`
+with `[provider.pi] default_provider = "zai"` and `[defaults] model = "glm-5.2"`. On load, stagecoach folds
 in memory → `cfg.Model = "zai/glm-5.2"`, drops the dead key, prints one deprecation notice, and runs
 correctly. The user later runs `config upgrade` (S2) to persist the rewrite to disk.
 
@@ -442,13 +442,13 @@ func isMultiBackend(name string, raw map[string]any) bool {
 // I/O); Load writes it to noticeOut. Points the user at `config upgrade` to persist the migration.
 func migrationNotice(originalVersion int) string {
 	if originalVersion == 0 {
-		return "stagehand: config file has no config_version — treated as legacy and auto-migrated in " +
+		return "stagecoach: config file has no config_version — treated as legacy and auto-migrated in " +
 			"memory (the `default_provider` field was folded into the `model` slash-prefix, FR-B7). " +
-			"Run 'stagehand config upgrade' to persist this to the file.\n"
+			"Run 'stagecoach config upgrade' to persist this to the file.\n"
 	}
-	return fmt.Sprintf("stagehand: config schema version %d (current %d) — auto-migrated in memory "+
+	return fmt.Sprintf("stagecoach: config schema version %d (current %d) — auto-migrated in memory "+
 		"(the `default_provider` field was folded into the `model` slash-prefix, FR-B7). "+
-		"Run 'stagehand config upgrade' to persist this to the file.\n",
+		"Run 'stagecoach config upgrade' to persist this to the file.\n",
 		originalVersion, CurrentConfigVersion)
 }
 ```
@@ -591,7 +591,7 @@ DOWNSTREAM (the consumers — not this task):
 FROZEN/LEAVE (do NOT edit):
   - internal/provider/* (manifest.go DefaultProvider already gone; registry.go DecodeUserOverrides is a consumer).
   - internal/config/file.go (proves the agent no-op; the migration operates on resolved Config, not decode).
-  - internal/decompose/*, internal/generate/*, internal/cmd/{root,default_action,providers}.go, pkg/stagehand/*.
+  - internal/decompose/*, internal/generate/*, internal/cmd/{root,default_action,providers}.go, pkg/stagecoach/*.
   - PRD.md, go.mod, Makefile, providers/*.toml.
   - configVersionNotice (L298) stays a pure utility (ahead-case still live; do not delete its older/missing
     branches — they remain unit-tested).
@@ -636,7 +636,7 @@ git diff --exit-code internal/provider internal/config/file.go internal/decompos
   pkg cmd/root.go cmd/default_action.go cmd/providers.go go.mod go.sum PRD.md \
   && echo "frozen files UNCHANGED (expected)"
 # Confirm config still does not import provider:
-! grep -rq "stagehand/internal/provider" internal/config/ && echo "config does NOT import provider (good)"
+! grep -rq "stagecoach/internal/provider" internal/config/ && echo "config does NOT import provider (good)"
 # Straggler grep — no remaining hardcoded version-2 OUTPUT assertions (INPUT v2 fixtures may legitimately keep "2"):
 grep -rn 'current is 2\|supports up to 2' internal/ && echo "STALE v2 notice assertion — fix" || echo "notice assertions updated (good)"
 ```

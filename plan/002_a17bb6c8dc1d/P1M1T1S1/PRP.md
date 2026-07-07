@@ -38,7 +38,7 @@ all compile unchanged).
 
 ## User Persona
 
-**Target User**: The Stagehand contributor implementing the v2 provider/decompose subtasks that
+**Target User**: The Stagecoach contributor implementing the v2 provider/decompose subtasks that
 immediately follow (S2 MergeManifest, T2 Render-mode, M2 agy + tooled-flags, P3 multi-commit
 decomposition). This is a foundation/schema subtask — no end-user-visible behavior yet.
 
@@ -132,7 +132,7 @@ delta; and lists the exact test extensions (with helper reuse). The architecture
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/provider/
     ├── manifest.go        # EDIT TARGET (struct +2 fields; Resolve +1 line; doc comments)
     ├── manifest_test.go   # EDIT TARGET (extend 3 existing Resolve/unmarshal tests)
@@ -146,7 +146,7 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/provider/manifest.go        # +2 fields, +1 Resolve line, +doc-comment updates
     internal/provider/manifest_test.go   # extend TestResolve_SlicesLeftNil / _AppliesDefaultsToNilOptionals / _PreservesExplicitValues
@@ -374,7 +374,7 @@ DOWNSTREAM HOOKS (informational — implemented by LATER subtasks, NOT S1):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l .                       # Expected: empty (run `gofmt -w internal/provider/manifest.go manifest_test.go` if listed)
 go vet ./internal/provider/...   # Expected: exit 0
@@ -386,7 +386,7 @@ go build ./...                   # Expected: exit 0 (builtins/merge/render/parse
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The provider package — the extended Resolve/unmarshal tests
 go test -race ./internal/provider/ -v -run 'TestResolve_|TestUnmarshal_FullManifest'
@@ -401,7 +401,7 @@ go test -race ./internal/provider/ -v
 ### Level 3: Whole-Repository Regression (No Behavior Change Elsewhere)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages pass (no other package edited)
 go vet ./...                     # Expected: exit 0
@@ -417,13 +417,13 @@ git diff -- internal/provider/manifest.go | grep -E '^\+.*Validate|^\+.*return e
 ### Level 4: Schema Sanity (prove the fields decode + default correctly)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Inline behavioral check via a one-off test run (the extended TestResolve_* cover this; this is a
 # manual cross-check). Decode a TOML with both keys and confirm round-trip through Resolve:
 cat > /tmp/sh_schema_test.go <<'EOF'
 package main
-import ("fmt"; "github.com/dustin/stagehand/internal/provider"; "github.com/pelletier/go-toml/v2")
+import ("fmt"; "github.com/dustin/stagecoach/internal/provider"; "github.com/pelletier/go-toml/v2")
 func main() {
   src := []byte(`name="x"
 command="x"

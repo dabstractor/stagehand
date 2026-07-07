@@ -1,9 +1,9 @@
 ---
-name: "P4.M2.T1.S1 — Add DecomposeOptions / DecomposeResult / RoleModel types + Decompose() function to pkg/stagehand/stagehand.go (the v2 public library surface for multi-commit decomposition)"
+name: "P4.M2.T1.S1 — Add DecomposeOptions / DecomposeResult / RoleModel types + Decompose() function to pkg/stagecoach/stagecoach.go (the v2 public library surface for multi-commit decomposition)"
 description: |
 
-  EDIT `pkg/stagehand/stagehand.go` (ADD three exported types + one exported function + two unexported
-  helpers + the `internal/decompose` import) and EDIT `pkg/stagehand/stagehand_test.go` (ADD four
+  EDIT `pkg/stagecoach/stagecoach.go` (ADD three exported types + one exported function + two unexported
+  helpers + the `internal/decompose` import) and EDIT `pkg/stagecoach/stagecoach_test.go` (ADD four
   focused tests: single-delegation E2E, single-delegation-via-Count, multi-commit-entry config error,
   stager-role-override proof + result-mapping assertions).
 
@@ -15,15 +15,15 @@ description: |
        internal/decompose.Decompose. It's a NO-OP (delegates to GenerateCommit) when Single or Count==1.
        Caller must ensure nothing is staged (CLI gates on HasStagedChanges).
     2. INPUT: the internal decompose.Decompose from P3.M4.T1.S1, the existing Options/Result types
-       from pkg/stagehand/stagehand.go.
-    3. LOGIC: In pkg/stagehand/stagehand.go: add `type RoleModel struct { Provider, Model string }`,
+       from pkg/stagecoach/stagecoach.go.
+    3. LOGIC: In pkg/stagecoach/stagecoach.go: add `type RoleModel struct { Provider, Model string }`,
        `type DecomposeOptions struct { Options; Count int; Single bool; MaxCommits int; Planner, Stager,
        Arbiter RoleModel }`, `type DecomposeResult struct { Commits []Result; Amended int; Provider string }`.
        Implement `func Decompose(ctx context.Context, opts DecomposeOptions) (DecomposeResult, error)`:
        if opts.Single || opts.Count==1 → delegate to GenerateCommit (wrap in DecomposeResult with one
        commit). Else: resolve config (reuse resolveConfig pattern), build decompose.Deps (reuse
        ResolveRoles), call decompose.Decompose, map internal result to public DecomposeResult.
-    4. OUTPUT: pkg/stagehand exports Decompose, DecomposeOptions, DecomposeResult, RoleModel. External
+    4. OUTPUT: pkg/stagecoach exports Decompose, DecomposeOptions, DecomposeResult, RoleModel. External
        integrators can call Decompose() for multi-commit. CLI (P4.M1.T1.S1) calls this.
     5. DOCS: [Mode A] Add doc comments to all new exported types and the Decompose function, marking
        'Stable as of v2.0' per the additive-only convention.
@@ -32,12 +32,12 @@ description: |
   CRITICAL SCOPE BOUNDARY — PARALLEL COORDINATION WITH P4.M1.T1.S1 (READ THIS FIRST):
   ───────────────────────────────────────────────────────────────────────────────────────────────────
   P4.M1.T1.S1 is being implemented IN PARALLEL and EDITS `internal/cmd/default_action.go` to call
-  `internal/decompose.Decompose` DIRECTLY (it cannot depend on / call `pkg/stagehand.Decompose` — the
+  `internal/decompose.Decompose` DIRECTLY (it cannot depend on / call `pkg/stagecoach.Decompose` — the
   tasks.json dependency graph gives P4.M1.T1.S1 NO edge to P4.M2.T1.S1). To AVOID a parallel-edit
-  conflict on `internal/cmd/`, THIS task touches ONLY `pkg/stagehand/`. It does NOT swap the CLI call
-  site. The swap (internal/decompose.Decompose → pkg/stagehand.Decompose in default_action.go) is a
+  conflict on `internal/cmd/`, THIS task touches ONLY `pkg/stagecoach/`. It does NOT swap the CLI call
+  site. The swap (internal/decompose.Decompose → pkg/stagecoach.Decompose in default_action.go) is a
   LATER follow-up, explicitly deferred by the P4.M1.T1.S1 PRP ("P4.M2.T1.S1 will later add
-  pkg/stagehand.Decompose as a thin wrapper ... and SWAP this one CLI call site to use it").
+  pkg/stagecoach.Decompose as a thin wrapper ... and SWAP this one CLI call site to use it").
   Encroaching into internal/cmd here would race/merge-conflict with the parallel task.
 
   SCOPE BOUNDARY (frozen / owned elsewhere — do NOT edit):
@@ -49,19 +49,19 @@ description: |
     - internal/provider/{registry.go,builtin.go} (NewRegistry, DecodeUserOverrides) — CONSUMED.
     - internal/ui/verbose.go (NewVerbose) — CONSUMED.
     - internal/generate/{rescue.go,generate.go} (RescueError, CASError, sentinels) — CONSUMED.
-    - cmd/stagehand/main.go — UNCHANGED (signal.Install already wired; not this task's concern).
+    - cmd/stagecoach/main.go — UNCHANGED (signal.Install already wired; not this task's concern).
     - PRD.md, tasks.json, .gitignore — NEVER modify (research/PRP agent; this task edits code only).
 
   DELIVERABLES (2 file EDITS — no new files):
-    EDIT pkg/stagehand/stagehand.go       — +RoleModel +DecomposeOptions +DecomposeResult +Decompose
+    EDIT pkg/stagecoach/stagecoach.go       — +RoleModel +DecomposeOptions +DecomposeResult +Decompose
                                             +resolveDecomposeConfig +mapDecomposeResult (helpers) +
-                                            import "github.com/dustin/stagehand/internal/decompose".
-    EDIT pkg/stagehand/stagehand_test.go  — +TestDecompose_SingleDelegates +TestDecompose_Count1Delegates
+                                            import "github.com/dustin/stagecoach/internal/decompose".
+    EDIT pkg/stagecoach/stagecoach_test.go  — +TestDecompose_SingleDelegates +TestDecompose_Count1Delegates
                                             +TestDecompose_MultiEntry_RoleError +TestDecompose_StagerOverride
                                             (reuse the existing setupTestRepo/setupScriptedRepo stub harness).
 
   SUCCESS: `go build ./... && go vet ./... && go test -race ./...` green; `golangci-lint run` clean;
-  `gofmt -l internal/ pkg/` empty; `make coverage-gate` PASS (pkg/stagehand is NOT gated, so no risk);
+  `gofmt -l internal/ pkg/` empty; `make coverage-gate` PASS (pkg/stagecoach is NOT gated, so no risk);
   go.mod/go.sum UNCHANGED; `Decompose`, `DecomposeOptions`, `DecomposeResult`, `RoleModel` exported with
   "Stable as of v2.0" doc comments; Single/Count==1 delegates to GenerateCommit (1 commit, full E2E
   green); the multi-commit path enters ResolveRoles (stager-role error with a bare stub); role overrides
@@ -72,8 +72,8 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Expose the v2 multi-commit decomposition pipeline through Stagehand's intentionally-tiny
-public library surface (`pkg/stagehand`, PRD §14.1 / §13.6 / §9.14). Add three additive-only exported
+**Feature Goal**: Expose the v2 multi-commit decomposition pipeline through Stagecoach's intentionally-tiny
+public library surface (`pkg/stagecoach`, PRD §14.1 / §13.6 / §9.14). Add three additive-only exported
 types — `RoleModel`, `DecomposeOptions`, `DecomposeResult` — and the `Decompose` function, as a thin
 wrapper over the already-shipped `internal/decompose.Decompose` orchestrator. The wrapper: (1) is a
 NO-OP that delegates to the existing `GenerateCommit` when `opts.Single || opts.Count == 1` (the v1
@@ -85,16 +85,16 @@ to the public `DecomposeResult` (converting each `CommitResult` to a `Result` an
 CI step) gain a single call for "dirty tree → N coherent commits" without shelling out to the CLI.
 
 **Deliverable** (2 file EDITS — no new files):
-1. `pkg/stagehand/stagehand.go` (EDIT) — add the `internal/decompose` import; add `type RoleModel struct`,
+1. `pkg/stagecoach/stagecoach.go` (EDIT) — add the `internal/decompose` import; add `type RoleModel struct`,
    `type DecomposeOptions struct` (embeds `Options` + `Count`/`Single`/`MaxCommits`/`Planner`/`Stager`/
    `Arbiter`), `type DecomposeResult struct` (`Commits []Result`/`Amended int`/`Provider string`); add
    `func Decompose`; add two unexported helpers `resolveDecomposeConfig` + `mapDecomposeResult`. All four
    new exported symbols carry "Stable as of v2.0" doc comments.
-2. `pkg/stagehand/stagehand_test.go` (EDIT) — four new tests reusing the existing `setupTestRepo` /
+2. `pkg/stagecoach/stagecoach_test.go` (EDIT) — four new tests reusing the existing `setupTestRepo` /
    `setupScriptedRepo` stub harness.
 
 **Success Definition**:
-- **API surface**: `pkg/stagehand` exports `Decompose`, `DecomposeOptions`, `DecomposeResult`, `RoleModel`
+- **API surface**: `pkg/stagecoach` exports `Decompose`, `DecomposeOptions`, `DecomposeResult`, `RoleModel`
   (and only these new symbols — no new error sentinels; rescue/CAS reuse the already-aliased
   `RescueError`/`CASError`/`ErrRescue`/`ErrTimeout`/`ErrCASFailed`/`ErrNothingToCommit`). Each carries a
   "Stable as of v2.0" doc comment (additive-only convention).
@@ -119,15 +119,15 @@ CI step) gain a single call for "dirty tree → N coherent commits" without shel
 
 **Target User**: an external integrator — a git GUI (lazygit customCommand), a pre-commit hook, or a CI
 step (PRD §14.1: "let an integrator call the core without reimplementing it") — importing
-`github.com/dustin/stagehand/pkg/stagehand`. Transitive: the in-module CLI (which will later swap its
+`github.com/dustin/stagecoach/pkg/stagecoach`. Transitive: the in-module CLI (which will later swap its
 internal/decompose.Decompose call to this public wrapper — a follow-up, NOT this task).
 
 **Use Case**: the integrator has a dirty, un-staged working tree spanning several concerns and wants N
 logically-coherent commits via a single library call — OR wants the v1 single-commit behavior via the same
 entry point with `Single: true` / `Count: 1`.
 
-**User Journey**: (1) integrator calls `stagehand.Decompose(ctx, stagehand.DecomposeOptions{Count: 3,
-Provider: "pi"})`; (2) stagehand resolves config + the four roles, runs the planner→stager→message→arbiter
+**User Journey**: (1) integrator calls `stagecoach.Decompose(ctx, stagecoach.DecomposeOptions{Count: 3,
+Provider: "pi"})`; (2) stagecoach resolves config + the four roles, runs the planner→stager→message→arbiter
 pipeline; (3) on success returns `DecomposeResult{Commits: [N Result], Amended, Provider}`; (4) on a
 per-concept failure returns a `*RescueError`/`*CASError` (same typed errors as `GenerateCommit`) plus the
 partial commits that landed.
@@ -138,14 +138,14 @@ planner→stager→message→arbiter pipeline; (b) a single coherent API for bot
 ## Why
 
 - **Business value**: this is the public-library half of the v2 core (PRD §10.3 / G11 / §14.1). The
-  decompose pipeline (P3) is unreachable from outside the module until this task ships the `pkg/stagehand`
+  decompose pipeline (P3) is unreachable from outside the module until this task ships the `pkg/stagecoach`
   entry point. It completes the "intentionally tiny" public surface promised by §14.1 alongside the
   existing `GenerateCommit`.
 - **Integration with existing features**: consumes `internal/decompose.Decompose` + `ResolveRoles` +
   `Deps`/`DecomposeResult`/`CommitResult`/`RoleManifests`/`RoleModels` (P3.M4.T1.S1/S2), `config.Config` +
   `config.RoleConfig` + `config.ResolveRoleModel` (P1.M3), and `provider.{NewRegistry,
   DecodeUserOverrides}` (mirrors the existing `buildDeps`). It reuses the `resolveConfig` helper already
-  in `pkg/stagehand` for the 7-layer config + Options overrides, extending it with the decompose-specific
+  in `pkg/stagecoach` for the 7-layer config + Options overrides, extending it with the decompose-specific
   overrides. The typed errors (`*RescueError`/`*CASError`) are the SAME aliases already exported, so exit
   mapping is uniform across both entry points.
 - **Problems this solves and for whom**: lets a git GUI / pre-commit hook / CI step call decomposition
@@ -171,11 +171,11 @@ planner→stager→message→arbiter pipeline; (b) a single coherent API for bot
   decompose is not dry-run aware). Document this.
 
 **Technical requirements**: 3 exported types + 1 exported function + 2 unexported helpers in
-`pkg/stagehand/stagehand.go`; the `internal/decompose` import; doc comments marked "Stable as of v2.0".
+`pkg/stagecoach/stagecoach.go`; the `internal/decompose` import; doc comments marked "Stable as of v2.0".
 
 ### Success Criteria
 
-- [ ] `pkg/stagehand` exports `Decompose`, `DecomposeOptions`, `DecomposeResult`, `RoleModel` — and ONLY
+- [ ] `pkg/stagecoach` exports `Decompose`, `DecomposeOptions`, `DecomposeResult`, `RoleModel` — and ONLY
       these new symbols (no new error sentinels; reuse `RescueError`/`CASError`/`Err*` aliases).
 - [ ] Each new exported symbol has a doc comment ending in / containing "Stable as of v2.0".
 - [ ] `RoleModel` == `struct { Provider, Model string }`; `DecomposeOptions` embeds `Options` and adds
@@ -238,8 +238,8 @@ touch `internal/cmd/` (parallel coordination with P4.M1.T1.S1) — are all expla
         would deviate from the contract + the internal orchestrator's behavior)."
 
 # CODEBASE FILES — pattern sources + consumed dependencies (all verified, paths exact)
-- file: pkg/stagehand/stagehand.go   # EDIT TARGET + pattern source
-  why: "This IS the file to edit. It already has: `package stagehand` (Stable as of v1.0); `Options`,
+- file: pkg/stagecoach/stagecoach.go   # EDIT TARGET + pattern source
+  why: "This IS the file to edit. It already has: `package stagecoach` (Stable as of v1.0); `Options`,
         `Result`, `GenerateCommit`; typed-error re-exports (ErrNothingToCommit/ErrTimeout/ErrRescue/
         ErrCASFailed + RescueError/CASError aliases); the `resolveConfig(ctx, opts Options) (config.Config,
         string, error)` helper (loads 7-layer config OR uses opts.Config; applies opts.Provider/Model/
@@ -252,9 +252,9 @@ touch `internal/cmd/` (parallel coordination with P4.M1.T1.S1) — are all expla
         VerboseOn bool, Config *config.Config — additive-only). DecomposeOptions embeds the FULL current
         Options (embedding gives access to all). Do NOT redeclare any Options field."
 
-- file: pkg/stagehand/stagehand_test.go   # EDIT TARGET + test-pattern source
+- file: pkg/stagecoach/stagecoach_test.go   # EDIT TARGET + test-pattern source
   why: "The test harness: `setupTestRepo(t, stubtest.Options{Out: ...})` builds a temp repo + a repo-local
-        .stagehand.toml registering the BARE stub provider + chdir into it (GenerateCommit uses os.Getwd()).
+        .stagecoach.toml registering the BARE stub provider + chdir into it (GenerateCommit uses os.Getwd()).
         `setupScriptedRepo(t, headSubject, responses)` for per-call scripted responses. `writeFile`,
         `stageFile`, `commitRaw`, `headSHA`, `gitOut`, `shaRe`, `boolPtr` helpers exist. Tests use
         config/stubtest/exitcode imports."
@@ -323,7 +323,7 @@ touch `internal/cmd/` (parallel coordination with P4.M1.T1.S1) — are all expla
         cfg.Verbose)` mirrors GenerateCommit."
 
 - file: internal/generate/{rescue.go,generate.go}   # CONSUMED — RescueError, CASError (already aliased)
-  why: "The rescue/CAS typed errors the loop propagates are ALREADY aliased in pkg/stagehand
+  why: "The rescue/CAS typed errors the loop propagates are ALREADY aliased in pkg/stagecoach
         (`RescueError = generate.RescueError`, `CASError = generate.CASError`). No new aliases needed.
         *decompose.DecomposeRescueError wraps a *RescueError field + Unwraps to it, so errors.As(&re) matches."
 ```
@@ -331,26 +331,26 @@ touch `internal/cmd/` (parallel coordination with P4.M1.T1.S1) — are all expla
 ### Current Codebase tree (relevant subset)
 
 ```bash
-pkg/stagehand/
-  stagehand.go          # EDIT — +RoleModel +DecomposeOptions +DecomposeResult +Decompose
+pkg/stagecoach/
+  stagecoach.go          # EDIT — +RoleModel +DecomposeOptions +DecomposeResult +Decompose
                         #         +resolveDecomposeConfig +mapDecomposeResult + import internal/decompose
-  stagehand_test.go     # EDIT — +4 Decompose tests (reuse setupTestRepo/setupScriptedRepo)
+  stagecoach_test.go     # EDIT — +4 Decompose tests (reuse setupTestRepo/setupScriptedRepo)
 internal/decompose/     # CONSUMED (read-only) — Decompose, DecomposeResult, CommitResult, Deps,
                         #   ResolveRoles, RoleManifests, RoleModels, DecomposeRescueError (P3.M4.T1.S1/S2)
 internal/config/        # CONSUMED — Config, RoleConfig, Defaults, ResolveRoleModel
 internal/git/git.go     # CONSUMED — git.New, FileChange
 internal/provider/      # CONSUMED — NewRegistry, DecodeUserOverrides
 internal/ui/verbose.go  # CONSUMED — NewVerbose
-internal/generate/      # CONSUMED — RescueError, CASError, sentinels (already aliased in pkg/stagehand)
+internal/generate/      # CONSUMED — RescueError, CASError, sentinels (already aliased in pkg/stagecoach)
 internal/cmd/           # OWNED BY P4.M1.T1.S1 (parallel) — DO NOT TOUCH
-cmd/stagehand/main.go   # CONSUMED (unchanged)
+cmd/stagecoach/main.go   # CONSUMED (unchanged)
 ```
 
 ### Desired Codebase tree (files this task EDITS — no new files)
 
 ```bash
-pkg/stagehand/stagehand.go        # +3 exported types + Decompose + 2 unexported helpers + import internal/decompose
-pkg/stagehand/stagehand_test.go   # +TestDecompose_SingleDelegates +TestDecompose_Count1Delegates
+pkg/stagecoach/stagecoach.go        # +3 exported types + Decompose + 2 unexported helpers + import internal/decompose
+pkg/stagecoach/stagecoach_test.go   # +TestDecompose_SingleDelegates +TestDecompose_Count1Delegates
                                   # +TestDecompose_MultiEntry_RoleError +TestDecompose_StagerOverride
 ```
 
@@ -359,7 +359,7 @@ pkg/stagehand/stagehand_test.go   # +TestDecompose_SingleDelegates +TestDecompos
 ```go
 // G-NO-CLI-EDIT (CRITICAL): This task runs IN PARALLEL with P4.M1.T1.S1, which EDITS
 //   internal/cmd/default_action.go to call internal/decompose.Decompose directly. To avoid a
-//   parallel-edit conflict, this task touches ONLY pkg/stagehand/. The CLI swap to pkg/stagehand.Decompose
+//   parallel-edit conflict, this task touches ONLY pkg/stagecoach/. The CLI swap to pkg/stagecoach.Decompose
 //   is a LATER follow-up (deferred by the P4.M1.T1.S1 PRP). Do NOT edit internal/cmd/* here.
 
 // G-INTERNAL-RESULT-HAS-NO-PROVIDER (CRITICAL): internal decompose.DecomposeResult is
@@ -411,7 +411,7 @@ pkg/stagehand/stagehand_test.go   # +TestDecompose_SingleDelegates +TestDecompos
 //   DecomposeOptions value. Pass opts.Options (the embedded struct) to resolveConfig/GenerateCommit.
 
 // G-IMPORT-CYCLE-FREE (verified): internal/decompose imports only internal/{generate,git,prompt,signal,
-//   config,provider,ui} — NOT pkg/stagehand, NOT internal/cmd. So pkg/stagehand → internal/decompose is safe.
+//   config,provider,ui} — NOT pkg/stagecoach, NOT internal/cmd. So pkg/stagecoach → internal/decompose is safe.
 ```
 
 ## Implementation Blueprint
@@ -476,9 +476,9 @@ func Decompose(ctx context.Context, opts DecomposeOptions) (DecomposeResult, err
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: EDIT pkg/stagehand/stagehand.go — add the import + the three exported types
-  - ADD import "github.com/dustin/stagehand/internal/decompose" to the import block (alphabetical:
-    after "github.com/dustin/stagehand/internal/config" and before "internal/generate").
+Task 1: EDIT pkg/stagecoach/stagecoach.go — add the import + the three exported types
+  - ADD import "github.com/dustin/stagecoach/internal/decompose" to the import block (alphabetical:
+    after "github.com/dustin/stagecoach/internal/config" and before "internal/generate").
   - ADD the three exported types (RoleModel, DecomposeOptions, DecomposeResult) with the exact field lists
     + doc comments shown in "Data models and structure" above. PLACE them near the existing Options/Result
     types (e.g. after Result, before the typed-error re-export block) for cohesion.
@@ -486,9 +486,9 @@ Task 1: EDIT pkg/stagehand/stagehand.go — add the import + the three exported 
     has Provider string; RoleModel has Provider + Model.
   - FOLLOW pattern: the existing Options/Result doc comments ("Stable as of v1.0" → these say v2.0).
   - NAMING: exported, exported-field Capitalized, no json tags (this package uses none).
-  - PLACEMENT: pkg/stagehand/stagehand.go.
+  - PLACEMENT: pkg/stagecoach/stagecoach.go.
 
-Task 2: EDIT pkg/stagehand/stagehand.go — add Decompose + resolveDecomposeConfig + mapDecomposeResult
+Task 2: EDIT pkg/stagecoach/stagecoach.go — add Decompose + resolveDecomposeConfig + mapDecomposeResult
   - ADD func Decompose(ctx context.Context, opts DecomposeOptions) (DecomposeResult, error):
         // (1) NO-OP delegation (PRD §14.1): Single or Count==1 → GenerateCommit, wrapped in a 1-commit
         //     DecomposeResult. Honors opts.DryRun (the single path is dry-run aware).
@@ -585,15 +585,15 @@ Task 2: EDIT pkg/stagehand/stagehand.go — add Decompose + resolveDecomposeConf
   - PRESERVE: GenerateCommit, resolveConfig, buildDeps, buildSysPrompt, runPipeline, all typed-error
     re-exports UNCHANGED.
   - NAMING: exported Decompose; unexported resolveDecomposeConfig/applyRoleOverride/mapDecomposeResult.
-  - PLACEMENT: pkg/stagehand/stagehand.go (Decompose after GenerateCommit; helpers after resolveConfig).
+  - PLACEMENT: pkg/stagecoach/stagecoach.go (Decompose after GenerateCommit; helpers after resolveConfig).
 
-Task 3: EDIT pkg/stagehand/stagehand_test.go — single-delegation tests (full E2E)
+Task 3: EDIT pkg/stagecoach/stagecoach_test.go — single-delegation tests (full E2E)
   - ADD TestDecompose_SingleDelegates:
         setupTestRepo(t, stubtest.Options{Out: "feat: decompose single"}) // bare stub, repo-local .toml
         writeFile(t, ".", "a.txt", "change\n") // repo is CWD (setupTestRepo chdir'd into it)
         stageFile(t, ".", "a.txt")             // STAGE — GenerateCommit needs a staged index
         before := headSHA(t, ".")
-        res, err := stagehand.Decompose(context.Background(), stagehand.DecomposeOptions{Single: true})
+        res, err := stagecoach.Decompose(context.Background(), stagecoach.DecomposeOptions{Single: true})
         // assertions:
         assert err == nil
         assert headSHA(t, ".") != before              // exactly 1 new commit
@@ -604,19 +604,19 @@ Task 3: EDIT pkg/stagehand/stagehand_test.go — single-delegation tests (full E
         assert strings.HasPrefix(res.Commits[0].Subject, "feat: decompose single") // (after fence-strip)
   - ADD TestDecompose_Count1Delegates:
         identical to the above but with DecomposeOptions{Count: 1} (no Single) — proves Count==1 delegates.
-  - GOTCHA: setupTestRepo writes .stagehand.toml + initial commit + chdir's into the temp repo. "." is the
+  - GOTCHA: setupTestRepo writes .stagecoach.toml + initial commit + chdir's into the temp repo. "." is the
     repo dir. The stub Out must be a VALID single-line message (the stub returns it as the commit message;
-    setupTestRepo uses STAGEHAND_STUB_OUT mode). Use stageFile to stage (GenerateCommit reads the staged
+    setupTestRepo uses STAGECOACH_STUB_OUT mode). Use stageFile to stage (GenerateCommit reads the staged
     diff). headSHA/gitOut/writeFile/stageFile/shaRe are the existing helpers.
   - COVERAGE: the single-delegation branch + the DecomposeResult wrapping + mapDecomposeResult (via the
     Provider/CommitSHA/Subject assertions).
 
-Task 4: EDIT pkg/stagehand/stagehand_test.go — multi-commit entry + role-override tests
+Task 4: EDIT pkg/stagecoach/stagecoach_test.go — multi-commit entry + role-override tests
   - ADD TestDecompose_MultiEntry_RoleError:
         setupTestRepo(t, stubtest.Options{Out: "feat: x"}) // bare stub (NO tooled_flags)
         writeFile(t, ".", "b.txt", "un-staged change\n")   // dirty working tree, NOT staged
         // (do NOT stageFile — the precondition is nothing staged + dirty tree)
-        res, err := stagehand.Decompose(context.Background(), stagehand.DecomposeOptions{})
+        res, err := stagecoach.Decompose(context.Background(), stagecoach.DecomposeOptions{})
         // assertions:
         assert err != nil
         assert strings.Contains(err.Error(), "stager")   // ResolveRoles stager-role error
@@ -625,8 +625,8 @@ Task 4: EDIT pkg/stagehand/stagehand_test.go — multi-commit entry + role-overr
   - ADD TestDecompose_StagerOverride:
         setupTestRepo(t, stubtest.Options{Out: "feat: x"})
         writeFile(t, ".", "b.txt", "un-staged change\n")
-        res, err := stagehand.Decompose(context.Background(), stagehand.DecomposeOptions{
-            Stager: stagehand.RoleModel{Provider: "nonexistent"},
+        res, err := stagecoach.Decompose(context.Background(), stagecoach.DecomposeOptions{
+            Stager: stagecoach.RoleModel{Provider: "nonexistent"},
         })
         // assertions: the override flowed into cfg.Roles["stager"] → ResolveRoles fails with
         // "unknown provider" (distinct from the tooled_flags error), proving the override was applied.
@@ -688,8 +688,8 @@ Task 4: EDIT pkg/stagehand/stagehand_test.go — multi-commit entry + role-overr
 ### Integration Points
 
 ```yaml
-PUBLIC API (pkg/stagehand/stagehand.go):
-  - add to: pkg/stagehand (the existing package)
+PUBLIC API (pkg/stagecoach/stagecoach.go):
+  - add to: pkg/stagecoach (the existing package)
   - pattern: mirror GenerateCommit's doc-comment style + the Options/Result struct shape; "Stable as of v2.0"
 INTERNAL DECOMPOSE: CONSUMED — Decompose, ResolveRoles, Deps, RoleManifests, RoleModels, CommitResult,
   DecomposeResult (internal — no Provider field). The wrapper maps internal→public.
@@ -698,10 +698,10 @@ CONFIG: CONSUMED — Config.{Commits,Single,MaxCommits,Roles}, RoleConfig, Defau
 PROVIDER: CONSUMED — NewRegistry, DecodeUserOverrides (mirror buildDeps + the CLI's runDecompose).
 GIT: CONSUMED — git.New(repoDir). No new git methods.
 UI: CONSUMED — ui.NewVerbose(opts.Verbose, cfg.Verbose). No changes.
-GENERATE: CONSUMED — RescueError, CASError, sentinels (ALREADY aliased in pkg/stagehand — no new aliases).
+GENERATE: CONSUMED — RescueError, CASError, sentinels (ALREADY aliased in pkg/stagecoach — no new aliases).
 SIGNAL: CONSUMED (no-op) — the wrapper does NOT call signal.Install; the loop's arming is nil-safe. No changes.
-CLI (internal/cmd): NOT TOUCHED — owned by parallel P4.M1.T1.S1. The swap to pkg/stagehand.Decompose is a follow-up.
-MAIN (cmd/stagehand/main.go): UNCHANGED.
+CLI (internal/cmd): NOT TOUCHED — owned by parallel P4.M1.T1.S1. The swap to pkg/stagecoach.Decompose is a follow-up.
+MAIN (cmd/stagecoach/main.go): UNCHANGED.
 ```
 
 ## Validation Loop
@@ -716,7 +716,7 @@ gofmt -l internal/ pkg/              # MUST print nothing
 golangci-lint run                    # repo linter (Makefile `make lint`) — includes `unused`
 
 # Scope-specific quick check:
-go build ./pkg/stagehand/... && go vet ./pkg/stagehand/...
+go build ./pkg/stagecoach/... && go vet ./pkg/stagecoach/...
 
 # Expected: zero errors. Verify: the new internal/decompose import is USED (Decompose references
 # decompose.Decompose/ResolveRoles/Deps/DecomposeResult/RoleModels) — else `unused import`. Verify the
@@ -729,11 +729,11 @@ go build ./pkg/stagehand/... && go vet ./pkg/stagehand/...
 
 ```bash
 # The four new tests:
-go test -race ./pkg/stagehand/ -run 'TestDecompose_SingleDelegates|TestDecompose_Count1Delegates' -v
-go test -race ./pkg/stagehand/ -run 'TestDecompose_MultiEntry_RoleError|TestDecompose_StagerOverride' -v
+go test -race ./pkg/stagecoach/ -run 'TestDecompose_SingleDelegates|TestDecompose_Count1Delegates' -v
+go test -race ./pkg/stagecoach/ -run 'TestDecompose_MultiEntry_RoleError|TestDecompose_StagerOverride' -v
 
-# Full pkg/stagehand suite (regression — existing GenerateCommit tests stay green):
-go test -race ./pkg/stagehand/...
+# Full pkg/stagecoach suite (regression — existing GenerateCommit tests stay green):
+go test -race ./pkg/stagecoach/...
 
 # Whole suite (Makefile `make test`):
 go test -race ./...
@@ -750,19 +750,19 @@ go test -race ./...
 ```bash
 # Build the module + a binary smoke (the public API is library-only; the binary is unchanged):
 go build ./...
-go build -o /tmp/stagehand ./cmd/stagehand   # smoke (no CLI behavior change from this task)
+go build -o /tmp/stagecoach ./cmd/stagecoach   # smoke (no CLI behavior change from this task)
 
 # Verify the public API compiles for an external-style import + the symbols are exported:
-go doc github.com/dustin/stagehand/pkg/stagehand.Decompose        # prints the Decompose doc comment
-go doc github.com/dustin/stagehand/pkg/stagehand.DecomposeOptions # prints the options doc comment
-go doc github.com/dustin/stagehand/pkg/stagehand.DecomposeResult
-go doc github.com/dustin/stagehand/pkg/stagehand.RoleModel
+go doc github.com/dustin/stagecoach/pkg/stagecoach.Decompose        # prints the Decompose doc comment
+go doc github.com/dustin/stagecoach/pkg/stagecoach.DecomposeOptions # prints the options doc comment
+go doc github.com/dustin/stagecoach/pkg/stagecoach.DecomposeResult
+go doc github.com/dustin/stagecoach/pkg/stagecoach.RoleModel
 # Expected: each prints a doc comment containing "Stable as of v2.0".
 
-# Coverage gate (pkg/stagehand is NOT gated, but internal/ packages ARE — confirm no regression):
+# Coverage gate (pkg/stagecoach is NOT gated, but internal/ packages ARE — confirm no regression):
 make coverage-gate      # enforces >=85% on internal/{git,provider,generate,config}
 
-# Expected: PASS. This task edits only pkg/stagehand (not gated) + its test; it consumes (does not change)
+# Expected: PASS. This task edits only pkg/stagecoach (not gated) + its test; it consumes (does not change)
 # internal/* symbols, so no gated package's coverage is impacted. go.mod/go.sum MUST be unchanged (all
 # imports — including internal/decompose — are already module-internal / vendored).
 ```
@@ -795,12 +795,12 @@ make coverage-gate      # enforces >=85% on internal/{git,provider,generate,conf
 - [ ] `go test -race ./...` green (Makefile `make test`).
 - [ ] `golangci-lint run` clean (Makefile `make lint`) — `unused` does NOT fire on the new helpers/types.
 - [ ] `gofmt -l internal/ pkg/` empty.
-- [ ] `make coverage-gate` PASS (no gated-package regression — pkg/stagehand edits only).
+- [ ] `make coverage-gate` PASS (no gated-package regression — pkg/stagecoach edits only).
 - [ ] go.mod/go.sum UNCHANGED (config/decompose/git/provider/ui/generate all already imported/vendored).
 
 ### Feature Validation
 
-- [ ] `pkg/stagehand` exports `Decompose`, `DecomposeOptions`, `DecomposeResult`, `RoleModel` (and ONLY these
+- [ ] `pkg/stagecoach` exports `Decompose`, `DecomposeOptions`, `DecomposeResult`, `RoleModel` (and ONLY these
       new symbols — no new error sentinels).
 - [ ] Each new exported symbol has a "Stable as of v2.0" doc comment (verified via `go doc`).
 - [ ] `DecomposeOptions` field list matches PRD §14.1 EXACTLY (embedded Options + Count/Single/MaxCommits/
@@ -817,8 +817,8 @@ make coverage-gate      # enforces >=85% on internal/{git,provider,generate,conf
 
 ### Code Quality Validation
 
-- [ ] Follows existing pkg/stagehand patterns (resolveConfig reuse, GenerateCommit doc-comment style, fmt.Errorf idiom).
-- [ ] File placement matches the desired tree (edits to stagehand.go + stagehand_test.go ONLY).
+- [ ] Follows existing pkg/stagecoach patterns (resolveConfig reuse, GenerateCommit doc-comment style, fmt.Errorf idiom).
+- [ ] File placement matches the desired tree (edits to stagecoach.go + stagecoach_test.go ONLY).
 - [ ] Anti-patterns avoided (see below): no CLI encroachment, no defensive HasStagedChanges check, no signal.Install.
 - [ ] The `internal/decompose` import is USED (no `unused import`); the new unexported helpers are USED.
 - [ ] The decompose-specific overrides use `!= 0`/`if opts.Single` guards (zero = inherit, don't clobber).
@@ -839,7 +839,7 @@ make coverage-gate      # enforces >=85% on internal/{git,provider,generate,conf
 ## Anti-Patterns to Avoid
 
 - ❌ Don't edit `internal/cmd/` — it is owned by the PARALLEL P4.M1.T1.S1 task (which calls
-  internal/decompose.Decompose directly). The CLI swap to pkg/stagehand.Decompose is a LATER follow-up.
+  internal/decompose.Decompose directly). The CLI swap to pkg/stagecoach.Decompose is a LATER follow-up.
   Encroaching here causes a parallel-edit race/merge-conflict.
 - ❌ Don't add a `Message` field to DecomposeOptions — PRD §14.1 has none (message = global, FR-R2). The
   MESSAGE role inherits opts.Provider/opts.Model via the embedded Options + resolveConfig.

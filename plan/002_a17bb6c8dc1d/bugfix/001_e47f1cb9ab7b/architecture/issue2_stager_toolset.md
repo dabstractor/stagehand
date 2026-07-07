@@ -3,7 +3,7 @@
 ## Root Cause
 
 PRD §19 claims the stager agent is "structurally constrained" — it "cannot commit, amend, or push,
-because stagehand owns every ref mutation." The shipped `tooled_flags` profiles do NOT deliver this:
+because stagecoach owns every ref mutation." The shipped `tooled_flags` profiles do NOT deliver this:
 
 ### pi (`internal/provider/builtin.go`, `builtinPi()`)
 ```go
@@ -17,7 +17,7 @@ TooledFlags: []string{
 ```
 This is pi's bare flags **MINUS `--no-tools`** — pi's entire native tool system is enabled with NO
 allowlist. The inline comment admits: *"pi has no git-scoped allowlist … stager safety is via the
-stager task prompt + stagehand's ref-mutation monopoly."* A pi stager can run arbitrary Bash,
+stager task prompt + stagecoach's ref-mutation monopoly."* A pi stager can run arbitrary Bash,
 including `git commit`, `git push`, `git update-ref`, `rm -rf`.
 
 ### claude (`internal/provider/builtin.go`, `builtinClaude()`)

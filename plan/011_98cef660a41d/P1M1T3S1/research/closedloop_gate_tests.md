@@ -1,6 +1,6 @@
 # closedLoopGate convergence + invariant pure tests — P1.M1.T3.S1 Research
 
-> Verified against the live repo (module `github.com/dustin/stagehand`, 2026-07-07). No files modified —
+> Verified against the live repo (module `github.com/dustin/stagecoach`, 2026-07-07). No files modified —
 > research only. This is a TEST-ONLY task (1 point) for the FR3j closed-loop gate.
 
 ## 1. What this task is (and is not)

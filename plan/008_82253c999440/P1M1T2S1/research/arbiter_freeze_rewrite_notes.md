@@ -14,7 +14,7 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` |
 | Edit targets | `internal/decompose/decompose.go` (gate + runArbiterPhase), `internal/decompose/chain.go` (resolveArbiter + 3 paths + remove leftoverPaths helper), `internal/decompose/chain_test.go` (7 call sites + chnBuildChain + remove TestLeftoverPaths) |
 | S1 (OverlayTreePaths) | **LANDED** — git.go:290-302 (interface) + 1635-1643 (gitRunner impl). `go build ./internal/git/` OK. |
 | Baseline | `go test ./internal/decompose/` → **ok (9.389s)**; `go vet ./internal/decompose/` clean (test files compile). |

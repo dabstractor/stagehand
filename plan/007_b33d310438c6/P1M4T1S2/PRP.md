@@ -13,7 +13,7 @@ description: |
 
   CONTRACT (item_description §3, verbatim intent): provide a small SHARED helper to avoid 6× duplication.
   Concretely:
-    - MESSAGE path (sites 1,2,3,5 — generate.go, hook/exec.go, pkg/stagehand.go, decompose/message.go):
+    - MESSAGE path (sites 1,2,3,5 — generate.go, hook/exec.go, pkg/stagecoach.go, decompose/message.go):
       reserve = EstimateTokens(sysPrompt) + EstimateTokens(worstCaseRejectionOverhead) + margin, where the
       worst case is the REJECTION path (userInstructionReject + context + rejectionPreamble +
       maxDuplicateRetries rejected-subject lines + rejectionEpilogue). The reserve is a WORST-CASE ceiling,
@@ -41,7 +41,7 @@ description: |
   is the ZERO this task wires):
     1. internal/generate/generate.go:163      StagedDiff  (cfg)            → MESSAGE role
     2. internal/hook/exec.go:104              StagedDiff  (cfg)            → MESSAGE role
-    3. pkg/stagehand/stagehand.go:423         StagedDiff  (cfg)            → MESSAGE role (+ systemExtra)
+    3. pkg/stagecoach/stagecoach.go:423         StagedDiff  (cfg)            → MESSAGE role (+ systemExtra)
     4. internal/decompose/planner.go:69       TreeDiff    (deps.Config)   → PLANNER role
     5. internal/decompose/message.go:71       TreeDiff    (deps.Config)   → MESSAGE role
     6. internal/decompose/decompose.go:608    TreeDiff    (deps.Config)   → ARBITER role
@@ -124,7 +124,7 @@ which consume `opts.PromptReserveTokens`. Transitively: every user who sets `tok
 so a large diff fits their model's context window — the reserve is the "prompt" term that, subtracted from
 `token_limit`, leaves the `body_budget` the water-fill allocates across files.
 
-**Use Case**: A user sets `token_limit = 120000`. At each diff call site, stagehand measures the prompt
+**Use Case**: A user sets `token_limit = 120000`. At each diff call site, stagecoach measures the prompt
 it's ABOUT to send (system prompt + style examples + worst-case rejection block + margin) ≈ a few thousand
 tokens, sets `opts.PromptReserveTokens`, and the diff layer (M4.T2/T3) gives the REMAINDER to the diff body
 via water-fill. Without this seam, the diff layer wouldn't know how much budget the prompt consumes.
@@ -291,12 +291,12 @@ reorder rationale (§4). No water-fill/gate/diff-function knowledge required (th
        (which does CommitCount + RecentMessages + BuildSystemPrompt). Empty-check `if diff == ""` → ErrNoOp.
   why: REORDER hookSystemPrompt before StagedDiff; measure MessageReserveTokens; set PromptReserveTokens.
 
-- file: pkg/stagehand/stagehand.go   (EDIT — site 3, MESSAGE role, cfg + systemExtra)
+- file: pkg/stagecoach/stagecoach.go   (EDIT — site 3, MESSAGE role, cfg + systemExtra)
   section: runPipeline. StagedDiff literal at ~:423; `buildSysPrompt(...)` at ~:447; `sysPrompt += "\n\n" +
        systemExtra` at ~:452.
   why: REORDER buildSysPrompt + the systemExtra append to BEFORE StagedDiff; measure MessageReserveTokens
        AFTER the systemExtra append (so the reserve includes systemExtra, design §9); set PromptReserveTokens.
-  gotcha: pkg/stagehand already imports internal/git (uses git.StagedDiffOptions/git.New) — git.EstimateTokens
+  gotcha: pkg/stagecoach already imports internal/git (uses git.StagedDiffOptions/git.New) — git.EstimateTokens
        resolves with no new import.
 
 - file: internal/decompose/planner.go   (EDIT — site 4, PLANNER role, deps.Config)
@@ -349,7 +349,7 @@ internal/prompt/
   reserve_test.go                  # *** CREATE *** — pure table tests.
 internal/generate/generate.go      # EDIT (site 1) — reorder buildSystemPrompt before StagedDiff + set PromptReserveTokens.
 internal/hook/exec.go              # EDIT (site 2) — reorder hookSystemPrompt before StagedDiff + set PromptReserveTokens.
-pkg/stagehand/stagehand.go         # EDIT (site 3) — reorder buildSysPrompt(+systemExtra) before StagedDiff + set PromptReserveTokens.
+pkg/stagecoach/stagecoach.go         # EDIT (site 3) — reorder buildSysPrompt(+systemExtra) before StagedDiff + set PromptReserveTokens.
 internal/decompose/planner.go      # EDIT (site 4) — reorder plannerExamples+BuildPlannerSystemPrompt before TreeDiff + set PromptReserveTokens.
 internal/decompose/message.go      # EDIT (site 5) — reorder messageSystemPrompt before TreeDiff + set PromptReserveTokens.
 internal/decompose/decompose.go    # EDIT (site 6) — convertArbiterCommits+BuildArbiterSystemPrompt before TreeDiff + set PromptReserveTokens.
@@ -364,7 +364,7 @@ internal/prompt/reserve.go          # NEW — TokenEstimator type + Message/Plan
 internal/prompt/reserve_test.go     # NEW — pure table tests (worst-case stability, empty examples, monotonic, margin, empty-diff trick).
 internal/generate/generate.go       # MODIFIED — site 1: reorder + MessageReserveTokens + PromptReserveTokens.
 internal/hook/exec.go               # MODIFIED — site 2: reorder + MessageReserveTokens + PromptReserveTokens.
-pkg/stagehand/stagehand.go          # MODIFIED — site 3: reorder (incl systemExtra) + MessageReserveTokens + PromptReserveTokens.
+pkg/stagecoach/stagecoach.go          # MODIFIED — site 3: reorder (incl systemExtra) + MessageReserveTokens + PromptReserveTokens.
 internal/decompose/planner.go       # MODIFIED — site 4: reorder + PlannerReserveTokens + PromptReserveTokens.
 internal/decompose/message.go       # MODIFIED — site 5: reorder + MessageReserveTokens + PromptReserveTokens.
 internal/decompose/decompose.go     # MODIFIED — site 6: convertArbiterCommits + ArbiterReserveTokens + PromptReserveTokens.
@@ -378,7 +378,7 @@ internal/decompose/decompose.go     # MODIFIED — site 6: convertArbiterCommits
 //   package by stated design (planner.go: "zero internal dependencies"). The helper needs git.EstimateTokens
 //   AND prompt's unexported constants. Resolution: take `est TokenEstimator` as a PARAM (call sites pass
 //   git.EstimateTokens). prompt stays leaf-pure, uses its constants natively, no new package. Do NOT add
-//   `import "github.com/dustin/stagehand/internal/git"` to reserve.go.
+//   `import "github.com/dustin/stagecoach/internal/git"` to reserve.go.
 
 // CRITICAL (site 5 is MESSAGE, not planner, design §1): the contract lumps decompose sites 4/5/6 under
 //   "planner path", but message.go:generateMessage is the MESSAGE role (its loop appends `rejected` —
@@ -461,7 +461,7 @@ func measureReserve(sysPrompt, overhead string, est TokenEstimator) int {
 
 // MessageReserveTokens computes the worst-case prompt reserve for the MESSAGE role (FR3d/FR3i). sysPrompt is
 // the ALREADY-BUILT system prompt (BuildSystemPrompt/BuildFallbackPrompt output — header + style examples +
-// format scaffold + locale line; at pkg/stagehand it includes the appended SystemExtra). The message user
+// format scaffold + locale line; at pkg/stagecoach it includes the appended SystemExtra). The message user
 // payload's worst case is the REJECTION path (FR32): it grows per dedupe attempt up to maxDuplicateRetries
 // rejected subjects. Because the diff is captured ONCE before the dedupe loop, the reserve is the WORST CASE
 // (all maxDuplicateRetries slots filled), measured once — stable across attempts (a ceiling, not per-attempt).
@@ -471,7 +471,7 @@ func measureReserve(sysPrompt, overhead string, est TokenEstimator) int {
 // subjects at ~subjectTargetChars each). The normal path (no rejection) is smaller, so this is a safe upper
 // bound for every attempt. reserveSafetyMargin absorbs over-length subjects + the FR29 retryInstruction.
 //
-// Consumers: generate.CommitStaged, hook.Run, pkg/stagehand.runPipeline, decompose.generateMessage.
+// Consumers: generate.CommitStaged, hook.Run, pkg/stagecoach.runPipeline, decompose.generateMessage.
 func MessageReserveTokens(sysPrompt string, maxDuplicateRetries, subjectTargetChars int, context string, est TokenEstimator) int {
 	n := maxDuplicateRetries
 	if n < 0 {
@@ -521,7 +521,7 @@ Task 1: CREATE internal/prompt/reserve.go (the helper family — leaf-pure, inje
   - DOC COMMENTS on every exported symbol cite FR3d/FR3i, the worst-case rationale, the empty-diff trick,
       the single-estimator rule (pass git.EstimateTokens), and the reserveSafetyMargin-vs-FR3i-margin
       distinction (so future readers don't conflate them or import git into prompt).
-  - GOTCHA: do NOT `import "github.com/dustin/stagehand/internal/git"` — the estimator is the `est` param.
+  - GOTCHA: do NOT `import "github.com/dustin/stagecoach/internal/git"` — the estimator is the `est` param.
       Use `max(n, 0)` / `max(subjectTargetChars, 1)` (go 1.22 builtin). The helpers call the SAME-PACKAGE
       builders (BuildUserPayload/BuildPlannerUserPayload/BuildArbiterUserPayload) with empty diff.
   - RUN: gofmt -w ; go build ./internal/prompt/ → exit 0.
@@ -569,7 +569,7 @@ Task 4: EDIT site 2 — internal/hook/exec.go (MESSAGE role, cfg)
       cfg.SubjectTargetChars, cfg.Context, git.EstimateTokens)`; append `PromptReserveTokens: reserve,`.
   - RUN: gofmt -w ; go build ./internal/hook/ → exit 0.
 
-Task 5: EDIT site 3 — pkg/stagehand/stagehand.go (MESSAGE role, cfg + systemExtra)
+Task 5: EDIT site 3 — pkg/stagecoach/stagecoach.go (MESSAGE role, cfg + systemExtra)
   - LOCATE runPipeline. Current: StagedDiff(:423) → empty-check → WriteTree → buildSysPrompt(:447) →
       `sysPrompt += "\n\n" + systemExtra`(:452) → loop.
   - REORDER: move buildSysPrompt + the systemExtra append to BEFORE StagedDiff. MEASURE the reserve AFTER
@@ -577,8 +577,8 @@ Task 5: EDIT site 3 — pkg/stagehand/stagehand.go (MESSAGE role, cfg + systemEx
       sysPrompt, cfg.MaxDuplicateRetries, cfg.SubjectTargetChars, cfg.Context, git.EstimateTokens)`.
   - SET: append `PromptReserveTokens: reserve,` to the StagedDiffOptions literal.
   - GOTCHA: runPipeline also has a DryRun path — the reserve is measured+set uniformly (DryRun still calls
-      StagedDiff to capture the diff). pkg/stagehand already imports internal/git ⇒ git.EstimateTokens resolves.
-  - RUN: gofmt -w ; go build ./pkg/stagehand/ → exit 0.
+      StagedDiff to capture the diff). pkg/stagecoach already imports internal/git ⇒ git.EstimateTokens resolves.
+  - RUN: gofmt -w ; go build ./pkg/stagecoach/ → exit 0.
 
 Task 6: EDIT site 4 — internal/decompose/planner.go (PLANNER role, deps.Config)
   - LOCATE callPlanner. Current: TreeDiff(:69) → plannerExamples(:82) + BuildPlannerSystemPrompt(:86).
@@ -613,16 +613,16 @@ Task 8: EDIT site 6 — internal/decompose/decompose.go (ARBITER role, deps.Conf
 
 Task 9: VALIDATE (run all gates; fix before declaring done)
   - gofmt -w internal/prompt/reserve.go internal/prompt/reserve_test.go internal/generate/generate.go
-      internal/hook/exec.go pkg/stagehand/stagehand.go internal/decompose/planner.go
+      internal/hook/exec.go pkg/stagecoach/stagecoach.go internal/decompose/planner.go
       internal/decompose/message.go internal/decompose/decompose.go
   - go vet ./... && go build ./...
   - go test ./...   (ALL green — behavior-free: the field is unread until M4.T3; diff output byte-identical.)
   - go test ./internal/prompt/ -run 'Reserve' -v   (the new helper tests)
-  - git grep -n 'PromptReserveTokens:' internal/generate internal/hook pkg/stagehand internal/decompose
+  - git grep -n 'PromptReserveTokens:' internal/generate internal/hook pkg/stagecoach internal/decompose
       (expect: 6 matches — one per site, each set from the role-appropriate helper.)
-  - git grep -n 'EstimateTokens' internal/generate internal/hook pkg/stagehand internal/decompose
+  - git grep -n 'EstimateTokens' internal/generate internal/hook pkg/stagecoach internal/decompose
       (expect: 6 matches — each site passes git.EstimateTokens to the helper.)
-  - ! grep -q 'stagehand/internal/git' internal/prompt/reserve.go   (confirm leaf-pure: NO internal import.)
+  - ! grep -q 'stagecoach/internal/git' internal/prompt/reserve.go   (confirm leaf-pure: NO internal import.)
   - git diff --stat → expect ONLY the 2 new files + the 6 edited call-site files. internal/git UNCHANGED.
 ```
 
@@ -673,7 +673,7 @@ PROMPT.PACKAGE (internal/prompt/reserve.go):
 CALL SITES (6 — each: reorder prompt build before diff + measure + set PromptReserveTokens):
   - internal/generate/generate.go:163   StagedDiff  (cfg)          → MessageReserveTokens
   - internal/hook/exec.go:104           StagedDiff  (cfg)          → MessageReserveTokens
-  - pkg/stagehand/stagehand.go:423      StagedDiff  (cfg)          → MessageReserveTokens (after systemExtra)
+  - pkg/stagecoach/stagecoach.go:423      StagedDiff  (cfg)          → MessageReserveTokens (after systemExtra)
   - internal/decompose/planner.go:69    TreeDiff    (deps.Config)  → PlannerReserveTokens
   - internal/decompose/message.go:71    TreeDiff    (deps.Config)  → MessageReserveTokens
   - internal/decompose/decompose.go:608 TreeDiff    (deps.Config)  → ArbiterReserveTokens (convertArbiterCommits)
@@ -695,10 +695,10 @@ DOWNSTREAM CONSUMERS (informational — owned by LATER subtasks, NOT this one):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/prompt/reserve.go internal/prompt/reserve_test.go internal/generate/generate.go \
-       internal/hook/exec.go pkg/stagehand/stagehand.go internal/decompose/planner.go \
+       internal/hook/exec.go pkg/stagecoach/stagecoach.go internal/decompose/planner.go \
        internal/decompose/message.go internal/decompose/decompose.go
 # Expected: empty (run gofmt -w on any listed file — it re-aligns the struct literals).
 
@@ -710,13 +710,13 @@ go build ./...
 # (TokenEstimator matches git.EstimateTokens's `func(string) int`).
 
 # Confirm reserve.go is leaf-pure (NO internal import — the estimator is injected):
-! grep -q 'stagehand/internal/git' internal/prompt/reserve.go && echo "OK: reserve.go is leaf-pure"
+! grep -q 'stagecoach/internal/git' internal/prompt/reserve.go && echo "OK: reserve.go is leaf-pure"
 ```
 
 ### Level 2: Unit Tests (the helper family + behavior-free regression)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new helper family (pure table tests):
 go test ./internal/prompt/ -run 'Reserve' -v
@@ -725,7 +725,7 @@ go test ./internal/prompt/ -run 'Reserve' -v
 # isn't growing with retries (fix the synthesis). If measureReserve doesn't include +256, the margin was dropped.
 
 # The 6 call-site packages — existing suites unchanged (PromptReserveTokens is unread until M4.T3):
-go test ./internal/generate/ ./internal/hook/ ./internal/decompose/ ./pkg/stagehand/ ./internal/prompt/
+go test ./internal/generate/ ./internal/hook/ ./internal/decompose/ ./pkg/stagecoach/ ./internal/prompt/
 # Expected: ALL green. No existing test alters (the diff functions do not read the field yet).
 
 go test ./...
@@ -735,31 +735,31 @@ go test ./...
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...     # Expected: ALL green.
 go vet ./...            # Expected: exit 0.
 
 # Confirm all 6 sites set PromptReserveTokens (6 matches):
 git grep -n 'PromptReserveTokens:' internal/generate/generate.go internal/hook/exec.go \
-    pkg/stagehand/stagehand.go internal/decompose/planner.go internal/decompose/message.go \
+    pkg/stagecoach/stagecoach.go internal/decompose/planner.go internal/decompose/message.go \
     internal/decompose/decompose.go | wc -l
 # Expected: 6.
 
 # Confirm each site passes git.EstimateTokens (6 matches — the single estimator is wired everywhere):
 git grep -n 'git.EstimateTokens' internal/generate/generate.go internal/hook/exec.go \
-    pkg/stagehand/stagehand.go internal/decompose/planner.go internal/decompose/message.go \
+    pkg/stagecoach/stagecoach.go internal/decompose/planner.go internal/decompose/message.go \
     internal/decompose/decompose.go | wc -l
 # Expected: 6.
 
 # Confirm the role mapping: Message at 4 sites, Planner at 1, Arbiter at 1:
 git grep -c 'MessageReserveTokens' internal/generate/generate.go internal/hook/exec.go \
-    pkg/stagehand/stagehand.go internal/decompose/message.go   # expect 1 each (4 total)
+    pkg/stagecoach/stagecoach.go internal/decompose/message.go   # expect 1 each (4 total)
 git grep -c 'PlannerReserveTokens' internal/decompose/planner.go                       # expect 1
 git grep -c 'ArbiterReserveTokens' internal/decompose/decompose.go                     # expect 1
 
 # Confirm ONLY the 2 new + 6 edited files changed; internal/git UNCHANGED:
-git diff --stat -- internal/prompt/ internal/generate/ internal/hook/ internal/decompose/ pkg/stagehand/
+git diff --stat -- internal/prompt/ internal/generate/ internal/hook/ internal/decompose/ pkg/stagecoach/
 # Expected: reserve.go + reserve_test.go (new) + the 6 call-site files (modified). Nothing else.
 git diff --stat -- internal/git/   # Expected: EMPTY (S1's EstimateTokens is the frozen input; untouched).
 ```
@@ -767,7 +767,7 @@ git diff --stat -- internal/git/   # Expected: EMPTY (S1's EstimateTokens is the
 ### Level 4: Worst-Case Correctness Cross-Check (the reserve IS an upper bound)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The correctness contract: the reserve must be a WORST-CASE upper bound on the non-diff prompt portion at
 # EVERY attempt. The helper tests (Level 2) pin this arithmetically. This is the human-readable reasoning:

@@ -244,7 +244,7 @@ Both `BuildStagerTask(t, d, nil)` and `BuildStagerTask(t, d, []string{})` MUST N
 ## §6. Validation commands (verified convention from sibling PRPs)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -l internal/prompt/stager.go internal/prompt/stager_test.go internal/decompose/stager.go   # expect EMPTY
 go build ./...                              # expect success
 go vet ./internal/prompt/ ./internal/decompose/   # expect clean

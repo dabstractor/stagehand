@@ -231,7 +231,7 @@ functions + their tests.
   section: `DetectMultiline(examples []string) bool` (exported, bool-only, no-error, stdlib-only) and
            `BuildUserPayload` (exported, string-only, no-error) — both pure transformations, both exported
            per the work-item contract, both decoupled from config/git/provider.
-  why: the architectural PRECEDENT — Stagehand's generation pipeline is built from small exported pure
+  why: the architectural PRECEDENT — Stagecoach's generation pipeline is built from small exported pure
        functions that the orchestrator composes. dedupe.go's IsDuplicate/ExtractSubject are exactly this
        shape (exported, single-value, no-error, stdlib-only). Mirror the doc-comment density (cite PRD §/FR).
   gotcha: do NOT reuse prompt's constants/helpers — dedupe has NO string constants (just two functions).
@@ -249,7 +249,7 @@ functions + their tests.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — dedupe adds NO dep: stdlib strings only)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — dedupe adds NO dep: stdlib strings only)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — untouched (read-only ref: MaxDuplicateRetries default 3 — ORCHESTRATOR's, not dedupe's)
@@ -262,7 +262,7 @@ internal/
     payload.go                  # EXISTS (S3, parallel) — UNCHANGED by this subtask
   provider/                     # P1.M2 (T1–T6) — untouched (parse.go ParseOutput read-only ref)
   ui/                           # P1.M4 (empty stub) — untouched
-cmd/stagehand/main.go           # stub — untouched
+cmd/stagecoach/main.go           # stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -433,14 +433,14 @@ DOWNSTREAM CONTRACTS (the consumers — do NOT implement here, just honor the si
         The retry counter (cfg.MaxDuplicateRetries, default 3) and the FR33 rescue path are T4/T3.
   - P1.M3.T1.S3 (parallel, payload.go): prompt.BuildUserPayload(diff, rejected) — the orchestrator passes
         the appended `rejected` slice; BuildUserPayload emits the §17.3 rejection block listing them.
-  - P1.M3.T5 (public API pkg/stagehand): may re-export IsDuplicate/ExtractSubject.
+  - P1.M3.T5 (public API pkg/stagecoach): may re-export IsDuplicate/ExtractSubject.
   => The `IsDuplicate(subject string, recent []string) bool` and `ExtractSubject(message string) string`
      signatures are FROZEN after this subtask.
 
 FROZEN FILES (do NOT edit):
   - internal/prompt/* (S1/S2/S3 own the prompt layer; S3's payload.go is implementing in parallel),
         internal/git/* (RecentSubjects built), internal/provider/* (ParseOutput built), internal/config/*,
-        cmd/stagehand/main.go, pkg/*, Makefile, go.mod, go.sum.
+        cmd/stagecoach/main.go, pkg/*, Makefile, go.mod, go.sum.
 ```
 
 ## Validation Loop

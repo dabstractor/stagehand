@@ -1,4 +1,4 @@
-# System Context — Stagehand
+# System Context — Stagecoach
 
 > **Status:** Researched & validated against the live environment (2026-06-29).
 > All agent CLIs verified against real `--help` output. Git plumbing verified by execution.
@@ -25,7 +25,7 @@ The Go module will be created from scratch following the package layout in PRD �
 - It commits with `git commit-tree` + `git update-ref HEAD <new> <parent>` (CAS form).
 - It installs a `trap 'handle_error' INT TERM` rescue that prints `TREE_SHA` + manual recovery command.
 
-**Stagehand changes vs commit-pi:**
+**Stagecoach changes vs commit-pi:**
 - Agent-agnostic via provider manifests (not welded to `pi`).
 - **Raw output default** (not JSON) — removes the double-quote constraint and fragile `sed` parse. JSON remains available per-provider.
 - Go binary (not zsh) — distributable via Homebrew/go install/releases.
@@ -59,15 +59,15 @@ write-tree ───────▶│ freezes  │          │ prompt builder 
                         │ on failure ──▶ rescue protocol (print TREE_SHA + recovery cmd)
 ```
 
-The flow is **linear and synchronous in v1**. Stage-while-generating is NOT backgrounding Stagehand;
+The flow is **linear and synchronous in v1**. Stage-while-generating is NOT backgrounding Stagecoach;
 it's the user running `git add` in another pane during the blocking generation call — safe because
 the commit is built from the frozen `TREE_SHA`, not the live index.
 
 ## 4. Package Layout (PRD §14)
 
 ```
-stagehand/
-├── cmd/stagehand/main.go              # entrypoint: arg parsing, wiring, exit codes
+stagecoach/
+├── cmd/stagecoach/main.go              # entrypoint: arg parsing, wiring, exit codes
 ├── internal/
 │   ├── config/      config.go, defaults.go, file.go, config_test.go
 │   ├── provider/    manifest.go, builtin.go, registry.go, executor.go, parse.go, *_test.go
@@ -75,7 +75,7 @@ stagehand/
 │   ├── git/         git.go, plumbing.go, diff.go, log.go, stage.go, *_test.go
 │   ├── generate/    generate.go, dedupe.go, rescue.go, *_test.go
 │   └── ui/          output.go, exitcode.go
-├── pkg/stagehand/stagehand.go         # PUBLIC API: GenerateCommit(ctx, opts) (Result, error)
+├── pkg/stagecoach/stagecoach.go         # PUBLIC API: GenerateCommit(ctx, opts) (Result, error)
 ├── providers/        pi.toml, claude.toml, gemini.toml, opencode.toml, codex.toml, cursor.toml
 ├── docs/PRD.md
 ├── .goreleaser.yaml, go.mod, go.sum, Makefile, README.md
@@ -93,7 +93,7 @@ The core is `commitStaged(ctx, cfg) error` that assumes the index is already in 
 ## 5. Process Model (§11.2)
 
 Single process. Shells out to `git` (multiple times) and to the agent CLI (once per attempt).
-All subprocesses inherit Stagehand's working directory (repo root) and environment, with a
+All subprocesses inherit Stagecoach's working directory (repo root) and environment, with a
 controlled minimal set of extra env vars passed to the agent only if the manifest's `[env]` requests.
 
 **Signal handling (§18.4):** SIGINT/SIGTERM propagates to the running child's process group
@@ -119,4 +119,4 @@ the snapshot was taken. The default signal handler is restored before the final 
 
 This is enforced by: (1) `write-tree` is read-only w.r.t. refs, (2) `commit-tree` is read-only
 w.r.t. refs (creates a dangling object), (3) `update-ref` CAS is the only ref mutation,
-(4) the index is NEVER reset by Stagehand.
+(4) the index is NEVER reset by Stagecoach.

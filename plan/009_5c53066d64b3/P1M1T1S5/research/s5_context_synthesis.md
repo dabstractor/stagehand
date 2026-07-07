@@ -30,7 +30,7 @@ Helpers `containsPair` (606) and `containsToken` (616) are the established prese
 
 Two things the S5 contract asks for that S3 did NOT deliver:
 
-1. **(c) cross-turn sessionID stability** — S3 uses the SAME literal `"stagehand-test"` for turn 1 and
+1. **(c) cross-turn sessionID stability** — S3 uses the SAME literal `"stagecoach-test"` for turn 1 and
    turn 2 but never EXPLICITLY asserts the sessionID string renders identically across turns. This is the
    one real coverage gap. Add `TestRenderMultiTurn_SessionIDStableAcrossTurns`: call `RenderMultiTurn`
    for turn 1 AND turn 2 (and optionally turn 3) with one sessionID; assert

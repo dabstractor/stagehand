@@ -1,7 +1,7 @@
 # P3.M2.T2.S1 — Research Findings (decompose/planner.go)
 
 Empirical findings from reading the shipped code (roles.go, prompt/planner.go, generate.go,
-stagehand.go, git.go, render.go, executor.go, stubtest.go, config.go) + the P3.M2.T1.S1 PRP.
+stagecoach.go, git.go, render.go, executor.go, stubtest.go, config.go) + the P3.M2.T1.S1 PRP.
 
 ## §1. CONTRACT (verbatim from the work item)
 
@@ -183,7 +183,7 @@ planner.go is the 2ND file (additive — different file, no edit to roles.go).
 - git/git.go (WorkingTreeDiff/RecentMessages/StagedDiffOptions) — CONSUMED.
 - config/{config,roles}.go (Config/ResolveRoleModel) — CONSUMED.
 - stager.go/message.go/arbiter.go/chain.go/decompose.go — DO NOT EXIST YET (other tasks own them).
-- cmd/, pkg/stagehand/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires callPlanner; NOT this task).
+- cmd/, pkg/stagecoach/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires callPlanner; NOT this task).
 ```
 DELIVERABLES (2 new files, 0 edits to existing files):
   CREATE internal/decompose/planner.go — package decompose; callPlanner + validatePlannerOutput +

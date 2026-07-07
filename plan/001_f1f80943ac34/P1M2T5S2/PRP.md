@@ -35,12 +35,12 @@ description: |
 
   ⚠️ **THE second call — CTRL_BREAK_EVENT, NOT CTRL_C_EVENT.** `GenerateConsoleCtrlEvent(CTRL_C_EVENT,
   pid)` is a BROADCAST to every process sharing the caller's console (cannot be limited to one group —
-  Microsoft docs); it would interrupt Stagehand itself. `CTRL_BREAK_EVENT` honors `dwProcessGroupId`
+  Microsoft docs); it would interrupt Stagecoach itself. `CTRL_BREAK_EVENT` honors `dwProcessGroupId`
   → targets ONLY the child's group. The work item correctly specifies CTRL_BREAK_EVENT. See research §2.
 
   ⚠️ **THE third call — CREATE_NEW_PROCESS_GROUP but NOT CREATE_NEW_CONSOLE.** `GenerateConsoleCtrlEvent`
   reaches ONLY processes attached to the caller's console. The default (no CREATE_NEW_CONSOLE) lets the
-  child inherit Stagehand's console → CTRL_BREAK reaches it. Setting CREATE_NEW_CONSOLE would silently
+  child inherit Stagecoach's console → CTRL_BREAK reaches it. Setting CREATE_NEW_CONSOLE would silently
   break the kill. See research §3.
 
   ⚠️ **THE fourth call — stdlib `syscall.LazyProc`, NOT `golang.org/x/sys/windows`.**
@@ -105,7 +105,7 @@ on Windows now resolves to THIS file) and transitively the signal handler (P1.M4
 os/exec fires `cmd.Cancel` → `GenerateConsoleCtrlEvent`) and the generate orchestrator (P1.M3.T4 —
 maps the returned `context.Canceled`/`DeadlineExceeded` to exit 3/124 + rescue). End-user persona is
 "the plan-holder" / "the API-key refusenik" on Windows (PRD §7, §21.2 Scoop install path) running any
-of the 6 verified agent CLIs (pi, claude, gemini, opencode, codex, cursor) via Stagehand.
+of the 6 verified agent CLIs (pi, claude, gemini, opencode, codex, cursor) via Stagecoach.
 
 **Use Case**: On Windows, when an agent run times out (PRD FR25) or the user hits Ctrl-C (§18.4), the
 signal handler / timeout cancels the ctx passed to `Execute`; os/exec invokes `cmd.Cancel`; THIS file's
@@ -226,7 +226,7 @@ required — S2 is a single platform-specific file implementing an already-froze
 - url: https://learn.microsoft.com/en-us/windows/console/console-process-groups
   why: confirms a process created with CREATE_NEW_PROCESS_GROUP is a console process-group leader and
        that GenerateConsoleCtrlEvent delivers ONLY to processes sharing the caller's console (→ do NOT
-       add CREATE_NEW_CONSOLE; the child must inherit Stagehand's console).
+       add CREATE_NEW_CONSOLE; the child must inherit Stagecoach's console).
   critical: the console-sharing requirement is the silent failure mode (research §3).
 
 - url: https://github.com/golang/go/issues/17608
@@ -260,7 +260,7 @@ required — S2 is a single platform-specific file implementing an already-froze
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; require go-toml/v2 + pflag  (UNCHANGED — S2 adds NO dep: stdlib LazyProc)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; require go-toml/v2 + pflag  (UNCHANGED — S2 adds NO dep: stdlib LazyProc)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — untouched
@@ -276,7 +276,7 @@ internal/
     executor_test.go                        # T5.S1 — ~8 test groups (no build tag; runs on Unix CI)  (do NOT edit)
     procgroup_windows.go                    # NEW (this subtask) ← setupProcessGroup [//go:build windows]
     procgroup_windows_test.go               # NEW (this subtask, recommended) ← structural test [//go:build windows]
-cmd/stagehand/main.go           # stub — untouched
+cmd/stagecoach/main.go           # stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -303,14 +303,14 @@ internal/
 // the abstraction and conflict with S1. See research §0.
 
 // CRITICAL (CTRL_BREAK not CTRL_C): GenerateConsoleCtrlEvent(CTRL_C_EVENT, pid) broadcasts to ALL
-// processes sharing the caller's console (Microsoft docs) — it would interrupt Stagehand itself and
+// processes sharing the caller's console (Microsoft docs) — it would interrupt Stagecoach itself and
 // cannot be limited to the child's group. CTRL_BREAK_EVENT honors dwProcessGroupId → targets ONLY the
 // child's group. Use syscall.CTRL_BREAK_EVENT (== 1). See research §2.
 
 // CRITICAL (console-sharing — the silent failure): GenerateConsoleCtrlEvent reaches ONLY processes
 // attached to the caller's console. Set CREATE_NEW_PROCESS_GROUP (child = group leader, still sharing
 // the console) but do NOT set CREATE_NEW_CONSOLE (that would give the child its own console → CTRL_BREAK
-// never reaches it → kill silently no-ops). The child inherits Stagehand's console by default. See §3.
+// never reaches it → kill silently no-ops). The child inherits Stagecoach's console by default. See §3.
 
 // CRITICAL (dependency — stdlib LazyProc, NOT x/sys/windows): GenerateConsoleCtrlEvent is NOT in stdlib
 // syscall (verified). Importing golang.org/x/sys/windows WOULD modify go.mod/go.sum even in a build-

@@ -19,7 +19,7 @@ S1's PRP is the authoritative contract. The symbols my command surface consumes:
 - `integrate.Outcome` (+ `String()`) — **the shared reporting vocabulary**. My `InstallResult.Outcome`
   reuses this exact type so lazygit's Apply maps 1:1 and git-alias maps its own result into the same set.
 - `integrate.ConfirmFunc` = `func(out io.Writer, path, diff string) bool`.
-- `integrate.BackupPath(path, unixTs)` → `<file>.stagehand-backup.<ts>`.
+- `integrate.BackupPath(path, unixTs)` → `<file>.stagecoach-backup.<ts>`.
 
 **Key takeaway:** S1's `Outcome` enum is the unified status both targets report. My registry/types must NOT
 re-invent an outcome enum — import `integrate.Outcome`.
@@ -49,13 +49,13 @@ These two are the templates. Confirmed conventions:
 - **cobra commands live in `internal/cmd/`, registered via `init()` on `rootCmd`** (ZERO edits to root.go).
   `rootCmd.AddCommand(<groupCmd>)` in the file's `init()`. providers.go L~140, hook.go `init()`.
 - **Group command**: `Use:`, `Short:`, `Long:`, `SilenceErrors:true`, `SilenceUsage:true`, NO `RunE` (bare
-  `stagehand <group>` prints help). Leaf commands have `RunE`.
+  `stagecoach <group>` prints help). Leaf commands have `RunE`.
 - **PersistentPreRunE no-op to SKIP config.Load** (hook.go): `PersistentPreRunE: func(*cobra.Command,
   []string) error { return nil }`. cobra runs only the NEAREST PreRunE, so this OVERRIDES root's
   config.Load. **integrate needs this** — it edits user dotfiles (gitconfig, lazygit config), works
   OUTSIDE a git repo, and must NOT trigger config.Load's first-run bootstrap write (FR-B3). Same rationale
   as hook. providers.go does NOT define its own (it NEEDS cfg.Providers); integrate does NOT need cfg.
-- **exitcode routing**: `return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))`. Never
+- **exitcode routing**: `return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))`. Never
   `os.Exit`. `cmd.OutOrStdout()` / `cmd.ErrOrStderr()` for writers. `cmd.Context()` for ctx.
 - **list table** (providers.go `printProvidersList`): `text/tabwriter.NewWriter(w, 0,0,2,' ',0)`, header
   row, one row per entry, ✓/✗ for detected, `(default)` marker column. Takes `io.Writer` (testable).
@@ -94,7 +94,7 @@ The cleanest seam that keeps `internal/integrate` a pure library AND avoids glob
 ## 5. The Entry interface — abstracting file-edit (lazygit) vs command-delegate (git-alias)
 
 Critical asymmetry (FR-I4 vs FR-I5): **lazygit installs via `protocol.Apply`** (file edit); **git-alias
-installs via `git config --global alias.<name> '!stagehand'`** (git does the edit; FR-I3 machinery
+installs via `git config --global alias.<name> '!stagecoach'`** (git does the edit; FR-I3 machinery
 "unnecessary"). BUT both still **preview + confirm** (FR-I3c applies to git-alias too: "the command and
 resulting alias are still shown and confirmed"). So the Entry must own its OWN install/remove mechanics
 while sharing the **confirm controls** (`Yes`, `Out`, `Confirm`).
@@ -120,7 +120,7 @@ type Entry interface {
 - `InstallResult{Outcome integrate.Outcome; Target, Path, Backup string}` — Outcome is S1's enum (unified).
   lazygit: `Outcome: res.Outcome, Path: res.Path, Backup: res.Backup`. git-alias: maps git-config result.
 - `Status` enum: `StatusNotInstalled`/`StatusInstalled`/`StatusForeign` (+ `String()` → "not installed"/
-  "installed"/"foreign" exactly per FR-I1). **Distinct from `hook.Status`** (None/Stagehand/Foreign) —
+  "installed"/"foreign" exactly per FR-I1). **Distinct from `hook.Status`** (None/Stagecoach/Foreign) —
   integrate has its own; do NOT reuse hook's.
 
 Sentinels: `ErrUnknownTarget` (Get miss), `ErrToolNotDetected` (Detect fail). `errors.Is`-chainable.
@@ -136,7 +136,7 @@ Work item: "a target whose tool is absent is LISTED but install exits 1 with a n
   remaining targets** (best-effort: `install git-alias lazygit` still installs git-alias if lazygit is
   absent). **Exit 1 if ANY target failed** (detection-gate OR install error). Decline/NoChange are NOT
   errors (exit 0). This mirrors batch-tool conventions and the work item's per-target "note".
-- git-alias's Detect = "git on $PATH" (always true for stagehand; FR-I2 "requires only git itself").
+- git-alias's Detect = "git on $PATH" (always true for stagecoach; FR-I2 "requires only git itself").
 
 ---
 

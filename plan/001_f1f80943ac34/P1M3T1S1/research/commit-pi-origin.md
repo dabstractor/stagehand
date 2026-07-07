@@ -1,4 +1,4 @@
-# Research — commit-pi origin (the script stagehand's prompt is ported from)
+# Research — commit-pi origin (the script stagecoach's prompt is ported from)
 
 > **Source:** `/home/dustin/projects/git-scripts/commit-pi` (9.5 KB zsh script, read in full 2026-06-29).
 > PRD §2.1 names commit-pi the "originating tool"; PRD §17.1 says the system prompt was "ported and
@@ -168,9 +168,9 @@ Notes:
 - **No blank line between the multi-line rule and the Target line.** Correct (consecutive lines).
 - The em-dash (`—`) in the anti-reuse block is the ONLY non-ASCII byte in the whole prompt.
 
-## 6. What commit-pi's prompt did NOT have (and neither does stagehand's)
+## 6. What commit-pi's prompt did NOT have (and neither does stagecoach's)
 
-- No JSON contract in stagehand (raw output — §17.4).
+- No JSON contract in stagecoach (raw output — §17.4).
 - No `(up to 20…)` annotation (§4 above).
 - No example COUNT or LIMIT text — the examples block is pure `---`-separated messages.
 - The "new repo" (≤1 commit) prompt (§17.2) is a SEPARATE subtask (P1.M3.T1.S2) — not this file.

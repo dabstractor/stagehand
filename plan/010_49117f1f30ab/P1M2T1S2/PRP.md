@@ -89,7 +89,7 @@ touched; ReadTree/WriteTree/run/runWithInput/runWithEnv byte-unchanged.
 ## User Persona
 
 **Target User**: The commit-hooks runner (P1.M3.T1 — `internal/hooks`) which scopes `pre-commit` to the
-snapshot tree `T_start` via a throwaway index (FR-V3). Transitively, every user who runs `stagehand` on a
+snapshot tree `T_start` via a throwaway index (FR-V3). Transitively, every user who runs `stagecoach` on a
 repo with `pre-commit`/`commit-msg` hooks (US19, FR-V1) — their hooks now fire on the plumbing path against
 the snapshotted content, not the live index.
 
@@ -98,7 +98,7 @@ the snapshotted content, not the live index.
 GIT_INDEX_FILE=tmp in its env>; newTree, _ := g.WriteTreeFrom(ctx, tmp); <DiffTreeNames subset check (P1.M2.T2.S1)>`.
 ReadTreeInto primes; WriteTreeFrom captures; the live index is untouched throughout.
 
-**User Journey**: (future) `stagehand` → snapshot tree → ReadTreeInto(T_start, tmp) → pre-commit runs against
+**User Journey**: (future) `stagecoach` → snapshot tree → ReadTreeInto(T_start, tmp) → pre-commit runs against
 tmp (a formatter re-stages into tmp) → WriteTreeFrom(tmp) → commit-tree against the hook-fixed tree. The
 freeze (§5) holds: files the user stages DURING generation never reach the in-flight commit.
 
@@ -211,7 +211,7 @@ index without touching the live one".
   why: FR-V3 is the requirement these primitives satisfy (a throwaway index populated from T_start). §13.2 is
        why the DEFAULT write-tree/read-tree touch .git/index (hence the scoped siblings).
   critical: FR-V3 — the committed tree comes from the (possibly hook-mutated) snapshot, NOT the live index.
-       These primitives are how stagehand primes/captures that throwaway index.
+       These primitives are how stagecoach primes/captures that throwaway index.
 ```
 
 ### Current Codebase tree (relevant slice)
@@ -540,7 +540,7 @@ go test -race ./...             # full module — no regression (the 2 new inter
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only git.go + the 2 new test files changed:
 git diff --name-only | grep -Ev '^internal/git/git\.go$|^internal/git/readtreeinto_test\.go$|^internal/git/writetreefrom_test\.go$' \
@@ -609,7 +609,7 @@ grep -n 'GIT_INDEX_FILE=' internal/git/git.go   # exactly 2 matches, both concat
   []string{"GIT_INDEX_FILE=" + absIndex}, ...)`. `g.run` writes/reads `.git/index` — the exact thing the
   scoped variants exist to AVOID. If a keystone test fails (live index changed), you used g.run.
 - ❌ Don't pass a relative `GIT_INDEX_FILE`. external_deps.md §8 #1: a relative value resolves against the
-  hook's CWD (the worktree root), not stagehand's CWD. Open each variant with `filepath.Abs(indexFile)`.
+  hook's CWD (the worktree root), not stagecoach's CWD. Open each variant with `filepath.Abs(indexFile)`.
   Do NOT concatenate the raw `indexFile` into `GIT_INDEX_FILE=`.
 - ❌ Don't add imports or change go.mod. git.go ALREADY has `"os"` (S1) + `"path/filepath"`. An unused import
   fails `go vet`; a new dep is wrong. If build fails on undefined `filepath`/`os`, S1 didn't land — re-check

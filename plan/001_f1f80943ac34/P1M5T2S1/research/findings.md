@@ -24,7 +24,7 @@ The reference files use the **flat manifest schema** (top-level `name = "pi"`, �
 - the `piTOML`…`cursorTOML` decode-parity constants.
 
 They do **NOT** use the `[provider.<name>]` table form — that is the **config-file override** syntax
-(§12.8, e.g. the existing `.stagehand.toml` `[provider.pi]`). The contract says "mirror the compiled-in
+(§12.8, e.g. the existing `.stagecoach.toml` `[provider.pi]`). The contract says "mirror the compiled-in
 manifests"; the compiled-in `Manifest` struct marshals flat. A **header comment** in each file explains
 the §12.8 transform ("to use as an override: wrap this body in `[provider.<name>]` and delete the `name`
 line") — so the "copy into your config" use case is documented without sacrificing the flat mirror.
@@ -91,14 +91,14 @@ Resolve robustly via `runtime.Caller(0)` → `filepath.Dir(file)` → `Join(.., 
 ## 5. Confirmations (what's already true — no wiring needed)
 
 - **No runtime loading of `providers/`:** the config loader (`internal/config/*.go`) reads the single
-  global + repo-local config files (e.g. `.stagehand.toml`), NOT a `providers/` directory. No `embed`,
+  global + repo-local config files (e.g. `.stagecoach.toml`), NOT a `providers/` directory. No `embed`,
   no `ReadDir`, no `Glob` of `providers/`. The 6 files are inert documentation. (grep-verified.)
 - **`providers show` uses flat `MarshalTOML`** → the flat reference format is consistent with the CLI's
   own output. Good for user mental model.
 - **No README yet** (README is P1.M5.T4) → no cross-doc to keep in sync; the README task will LINK to
   `providers/` later.
 - **`providers/` is at repo root** per PRD §14 (sibling of `internal/`, `cmd/`, `docs/`).
-- **go.mod module:** `github.com/dustin/stagehand`, go 1.22. No new deps for the test (stdlib +
+- **go.mod module:** `github.com/dustin/stagecoach`, go 1.22. No new deps for the test (stdlib +
   existing go-toml/v2).
 
 ## 6. The two `# TO CONFIRM` items to carry in the codex + cursor files

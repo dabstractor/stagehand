@@ -2,24 +2,24 @@
 name: "P1.M4.T4.S1 — First-run auto-bootstrap fallback (PRD §9.17 FR-B3): refactor config init's TOML generation into a shared config.GenerateBootstrapConfig + auto-write on first Load()"
 description: |
 
-  Implement FR-B3: "if stagehand starts with no global config and no STAGEHAND_CONFIG, it auto-writes the
+  Implement FR-B3: "if stagecoach starts with no global config and no STAGECOACH_CONFIG, it auto-writes the
   bootstrap config once, prints a notice with the path, and continues — the tool is never unconfigured."
   The populated bootstrap generation (shipped in P1.M4.T2.S1, living in internal/cmd/config.go) is
   REFACTORED into a shared **`config.GenerateBootstrapConfig(provider string) string`** (new file
   internal/config/bootstrap.go) that BOTH `config init` and the new `config.Load()` fallback call. In Load(),
-  when the global file is missing AND not explicit (no --config, no STAGEHAND_CONFIG), auto-write the
-  populated config to globalConfigPath(), print `stagehand: wrote bootstrap config to <path>` to stderr
+  when the global file is missing AND not explicit (no --config, no STAGECOACH_CONFIG), auto-write the
+  populated config to globalConfigPath(), print `stagecoach: wrote bootstrap config to <path>` to stderr
   (via noticeOut), then load it as Layer 2.
 
   CONTRACT (P1.M4.T4.S1, verbatim):
     1. RESEARCH: "FR-B3 … happens in config.Load() (internal/config/load.go) when the global file is absent
-       AND no STAGEHAND_CONFIG override. It runs the same cascading detection + populated bootstrap as config
+       AND no STAGECOACH_CONFIG override. It runs the same cascading detection + populated bootstrap as config
        init (P1.M4.T2.S1), then proceeds normally."
     2. INPUT: "The populated config init logic from P1.M4.T2.S1 (extract the bootstrap-generation into a
        reusable function)."
     3. LOGIC: "In Load(), when globalPath discovery yields a missing file AND !explicit (no --config, no
-       STAGEHAND_CONFIG): call the bootstrap function (extracted from config init's write logic) to write the
-       populated config, print a notice to stderr ('stagehand: wrote bootstrap config to <path>'), then
+       STAGECOACH_CONFIG): call the bootstrap function (extracted from config init's write logic) to write the
+       populated config, print a notice to stderr ('stagecoach: wrote bootstrap config to <path>'), then
        proceed to read it as Layer 2. Refactor config init's TOML generation into a shared
        `GenerateBootstrapConfig(provider string) string` function that both config init and this fallback call."
     4. OUTPUT: "First run with no config → bootstrap config is written automatically, a notice is printed,
@@ -44,7 +44,7 @@ description: |
     EDIT   internal/cmd/config.go              — delete moved helpers; rewrite runConfigInit to call config.GenerateBootstrapConfig.
     EDIT   internal/cmd/config_test.go         — delete the 5 moved TestBuildBootstrapConfig_* tests.
 
-  SUCCESS: a first run with no global config (and no --config/STAGEHAND_CONFIG) writes the populated
+  SUCCESS: a first run with no global config (and no --config/STAGECOACH_CONFIG) writes the populated
   bootstrap config, prints the notice to stderr, and Load() proceeds with that config (provider resolved,
   no advisory). `config init` still produces byte-identical output (same generation, now shared). Explicit
   missing paths still hard-error. `go build ./... && go test ./...` green; `go vet ./...` clean; go.mod/
@@ -54,8 +54,8 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Realize PRD §9.17 FR-B3 — Stagehand is "never unconfigured." On the first run with no
-global config and no explicit `--config`/`STAGEHAND_CONFIG`, `config.Load()` auto-writes the populated
+**Feature Goal**: Realize PRD §9.17 FR-B3 — Stagecoach is "never unconfigured." On the first run with no
+global config and no explicit `--config`/`STAGECOACH_CONFIG`, `config.Load()` auto-writes the populated
 bootstrap config (the same cascading-detection + per-role-models output as `config init`), prints a
 one-line notice with the path to stderr, and continues normally. The bootstrap TOML generation is lifted
 out of `internal/cmd/config.go` into a shared `config.GenerateBootstrapConfig(provider string) string` so
@@ -78,26 +78,26 @@ out of `internal/cmd/config.go` into a shared `config.GenerateBootstrapConfig(pr
 
 **Success Definition**:
 - First run (no global file, no explicit override): `Load()` writes the populated config to
-  `globalConfigPath()`, prints `stagehand: wrote bootstrap config to <path>` to `noticeOut` (os.Stderr),
+  `globalConfigPath()`, prints `stagecoach: wrote bootstrap config to <path>` to `noticeOut` (os.Stderr),
   and returns a Config with the detected/"pi" provider and `ConfigVersion == CurrentConfigVersion` — and NO
   config_version advisory (the bootstrap file is current).
 - `config init` output is BYTE-IDENTICAL to before (same generation code, now shared) — the existing
   `TestConfigInit_*` tests pass unchanged.
-- Explicit missing paths (`--config /missing`, `STAGEHAND_CONFIG=/missing`) still hard-error (no bootstrap).
+- Explicit missing paths (`--config /missing`, `STAGECOACH_CONFIG=/missing`) still hard-error (no bootstrap).
 - `go build ./... && go test ./...` GREEN; `go vet ./...` clean; `gofmt -l internal/ cmd/` empty;
   go.mod/go.sum unchanged; only the 6 listed files differ.
 
 ## User Persona
 
-**Target User**: a brand-new Stagehand user who just installed the binary and runs `stagehand` for the
+**Target User**: a brand-new Stagecoach user who just installed the binary and runs `stagecoach` for the
 first time WITHOUT having run `config init` (FR-B3 also covers installers that lack a post-install step).
 They expect the tool to "just work," not to error with "no provider configured."
 
-**Use Case**: `stagehand` (first run, no config) → the tool auto-writes a working bootstrap config, prints
-"stagehand: wrote bootstrap config to ~/.config/stagehand/config.toml", and proceeds to generate the
+**Use Case**: `stagecoach` (first run, no config) → the tool auto-writes a working bootstrap config, prints
+"stagecoach: wrote bootstrap config to ~/.config/stagecoach/config.toml", and proceeds to generate the
 commit message. The next run finds the config and is silent.
 
-**User Journey**: install → `stagehand` → notice on stderr → commit generated → (later) `stagehand config
+**User Journey**: install → `stagecoach` → notice on stderr → commit generated → (later) `stagecoach config
 path` / edit the file / `config init --force` to customize. The tool was never "unconfigured."
 
 **Pain Points Addressed**: the cold-start failure ("no provider configured and none of the built-ins are
@@ -143,7 +143,7 @@ func GenerateBootstrapConfig(provider string) string {
     if err := bootstrapWriteConfig(globalPath); err != nil {
         return nil, fmt.Errorf("bootstrap config: %w", err)
     }
-    fmt.Fprintf(noticeOut, "stagehand: wrote bootstrap config to %s\n", globalPath)
+    fmt.Fprintf(noticeOut, "stagecoach: wrote bootstrap config to %s\n", globalPath)
     if g, err := loadTOML(globalPath); err != nil {
         return nil, fmt.Errorf("global config: %w", err)
     } else if g != nil {
@@ -165,7 +165,7 @@ func GenerateBootstrapConfig(provider string) string {
       (TestConfigInit_ProviderPin_ExactOutput / _ProviderStagerFallback / _Populated_* pass unchanged).
 - [ ] `Load()` with no global file + `!explicit` + `!DisableBootstrap` ⇒ writes the file, prints the
       notice to `noticeOut`, overlays it (provider resolved, `ConfigVersion==CurrentConfigVersion`, NO advisory).
-- [ ] Explicit missing paths (`--config`/`STAGEHAND_CONFIG`) still hard-error BEFORE the fallback.
+- [ ] Explicit missing paths (`--config`/`STAGECOACH_CONFIG`) still hard-error BEFORE the fallback.
 - [ ] `LoadOpts.DisableBootstrap bool` exists (defaults false; production never sets it; FR-B3 active).
 - [ ] `go build ./... && go test ./...` GREEN; `go vet ./...` clean; `gofmt -l` empty; go.mod/go.sum
       unchanged; only the 6 listed files differ.
@@ -221,13 +221,13 @@ knowledge required.
   pattern: mirror the existing overlay(&cfg, g) + fileLoaded=true idiom for the re-read.
   gotcha: the bootstrap writes config_version=CurrentConfigVersion ⇒ configVersionNotice(true, current)==""
        ⇒ no spurious advisory (verify: the advisory call at the end of Load uses fileLoaded+cfg.ConfigVersion).
-  gotcha: DisableBootstrap is a TEST-ONLY seam (production callers — cmd PersistentPreRunE, pkg/stagehand.
+  gotcha: DisableBootstrap is a TEST-ONLY seam (production callers — cmd PersistentPreRunE, pkg/stagecoach.
        resolveConfig — never set it). Default false ⇒ FR-B3 active everywhere real.
 
 # MUST READ — the sink + path + loader signatures (consume read-only)
 - file: internal/config/file.go   (READ — noticeOut, globalConfigPath, loadTOML)
   section: `var noticeOut io.Writer = os.Stderr` (L62) + SetNoticeOut/NoticeOut (test swappable);
-       `func globalConfigPath() string` (XDG > ~/.config/stagehand/config.toml); `func loadTOML(path) (*Config,error)`
+       `func globalConfigPath() string` (XDG > ~/.config/stagecoach/config.toml); `func loadTOML(path) (*Config,error)`
        (MISSING ⇒ (nil,nil); the re-read contract the fallback relies on).
   why: the fallback writes to globalConfigPath(), notices to noticeOut, re-reads via loadTOML.
 
@@ -334,7 +334,7 @@ internal/cmd/config_test.go         # EDIT — delete the 5 moved TestBuildBoots
 // Do NOT add a special case — it falls out of buildBootstrapConfig already writing the version line.
 
 // GOTCHA (explicit missing still errors): the fallback branch is an `else if !opts.DisableBootstrap` AFTER the
-// `else if explicit { return error }` branch. So --config /missing and STAGEHAND_CONFIG=/missing still hard-error
+// `else if explicit { return error }` branch. So --config /missing and STAGECOACH_CONFIG=/missing still hard-error
 // BEFORE the fallback. FR-B3 scope is the DISCOVERY path only.
 
 // GOTCHA (keep preferredBuiltins in cmd for the error message): runConfigInit still validates --provider via
@@ -366,7 +366,7 @@ and `bootstrapWriteConfig` (both in internal/config). `LoadOpts` gains one field
 
 ```go
 // internal/config/bootstrap.go — NEW FILE (package config). Imports: fmt, os, path/filepath, strings,
-// "github.com/dustin/stagehand/internal/provider". (go-toml NOT needed here — generation is string-building.)
+// "github.com/dustin/stagecoach/internal/provider". (go-toml NOT needed here — generation is string-building.)
 
 // preferredBuiltins is the FR-D1 cascading provider priority (MOVED from cmd/config.go; mirrors
 // internal/provider/registry.go's unexported slice). Used by stagerFallback + commented-block ordering.
@@ -453,7 +453,7 @@ type LoadOpts struct {
 //       if err := bootstrapWriteConfig(globalPath); err != nil {
 //           return nil, fmt.Errorf("bootstrap config: %w", err)
 //       }
-//       fmt.Fprintf(noticeOut, "stagehand: wrote bootstrap config to %s\n", globalPath)
+//       fmt.Fprintf(noticeOut, "stagecoach: wrote bootstrap config to %s\n", globalPath)
 //       if g, err := loadTOML(globalPath); err != nil {
 //           return nil, fmt.Errorf("global config: %w", err)
 //       } else if g != nil {
@@ -537,7 +537,7 @@ Task 6: EDIT internal/config/load_test.go (seam on intent-contradicted tests + n
   - ADD: TestLoad_FirstRun_BootstrapsConfig (no global file, DisableBootstrap=false ⇒ file written at
     globalConfigPath(); noticeOut contains "wrote bootstrap config"; cfg.Provider non-empty/"pi";
     cfg.ConfigVersion==CurrentConfigVersion; re-Load finds it); TestLoad_Bootstrap_SkippedWhenExplicit
-    (ConfigPathOverride=/missing → error; STAGEHAND_CONFIG=/missing → error — no bootstrap, no file);
+    (ConfigPathOverride=/missing → error; STAGECOACH_CONFIG=/missing → error — no bootstrap, no file);
     TestLoad_Bootstrap_DisabledNoWrite (DisableBootstrap=true + no file ⇒ no file written, Defaults());
     TestLoad_Bootstrap_DoesNotReFire (Load twice in one temp dir ⇒ 2nd finds the file, single notice).
   - PATTERN: reuse loadEnvSetup (isolates HOME/XDG) + capture noticeOut via the save/restore idiom (origNoticeOut).
@@ -656,19 +656,19 @@ make build
 T=$(mktemp -d); export HOME="$T" XDG_CONFIG_HOME="$T"   # no config.toml exists
 ( cd "$(mktemp -d)" && git init -q . && git config user.email t@t.co && git config user.name t &&
   echo hi > a.txt && git add a.txt &&
-  /home/dustin/projects/stagehand/bin/stagehand --provider stub --dry-run 2>notice.txt; echo "exit=$?" )
+  /home/dustin/projects/stagecoach/bin/stagecoach --provider stub --dry-run 2>notice.txt; echo "exit=$?" )
 echo "--- notice (stderr) ---"; cat notice.txt
-# Expected: notice contains "stagehand: wrote bootstrap config to <T>/stagehand/config.toml".
-test -f "$T/stagehand/config.toml" && echo "PASS: bootstrap config written"
-grep -q '^config_version = 2$' "$T/stagehand/config.toml" && echo "PASS: version 2"
-grep -q 'provider = "pi"' "$T/stagehand/config.toml" && echo "PASS: provider pi (or detected)"
+# Expected: notice contains "stagecoach: wrote bootstrap config to <T>/stagecoach/config.toml".
+test -f "$T/stagecoach/config.toml" && echo "PASS: bootstrap config written"
+grep -q '^config_version = 2$' "$T/stagecoach/config.toml" && echo "PASS: version 2"
+grep -q 'provider = "pi"' "$T/stagecoach/config.toml" && echo "PASS: provider pi (or detected)"
 
 # --- explicit --config /missing still hard-errors (no bootstrap) ---
-( cd "$(mktemp -d)" && /home/dustin/projects/stagehand/bin/stagehand --config /nope/missing.toml --provider stub --dry-run; echo "exit=$?" )
+( cd "$(mktemp -d)" && /home/dustin/projects/stagecoach/bin/stagecoach --config /nope/missing.toml --provider stub --dry-run; echo "exit=$?" )
 # Expected: exit != 0; "config file not found: /nope/missing.toml"; NO file written, NO bootstrap notice.
 
 # --- second run is silent (config now exists) ---
-( cd "$(mktemp -d)" && /home/dustin/projects/stagehand/bin/stagehand --provider stub --dry-run 2>n2.txt; echo "exit=$?" )
+( cd "$(mktemp -d)" && /home/dustin/projects/stagecoach/bin/stagecoach --provider stub --dry-run 2>n2.txt; echo "exit=$?" )
 grep -q "wrote bootstrap config" n2.txt && echo "UNEXPECTED: 2nd run re-bootstrapped" || echo "PASS: no re-bootstrap"
 # Expected: no bootstrap notice on the 2nd run (the file exists).
 ```
@@ -678,8 +678,8 @@ grep -q "wrote bootstrap config" n2.txt && echo "UNEXPECTED: 2nd run re-bootstra
 ```bash
 # config init output is byte-identical (the hard refactor guarantee):
 T=$(mktemp -d); export HOME="$T" XDG_CONFIG_HOME="$T"
-/home/dustin/projects/stagehand/bin/stagehand config init --provider pi >/dev/null 2>&1
-diff <(cat "$T/stagehand/config.toml") <(git stash list >/dev/null; echo "compare against pre-refactor golden if available")
+/home/dustin/projects/stagecoach/bin/stagecoach config init --provider pi >/dev/null 2>&1
+diff <(cat "$T/stagecoach/config.toml") <(git stash list >/dev/null; echo "compare against pre-refactor golden if available")
 # (Or: go test -race ./internal/cmd/ -run TestConfigInit_ProviderPin_ExactOutput -v — the canonical byte-identical check.)
 
 # Race + full regression (the gate):
@@ -701,12 +701,12 @@ gofmt -l internal/ cmd/
 ### Feature Validation
 
 - [ ] `Load()` with no global file + `!explicit` + `!DisableBootstrap` ⇒ writes the populated config, prints
-      `stagehand: wrote bootstrap config to <path>` to `noticeOut`, overlays it (provider resolved,
+      `stagecoach: wrote bootstrap config to <path>` to `noticeOut`, overlays it (provider resolved,
       `ConfigVersion==CurrentConfigVersion`, NO advisory).
 - [ ] `config GenerateBootstrapConfig("")` ⇒ auto-detect→"pi" (nothing on $PATH); `GenerateBootstrapConfig("claude")`
       ⇒ claude config. Output == old buildBootstrapConfig for the same (target, installed).
 - [ ] `config init` output byte-identical (TestConfigInit_ProviderPin_ExactOutput etc. pass unchanged).
-- [ ] Explicit missing (`--config`/`STAGEHAND_CONFIG`) still hard-errors BEFORE the fallback.
+- [ ] Explicit missing (`--config`/`STAGECOACH_CONFIG`) still hard-errors BEFORE the fallback.
 - [ ] `LoadOpts.DisableBootstrap` exists; production callers never set it (FR-B3 active).
 
 ### Code Quality Validation
@@ -720,7 +720,7 @@ gofmt -l internal/ cmd/
 ### Documentation & Deployment
 
 - [ ] `GenerateBootstrapConfig`/`bootstrapWriteConfig`/`DisableBootstrap` have doc comments naming FR-B3/P1.M4.T4.S1.
-- [ ] The runtime notice ("stagehand: wrote bootstrap config to <path>") IS the documentation (contract DOCS: none).
+- [ ] The runtime notice ("stagecoach: wrote bootstrap config to <path>") IS the documentation (contract DOCS: none).
 - [ ] Implementation summary records: the move, the Load() branch, the seam, the parallel-coordination outcome.
 
 ---
@@ -741,7 +741,7 @@ gofmt -l internal/ cmd/
 - ❌ **Don't fire the advisory on a fresh bootstrap.** buildBootstrapConfig writes `config_version=CurrentConfigVersion`;
   that MUST keep `configVersionNotice` silent. If you see an advisory on first run, you broke the version line.
 - ❌ **Don't bootstrap on explicit-missing paths.** The fallback is the LAST else-if, after `else if explicit { error }`.
-  `--config /missing` and `STAGEHAND_CONFIG=/missing` hard-error; FR-B3 is the DISCOVERY path only.
+  `--config /missing` and `STAGECOACH_CONFIG=/missing` hard-error; FR-B3 is the DISCOVERY path only.
 - ❌ **Don't overwrite/touch the parallel sibling's symbols in cmd/config.go.** P1.M4.T3.S1 owns configCmd,
   configUpgradeCmd, the upgrade symbols, init()'s AddCommand, and configCmd.Long (FR-B6). My edits are the
   bootstrap-helper deletions + the runConfigInit rewrite — NON-OVERLAPPING. Edit by SYMBOL.

@@ -36,7 +36,7 @@ absent/nil (never error); no production file and no doc is modified; `go build .
 
 ## User Persona
 
-**Target User**: The Stagehand contributor landing v3 (P1.M2 per-role reasoning + ResolveRoles v3, P1.3
+**Target User**: The Stagecoach contributor landing v3 (P1.M2 per-role reasoning + ResolveRoles v3, P1.3
 config migration) and the reviewer verifying the FR-R5b/FR-R6 contracts are enforced. Test-only — no
 end-user surface.
 
@@ -140,7 +140,7 @@ manifest-is-safe finding are pre-resolved in the research note.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/provider/
 │   ├── render.go          # READ-ONLY (S1) — v3 Render with FR-R5b fold/error + FR-R6 emit
 │   ├── render_test.go     # EDIT — ~22 sites + 3 new reasoning tests
@@ -156,7 +156,7 @@ stagehand/
 ### Desired Codebase Tree After S2
 
 ```bash
-stagehand/
+stagecoach/
 └── (only TEST files modified — no production, no docs, no new files)
     internal/provider/{render,builtin,manifest,merge}_test.go
     internal/stubtest/stubtest_test.go
@@ -353,7 +353,7 @@ DOWNSTREAM HOOKS (informational — owned by LATER subtasks):
 ### Level 1: Compile (the immediate S2 deliverable)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # S2's GREEN gate — the two in-scope packages compile + pass
 go test ./internal/provider/ ./internal/stubtest/
@@ -371,7 +371,7 @@ gofmt -l internal/provider/*_test.go internal/stubtest/*_test.go internal/genera
 ### Level 2: FR-R5b + FR-R6 contracts (the new assertions)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Run the reworked + new tests by name
 go test ./internal/provider/ -v -run 'TestRender_FR5b|TestRender_ModelPrefixFold|TestRender_Reasoning|TestRender_Pi_ByteForByte'
@@ -385,7 +385,7 @@ grep -rn "DefaultProvider" internal/provider/*_test.go
 ### Level 3: Regression (all existing provider tests still pass)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test ./internal/provider/ -v
 # Expected: ALL provider tests PASS (golden-per-provider, prepend fallback, model default, env, flag
@@ -399,7 +399,7 @@ go test ./internal/stubtest/ -v
 ### Level 4: Scope discipline (the expected-red boundary)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # These are EXPECTED to be RED after S2 — P1.M2.T1.S2 owns them. Do NOT chase.
 go test ./internal/generate/ 2>&1 | grep -i "defaultprovider\|cannot" | head   # generate_test.go L421
@@ -409,7 +409,7 @@ go test ./internal/decompose/ 2>&1 | grep -i "defaultprovider\|inferenceprovider
 # Confirm NO production file was modified by S2
 git diff --stat -- internal/provider/render.go internal/provider/manifest.go internal/provider/merge.go \
    internal/provider/builtin.go internal/provider/executor.go internal/decompose/ internal/generate/generate.go \
-   pkg/stagehand/
+   pkg/stagecoach/
 # Expected: nothing (S2 is test-only).
 
 # Confirm S2 did NOT touch generate_test.go / decompose tests (out of scope)

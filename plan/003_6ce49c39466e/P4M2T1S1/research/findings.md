@@ -65,7 +65,7 @@ drift and purge `default_provider` references (removed in v3).
 - config upgrade: says "version 2" + "preserved byte-for-byte" — STALE (version 3; FR-B7 FOLDS
   default_provider → model prefix, so NOT byte-for-byte).
 - "current schema (version 2)" + populated example `config_version = 2` + no `reasoning` in [defaults] — STALE.
-- Env table: MISSING STAGEHAND_REASONING + per-role reasoning; MESSAGE_PROVIDER/MODEL marked "(no flag)" STALE.
+- Env table: MISSING STAGECOACH_REASONING + per-role reasoning; MESSAGE_PROVIDER/MODEL marked "(no flag)" STALE.
 - Bottom note: "message role has no CLI flag" — STALE (--message-* flags exist in v3).
 
 ### docs/cli.md

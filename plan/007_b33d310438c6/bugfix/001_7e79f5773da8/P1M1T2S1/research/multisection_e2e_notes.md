@@ -13,7 +13,7 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` |
 | Edit target | `internal/git/difftokenlimit_test.go` (add 3 new top-level test funcs + 1 helper) |
 | S1 fix status | **LANDED** — `truncatediff.go:204`: `body = firstNRunes(body, allotment*4) + "\n" + truncatedSentinel + "\n"` (trailing `\n` present) |
 | Baseline | `go test ./internal/git/` → **ok (5.856s)** |

@@ -80,7 +80,7 @@ description: |
   Deliverable: MODIFIED `internal/cmd/config.go` (gated `upgradeConfigVersion` + `rewriteV2ToV3` + helpers +
   refactored `parseTopLevelConfigVersion`/`setConfigVersionLine` + the `config upgrade` Long text) + MODIFIED
   `internal/cmd/config_test.go` (ADDITIVE rewrite-behavior tests). NO other file touched. OUTPUT:
-  `stagehand config upgrade` rewrites an existing `<v3` file to v3 in place (models prefixed, default_provider
+  `stagecoach config upgrade` rewrites an existing `<v3` file to v3 in place (models prefixed, default_provider
   commented out, [agent.*] renamed, config_version=3), preserving all other lines; idempotent; `go build/vet/
   test ./...` green.
 
@@ -123,18 +123,18 @@ byte-unchanged; `internal/config/*` + `default_action_test.go` byte-unchanged.
 
 ## User Persona
 
-**Target User**: A user who upgraded the stagehand binary (v3) and keeps a v2 (or unversioned) config file
+**Target User**: A user who upgraded the stagecoach binary (v3) and keeps a v2 (or unversioned) config file
 with `[provider.pi] default_provider = "zai"` + bare models. S1 makes it LOAD correctly (in-memory fold +
-deprecation notice). S2 lets the user PERSIST the migration: `stagehand config upgrade` rewrites the file to
+deprecation notice). S2 lets the user PERSIST the migration: `stagecoach config upgrade` rewrites the file to
 v3-native form so the notice stops and the file is self-consistent. Transitively: anyone reading the file
 after upgrade (editors, version control, future loads).
 
-**Use Case**: After seeing S1's one-time "auto-migrated in memory … run 'stagehand config upgrade' to persist"
-notice, the user runs `stagehand config upgrade`. The file is rewritten in place: `model = "glm-5.2"` becomes
+**Use Case**: After seeing S1's one-time "auto-migrated in memory … run 'stagecoach config upgrade' to persist"
+notice, the user runs `stagecoach config upgrade`. The file is rewritten in place: `model = "glm-5.2"` becomes
 `model = "zai/glm-5.2"`, the `default_provider = "zai"` line is commented out with a note, `config_version`
 becomes 3. Next load: no notice, no in-memory migration needed.
 
-**User Journey**: (CLI) `stagehand config upgrade` → `runConfigUpgrade` reads file → validates TOML →
+**User Journey**: (CLI) `stagecoach config upgrade` → `runConfigUpgrade` reads file → validates TOML →
 `upgradeConfigVersion(data, 3)`: `cur=2 < 3` → `rewriteV2ToV3` (fold + comment-out + agent rename) →
 `setConfigVersionLine(…, 3)` → write back → "Upgraded config … to version 3." Re-run → `cur=3 >= 3` → no-op →
 "already at version 3".
@@ -595,7 +595,7 @@ func commentOutWithNote(line, note string) string {
 //   Replace the existing Long (L95-106) with comprehensive text covering the on-disk →v3 rewrite AND the
 //   in-memory auto-migration (S1). S2 owns this final text (it implements the on-disk behavior).
 
-	Long: `Rewrite an existing Stagehand config file in place so its config_version matches this binary's
+	Long: `Rewrite an existing Stagecoach config file in place so its config_version matches this binary's
 current schema version (` + fmt.Sprintf("`config_version = %d`", config.CurrentConfigVersion) + `).
 
 For files older than v3 this is more than a version bump: the removed ` + "`default_provider`" + ` field is
@@ -611,9 +611,9 @@ immediately — ` + "`config upgrade`" + ` persists that migration to the file s
 
 Running it twice is safe: a file already at the current version is left unchanged ("already up to date").
 
-This targets the file reported by ` + "`stagehand config path`" + ` — by default the GLOBAL config, but the
---config flag and STAGEHAND_CONFIG env var ARE honored. If no config file exists, run
-` + "`stagehand config init`" + ` first. If the file is not valid TOML, it is left untouched and an error is
+This targets the file reported by ` + "`stagecoach config path`" + ` — by default the GLOBAL config, but the
+--config flag and STAGECOACH_CONFIG env var ARE honored. If no config file exists, run
+` + "`stagecoach config init`" + ` first. If the file is not valid TOML, it is left untouched and an error is
 printed.`,
 ```
 

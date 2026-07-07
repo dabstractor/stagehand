@@ -24,9 +24,9 @@ func runPrepareCommitMsg(ctx context.Context, cfg config.Config, opts HookOpts,
     if !hookExecutable(hookPath) {
         return nil
     }
-    if shouldSkipStagehandPrepareCommitMsg(hooksDir) {
+    if shouldSkipStagecoachPrepareCommitMsg(hooksDir) {
         if opts.Verbose != nil {
-            opts.Verbose.VerboseWarn("skipping stagehand's own prepare-commit-msg hook...")
+            opts.Verbose.VerboseWarn("skipping stagecoach's own prepare-commit-msg hook...")
         }
         return nil
     }
@@ -54,7 +54,7 @@ if !strings.HasSuffix(finalMsg, "\n") {
 
 ### Message-file lifecycle (runner.go:91-131)
 ```go
-msgFile, err := os.CreateTemp("", "stagehand-hookmsg-*.txt")  // line 97
+msgFile, err := os.CreateTemp("", "stagecoach-hookmsg-*.txt")  // line 97
 msgPath := msgFile.Name()
 defer os.Remove(msgPath)
 if _, werr := msgFile.WriteString(finalMsg); werr != nil {     // ← LINE 103 (no \n)
@@ -91,7 +91,7 @@ if deps.Hooks != nil {
 ```
 - **Empty-message check: NONE.** Empty `fm` → empty CommitTree.
 
-### Caller (b): `pkg/stagehand.runPipeline` — stagehand.go:652-694
+### Caller (b): `pkg/stagecoach.runPipeline` — stagecoach.go:652-694
 ```go
 if deps.Hooks != nil {
     ft, fm, herr := deps.Hooks.RunCommitHooks(ctx, deps.Git, cfg, treeSHA, parentSHA, msg, dryRun, deps.Verbose)
@@ -128,7 +128,7 @@ guards against empty, but it runs BEFORE hooks.
 ## `ErrEmptyMessage` sentinel (existing, reusable)
 **File**: `internal/generate/finalize.go:45`
 ```go
-var ErrEmptyMessage = errors.New("stagehand: empty commit message — aborted")
+var ErrEmptyMessage = errors.New("stagecoach: empty commit message — aborted")
 ```
 - Used at finalize.go:118 in `EditMessage`. Returns bare (non-rescue) → exit 1.
 - `hooks` already imports `generate` (for `RescueError`), so it CAN reference `generate.ErrEmptyMessage`.
@@ -173,7 +173,7 @@ type CommitHookRunner interface {
              │   → CommitTree(msg)  :439         │  NO empty check              │
              │   NO empty check                  └──────────────────────────────┘
              │
-             └── runPipeline stagehand.go:653
+             └── runPipeline stagecoach.go:653
                  → CommitTree(msg)  :694
                  NO empty check
 ```
@@ -193,7 +193,7 @@ type CommitHookRunner interface {
   means a dry-run with an emptied message aborts rather than warn-and-prints.
 
 ### Option B: check in each caller (3 sites)
-- `CommitStaged` (generate.go:431), `runPipeline` (stagehand.go:672), `publishCommit` (message.go:233).
+- `CommitStaged` (generate.go:431), `runPipeline` (stagecoach.go:672), `publishCommit` (message.go:233).
 - Each checks `strings.TrimSpace(msg) == ""` after the hook block.
 - runPipeline can choose warn-and-print under dryRun instead of hard error.
 

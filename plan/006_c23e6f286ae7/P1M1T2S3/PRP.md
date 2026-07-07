@@ -3,13 +3,13 @@ name: "P1.M1.T2.S3 — E2E contention scenarios: held lock → Busy, accidental 
 description: |
   Add the cross-process regression net for PRD §18.5 (FR52 per-repo run lock) as a NEW
   `//go:build e2e` test file `internal/e2e/lock_scenarios_test.go` (package e2e). It exercises — against
-  REAL compiled `stagehand` subprocesses driving a REAL temp git repo — every contention behavior the
+  REAL compiled `stagecoach` subprocesses driving a REAL temp git repo — every contention behavior the
   landed S2 wiring produces: (A) held lock + genuine second batch → exit 5 (Busy) naming the holder;
   (B) accidental double-run with an identical index → exit 0 "nothing to do" no-op fast path; (C) a run
   after a normal exit → NOT Busy (flock auto-released, no stale lock); (D) read-only subcommands
   (`providers list` / `config path` / `models --help`) bypass the lock entirely; (E) `--dry-run` acquires
-  the lock → exit Busy. Reuses the harness primitives (`newRepo`, `runStagehand`, `waitForMarker`,
-  `writeStubConfig`, `stubEnv`) and the stub agent's `STAGEHAND_STUB_MARKER`+`STAGEHAND_STUB_SLEEP_MS`
+  the lock → exit Busy. Reuses the harness primitives (`newRepo`, `runStagecoach`, `waitForMarker`,
+  `writeStubConfig`, `stubEnv`) and the stub agent's `STAGECOACH_STUB_MARKER`+`STAGECOACH_STUB_SLEEP_MS`
   blocking pattern (NO new binary). TEST-ONLY: no production code, docs, config, or API change.
 ---
 
@@ -17,7 +17,7 @@ description: |
 
 **Feature Goal**: Provide the PRD §20.5 "throwaway-repo harness" regression coverage for the FR52
 per-repo run lock — the cross-process behaviors that the in-process unit tests (S2's
-`handleLockContention` cases) structurally cannot reach: two real `stagehand` subprocesses racing on one
+`handleLockContention` cases) structurally cannot reach: two real `stagecoach` subprocesses racing on one
 repo, the no-op fast path comparing a contender's `write-tree` to a holder's published snapshot, flock
 auto-release across process death, read-only-subcommand bypass, and dry-run lock acquisition. Every
 contention scenario in §18.5's "Contention behavior" + "Scope" paragraphs gets a deterministic,
@@ -37,14 +37,14 @@ exit 5 + "already in progress" + repo path, holder exit 0 + commit landed; B →
 
 ## User Persona
 
-**Target User**: Stagehand contributors/maintainers — this is the regression net PRD §20.5 mandates
+**Target User**: Stagecoach contributors/maintainers — this is the regression net PRD §20.5 mandates
 ("Every bug found in the wild becomes a scenario here"). The end-user behavior it guards is "safe to
-double-invoke stagehand in two terminals."
+double-invoke stagecoach in two terminals."
 
-**Use Case**: A field report that "two stagehand runs collided and one clobbered HEAD" or "a stale lock
+**Use Case**: A field report that "two stagecoach runs collided and one clobbered HEAD" or "a stale lock
 hung my terminal" becomes a new subtest here. The 5 initial scenarios cover the §18.5 spec exhaustively.
 
-**User Journey**: `go test -tags e2e ./internal/e2e/` → compiles stagehand once → for each scenario:
+**User Journey**: `go test -tags e2e ./internal/e2e/` → compiles stagecoach once → for each scenario:
 `git init` a temp repo → seed → run real subprocess(es) → assert exit code + git history. Runs in CI
 behind the `e2e` build tag (opt-in, like the existing `scenarios_test.go`/`hook_scenarios_test.go`).
 
@@ -83,7 +83,7 @@ stub agent's blocking knobs. The two non-obvious design rules (front-loaded as C
    stages nothing new** so its tree MATCHES. Staging the same file for both in scenario A would make #2
    exit 0 (no-op) and FAIL the Busy assertion.
 2. **`waitForMarker` is the "snapshot published" synchronization point.** The stub writes the readiness
-   marker AFTER draining stdin, which is AFTER stagehand did `WriteTree` + `lock.SetSnapshot`. So when
+   marker AFTER draining stdin, which is AFTER stagecoach did `WriteTree` + `lock.SetSnapshot`. So when
    `waitForMarker` returns, #1 holds the lock AND has published its snapshot — making A/B/E fully
    deterministic (no timing race between acquire and snapshot).
 
@@ -133,7 +133,7 @@ marker-timing invariant); and the exact validation commands (`go test -tags e2e`
         lock acquire is in runDefault after g:=git.New, BEFORE shouldDecompose, and that read-only
         subcommands bypass structurally."
   critical: "§7's prose 'write the marker to release #1' is ONE option; this PRP uses the stub's
-             STAGEHAND_STUB_SLEEP_MS timed sleep instead (simpler, battle-tested by S3/S7 in
+             STAGECOACH_STUB_SLEEP_MS timed sleep instead (simpler, battle-tested by S3/S7 in
              scenarios_test.go) — both are valid per the item contract's MOCKING clause."
 
 - docfile: plan/006_c23e6f286ae7/P1M1T2S2/PRP.md
@@ -150,17 +150,17 @@ marker-timing invariant); and the exact validation commands (`go test -tags e2e`
         handleLockContention at 235); pins the exact no-op/busy messages; explains the Busy-vs-no-op crux
         (§3) and the marker-timing invariant (§4); confirms the CLI subcommands and dry-run routing; and
         gives the exact 5-scenario step design (§8)."
-  critical: "§3 (the crux) and §5 (reuse STAGEHAND_STUB_SLEEP_MS, no new binary) are the two decisions
+  critical: "§3 (the crux) and §5 (reuse STAGECOACH_STUB_SLEEP_MS, no new binary) are the two decisions
              most likely to be gotten wrong without this doc."
 
 # The code under test + the harness primitives (all READ-ONLY — do not edit)
 - file: internal/e2e/harness_test.go
-  why: "THE harness primitives to reuse: buildStagehand(t), buildStub(t), newRepo(t), seedCommit(t,repo,
+  why: "THE harness primitives to reuse: buildStagecoach(t), buildStub(t), newRepo(t), seedCommit(t,repo,
         name,body), writeFile(t,repo,name,body), stageFile(t,repo,name), runGit(t,repo,args...),
-        headSHA(t,repo), commitCount(t,repo), runStagehand(t,bin,repo,cfg,env,args...) → e2eResult{Stdout,
+        headSHA(t,repo), commitCount(t,repo), runStagecoach(t,bin,repo,cfg,env,args...) → e2eResult{Stdout,
         Stderr,ExitCode}, writeStubConfig(t,stub,extras) → cfg path, stubEnv(knobs map) → []string,
-        waitForMarker(t,path,timeout). The file's package doc explains the STAGEHAND_RUN_REAL dual mode."
-  pattern: "runStagehand prepends '--config cfg --no-color' and sets cmd.Dir=repo + cmd.Env=env; it
+        waitForMarker(t,path,timeout). The file's package doc explains the STAGECOACH_RUN_REAL dual mode."
+  pattern: "runStagecoach prepends '--config cfg --no-color' and sets cmd.Dir=repo + cmd.Env=env; it
             captures stdout/stderr separately and returns exitCode via errors.As(*exec.ExitError).
             waitForMarker polls os.Stat(marker) every 20ms up to timeout."
   gotcha: "Both #1 and #2 MUST get the SAME env (so they resolve the same XDG lock dir) AND the same repo
@@ -170,9 +170,9 @@ marker-timing invariant); and the exact validation commands (`go test -tags e2e`
 
 - file: internal/e2e/scenarios_test.go
   why: "THE pattern to mirror for blocking-stub concurrency: S3 (ConcurrentFile_Excluded) and S7
-        (CASAbort_HeadMoved) both launch #1 in a goroutine with STAGEHAND_STUB_MARKER+STAGEHAND_STUB_SLEEP_MS,
+        (CASAbort_HeadMoved) both launch #1 in a goroutine with STAGECOACH_STUB_MARKER+STAGECOACH_STUB_SLEEP_MS,
         waitForMarker, mutate state, launch/assert #2, then <-resCh. Copy that EXACT structure for A/B/D/E."
-  pattern: "resCh := make(chan e2eResult, 1); go func(){ resCh <- runStagehand(...) }(); waitForMarker(...);
+  pattern: "resCh := make(chan e2eResult, 1); go func(){ resCh <- runStagecoach(...) }(); waitForMarker(...);
             <contender or mutation>; res := <-resCh."
   gotcha: "S7 stages the file BEFORE launching (#1) — but for the lock, the contender's INDEX at contender
            time is what matters, so stage the contender's extra file AFTER waitForMarker (so it is NOT in
@@ -183,13 +183,13 @@ marker-timing invariant); and the exact validation commands (`go test -tags e2e`
         that adds helpers (runGitCommit, prependPath) and a TestE2EHookScenarios — distinct from
         scenarios_test.go. lock_scenarios_test.go follows the same separation (keeps the contention suite
         isolated, reuses all harness helpers via the same package)."
-  critical: "Same package (e2e) ⟹ the new file reuses buildStagehand/newRepo/runStagehand/etc. WITHOUT
+  critical: "Same package (e2e) ⟹ the new file reuses buildStagecoach/newRepo/runStagecoach/etc. WITHOUT
              redeclaring them. A redeclaration is a compile error."
 
 - file: cmd/stubagent/main.go
-  why: "THE stub the blocking pattern drives. Sequence: drain stdin → write STAGEHAND_STUB_MARKER → sleep
-        STAGEHAND_STUB_SLEEP_MS → write STAGEHAND_STUB_OUT → exit STAGEHAND_STUB_EXIT. The marker is written
-        AFTER stdin drain (which is AFTER stagehand did WriteTree+SetSnapshot and sent the prompt)."
+  why: "THE stub the blocking pattern drives. Sequence: drain stdin → write STAGECOACH_STUB_MARKER → sleep
+        STAGECOACH_STUB_SLEEP_MS → write STAGECOACH_STUB_OUT → exit STAGECOACH_STUB_EXIT. The marker is written
+        AFTER stdin drain (which is AFTER stagecoach did WriteTree+SetSnapshot and sent the prompt)."
   critical: "This ordering is WHY waitForMarker is the 'snapshot published' point (research §4). The stub
              is built once via buildStub(t) (stubtest.Build); do NOT modify it."
 
@@ -229,15 +229,15 @@ marker-timing invariant); and the exact validation commands (`go test -tags e2e`
 ### Current Codebase Tree (relevant slice — S1 COMPLETE, S2 LANDED on disk)
 
 ```bash
-stagehand/
+stagecoach/
 ├── cmd/
-│   ├── stagehand/main.go        # the binary buildStagehand compiles
+│   ├── stagecoach/main.go        # the binary buildStagecoach compiles
 │   └── stubagent/main.go        # the stub buildStub compiles (blocking knobs)
 └── internal/
     ├── cmd/
     │   └── default_action.go    # LANDED (S2): lock.Acquire:59, handleLockContention:241
     ├── e2e/
-    │   ├── harness_test.go      # //go:build e2e — buildStagehand/newRepo/runStagehand/waitForMarker/...
+    │   ├── harness_test.go      # //go:build e2e — buildStagecoach/newRepo/runStagecoach/waitForMarker/...
     │   ├── hook_scenarios_test.go   # //go:build e2e — the separate-file pattern to mirror
     │   └── scenarios_test.go    # //go:build e2e — the blocking-stub goroutine pattern (S3/S7)
     ├── exitcode/exitcode.go     # Busy = 5
@@ -248,7 +248,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     └── e2e/
         └── lock_scenarios_test.go   # NEW — //go:build e2e, package e2e; TestE2ELockContention (A–E)
@@ -278,8 +278,8 @@ stagehand/
 // If you stage the SAME file for both #1 and #2 in scenario A, #2 will exit 0 (no-op) and FAIL the
 // Busy assertion. This is the #1 way the implementation goes wrong.
 
-// CRITICAL (G2 — waitForMarker is the "snapshot published" point): the stub writes STAGEHAND_STUB_MARKER
-// AFTER draining stdin, which is AFTER stagehand did WriteTree + lock.SetSnapshot + sent the prompt. So
+// CRITICAL (G2 — waitForMarker is the "snapshot published" point): the stub writes STAGECOACH_STUB_MARKER
+// AFTER draining stdin, which is AFTER stagecoach did WriteTree + lock.SetSnapshot + sent the prompt. So
 // when waitForMarker returns, #1 holds the lock AND has published snapshot=. Launch the contender ONLY
 // after waitForMarker — this makes A/B/E deterministic (no timing race between lock acquire and snapshot
 // publish). For B this is MANDATORY: if #2 ran before #1 published snapshot, #2 would see snap=="" → Busy
@@ -292,27 +292,27 @@ stagehand/
 
 // GOTCHA (G4 — reuse the stub's timed sleep; NO new blocking binary): the contract mentions "a shell
 // script or Go binary that sleeps on a marker file" — but the EXISTING stub already supports
-// STAGEHAND_STUB_SLEEP_MS (a timed sleep after the marker). scenarios_test.go S3/S7 use exactly this.
-// Set STAGEHAND_STUB_SLEEP_MS=3000 for #1 (long enough for #2 to run mid-flight; short enough to keep
+// STAGECOACH_STUB_SLEEP_MS (a timed sleep after the marker). scenarios_test.go S3/S7 use exactly this.
+// Set STAGECOACH_STUB_SLEEP_MS=3000 for #1 (long enough for #2 to run mid-flight; short enough to keep
 // the suite fast). Do NOT write a new shell script or gate-marker binary.
 
 // GOTCHA (G5 — both subprocesses need the SAME env + repo to contend): the lock key is
 // sha256(canonical(repo path)). #1 and #2 MUST run with cmd.Dir = repo (same repo) and inherit the same
-// env (same XDG lock dir) so they resolve to the SAME lock file. runStagehand sets cmd.Dir=repo and
+// env (same XDG lock dir) so they resolve to the SAME lock file. runStagecoach sets cmd.Dir=repo and
 // cmd.Env=env; pass the same `repo` and compatible `env` to both. newRepo's unique t.TempDir() means
 // different subtests hash to different lock files (no cross-scenario contention) — so you do NOT need
 // explicit XDG isolation (matching the existing scenarios_test.go).
 
 // GOTCHA (G6 — the contender should use a NON-blocking env): give #2 an env WITHOUT the marker/sleep
-// knobs (just STAGEHAND_STUB_OUT). #2 exits Busy/no-op BEFORE ever invoking the stub, so blocking knobs
-// are irrelevant to #2 — but passing them would be misleading. Use stubEnv(map{"STAGEHAND_STUB_OUT":
+// knobs (just STAGECOACH_STUB_OUT). #2 exits Busy/no-op BEFORE ever invoking the stub, so blocking knobs
+// are irrelevant to #2 — but passing them would be misleading. Use stubEnv(map{"STAGECOACH_STUB_OUT":
 // "feat: b"}) for contenders. (It is functionally harmless to reuse #1's env for #2, but the clean
 // separation makes intent obvious.)
 
 // GOTCHA (G7 — read-only subcommands bypass via their OWN RunE, not via a flag): providers/config/models
 // each have their own RunE and never reach runDefault (where the lock lives). So scenario D just asserts
 // they don't exit 5 / don't print "already in progress". No special bypass flag exists or is needed.
-// `runStagehand` already prepends `--config cfg --no-color`, so pass args like []string{"providers","list"}.
+// `runStagecoach` already prepends `--config cfg --no-color`, so pass args like []string{"providers","list"}.
 
 // GOTCHA (G8 — dry-run acquires the lock at default_action.go:59, BEFORE the dry-run success path):
 // --dry-run goes through runDefault (it's the default action). The lock acquire (line 59) is BEFORE the
@@ -333,8 +333,8 @@ stagehand/
 // cannot break the default suite.
 
 // GOTCHA (G11 — the file is package e2e, reusing helpers; do NOT redeclare): lock_scenarios_test.go is
-// `package e2e` (same as harness_test.go / scenarios_test.go / hook_scenarios_test.go). buildStagehand,
-// buildStub, newRepo, seedCommit, writeFile, stageFile, runGit, headSHA, commitCount, runStagehand,
+// `package e2e` (same as harness_test.go / scenarios_test.go / hook_scenarios_test.go). buildStagecoach,
+// buildStub, newRepo, seedCommit, writeFile, stageFile, runGit, headSHA, commitCount, runStagecoach,
 // writeStubConfig, stubEnv, waitForMarker are ALL in scope. Redeclaring any is a compile error. The
 // `contains` helper lives in scenarios_test.go — reuse it; do NOT redeclare.
 ```
@@ -353,10 +353,10 @@ harness) and the harness's helper functions. No new production types.
 
 // lock_scenarios_test.go is the PRD §20.5 cross-process regression net for the FR52 per-repo run lock
 // (PRD §18.5). It exercises the LANDED S2 contention wiring (internal/cmd/default_action.go:
-// lock.Acquire + handleLockContention) against REAL stagehand subprocesses on REAL temp git repos —
+// lock.Acquire + handleLockContention) against REAL stagecoach subprocesses on REAL temp git repos —
 // the layer unit tests cannot reach (real flock across real processes). Reuses the harness primitives
-// (buildStagehand/newRepo/runStagehand/waitForMarker/writeStubConfig/stubEnv) and the stub agent's
-// STAGEHAND_STUB_MARKER + STAGEHAND_STUB_SLEEP_MS blocking pattern (NO new binary). Test-only.
+// (buildStagecoach/newRepo/runStagecoach/waitForMarker/writeStubConfig/stubEnv) and the stub agent's
+// STAGECOACH_STUB_MARKER + STAGECOACH_STUB_SLEEP_MS blocking pattern (NO new binary). Test-only.
 package e2e
 
 import (
@@ -367,7 +367,7 @@ import (
 
 // TestE2ELockContention exercises every PRD §18.5 contention behavior end-to-end.
 func TestE2ELockContention(t *testing.T) {
-	bin := buildStagehand(t)
+	bin := buildStagecoach(t)
 	stub := buildStub(t)
 	cfg := writeStubConfig(t, stub, "") // shared; each subtest makes its own repo
 
@@ -393,21 +393,21 @@ func(t *testing.T) {
 
 	readiness := t.TempDir() + "/ready.marker"
 	holderEnv := stubEnv(map[string]string{
-		"STAGEHAND_STUB_OUT":      "feat: a",
-		"STAGEHAND_STUB_MARKER":   readiness,
-		"STAGEHAND_STUB_SLEEP_MS": "3000", // #1 holds the lock during generation
+		"STAGECOACH_STUB_OUT":      "feat: a",
+		"STAGECOACH_STUB_MARKER":   readiness,
+		"STAGECOACH_STUB_SLEEP_MS": "3000", // #1 holds the lock during generation
 	})
 
 	resCh := make(chan e2eResult, 1)
-	go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+	go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
 	waitForMarker(t, readiness, 10*time.Second) // #1 holds lock + published snapshot=tree(a.txt)
 
 	// GENUINE SECOND BATCH: stage b.txt AFTER #1 snapshotted → not in #1's snapshot → tree differs → Busy.
 	writeFile(t, repo, "b.txt", "b\n")
 	stageFile(t, repo, "b.txt")
 
-	contenderEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: b"})
-	res2 := runStagehand(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
+	contenderEnv := stubEnv(map[string]string{"STAGECOACH_STUB_OUT": "feat: b"})
+	res2 := runStagecoach(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
 	if res2.ExitCode != 5 {
 		t.Fatalf("contender exit = %d, want 5 (Busy); stderr:\n%s", res2.ExitCode, res2.Stderr)
 	}
@@ -442,18 +442,18 @@ func(t *testing.T) {
 
 	readiness := t.TempDir() + "/ready.marker"
 	holderEnv := stubEnv(map[string]string{
-		"STAGEHAND_STUB_OUT":      "feat: a",
-		"STAGEHAND_STUB_MARKER":   readiness,
-		"STAGEHAND_STUB_SLEEP_MS": "3000",
+		"STAGECOACH_STUB_OUT":      "feat: a",
+		"STAGECOACH_STUB_MARKER":   readiness,
+		"STAGECOACH_STUB_SLEEP_MS": "3000",
 	})
 
 	resCh := make(chan e2eResult, 1)
-	go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+	go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
 	waitForMarker(t, readiness, 10*time.Second) // #1 snapshot = tree(a.txt)
 
 	// #2 stages NOTHING NEW → its write-tree (tree(a.txt)) == #1's snapshot → no-op fast path → exit 0.
-	contenderEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: a"})
-	res2 := runStagehand(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
+	contenderEnv := stubEnv(map[string]string{"STAGECOACH_STUB_OUT": "feat: a"})
+	res2 := runStagecoach(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
 	if res2.ExitCode != 0 {
 		t.Fatalf("contender exit = %d, want 0 (no-op fast path); stderr:\n%s", res2.ExitCode, res2.Stderr)
 	}
@@ -480,10 +480,10 @@ func(t *testing.T) {
 	writeFile(t, repo, "a.txt", "a\n")
 	stageFile(t, repo, "a.txt")
 
-	env := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: a"})
+	env := stubEnv(map[string]string{"STAGECOACH_STUB_OUT": "feat: a"})
 
 	// #1 runs to completion and its process exits → flock auto-released (no stale lock).
-	res1 := runStagehand(t, bin, repo, cfg, env, "--provider", "stub")
+	res1 := runStagecoach(t, bin, repo, cfg, env, "--provider", "stub")
 	if res1.ExitCode != 0 {
 		t.Fatalf("#1 exit = %d, want 0; stderr:\n%s", res1.ExitCode, res1.Stderr)
 	}
@@ -491,7 +491,7 @@ func(t *testing.T) {
 	// After #1's exit, #2 must acquire without contention (flock released).
 	writeFile(t, repo, "b.txt", "b\n")
 	stageFile(t, repo, "b.txt")
-	res2 := runStagehand(t, bin, repo, cfg, env, "--provider", "stub")
+	res2 := runStagecoach(t, bin, repo, cfg, env, "--provider", "stub")
 	if res2.ExitCode == 5 {
 		t.Fatalf("#2 exited Busy (5) — stale lock! flock must auto-release on #1's exit; stderr:\n%s", res2.Stderr)
 	}
@@ -515,13 +515,13 @@ func(t *testing.T) {
 
 	readiness := t.TempDir() + "/ready.marker"
 	holderEnv := stubEnv(map[string]string{
-		"STAGEHAND_STUB_OUT":      "feat: a",
-		"STAGEHAND_STUB_MARKER":   readiness,
-		"STAGEHAND_STUB_SLEEP_MS": "5000", // hold the lock while we poke the read-only commands
+		"STAGECOACH_STUB_OUT":      "feat: a",
+		"STAGECOACH_STUB_MARKER":   readiness,
+		"STAGECOACH_STUB_SLEEP_MS": "5000", // hold the lock while we poke the read-only commands
 	})
 
 	resCh := make(chan e2eResult, 1)
-	go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+	go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
 	waitForMarker(t, readiness, 10*time.Second) // #1 holds the lock
 
 	baseEnv := stubEnv(nil)
@@ -530,7 +530,7 @@ func(t *testing.T) {
 		{"config", "path"},
 		{"models", "--help"},
 	} {
-		res := runStagehand(t, bin, repo, cfg, baseEnv, args...)
+		res := runStagecoach(t, bin, repo, cfg, baseEnv, args...)
 		if res.ExitCode == 5 {
 			t.Errorf("%v exited Busy (5) — read-only subcommands must bypass the lock; stderr:\n%s", args, res.Stderr)
 		}
@@ -556,21 +556,21 @@ func(t *testing.T) {
 
 	readiness := t.TempDir() + "/ready.marker"
 	holderEnv := stubEnv(map[string]string{
-		"STAGEHAND_STUB_OUT":      "feat: a",
-		"STAGEHAND_STUB_MARKER":   readiness,
-		"STAGEHAND_STUB_SLEEP_MS": "3000",
+		"STAGECOACH_STUB_OUT":      "feat: a",
+		"STAGECOACH_STUB_MARKER":   readiness,
+		"STAGECOACH_STUB_SLEEP_MS": "3000",
 	})
 
 	resCh := make(chan e2eResult, 1)
-	go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+	go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
 	waitForMarker(t, readiness, 10*time.Second) // #1 snapshot = tree(a.txt)
 
 	// Dry-run contender stages an EXTRA file → tree differs → Busy (proves dry-run goes through runDefault
 	// and acquires the lock; if it bypassed, it would print "no commit created" and exit 0).
 	writeFile(t, repo, "b.txt", "b\n")
 	stageFile(t, repo, "b.txt")
-	contenderEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: b"})
-	res2 := runStagehand(t, bin, repo, cfg, contenderEnv, "--dry-run", "--provider", "stub")
+	contenderEnv := stubEnv(map[string]string{"STAGECOACH_STUB_OUT": "feat: b"})
+	res2 := runStagecoach(t, bin, repo, cfg, contenderEnv, "--dry-run", "--provider", "stub")
 	if res2.ExitCode != 5 {
 		t.Fatalf("dry-run contender exit = %d, want 5 (Busy — dry-run acquires the lock); stderr:\n%s", res2.ExitCode, res2.Stderr)
 	}
@@ -595,8 +595,8 @@ Task 1: CREATE internal/e2e/lock_scenarios_test.go
   - IMPORTS: strings, testing, time. (All harness helpers are in-scope via package e2e — do NOT import
     internal/...; the e2e package is a leaf test package that only uses the compiled binaries.)
   - WRITE the file skeleton (§"file skeleton") + the 5 subtest bodies (§A–§E), verbatim.
-  - REUSE (do NOT redeclare): buildStagehand, buildStub, newRepo, seedCommit, writeFile, stageFile,
-    runGit, headSHA, commitCount, runStagehand, writeStubConfig, stubEnv, waitForMarker, contains.
+  - REUSE (do NOT redeclare): buildStagecoach, buildStub, newRepo, seedCommit, writeFile, stageFile,
+    runGit, headSHA, commitCount, runStagecoach, writeStubConfig, stubEnv, waitForMarker, contains.
   - VERIFY it compiles under the tag: go build -tags e2e ./internal/e2e/ → exit 0.
 
 Task 2: VALIDATE — the e2e gate + the no-impact-on-default-suite gate
@@ -612,10 +612,10 @@ Task 2: VALIDATE — the e2e gate + the no-impact-on-default-suite gate
 ```go
 // === The blocking-stub concurrency idiom (mirror scenarios_test.go S3/S7) ===
 // resCh := make(chan e2eResult, 1)
-// go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+// go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
 // waitForMarker(t, readiness, 10*time.Second)   // #1 holds lock + published snapshot
 // <launch contender / mutate index>
-// res := <-resCh                                  // #1 finishes after STAGEHAND_STUB_SLEEP_MS
+// res := <-resCh                                  // #1 finishes after STAGECOACH_STUB_SLEEP_MS
 // The buffered chan (cap 1) lets the goroutine complete even if the test asserts on #2 first.
 
 // === Why the contender's extra file is staged AFTER waitForMarker (G1/G3) ===
@@ -653,9 +653,9 @@ Task 2: VALIDATE — the e2e gate + the no-impact-on-default-suite gate
 
 ```yaml
 HARNESS (consumed — internal/e2e/harness_test.go, READ-ONLY):
-  - buildStagehand(t) → bin ; buildStub(t) → stub
+  - buildStagecoach(t) → bin ; buildStub(t) → stub
   - newRepo(t) → repo (git init + identity) ; seedCommit/writeFile/stageFile/runGit/headSHA/commitCount
-  - runStagehand(t, bin, repo, cfg, env, args...) → e2eResult{Stdout, Stderr, ExitCode}
+  - runStagecoach(t, bin, repo, cfg, env, args...) → e2eResult{Stdout, Stderr, ExitCode}
   - writeStubConfig(t, stub, extras) → cfg path ; stubEnv(knobs) → []string
   - waitForMarker(t, path, timeout)
   - contains(ss, s) (defined in scenarios_test.go — reuse, do NOT redeclare)
@@ -682,7 +682,7 @@ NO-TOUCH (explicitly — owned by siblings / out of scope):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/e2e/lock_scenarios_test.go    # Expected: empty (run gofmt -w if listed).
 go vet ./internal/e2e/...                         # Expected: exit 0 (no unused import, no shadowing).
@@ -696,7 +696,7 @@ go build -tags e2e ./internal/e2e/                # Expected: exit 0 (compiles u
 ### Level 2: The E2E Gate (the actual deliverable test)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -tags e2e ./internal/e2e/ -run TestE2ELockContention -v
 # Expected: all 5 subtests PASS, exit 0:
@@ -706,7 +706,7 @@ go test -tags e2e ./internal/e2e/ -run TestE2ELockContention -v
 #   D_ReadOnlyBypass                   — providers list / config path / models --help none exit 5
 #   E_DryRunAcquiresLock               — --dry-run exit 5 + "already in progress"; no "no commit created"
 #
-# The whole suite takes ~15-20s (the 3s/5s stub sleeps dominate). The harness builds stagehand once.
+# The whole suite takes ~15-20s (the 3s/5s stub sleeps dominate). The harness builds stagecoach once.
 
 # Run the full e2e suite to confirm no collateral on the existing scenarios:
 go test -tags e2e ./internal/e2e/ -v
@@ -716,7 +716,7 @@ go test -tags e2e ./internal/e2e/ -v
 ### Level 3: No-Impact-on-Default-Suite (the build-tag guarantee)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...      # Expected: ALL packages green. The new file is //go:build e2e, so it is NOT
                          # compiled or run here — zero impact on the default suite. (If this fails, the
@@ -740,11 +740,11 @@ git diff --stat -- internal/cmd/ internal/lock/ internal/exitcode/ internal/gene
 ### Level 4: Behavioral Smoke Test (manual repro of the contention matrix)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Build the binary + a blocking stub config and reproduce the two outcomes by hand. This mirrors what the
 # e2e asserts, against the real flock, to confirm the box behaves as the tests expect.
-bin=$(mktemp -d)/stagehand; go build -o "$bin" ./cmd/stagehand
+bin=$(mktemp -d)/stagecoach; go build -o "$bin" ./cmd/stagecoach
 tmp=$(mktemp -d); cd "$tmp"; git init -q; git config user.name T; git config user.email t@t
 git config --global --get init.defaultBranch >/dev/null 2>&1 || true
 echo a > a.txt; git add a.txt; git commit -q -m seed
@@ -789,7 +789,7 @@ cd /; rm -rf "$tmp" "$bin" /tmp/stubagent
 - [ ] Did NOT touch ANY production code (`internal/cmd`, `internal/lock`, `internal/exitcode`,
       `internal/generate`, `internal/decompose`, `internal/git`).
 - [ ] Did NOT touch the stub agent, the harness, or the existing e2e scenarios.
-- [ ] Did NOT create a new blocking-stub binary/script (reused `STAGEHAND_STUB_SLEEP_MS`).
+- [ ] Did NOT create a new blocking-stub binary/script (reused `STAGECOACH_STUB_SLEEP_MS`).
 - [ ] Did NOT edit docs, `README.md`, `PRD.md`, `tasks.json`, `prd_snapshot.md`, or anything under `plan/`.
 
 ### Code Quality Validation
@@ -814,19 +814,19 @@ cd /; rm -rf "$tmp" "$bin" /tmp/stubagent
 - ❌ Don't run #2 before `waitForMarker` in scenario B — #1 may not have published `snapshot=` yet, so #2
   would see `snap==""` → Busy (not the expected no-op). The marker IS the "snapshot published" signal (G2).
 - ❌ Don't create a new blocking shell-script or gate-marker binary — the existing stub's
-  `STAGEHAND_STUB_SLEEP_MS` timed sleep is the blocking mechanism, exactly as `scenarios_test.go` S3/S7 use
+  `STAGECOACH_STUB_SLEEP_MS` timed sleep is the blocking mechanism, exactly as `scenarios_test.go` S3/S7 use
   it (G4).
 - ❌ Don't forget `<-resCh` at the end of each concurrency subtest — it lets #1's sleep finish and asserts
   #1's outcome (the holder should commit successfully). Skipping it leaks the goroutine and misses the
   "holder commits" half of the assertion (G9).
 - ❌ Don't pass the marker/sleep env to the contender (#2) — #2 exits at the lock BEFORE invoking the stub,
-  so blocking knobs are irrelevant to it; use a clean `stubEnv` with just `STAGEHAND_STUB_OUT` for contenders
+  so blocking knobs are irrelevant to it; use a clean `stubEnv` with just `STAGECOACH_STUB_OUT` for contenders
   to keep intent clear (G6).
 - ❌ Don't modify production code, the stub agent, the harness, or the existing scenarios — S3 is TEST-ONLY.
   The wiring under test is already landed (S1+S2); this subtask only observes it.
-- ❌ Don't redeclare `buildStagehand`/`newRepo`/`runStagehand`/`waitForMarker`/`contains`/etc. — the file is
+- ❌ Don't redeclare `buildStagecoach`/`newRepo`/`runStagecoach`/`waitForMarker`/`contains`/etc. — the file is
   `package e2e`; they are all in scope. A redeclaration is a compile error.
-- ❌ Don't write the file without `//go:build e2e` — without it, `runStagehand`/`waitForMarker` (which live
+- ❌ Don't write the file without `//go:build e2e` — without it, `runStagecoach`/`waitForMarker` (which live
   in `//go:build e2e` files) are undefined and the default `go test ./...` breaks. The build tag is the
   isolation boundary (G10).
 - ❌ Don't assert exact exit 0 for read-only subcommands in scenario D — assert `!= 5` (Busy) and absence of

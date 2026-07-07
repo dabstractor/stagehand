@@ -102,7 +102,7 @@ verify `tree[i]` is a content-subset of `T_start`.
 ## User Persona
 
 **Target User**: the decompose orchestrator (internal code, P3.M1.T1.S2) and the freeze-enforcement
-layer (P3.M2.T1.S1), and by extension the end user running `stagehand` on an un-staged working tree to
+layer (P3.M2.T1.S1), and by extension the end user running `stagecoach` on an un-staged working tree to
 get multiple commits while another tool (an editor save, a concurrent coding agent) may also be writing
 files. Neither method is a user-facing CLI flag; they are plumbing primitives.
 
@@ -125,8 +125,8 @@ are the plumbing foundation for both guarantees.
 ## Why
 
 - **Closes PRD §13.6.1 FR-M1b (the freeze) + FR-M1c (the enforcement) at the plumbing layer.** FR-M1b:
-  "the instant decomposition activates, stagehand captures an immutable snapshot of the entire
-  working-tree change set … as a tree object T_start." FR-M1c: "after each staging step, stagehand
+  "the instant decomposition activates, stagecoach captures an immutable snapshot of the entire
+  working-tree change set … as a tree object T_start." FR-M1c: "after each staging step, stagecoach
   verifies the resulting tree is a subset of T_start — only paths present in T_start, with T_start's
   content." This task is the literal interface-level implementation of the capture primitive + the
   path-set primitive the enforcement consumes.
@@ -285,7 +285,7 @@ knowledge required — the contracts are fully self-contained at the git-plumbin
 # MUST READ — the PRD spec (authoritative requirements)
 - url: PRD.md §13.6.1 (FR-M1b — the start-of-run freeze; FR-M1c — freeze enforcement) + §9.14 (FR-M1b/c)
   why: FR-M1b mandates "the first action on activation is to freeze the entire working-tree change set
-       into T_start"; FR-M1c mandates "after each staging step, stagehand verifies the resulting tree is
+       into T_start"; FR-M1c mandates "after each staging step, stagecoach verifies the resulting tree is
        a subset of T_start." These two methods are the plumbing for both.
 ```
 
@@ -622,7 +622,7 @@ Task 6: VERIFY (run all gates; fix before declaring done)
 
 	// DiffTreeNames returns the SORTED, DEDUPED list of paths that differ between two tree SHAs via
 	// `git diff-tree -r --name-only --no-commit-id <treeA> <treeB>`. It is the path-set primitive for
-	// freeze enforcement (PRD §13.6.1 FR-M1c: "after each staging step, stagehand verifies the resulting
+	// freeze enforcement (PRD §13.6.1 FR-M1c: "after each staging step, stagecoach verifies the resulting
 	// tree is a subset of T_start — only paths present in T_start") — the enforcement layer computes
 	// DiffTreeNames(prevTree, tree[i]) and checks it is a subset of DiffTreeNames(baseTree, tStart). It is
 	// also reusable for FR-M9's arbiter file-lists and FR-M8's empty-skip (tree[i]==tree[i-1] ⇔ empty set).

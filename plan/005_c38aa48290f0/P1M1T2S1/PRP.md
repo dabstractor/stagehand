@@ -6,7 +6,7 @@ description: |
   built-in denylist (lock/snap/map/vendor, FR3) ALWAYS applies alongside the user globs (FR-X1);
   (2) for each changed file the user excluded, emit the one-line placeholder `<status>\t[excluded]
   <path>` (mirroring the existing `[binary]` placeholder, FR-X4); (3) thread the resolved pathspecs from
-  the two resolution sites (pkg/stagehand internal; CLI runDecompose) through `generate.Deps` /
+  the two resolution sites (pkg/stagecoach internal; CLI runDecompose) through `generate.Deps` /
   `decompose.Deps` into the five `StagedDiffOptions` literals. Exclusion is PAYLOAD-ONLY — it never
   alters staging or commit content (FR-X5). Adds a stubagent stdin-capture knob + an e2e scenario + the
   docs/how-it-works.md diff-capture note. Hook exec (P1.M3.T2.S1) inherits this for free via StagedDiff.
@@ -15,7 +15,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: A repo with a `.stagehandignore` (or `[generation].exclude`, or `--exclude`) hides the
+**Feature Goal**: A repo with a `.stagecoachignore` (or `[generation].exclude`, or `--exclude`) hides the
 *bodies* of the matched files from every diff the agent sees (staged, working-tree snapshot, per-concept
 tree-to-tree), while still (a) emitting a `<status>\t[excluded] <path>` placeholder so the agent knows the
 file changed, and (b) committing that file exactly as it stands. The built-in noise denylist keeps
@@ -30,8 +30,8 @@ applying (UNION, not replace).
    for user-excluded changed files that are NOT already binary.
 3. Threading: `generate.Deps` and `decompose.Deps` each gain `Excludes []string`; the five
    `StagedDiffOptions` literals set `Excludes: deps.Excludes`; `ResolveExcludePathspecs` is called at
-   `pkg/stagehand.{GenerateCommit,Decompose}` (repoDir from `resolveConfig`) and at CLI `runDecompose`.
-4. `cmd/stubagent/main.go` — `STAGEHAND_STUB_STDINFILE` knob (tee stdin to a file; test-binary-only).
+   `pkg/stagecoach.{GenerateCommit,Decompose}` (repoDir from `resolveConfig`) and at CLI `runDecompose`.
+4. `cmd/stubagent/main.go` — `STAGECOACH_STUB_STDINFILE` knob (tee stdin to a file; test-binary-only).
 5. Tests: git-package integration tests (placeholder + body-absent + UNION) on all three methods; an
    end-to-end stubagent payload-capture test; an e2e scenario asserting the payload-only guarantee.
 6. `docs/how-it-works.md` — diff-capture subsection: `[excluded]` placeholder format + FR-X5 guarantee.
@@ -61,7 +61,7 @@ applying (UNION, not replace).
 
 ## What
 
-Given `.stagehandignore` containing `secrets.env` and `cfg.Exclude == []`, a staged change set
+Given `.stagecoachignore` containing `secrets.env` and `cfg.Exclude == []`, a staged change set
 `{feature.go, secrets.env}` produces (single-commit `StagedDiff`) a payload like:
 
 ```
@@ -79,8 +79,8 @@ A	[excluded] secrets.env
 - [ ] `excludedPlaceholderLine` + `detectExcludedStatuses` added to `internal/git/binary.go`.
 - [ ] `StagedDiff`, `WorkingTreeDiff`, `TreeDiff` each: UNION excludes + emit `[excluded]` placeholders.
 - [ ] `generate.Deps.Excludes` + `decompose.Deps.Excludes` fields; 5 call sites set `Excludes: deps.Excludes`.
-- [ ] `ResolveExcludePathspecs` called in pkg/stagehand (both entry points) + CLI `runDecompose`.
-- [ ] `STAGEHAND_STUB_STDINFILE` added to stubagent (tee stdin, preserve deadlock guard).
+- [ ] `ResolveExcludePathspecs` called in pkg/stagecoach (both entry points) + CLI `runDecompose`.
+- [ ] `STAGECOACH_STUB_STDINFILE` added to stubagent (tee stdin, preserve deadlock guard).
 - [ ] git-package tests on all three methods (placeholder present, hunk absent, UNION proof, empty=no-op).
 - [ ] Stubagent payload-capture test (excluded body absent + placeholder present end-to-end).
 - [ ] e2e scenario: excluded file IS committed (payload-only guarantee).
@@ -147,9 +147,9 @@ docs anchor. An implementer with no prior codebase knowledge can complete it._
 
 - file: internal/exclude/exclude.go
   why: UPSTREAM CONTRACT (ALREADY LANDED). ResolveExcludePathspecs(cfg, repoRoot, v) returns the
-       translated :(exclude,glob) union of .stagehandignore ∪ cfg.Exclude. Consume it; do NOT modify it.
+       translated :(exclude,glob) union of .stagecoachignore ∪ cfg.Exclude. Consume it; do NOT modify it.
   pattern: "excludes, err := exclude.ResolveExcludePathspecs(cfg, repoDir, verbose)  // []string or nil"
-  gotcha: "Returns (nil,nil) on missing .stagehandignore (no-op). Only a genuine read failure errors —
+  gotcha: "Returns (nil,nil) on missing .stagecoachignore (no-op). Only a genuine read failure errors —
           propagate it. Output is sources b+c+d ONLY; defaultExcludes (source a) is git.go's job (UNION here)."
 
 - file: internal/generate/generate.go  (generate.Deps, L33) + internal/decompose/roles.go  (decompose.Deps, L55)
@@ -157,10 +157,10 @@ docs anchor. An implementer with no prior codebase knowledge can complete it._
        call sites (generate.go:143; decompose planner.go:69, message.go:71, decompose.go:595) sets it.
   pattern: "git.StagedDiffOptions{MaxDiffBytes: cfg.MaxDiffBytes, MaxMDLines: cfg.MaxMdLines,
             BinaryExtensions: cfg.BinaryExtensions, Excludes: deps.Excludes}"
-  gotcha: "CommitStaged (generate.go:143) AND runPipeline (pkg/stagehand/stagehand.go:414) BOTH call
+  gotcha: "CommitStaged (generate.go:143) AND runPipeline (pkg/stagecoach/stagecoach.go:414) BOTH call
           StagedDiff — set Excludes in BOTH StagedDiffOptions literals (deps.Excludes is the same field)."
 
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: The two RESOLUTION SITES (GenerateCommit + Decompose). resolveConfig/resolveDecomposeConfig
        return (cfg, repoDir, err); deps.Verbose is created right after. Resolve excludes there.
   pattern: |
@@ -173,31 +173,31 @@ docs anchor. An implementer with no prior codebase knowledge can complete it._
           deps.Excludes before internal/decompose.Decompose. NO new Options field (resolution is internal)."
 
 - file: internal/cmd/default_action.go
-  why: CLI runDecompose builds decompose.Deps DIRECTLY (does NOT go through pkg/stagehand.Decompose —
+  why: CLI runDecompose builds decompose.Deps DIRECTLY (does NOT go through pkg/stagecoach.Decompose —
        per architecture note). It must resolve excludes itself. runDefault has repoDir (os.Getwd()).
   pattern: "Pass repoDir into runDecompose (add a param), then:
             excludes, err := exclude.ResolveExcludePathspecs(*cfg, repoDir, verbose)
             deps := decompose.Deps{..., Excludes: excludes}"
-  gotcha: "The single-commit CLI path calls stagehand.GenerateCommit (resolves internally) — do NOT
+  gotcha: "The single-commit CLI path calls stagecoach.GenerateCommit (resolves internally) — do NOT
           double-resolve there. Only runDecompose needs manual resolution."
 
 - file: cmd/stubagent/main.go
-  why: Add STAGEHAND_STUB_STDINFILE. Currently `io.Copy(io.Discard, os.Stdin)` drains stdin (deadlock
+  why: Add STAGECOACH_STUB_STDINFILE. Currently `io.Copy(io.Discard, os.Stdin)` drains stdin (deadlock
        guard). Tee to a file when the knob is set so tests can assert the agent's received payload.
   pattern: |
-    if f := os.Getenv("STAGEHAND_STUB_STDINFILE"); f != "" {
+    if f := os.Getenv("STAGECOACH_STUB_STDINFILE"); f != "" {
         var buf bytes.Buffer; io.Copy(&buf, os.Stdin); os.WriteFile(f, buf.Bytes(), 0o644)
     } else { io.Copy(io.Discard, os.Stdin) }
   gotcha: "Drain FULLY in both branches (the ~64KiB pipe deadlock guard must hold). Keep the order:
            drain FIRST, then MARKER, then ARGSFILE (existing) — do not reorder."
 
 - file: internal/e2e/scenarios_test.go  +  internal/e2e/harness_test.go
-  why: The e2e scenario PATTERN (buildStagehand/buildStub/newRepo/seedCommit/runStagehand/stubEnv/
+  why: The e2e scenario PATTERN (buildStagecoach/buildStub/newRepo/seedCommit/runStagecoach/stubEnv/
        writeStubConfig/diffTreeNames). Add a scenario proving the payload-only guarantee.
   pattern: "S3_ConcurrentFile_Excluded shows the stub-marker + goroutine + assertion shape; a simpler
             synchronous scenario suffices here (no concurrency needed)."
   gotcha: "e2e can't inspect the agent payload — assert the EXCLUDED FILE IS COMMITTED (diffTreeNames
-          includes it) to prove FR-X5. Set cfg.Exclude via .stagehandignore or a config extra."
+          includes it) to prove FR-X5. Set cfg.Exclude via .stagecoachignore or a config extra."
 ```
 
 ### Current Codebase tree (relevant slice)
@@ -216,9 +216,9 @@ internal/decompose/
   planner.go         # callPlanner TreeDiff StagedDiffOptions (L69)
   message.go         # generateMessage TreeDiff StagedDiffOptions (L71)
   decompose.go       # arbiter-leftover TreeDiff StagedDiffOptions (L595)
-pkg/stagehand/stagehand.go    # GenerateCommit/Decompose (resolve sites) + runPipeline StagedDiffOptions (L414)
+pkg/stagecoach/stagecoach.go    # GenerateCommit/Decompose (resolve sites) + runPipeline StagedDiffOptions (L414)
 internal/cmd/default_action.go# runDecompose (manual resolve) + runDefault (repoDir)
-cmd/stubagent/main.go         # STAGEHAND_STUB_* knobs (add _STDINFILE)
+cmd/stubagent/main.go         # STAGECOACH_STUB_* knobs (add _STDINFILE)
 internal/e2e/                 # harness_test.go + scenarios_test.go (add a scenario)
 docs/how-it-works.md          # "### Binary and non-text file filtering" section (extend)
 ```
@@ -234,10 +234,10 @@ internal/git/workingtreediff_test.go # ~ rewrite _ExcludesApplied; + placeholder
 internal/generate/generate.go     # + Deps.Excludes; + Excludes in CommitStaged StagedDiffOptions
 internal/decompose/roles.go       # + Deps.Excludes
 internal/decompose/{planner,message,decompose}.go # + Excludes in the 3 TreeDiff StagedDiffOptions
-pkg/stagehand/stagehand.go        # + resolve excludes in GenerateCommit + Decompose; + runPipeline Excludes
+pkg/stagecoach/stagecoach.go        # + resolve excludes in GenerateCommit + Decompose; + runPipeline Excludes
 internal/cmd/default_action.go    # + resolve excludes in runDecompose (repoDir param)
-cmd/stubagent/main.go             # + STAGEHAND_STUB_STDINFILE
-internal/generate/generate_test.go (or pkg/stagehand) # + stubagent payload-capture test
+cmd/stubagent/main.go             # + STAGECOACH_STUB_STDINFILE
+internal/generate/generate_test.go (or pkg/stagecoach) # + stubagent payload-capture test
 internal/e2e/scenarios_test.go    # + Sx_ExcludedFileStillCommitted scenario
 docs/how-it-works.md              # + "### Payload exclusions" subsection (placeholder + FR-X5)
 ```
@@ -275,10 +275,10 @@ docs/how-it-works.md              # + "### Payload exclusions" subsection (place
 // against the fileStatuses map. Robust to ":!" and ":(exclude,glob)" spellings alike.
 
 // GOTCHA: ResolveExcludePathspecs needs repoRoot. It is NOT on Deps (git.Git hides workDir). Resolve at
-// pkg/stagehand (repoDir from resolveConfig) and CLI runDecompose (repoDir from runDefault); thread the
+// pkg/stagecoach (repoDir from resolveConfig) and CLI runDecompose (repoDir from runDefault); thread the
 // resulting []string via Deps.Excludes. Do NOT add repoRoot to Deps (leaks git internals).
 
-// GOTCHA: stubagent deadlock guard. When adding STAGEHAND_STUB_STDINFILE, drain stdin FULLY in the tee
+// GOTCHA: stubagent deadlock guard. When adding STAGECOACH_STUB_STDINFILE, drain stdin FULLY in the tee
 // branch (io.Copy into a buffer, then WriteFile) — never read a fixed prefix. The ~64KiB OS pipe would
 // deadlock parent+child otherwise. Keep drain-first ordering.
 ```
@@ -346,17 +346,17 @@ Task 3: MODIFY internal/git/git.go — TreeDiff (L1011) and WorkingTreeDiff (L11
   - WHY also WorkingTreeDiff: FR-X3 (every diff path) + the method ships in the public Git interface;
     even though the freeze replaced its use in the planner, honoring excludes keeps it correct/ready.
 
-Task 4: MODIFY generate.Deps + the two StagedDiff call sites (generate.go, pkg/stagehand/stagehand.go)
+Task 4: MODIFY generate.Deps + the two StagedDiff call sites (generate.go, pkg/stagecoach/stagecoach.go)
   - ADD `Excludes []string` to generate.Deps (generate.go ~L36).
   - generate.go CommitStaged (L143): add `Excludes: deps.Excludes` to the StagedDiffOptions literal.
-  - pkg/stagehand/stagehand.go runPipeline (L414): add `Excludes: deps.Excludes` to its literal.
+  - pkg/stagecoach/stagecoach.go runPipeline (L414): add `Excludes: deps.Excludes` to its literal.
 
 Task 5: MODIFY decompose.Deps + the three TreeDiff call sites
   - ADD `Excludes []string` to decompose.Deps (roles.go ~L60).
   - planner.go callPlanner (L69), message.go generateMessage (L71), decompose.go arbiter-leftover (L595):
     add `Excludes: deps.Excludes` to each StagedDiffOptions literal.
 
-Task 6: MODIFY pkg/stagehand/stagehand.go — resolve excludes at both entry points
+Task 6: MODIFY pkg/stagecoach/stagecoach.go — resolve excludes at both entry points
   - GenerateCommit: after `deps.Verbose = ui.NewVerbose(...)`, add:
       deps.Excludes, err = exclude.ResolveExcludePathspecs(cfg, repoDir, deps.Verbose)
       if err != nil { return Result{}, fmt.Errorf("resolve excludes: %w", err) }
@@ -371,10 +371,10 @@ Task 7: MODIFY internal/cmd/default_action.go — resolve excludes in runDecompo
       excludes, err := exclude.ResolveExcludePathspecs(*cfg, repoDir, verbose)
       if err != nil { return exitcode.New(exitcode.Error, fmt.Errorf("resolve excludes: %w", err)) }
     and set `Excludes: excludes` in the decompose.Deps literal. Add the internal/exclude import.
-  - GOTCHA: do NOT touch the single-commit path (runDefault → stagehand.GenerateCommit resolves internally).
+  - GOTCHA: do NOT touch the single-commit path (runDefault → stagecoach.GenerateCommit resolves internally).
 
-Task 8: MODIFY cmd/stubagent/main.go — STAGEHAND_STUB_STDINFILE
-  - Replace `io.Copy(io.Discard, os.Stdin)` with: if STAGEHAND_STUB_STDINFILE set, io.Copy into a
+Task 8: MODIFY cmd/stubagent/main.go — STAGECOACH_STUB_STDINFILE
+  - Replace `io.Copy(io.Discard, os.Stdin)` with: if STAGECOACH_STUB_STDINFILE set, io.Copy into a
     bytes.Buffer then os.WriteFile; else io.Discard. Drain FULLY in both branches.
   - Keep the existing post-drain ordering (MARKER → ARGSFILE → sleep → stderr → out → exit) unchanged.
   - Add "bytes" import.
@@ -389,24 +389,24 @@ Task 9: MODIFY git-package tests (3 files) — rewrite + add
   - treediff_test.go / workingtreediff_test.go: same rewrite + add for TreeDiff/WorkingTreeDiff.
 
 Task 10: ADD stubagent payload-capture integration test
-  - In internal/generate/generate_test.go (or pkg/stagehand): build a stub Manifest (stubtest), temp repo
-    with feature.go + secret.conf staged, cfg.Exclude=["*.conf"], STAGEHAND_STUB_STDINFILE set; run
+  - In internal/generate/generate_test.go (or pkg/stagecoach): build a stub Manifest (stubtest), temp repo
+    with feature.go + secret.conf staged, cfg.Exclude=["*.conf"], STAGECOACH_STUB_STDINFILE set; run
     CommitStaged (or GenerateCommit); read the captured payload file; assert: secret.conf diff hunk
     ABSENT, "A\t[excluded] secret.conf" (or M) PRESENT, feature.go PRESENT. Proves end-to-end wiring.
 
 Task 11: ADD internal/e2e scenario — payload-only guarantee
-  - In scenarios_test.go add t.Run("Sx_ExcludedFileStillCommitted"): write a .stagehandignore (or a
-    [generation].exclude config extra), stage feature.go + excluded.txt, runStagehand with stub; assert
+  - In scenarios_test.go add t.Run("Sx_ExcludedFileStillCommitted"): write a .stagecoachignore (or a
+    [generation].exclude config extra), stage feature.go + excluded.txt, runStagecoach with stub; assert
     exit 0 AND diffTreeNames(head) INCLUDES excluded.txt (it was committed despite being excluded from
     the payload — FR-X5). Stub-only (no real agent needed).
 
 Task 12: MODIFY docs/how-it-works.md — diff-capture subsection
   - After the "### Binary and non-text file filtering" section, add "### Payload exclusions
-    (.stagehandignore)": exclusion patterns (sources: built-in denylist, .stagehandignore,
+    (.stagecoachignore)": exclusion patterns (sources: built-in denylist, .stagecoachignore,
     [generation].exclude, --exclude) hide a file's DIFF BODY from every payload but emit a
     `<status>\t[excluded] <path>` placeholder (same shape as `[binary]`, distinguishable by tag) so the
     agent still sees the file changed. State FR-X5 verbatim: "excluded from what the agent sees, still
-    committed." Cross-ref docs/configuration.md's `.stagehandignore` section (added by P1.M1.T1.S2).
+    committed." Cross-ref docs/configuration.md's `.stagecoachignore` section (added by P1.M1.T1.S2).
     Mode A (rides with this subtask).
 ```
 
@@ -482,7 +482,7 @@ DOWNSTREAM (inherits for free — do NOT implement here):
 THIS TASK'S TOUCHPOINTS:
   - internal/git/{binary,git}.go (3 methods, 2 helpers).
   - generate.Deps + decompose.Deps (+5 StagedDiffOptions literals).
-  - pkg/stagehand (2 resolve sites) + cmd/default_action.go (runDecompose resolve).
+  - pkg/stagecoach (2 resolve sites) + cmd/default_action.go (runDecompose resolve).
   - cmd/stubagent (STDINFILE).
   - tests + e2e + docs/how-it-works.md.
 ```
@@ -492,14 +492,14 @@ THIS TASK'S TOUCHPOINTS:
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/git/binary.go internal/git/git.go internal/generate/generate.go \
   internal/decompose/roles.go internal/decompose/planner.go internal/decompose/message.go \
-  internal/decompose/decompose.go pkg/stagehand/stagehand.go internal/cmd/default_action.go \
+  internal/decompose/decompose.go pkg/stagecoach/stagecoach.go internal/cmd/default_action.go \
   cmd/stubagent/main.go docs 2>/dev/null
 go build ./...
-go vet ./internal/git/... ./internal/generate/... ./internal/decompose/... ./pkg/stagehand/... ./cmd/...
-golangci-lint run ./internal/git/... ./internal/generate/... ./internal/decompose/... ./pkg/stagehand/... ./cmd/...
+go vet ./internal/git/... ./internal/generate/... ./internal/decompose/... ./pkg/stagecoach/... ./cmd/...
+golangci-lint run ./internal/git/... ./internal/generate/... ./internal/decompose/... ./pkg/stagecoach/... ./cmd/...
 # Expected: zero errors.
 ```
 
@@ -511,10 +511,10 @@ go test ./internal/git/... -run 'Excluded|Excludes' -v
 go test ./internal/git/... -v   # confirm the 3 rewritten tests + the rest stay green
 
 # Stubagent payload capture (end-to-end single path).
-go test ./internal/generate/... -run 'ExcludedPayload' -v   # (or pkg/stagehand, per Task 10 placement)
+go test ./internal/generate/... -run 'ExcludedPayload' -v   # (or pkg/stagecoach, per Task 10 placement)
 
 # Resolution wiring sanity (no panic, deps.Excludes populated).
-go test ./pkg/stagehand/... ./internal/cmd/... -v
+go test ./pkg/stagecoach/... ./internal/cmd/... -v
 # Expected: all pass. REQUIRED cases:
 #  StagedDiff/TreeDiff/WorkingTreeDiff: user-excluded file → "A\t[excluded] <path>" present, its
 #    "diff --git a/<f>" hunk absent, a non-excluded sibling present.
@@ -528,7 +528,7 @@ go test ./pkg/stagehand/... ./internal/cmd/... -v
 
 ```bash
 go test -tags e2e ./internal/e2e/... -run 'ExcludedFileStillCommitted' -v
-# Scenario: .stagehandignore (or [generation].exclude) hides excluded.txt; run stagehand; assert
+# Scenario: .stagecoachignore (or [generation].exclude) hides excluded.txt; run stagecoach; assert
 # exit 0 AND diffTreeNames(head) includes excluded.txt (it was COMMITTED — FR-X5). Stub-only.
 # Expected: pass (excluded from payload, still committed).
 ```
@@ -570,7 +570,7 @@ npx --yes markdownlint-cli docs/how-it-works.md 2>/dev/null || echo "verify the 
 - [ ] No changes to `cfg.Exclude` resolution / config load (S1).
 - [ ] No `[binary]` placeholder logic changes (already shipped — only ADD the parallel `[excluded]` path).
 - [ ] No hook exec work (P1.M3.T2.S1 — it inherits via StagedDiff).
-- [ ] No new pkg/stagehand.Options field (resolution stays internal).
+- [ ] No new pkg/stagecoach.Options field (resolution stays internal).
 
 ---
 
@@ -580,7 +580,7 @@ npx --yes markdownlint-cli docs/how-it-works.md 2>/dev/null || echo "verify the 
 - ❌ Don't double-placeholder a binary+excluded file — binary wins; skip it in the excluded loop.
 - ❌ Don't convert pathspecs by hand (`:(exclude,glob)`→`:(glob)`) — use the set-difference probe.
 - ❌ Don't leave the 3 existing exclude tests asserting path-absence — placeholders emit the path; rewrite them.
-- ❌ Don't add repoRoot to Deps — resolve where it's known (pkg/stagehand / runDecompose), thread the slice.
+- ❌ Don't add repoRoot to Deps — resolve where it's known (pkg/stagecoach / runDecompose), thread the slice.
 - ❌ Don't break the stubagent deadlock guard when teeing stdin — drain FULLY before WriteFile.
 - ❌ Don't reorder the stubagent's post-drain steps (MARKER→ARGSFILE→…).
 
@@ -593,7 +593,7 @@ npx --yes markdownlint-cli docs/how-it-works.md 2>/dev/null || echo "verify the 
 named, and the upstream contract (`ResolveExcludePathspecs`) is already landed. The −1.5 is two
 tractable risks: (1) the three existing exclude tests WILL break once placeholders emit the path (clearly
 flagged — they must be rewritten, not just re-run); and (2) the end-to-end resolution wiring spans two
-packages (pkg/stagehand + CLI runDecompose) where a missed call site would silently leave one path
+packages (pkg/stagecoach + CLI runDecompose) where a missed call site would silently leave one path
 unwired — mitigated by the per-method git-package tests AND the stubagent payload-capture test, which
 together prove all three diff paths and the single-commit end-to-end path. The set-difference detector
 avoids the fragile pathspec-conversion alternative entirely.

@@ -38,24 +38,24 @@ non-interactive — FR-B3 runs it from post-install scripts / first-run fallback
 **Success Definition**:
 - `go build ./...`, `go test ./internal/cmd/... ./internal/config/... ./internal/provider/... -v`,
   `go vet ./...`, `golangci-lint run`, `gofmt -l` all green.
-- `stagehand config init --interactive` with a TTY walks the three-step flow and writes a config that is
+- `stagecoach config init --interactive` with a TTY walks the three-step flow and writes a config that is
   BYTE-IDENTICAL to `GenerateBootstrapConfig(<chosen>)` when all defaults are accepted, and differs only
   in the edited role-model lines (+ pi note) when edits are made (the keystone contract).
 - A multi-backend provider (pi/opencode): editing a model to a bare value (no `/`) is rejected with a
   re-prompt; the wizard never writes a bare model that FR-R5b would hard-error on.
-- Non-TTY stdin (e.g. piped/dev-null) → exit 1 with a message pointing at plain `stagehand config init`.
+- Non-TTY stdin (e.g. piped/dev-null) → exit 1 with a message pointing at plain `stagecoach config init`.
 - `--interactive` composes: with `--force` (overwrites), with `--provider <name>` (pre-selects); errors
   clearly on `--interactive --template` (mutually exclusive).
-- Plain `stagehand config init` (no `--interactive`) is UNCHANGED in behavior and byte-output
+- Plain `stagecoach config init` (no `--interactive`) is UNCHANGED in behavior and byte-output
   (regression-safe — the refactor delegates, nil overrides = identity).
 
 ## User Persona
 
-**Target User**: the "plan-holder" (PRD §7.1) and "multi-agent tinkerer" (§7.3) bootstrapping stagehand
+**Target User**: the "plan-holder" (PRD §7.1) and "multi-agent tinkerer" (§7.3) bootstrapping stagecoach
 for the first time, and the "API-key refusenik" (§7.2) who wants guided setup without editing TOML by
 hand.
 
-**Use Case**: `stagehand config init --interactive` detects installed agents, highlights the FR-D1
+**Use Case**: `stagecoach config init --interactive` detects installed agents, highlights the FR-D1
 default, and lets the user accept curated per-role models or type their own — with guardrails so a
 multi-backend model always carries its inference prefix.
 
@@ -75,7 +75,7 @@ them. The wizard front-ends the SAME writer so the result is always a valid FR-B
   `config.GenerateBootstrapConfig(provider)` (`internal/config/bootstrap.go`) already implement FR-B1;
   the wizard is a TTY front-end that writes the SAME file shape. FR-D1 detection order lives in
   `provider.Registry.DefaultProvider` / `preferredBuiltins`. … TTY-detection precedent in internal/ui."
-- **Scope fences (P1.M6.T1.S2 parallel task)**: S2 delivers `stagehand models [<provider>]` (the
+- **Scope fences (P1.M6.T1.S2 parallel task)**: S2 delivers `stagecoach models [<provider>]` (the
   read-only listing). This task (S1 of T2) delivers the WRITE-side wizard. The two share data
   (`DefaultModelsForProvider`, `ListModelsCommand`, the registry) but do not edit each other's files.
   This task does NOT touch the manifest schema, `providers/*.toml`, `builtin.go`, or `merge.go` (S1's
@@ -87,7 +87,7 @@ them. The wizard front-ends the SAME writer so the result is always a valid FR-B
 A `--interactive` flag on `config init` that, when stdin is a TTY, runs a guided wizard producing a
 populated FR-B1 config via the shared `GenerateBootstrapConfigWithOverrides` generator. The wizard is
 non-destructive (refuses to overwrite unless `--force`) and writes to the resolved config path (honors
-`--config` / `STAGEHAND_CONFIG`, exactly like plain `config init`). All prompts go to stdout; the
+`--config` / `STAGECOACH_CONFIG`, exactly like plain `config init`). All prompts go to stdout; the
 written path is printed on success.
 
 ### Success Criteria
@@ -212,7 +212,7 @@ document + codebase access._
   why: The PARALLEL task (models command). It adds `config.DefaultModelsVerificationDate` and the
        `models` command; it CONSUMES Manifest.ListModelsCommand. This task is ORTHOGONAL (the write-side
        wizard) but shares DefaultModelsForProvider + the registry. Do not duplicate its work; if it has
-       shipped, the wizard MAY (optionally) mention `stagehand models` in its prompts, but that is NOT
+       shipped, the wizard MAY (optionally) mention `stagecoach models` in its prompts, but that is NOT
        required by FR-L3 — keep the wizard self-contained.
   section: Goal + Anti-Patterns (the shared seams).
 
@@ -391,12 +391,12 @@ Task 4: CREATE internal/cmd/config_init_interactive.go — the wizard
         1. Composition: tmpl, _ := cmd.Flags().GetBool("template"); if tmpl → exitcode.New(Error,
            "--interactive writes a populated config; --template writes the inert reference — choose one").
         2. TTY gate: if !interactiveStdinIsTTY() → exitcode.New(Error, "--interactive requires a terminal
-           on stdin; run plain 'stagehand config init' instead (it stays non-interactive for post-install
+           on stdin; run plain 'stagecoach config init' instead (it stays non-interactive for post-install
            scripts, FR-B3)").
-        3. reg, err := newRegistry(); if err → exitcode.New(Error, fmt.Errorf("stagehand: %w", err)).
+        3. reg, err := newRegistry(); if err → exitcode.New(Error, fmt.Errorf("stagecoach: %w", err)).
         4. installed := installedNames(reg); defaultName := resolvedDefault(Config(), reg, installed).
            if len(installed) == 0 → exitcode.New(Error, "no providers detected on $PATH; run plain
-           'stagehand config init' to default to pi, or install one of: <provider.PreferredBuiltins()>").
+           'stagecoach config init' to default to pi, or install one of: <provider.PreferredBuiltins()>").
         5. Pre-select? pinName, _ := cmd.Flags().GetString("provider"); if pinName != "" { validate via
            reg.Get(pinName); if !ok → exitcode.New(Error, "unknown provider %q ...") ; chosen = pinName }.
         6. result, err := runInteractiveWizard(cmd.InOrStdin(), cmd.OutOrStdout(), reg, installed,
@@ -450,8 +450,8 @@ Task 5: EDIT docs/cli.md — config init --interactive
     inference/ prefix on multi-backend providers (pi, opencode). Writes the same file as plain `config
     init`. Non-TTY → exit 1 (use plain `config init`)."); (b) add a paragraph + example block after the
     existing examples:
-      `stagehand config init --interactive   # guided: pick provider, edit per-role models`
-      `stagehand config init --interactive --provider pi   # pre-select pi, edit its models`
+      `stagecoach config init --interactive   # guided: pick provider, edit per-role models`
+      `stagecoach config init --interactive --provider pi   # pre-select pi, edit its models`
     Note the composition (--force, --provider) and the --template mutual-exclusion.
   - FOLLOW pattern: the existing config init flag table + example blocks.
   - PLACEMENT: within `### config init`, before `### config upgrade`. Do NOT duplicate the FR-D4 table.
@@ -578,15 +578,15 @@ func runConfigInitInteractive(cmd *cobra.Command, _ []string) error {
 		return exitcode.New(exitcode.Error, fmt.Errorf("--interactive writes a populated config; --template writes the inert reference — choose one"))
 	}
 	if !interactiveStdinIsTTY() {
-		return exitcode.New(exitcode.Error, fmt.Errorf("--interactive requires a terminal on stdin; run plain 'stagehand config init' instead (it stays non-interactive for post-install scripts, FR-B3)"))
+		return exitcode.New(exitcode.Error, fmt.Errorf("--interactive requires a terminal on stdin; run plain 'stagecoach config init' instead (it stays non-interactive for post-install scripts, FR-B3)"))
 	}
 	reg, err := newRegistry()
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	installed := installedNames(reg)
 	if len(installed) == 0 {
-		return exitcode.New(exitcode.Error, fmt.Errorf("no providers detected on $PATH; run plain 'stagehand config init' to default to pi, or install one of: %s", strings.Join(reg.PreferredBuiltins(), ", ")))
+		return exitcode.New(exitcode.Error, fmt.Errorf("no providers detected on $PATH; run plain 'stagecoach config init' to default to pi, or install one of: %s", strings.Join(reg.PreferredBuiltins(), ", ")))
 	}
 	pinName, _ := cmd.Flags().GetString("provider")
 	if pinName != "" {
@@ -662,7 +662,7 @@ TTY GATE (config_init_interactive.go):
   - var: "interactiveStdinIsTTY = func() bool { return ui.IsTerminal(os.Stdin) } — overridable for tests"
 
 DOWNSTREAM (NOT this task):
-  - "P1.M6.T1.S2 (models command) is orthogonal; the wizard MAY optionally mention `stagehand models`
+  - "P1.M6.T1.S2 (models command) is orthogonal; the wizard MAY optionally mention `stagecoach models`
     but FR-L3 does not require it — keep the wizard self-contained."
 ```
 
@@ -705,36 +705,36 @@ go test ./internal/cmd/... ./internal/config/... ./internal/provider/... -v
 
 ```bash
 # Build the binary.
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 
 # Non-TTY gate (stdin is /dev/null → not a TTY → exit 1, points at plain config init).
-/tmp/stagehand config init --interactive </dev/null
+/tmp/stagecoach config init --interactive </dev/null
 # Expected: exit 1; message contains "terminal" and "config init".
 
 # Happy path with piped answers (accept-all; put a fake claude on PATH so it is detected).
 mkdir -p /tmp/w-bin && printf '#!/bin/sh\nexit 0\n' >/tmp/w-bin/claude && chmod +x /tmp/w-bin/claude
-printf '\n\n\n\n\n' | PATH=/tmp/w-bin:$PATH /tmp/stagehand config init --interactive
-# Expected: "Wrote config to <path>"; the file EQUALS `stagehand config init --provider claude` output.
+printf '\n\n\n\n\n' | PATH=/tmp/w-bin:$PATH /tmp/stagecoach config init --interactive
+# Expected: "Wrote config to <path>"; the file EQUALS `stagecoach config init --provider claude` output.
 
 # Verify byte-identity: write plain init to a second path and diff.
-PATH=/tmp/w-bin:$PATH /tmp/stagehand config init --provider claude --config /tmp/plain.toml --force
-diff <(cat ~/.config/stagehand/config.toml) /tmp/plain.toml && echo "BYTE-IDENTICAL"
+PATH=/tmp/w-bin:$PATH /tmp/stagecoach config init --provider claude --config /tmp/plain.toml --force
+diff <(cat ~/.config/stagecoach/config.toml) /tmp/plain.toml && echo "BYTE-IDENTICAL"
 
 # Multi-backend prefix prompting (pi): a bare model is re-prompted; a prefixed one is accepted.
 printf 'pi\ngpt-5.4\nzai/gpt-5.4\nzai/gpt-5.4-mini\nzai/gpt-5.4-nano\nzai/gpt-5.4-mini\n' \
-  | PATH=/tmp/w-bin:$PATH /tmp/stagehand config init --interactive --force
+  | PATH=/tmp/w-bin:$PATH /tmp/stagecoach config init --interactive --force
 # Expected: the re-prompt for the bare "gpt-5.4" appears; the written pi config has zai/* prefixed models.
 
 # --provider pre-select (skip the provider prompt).
-printf '\n\n\n\n' | PATH=/tmp/w-bin:$PATH /tmp/stagehand config init --interactive --provider claude --force
+printf '\n\n\n\n' | PATH=/tmp/w-bin:$PATH /tmp/stagecoach config init --interactive --provider claude --force
 # Expected: no "Pick a provider" prompt; claude config written.
 
 # --interactive --template is a usage error.
-PATH=/tmp/w-bin:$PATH /tmp/stagehand config init --interactive --template
+PATH=/tmp/w-bin:$PATH /tmp/stagecoach config init --interactive --template
 # Expected: exit 1; message contains "choose one".
 
 # Plain config init is unchanged (regression).
-PATH=/tmp/w-bin:$PATH /tmp/stagehand config init --force
+PATH=/tmp/w-bin:$PATH /tmp/stagecoach config init --force
 # Expected: identical to pre-refactor output (the detected default, e.g. claude or pi).
 ```
 
@@ -748,7 +748,7 @@ go test ./internal/config/ -run TestBootstrap_OverridesNil_IsIdentity -v
 
 # FR-R5b hand-off: a config the wizard writes for pi must NEVER contain a bare non-empty model on pi
 # (Render would hard-error). Grep the written pi config: every model is "" or contains "/".
-grep -E 'model = "[^"/]*"' ~/.config/stagehand/config.toml && echo "FAIL: bare model present" || echo "OK: all pi models blank or prefixed"
+grep -E 'model = "[^"/]*"' ~/.config/stagecoach/config.toml && echo "FAIL: bare model present" || echo "OK: all pi models blank or prefixed"
 
 # No net/http / no new deps: the wizard is stdlib-only (bufio, fmt, io, os, strings).
 grep -rn "net/http" internal/cmd/config_init_interactive.go || echo "OK: no net/http"

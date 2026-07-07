@@ -14,21 +14,21 @@
 ## Goal
 
 **Feature Goal**: When `[generation]` (or git-config) does **not** set `output` / `strip_code_fence`,
-`pkg/stagehand.buildDeps` must leave the resolved provider manifest's own `output` / `strip_code_fence`
+`pkg/stagecoach.buildDeps` must leave the resolved provider manifest's own `output` / `strip_code_fence`
 **intact** — so a `[provider.X] output = "json"` (+ `json_field`) is honored by `provider.ParseOutput`
 without the user repeating it under `[generation]`, a `[provider.X] strip_code_fence = false` is honored,
-and `stagehand providers show <name>` stops lying about what parsing will do. Only an **explicit**
+and `stagecoach providers show <name>` stops lying about what parsing will do. Only an **explicit**
 `[generation]` / git-config value overrides the manifest (the genuine opt-in override).
 
 **Deliverable**:
-1. `pkg/stagehand/stagehand.go` `buildDeps`: change the `Output` guard from `if cfg.Output != "" { o := cfg.Output; m.Output = &o }` to `if cfg.Output != nil { m.Output = cfg.Output }` (the `StripCodeFence` guard is already `!= nil` and stays); refresh the now-stale "broader layer wins / decisions.md D4" comment to the opt-in-override wording.
-2. `pkg/stagehand/stagehand_test.go`: compile-fix + refresh `TestGenerateCommit_ManifestOutputWins_WhenCfgOutputEmpty_Issue4` (`cfg.Output = ""` → `cfg.Output = nil`; "empty"/`!= ""` wording → "nil"/`!= nil`).
-3. `pkg/stagehand/stagehand_test.go`: add end-to-end tests exercising the **real `config.Load`+registry path** via a repo-local `.stagehand.toml` (the contract's clauses a/b/d): manifest-level `output=json` honored with **no** `[generation]`; manifest-level `strip_code_fence=false` honored; regression that default `raw` still works. (Clause c — `[generation] output=json` overrides manifest `raw` — is already covered by the existing `TestGenerateCommit_GenerationConfigFile_OutputJSON_Issue4`; verify it stays green.)
+1. `pkg/stagecoach/stagecoach.go` `buildDeps`: change the `Output` guard from `if cfg.Output != "" { o := cfg.Output; m.Output = &o }` to `if cfg.Output != nil { m.Output = cfg.Output }` (the `StripCodeFence` guard is already `!= nil` and stays); refresh the now-stale "broader layer wins / decisions.md D4" comment to the opt-in-override wording.
+2. `pkg/stagecoach/stagecoach_test.go`: compile-fix + refresh `TestGenerateCommit_ManifestOutputWins_WhenCfgOutputEmpty_Issue4` (`cfg.Output = ""` → `cfg.Output = nil`; "empty"/`!= ""` wording → "nil"/`!= nil`).
+3. `pkg/stagecoach/stagecoach_test.go`: add end-to-end tests exercising the **real `config.Load`+registry path** via a repo-local `.stagecoach.toml` (the contract's clauses a/b/d): manifest-level `output=json` honored with **no** `[generation]`; manifest-level `strip_code_fence=false` honored; regression that default `raw` still works. (Clause c — `[generation] output=json` overrides manifest `raw` — is already covered by the existing `TestGenerateCommit_GenerationConfigFile_OutputJSON_Issue4`; verify it stays green.)
 4. `docs/configuration.md` + `docs/providers.md`: change the "broader layer wins" wording to "opt-in override; when `[generation]` omits them, the per-provider `[provider.X]` value is honored", and align the defaults-table source column + `[generation]` block comment.
 
 **Success Definition**: `go build ./... && go vet ./... && go test -race ./...` is GREEN; a
 `[provider.stub] output="json"` + `json_field` with **no** `[generation]` block produces a parsed
-JSON-field commit message (not the raw JSON blob); `stagehand providers show stub` reports
+JSON-field commit message (not the raw JSON blob); `stagecoach providers show stub` reports
 `output = 'json'` and parsing now matches.
 
 ---
@@ -57,7 +57,7 @@ JSON-field commit message (not the raw JSON blob); `stagehand providers show stu
 
 ### The bridge edit
 
-In `pkg/stagehand/stagehand.go` `buildDeps` (the block immediately after the `reg.IsInstalled`
+In `pkg/stagecoach/stagecoach.go` `buildDeps` (the block immediately after the `reg.IsInstalled`
 pre-flight and before `return generate.Deps{...}`):
 
 - `Output`: `if cfg.Output != "" { o := cfg.Output; m.Output = &o }`  →  `if cfg.Output != nil { m.Output = cfg.Output }`
@@ -102,13 +102,13 @@ runnable validation commands are all below.
 - file: plan/001_f1f80943ac34/bugfix/002_18158df10968/P1M2T1S1/PRP.md
   why: Documents S1's contract (Config.Output is now *string; Defaults() leaves Output/StripCodeFence nil)
        and explicitly defers the buildDeps bridge to S2 (this task). Confirms the transient whole-repo
-       compile break at pkg/stagehand/stagehand.go that S2 resolves.
+       compile break at pkg/stagecoach/stagecoach.go that S2 resolves.
   critical: S1 changed the config-package LOADERS (file.go/git.go) to set *string/*bool only when the
             source provides a value. So after S1, cfg.Output/cfg.StripCodeFence are genuinely nil when
             [generation]/git-config omit them — the precondition for the `!= nil` guard to mean "manifest wins".
 
 # THE EDIT SITE (Task 1)
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: buildDeps (~line 206-211, the block after reg.IsInstalled + before `return generate.Deps{...}`).
        Currently `if cfg.Output != ""` — this is the TRANSIENT S1 compile-break; S2 changes it to `!= nil`.
   pattern: The StripCodeFence guard IMMEDIATELY BELOW it (`if cfg.StripCodeFence != nil { m.StripCodeFence = cfg.StripCodeFence }`)
@@ -136,19 +136,19 @@ runnable validation commands are all below.
           with strip_code_fence=false or output=json passes Validate and reaches ParseOutput unchanged.
 
 # PRIMARY TEST PATTERNS — the existing Issue-4 tests to MIRROR (real config.Load+registry path)
-- file: pkg/stagehand/stagehand_test.go
+- file: pkg/stagecoach/stagecoach_test.go
   why: TestGenerateCommit_GenerationConfigFile_OutputJSON_Issue4 (line 675) is the template for the new
-       tests: it writes a CUSTOM .stagehand.toml string (NOT setupTestRepo, which hardcodes output="raw"
+       tests: it writes a CUSTOM .stagecoach.toml string (NOT setupTestRepo, which hardcodes output="raw"
        /strip_code_fence=true), runs GenerateCommit(DryRun:true), asserts res.Message. It exercises the
        REAL config.Load+registry path (resolveConfig→config.Load reads the toml→registry merges it).
-  pattern: TempDir + os.WriteFile(.stagehand.toml, customTOML) + initRepo + commitRaw("initial") +
+  pattern: TempDir + os.WriteFile(.stagecoach.toml, customTOML) + initRepo + commitRaw("initial") +
            writeFile+stageFile(new.txt) + chdir(+t.Cleanup) + GenerateCommit(ctx, Options{...}).
   gotcha: setupTestRepo/setupScriptedRepo (lines 112-180) HARDCODE `output = "raw"` and `strip_code_fence = true`
           in the toml, so they CANNOT produce a json/false manifest. Use the custom-TOML approach (mirror
           test #1) for the new (a)/(b) tests. (d) can reuse setupTestRepo as-is (raw manifest default).
 
 # THE TEST TO COMPILE-FIX (Task 2)
-- file: pkg/stagehand/stagehand_test.go
+- file: pkg/stagecoach/stagecoach_test.go
   why: TestGenerateCommit_ManifestOutputWins_WhenCfgOutputEmpty_Issue4 (line 839) has `cfg.Output = ""`
        (line 846) which no longer compiles (Output is *string). Change to `cfg.Output = nil` and refresh
        the "empty"/`!= ""`/"Defaults() ALWAYS sets Output=\"raw\"" comments to "nil"/`!= nil`/"nil by default".
@@ -173,8 +173,8 @@ runnable validation commands are all below.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-pkg/stagehand/stagehand.go        # buildDeps (~L206-211) — THE EDIT (Output guard) + comment refresh
-pkg/stagehand/stagehand_test.go   # compile-fix test #4 (L839) + ADD new tests (a)/(b)/(d)
+pkg/stagecoach/stagecoach.go        # buildDeps (~L206-211) — THE EDIT (Output guard) + comment refresh
+pkg/stagecoach/stagecoach_test.go   # compile-fix test #4 (L839) + ADD new tests (a)/(b)/(d)
 internal/config/config.go         # S1 DONE: Output *string, Defaults() nil — DO NOT TOUCH
 internal/config/file.go           # S1 DONE: materialize/overlay pointer-ified — DO NOT TOUCH
 internal/config/git.go            # S1 DONE: c.Output = &v — DO NOT TOUCH
@@ -187,8 +187,8 @@ docs/providers.md                 # Mode A: lines 30-32, 124
 ### Desired Codebase tree (files MODIFIED; no new files)
 
 ```bash
-pkg/stagehand/stagehand.go        # buildDeps Output guard -> != nil (drop local copy) + comment
-pkg/stagehand/stagehand_test.go   # +3 test funcs (a/b/d), 1 compile-fix (test #4)
+pkg/stagecoach/stagecoach.go        # buildDeps Output guard -> != nil (drop local copy) + comment
+pkg/stagecoach/stagecoach_test.go   # +3 test funcs (a/b/d), 1 compile-fix (test #4)
 docs/configuration.md             # opt-in-override wording + defaults-table source column
 docs/providers.md                 # opt-in-override wording + schema-row note
 ```
@@ -207,11 +207,11 @@ docs/providers.md                 # opt-in-override wording + schema-row note
 //   asserted on the blob). Assert on the EXTRACTED field value to prove json mode actually ran.
 
 // CRITICAL (test fixture): setupTestRepo/setupScriptedRepo HARDCODE output="raw" / strip_code_fence=true.
-//   They CANNOT build a json/false manifest. For (a)/(b) write a custom .stagehand.toml string (mirror
+//   They CANNOT build a json/false manifest. For (a)/(b) write a custom .stagecoach.toml string (mirror
 //   the existing TestGenerateCommit_GenerationConfigFile_OutputJSON_Issue4). (d) may reuse setupTestRepo.
 
 // GOTCHA (stub JSON quoting): TOML literal strings ('...') preserve embedded double-quotes, so emit
-//   JSON via a literal string: `STAGEHAND_STUB_OUT = '{"subject":"feat: ..."}'` (exactly as test #1 does).
+//   JSON via a literal string: `STAGECOACH_STUB_OUT = '{"subject":"feat: ..."}'` (exactly as test #1 does).
 //   Double-quoted TOML strings would need escaping.
 
 // GOTCHA (chdir): GenerateCommit resolves the repo via os.Getwd(). Every test chdir's into a t.TempDir()
@@ -228,7 +228,7 @@ docs/providers.md                 # opt-in-override wording + schema-row note
 
 ### The bridge edit (Task 1)
 
-In `pkg/stagehand/stagehand.go` `buildDeps`, the current block (after the `reg.IsInstalled` pre-flight,
+In `pkg/stagecoach/stagecoach.go` `buildDeps`, the current block (after the `reg.IsInstalled` pre-flight,
 before `return generate.Deps{Git: git.New(repoDir), Manifest: m}, nil`) is:
 
 ```go
@@ -272,7 +272,7 @@ Replace the WHOLE block (comment + both guards) with:
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: MODIFY pkg/stagehand/stagehand.go :: buildDeps
+Task 1: MODIFY pkg/stagecoach/stagecoach.go :: buildDeps
   - REPLACE: the entire comment + Output/StripCodeFence guard block (code above). The Output guard
     becomes `if cfg.Output != nil { m.Output = cfg.Output }` (drop the `o := cfg.Output` local copy);
     the StripCodeFence guard is UNCHANGED (`!= nil`) — keep it verbatim.
@@ -283,7 +283,7 @@ Task 1: MODIFY pkg/stagehand/stagehand.go :: buildDeps
   - DEPENDENCIES: requires S1 (already merged) — cfg.Output is *string. After this edit `go build ./...`
     compiles (the transient S1 break is resolved).
 
-Task 2: MODIFY pkg/stagehand/stagehand_test.go :: TestGenerateCommit_ManifestOutputWins_WhenCfgOutputEmpty_Issue4 (~L839)
+Task 2: MODIFY pkg/stagecoach/stagecoach_test.go :: TestGenerateCommit_ManifestOutputWins_WhenCfgOutputEmpty_Issue4 (~L839)
   - COMPILE FIX: `cfg.Output = ""` (L846) → `cfg.Output = nil`.
   - COMMENT REFRESH: the header (L826-838) and inline comments say "empty"/`!= ""`/"Defaults() ALWAYS
     sets Output=\"raw\"". Update to "nil"/`!= nil`/"nil by default". Adjust the test's stated premise:
@@ -296,24 +296,24 @@ Task 2: MODIFY pkg/stagehand/stagehand_test.go :: TestGenerateCommit_ManifestOut
   - DO NOT change the assertion logic (it still expects the manifest's json to win) — only the value +
     comments.
 
-Task 3: ADD pkg/stagehand/stagehand_test.go :: TestGenerateCommit_ManifestOutputJSON_Honored_NoGeneration (clause a)
+Task 3: ADD pkg/stagecoach/stagecoach_test.go :: TestGenerateCommit_ManifestOutputJSON_Honored_NoGeneration (clause a)
   - THE KEYSTONE: proves manifest-level output="json" is honored with NO [generation] block (dead before
     the fix). Follow the TestGenerateCommit_GenerationConfigFile_OutputJSON_Issue4 pattern (custom TOML).
   - TOML: [provider.stub] command=<bin>, prompt_delivery="stdin", output="json", json_field="subject",
-    strip_code_fence=true, [provider.stub.env] STAGEHAND_STUB_OUT='{"subject":"feat: manifest json wins"}'.
+    strip_code_fence=true, [provider.stub.env] STAGECOACH_STUB_OUT='{"subject":"feat: manifest json wins"}'.
     NO [generation] block.
   - ASSERT: res.Message == "feat: manifest json wins" (the EXTRACTED field, NOT the raw JSON blob).
   - TDD: without Task 1's fix (or if someone reintroduces an unconditional clobber), this FAILS (raw
     blob '{"subject":...}' observed). See skeleton below.
 
-Task 4: ADD pkg/stagehand/stagehand_test.go :: TestGenerateCommit_ManifestStripCodeFenceFalse_Honored_NoGeneration (clause b)
+Task 4: ADD pkg/stagecoach/stagecoach_test.go :: TestGenerateCommit_ManifestStripCodeFenceFalse_Honored_NoGeneration (clause b)
   - Proves manifest-level strip_code_fence=false is honored with NO [generation] block.
   - TOML: [provider.stub] ... output="raw", strip_code_fence=false, [provider.stub.env]
-    STAGEHAND_STUB_OUT = a fenced block ("```\nfeat: keep fence\n```").
+    STAGECOACH_STUB_OUT = a fenced block ("```\nfeat: keep fence\n```").
   - ASSERT: strings.Contains(res.Message, "```") (fence RETAINED). (Mirror the injected-SCF test's assertion.)
   - TDD: without the fix (old default boolPtr(true) clobber), fence is stripped → FAILS.
 
-Task 5: ADD pkg/stagehand/stagehand_test.go :: TestGenerateCommit_ManifestDefaultRaw_StillWorks (clause d — regression)
+Task 5: ADD pkg/stagecoach/stagecoach_test.go :: TestGenerateCommit_ManifestDefaultRaw_StillWorks (clause d — regression)
   - Proves the default raw path is UNCHANGED: no [generation], manifest default raw → plain message round-trips.
   - SIMPLEST: reuse setupTestRepo(t, stubtest.Options{Out: "feat: default raw ok"}) (its toml has output="raw",
     strip_code_fence=true, no [generation]) — stage a file, GenerateCommit(DryRun:true), assert
@@ -374,8 +374,8 @@ func TestGenerateCommit_ManifestOutputJSON_Honored_NoGeneration(t *testing.T) {
 		"json_field = \"subject\"\n" + // REQUIRED: parseJSON extracts obj["subject"]
 		"strip_code_fence = true\n" +
 		"\n[provider.stub.env]\n" +
-		"STAGEHAND_STUB_OUT = '" + jsonOut + "'\n" // literal string preserves the JSON quotes
-	if err := os.WriteFile(repo+"/.stagehand.toml", []byte(toml), 0o644); err != nil {
+		"STAGECOACH_STUB_OUT = '" + jsonOut + "'\n" // literal string preserves the JSON quotes
+	if err := os.WriteFile(repo+"/.stagecoach.toml", []byte(toml), 0o644); err != nil {
 		t.Fatalf("write toml: %v", err)
 	}
 
@@ -423,8 +423,8 @@ func TestGenerateCommit_ManifestStripCodeFenceFalse_Honored_NoGeneration(t *test
 		"output = \"raw\"\n" +
 		"strip_code_fence = false\n" + // manifest-level false — must be honored with no [generation]
 		"\n[provider.stub.env]\n" +
-		"STAGEHAND_STUB_OUT = '" + stubOut + "'\n"
-	if err := os.WriteFile(repo+"/.stagehand.toml", []byte(toml), 0o644); err != nil {
+		"STAGECOACH_STUB_OUT = '" + stubOut + "'\n"
+	if err := os.WriteFile(repo+"/.stagecoach.toml", []byte(toml), 0o644); err != nil {
 		t.Fatalf("write toml: %v", err)
 	}
 
@@ -456,7 +456,7 @@ func TestGenerateCommit_ManifestStripCodeFenceFalse_Honored_NoGeneration(t *test
 ```go
 // TestGenerateCommit_ManifestDefaultRaw_StillWorks is a regression guard (PRD bugfix-002 Issue 2 clause d):
 // with no [generation] block and the manifest default output="raw"/strip_code_fence=true (setupTestRepo's
-// .stagehand.toml), a plain raw message still round-trips unchanged. This must pass BOTH before and after
+// .stagecoach.toml), a plain raw message still round-trips unchanged. This must pass BOTH before and after
 // the S2 fix (raw/true is the unchanged default).
 func TestGenerateCommit_ManifestDefaultRaw_StillWorks(t *testing.T) {
 	setupTestRepo(t, stubtest.Options{Out: "feat: default raw ok"}) // output="raw", strip=true, no [generation]
@@ -497,13 +497,13 @@ func TestGenerateCommit_ManifestDefaultRaw_StillWorks(t *testing.T) {
 
 // WHY custom TOML (not setupTestRepo) for (a)/(b): the shared helpers hardcode output="raw"/strip=true.
 //   Writing the toml inline (as test #1 does) still runs the REAL config.Load+registry path — GenerateCommit
-//   → resolveConfig → config.Load reads CWD/.stagehand.toml → DecodeUserOverrides → registry merges.
+//   → resolveConfig → config.Load reads CWD/.stagecoach.toml → DecodeUserOverrides → registry merges.
 ```
 
 ### Integration Points
 
 ```yaml
-CODE: pkg/stagehand/stagehand.go buildDeps (the one source edit) + pkg/stagehand/stagehand_test.go.
+CODE: pkg/stagecoach/stagecoach.go buildDeps (the one source edit) + pkg/stagecoach/stagecoach_test.go.
 DATABASE: none.
 CONFIG: none (no new config keys; the [generation] output/strip_code_fence TOML keys and git-config keys
         are unchanged — only their override SEMANTICS change from always-on to opt-in).
@@ -519,19 +519,19 @@ DOWNSTREAM: none — S1 (config package) is already merged; no further subtask d
 ### Level 1: Syntax & Type (run after Task 1)
 
 ```bash
-# The whole repo must now compile (S1's transient pkg/stagehand break is resolved by Task 1).
+# The whole repo must now compile (S1's transient pkg/stagecoach break is resolved by Task 1).
 go build ./...
 go vet ./...
-# Expected: clean. If pkg/stagehand/stagehand.go still errors at the cfg.Output site, the edit is incomplete.
-gofmt -l pkg/stagehand/stagehand.go
-# Expected: lists nothing. If it does: gofmt -w pkg/stagehand/stagehand.go
+# Expected: clean. If pkg/stagecoach/stagecoach.go still errors at the cfg.Output site, the edit is incomplete.
+gofmt -l pkg/stagecoach/stagecoach.go
+# Expected: lists nothing. If it does: gofmt -w pkg/stagecoach/stagecoach.go
 ```
 
 ### Level 2: The new + fixed tests (run after Tasks 1-5)
 
 ```bash
-# Run the pkg/stagehand suite verbosely, with -race.
-go test -race ./pkg/stagehand/... -v
+# Run the pkg/stagecoach suite verbosely, with -race.
+go test -race ./pkg/stagecoach/... -v
 # Expected: ALL PASS. Specifically watch:
 #   TestGenerateCommit_ManifestOutputJSON_Honored_NoGeneration .... PASS (clause a — keystone)
 #   TestGenerateCommit_ManifestStripCodeFenceFalse_Honored_NoGeneration .. PASS (clause b)
@@ -548,8 +548,8 @@ go test -race ./pkg/stagehand/... -v
 # Sanity check the keystone (clause a) fails under the OLD clobber. On a throwaway branch:
 #   in buildDeps, temporarily replace `if cfg.Output != nil { m.Output = cfg.Output }` with an
 #   unconditional clobber, e.g. `o := "raw"; m.Output = &o` (mimics bugfix-001), and re-run:
-#     go test -race -run TestGenerateCommit_ManifestOutputJSON_Honored_NoGeneration ./pkg/stagehand/ -v
-#   It MUST now FAIL (Message == the raw JSON blob). Then `git checkout pkg/stagehand/stagehand.go`.
+#     go test -race -run TestGenerateCommit_ManifestOutputJSON_Honored_NoGeneration ./pkg/stagecoach/ -v
+#   It MUST now FAIL (Message == the raw JSON blob). Then `git checkout pkg/stagecoach/stagecoach.go`.
 # This is OPTIONAL verification of test quality, not a CI gate.
 ```
 
@@ -573,7 +573,7 @@ grep -n "opt-in\|broader layer wins\|config.Defaults()" docs/configuration.md do
 ### Technical Validation
 - [ ] `go build ./...` clean (S1 transient break resolved).
 - [ ] `go vet ./...` clean.
-- [ ] `gofmt -l pkg/stagehand/stagehand.go pkg/stagehand/stagehand_test.go` reports nothing.
+- [ ] `gofmt -l pkg/stagecoach/stagecoach.go pkg/stagecoach/stagecoach_test.go` reports nothing.
 - [ ] `go test -race ./...` — entire suite green.
 
 ### Feature Validation (Issue 2 contract)
@@ -612,11 +612,11 @@ grep -n "opt-in\|broader layer wins\|config.Defaults()" docs/configuration.md do
   falls back to raw and the test would observe the raw blob (a false pass if you asserted on the blob).
   Assert on the EXTRACTED field value.
 - ❌ **Don't use setupTestRepo/setupScriptedRepo for the json/false tests** — they hardcode `output="raw"`
-  /`strip_code_fence=true`. Write a custom `.stagehand.toml` (mirror existing Issue-4 test #1).
+  /`strip_code_fence=true`. Write a custom `.stagecoach.toml` (mirror existing Issue-4 test #1).
 - ❌ **Don't duplicate clause (c)** — `TestGenerateCommit_GenerationConfigFile_OutputJSON_Issue4` already
   covers `[generation] output=json` overriding a `raw` manifest. Verify it stays green; don't add a twin.
 - ❌ **Don't edit `internal/config/*` or `internal/provider/*`** — S1 owns the config package; the provider
-  package is a read-only consumer. The fix is entirely in `pkg/stagehand/stagehand.go`.
+  package is a read-only consumer. The fix is entirely in `pkg/stagecoach/stagecoach.go`.
 - ❌ **Don't change `buildDeps`'s other guards** (unknown-provider, Validate, IsInstalled pre-flight) —
   surgical replacement of the Output/StripCodeFence block only.
 - ❌ **Don't leave the stale comment** referencing "decisions.md D4" / "broader setting wins" / "always

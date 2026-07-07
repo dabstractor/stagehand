@@ -2,7 +2,7 @@
 
 > **Scope discipline.** This subtask is **TEST-ONLY**. The production fix (the `reg.IsInstalled(m)`
 > pre-flight check in `buildDeps`) was implemented in **P1.M2.T1.S1** (already merged — see the
-> `Pre-flight (PRD §18.2)` block in `pkg/stagehand/stagehand.go` `buildDeps`, after `m.Validate()`).
+> `Pre-flight (PRD §18.2)` block in `pkg/stagecoach/stagecoach.go` `buildDeps`, after `m.Validate()`).
 > S2 writes the **regression tests that lock in** Issue 3's fix and would fail loudly if anyone
 > reverts or weakens that check. **Do NOT modify any source file, the pre-flight check itself,
 > `PRD.md`, or any `tasks.json`.** Output = two new test functions (+ one tiny helper each).
@@ -17,7 +17,7 @@ error is **not** a `*RescueError`, `exitcode.For` maps it to **1**, the message 
 command, and **no new tree object** is written (no dangling tree, no §18.3 rescue block).
 
 **Deliverable**:
-1. `pkg/stagehand/stagehand_test.go` — `TestGenerateCommit_MissingProviderCommand_Issue3` driving the
+1. `pkg/stagecoach/stagecoach_test.go` — `TestGenerateCommit_MissingProviderCommand_Issue3` driving the
    **public library seam** (`GenerateCommit` directly) with the full assertion set (a)–(d), plus the
    `objectCountLine` helper.
 2. `internal/cmd/default_action_test.go` — `TestRunDefault_MissingProviderCommand_Issue3` driving the
@@ -44,7 +44,7 @@ command, and **no new tree object** is written (no dangling tree, no §18.3 resc
 - **Both seams**: Issue 1's fix (P1.M1) wired the CLI's loaded config through `Options.Config` into
   `GenerateCommit`; Issue 3's fix lives in `buildDeps` (the single chokepoint feeding **both**
   `CommitStaged` and the dry-run `runPipeline`). Testing the library seam proves the chokepoint;
-  testing the CLI seam proves the end-to-end user journey (`stagehand --provider missing`).
+  testing the CLI seam proves the end-to-end user journey (`stagecoach --provider missing`).
 
 ---
 
@@ -66,12 +66,12 @@ The CLI test additionally asserts the **§18.3 rescue block is absent** from std
 
 ### Success Criteria
 
-- [ ] `TestGenerateCommit_MissingProviderCommand_Issue3` (pkg/stagehand) passes; asserts (a)–(d).
+- [ ] `TestGenerateCommit_MissingProviderCommand_Issue3` (pkg/stagecoach) passes; asserts (a)–(d).
 - [ ] `TestRunDefault_MissingProviderCommand_Issue3` (internal/cmd) passes; asserts (b)–(d) + no
       rescue block on stderr.
 - [ ] Both tests stage a **new** file (so the count-objects guard is a real regression catch — see
       Gotchas).
-- [ ] `go test -race ./pkg/stagehand/... ./internal/cmd/...` green; `go test -race ./...` green.
+- [ ] `go test -race ./pkg/stagecoach/... ./internal/cmd/...` green; `go test -race ./...` green.
 
 ---
 
@@ -96,7 +96,7 @@ the runnable validation commands are all below.
             (a)/(b) assertions depend on. Do NOT change the error shape.
 
 # The S1 fix under test (READ-ONLY — do not modify; only assert against its behavior)
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: buildDeps (search "Pre-flight (PRD §18.2)") — the reg.IsInstalled(m) check + the exact error
        string `provider %q: command %q not found. Is the agent installed?` that clause (c) matches.
   pattern: GenerateCommit calls resolveConfig -> buildDeps -> (CommitStaged|runPipeline). buildDeps
@@ -105,8 +105,8 @@ the runnable validation commands are all below.
           subtest is optional but valuable to lock in both-pipeline protection.
 
 # PRIMARY PATTERN — the library test to extend (copy its fixture helpers + assertion style)
-- file: pkg/stagehand/stagehand_test.go
-  why: Reuse setupTestRepo's chdir/.stagehand.toml pattern and the errors.Is/exitcode assertion
+- file: pkg/stagecoach/stagecoach_test.go
+  why: Reuse setupTestRepo's chdir/.stagecoach.toml pattern and the errors.Is/exitcode assertion
        style already used by TestGenerateCommit_Timeout / TestResolveConfig_InjectedConfig.
   pattern: setupTestRepo(t, stubtest.Options{...}) builds the stub + writes [provider.stub]. For the
            missing-command test you do NOT need the stub — write a focused [provider.missing] TOML
@@ -118,9 +118,9 @@ the runnable validation commands are all below.
 - file: internal/cmd/default_action_test.go
   why: Mirror TestRunDefault_Rescue (exit 3) / TestRunDefault_CAS (exit 1) — same saveRootState
        bracket, rootCmd.SetArgs, Execute(ctx), exitcode.For(err), stderr-buffer rescue-block checks.
-  pattern: setupStubRepoRaw(t, tomlBody) writes a raw .stagehand.toml, initRepo, chdir — NO stub
+  pattern: setupStubRepoRaw(t, tomlBody) writes a raw .stagecoach.toml, initRepo, chdir — NO stub
            build needed; perfect for a [provider.missing] config.
-  gotcha: setupStubRepoRaw does NOT create an initial commit — add `runGit add .stagehand.toml` +
+  gotcha: setupStubRepoRaw does NOT create an initial commit — add `runGit add .stagecoach.toml` +
           `runGit commit -m initial` so HEAD exists (and so the new-file count guard is meaningful).
 
 # Exit-code mapping (why clause b holds for a plain error)
@@ -140,8 +140,8 @@ the runnable validation commands are all below.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-pkg/stagehand/stagehand.go            # buildDeps: the S1 pre-flight (READ-ONLY, under test)
-pkg/stagehand/stagehand_test.go       # ADD: TestGenerateCommit_MissingProviderCommand_Issue3 + objectCountLine
+pkg/stagecoach/stagecoach.go            # buildDeps: the S1 pre-flight (READ-ONLY, under test)
+pkg/stagecoach/stagecoach_test.go       # ADD: TestGenerateCommit_MissingProviderCommand_Issue3 + objectCountLine
 internal/cmd/default_action_test.go   # ADD: TestRunDefault_MissingProviderCommand_Issue3 + objectCountLine
 internal/cmd/root_test.go             # REUSE helpers: initRepo, writeConfigFile, chdir, saveRootState, restoreRootState, runGit, gitOut
 internal/exitcode/exitcode.go         # REUSE: exitcode.For, exitcode.Error
@@ -152,7 +152,7 @@ internal/provider/executor_test.go    # EXISTING Execute-level test (TestExecute
 ### Desired Codebase tree (files ADDED-TO; no new files)
 
 ```bash
-pkg/stagehand/stagehand_test.go       # +1 test func +1 helper (+ import internal/exitcode)
+pkg/stagecoach/stagecoach_test.go       # +1 test func +1 helper (+ import internal/exitcode)
 internal/cmd/default_action_test.go   # +1 test func +1 helper (no new import; strings/gitOut already present)
 ```
 
@@ -166,7 +166,7 @@ internal/cmd/default_action_test.go   # +1 test func +1 helper (no new import; s
 //   would write a NEW tree object and the count guard would fire. (Verified in research/ note.)
 
 // CRITICAL (clause a): assert errors.As(err, &re) is FALSE using the IN-PACKAGE type alias.
-//   In pkg/stagehand the alias is `RescueError` (stagehand.go: `type RescueError = generate.RescueError`),
+//   In pkg/stagecoach the alias is `RescueError` (stagecoach.go: `type RescueError = generate.RescueError`),
 //   so `var re *RescueError; errors.As(err, &re)` works without importing generate.
 //   In internal/cmd there is no alias — use `var re *generate.RescueError` (generate is imported
 //   transitively via exitcode; add the import if the linter requires it) OR rely solely on
@@ -212,19 +212,19 @@ func objectCountLine(t *testing.T, dir string) string {
 	return ""
 }
 ```
-> `gitOut` (pkg/stagehand) / `gitOut` (internal/cmd) already exist in both files. `strings` is already
+> `gitOut` (pkg/stagecoach) / `gitOut` (internal/cmd) already exist in both files. `strings` is already
 > imported in both. No new imports for the helper.
 
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: MODIFY pkg/stagehand/stagehand_test.go  (add import + helper + test)
-  - ADD IMPORT: "github.com/dustin/stagehand/internal/exitcode"  (NOT currently imported; needed for
+Task 1: MODIFY pkg/stagecoach/stagecoach_test.go  (add import + helper + test)
+  - ADD IMPORT: "github.com/dustin/stagecoach/internal/exitcode"  (NOT currently imported; needed for
     exitcode.For / exitcode.Error). RescueError is already an in-package type alias — no import needed.
   - ADD HELPER: objectCountLine(t, dir) string  (code above). Reuses the file's existing gitOut helper.
   - ADD TEST: TestGenerateCommit_MissingProviderCommand_Issue3  (skeleton below).
-  - REGISTRATION: repo-local .stagehand.toml with [provider.missing] command="/nonexistent/path/agent"
-    (faithful to the bug repro + the contract wording "via repo-local .stagehand.toml"). Write it into
+  - REGISTRATION: repo-local .stagecoach.toml with [provider.missing] command="/nonexistent/path/agent"
+    (faithful to the bug repro + the contract wording "via repo-local .stagecoach.toml"). Write it into
     a t.TempDir() repo, initRepo + commitRaw("initial"), chdir (t.Cleanup restore).
   - FIXTURE: writeFile new.txt + stageFile new.txt  (MUST stage a NEW file — see Gotchas).
   - ASSERTIONS (a)-(d): errors.As(*RescueError)==false; exitcode.For==exitcode.Error; err.Error()
@@ -242,7 +242,7 @@ Task 2: MODIFY internal/cmd/default_action_test.go  (add helper + test)
     repo convention). Uses existing gitOut; strings already imported. NO new import.
   - ADD TEST: TestRunDefault_MissingProviderCommand_Issue3  (skeleton below).
   - FIXTURE: setupStubRepoRaw(t, toml) where toml = the [provider.missing] block; then runGit add
-    .stagehand.toml + runGit commit -m initial (setupStubRepoRaw does NOT commit); writeFile + stageFile
+    .stagecoach.toml + runGit commit -m initial (setupStubRepoRaw does NOT commit); writeFile + stageFile
     a NEW new.txt.
   - SEAM: saveRootState/restoreRootState bracket; rootCmd.SetOut/SetErr buffers; rootCmd.SetArgs(
     []string{"--provider", "missing"}); err := Execute(context.Background()).
@@ -251,12 +251,12 @@ Task 2: MODIFY internal/cmd/default_action_test.go  (add helper + test)
     rescue block); objectCountLine equal before/after.
   - PLACEMENT: alongside TestRunDefault_Rescue / TestRunDefault_CAS (the other exit-code-path tests).
   - NAMING: TestRunDefault_MissingProviderCommand_Issue3.
-  - GUARDRAIL: do NOT modify default_action.go, root.go, stagehand.go, exitcode.go, or any non-test file.
+  - GUARDRAIL: do NOT modify default_action.go, root.go, stagecoach.go, exitcode.go, or any non-test file.
 ```
 
 ### Test skeletons (copy-paste-ready)
 
-**Task 1 — `pkg/stagehand/stagehand_test.go`:**
+**Task 1 — `pkg/stagecoach/stagecoach_test.go`:**
 
 ```go
 // TestGenerateCommit_MissingProviderCommand_Issue3 proves PRD Issue 3 is fixed: a provider whose
@@ -264,7 +264,7 @@ Task 2: MODIFY internal/cmd/default_action_test.go  (add helper + test)
 // error is NOT a *RescueError, exitcode.For maps it to 1, the message names the missing command, and
 // NO new tree object is written. Before P1.M2.T1.S1 this surfaced as exit 3 (rescue) + a dangling tree.
 func TestGenerateCommit_MissingProviderCommand_Issue3(t *testing.T) {
-	// Fresh repo with a repo-local .stagehand.toml registering a provider whose command does not exist.
+	// Fresh repo with a repo-local .stagecoach.toml registering a provider whose command does not exist.
 	repo := t.TempDir()
 	initRepo(t, repo)
 	commitRaw(t, repo, "initial")
@@ -273,8 +273,8 @@ func TestGenerateCommit_MissingProviderCommand_Issue3(t *testing.T) {
 		"prompt_delivery = \"stdin\"\n" +
 		"output = \"raw\"\n" +
 		"strip_code_fence = true\n"
-	if err := os.WriteFile(repo+"/.stagehand.toml", []byte(toml), 0o644); err != nil {
-		t.Fatalf("write .stagehand.toml: %v", err)
+	if err := os.WriteFile(repo+"/.stagecoach.toml", []byte(toml), 0o644); err != nil {
+		t.Fatalf("write .stagecoach.toml: %v", err)
 	}
 
 	// Chdir (GenerateCommit resolves the repo via os.Getwd()).
@@ -327,7 +327,7 @@ func TestGenerateCommit_MissingProviderCommand_Issue3(t *testing.T) {
 
 ```go
 // TestRunDefault_MissingProviderCommand_Issue3 proves PRD Issue 3 is fixed end-to-end through the CLI
-// seam: `stagehand --provider <missing-command>` exits 1 with the not-found message and NO §18.3
+// seam: `stagecoach --provider <missing-command>` exits 1 with the not-found message and NO §18.3
 // rescue block / no dangling tree. Before P1.M2.T1.S1 this was exit 3 + rescue block + dangling tree.
 func TestRunDefault_MissingProviderCommand_Issue3(t *testing.T) {
 	origArgs, origOut, origErr, origRunE := saveRootState(t)
@@ -341,9 +341,9 @@ func TestRunDefault_MissingProviderCommand_Issue3(t *testing.T) {
 	repo := setupStubRepoRaw(t, toml)
 	// setupStubRepoRaw does not commit; add an initial commit so HEAD exists and the new-file
 	// count-objects guard is meaningful.
-	runGit(t, repo, "add", ".stagehand.toml")
+	runGit(t, repo, "add", ".stagecoach.toml")
 	runGit(t, repo, "commit", "-m", "initial")
-	writeFile(t, repo, "new.txt", "content") // NEW file — see pkg/stagehand test comment for why
+	writeFile(t, repo, "new.txt", "content") // NEW file — see pkg/stagecoach test comment for why
 	stageFile(t, repo, "new.txt")
 
 	beforeCount := objectCountLine(t, repo)
@@ -404,10 +404,10 @@ func TestRunDefault_MissingProviderCommand_Issue3(t *testing.T) {
 ### Integration Points
 
 ```yaml
-CODE: none — test-only. No source file, import (beyond adding internal/exitcode to the pkg/stagehand
+CODE: none — test-only. No source file, import (beyond adding internal/exitcode to the pkg/stagecoach
       test), export, config, route, or signal change. The S1 pre-flight check is UNCHANGED.
 DATABASE: none.
-CONFIG: tests write a throwaway repo-local .stagehand.toml inside t.TempDir() (auto-cleaned); no
+CONFIG: tests write a throwaway repo-local .stagecoach.toml inside t.TempDir() (auto-cleaned); no
         committed config change.
 ROUTES: none.
 ```
@@ -421,10 +421,10 @@ ROUTES: none.
 ```bash
 # Build + vet the two affected packages. Expected: clean.
 go build ./...
-go vet ./pkg/stagehand/... ./internal/cmd/...
+go vet ./pkg/stagecoach/... ./internal/cmd/...
 
 # Format check (gofmt is the repo formatter — .golangci.yml / Makefile use it).
-gofmt -l pkg/stagehand/stagehand_test.go internal/cmd/default_action_test.go
+gofmt -l pkg/stagecoach/stagecoach_test.go internal/cmd/default_action_test.go
 # Expected: lists nothing. If it does: gofmt -w <those files>.
 ```
 
@@ -432,7 +432,7 @@ gofmt -l pkg/stagehand/stagehand_test.go internal/cmd/default_action_test.go
 
 ```bash
 # Run the two new tests verbosely, with -race.
-go test -race -run 'TestGenerateCommit_MissingProviderCommand_Issue3' ./pkg/stagehand/ -v
+go test -race -run 'TestGenerateCommit_MissingProviderCommand_Issue3' ./pkg/stagecoach/ -v
 go test -race -run 'TestRunDefault_MissingProviderCommand_Issue3'    ./internal/cmd/   -v
 # Expected: both PASS. If a clause fails, READ the assertion message — it names exactly which
 # invariant (type/exit-code/message/no-dangling-tree) broke.
@@ -442,9 +442,9 @@ go test -race -run 'TestRunDefault_MissingProviderCommand_Issue3'    ./internal/
 
 ```bash
 # Sanity check the guard fires if the fix is removed (do this on a THROWAWAY branch / git stash after):
-#   temporarily comment out the `if !reg.IsInstalled(m) { ... }` block in pkg/stagehand/stagehand.go
+#   temporarily comment out the `if !reg.IsInstalled(m) { ... }` block in pkg/stagecoach/stagecoach.go
 #   buildDeps, re-run the two tests — they MUST now FAIL (clause a: *RescueError; clause d: count
-#   changed; CLI: rescue block on stderr). Then `git checkout pkg/stagehand/stagehand.go` to restore.
+#   changed; CLI: rescue block on stderr). Then `git checkout pkg/stagecoach/stagecoach.go` to restore.
 # This step is OPTIONAL verification of test quality, not a CI gate.
 ```
 
@@ -464,9 +464,9 @@ go test -race ./...
 
 ### Technical Validation
 - [ ] `go build ./...` clean.
-- [ ] `go vet ./pkg/stagehand/... ./internal/cmd/...` clean.
+- [ ] `go vet ./pkg/stagecoach/... ./internal/cmd/...` clean.
 - [ ] `gofmt -l` reports nothing for the two edited test files.
-- [ ] `go test -race -run '...MissingProviderCommand_Issue3' ./pkg/stagehand/ ./internal/cmd/` green.
+- [ ] `go test -race -run '...MissingProviderCommand_Issue3' ./pkg/stagecoach/ ./internal/cmd/` green.
 - [ ] `go test -race ./...` — entire suite green (no regressions).
 
 ### Feature Validation (Issue 3 contract)
@@ -483,7 +483,7 @@ go test -race ./...
 - [ ] `objectCountLine` added to both test files (helper duplication is the repo convention).
 - [ ] Reuses existing helpers (runGit/gitOut/initRepo/commitRaw/writeFile/stageFile/setupStubRepoRaw/
       saveRootState/restoreRootState) — no reimplemented git plumbing.
-- [ ] No source file modified (test-only); `internal/exitcode` import added only to the pkg/stagehand test.
+- [ ] No source file modified (test-only); `internal/exitcode` import added only to the pkg/stagecoach test.
 
 ### Documentation
 - [ ] Each test has a header comment stating the before/after behavior it locks in.

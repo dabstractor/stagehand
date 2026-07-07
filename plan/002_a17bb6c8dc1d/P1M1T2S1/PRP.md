@@ -5,7 +5,7 @@ description: |
   change `Manifest.Render` to a variadic `mode ...RenderMode` final parameter (default bare), and replace
   the unconditional `args = append(args, r.BareFlags...)` with a mode switch that appends TooledFlags in
   tooled mode (erroring if TooledFlags is empty). The variadic keeps every v1 caller (generate.go,
-  stagehand.go, 16+ test sites) byte-for-byte unchanged. This lands the render-side hook the v2
+  stagecoach.go, 16+ test sites) byte-for-byte unchanged. This lands the render-side hook the v2
   decompose stager (P3.M2.T3) will call as `Render(model, provider, sys, payload, provider.RenderTooled)`.
   Pure additive change to ONE production file + its test file. S1 (TooledFlags field) is already landed.
 ---
@@ -35,7 +35,7 @@ tooled_flags". `go build/vet/gofmt` clean; `go test -race ./...` green across th
 
 ## User Persona
 
-**Target User**: The Stagehand contributor implementing the v2 decompose pipeline (P3.M2.T3 stager) and
+**Target User**: The Stagecoach contributor implementing the v2 decompose pipeline (P3.M2.T3 stager) and
 the provider/tooled-flags builtins (P1.M2.T2). This is internal rendering plumbing — no end-user surface.
 
 **Use Case**: The decompose stager (P3.M2.T3) must invoke an agent WITH git tools enabled (tooled mode)
@@ -56,7 +56,7 @@ stager" fail at render time (clear error) rather than silently emitting a tool-l
   The v1 renderer hardcodes the `bare_flags` branch; this subtask implements the ternary's `mode`
   dimension so the same code path serves both modes.
 - **PRD §11.5 (two invocation modes):** bare (tools off) for planner/message/arbiter; tooled (git tools
-  on, scoped) for the stager — "the single deliberate exception to stagehand's 'agent never touches git'
+  on, scoped) for the stager — "the single deliberate exception to stagecoach's 'agent never touches git'
   rule." Both reuse the manifest's command/model/provider/print/delivery fields; only the flag-set differs.
   Render is where that flag-set selection happens.
 - **PRD §12.1 tooled_flags contract:** "nil/empty => this provider does not support tooled mode and
@@ -68,7 +68,7 @@ stager" fail at render time (clear error) rather than silently emitting a tool-l
   Render reads them. This subtask is the render-side half of that pair.
 - **Zero v1 regression by construction:** the variadic `mode ...RenderMode` is purely additive for
   callers — every existing 4-arg call compiles and behaves identically (default bare). This is why a
-  2-point subtask can land the hook without touching generate.go/stagehand.go.
+  2-point subtask can land the hook without touching generate.go/stagecoach.go.
 
 ## What
 
@@ -152,7 +152,7 @@ landed (TooledFlags exists; baseline green). No inference required.
 ### Current Codebase Tree (relevant slice — v1 fully implemented)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/provider/
     ├── manifest.go        # S1 LANDED: has TooledFlags []string + Experimental *bool + Resolve (TooledFlags left nil)
     ├── render.go          # EDIT TARGET: CmdSpec + Render (4-arg; unconditional r.BareFlags append)
@@ -164,14 +164,14 @@ stagehand/
     ├── registry.go, executor.go, parse.go, procgroup_*.go   # unaffected
 └── (callers, unchanged)
     internal/generate/generate.go:191   # deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)
-    pkg/stagehand/stagehand.go:304      # deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)
+    pkg/stagecoach/stagecoach.go:304      # deps.Manifest.Render(cfg.Model, cfg.Provider, sysPrompt, payload)
     internal/generate/realagent_test.go:70, internal/stubtest/stubtest_test.go (×11)  # 4-arg bare calls
 ```
 
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/provider/render.go        # +RenderMode type/constants; Render +variadic mode; mode switch; doc updates
     internal/provider/render_test.go   # +5 tests + dualModeManifest() fixture
@@ -184,7 +184,7 @@ stagehand/
 
 **Explicitly NOT touched**: `manifest.go` (S1 — TooledFlags already there), `merge.go`/`merge_test.go`
 (S2 — parallel), `builtin.go`/`builtin_test.go`/`providers/*.toml` (agy + tooled-flags VALUES = P1.M2),
-`registry.go`/`executor.go`/`parse.go` (unaffected), `generate.go`/`stagehand.go` (callers — unchanged by
+`registry.go`/`executor.go`/`parse.go` (unaffected), `generate.go`/`stagecoach.go` (callers — unchanged by
 the variadic), any `docs/*.md` (contract: Mode A = code doc comments only), `PRD.md`, `tasks.json`,
 `prd_snapshot.md`, anything under `plan/`.
 
@@ -253,7 +253,7 @@ method, after the `CmdSpec` type):
 // `args += (mode == "tooled") ? m.tooled_flags : m.bare_flags`.
 //
 // Render's `mode ...RenderMode` parameter is VARIADIC and defaults to RenderBare when omitted, so every
-// v1 caller (generate.CommitStaged, pkg/stagehand.runPipeline, all tests) is unchanged. The decompose
+// v1 caller (generate.CommitStaged, pkg/stagecoach.runPipeline, all tests) is unchanged. The decompose
 // stager (P3.M2.T3) passes RenderTooled.
 type RenderMode string
 
@@ -411,7 +411,7 @@ Task 5: VALIDATE (run all gates; all must pass before declaring done)
   - RUN: gofmt -l .            # must be empty
   - RUN: go test -race ./...   # WHOLE repo green (no other package's behavior changes)
   - RUN targeted: go test -race ./internal/provider/ -run TestRender
-  - RUN regression proof: go test -race ./internal/generate/ ./pkg/stagehand/ ./internal/stubtest/  # callers unchanged
+  - RUN regression proof: go test -race ./internal/generate/ ./pkg/stagecoach/ ./internal/stubtest/  # callers unchanged
   - FIX-FORWARD: read failures, fix, re-run. Do NOT skip.
 ```
 
@@ -433,7 +433,7 @@ Task 5: VALIDATE (run all gates; all must pass before declaring done)
 // === Why variadic keeps callers unchanged (Go spec) ===
 // A final `mode ...RenderMode` parameter accepts ZERO trailing args: `Render(a,b,c,d)` is valid and
 // passes mode==nil. The selectedMode resolution (`if len(mode) > 0 …`) then defaults to RenderBare.
-// So generate.go:191, stagehand.go:304, and all 14 test call sites compile and behave identically.
+// So generate.go:191, stagecoach.go:304, and all 14 test call sites compile and behave identically.
 
 // === The edit is surgically one line + its replacement block ===
 // Before:  args = append(args, r.BareFlags...)
@@ -458,7 +458,7 @@ NO-TOUCH (explicitly — owned by other subtasks):
   - internal/provider/builtin.go     # agy + tooled_flags VALUES = P1.M2.T1/T2
   - internal/provider/builtin_test.go # renderArgs is bare-only; do NOT add a mode
   - internal/provider/registry.go, executor.go, parse.go   # read other fields; unaffected
-  - internal/generate/generate.go, pkg/stagehand/stagehand.go  # callers — UNCHANGED (variadic)
+  - internal/generate/generate.go, pkg/stagecoach/stagecoach.go  # callers — UNCHANGED (variadic)
   - docs/*.md                        # contract: Mode A = code doc comments only
 
 DOWNSTREAM HOOKS (informational — implemented by LATER subtasks, NOT this one):
@@ -472,7 +472,7 @@ DOWNSTREAM HOOKS (informational — implemented by LATER subtasks, NOT this one)
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l .                       # Expected: empty (run `gofmt -w internal/provider/render.go render_test.go` if listed)
 go vet ./internal/provider/...   # Expected: exit 0
@@ -485,7 +485,7 @@ go build ./...                   # Expected: exit 0 (variadic keeps all 16+ call
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Targeted: all render tests (existing 10 unchanged + 5 new)
 go test -race ./internal/provider/ -v -run TestRender
@@ -504,12 +504,12 @@ go test -race ./internal/provider/ -v
 ### Level 3: Whole-Repository Regression (No Behavior Change Elsewhere)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages pass (callers unchanged; only render.go + test edited)
 
 # Caller regression proof — the 3 packages that call Render must be green unchanged
-go test -race ./internal/generate/ ./pkg/stagehand/ ./internal/stubtest/
+go test -race ./internal/generate/ ./pkg/stagecoach/ ./internal/stubtest/
 
 # Confirm ONLY internal/provider/render.go (+ test) changed in production source
 git diff --stat -- internal/ pkg/ cmd/ providers/
@@ -522,13 +522,13 @@ git diff --stat -- internal/provider/manifest.go internal/provider/merge.go || e
 ### Level 4: Behavioral Cross-Check (prove the mode ternary end-to-end)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Throwaway main: exercises all three branches (bare default, explicit bare, tooled, tooled-error)
 # exactly as the tests do, against the real Render.
 cat > /tmp/sh_mode_check.go <<'EOF'
 package main
-import ("fmt"; "github.com/dustin/stagehand/internal/provider")
+import ("fmt"; "github.com/dustin/stagecoach/internal/provider")
 func strPtr(s string) *string { return &s }
 func main() {
   dual := provider.Manifest{Name: "dual", Command: strPtr("agent"),
@@ -578,7 +578,7 @@ go run /tmp/sh_mode_check.go && rm -f /tmp/sh_mode_check.go
 ### Backward-Compatibility & Scope Discipline Validation
 
 - [ ] All existing 10 render tests pass UNCHANGED (no test-body edit to the existing tests).
-- [ ] `go test -race ./internal/generate/ ./pkg/stagehand/ ./internal/stubtest/` green (callers untouched).
+- [ ] `go test -race ./internal/generate/ ./pkg/stagecoach/ ./internal/stubtest/` green (callers untouched).
 - [ ] ONLY `internal/provider/render.go` (+ `render_test.go`) modified (`git diff --stat` confirms).
 - [ ] Did NOT edit `manifest.go` (S1), `merge.go` (S2), `builtin.go`/`builtin_test.go`/`providers/*.toml` (P1.M2).
 - [ ] Did NOT add a mode to `renderArgs` (bare-only test scaffold).

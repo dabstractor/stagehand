@@ -20,7 +20,7 @@ description: |
 ## Goal
 
 **Feature Goal**: Implement the second real git plumbing method on `*gitRunner` — `WriteTree` — the
-immutable-snapshot primitive at the heart of Stagehand's atomic-commit flow (PRD §13.2 step 1). It
+immutable-snapshot primitive at the heart of Stagecoach's atomic-commit flow (PRD §13.2 step 1). It
 freezes the *current index* into a permanent tree object (printing its SHA) **without touching the
 index or HEAD**, so that downstream `CommitTree` (P1.M1.T2.S4) and the rescue protocol (P1.M3.T3) can
 refer to "what was staged at time T" regardless of what the user does to the index afterward. The
@@ -243,11 +243,11 @@ via `git checkout -`); and the exact validation commands with expected results. 
 ### Current Codebase Tree (after S1 + S2 have landed — verified on disk)
 
 ```bash
-stagehand/
+stagecoach/
 ├── PRD.md
-├── go.mod                # module github.com/dustin/stagehand, go 1.22, NO deps
+├── go.mod                # module github.com/dustin/stagecoach, go 1.22, NO deps
 ├── Makefile              # build/test/lint/coverage/install/clean (test = go test -race ./...)
-├── cmd/stagehand/main.go # stub
+├── cmd/stagecoach/main.go # stub
 ├── internal/
 │   └── git/
 │       ├── git.go        # S1: interface + gitRunner + run() + New() + stubs; S2: RevParseHEAD real
@@ -260,7 +260,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     └── git/
         ├── git.go            # MODIFIED — WriteTree stub → real body (NO import change)
@@ -532,7 +532,7 @@ Task 4: VALIDATE — full gate set + scope discipline
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" → package import path "github.com/dustin/stagehand/internal/git"
+  - module path: "github.com/dustin/stagecoach" → package import path "github.com/dustin/stagecoach/internal/git"
   - go directive: 1.22 → context, strings, regexp, os.WriteFile (1.16+), path/filepath, t.Setenv (1.17+),
     errors.Is all available
   - deps: NONE added (stdlib only)
@@ -563,7 +563,7 @@ PARALLEL-EXECUTION NOTE:
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/git/          # Expected: no output (run `gofmt -w internal/git/` if it lists files)
 go vet ./internal/git/...       # Expected: exit 0, no warnings (e.g. no unused import, no shadowing)
@@ -578,7 +578,7 @@ go build ./...                  # Expected: exit 0 (whole module compiles)
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race -v -run 'TestWriteTree' ./internal/git/   # Expected: 5 tests PASS, exit 0
 # Must see: TestWriteTree_StagedFiles, TestWriteTree_EmptyIndex, TestWriteTree_MergeConflict,
@@ -605,7 +605,7 @@ make test                        # Expected: exit 0 (target = go test -race ./..
 ### Level 3: Security & Structural Invariants (the §19 enforcement + scope discipline)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # PRD §19: NO shell execution anywhere in the git wrapper PRODUCTION code (inherited; new code adds none).
 git grep -nE '\b(sh|zsh|bash)\s+-c\b|cmd\s*/c\b' internal/git/git.go
@@ -642,7 +642,7 @@ git diff --name-only go.mod go.sum
 ### Level 4: Runtime Smoke Test (prove WriteTree works against a real repo)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Reproduce the staged/empty/conflict behavior the tests assert, against the real binary:
 tmp=$(mktemp -d); git -C "$tmp" init -q

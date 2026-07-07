@@ -26,15 +26,15 @@ The canonical idempotent template is `TestCommitStaged_IdempotentIndexOnFailure`
 it snapshots `beforeHEAD`/`beforeIndex`/`beforeIndexFull` and compares after. S2's `assertMultiTurnRescue`
 helper mirrors it and adds TreeSHA==frozen (`git write-tree` before the run) + the counter check.
 
-## 2. Mid-turn failure mechanism: GLOBAL `STAGEHAND_STUB_EXIT=1` (no stub change)
+## 2. Mid-turn failure mechanism: GLOBAL `STAGECOACH_STUB_EXIT=1` (no stub change)
 
-`cmd/stubagent/main.go` has exactly ONE exit knob: `os.Exit(envInt("STAGEHAND_STUB_EXIT", 0))` — a single
-value applied to EVERY call. `STAGEHAND_STUB_SCRIPT` varies OUTPUT only (via `selectScripted`), never the
+`cmd/stubagent/main.go` has exactly ONE exit knob: `os.Exit(envInt("STAGECOACH_STUB_EXIT", 0))` — a single
+value applied to EVERY call. `STAGECOACH_STUB_SCRIPT` varies OUTPUT only (via `selectScripted`), never the
 exit code. There is NO per-call exit without modifying the stub, which:
 - T4.S1's PRP explicitly forbids ("do NOT modify cmd/stubagent"), and
 - this item's "MOCKING: stub agent + temp git repo (existing harness)" constraint discourages.
 
-**So set `m.Env["STAGEHAND_STUB_EXIT"] = "1"` globally.** Traced through `CommitStaged` (generate.go):
+**So set `m.Env["STAGECOACH_STUB_EXIT"] = "1"` globally.** Traced through `CommitStaged` (generate.go):
 
 1. **One-shot (call 0):** `Execute` returns a wrapped `*exec.ExitError` (executor.go:77). The loop's
    non-zero-exit branch (~line 258): NOT `DeadlineExceeded`, NOT `Canceled` → `lastCause = execErr`,
@@ -55,7 +55,7 @@ one-shot's exit-1 `lastCause`).
 
 ## 3. The stub counter is the "was Run entered?" discriminator
 
-`stubtest.NewScript`/`appendScriptManifest` write a counter file (`m.Env["STAGEHAND_STUB_COUNTER"]`);
+`stubtest.NewScript`/`appendScriptManifest` write a counter file (`m.Env["STAGECOACH_STUB_COUNTER"]`);
 `cmd/stubagent`'s `selectScripted` does `readCounter` → `writeCounter(N+1)` per call. So after a run:
 
 | Counter | Meaning | Scenario |
@@ -64,7 +64,7 @@ one-shot's exit-1 `lastCause`).
 | `"2"` | one-shot + exactly 1 multi-turn turn → gate FIRED, Run aborted at turn 1 | (a) mid-turn failure |
 
 This is the assertion T3.S3's skip tests LACK — they assert `Kind==ErrRescue` but cannot prove Run was
-never entered. Reading `m.Env["STAGEHAND_STUB_COUNTER"]` (mutable Env map; persistent through
+never entered. Reading `m.Env["STAGECOACH_STUB_COUNTER"]` (mutable Env map; persistent through
 `CmdSpec.Env → cmd.Env`) closes that gap with zero stub change.
 
 ## 4. ErrRescue (exit 3), NOT ErrTimeout (exit 124)

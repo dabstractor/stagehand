@@ -15,7 +15,7 @@ description: |
   `generate.go` CANNOT `import "internal/hooks"` (Go rejects the cycle). RESOLUTION: inject the hook runner
   into `generate.Deps` as an INTERFACE (`CommitHookRunner`) defined in the generate package, whose methods
   inline `dryRun bool, verbose *ui.Verbose` (NOT `hooks.HookOpts` — that would re-introduce the cycle). The
-  CLI (`pkg/stagehand.buildDeps`) wires a concrete adapter (`hooks.DefaultRunner`) that delegates to
+  CLI (`pkg/stagecoach.buildDeps`) wires a concrete adapter (`hooks.DefaultRunner`) that delegates to
   hooks.RunCommitHooks/RunPostCommit. This mirrors how `Manifest` is injected. The item explicitly anticipates
   this ("inject it, mirroring how Manifest is injected, for testability"). (research §0/§1.)
 
@@ -26,7 +26,7 @@ description: |
     2. internal/hooks/adapter.go (NEW file) — `DefaultRunner struct{}` satisfying CommitHookRunner structurally
        (delegates to RunCommitHooks/RunPostCommit; (dryRun,verbose)→HookOpts). NEW file ⇒ zero merge conflict
        with S2's runner.go edits.
-    3. pkg/stagehand/stagehand.go — buildDeps sets `Hooks: hooks.DefaultRunner{}` (+ the internal/hooks import).
+    3. pkg/stagecoach/stagecoach.go — buildDeps sets `Hooks: hooks.DefaultRunner{}` (+ the internal/hooks import).
     4. internal/generate/hooks_freeze_test.go (NEW file, package generate_test) — the headline freeze invariant
        (a sentinel staged to the live index AFTER write-tree, during a blocking pre-commit hook, is NOT swept
        into the commit; the live index retains it — §20.2/§20.5) + a hook-abort→rescue test (FR-V7 + idempotent).
@@ -35,7 +35,7 @@ description: |
 
   ⚠️ **#1 — THE IMPORT CYCLE.** Do NOT `import "internal/hooks"` in generate.go (cycle: hooks→generate for
       RescueError). Inject via the CommitHookRunner interface (inlined dryRun+verbose, NO hooks.HookOpts).
-      The adapter (hooks.DefaultRunner) is wired in pkg/stagehand + used by the external freeze test. (§0/§1)
+      The adapter (hooks.DefaultRunner) is wired in pkg/stagecoach + used by the external freeze test. (§0/§1)
 
   ⚠️ **#2 — INSERT A reassigns treeSHA + msg (NOT new vars).** After a successful RunCommitHooks, do
       `treeSHA, msg = ft, fm` so ALL downstream (CommitTree, the CASError recovery recipe, the Result
@@ -64,7 +64,7 @@ description: |
       P1.M2.T2.S1; git.go's CommentChar is S2's; decompose (runSingleEscape) is T3; hookexec correctly has
       Hooks:nil (it IS the hook). go.mod unchanged. (§0/§5/§8)
 
-  Deliverable: MODIFIED generate.go + NEW adapter.go + MODIFIED pkg/stagehand/stagehand.go + NEW
+  Deliverable: MODIFIED generate.go + NEW adapter.go + MODIFIED pkg/stagecoach/stagecoach.go + NEW
   hooks_freeze_test.go + MODIFIED docs/how-it-works.md. OUTPUT: every CommitStaged commit (the CLI
   single-commit path) runs the repo's hooks scoped to the frozen snapshot; a hook abort is a rescue (exit 3,
   FR-V7); post-commit fires best-effort; the freeze holds (a concurrent live-index stage is never swept in).
@@ -89,7 +89,7 @@ staged to the live index during a pre-commit hook is NOT swept into the commit.
    success and ClearSnapshot).
 2. **NEW `internal/hooks/adapter.go`** — `DefaultRunner struct{}` satisfying `CommitHookRunner` structurally
    (delegates to `RunCommitHooks`/`RunPostCommit`; `(dryRun, verbose)` → `HookOpts`).
-3. **MODIFIED `pkg/stagehand/stagehand.go`** — `buildDeps` wires `Hooks: hooks.DefaultRunner{}` (+ the import).
+3. **MODIFIED `pkg/stagecoach/stagecoach.go`** — `buildDeps` wires `Hooks: hooks.DefaultRunner{}` (+ the import).
 4. **NEW `internal/generate/hooks_freeze_test.go`** (`package generate_test`) — the freeze invariant
    (blocking pre-commit hook + concurrent live-index sentinel stage → not swept) + the hook-abort→rescue test.
 5. **MODIFIED `docs/how-it-works.md`** — NEW `## Commit hooks on the plumbing path` subsection (Mode A).
@@ -103,20 +103,20 @@ live index during a pre-commit hook is NOT in the commit's tree and IS retained 
 
 ## User Persona
 
-**Target User**: A user who runs `stagehand` (the snapshot/plumbing path) with repo commit hooks installed
+**Target User**: A user who runs `stagecoach` (the snapshot/plumbing path) with repo commit hooks installed
 (husky, lint-staged, a formatter, conventional-commit-lint, a post-commit notify). Before this task, those
-hooks never fired on a stagehand commit (the plumbing path bypassed them); after, they fire in git's order,
+hooks never fired on a stagecoach commit (the plumbing path bypassed them); after, they fire in git's order,
 scoped to the frozen snapshot, so the stage-while-generating guarantee holds AND hooks run. Transitively:
 P1.M3.T3 (decompose wiring, which reuses the same CommitHookRunner/DefaultRunner) and P1.M4.T1 (the docs
 Mode B rewrite).
 
-**Use Case**: A user with a `pre-commit` formatter runs `stagehand`. The formatter reformats a file already
-in the snapshot (permitted mutation) → stagehand re-trees → the commit includes the formatter's fix (exactly
+**Use Case**: A user with a `pre-commit` formatter runs `stagecoach`. The formatter reformats a file already
+in the snapshot (permitted mutation) → stagecoach re-trees → the commit includes the formatter's fix (exactly
 like `git commit`). Meanwhile, the user stages ANOTHER file during the hook → it is NOT swept in (the scoped
 throwaway index excludes it; the freeze holds). If the `pre-commit` exits non-zero (a lint failure), the
 commit is aborted as a rescue (exit 3, the manual recovery printed) — HEAD and the index are unchanged.
 
-**User Journey**: `stagehand` (CLI) → `pkg/stagehand` → `buildDeps` (wires `Hooks: DefaultRunner{}`) →
+**User Journey**: `stagecoach` (CLI) → `pkg/stagecoach` → `buildDeps` (wires `Hooks: DefaultRunner{}`) →
 `generate.CommitStaged` → …WriteTree (snapshot)… → EditMessage → **RunCommitHooks** (pre→prepare→commit-msg,
 scoped throwaway index) → CommitTree(hook-adjusted tree) → UpdateRefCAS → **RunPostCommit** (best-effort) →
 DiffTree → Result. A Ctrl-C during a hook → the existing signal rescue (armed at WriteTree; RestoreDefault
@@ -133,19 +133,19 @@ it to the existing rescue (FR-V7, byte-identical to a generation failure).
 - **Closes the §9.25 wiring for the single-commit path.** S1/S2 built the runner (the sequence + scoped
   pre-commit + message lifecycle + recursion prevention); this task THREADS it into the primary commit
   chokepoint (CommitStaged). Without it, the runner is an unused module.
-- **Satisfies PRD §9.25 FR-V1/V2/V3/V7.** FR-V1 (run hooks in git's order around every stagehand commit);
+- **Satisfies PRD §9.25 FR-V1/V2/V3/V7.** FR-V1 (run hooks in git's order around every stagecoach commit);
   FR-V2 (threaded between generation and commit-tree/update-ref); FR-V3 (scoped to the snapshot — the freeze
   holds); FR-V7 (a hook abort is a rescue, never a silent skip; post-commit best-effort).
 - **Delivers the headline freeze-safety invariant (§20.2/§20.5, folded here per SOW §3).** The integrated
   test proves a concurrent live-index stage is never swept into the commit — the property that lets users
-  keep staging while stagehand commits.
+  keep staging while stagecoach commits.
 - **Sets the injection seam T3 (decompose) reuses.** The `CommitHookRunner` interface + `DefaultRunner` are
   the single adapter both the single-commit path (here) and the decompose path (T3's publishCommit) consume.
 
 ## What
 
 Modified `generate.go` (interface + Deps field + 2 insert points), new `internal/hooks/adapter.go`
-(DefaultRunner), modified `pkg/stagehand/stagehand.go` (buildDeps wiring), new
+(DefaultRunner), modified `pkg/stagecoach/stagecoach.go` (buildDeps wiring), new
 `internal/generate/hooks_freeze_test.go` (the freeze + rescue tests), and modified `docs/how-it-works.md`
 (new subsection). No change to the runner (S1/S2), subset.go, git.go, decompose, or cmd. go.mod unchanged.
 
@@ -161,7 +161,7 @@ Modified `generate.go` (interface + Deps field + 2 insert points), new `internal
       after UpdateRefCAS success, before ClearSnapshot; the return is discarded (best-effort).
 - [ ] `internal/hooks/adapter.go` (NEW) defines `DefaultRunner struct{}` with the 2 methods delegating to
       RunCommitHooks/RunPostCommit (HookOpts{DryRun, Verbose}); it does NOT import generate (structural).
-- [ ] `pkg/stagehand.buildDeps` returns `generate.Deps{…, Hooks: hooks.DefaultRunner{}}`; stagehand.go imports
+- [ ] `pkg/stagecoach.buildDeps` returns `generate.Deps{…, Hooks: hooks.DefaultRunner{}}`; stagecoach.go imports
       `internal/hooks`.
 - [ ] **Freeze test**: a sentinel staged to the LIVE index during a blocking pre-commit hook is NOT in the
       commit's tree (`ls-tree -r --name-only HEAD`) AND IS retained staged in the live index
@@ -234,12 +234,12 @@ ready), and the docs subsection content. No decompose/git-plumbing/prompt knowle
        signal.RestoreDefault (it stays immediately before UpdateRefCAS).
 
 # THE FILE BEING MODIFIED (wiring) — buildDeps
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   section: `func buildDeps(cfg, repoDir) (generate.Deps, error)` (~L325); the return `generate.Deps{Git:…,
            Manifest: m}` (~L386); the import block.
   why: the single wiring point for the CLI single-commit path. Add `Hooks: hooks.DefaultRunner{}` + the
        `internal/hooks` import.
-  critical: pkg/stagehand → hooks is a NEW edge but NOT a cycle (hooks→generate; generate→neither). buildDeps
+  critical: pkg/stagecoach → hooks is a NEW edge but NOT a cycle (hooks→generate; generate→neither). buildDeps
        is the ONE place the real runner is wired for the single-commit path.
 
 # THE FILES BEING CREATED — copy-ready
@@ -277,8 +277,8 @@ internal/hooks/
   runner.go                      # S1/S2 (COMPLETE/in-progress) — RunCommitHooks/RunPostCommit/HookOpts. UNCHANGED.
   adapter.go                     # NEW — DefaultRunner (satisfies CommitHookRunner structurally)
   runner_test.go / subset.go     # S1 / P1.M2.T2.S1 — UNCHANGED
-pkg/stagehand/
-  stagehand.go                   # EDIT — buildDeps wires Hooks: hooks.DefaultRunner{} (+ import)
+pkg/stagecoach/
+  stagecoach.go                   # EDIT — buildDeps wires Hooks: hooks.DefaultRunner{} (+ import)
 docs/
   how-it-works.md                # EDIT — NEW "## Commit hooks on the plumbing path" subsection
 go.mod / go.sum                  # UNCHANGED (internal/hooks already in-module; no new external dep)
@@ -289,7 +289,7 @@ go.mod / go.sum                  # UNCHANGED (internal/hooks already in-module; 
 ```bash
 internal/hooks/adapter.go                  # NEW — DefaultRunner struct{} (2 methods → RunCommitHooks/RunPostCommit)
 internal/generate/hooks_freeze_test.go     # NEW (package generate_test) — freeze invariant + hook-abort→rescue tests
-# + in-place edits to generate.go (interface+Deps+inserts), pkg/stagehand/stagehand.go (buildDeps), docs/how-it-works.md.
+# + in-place edits to generate.go (interface+Deps+inserts), pkg/stagecoach/stagecoach.go (buildDeps), docs/how-it-works.md.
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -297,7 +297,7 @@ internal/generate/hooks_freeze_test.go     # NEW (package generate_test) — fre
 ```go
 // CRITICAL (#1 — THE IMPORT CYCLE): internal/hooks imports internal/generate (for RescueError). generate.go
 //   MUST NOT import internal/hooks (cycle). Inject via CommitHookRunner (interface in generate, inlined
-//   dryRun+verbose params — NEVER hooks.HookOpts). The adapter hooks.DefaultRunner is wired in pkg/stagehand.
+//   dryRun+verbose params — NEVER hooks.HookOpts). The adapter hooks.DefaultRunner is wired in pkg/stagecoach.
 //   (research §0/§1)
 
 // CRITICAL (#2 — INSERT A reassigns treeSHA + msg, NOT new vars): after a successful RunCommitHooks, do
@@ -360,7 +360,7 @@ type Deps struct {
 	Progress func()
 	// Hooks runs the repo's commit hooks around the commit (PRD §9.25). Injected (not hooks.RunCommitHooks)
 	// to break the generate↔hooks import cycle. nil ⇒ hooks skipped (no-op) — back-compatible with the
-	// legacy no-hooks CommitStaged tests. Wired by pkg/stagehand.buildDeps (hooks.DefaultRunner{}).
+	// legacy no-hooks CommitStaged tests. Wired by pkg/stagecoach.buildDeps (hooks.DefaultRunner{}).
 	Hooks CommitHookRunner
 }
 ```
@@ -372,15 +372,15 @@ package hooks
 import (
 	"context"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 
 // DefaultRunner is the production CommitHookRunner (generate.CommitHookRunner): it delegates to the package-
 // level RunCommitHooks/RunPostCommit (S1/S2), translating the inlined (dryRun, verbose) to HookOpts. It
 // satisfies generate.CommitHookRunner STRUCTURALLY (Go duck typing) — it does NOT import generate, so it adds
-// no edge to the generate↔hooks graph. Wired into generate.Deps by pkg/stagehand.buildDeps; also used by the
+// no edge to the generate↔hooks graph. Wired into generate.Deps by pkg/stagecoach.buildDeps; also used by the
 // hooks_freeze_test. (P1.M3.T2.S1 — the injection adapter; a NEW file so it never collides with S1/S2's
 // runner.go.)
 type DefaultRunner struct{}
@@ -423,10 +423,10 @@ Task 4: CREATE internal/hooks/adapter.go — DefaultRunner
   - GOTCHA: NEW file (disjoint from S2's runner.go). Imports only context/config/git/ui (runner.go already
       imports them).
 
-Task 5: EDIT pkg/stagehand/stagehand.go — buildDeps wiring
-  - ADD `"github.com/dustin/stagehand/internal/hooks"` to the imports.
+Task 5: EDIT pkg/stagecoach/stagecoach.go — buildDeps wiring
+  - ADD `"github.com/dustin/stagecoach/internal/hooks"` to the imports.
   - In buildDeps's return: `generate.Deps{Git: git.New(repoDir), Manifest: m, Hooks: hooks.DefaultRunner{}}`.
-  - GOTCHA: pkg/stagehand → hooks is a new edge but NOT a cycle. buildDeps is the ONE wiring point for the
+  - GOTCHA: pkg/stagecoach → hooks is a new edge but NOT a cycle. buildDeps is the ONE wiring point for the
       single-commit CLI path.
 
 Task 6: CREATE internal/generate/hooks_freeze_test.go — the freeze + rescue tests (Blueprint below)
@@ -439,7 +439,7 @@ Task 6: CREATE internal/generate/hooks_freeze_test.go — the freeze + rescue te
 
 Task 7: EDIT docs/how-it-works.md — NEW subsection (Blueprint below)
   - INSERT `## Commit hooks on the plumbing path` IMMEDIATELY BEFORE `## Hook mode vs the snapshot-based flow`.
-  - Document: git-order hooks around every stagehand commit; scoped to the frozen snapshot (freeze holds);
+  - Document: git-order hooks around every stagecoach commit; scoped to the frozen snapshot (freeze holds);
       --no-verify skips pre-commit+commit-msg; hook abort = rescue (exit 3); post-commit best-effort.
       Cross-link §9.25 + the M4.T1 Mode B rewrite.
   - GOTCHA: do NOT rewrite the "Bypasses pre-commit hooks" line (M4.T1 owns it).
@@ -482,11 +482,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/hooks"
-	"github.com/dustin/stagehand/internal/stubtest"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/hooks"
+	"github.com/dustin/stagecoach/internal/stubtest"
 )
 
 // initTempRepo creates a temp git repo with identity + a seed commit, returns its dir.
@@ -619,7 +619,7 @@ func TestCommitStaged_PreCommitAbort_IsRescue(t *testing.T) {
 // ## Commit hooks on the plumbing path
 //
 // As of v2.4, the snapshot-based flow runs your repository's standard commit hooks itself — you no longer
-// need hook mode (§9.20) just to get `pre-commit`, `commit-msg`, or `post-commit` to fire on a `stagehand`
+// need hook mode (§9.20) just to get `pre-commit`, `commit-msg`, or `post-commit` to fire on a `stagecoach`
 // commit. Hooks run in git's documented order around every commit produced by the plumbing path: `pre-commit`
 // → `prepare-commit-msg` → `commit-msg` before the commit object is created, and `post-commit` after it is
 // published.
@@ -627,7 +627,7 @@ func TestCommitStaged_PreCommitAbort_IsRescue(t *testing.T) {
 // The snapshot freeze still holds: `pre-commit` runs against a throwaway index primed from the frozen
 // `write-tree` snapshot, never the live index — so files you stage *while* the hook runs are never swept into
 // the in-flight commit (the core stage-while-generating guarantee). A `pre-commit` may modify paths already in
-// the snapshot (a formatter re-staging its output) and stagehand includes those fixes, exactly like `git
+// the snapshot (a formatter re-staging its output) and stagecoach includes those fixes, exactly like `git
 // commit`; a `pre-commit` that stages a brand-new path aborts the run (it would sweep in concurrent work).
 //
 // `--no-verify` mirrors `git commit --no-verify`: it skips `pre-commit` and `commit-msg` only
@@ -645,14 +645,14 @@ func TestCommitStaged_PreCommitAbort_IsRescue(t *testing.T) {
 
 ```yaml
 GO MODULE (go.mod/go.sum): change NONE. adapter.go imports only in-module packages (config/git/ui) + stdlib
-      context. pkg/stagehand adds the in-module internal/hooks import. `go mod tidy` is a no-op.
+      context. pkg/stagecoach adds the in-module internal/hooks import. `go mod tidy` is a no-op.
 
 PACKAGE EDGES:
   - generate → (config, git, ui, provider, …) — NO hooks (the cycle is avoided by the interface). NEW type:
         CommitHookRunner (in generate).
   - hooks → generate (RescueError — EXISTING) + config/git/ui. adapter.go (DefaultRunner) adds NO new edge
         (structural satisfaction; no generate import).
-  - pkg/stagehand → hooks (NEW edge — no cycle: hooks→generate; generate→neither; pkg/stagehand→both).
+  - pkg/stagecoach → hooks (NEW edge — no cycle: hooks→generate; generate→neither; pkg/stagecoach→both).
 
 UPSTREAM CONTRACT (consume, do NOT edit):
   - S1/S2's internal/hooks/runner.go: RunCommitHooks(ctx, g, cfg, snapshotTree, parentSHA, msg, HookOpts) →
@@ -680,13 +680,13 @@ NO NEW DATABASE / ROUTES / CLI COMMANDS.
 ### Level 1: Syntax & Style
 
 ```bash
-gofmt -w internal/generate/generate.go internal/hooks/adapter.go pkg/stagehand/stagehand.go \
+gofmt -w internal/generate/generate.go internal/hooks/adapter.go pkg/stagecoach/stagecoach.go \
   internal/generate/hooks_freeze_test.go docs/how-it-works.md 2>/dev/null
-go vet ./internal/generate/ ./internal/hooks/ ./pkg/stagehand/
+go vet ./internal/generate/ ./internal/hooks/ ./pkg/stagecoach/
 go build ./...
 # Confirm the seam + adapter + wiring present, and NO hooks import in generate:
 grep -n 'CommitHookRunner\|Hooks CommitHookRunner' internal/generate/generate.go
-grep -n 'DefaultRunner' internal/hooks/adapter.go pkg/stagehand/stagehand.go
+grep -n 'DefaultRunner' internal/hooks/adapter.go pkg/stagecoach/stagecoach.go
 ! grep -n 'internal/hooks' internal/generate/generate.go && echo "generate.go does NOT import hooks (cycle avoided ✓)"
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
 # Expected: go vet clean; build clean; seam+adapter+wiring present; generate.go does NOT import hooks; go.mod/go.sum byte-unchanged.
@@ -701,7 +701,7 @@ go test ./internal/generate/ -v -run 'TestCommitStaged_PreCommit'
 #   ...Abort_IsRescue ............... a non-zero pre-commit → *generate.RescueError; HEAD unchanged; index idempotent (FR-V7 ✓)
 go test ./internal/generate/   # the ~40 existing generate_test.go tests MUST stay GREEN (Deps.Hooks nil ⇒ skipped)
 go test ./internal/hooks/...   # S1/S2's runner tests MUST stay green (this task didn't touch runner.go)
-go test ./pkg/stagehand/...    # buildDeps wiring compiles + no regression
+go test ./pkg/stagecoach/...    # buildDeps wiring compiles + no regression
 # If HoldsForLiveStagedSentinel fails with "sentinel swept into the commit", the scoped throwaway index isn't
 # being used (check S1's runPreCommitScoped primed from snapshotTree) OR the hook isn't running (check Hooks wired).
 # If Abort_IsRescue fails (not a *RescueError), INSERT A isn't returning the runner's error verbatim — it must
@@ -712,8 +712,8 @@ go test ./pkg/stagehand/...    # buildDeps wiring compiles + no regression
 
 ```bash
 go build ./...   # Expect clean.
-go test ./...    # Expect all PASS (generate + hooks + stagehand + the repo-wide suite).
-git diff --name-only | grep -E 'internal/generate/generate\.go|internal/hooks/adapter\.go|pkg/stagehand/stagehand\.go|internal/generate/hooks_freeze_test\.go|docs/how-it-works\.md' && echo "(expected files)"
+go test ./...    # Expect all PASS (generate + hooks + stagecoach + the repo-wide suite).
+git diff --name-only | grep -E 'internal/generate/generate\.go|internal/hooks/adapter\.go|pkg/stagecoach/stagecoach\.go|internal/generate/hooks_freeze_test\.go|docs/how-it-works\.md' && echo "(expected files)"
 git diff --exit-code internal/hooks/runner.go internal/hooks/runner_test.go internal/hooks/subset.go \
   internal/git internal/cmd internal/decompose internal/hook internal/signal internal/lock \
   internal/generate/rescue.go internal/generate/finalize.go internal/generate/dedupe.go internal/generate/multiturn.go \

@@ -1,28 +1,28 @@
 # P1.M4.T1.S2 — Design Decisions
 
 The default commit action: the root command's `RunE` body (auto-stage-all →
-`stagehand.GenerateCommit` → FR42 report), wired onto the S1 scaffold. S1 ships `internal/cmd/root.go`
+`stagecoach.GenerateCommit` → FR42 report), wired onto the S1 scaffold. S1 ships `internal/cmd/root.go`
 (stub RunE = `cmd.Help()`); S2 swaps in the real action and ships its integration tests.
 
-All signatures below are quoted VERBATIM from the on-disk contracts (P1.M3.T5.S1 `pkg/stagehand`,
+All signatures below are quoted VERBATIM from the on-disk contracts (P1.M3.T5.S1 `pkg/stagecoach`,
 P1.M3.T4.S2 `internal/generate`, P1.M1.T3 `internal/git`, P1.M4.T1.S1 `internal/cmd` + `internal/exitcode`).
 
 ---
 
-## §0 — S2 calls `pkg/stagehand.GenerateCommit` (the public API), NOT `generate.CommitStaged`
+## §0 — S2 calls `pkg/stagecoach.GenerateCommit` (the public API), NOT `generate.CommitStaged`
 
 The task says "call GenerateCommit (with DryRun if --dry-run)". `GenerateCommit` is the PUBLIC API
-(`pkg/stagehand`, PRD §14.1, US12: "a stable Go API so I can embed commit-message generation"). The CLI
+(`pkg/stagecoach`, PRD §14.1, US12: "a stable Go API so I can embed commit-message generation"). The CLI
 dogfoods its own public surface — the correct layering. Calling `generate.CommitStaged` directly would
 (a) force the CLI to reimplement provider resolution (`buildDeps`: registry + auto-detect + Validate)
-and (b) duplicate `pkg/stagehand` logic. So: `stagehand.GenerateCommit(ctx, stagehand.Options{...})`.
+and (b) duplicate `pkg/stagecoach` logic. So: `stagecoach.GenerateCommit(ctx, stagecoach.Options{...})`.
 
 CONSEQUENCE (§1 + §2): the public `Result` drops `Changes`, and `GenerateCommit` re-loads config. Both
-are accepted and handled in the CLI layer (not by modifying the frozen `pkg/stagehand`).
+are accepted and handled in the CLI layer (not by modifying the frozen `pkg/stagecoach`).
 
-## §1 — The CLI computes FR42's DiffTree itself (`stagehand.Result` has no `Changes`)
+## §1 — The CLI computes FR42's DiffTree itself (`stagecoach.Result` has no `Changes`)
 
-`pkg/stagehand.Result = {CommitSHA, Subject, Message, Provider, Model}` — NO `Changes` (P1.M3.T5.S1
+`pkg/stagecoach.Result = {CommitSHA, Subject, Message, Provider, Model}` — NO `Changes` (P1.M3.T5.S1
 design §1: "the file listing is a CLI/report concern, not a library concern"; `generate.Result` HAS
 `Changes []git.FileChange` but the public mapping drops it). FR42 requires the file list:
 
@@ -45,19 +45,19 @@ between). It affects ONLY the post-commit file listing (never correctness of the
 guards). DiffTree failure after a successful commit is non-fatal: print the report without the file list,
 still return nil (exit 0) — the commit already landed.
 
-## §2 — `GenerateCommit` re-loads config via DISCOVERY (no `--config` override) — tests use `.stagehand.toml`
+## §2 — `GenerateCommit` re-loads config via DISCOVERY (no `--config` override) — tests use `.stagecoach.toml`
 
-`pkg/stagehand.resolveConfig` calls `config.Load(ctx, LoadOpts{RepoDir: os.Getwd(), Flags: nil})` — it
+`pkg/stagecoach.resolveConfig` calls `config.Load(ctx, LoadOpts{RepoDir: os.Getwd(), Flags: nil})` — it
 passes NO `ConfigPathOverride`. So `--config <file>` (which the CLI's `PersistentPreRunE` honors via
 `flagConfig`) is NOT seen by `GenerateCommit`'s internal load. For the COMMON case (built-in providers
 pi/claude/…, always available) this is invisible. It ONLY bites if a user defines a CUSTOM provider
 manifest solely in a `--config` file (not in discovery): then the CLI sees it but `GenerateCommit`
-doesn't → "unknown provider". That is a latent limitation of `pkg/stagehand.GenerateCommit`'s API, NOT
+doesn't → "unknown provider". That is a latent limitation of `pkg/stagecoach.GenerateCommit`'s API, NOT
 S2's to fix (frozen contract). Documented; non-blocking for v1.
 
 IMPLICATION FOR TESTS: the stub provider manifest must live where BOTH the CLI and `GenerateCommit` read
-it = DISCOVERY = the repo-local `./.stagehand.toml` (both use `os.Getwd()`; `repoLocalConfigPath()` is
-`./.stagehand.toml`). So the integration test writes `.stagehand.toml` into the temp repo (NOT a
+it = DISCOVERY = the repo-local `./.stagecoach.toml` (both use `os.Getwd()`; `repoLocalConfigPath()` is
+`./.stagecoach.toml`). So the integration test writes `.stagecoach.toml` into the temp repo (NOT a
 `--config` override). Global config is isolated via `loadEnvSetup` (HOME/XDG → temp), copied by S1 into
 `root_test.go` (same package — S2 reuses it).
 
@@ -70,7 +70,7 @@ HIGHEST precedence in `resolveConfig`):
 
 ```go
 cfg := Config() // resolved by PersistentPreRunE (incl. Layer-7 flags)
-res, err := stagehand.GenerateCommit(cmd.Context(), stagehand.Options{
+res, err := stagecoach.GenerateCommit(cmd.Context(), stagecoach.Options{
     Provider: cfg.Provider, // "" → auto-detect (preserved)
     Model:    cfg.Model,    // "" → manifest default_model (preserved)
     Timeout:  cfg.Timeout,  // 120s default from config.Defaults()
@@ -89,7 +89,7 @@ re-map. S2's RunE:
   `generate.FormatRescue`, CAS via `*generate.CASError.Error()`).
 - Returns an error that `exitcode.For` maps to the right code.
 
-THE DOUBLE-PRINT TRAP: `main` prints `stagehand: <err>\n` when `err.Error() != ""` (S1). If the RunE
+THE DOUBLE-PRINT TRAP: `main` prints `stagecoach: <err>\n` when `err.Error() != ""` (S1). If the RunE
 prints the FULL rescue block AND returns the original `*RescueError` (non-empty `.Error()`), main prints
 a second summary line. RESOLUTION: when the RunE has already printed the detailed message, it returns a
 SILENT `exitcode.New(<code>, nil)` — `ExitError.Error()` returns "" (Err is nil) → main's guard
@@ -109,7 +109,7 @@ if errors.As(err, &ce) {
     fmt.Fprintln(os.Stderr, ce.Error())        // the §13.5 "HEAD moved…" message
     return exitcode.New(exitcode.Error, nil)   // silent; exit 1
 }
-// friendly messages (FR17/FR19/ErrNothingToCommit): DO want main's "stagehand: <msg>"
+// friendly messages (FR17/FR19/ErrNothingToCommit): DO want main's "stagecoach: <msg>"
 if errors.Is(err, generate.ErrNothingToCommit) {
     return exitcode.New(exitcode.NothingToCommit, errors.New("Nothing to commit."))
 }
@@ -123,7 +123,7 @@ pair it with the silent return; `exitcode.For` would derive the same code from t
 
 ## §5 — Output streams: stdout = RESULT, stderr = NOTICES/DIAGNOSTICS
 
-PRD §15.5 pipes dry-run output (`stagehand --dry-run --no-color | tee /tmp/msg.txt`) → stdout must be the
+PRD §15.5 pipes dry-run output (`stagecoach --dry-run --no-color | tee /tmp/msg.txt`) → stdout must be the
 MESSAGE ONLY for dry-run. Generalizing:
 - **stdout**: the commit success report (FR42) and the dry-run message. (The payload a user pipes.)
 - **stderr**: the FR18 auto-stage notice, the rescue block, the CAS message, and all error diagnostics.
@@ -137,8 +137,8 @@ S1 ships `internal/cmd/root.go` with `RunE: func(...) error { return cmd.Help() 
 vars (`flagAll`, `flagNoAutoStage`, `flagDryRun`) + `Config()` + `Version` + `Execute(ctx)`. S2:
 1. **CREATE** `internal/cmd/default_action.go` (`package cmd`) — `runDefault(cmd, args) error` (the full
    flow) + small report helpers (`shortSHA`, `printCommitReport`, `printDryRun`). Imports `cobra`,
-   `errors`, `fmt`, `os`, `github.com/dustin/stagehand/{internal/exitcode, internal/generate, internal/git,
-   pkg/stagehand}`.
+   `errors`, `fmt`, `os`, `github.com/dustin/stagecoach/{internal/exitcode, internal/generate, internal/git,
+   pkg/stagecoach}`.
 2. **EDIT** `internal/cmd/root.go` — replace the stub `RunE` body with `RunE: runDefault` (one line).
 3. **CREATE** `internal/cmd/default_action_test.go` (`package cmd`) — integration tests driving the FULL
    CLI (`Execute(ctx)` / `rootCmd`) through a stub provider in a temp repo, asserting commits land +
@@ -148,15 +148,15 @@ Why a separate file (not inline in root.go)? The action body is substantial (aut
 error matrix); isolating it keeps root.go as the SCAFFOLD (S1's concern) and the action as S2's. It also
 gives P1.M4.T3 a single function to restyle.
 
-## §7 — Test seam: stub provider via repo-local `.stagehand.toml` + `t.Setenv(STAGEHAND_STUB_*)`
+## §7 — Test seam: stub provider via repo-local `.stagecoach.toml` + `t.Setenv(STAGECOACH_STUB_*)`
 
 Confirmed: `provider.Render` builds `spec.Env = os.Environ() + manifest.Env` (render.go), and the
 executor sets `cmd.Env = spec.Env` (non-empty) OR inherits parent env (empty). EITHER WAY the stub agent
-inherits the test process's `STAGEHAND_STUB_*` vars. So:
+inherits the test process's `STAGECOACH_STUB_*` vars. So:
 
 1. `bin := stubtest.Build(t)` — compiles `cmd/stubagent` once.
 2. `loadEnvSetup(t)` + `chdir(repo)` — isolate global config + CWD (S1 copied these into root_test.go).
-3. Write `.stagehand.toml` into the repo:
+3. Write `.stagecoach.toml` into the repo:
    ```toml
    [provider.stub]
    command = "<bin>"
@@ -166,7 +166,7 @@ inherits the test process's `STAGEHAND_STUB_*` vars. So:
    ```
    (`Validate` requires only Name+Command; the registry adds "stub" verbatim as a §12.8 provider since
    it's not a built-in.)
-4. `t.Setenv("STAGEHAND_STUB_OUT", "feat: add login")` (or `STAGEHAND_STUB_SCRIPT`/`_EXIT`/`_SLEEP_MS`
+4. `t.Setenv("STAGECOACH_STUB_OUT", "feat: add login")` (or `STAGECOACH_STUB_SCRIPT`/`_EXIT`/`_SLEEP_MS`
    for rescue/timeout scenarios) — controls the stub per-test.
 5. `rootCmd.SetArgs(["--provider", "stub"])`; capture stdout/stderr via `rootCmd.SetOut`/`SetErr`;
    `Execute(ctx)`.

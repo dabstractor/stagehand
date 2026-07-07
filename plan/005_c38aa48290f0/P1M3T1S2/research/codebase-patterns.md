@@ -5,7 +5,7 @@
 `internal/hook/script.go` (same package this subtask extends):
 
 ```go
-const Marker = "# stagehand prepare-commit-msg hook v1"     // EXPORTED — status/uninstall detection
+const Marker = "# stagecoach prepare-commit-msg hook v1"     // EXPORTED — status/uninstall detection
 const ScriptMode os.FileMode = 0o755                        // EXPORTED — file mode to write
 func hookScript(strict bool) string                         // UNEXPORTED — same-package access only
 ```
@@ -13,10 +13,10 @@ func hookScript(strict bool) string                         // UNEXPORTED — sa
 `hookScript(false)` →
 ```
 #!/bin/sh
-# stagehand prepare-commit-msg hook v1
-exec stagehand hook exec "$@"
+# stagecoach prepare-commit-msg hook v1
+exec stagecoach hook exec "$@"
 ```
-`hookScript(true)` last line → `exec stagehand hook exec --strict "$@"`.
+`hookScript(true)` last line → `exec stagecoach hook exec --strict "$@"`.
 
 `internal/git/git.go` gains `HooksPath(ctx context.Context) (string, error)` on the `Git` interface +
 `*gitRunner` — returns the **absolute** hooks dir via `git rev-parse --git-path hooks` (honors
@@ -25,7 +25,7 @@ exec stagehand hook exec "$@"
 
 ## Cobra registration pattern (copy providers.go / config.go verbatim)
 
-- Command group var with **no RunE** → bare `stagehand hook` prints help (cobra default).
+- Command group var with **no RunE** → bare `stagecoach hook` prints help (cobra default).
 - Leaves are `var xCmd = &cobra.Command{ Use, Short, Long, Args, SilenceErrors:true, SilenceUsage:true, RunE }`.
 - `func init()` does `parent.AddCommand(leaf...)` then `rootCmd.AddCommand(parent)` — **ZERO edits to root.go**
   (design "parallel-safe"; providers.go:68-72, config.go). A sibling subtask (P1.M3.T2.S1 `hook exec`) will
@@ -47,7 +47,7 @@ as default_action.go:33.
 `root.PersistentPreRunE` calls `config.Load`, which on first run **auto-writes a bootstrap config file**
 (FR-B3, load.go:103-109: `bootstrapWriteConfig(globalPath)`). `hook install|uninstall|status` need only the
 repo's hooks dir — never the resolved provider config — and a read-only `hook status` must not silently
-create `~/.config/stagehand/config.toml`.
+create `~/.config/stagecoach/config.toml`.
 
 **Solution (self-contained, no root.go edit, no shouldSkipConfigLoad edit, no name collision):** give
 `hookCmd` its own `PersistentPreRunE: func(*cobra.Command, []string) error { return nil }`. Cobra runs only
@@ -77,7 +77,7 @@ and the foreign-hook never-clobber policy. Exit-code table (line 131) already co
 ## FR mapping
 
 - FR-H1: install writes executable `prepare-commit-msg` with Marker; per-repo (HooksPath), never global.
-- FR-H2: foreign → refuse exit 1 + print manual `exec stagehand hook exec "$@"` line; no `--force`;
+- FR-H2: foreign → refuse exit 1 + print manual `exec stagecoach hook exec "$@"` line; no `--force`;
   `install --print` → script to stdout.
-- FR-H3: uninstall removes only when Marker present; status reports `none` / `stagehand (v1)` / `foreign`.
+- FR-H3: uninstall removes only when Marker present; status reports `none` / `stagecoach (v1)` / `foreign`.
 - FR-H5: `install --strict` bakes `--strict` into the script body (via `hookScript(true)`).

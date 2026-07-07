@@ -3,14 +3,14 @@ name: "P1.M1.T1.S3 — Regression tests: --config honored by default action + §
 description: |
   Bugfix (Issue 1 + Issue 5 — the regression-test half). Test-only subtask that locks in the S1+S2
   config-handoff fix with two GREEN regression tests in `internal/cmd/default_action_test.go` driving
-  the FULL in-process CLI seam (`PersistentPreRunE → runDefault → stagehand.GenerateCommit →
+  the FULL in-process CLI seam (`PersistentPreRunE → runDefault → stagecoach.GenerateCommit →
   resolveConfig`) via `rootCmd.SetArgs` + `Execute`:
 
     (a) `TestRunDefault_ConfigFlagHonored_Issue1` — a user-defined provider (`[provider.stub]`)
         declared ONLY in a `--config` TOML resolves on the default action with `--dry-run`
         (exit 0 + the generated message). Before S1/S2 this was `unknown provider "stub"` (exit 1).
-    (b) `TestRunDefault_RepoLocalNoticeOnce_Issue5` — a repo-local `.stagehand.toml` that sets
-        `provider` prints the §19 notice `repo-local config (.stagehand.toml) sets provider to`
+    (b) `TestRunDefault_RepoLocalNoticeOnce_Issue5` — a repo-local `.stagecoach.toml` that sets
+        `provider` prints the §19 notice `repo-local config (.stagecoach.toml) sets provider to`
         EXACTLY ONCE (strings.Count == 1; was 2 before S1/S2's single-Load fix).
 
   Both share the root cause fixed in S1/S2 (no second `config.Load`), so they live in one subtask.
@@ -21,14 +21,14 @@ description: |
   This realizes the contract's stated fact that `noticeOut` is "swappable" (system_context §6) and
   production behavior is unchanged (it stays `os.Stderr`). No doc surface change.
 
-  S1 (`pkg/stagehand.Options.Config` + `resolveConfig` opts.Config!=nil branch) and S2
+  S1 (`pkg/stagecoach.Options.Config` + `resolveConfig` opts.Config!=nil branch) and S2
   (`runDefault`'s `Config: cfg`) are CONFIRMED landed in source — so both tests run green on first run.
 ---
 
 ## Goal
 
 **Feature Goal**: Lock in the Issue 1 + Issue 5 fix (shipped in S1/S2) with two deterministic,
-in-process regression tests that drive the real CLI↔`pkg/stagehand` config-handoff seam end-to-end —
+in-process regression tests that drive the real CLI↔`pkg/stagecoach` config-handoff seam end-to-end —
 proving (a) `--config` is honored by the default commit action for a user-defined provider, and
 (b) the §19 repo-local provider-redirect notice prints exactly once.
 
@@ -39,11 +39,11 @@ proving (a) `--config` is honored by the default commit action for a user-define
    `TestRunDefault_RepoLocalNoticeOnce_Issue5`, and a `swapNoticeOut` test helper.
 
 **Success Definition**:
-- `stagehand --config <file> --provider <user-defined-in-file> --dry-run` resolves the user-defined
+- `stagecoach --config <file> --provider <user-defined-in-file> --dry-run` resolves the user-defined
   provider on the default action and prints the generated message (Issue 1 — no more
   `unknown provider`).
-- The §19 notice `repo-local config (.stagehand.toml) sets provider to` appears **exactly once**
-  (`strings.Count == 1`) for a default-action run whose repo-local `.stagehand.toml` sets `provider`
+- The §19 notice `repo-local config (.stagecoach.toml) sets provider to` appears **exactly once**
+  (`strings.Count == 1`) for a default-action run whose repo-local `.stagecoach.toml` sets `provider`
   (Issue 5 — was 2).
 - `go build ./...`, `go vet ./...`, `gofmt -l .` clean; `go test -race ./...` green (the two new tests
   pass; no existing test regresses).
@@ -51,7 +51,7 @@ proving (a) `--config` is honored by the default commit action for a user-define
 
 ## User Persona
 
-**Target User**: The Stagehand maintainer (and CI) who must be confident the S1/S2 single-Load fix is
+**Target User**: The Stagecoach maintainer (and CI) who must be confident the S1/S2 single-Load fix is
 never silently regressed (e.g. by someone re-introducing a `config.Load` inside `resolveConfig`, or
 dropping the `Config: cfg` wiring in `runDefault`).
 
@@ -66,7 +66,7 @@ is ever dropped on the default action again, or if the §19 notice ever double-p
   gets a regression assertion in M1's test subtask (notice count == 1)."*
 - **Both regressions share one root cause** (the now-removed second `config.Load` in `resolveConfig`),
   so testing them together maximizes coverage per line of test code and documents the shared etiology.
-- **The full seam is required.** A `pkg/stagehand`- or `internal/config`-level test cannot reproduce
+- **The full seam is required.** A `pkg/stagecoach`- or `internal/config`-level test cannot reproduce
   either bug: Issue 1's failure is *inside* `GenerateCommit` (the pre-check in `runDefault` always
   passed because it read the correct first-Load `cfg`), and Issue 5's `2` count is a property of the
   CLI calling `Load` twice across packages. Only the in-process `rootCmd.SetArgs` seam exercises both.
@@ -74,18 +74,18 @@ is ever dropped on the default action again, or if the §19 notice ever double-p
 ## What
 
 ### (a) `TestRunDefault_ConfigFlagHonored_Issue1`
-A fresh, isolated git repo (temp HOME/XDG so no global config; **no `.stagehand.toml`**) with one
+A fresh, isolated git repo (temp HOME/XDG so no global config; **no `.stagecoach.toml`**) with one
 staged file. A `--config` TOML (outside the repo) declares `[provider.stub]` pointing at the
-`stubtest.Build(t)` binary. `STAGEHAND_STUB_OUT="feat: config honored"`. Drive
+`stubtest.Build(t)` binary. `STAGECOACH_STUB_OUT="feat: config honored"`. Drive
 `Execute(ctx)` with `SetArgs(["--config", cfgPath, "--provider", "stub", "--dry-run"])`. Assert
 exit 0 and the dry-run message on stdout == `"feat: config honored"`.
 
 ### (b) `TestRunDefault_RepoLocalNoticeOnce_Issue5`
-A fresh git repo whose `.stagehand.toml` defines `[provider.stub]` AND sets top-level
+A fresh git repo whose `.stagecoach.toml` defines `[provider.stub]` AND sets top-level
 `provider = "stub"` (this top-level setting is what triggers the §19 notice). One staged file;
-`STAGEHAND_STUB_OUT` set. Swap `config.noticeOut` → a `bytes.Buffer` (via the new seam). Drive
+`STAGECOACH_STUB_OUT` set. Swap `config.noticeOut` → a `bytes.Buffer` (via the new seam). Drive
 `Execute(ctx)` with `SetArgs(["--provider", "stub"])`. Assert `strings.Count(buf, needle) == 1`
-where `needle = "repo-local config (.stagehand.toml) sets provider to"`, the commit landed, and the
+where `needle = "repo-local config (.stagecoach.toml) sets provider to"`, the commit landed, and the
 notice names `"stub"`.
 
 ### Success Criteria
@@ -94,7 +94,7 @@ notice names `"stub"`.
       default action (exit 0, dry-run message on stdout).
 - [ ] `TestRunDefault_RepoLocalNoticeOnce_Issue5` passes: §19 notice count == 1.
 - [ ] `go test -race ./...` green; `go build ./...`, `go vet ./...`, `gofmt -l .` clean.
-- [ ] No edits to `pkg/stagehand/*`, `runDefault`, `GenerateCommit`/`Options`/`Result`, any doc file,
+- [ ] No edits to `pkg/stagecoach/*`, `runDefault`, `GenerateCommit`/`Options`/`Result`, any doc file,
       `Makefile`, `go.mod`, `PRD.md`, `tasks.json`, `prd_snapshot.md`.
 
 ## All Needed Context
@@ -163,7 +163,7 @@ are referenced by section with the relevant conclusions distilled.
         which is why the §19 notice is NOT captured by rootCmd.SetErr (it bypasses the cobra sink). Also
         confirms the provider pre-validation (117-126) reads cfg — i.e. it always passed; the regression
         is strictly inside GenerateCommit, so the FULL seam must be driven."
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: "Confirms S1 landed (`if opts.Config != nil` at 126). When Config!=nil, resolveConfig does NOT
         call config.Load → exactly one Layer-3 loadRepoLocalConfig → one §19 notice."
 - file: internal/provider/executor.go
@@ -172,13 +172,13 @@ are referenced by section with the relevant conclusions distilled.
         swapped sink contains exactly the notice, no subprocess noise.)"
 - file: internal/stubtest/stubtest.go
   why: "Build(t) compiles cmd/stubagent once per process and returns its path. Driven by env
-        STAGEHAND_STUB_OUT (single response) — exactly what the existing default_action tests use."
+        STAGECOACH_STUB_OUT (single response) — exactly what the existing default_action tests use."
 ```
 
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/config/
 │   └── file.go                       # EDIT: +SetNoticeOut +NoticeOut (test seam)
 ├── internal/cmd/
@@ -186,13 +186,13 @@ stagehand/
 │   ├── root_test.go                  # reuse: saveRootState/initRepo/chdir/writeConfigFile
 │   └── ...
 ├── internal/stubtest/stubtest.go     # reuse: Build(t) → stubagent binary path
-└── pkg/stagehand/stagehand.go        # READ-ONLY (S1 done): resolveConfig opts.Config!=nil branch
+└── pkg/stagecoach/stagecoach.go        # READ-ONLY (S1 done): resolveConfig opts.Config!=nil branch
 ```
 
 ### Desired Codebase Tree After S3
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/config/file.go           # MODIFIED: +SetNoticeOut(io.Writer) +NoticeOut() (~5 lines)
 └── internal/cmd/default_action_test.go  # MODIFIED: +TestRunDefault_ConfigFlagHonored_Issue1
                                          #        +TestRunDefault_RepoLocalNoticeOnce_Issue5
@@ -205,7 +205,7 @@ stagehand/
 | `internal/config/file.go` | MODIFY | Add `SetNoticeOut`/`NoticeOut` test seam around `noticeOut`. |
 | `internal/cmd/default_action_test.go` | MODIFY | Add the two regression tests + `swapNoticeOut`; add `internal/config` import. |
 
-**Explicitly NOT touched in S3**: `pkg/stagehand/*` (S1 done), `internal/cmd/default_action.go`
+**Explicitly NOT touched in S3**: `pkg/stagecoach/*` (S1 done), `internal/cmd/default_action.go`
 (S2 done) & `root.go`, `GenerateCommit`/`Options`/`Result`/`resolveConfig`, `internal/provider/*`,
 any `docs/*.md` / `README.md`, `Makefile`, `go.mod`, `PRD.md`, `tasks.json`, `prd_snapshot.md`.
 
@@ -228,25 +228,25 @@ any `docs/*.md` / `README.md`, `Makefile`, `go.mod`, `PRD.md`, `tasks.json`, `pr
 // bug present. rootCmd.SetArgs + Execute is the only harness that exercises the regression.
 
 // CRITICAL — test (a) provider source must be ONLY the --config file. The repo must have NO
-// .stagehand.toml (Layer-3 would otherwise also define stub and mask the bug), and isolate HOME /
+// .stagecoach.toml (Layer-3 would otherwise also define stub and mask the bug), and isolate HOME /
 // XDG_CONFIG_HOME to temp dirs (cheap insurance against a stray real global config). "stub" is NOT a
 // built-in (registry.go:15 built-ins = pi/claude/gemini/opencode/codex/cursor), so [provider.stub] is
 // genuinely user-defined and resolves ONLY via cfg.Providers.
 
-// CRITICAL — test (b) must set a TOP-LEVEL `provider = "stub"` in .stagehand.toml to trigger the
+// CRITICAL — test (b) must set a TOP-LEVEL `provider = "stub"` in .stagecoach.toml to trigger the
 // notice (repoProviderNotice returns "" when cfg.Provider == "" — file.go:240). setupStubRepo's toml
 // sets ONLY [provider.stub] (no provider=), so it does NOT fire the notice; write a custom toml body.
 
 // GOTCHA — these tests run GREEN on first run (S1/S2 are landed). If test (a) FAILS with
 // "unknown provider \"stub\"", S1/S2 wiring is incomplete — re-check `Config: cfg` (default_action.go)
-// and the opts.Config!=nil branch (stagehand.go). If test (b) shows count==2, resolveConfig is still
+// and the opts.Config!=nil branch (stagecoach.go). If test (b) shows count==2, resolveConfig is still
 // calling config.Load — re-check the same branch. Do NOT "fix" by editing resolveConfig here (S1 owns it).
 
 // GOTCHA — reset flag state between runs. Every test MUST saveRootState/restoreRootState (resets
 // --config/--provider/--dry-run Changed flags + loadedCfg). Omitting it leaks --config across tests.
 
-// GOTCHA — notice text is `stagehand: repo-local config (.stagehand.toml) sets provider to %q\n`
-// (file.go:244). The stable needle "repo-local config (.stagehand.toml) sets provider to" appears
+// GOTCHA — notice text is `stagecoach: repo-local config (.stagecoach.toml) sets provider to %q\n`
+// (file.go:244). The stable needle "repo-local config (.stagecoach.toml) sets provider to" appears
 // exactly once per Load. Use strings.Count (not Contains) so a regression to 2 is caught as 2≠1.
 ```
 
@@ -280,7 +280,7 @@ Task 1: ADD the notice-observability seam (internal/config/file.go)
   - VERIFY: `go build ./internal/config/...` + `go vet ./internal/config/...` clean.
 
 Task 2: ADD the swapNoticeOut helper (internal/cmd/default_action_test.go)
-  - IMPORT: add "github.com/dustin/stagehand/internal/config" to the test file's import block (if absent).
+  - IMPORT: add "github.com/dustin/stagecoach/internal/config" to the test file's import block (if absent).
   - APPEND helper:
         func swapNoticeOut(t *testing.T, w io.Writer) {
             t.Helper()
@@ -295,13 +295,13 @@ Task 3: ADD TestRunDefault_ConfigFlagHonored_Issue1 (Issue 1) — internal/cmd/d
   - SETUP:
       * bin := stubtest.Build(t)
       * Isolate global layer: home := t.TempDir(); t.Setenv("HOME", home); t.Setenv("XDG_CONFIG_HOME", home)
-      * repo := t.TempDir(); initRepo(t, repo); chdir(t, repo)            // NO .stagehand.toml
+      * repo := t.TempDir(); initRepo(t, repo); chdir(t, repo)            // NO .stagecoach.toml
       * Write the --config file OUTSIDE the repo (temp dir) declaring ONLY [provider.stub]:
             cfgPath := filepath.Join(t.TempDir(), "custom.toml")
             body := fmt.Sprintf("[provider.stub]\ncommand = %q\nprompt_delivery = \"stdin\"\noutput = \"raw\"\nstrip_code_fence = true\n", bin)
             os.WriteFile(cfgPath, []byte(body), 0o644)
       * writeFile(t, repo, "new.txt", "hello"); stageFile(t, repo, "new.txt")
-      * t.Setenv("STAGEHAND_STUB_OUT", "feat: config honored")
+      * t.Setenv("STAGECOACH_STUB_OUT", "feat: config honored")
   - RUN: rootCmd.SetOut(&outBuf); rootCmd.SetErr(&errBuf);
          rootCmd.SetArgs([]string{"--config", cfgPath, "--provider", "stub", "--dry-run"})
          err := Execute(context.Background())
@@ -314,18 +314,18 @@ Task 4: ADD TestRunDefault_RepoLocalNoticeOnce_Issue5 (Issue 5) — internal/cmd
   - SETUP:
       * bin := stubtest.Build(t)
       * repo := t.TempDir(); initRepo(t, repo); chdir(t, repo)
-      * Write .stagehand.toml with BOTH a top-level provider AND [provider.stub] (the provider= triggers
+      * Write .stagecoach.toml with BOTH a top-level provider AND [provider.stub] (the provider= triggers
         the §19 notice):
             toml := fmt.Sprintf("provider = \"stub\"\n\n[provider.stub]\ncommand = %q\nprompt_delivery = \"stdin\"\noutput = \"raw\"\nstrip_code_fence = true\n", bin)
-            writeConfigFile(t, repo, ".stagehand.toml", toml)
-      * runGit(t, repo, "add", ".stagehand.toml"); runGit(t, repo, "commit", "-m", "init: config")
+            writeConfigFile(t, repo, ".stagecoach.toml", toml)
+      * runGit(t, repo, "add", ".stagecoach.toml"); runGit(t, repo, "commit", "-m", "init: config")
       * writeFile(t, repo, "new.txt", "hello"); stageFile(t, repo, "new.txt")
-      * t.Setenv("STAGEHAND_STUB_OUT", "feat: add file")
+      * t.Setenv("STAGECOACH_STUB_OUT", "feat: add file")
       * var notice bytes.Buffer; swapNoticeOut(t, &notice)          // capture the §19 sink
   - RUN: rootCmd.SetOut(&outBuf); rootCmd.SetErr(&errBuf);
          rootCmd.SetArgs([]string{"--provider", "stub"}); err := Execute(context.Background())
   - ASSERT (Issue 5):
-      * const needle = "repo-local config (.stagehand.toml) sets provider to"
+      * const needle = "repo-local config (.stagecoach.toml) sets provider to"
       * got := strings.Count(notice.String(), needle); require got == 1 (t.Errorf with the captured
         notice body on mismatch so 2-vs-1 is obvious).
       * strings.Contains(notice.String(), `"stub"`)  // notice names the configured provider
@@ -345,7 +345,7 @@ func TestRunDefault_ConfigFlagHonored_Issue1(t *testing.T) {
 
 	bin := stubtest.Build(t)
 
-	// Isolate the global layer; fresh repo with NO .stagehand.toml (provider source = --config ONLY).
+	// Isolate the global layer; fresh repo with NO .stagecoach.toml (provider source = --config ONLY).
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", home)
@@ -362,7 +362,7 @@ func TestRunDefault_ConfigFlagHonored_Issue1(t *testing.T) {
 
 	writeFile(t, repo, "new.txt", "hello")
 	stageFile(t, repo, "new.txt")
-	t.Setenv("STAGEHAND_STUB_OUT", "feat: config honored")
+	t.Setenv("STAGECOACH_STUB_OUT", "feat: config honored")
 
 	var outBuf, errBuf bytes.Buffer
 	rootCmd.SetOut(&outBuf)
@@ -390,13 +390,13 @@ func TestRunDefault_RepoLocalNoticeOnce_Issue5(t *testing.T) {
 
 	// Repo-local config: top-level provider= (fires the §19 notice) + [provider.stub] (resolves it).
 	toml := fmt.Sprintf("provider = \"stub\"\n\n[provider.stub]\ncommand = %q\nprompt_delivery = \"stdin\"\noutput = \"raw\"\nstrip_code_fence = true\n", bin)
-	writeConfigFile(t, repo, ".stagehand.toml", toml)
-	runGit(t, repo, "add", ".stagehand.toml")
+	writeConfigFile(t, repo, ".stagecoach.toml", toml)
+	runGit(t, repo, "add", ".stagecoach.toml")
 	runGit(t, repo, "commit", "-m", "init: config")
 
 	writeFile(t, repo, "new.txt", "hello")
 	stageFile(t, repo, "new.txt")
-	t.Setenv("STAGEHAND_STUB_OUT", "feat: add file")
+	t.Setenv("STAGECOACH_STUB_OUT", "feat: add file")
 
 	var outBuf, errBuf, notice bytes.Buffer
 	rootCmd.SetOut(&outBuf)
@@ -409,7 +409,7 @@ func TestRunDefault_RepoLocalNoticeOnce_Issue5(t *testing.T) {
 		t.Fatalf("Execute err=%v, want nil", err)
 	}
 
-	const needle = "repo-local config (.stagehand.toml) sets provider to"
+	const needle = "repo-local config (.stagecoach.toml) sets provider to"
 	if got := strings.Count(notice.String(), needle); got != 1 {
 		t.Errorf("§19 notice count = %d, want 1\n--- captured notice ---\n%s", got, notice.String())
 	}
@@ -430,7 +430,7 @@ TEST SEAM (internal/config → internal/cmd):
   - consumer: internal/cmd/default_action_test.go swapNoticeOut helper (test (b) only)
 
 NO-TOUCH (explicitly):
-  - pkg/stagehand/stagehand.go        # S1 (done): Options.Config + resolveConfig branch
+  - pkg/stagecoach/stagecoach.go        # S1 (done): Options.Config + resolveConfig branch
   - internal/cmd/default_action.go    # S2 (done): Config: cfg wiring
   - internal/cmd/root.go              # flagConfig, PersistentPreRunE, Config()
   - internal/provider/*, internal/config/load.go, file.go's loaders/notice text
@@ -443,7 +443,7 @@ NO-TOUCH (explicitly):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l .                  # Expected: empty (run gofmt -w on any file it lists)
 go vet ./internal/config/... ./internal/cmd/...   # Expected: exit 0
@@ -457,27 +457,27 @@ grep -n "func SetNoticeOut\|func NoticeOut\|^var noticeOut" internal/config/file
 ### Level 2: The two new regression tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./internal/cmd/ -run 'TestRunDefault_ConfigFlagHonored_Issue1|TestRunDefault_RepoLocalNoticeOnce_Issue5' -v
 # Expected: PASS — both green. (S1/S2 are landed, so these lock in the fix.)
 #   If test (a) fails "unknown provider \"stub\"": S1/S2 wiring is incomplete — re-check
 #     `Config: cfg` in internal/cmd/default_action.go and the `opts.Config != nil` branch in
-#     pkg/stagehand/stagehand.go. Do NOT edit resolveConfig here.
+#     pkg/stagecoach/stagecoach.go. Do NOT edit resolveConfig here.
 #   If test (b) reports count=2: resolveConfig is still calling config.Load — same re-check.
 ```
 
 ### Level 3: Full suite + regression neighbors (System Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Whole cmd package (existing default_action tests must stay green — the seam addition is additive)
 go test -race ./internal/cmd/ -v
 # Whole config package (the seam is additive; file/load tests unaffected — they swap noticeOut in-package)
 go test -race ./internal/config/ -v
 # Public API (S1's injected-config branch + nil path)
-go test -race ./pkg/stagehand/ -v
+go test -race ./pkg/stagecoach/ -v
 # Everything, with the race detector
 go test -race ./...
 # Expected: ALL packages green.
@@ -486,8 +486,8 @@ go test -race ./...
 ### Level 4: Manual cross-check (the human equivalent of the two tests)
 
 ```bash
-cd /home/dustin/projects/stagehand
-go build -o bin/stagehand ./cmd/stagehand
+cd /home/dustin/projects/stagecoach
+go build -o bin/stagecoach ./cmd/stagecoach
 go build -o bin/stubagent ./cmd/stubagent
 
 # Issue 1: --config honored on the default action (was: unknown provider)
@@ -505,15 +505,15 @@ output = "raw"
 strip_code_fence = true
 EOF
 echo hi > f.txt && git add f.txt
-"$PWD/../../bin/stagehand" --config custom.toml --provider stub --dry-run   # → "feat: config honored", exit 0
+"$PWD/../../bin/stagecoach" --config custom.toml --provider stub --dry-run   # → "feat: config honored", exit 0
 
 # Issue 5: §19 notice exactly once (was: 2)
-printf 'provider = "stub"\n\n[provider.stub]\ncommand = "%s/a.sh"\nprompt_delivery = "stdin"\noutput = "raw"\nstrip_code_fence = true\n' "$REPO" > .stagehand.toml
+printf 'provider = "stub"\n\n[provider.stub]\ncommand = "%s/a.sh"\nprompt_delivery = "stdin"\noutput = "raw"\nstrip_code_fence = true\n' "$REPO" > .stagecoach.toml
 echo more >> f.txt && git add f.txt
-"$(pwd)/bin/stagehand" --provider stub 2>err.log
-grep -c "repo-local config (.stagehand.toml) sets provider to" err.log   # → 1
+"$(pwd)/bin/stagecoach" --provider stub 2>err.log
+grep -c "repo-local config (.stagecoach.toml) sets provider to" err.log   # → 1
 
-cd /home/dustin/projects/stagehand && rm -rf "$REPO"
+cd /home/dustin/projects/stagecoach && rm -rf "$REPO"
 ```
 
 ## Final Validation Checklist
@@ -532,7 +532,7 @@ cd /home/dustin/projects/stagehand && rm -rf "$REPO"
 - [ ] Manual Issue-1 + Issue-5 repros (Level 4) confirm the binary behavior.
 
 ### Scope Discipline Validation
-- [ ] Did NOT edit `pkg/stagehand/*` (S1's surface), `internal/cmd/default_action.go`/`root.go` (S2's),
+- [ ] Did NOT edit `pkg/stagecoach/*` (S1's surface), `internal/cmd/default_action.go`/`root.go` (S2's),
       `GenerateCommit`/`Options`/`Result`/`resolveConfig`, or any loader/notice text.
 - [ ] Did NOT edit any `docs/*.md`, `README.md`, `Makefile`, `go.mod`.
 - [ ] Did NOT modify `PRD.md`, `tasks.json`, `prd_snapshot.md`, or anything under `plan/` (except this
@@ -543,7 +543,7 @@ cd /home/dustin/projects/stagehand && rm -rf "$REPO"
 ### Code Quality Validation
 - [ ] Tests reuse existing harness helpers (no duplicated fixture machinery).
 - [ ] Both tests call `saveRootState`/`restoreRootState` (no flag/loadedCfg leakage).
-- [ ] Test (a) isolates HOME/XDG and uses a repo with NO `.stagehand.toml` (provider source = `--config` only).
+- [ ] Test (a) isolates HOME/XDG and uses a repo with NO `.stagecoach.toml` (provider source = `--config` only).
 - [ ] Test (b) uses `strings.Count` (catches 2≠1, not just presence) and asserts the full seam (commit landed).
 - [ ] `git diff --name-only` shows ONLY `internal/config/file.go` and `internal/cmd/default_action_test.go`.
 
@@ -557,9 +557,9 @@ cd /home/dustin/projects/stagehand && rm -rf "$REPO"
   init; only `SetNoticeOut` changes the actual sink.
 - ❌ Don't stop the test at `PersistentPreRunE` / runDefault's provider pre-check — that path always
   honored `--config`; the regression lives inside `GenerateCommit`/`resolveConfig`. Drive the FULL seam.
-- ❌ Don't put a `.stagehand.toml` defining `[provider.stub]` in test (a)'s repo — that masks the bug
+- ❌ Don't put a `.stagecoach.toml` defining `[provider.stub]` in test (a)'s repo — that masks the bug
   (Layer-3 discovery would define stub too). The provider must come ONLY from the `--config` file.
-- ❌ Don't omit the top-level `provider = "stub"` in test (b)'s `.stagehand.toml` — without it
+- ❌ Don't omit the top-level `provider = "stub"` in test (b)'s `.stagecoach.toml` — without it
   `repoProviderNotice` returns "" and no notice fires (count 0, not the 1 you want).
 - ❌ Don't use `strings.Contains` for the notice — use `strings.Count == 1` so a regression to 2 is
   caught (Contains would pass on 2 as well as 1).
@@ -587,7 +587,7 @@ insists on zero non-test source changes.
   `syscall` or build-tag usage in the repo to mirror, and the dup/restore/close ordering is easy to get
   subtly wrong (deadlock if the pipe fills — won't happen here, the notice is ~70 B). One-pass risk is
   higher than the seam.
-- **Alt C — subprocess.** Build `bin/stagehand`, run via `exec.Command` with `cmd.Stderr = &buf`,
+- **Alt C — subprocess.** Build `bin/stagecoach`, run via `exec.Command` with `cmd.Stderr = &buf`,
   `strings.Count(buf, needle) == 1`. Clean and cross-platform, but a NEW harness pattern that diverges
   from the contract-prescribed in-process `rootCmd.SetArgs` seam; adds a binary build step to the test.
   Prefer this only if the in-process capture is infeasible.
@@ -599,7 +599,7 @@ insists on zero non-test source changes.
 **10/10** for one-pass implementation success.
 
 Rationale: The fix under test (S1/S2) is already shipped and source-confirmed (`opts.Config != nil` at
-`stagehand.go:126`; `Config: cfg` at `default_action.go:131`). The two tests mirror an existing,
+`stagecoach.go:126`; `Config: cfg` at `default_action.go:131`). The two tests mirror an existing,
 passing test (`TestRunDefault_DryRun`/`TestRunDefault_Commit`) using the codebase's own harness helpers
 (`saveRootState`, `stubtest.Build`, `initRepo`, `chdir`, `writeConfigFile`), with full copy-pasteable
 bodies provided. The only non-obvious element — capturing a notice that bypasses the cobra sink — is

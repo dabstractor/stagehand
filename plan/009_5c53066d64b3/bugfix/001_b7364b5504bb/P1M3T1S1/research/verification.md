@@ -38,9 +38,9 @@ L160 `payload = retryInstr + "\n\n" + payload`; L163 `deps.Manifest.Render(msgMo
 
 ## §4 — No conflict with the parallel work item (P1.M2.T1.S2)
 
-P1.M2.T1.S2 (dry-run runPipeline gate) is **pkg/stagehand ONLY**. Its PRP explicitly excludes
+P1.M2.T1.S2 (dry-run runPipeline gate) is **pkg/stagecoach ONLY**. Its PRP explicitly excludes
 `internal/hook/exec.go` as P1.M3's scope — verified at lines 64, 242 ("NOT this task ← NO edit"),
-297-298 ("do NOT edit ... internal/hook/exec.go ... This task is pkg/stagehand ONLY"), 476, 606. This task
+297-298 ("do NOT edit ... internal/hook/exec.go ... This task is pkg/stagecoach ONLY"), 476, 606. This task
 (P1.M3.T1.S1) edits `internal/hook/exec.go` ONLY. **Zero file overlap ⇒ no merge conflict.** (P1.M2.T1.S1,
 already Complete, did the analogous `payload` hoist in `runPipeline` — the precedent for this hook.Run hoist.)
 

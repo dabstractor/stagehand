@@ -20,7 +20,7 @@ description: |
 ## Goal
 
 **Feature Goal**: Make a user's `[generation]`-table `multi_turn_fallback` and `multi_turn_chunk_tokens`
-keys (in a global or repo `.stagehand.toml` / `config.toml`) flow through the file-decode layer into the
+keys (in a global or repo `.stagecoach.toml` / `config.toml`) flow through the file-decode layer into the
 resolved `Config` that the downstream multi-turn generate core (P1.M1.T3.S2 reads `cfg.MultiTurnChunkTokens`;
 P1.M1.T3.S3 reads `cfg.MultiTurnFallback`) consumes. After this task, a TOML file setting either key
 propagates through `materialize` (file→Config) and `overlay` (global→repo field-by-field merge) to the
@@ -180,7 +180,7 @@ why the change is behavior-free for existing tests. No inference required.
         layers. Adding the overlay clauses is SUFFICIENT to thread the fields through file-based precedence;
         load.go itself needs no edit (it already calls overlay for every layer)."
 - file: internal/config/git.go
-  why: "READ-ONLY. The stagehand.* git-config resolver. NOT edited here (contract LOGIC is file.go only).
+  why: "READ-ONLY. The stagecoach.* git-config resolver. NOT edited here (contract LOGIC is file.go only).
         Plan 009 has no git-config subtask for multi-turn → file-only by design. The overlay clauses this
         task adds would let a future git-config resolver compose, but adding the keys is out of scope."
 
@@ -194,7 +194,7 @@ why the change is behavior-free for existing tests. No inference required.
 ### Current Codebase Tree (relevant slice — S1 LANDED)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/config/
     ├── config.go        # READ-ONLY (S1 LANDED — Config.MultiTurn* fields + Defaults)
     ├── file.go          # EDIT TARGET — fileGeneration struct + materialize + overlay (3 edits)
@@ -205,7 +205,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only one existing file modified — no new files)
     internal/config/file.go   # fileGeneration +2 fields; materialize +2 clauses; overlay +2 clauses
 ```
@@ -465,7 +465,7 @@ DOWNSTREAM HOOKS (informational — owned by LATER subtasks):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/config/file.go   # Expected: empty (run gofmt -w if listed — re-aligns the struct block)
 go vet ./internal/config/...        # Expected: exit 0
@@ -477,7 +477,7 @@ go build ./...                      # Expected: exit 0 (the new fields + clauses
 ### Level 2: Wiring + Regression (existing suite stays green — no new test in S2)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The wiring is present (2 struct fields + 2 materialize clauses + 2 overlay clauses = 6 hits):
 grep -n 'MultiTurnFallback\|MultiTurnChunkTokens' internal/config/file.go
@@ -499,7 +499,7 @@ go test ./...                   # Expected: ALL packages green.
 ### Level 3: Scope Discipline (only file.go changed)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # ONLY internal/config/file.go changed.
 git diff --stat -- internal/ pkg/ cmd/ docs/
@@ -517,14 +517,14 @@ git diff -- internal/config/file.go
 ### Level 4: Behavioral Cross-Check (a file value propagates; absence keeps the default)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # S3 will add the dedicated file/overlay unit test; here we cross-check via a throwaway that materialize +
 # overlay actually propagate a set value (and skip an unset one). Requires S1's resolved fields.
 cat > /tmp/sh_mt_check.go <<'EOF'
 package main
 import ("fmt";"time"
- "github.com/dustin/stagehand/internal/config")
+ "github.com/dustin/stagecoach/internal/config")
 func main() {
 	// A file that SETS multi_turn_chunk_tokens (and re-asserts multi_turn_fallback = true):
 	toml := `[generation]

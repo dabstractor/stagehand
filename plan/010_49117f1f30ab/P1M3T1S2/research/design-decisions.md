@@ -1,19 +1,19 @@
 # P1.M3.T1.S2 — Design Decisions (recursion prevention + message-file lifecycle)
 
 Ground truth read before writing this note:
-- **Bug-Fix PRD §9.25 FR-V4** (prepare-commit-msg composes with the installed stagehand hook: skip stagehand's
+- **Bug-Fix PRD §9.25 FR-V4** (prepare-commit-msg composes with the installed stagecoach hook: skip stagecoach's
   OWN prepare-commit-msg on the plumbing path — recursion prevention; a foreign one runs + annotates; read back).
   §9.25 FR-V2 (prepare-commit-msg `<msgfile> ""`; commit-msg `<msgfile>`; read back the result).
 - **The S1 CONTRACT** (P1.M3.T1S1/PRP.md): creates `internal/hooks/runner.go` with `RunCommitHooks` (pre-commit →
-  prepare-commit-msg → commit-msg) + helpers, INCLUDING: the **seam** `shouldSkipStagehandPrepareCommitMsg(
+  prepare-commit-msg → commit-msg) + helpers, INCLUDING: the **seam** `shouldSkipStagecoachPrepareCommitMsg(
   hooksDir) bool` (S1 STUBS it `false` + a TODO comment); `runPrepareCommitMsg`/`runCommitMsg` which each call
   `runMsgHook` (a per-call temp-file create/write/run/read-back); `stripCommentLines(s)` (hardcoded '#' prefix);
   `runHook` (the os/exec seam: `exec.CommandContext`, env, timeout, stdin=/dev/null, stdout/stderr pass-through).
   S2 CONSUMES runner.go and EDITS these pieces.
-- **codebase_reality.md §4**: `hook.Marker` (script.go:15) = `"# stagehand prepare-commit-msg hook v1"`;
-  `hook.HookFilename` = `"prepare-commit-msg"`; `hook.Status` = StatusNone/StatusStagehand/StatusForeign;
-  `hook.Detect(hooksDir) (Status, error)` — `os.ErrNotExist`→StatusNone; contains Marker→StatusStagehand;
-  present-without-Marker→StatusForeign. "For FR-V4: the runner calls hook.Detect; if StatusStagehand, SKIP it."
+- **codebase_reality.md §4**: `hook.Marker` (script.go:15) = `"# stagecoach prepare-commit-msg hook v1"`;
+  `hook.HookFilename` = `"prepare-commit-msg"`; `hook.Status` = StatusNone/StatusStagecoach/StatusForeign;
+  `hook.Detect(hooksDir) (Status, error)` — `os.ErrNotExist`→StatusNone; contains Marker→StatusStagecoach;
+  present-without-Marker→StatusForeign. "For FR-V4: the runner calls hook.Detect; if StatusStagecoach, SKIP it."
 - **internal/git/git.go** (the Git interface): `HooksPath`/`GitDir`/`TopLevel` (L368, EXISTS — resolves S1 §10);
   `ReadTreeInto`/`WriteTreeFrom`; `ConfigGlobalGet` (global-only; NO local `git config --get`). The only mock Git
   is `contentionFakeGit` (cmd/lock_contention_test.go:18) which EMBEDS `git.Git` ⇒ safe to extend the interface.
@@ -25,7 +25,7 @@ Ground truth read before writing this note:
 
 ## §0 — Scope: edit S1's runner.go (the seam + message lifecycle + strip) + add CommentChar to Git + tests
 
-**S2 owns:** (a) fill `shouldSkipStagehandPrepareCommitMsg` via `hook.Detect` (+ verbose log on skip); (b) refactor
+**S2 owns:** (a) fill `shouldSkipStagecoachPrepareCommitMsg` via `hook.Detect` (+ verbose log on skip); (b) refactor
 the message-file lifecycle to ONE shared temp file (prepare + commit-msg both operate on it; strip ONLY at the
 final read-back); (c) honor `core.commentChar` (add `CommentChar(ctx)` to the Git interface; parameterize
 `stripCommentLines`); (d) add the `internal/hook` import to runner.go; (e) 3+ tests.
@@ -41,26 +41,26 @@ internal/git/git.go (S1 does NOT touch git.go — TopLevel already exists), so n
 
 ---
 
-## §1 — Fill the seam: `shouldSkipStagehandPrepareCommitMsg` via `hook.Detect` (FR-V4 recursion prevention)
+## §1 — Fill the seam: `shouldSkipStagecoachPrepareCommitMsg` via `hook.Detect` (FR-V4 recursion prevention)
 
 **Decision:** replace S1's stub body with:
 ```go
-func shouldSkipStagehandPrepareCommitMsg(hooksDir string) bool {
-	status, _ := hook.Detect(hooksDir)      // err is non-fatal: on read error, treat as NOT stagehand (run it)
-	return status == hook.StatusStagehand
+func shouldSkipStagecoachPrepareCommitMsg(hooksDir string) bool {
+	status, _ := hook.Detect(hooksDir)      // err is non-fatal: on read error, treat as NOT stagecoach (run it)
+	return status == hook.StatusStagecoach
 }
 ```
 The function stays PURE (returns bool, no I/O — the verbose log is in the CALLER, `runPrepareCommitMsg`). The
 `hook.Detect` error is IGNORED (a read error ⇒ StatusNone from Detect's own handling, OR we treat unknown as
-"don't skip" — running a hook that might be stagehand's is the conservative failure mode: the worst case is a
+"don't skip" — running a hook that might be stagecoach's is the conservative failure mode: the worst case is a
 recursion, but Detect only errors on non-ErrNotExist read failures, which are rare; the default-safe choice is
 to NOT skip on error, matching Detect's StatusNone-on-ErrNotExist). Add `internal/hook` to runner.go's imports.
 
 **The verbose log** lives in `runPrepareCommitMsg` (the caller), after the skip is detected:
 ```go
-if shouldSkipStagehandPrepareCommitMsg(hooksDir) {
+if shouldSkipStagecoachPrepareCommitMsg(hooksDir) {
 	if opts.Verbose != nil {
-		opts.Verbose.VerboseWarn("skipping stagehand's own prepare-commit-msg hook on the plumbing path (FR-V4 recursion prevention)")
+		opts.Verbose.VerboseWarn("skipping stagecoach's own prepare-commit-msg hook on the plumbing path (FR-V4 recursion prevention)")
 	}
 	return nil
 }
@@ -74,9 +74,9 @@ This is nil-guarded (opts.Verbose may be nil — S1's convention). The message m
 **Decision:** refactor S1's per-call `runMsgHook` (which created a SEPARATE temp file per hook) into a SINGLE
 shared message file owned by `RunCommitHooks`. This faithfully emulates git (ONE message file for the whole
 commit; prepare-commit-msg writes/annotates it, commit-msg sees the SAME file). The lifecycle:
-1. `RunCommitHooks` creates ONE temp file (`os.CreateTemp("", "stagehand-hookmsg-*.txt")`), writes the incoming
+1. `RunCommitHooks` creates ONE temp file (`os.CreateTemp("", "stagecoach-hookmsg-*.txt")`), writes the incoming
    `msg` (the generated+deduped+--edit-finalized message), `defer os.Remove(path)`.
-2. **prepare-commit-msg** runs on that file (if present + not stagehand's own): `runHook(... hookPath,
+2. **prepare-commit-msg** runs on that file (if present + not stagecoach's own): `runHook(... hookPath,
    []string{msgPath, ""}, ...)`. May annotate (append a ticket ref). Non-zero/timeout → abort (§4).
 3. **commit-msg** runs on the SAME file (if present + not NoVerify): `runHook(... hookPath, []string{msgPath},
    ...)`. Sees prepare's annotations. May mutate (lint fixes). Non-zero/timeout → abort.
@@ -131,7 +131,7 @@ message the user could manually commit). Non-zero exit AND timeout both flow thr
 
 ```go
 // (c)+(d) MESSAGE-FILE LIFECYCLE: ONE shared temp file for prepare-commit-msg + commit-msg (git parity).
-msgFile, err := os.CreateTemp("", "stagehand-hookmsg-*.txt")
+msgFile, err := os.CreateTemp("", "stagecoach-hookmsg-*.txt")
 if err != nil {
 	return "", "", fmt.Errorf("hooks: create message file: %w", err)
 }
@@ -144,7 +144,7 @@ if _, werr := msgFile.WriteString(finalMsg); werr != nil {
 msgFile.Close()
 
 // (c) PREPARE-COMMIT-MSG — ALWAYS runs (NoVerify + DryRun do NOT gate it). Skipped if absent/non-exec OR
-// stagehand's OWN hook (FR-V4 recursion prevention).
+// stagecoach's OWN hook (FR-V4 recursion prevention).
 if cerr := runPrepareCommitMsg(ctx, cfg, opts, hooksDir, gitDir, workTree, msgPath); cerr != nil {
 	return "", "", &generate.RescueError{Kind: generate.ErrRescue, TreeSHA: snapshotTree,
 		ParentSHA: parentSHA, Candidate: finalMsg, Cause: fmt.Errorf("prepare-commit-msg: %w", cerr)}
@@ -181,9 +181,9 @@ func runPrepareCommitMsg(ctx context.Context, cfg config.Config, opts HookOpts, 
 	if !hookExecutable(hookPath) {
 		return nil // absent/non-exec → silent skip
 	}
-	if shouldSkipStagehandPrepareCommitMsg(hooksDir) { // FR-V4: stagehand's OWN hook → skip (recursion)
+	if shouldSkipStagecoachPrepareCommitMsg(hooksDir) { // FR-V4: stagecoach's OWN hook → skip (recursion)
 		if opts.Verbose != nil {
-			opts.Verbose.VerboseWarn("skipping stagehand's own prepare-commit-msg hook on the plumbing path (FR-V4 recursion prevention)")
+			opts.Verbose.VerboseWarn("skipping stagecoach's own prepare-commit-msg hook on the plumbing path (FR-V4 recursion prevention)")
 		}
 		return nil
 	}
@@ -199,10 +199,10 @@ func runCommitMsg(ctx context.Context, cfg config.Config, opts HookOpts, hooksDi
 	return runHook(ctx, cfg.HookTimeout, hookPath, []string{msgPath}, gitDir, workTree, nil, opts)
 }
 
-// shouldSkipStagehandPrepareCommitMsg — FR-V4 recursion prevention. S1 stubbed false; S2 fills via hook.Detect.
-func shouldSkipStagehandPrepareCommitMsg(hooksDir string) bool {
+// shouldSkipStagecoachPrepareCommitMsg — FR-V4 recursion prevention. S1 stubbed false; S2 fills via hook.Detect.
+func shouldSkipStagecoachPrepareCommitMsg(hooksDir string) bool {
 	status, _ := hook.Detect(hooksDir) // read error ⇒ StatusNone ⇒ don't skip (conservative)
-	return status == hook.StatusStagehand
+	return status == hook.StatusStagecoach
 }
 
 // stripCommentLines drops git message-file comment lines (lines beginning with commentChar, default '#').
@@ -242,8 +242,8 @@ gitRunner impl: `g.run(ctx, g.workDir, "config", "--get", "core.commentChar")`; 
 
 Add to `internal/hooks/runner_test.go` (white-box package hooks; temp repo + real shell-script hooks, mirroring
 S1's idiom):
-1. **TestRunCommitHooks_PrepareCommitMsg_StagehandMarker_Skipped** — write a prepare-commit-msg containing the
-   Marker line (`# stagehand prepare-commit-msg hook v1`) + a body that would mutate the file; NoVerify=true
+1. **TestRunCommitHooks_PrepareCommitMsg_StagecoachMarker_Skipped** — write a prepare-commit-msg containing the
+   Marker line (`# stagecoach prepare-commit-msg hook v1`) + a body that would mutate the file; NoVerify=true
    (isolate prepare); run → finalMsg == original msg (the hook was SKIPPED, no mutation, no recursion). Assert
    finalMsg unchanged.
 2. **TestRunCommitHooks_PrepareCommitMsg_Foreign_AnnotationReadBack** — write a FOREIGN prepare-commit-msg that
@@ -273,7 +273,7 @@ already-imported stdlib. No new external dep. `go mod tidy` is a no-op.
 | § | Decision | Source |
 |---|----------|--------|
 | 0 | Edit S1's runner.go (seam + msg lifecycle + strip) + add CommentChar to Git + tests; pre-commit/runHook/RunPostCommit frozen | contract |
-| 1 | Fill shouldSkipStagehandPrepareCommitMsg via hook.Detect==StatusStagehand; verbose log in the caller | FR-V4, reality §4 |
+| 1 | Fill shouldSkipStagecoachPrepareCommitMsg via hook.Detect==StatusStagecoach; verbose log in the caller | FR-V4, reality §4 |
 | 2 | ONE shared temp msg file for prepare + commit-msg; strip ONLY at the final read-back | contract, FR-V2 |
 | 3 | Honor core.commentChar via a new Git.CommentChar method; parameterize stripCommentLines | contract |
 | 4 | msg hooks return the cause; RunCommitHooks wraps *RescueError{snapshotTree,parentSHA,msg,Cause} | FR-V7 |

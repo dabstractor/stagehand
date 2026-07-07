@@ -42,7 +42,7 @@ implementer must classify each hit:
 | Category | Example | Verdict |
 |---|---|---|
 | **STALE default claim** (would need fixing) | "the planner defaults to high", "planner reasoning is high by default", "default off (planner: high)", "reasoning: high (default for planner)" | 🛠 UPDATE → "off for every role; opt-in per role" |
-| **CORRECT opt-in example** (leave as-is) | `stagehand --reasoning high`, `STAGEHAND_PLANNER_REASONING=high stagehand`, `STAGEHAND_REASONING=high stagehand` | ✅ LEAVE — shows the user CAN set it, not that it IS the default |
+| **CORRECT opt-in example** (leave as-is) | `stagecoach --reasoning high`, `STAGECOACH_PLANNER_REASONING=high stagecoach`, `STAGECOACH_REASONING=high stagecoach` | ✅ LEAVE — shows the user CAN set it, not that it IS the default |
 | **CORRECT shape/behavior doc** (leave as-is) | the `reasoning_levels` manifest TABLE definition (off/low/medium/high token lists); the Render append rule; "reasoning" used as a VERB ("needs reasoning to evaluate diffs") | ✅ LEAVE — documents mechanism, not a default |
 
 The discriminator is **"does this text assert that `high` is the shipped default?"**. An invocation
@@ -57,7 +57,7 @@ The narrow grep `planner.*high` returns **ZERO** matches here. The broader `reas
 
 - **L121:** `# Use reasoning for deeper analysis on the planner` — a bash COMMENT introducing the
   next line's example.
-- **L122:** `stagehand --reasoning high` — a **usage EXAMPLE** in the "Example invocations" bash
+- **L122:** `stagecoach --reasoning high` — a **usage EXAMPLE** in the "Example invocations" bash
   block. The item description states verbatim: *"README.md only references `--reasoning high` as a
   usage example (correct — leave as-is, it shows the user CAN set it, not that it IS the default)."*
   ✅ LEAVE.
@@ -73,12 +73,12 @@ The narrow grep `planner.*high` returns **ZERO** matches here. The broader `reas
 
 The narrow grep returns **ONE** match repo-wide, and it is here:
 
-- **L153:** `| STAGEHAND_PLANNER_REASONING | --planner-reasoning | Per-role: planner reasoning |
-  STAGEHAND_PLANNER_REASONING=high stagehand |` — the env-var table's **example column**. This is a
+- **L153:** `| STAGECOACH_PLANNER_REASONING | --planner-reasoning | Per-role: planner reasoning |
+  STAGECOACH_PLANNER_REASONING=high stagecoach |` — the env-var table's **example column**. This is a
   **CORRECT opt-in example** (Category 2): it shows the user invoking the env var with `=high` to
   turn planner reasoning on. It does NOT claim `high` is the default. ✅ LEAVE.
 
-  (Companion lines L152/154/155/156 show `STAGEHAND_REASONING=high`, `..._STAGER_REASONING=low`,
+  (Companion lines L152/154/155/156 show `STAGECOACH_REASONING=high`, `..._STAGER_REASONING=low`,
   etc. — all invocation examples, all correct.) And critically: **L80** —
   `reasoning = "off"   # off|low|medium|high; off by default for every role (FR-R6)` — is the
   UPDATED, correct default statement landed by T2.S1. So the file is internally consistent.
@@ -92,7 +92,7 @@ The narrow grep returns **ONE** match repo-wide, and it is here:
   reads `"" (off)`. ✅ CORRECT (the flipped default). T1.S2 landed this.
 - **L44–49:** per-role `--<role>-reasoning` flags, default `""`. ✅ CORRECT.
 - **L212–213:** `# Use reasoning for deeper analysis (pi: --thinking, claude: --effort; others
-  no-op)` + `stagehand --reasoning high` — **usage EXAMPLE**. ✅ CORRECT (Category 2).
+  no-op)` + `stagecoach --reasoning high` — **usage EXAMPLE**. ✅ CORRECT (Category 2).
 
   **T1.S2's territory. This task must NOT edit it.** Already correct.
 
@@ -143,7 +143,7 @@ and (b) outside this task's scope (T2.S1). No stale DEFAULT claim exists anywher
 
 ## 6. Decisions log
 
-- **D1** — Usage examples (`--reasoning high`, `STAGEHAND_*_REASONING=high`) are CORRECT and must
+- **D1** — Usage examples (`--reasoning high`, `STAGECOACH_*_REASONING=high`) are CORRECT and must
   NOT be edited. The discriminator is "asserts `high` is the shipped default" (stale) vs "shows how
   to opt in" (correct). Only the former is in scope.
 - **D2** — `docs/cli.md` (T1.S2) and `docs/configuration.md` (T2.S1) are OUT OF SCOPE for edits.

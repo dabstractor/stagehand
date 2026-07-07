@@ -125,7 +125,7 @@ Must check `*exec.ExitError.ExitCode() == 1` explicitly as "has staged changes."
 ## FINDING 8: Signal handling requires process-group kill (`Setpgid`)
 
 Because the agent subprocess is placed in its own process group (`SysProcAttr.Setpgid=true`), it
-does NOT receive the terminal's Ctrl-C directly. Stagehand MUST explicitly forward SIGINT/SIGTERM
+does NOT receive the terminal's Ctrl-C directly. Stagecoach MUST explicitly forward SIGINT/SIGTERM
 to the child's process group via `syscall.Kill(-pid, sig)`.
 
 Go 1.20+ provides `cmd.Cancel` and `cmd.WaitDelay` for clean context-based killing:

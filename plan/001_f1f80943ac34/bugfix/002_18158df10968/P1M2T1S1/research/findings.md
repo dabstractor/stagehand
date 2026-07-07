@@ -32,7 +32,7 @@ mechanical). This note captures the exact, compiler-verified facts the S1 implem
 
 ## ⚠️ CRITICAL sequencing gotcha — the repo is transiently non-compiling after S1
 
-The ONLY non-test, out-of-package consumer of `config.Config.Output` is `pkg/stagehand/stagehand.go:206-208`:
+The ONLY non-test, out-of-package consumer of `config.Config.Output` is `pkg/stagecoach/stagecoach.go:206-208`:
 ```go
 if cfg.Output != "" {   // compile-break: *string vs string
     o := cfg.Output
@@ -42,9 +42,9 @@ if cfg.Output != "" {   // compile-break: *string vs string
 This is **S2's** scope (`P1.M2.T1.S2`): S2 changes it to `if cfg.Output != nil { m.Output = cfg.Output }`.
 Therefore, after S1 lands:
 - ✅ `go build ./internal/config/...` + `go vet ./internal/config/...` + `go test ./internal/config/...` = GREEN.
-- ❌ `go build ./...` (whole repo) FAILS at `pkg/stagehand/stagehand.go:206` — EXPECTED, fixed by S2.
+- ❌ `go build ./...` (whole repo) FAILS at `pkg/stagecoach/stagecoach.go:206` — EXPECTED, fixed by S2.
 
-The S1 implementer MUST NOT "fix" `pkg/stagehand/stagehand.go` (scope violation; collides with S2).
+The S1 implementer MUST NOT "fix" `pkg/stagecoach/stagecoach.go` (scope violation; collides with S2).
 The S1 success gate is scoped to `./internal/config/...`.
 
 ## Test edits (compiler-driven — every `cfg.Output != ""` / `Output: "..."` is a break pointing here)

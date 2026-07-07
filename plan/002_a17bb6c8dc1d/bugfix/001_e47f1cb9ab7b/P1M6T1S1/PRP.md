@@ -1,7 +1,7 @@
 ---
 name: "Update README.md to reflect all five fixes (changeset-level docs sync)"
 work_item: P1.M6.T1.S1
-changeset: plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b (Stagehand v2.0 QA bug pass)
+changeset: plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b (Stagecoach v2.0 QA bug pass)
 issue: all five (1 Critical, 2/3/4 Major, 5 Minor — all implementing subtasks are ✅ Complete)
 kind: documentation (Markdown ONLY — no Go code, no Go tests)
 mode: B (changeset-level docs sync — this task spans the entire P1 changeset and runs LAST)
@@ -9,7 +9,7 @@ depends_on:  # ALL implementing subtasks (this is the final docs task)
   - P1.M1.T1 (Issue 1, Critical: provider/sub-provider conflation — callers now pass "" so Render emits --provider <default_provider>, never the manifest name)  ✅
   - P1.M2.T1 (Issue 2, Major: stager toolset — claude structurally scoped via staging-only allowlist; pi honestly documented as NOT flag-scoped + HEAD-movement guard added)  ✅
   - P1.M3.T1/T2 (Issue 3, Major: post-arbiter output — LogRange + rereadFinalCommits; printed SHAs are now accurate/resolvable)  ✅
-  - P1.M4.T1 (Issue 4, Major: config subcommands now honor --config / STAGEHAND_CONFIG via ResolveConfigPath)  ✅
+  - P1.M4.T1 (Issue 4, Major: config subcommands now honor --config / STAGECOACH_CONFIG via ResolveConfigPath)  ✅
   - P1.M5.T1 (Issue 5, Minor: bootstrap blanks pi per-role models — pi picks its own backend default + sub-provider NOTE annotation)  ✅
   - P1.M6.T1.S2 (sibling task: docs/ directory consistency — OUT OF SCOPE here; do NOT touch docs/*.md)
 ---
@@ -19,8 +19,8 @@ depends_on:  # ALL implementing subtasks (this is the final docs task)
 **Feature Goal**: Synchronize the top-level `README.md` with the **shipped behavior** after all five
 P1 bug fixes so that **no stale claim remains** and every user-facing behavior the README describes is
 accurate. README.md is the project's front door (GitHub landing page + quick start); it mentions the
-provider setup (`git config stagehand.provider pi`), the bootstrap experience (`config init`), the
-config-file override (`--config` / `STAGEHAND_CONFIG`), and the multi-commit four-role pipeline. All
+provider setup (`git config stagecoach.provider pi`), the bootstrap experience (`config init`), the
+config-file override (`--config` / `STAGECOACH_CONFIG`), and the multi-commit four-role pipeline. All
 five fixes touch behavior the README either describes or implies.
 
 **Deliverable**: An edited `README.md` (the only file this task touches) in which:
@@ -32,7 +32,7 @@ five fixes touch behavior the README either describes or implies.
 3. The multi-commit output fidelity is not misrepresented (Issue 3 — README makes no specific SHA
    claim today, so this is a verification pass).
 4. `config init` / `config path` / `config upgrade` are documented as honoring the
-   `--config` / `STAGEHAND_CONFIG` override (Issue 4).
+   `--config` / `STAGECOACH_CONFIG` override (Issue 4).
 5. The bootstrap description ("populated, working config … writes per-role model defaults") is
    adjusted to reflect that for **pi** the per-role models are blanked (pi picks its own backend
    default) until the user sets a `default_provider` (Issue 5).
@@ -49,11 +49,11 @@ five fixes touch behavior the README either describes or implies.
 ## Why
 
 - **Docs must track the binary.** The `docs/README.md` note states "If anything here disagrees with
-  `stagehand --help`, the binary is authoritative." README.md is read first by every new user; a stale
+  `stagecoach --help`, the binary is authoritative." README.md is read first by every new user; a stale
   claim about the default provider (pi), the stager's safety model, or config override behavior
   misleads the exact people these fixes were for.
 - **Issue 1 (Critical) is user-visible in setup.** The recommended setup (`git config
-  stagehand.provider pi`) now actually works (pi no longer receives a bogus `--provider pi`). README
+  stagecoach.provider pi`) now actually works (pi no longer receives a bogus `--provider pi`). README
   should not imply the manifest name is the sub-provider.
 - **Issue 2 is a safety/trust claim.** README is the marketing surface; if it (or a reader's memory
   of it) implies the stager *cannot* commit, that must be qualified honestly for pi (which is only
@@ -73,10 +73,10 @@ tests, no schema. Five behavioral areas map to concrete README locations:
 
 | Fix | README location(s) today | Required action |
 |-----|--------------------------|-----------------|
-| Issue 1 (sub-provider) | `git config stagehand.provider pi` block (line ~167); `--provider <name>` note (line ~189) | Add a concise clarifying note: for pi the backend comes from `[provider.pi] default_provider`, not the manifest name. |
+| Issue 1 (sub-provider) | `git config stagecoach.provider pi` block (line ~167); `--provider <name>` note (line ~189) | Add a concise clarifying note: for pi the backend comes from `[provider.pi] default_provider`, not the manifest name. |
 | Issue 2 (stager safety) | four-role pipeline mention (lines ~32, ~114); FAQ "Will it corrupt my repo?" (line ~268) | **Verify** README makes no §19 "structurally constrained" claim; optionally add ONE honest sentence about the stager's defense-in-depth. |
 | Issue 3 (post-arbiter SHAs) | multi-commit demo output (lines ~116–118) | **Verify** no stale SHA/output claim; no edit required unless a stale claim is found. |
-| Issue 4 (config override) | "Point discovery at a specific file" paragraph (line ~189) | **Edit**: state that `config init` / `config path` / `config upgrade` honor `--config` / `STAGEHAND_CONFIG`. |
+| Issue 4 (config override) | "Point discovery at a specific file" paragraph (line ~189) | **Edit**: state that `config init` / `config path` / `config upgrade` honor `--config` / `STAGECOACH_CONFIG`. |
 | Issue 5 (bootstrap models) | "bootstrap a populated, working config" (line ~172) | **Edit**: note pi per-role models are blanked (pi picks its own backend default); set `default_provider` to pin a backend. |
 
 ### Success Criteria
@@ -86,7 +86,7 @@ tests, no schema. Five behavioral areas map to concrete README locations:
 - [ ] README contains **no unqualified** "stager cannot commit/amend/push" / "structurally
       constrained" claim. (If such language is added or exists, it must be qualified for pi.)
 - [ ] README explicitly documents that `config init` / `config path` / `config upgrade` honor the
-      `--config` flag and `STAGEHAND_CONFIG` env var.
+      `--config` flag and `STAGECOACH_CONFIG` env var.
 - [ ] README's bootstrap description accurately reflects that pi's per-role models are blanked
       (pi picks its own backend default) pending a configured `default_provider`.
 - [ ] No stale claim about post-arbiter output / SHAs remains (Issue 3 — verification).
@@ -142,9 +142,9 @@ can complete it from this file + `README.md`.
   why: Shows the tightened claude tooled_flags allowlist (staging-only git subcommands). Reference.
 
 - file: plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue4_config_path_override.md
-  why: ResolveConfigPath(flagConfig) honors --config > STAGEHAND_CONFIG > GlobalConfigPath(). The
+  why: ResolveConfigPath(flagConfig) honors --config > STAGECOACH_CONFIG > GlobalConfigPath(). The
         config subcommands init/upgrade/path now use it.
-  critical for README: `stagehand --config X config upgrade` upgrades X (not the global file);
+  critical for README: `stagecoach --config X config upgrade` upgrades X (not the global file);
         `config path` prints the resolved (overridden) path. This was previously BROKEN (always
         global) — README must document the now-correct behavior.
 
@@ -163,7 +163,7 @@ can complete it from this file + `README.md`.
 
 # SUPPORTING — sibling task boundary (do NOT cross it)
 - file: docs/README.md
-  why: The docs/ index. Note its rule: "If anything here disagrees with stagehand --help, the binary
+  why: The docs/ index. Note its rule: "If anything here disagrees with stagecoach --help, the binary
         is authoritative." README inherits the same posture.
   critical: docs/*.md (cli.md, configuration.md, providers.md, how-it-works.md) are owned by
         P1.M6.T1.S2. Do NOT edit them here. If you find a docs/ inconsistency, leave it for S2.
@@ -214,7 +214,7 @@ README.md                       # five behavioral areas synced (Issues 1–5)
      the Issue-3 fix (accurate post-arbiter SHAs) does NOT contradict anything currently in README.
      Do not invent a new output-fidelity section; that belongs in docs/how-it-works.md (task S2). -->
 
-<!-- GOTCHA — Issue 1 detail that's easy to misstate: `--provider <name>` AT THE STAGEHAND CLI
+<!-- GOTCHA — Issue 1 detail that's easy to misstate: `--provider <name>` AT THE STAGECOACH CLI
      selects the agent/manifest (correct, keep README's line ~189 wording). The DIFFERENT rendered
      flag `pi --provider <backend>` selects pi's backend and comes from default_provider. These are
      two different "--provider" tokens in two different programs. Don't conflate them; a one-line
@@ -242,24 +242,24 @@ Task 0: VERIFY current README claims against shipped behavior (read-first; no ed
   - GREP to confirm the absence of stale §19-style claims before editing:
       grep -n -iE "cannot commit|cannot amend|cannot push|structurally constrained|structurally unable|never commit" README.md
       grep -n -iE "default_provider|sub-provider|backend" README.md
-      grep -n -iE "config init|config upgrade|config path|--config|STAGEHAND_CONFIG" README.md
+      grep -n -iE "config init|config upgrade|config path|--config|STAGECOACH_CONFIG" README.md
   - EXPECT: the first grep returns NOTHING (README makes no structural-constraint claim today — this
     is the Issue-2 baseline). Record the exact line numbers the other two greps return; those are your
     edit anchors (provider-setup block ~L167, bootstrap ~L172, config-override ~L189).
   - DECISION RULE: if the first grep DID hit a line (a stale §19 claim), that line is the #1 priority
     edit — qualify it for pi per the pi.toml "SAFETY MODEL — HONEST" wording. If it hit nothing, proceed.
 
-Task 1: EDIT README — Issue 4 (config subcommands honor --config / STAGEHAND_CONFIG)  [the clearest edit]
+Task 1: EDIT README — Issue 4 (config subcommands honor --config / STAGECOACH_CONFIG)  [the clearest edit]
   - LOCATE: the paragraph beginning "Point discovery at a specific file with" (line ~189). Current text:
-      "Point discovery at a specific file with `stagehand --config path/to/config.toml`. It is honored
+      "Point discovery at a specific file with `stagecoach --config path/to/config.toml`. It is honored
       by every command — including the default commit action — so a provider declared under
       `[provider.<name>]` there is usable with `--provider <name>` directly. The path must exist: an
-      explicit `--config` (or `STAGEHAND_CONFIG`) pointing at a missing file fails fast with exit 1
+      explicit `--config` (or `STAGECOACH_CONFIG`) pointing at a missing file fails fast with exit 1
       rather than silently falling back to auto-detection."
   - CHANGE: after the first sentence (or appended to it), make the config-subcommand honoring explicit.
     Suggested wording (keep terse; reuse `> [!NOTE]` if cleaner as a callout):
       "It is honored by every command — including the default commit action **and the `config init`,
-      `config path`, and `config upgrade` subcommands** (e.g. `stagehand --config X config upgrade`
+      `config path`, and `config upgrade` subcommands** (e.g. `stagecoach --config X config upgrade`
       upgrades file `X`, and `config path` prints the resolved path) — so a provider declared under
       `[provider.<name>]` there is usable with `--provider <name>` directly."
   - PRESERVE: the "path must exist … fails fast with exit 1" sentence (unchanged, still accurate).
@@ -282,9 +282,9 @@ Task 2: EDIT README — Issue 5 (bootstrap blanks pi per-role models)
 Task 3: EDIT README — Issue 1 (sub-provider comes from default_provider, not the manifest name)
   - LOCATE: the provider-setup block (lines ~165–168):
       "Set a per-repo default with git config:
-        git config stagehand.provider pi
+        git config stagecoach.provider pi
         # Optionally pin a model (overrides the per-provider default):
-        git config stagehand.model sonnet"
+        git config stagecoach.model sonnet"
   - CHANGE: add a short clarifying note (a `> [!NOTE]` or 1–2 sentences) right after this block, before
     the "Or bootstrap" paragraph. Suggested:
       "> [!NOTE]
@@ -293,10 +293,10 @@ Task 3: EDIT README — Issue 1 (sub-provider comes from default_provider, not t
       > in your config — **not** the manifest name. If `default_provider` is unset, pi is invoked with
       > no `--provider` and routes the model on its own default backend. See
       > [Provider manifests](docs/providers.md) for the full schema."
-  - PRESERVE: the existing `git config stagehand.provider pi` example (still the recommended setup and
+  - PRESERVE: the existing `git config stagecoach.provider pi` example (still the recommended setup and
     now actually correct post-Issue-1).
   - RATIONALE: Issue 1 is the Critical fix; the README must not let a reader infer that
-    `--provider pi` (manifest name) is passed to pi. The Stagehand-CLI `--provider <name>` (agent
+    `--provider pi` (manifest name) is passed to pi. The Stagecoach-CLI `--provider <name>` (agent
     selection, line ~189) is a DIFFERENT token — don't conflate; keep that wording intact.
 
 Task 4: VERIFY + (optional) light EDIT — Issue 2 (stager safety honesty) and Issue 3 (output fidelity)
@@ -310,7 +310,7 @@ Task 4: VERIFY + (optional) light EDIT — Issue 2 (stager safety honesty) and I
       "> [!NOTE]
       > The stager is constrained to staging operations: claude via a staging-only git allowlist
       > (`git add`/`apply`/`status`/`diff`); pi instructionally (its task prompt) plus a HEAD-movement
-      > guard that aborts the run if the stager moves a ref. Either way, stagehand still owns every
+      > guard that aborts the run if the stager moves a ref. Either way, stagecoach still owns every
       > commit via git plumbing."
     Keep this OPTIONAL and terse — README is an overview, not a security spec. Do NOT add a structural
     guarantee that doesn't hold for pi.
@@ -339,7 +339,7 @@ Task 5: FINAL pass — consistency + link integrity
      in docs/ (S2). In README, state the accurate behavior in one or two sentences + a docs/ link. -->
 
 <!-- PATTERN: when naming two different "--provider" tokens, disambiguate in prose:
-       - Stagehand CLI `--provider <name>`    → selects the AGENT/manifest (README L189 is correct).
+       - Stagecoach CLI `--provider <name>`    → selects the AGENT/manifest (README L189 is correct).
        - pi's rendered `--provider <backend>` → selects the BACKEND, from default_provider (new note).
      Don't let a reader conflate them. -->
 
@@ -347,7 +347,7 @@ Task 5: FINAL pass — consistency + link integrity
      flag at all — not `--provider ""`. State it as "pi is invoked with no --provider". -->
 
 <!-- KEY DETAIL (Issue 4): both override forms work in subcommands: `--config X` (flag) AND
-     STAGEHAND_CONFIG=X (env). Flag beats env (matches config.Load precedence). State both. -->
+     STAGECOACH_CONFIG=X (env). Flag beats env (matches config.Load precedence). State both. -->
 
 <!-- KEY DETAIL (Issue 5): "working config" stays TRUE — empty models are valid (pi picks a backend
      default). Don't weaken FR-B1's "works immediately"; clarify WHY it still works. -->
@@ -401,14 +401,14 @@ go test ./...
 
 ```bash
 # Optional but recommended — prove the README claims match the binary. Build first:
-make build 2>/dev/null || go build -o bin/stagehand ./cmd/stagehand
-SH=$(pwd)/bin/stagehand
+make build 2>/dev/null || go build -o bin/stagecoach ./cmd/stagecoach
+SH=$(pwd)/bin/stagecoach
 
 # Issue 4 — config path honors --config:
 TMP=$(mktemp -d); mkdir -p "$TMP"
-STAGEHAND_CONFIG="$TMP/my.toml" $SH config path   # Expected: prints "$TMP/my.toml" (not global)
+STAGECOACH_CONFIG="$TMP/my.toml" $SH config path   # Expected: prints "$TMP/my.toml" (not global)
 # Issue 4 — config init honors --config:
-STAGEHAND_CONFIG="$TMP/my.toml" $SH config init   # Expected: "Wrote config to $TMP/my.toml"
+STAGECOACH_CONFIG="$TMP/my.toml" $SH config init   # Expected: "Wrote config to $TMP/my.toml"
 grep -c '^\[role' "$TMP/my.toml"                   # Expected: 4 role blocks
 # Issue 5 — pi bootstrap blanks models:
 grep -E '^model' "$TMP/my.toml"                    # Expected: four `model = ""` lines + a NOTE about default_provider
@@ -447,7 +447,7 @@ sed -n '150,200p' README.md   # provider-setup + bootstrap + config-override par
       HEAD guard).
 - [ ] **Issue 3**: README has no stale SHA/output claim (verification pass — no edit unless found).
 - [ ] **Issue 4**: README explicitly states `config init` / `config path` / `config upgrade` honor
-      `--config` and `STAGEHAND_CONFIG`.
+      `--config` and `STAGECOACH_CONFIG`.
 - [ ] **Issue 5**: README's bootstrap text reflects that pi's per-role models are blanked (pi picks
       its own backend default; set `default_provider` to pin a backend).
 
@@ -472,7 +472,7 @@ sed -n '150,200p' README.md   # provider-setup + bootstrap + config-override par
   (`docs/` is task P1.M6.T1.S2; PRD and source are read-only.)
 - ❌ Don't add an unqualified "the stager cannot commit/amend/push" claim — it does NOT hold for pi.
   Qualify it (claude scoped; pi instructional + HEAD guard) or leave the §19 claim out entirely.
-- ❌ Don't conflate the two `--provider` tokens — Stagehand's CLI `--provider <name>` (agent selection)
+- ❌ Don't conflate the two `--provider` tokens — Stagecoach's CLI `--provider <name>` (agent selection)
   is different from pi's rendered `--provider <backend>` (from default_provider). Disambiguate in prose.
 - ❌ Don't state pi receives `--provider ""` — when default_provider is unset, pi gets NO `--provider`
   flag at all. Say "no `--provider`".

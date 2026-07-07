@@ -1,7 +1,7 @@
 # P1.M4.T3.S1 — External Research (UI / Color / TTY / NO_COLOR)
 
 Authoritative references for the `internal/ui` output helpers. All links verified relevant to the
-implementation. Stagehand is **stdlib-only** (see `internal/provider/procgroup_windows.go` — it avoids
+implementation. Stagecoach is **stdlib-only** (see `internal/provider/procgroup_windows.go` — it avoids
 `golang.org/x/sys` via `syscall.NewLazyDLL`); we do NOT pull in `golang.org/x/term` for TTY detection.
 
 ## 1. The NO_COLOR convention — https://no-color.org
@@ -15,17 +15,17 @@ implementation. Stagehand is **stdlib-only** (see `internal/provider/procgroup_w
 v, ok := os.LookupEnv("NO_COLOR")
 return ok && v != ""   // present AND non-empty → disable color
 ```
-This is byte-for-byte the SAME idiom `internal/config/load.go` uses for `STAGEHAND_NO_COLOR`
+This is byte-for-byte the SAME idiom `internal/config/load.go` uses for `STAGECOACH_NO_COLOR`
 (line 112). Using it for `NO_COLOR` keeps the two consistent. `NO_COLOR=""` (set without a value) does
 NOT disable; `NO_COLOR=1` / `NO_COLOR= ` (space) / any non-empty value DOES.
 
-**Precedence vs `--no-color` / `STAGEHAND_NO_COLOR`:** all three are "disable" signals that OR
+**Precedence vs `--no-color` / `STAGECOACH_NO_COLOR`:** all three are "disable" signals that OR
 together. There is no "force color" override in v1 (the spec's `CLICOLOR_FORCE` is out of scope). Final
 color gate:
 ```
 color = isTTY(stdout) AND NOT cfg.NoColor AND NOT noColorEnvSet()
 ```
-- `cfg.NoColor` already folds in `--no-color` (Layer 7) + `STAGEHAND_NO_COLOR` (Layer 5) via
+- `cfg.NoColor` already folds in `--no-color` (Layer 7) + `STAGECOACH_NO_COLOR` (Layer 5) via
   `internal/config/load.go` → the UI layer only adds `isTTY` + the bare `NO_COLOR` env on top.
 
 ## 2. TTY detection WITHOUT a dependency — stdlib `os.FileStat`
@@ -57,7 +57,7 @@ matters, swap the body for `golang.org/x/term` later — the `IsTerminal` signat
 
 ## 3. ANSI SGR color codes
 
-| Color | Code   | Const    | Use (Stagehand)          |
+| Color | Code   | Const    | Use (Stagecoach)          |
 |-------|--------|----------|--------------------------|
 | red   | `\x1b[31m` | `ansiRed`    | Error / failure notices  |
 | green | `\x1b[32m` | `ansiGreen`  | Success / "Created"      |
@@ -66,7 +66,7 @@ matters, swap the body for `golang.org/x/term` later — the `IsTerminal` signat
 
 Always emit `<code><text><reset>`. Never emit a bare leading code without a trailing reset (leaks
 color into subsequent lines / piped consumers). When color is OFF, helpers return the string unchanged
-(no codes at all — keeps `git commit -F <(stagehand --dry-run)` clean).
+(no codes at all — keeps `git commit -F <(stagecoach --dry-run)` clean).
 
 **Reference:** https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_(Select_Graphic_Rendition)_parameters
 
@@ -83,8 +83,8 @@ The ellipsis `…` is U+2026 (matches PRD verbatim — do NOT use three ASCII do
 
 ## 5. Stream discipline (FR51 / §15.5) — the governing constraint
 
-- **stdout = the RESULT, always PLAIN (zero ANSI).** Why: `stagehand --dry-run --no-color | tee
-  /tmp/msg.txt` and `git commit -F <(stagehand --dry-run)` (§15.5) require stdout to be a clean
+- **stdout = the RESULT, always PLAIN (zero ANSI).** Why: `stagecoach --dry-run --no-color | tee
+  /tmp/msg.txt` and `git commit -F <(stagecoach --dry-run)` (§15.5) require stdout to be a clean
   message with no control codes. The existing `default_action_test.go` asserts `stdout == "feat: dry
   run"` (EXACT, post-TrimSpace) and `Contains(stdout, "] feat: add login")` — colorizing stdout
   would break the exact-equality test AND pollute pipes.

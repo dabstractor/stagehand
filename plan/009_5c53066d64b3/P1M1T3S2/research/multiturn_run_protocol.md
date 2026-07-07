@@ -1,6 +1,6 @@
 # multiturn.go N+1 turn protocol (Run) — P1.M1.T3.S2 Research
 
-> Verified against the live repo (HEAD = a10b4eb, module `github.com/dustin/stagehand`). All
+> Verified against the live repo (HEAD = a10b4eb, module `github.com/dustin/stagecoach`). All
 > signatures/line numbers confirmed by direct read. No files modified — research only.
 
 ## 1. What this task is (the contract, restated)
@@ -169,15 +169,15 @@ library (only go-toml/v2, cobra, pflag, yaml.v3). So mint the id with `crypto/ra
 func newSessionID() string {
     var b [16]byte
     if _, err := rand.Read(b[:]); err != nil {
-        return fmt.Sprintf("stagehand-%d", time.Now().UnixNano()) // crypto/rand should never fail on a sane system
+        return fmt.Sprintf("stagecoach-%d", time.Now().UnixNano()) // crypto/rand should never fail on a sane system
     }
-    return "stagehand-" + hex.EncodeToString(b[:])
+    return "stagecoach-" + hex.EncodeToString(b[:])
 }
 ```
 
-- 16 random bytes → 32 hex chars → "stagehand-<32 hex>". Sufficient entropy for per-run uniqueness.
+- 16 random bytes → 32 hex chars → "stagecoach-<32 hex>". Sufficient entropy for per-run uniqueness.
 - The fallback (time.UnixNano) is defense-in-depth (crypto/rand.Read practically never fails on Linux/macOS/Windows).
-- FR-T6: "stagehand mints a fresh, unique session id per multi-turn run … never resumed on a later run."
+- FR-T6: "stagecoach mints a fresh, unique session id per multi-turn run … never resumed on a later run."
 
 ## 6. The focused smoke test (the S1 precedent; T4 extends)
 
@@ -222,7 +222,7 @@ copy (clean; no shared-state leak to other tests).
 
 ### 6.4 The mid-turn-failure gap (T4's territory)
 
-The stub's `STAGEHAND_STUB_EXIT` is a single env var baked into the manifest's Env map ⇒ ALL turns
+The stub's `STAGECOACH_STUB_EXIT` is a single env var baked into the manifest's Env map ⇒ ALL turns
 get the same exit code. So "turn 1 ok, turn 2 fails" cannot be isolated with the current stub. S2's
 `TestRun_TurnError` uses a GLOBAL exit failure (turn 1 fails). T4 owns the exhaustive mid-turn
 isolation matrix (it can extend the stub with a per-call exit-indexed mechanism, or use a wrapper).
@@ -255,8 +255,8 @@ S2 ADDS (Run + newSessionID):
 - `crypto/rand` (newSessionID)
 - `encoding/hex` (newSessionID)
 - `time` (newSessionID fallback)
-- `github.com/dustin/stagehand/internal/config` (config.Config)
-- `github.com/dustin/stagehand/internal/provider` (Manifest, Execute, ParseOutput, CmdSpec)
+- `github.com/dustin/stagecoach/internal/config` (config.Config)
+- `github.com/dustin/stagecoach/internal/provider` (Manifest, Execute, ParseOutput, CmdSpec)
 
 S2 does NOT add `errors` (D1: `execErr != nil` suffices). S2 PRESERVES S1's choice for `internal/git`
 (Run adds no git usage; if S1 kept the anchor, it stays; if S1 dropped the import, it stays dropped).

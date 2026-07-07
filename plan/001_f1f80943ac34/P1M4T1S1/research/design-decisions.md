@@ -77,7 +77,7 @@ cobra's `Version` field (see §5). `--help/-h` is cobra's built-in.
 
 `rootCmd.Version = <version>` makes cobra auto-add `--version` (NO `-v` shorthand → no clash with
 `--verbose -v`). Cobra checks `--version`/`--help` in `Command.execute()` BEFORE running
-`PersistentPreRunE`, so **config is NOT loaded** for `stagehand --version` / `--help` (this is why
+`PersistentPreRunE`, so **config is NOT loaded** for `stagecoach --version` / `--help` (this is why
 the task's "skip for … help" is automatic and needs no code). The version STRING comes from the
 Makefile's `-X main.version=$(VERSION)` (package `main`), so `main.go` sets `cmd.Version = version`
 before `cmd.Execute(ctx)`. The `var version string` declaration belongs to S1 (the Makefile comment
@@ -94,7 +94,7 @@ guard never matches now (root always loads) — but it is forward-correct for S4
 must NOT define their own `PersistentPreRunE`** (cobra runs only the child's, shadowing root's).
 Documented for downstream.
 
-RepoDir = `os.Getwd()` (git `-C <cwd> config` walks up to the repo root — same choice pkg/stagehand
+RepoDir = `os.Getwd()` (git `-C <cwd> config` walks up to the repo root — same choice pkg/stagecoach
 made). NOTE: `loadGitConfig` FAILS (exit 128 → wrapped error) outside a git repo, so for S1 the
 root command requires being inside a repo — acceptable (the default action needs one anyway; S4's
 config init/path skip is exactly the escape hatch for non-repo use).
@@ -102,7 +102,7 @@ config init/path skip is exactly the escape hatch for non-repo use).
 ## 7. `SilenceErrors`+`SilenceUsage` on root; main() prints a baseline error line
 
 Root sets both to true so cobra does NOT print errors/usage (the CLI controls output). For S1,
-`main()` prints a minimal `stagehand: <err>\n` to stderr on non-zero exit so failures aren't silent.
+`main()` prints a minimal `stagecoach: <err>\n` to stderr on non-zero exit so failures aren't silent.
 This baseline is REFINED by P1.M4.T3 (UI layer: color, verbosity-aware formatting). `ExitError` with
 `Err==nil` (clean non-zero exit, e.g. nothing-to-commit surfacing) must NOT print an "error" line —
 guard `if err != nil && err.Error() != ""`.
@@ -118,7 +118,7 @@ scope). The `Execute(ctx context.Context)` signature is forward-compatible with 
 
 S1 gives root a minimal RunE so `PersistentPreRunE` fires (config loads → testable). The stub:
 `return cmd.Help()` (prints usage, exit 0), clearly commented `// TODO(P1.M4.T1.S2): default commit
-action`. S2 swaps `rootCmd.RunE` for the real action (auto-stage-all → `stagehand.GenerateCommit` →
+action`. S2 swaps `rootCmd.RunE` for the real action (auto-stage-all → `stagecoach.GenerateCommit` →
 print result). No default-action logic in S1.
 
 ## 10. cobra + pflag to go.mod (pflag already present)
@@ -158,7 +158,7 @@ Test shape:
 - `internal/generate/generate.go` — `ErrNothingToCommit`/`ErrTimeout`/`ErrRescue`/`ErrCASFailed`,
   `*RescueError{Kind,Unwrap→Kind}`, `*CASError{Unwrap→git.ErrCASFailed}`. READ-ONLY; drives exitcode.For.
 - `internal/config/load_test.go` — test conventions to MIRROR (loadEnvSetup/chdir/newFlagSet/writeConfigFile).
-- `pkg/stagehand/stagehand.go` (P1.M3.T5.S1, parallel/Implementing) — the public `GenerateCommit`
+- `pkg/stagecoach/stagecoach.go` (P1.M3.T5.S1, parallel/Implementing) — the public `GenerateCommit`
   contract the default action (S2) will call; S1 does NOT touch it but the stub is S1's seam toward it.
 - `Makefile` — already wires `-X main.version=$(VERSION)`; needs `var version string` in main (S1 adds it).
 - PRD §15.2 (global flags), §15.4 (exit codes), §16.1/§16.3 (precedence), §21.1 (build/ldflags).

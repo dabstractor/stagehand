@@ -45,7 +45,7 @@ Current verbatim:
                   │ no
                   ▼
             ┌────────────┐  commits made + leftover diff   target SHA or null
-            │  arbiter   │◀───────────────────────────▶  (stagehand does all git)
+            │  arbiter   │◀───────────────────────────▶  (stagecoach does all git)
 ```
 **Why imprecise:** the "git status clean?" gate label contradicts the rewritten paragraph (the gate is
 the frozen leftover, not live git status). A consistency-driven refinement (the "leftover diff" label
@@ -79,7 +79,7 @@ consistent with the rewritten line 117 and forwards-compatible with FR-M1d's fra
 > **Arbiter leftover reconciliation.** After all N concepts are committed, if `git status --porcelain` shows remaining changes, the arbiter decides whether they belong to an existing commit (amend) or warrant a new (N+1)th commit.
 
 **Target:**
-> **Arbiter leftover reconciliation.** After all N concepts are committed, stagehand computes the **frozen leftover** = `diff-names(tipTree, T_start)` — the `T_start` content no stager claimed (`tipTree` is the last committed tree) — and runs the arbiter **iff it is non-empty**. The live working tree is never consulted for the gate (not `git status --porcelain`), so a file written after `T_start` was captured cannot trigger the arbiter or enter any arbiter commit. Given `TreeDiff(tipTree, T_start)`, the arbiter decides whether the leftovers belong to an existing commit (a plumbing amend that rebuilds the chain from the frozen per-concept `tree[j]` and `T_start`) or warrant a new (N+1)th commit (committing `T_start` directly); stagehand performs all git from frozen trees, then syncs the index to `T_start`, and the arbiter only decides.
+> **Arbiter leftover reconciliation.** After all N concepts are committed, stagecoach computes the **frozen leftover** = `diff-names(tipTree, T_start)` — the `T_start` content no stager claimed (`tipTree` is the last committed tree) — and runs the arbiter **iff it is non-empty**. The live working tree is never consulted for the gate (not `git status --porcelain`), so a file written after `T_start` was captured cannot trigger the arbiter or enter any arbiter commit. Given `TreeDiff(tipTree, T_start)`, the arbiter decides whether the leftovers belong to an existing commit (a plumbing amend that rebuilds the chain from the frozen per-concept `tree[j]` and `T_start`) or warrant a new (N+1)th commit (committing `T_start` directly); stagecoach performs all git from frozen trees, then syncs the index to `T_start`, and the arbiter only decides.
 
 Covers (concisely, 3 sentences): gate (frozen diff-names), the freeze property (concurrent change
 can't trigger/enter), the diff (TreeDiff frozen), the resolution (amend/new, tree-only from T_start),

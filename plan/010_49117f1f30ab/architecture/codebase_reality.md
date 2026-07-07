@@ -33,12 +33,12 @@ write-tree / update-index against the throwaway index. Nothing of this kind exis
 - **`file.go`**: `fileGeneration.Push bool` (`toml:"push"`); `materialize()` copies via
   `if g.Push { c.Push = true }` (only-true-propagates — the v1 limitation: cannot set false via file);
   `overlay()` copies via `if src.Push { dst.Push = true }`.
-- **`load.go`**: `loadEnv()` reads `STAGEHAND_PUSH` via `strconv.ParseBool` (DIRECT set — can be
+- **`load.go`**: `loadEnv()` reads `STAGECOACH_PUSH` via `strconv.ParseBool` (DIRECT set — can be
   false); `loadFlags()` reads `--push` via `fs.Changed("push")` + `fs.GetBool` (DIRECT set).
 - **`root.go`**: `var flagPush bool`; `pf.BoolVar(&flagPush, "push", false, "…")` at line 206.
 
 `NoVerify` follows this EXACTLY: `toml:"no_verify"`, `Defaults() NoVerify: false`, the
-only-true-propagates materialize/overlay, `STAGEHAND_NO_VERIFY` env (DIRECT set), `--no-verify` flag
+only-true-propagates materialize/overlay, `STAGECOACH_NO_VERIFY` env (DIRECT set), `--no-verify` flag
 (`fs.Changed` + `GetBool`, DIRECT set). The only-true-propagates limitation is accepted (document in
 `docs/configuration.md` like Push/MultiTurnFallback).
 
@@ -50,9 +50,9 @@ only-true-propagates materialize/overlay, `STAGEHAND_NO_VERIFY` env (DIRECT set)
   `time.ParseDuration` (with validation up front); `materialize()` sets `c.Timeout = timeout`
   (zero-value sentinel: a zero Duration means "unset" → overlay skips it).
 - **`overlay()`**: `if src.Timeout != 0 { dst.Timeout = src.Timeout }` (duration-zero sentinel).
-- **`load.go`**: `STAGEHAND_TIMEOUT` via `parseTimeout` (accepts "120s" OR bare int 120); `--timeout`
+- **`load.go`**: `STAGECOACH_TIMEOUT` via `parseTimeout` (accepts "120s" OR bare int 120); `--timeout`
   is a STRING flag (pflag) parsed via `parseTimeout`.
-- **git-config**: `stagehand.timeout` — but `HookTimeout` has NO git-config key per FR-V6 (config
+- **git-config**: `stagecoach.timeout` — but `HookTimeout` has NO git-config key per FR-V6 (config
   default 10m, file `[generation].hook_timeout`, flag... actually the PRD only lists it as config).
   **Decision**: `HookTimeout` is file + default only (no env/flag/git-config) — simplest; mirrors
   how `multi_turn_chunk_tokens` is `[generation]`+default only. If a per-run override is wanted, the
@@ -104,21 +104,21 @@ the runner (in `internal/hooks/`) composes them. See `open_questions.md` §1.
 These are the EXISTING prepare-commit-msg install/detect primitives (NOT what we're building). The
 new runner imports them for recursion prevention only.
 
-- **`Marker`** (`script.go:15`): `const Marker = "# stagehand prepare-commit-msg hook v1"` — the
-  identity line stagehand writes as line 2 of its hook. Detection is `strings.Contains(data, Marker)`.
+- **`Marker`** (`script.go:15`): `const Marker = "# stagecoach prepare-commit-msg hook v1"` — the
+  identity line stagecoach writes as line 2 of its hook. Detection is `strings.Contains(data, Marker)`.
 - **`HookFilename`** (`hook.go:17`): `const HookFilename = "prepare-commit-msg"`.
-- **`Status`** (`hook.go:21`): `StatusNone` / `StatusStagehand` / `StatusForeign`.
+- **`Status`** (`hook.go:21`): `StatusNone` / `StatusStagecoach` / `StatusForeign`.
 - **`Detect(hooksDir)`** (`hook.go:62`): `(Status, error)`. `os.ErrNotExist` → `StatusNone`; contains
-  `Marker` → `StatusStagehand`; present without Marker → `StatusForeign`.
+  `Marker` → `StatusStagecoach`; present without Marker → `StatusForeign`.
 - **`Install(hooksDir, strict, configPath)`** (`hook.go:80`): refuses on `StatusForeign`
-  (`ErrForeignHook`); idempotent rewrite on `StatusStagehand`.
-- **`Script(strict, configPath)`** (`hook.go:124`): the `#!/bin/sh\n<Marker>\n…exec stagehand hook
+  (`ErrForeignHook`); idempotent rewrite on `StatusStagecoach`.
+- **`Script(strict, configPath)`** (`hook.go:124`): the `#!/bin/sh\n<Marker>\n…exec stagecoach hook
   exec "$@"\n` template.
 
 **For FR-V4 (recursion prevention)**: the runner, before invoking `prepare-commit-msg`, calls
-`hook.Detect(hooksDir)`; if `StatusStagehand`, **skip** it (the message is already generated —
-invoking it would recurse into `stagehand hook exec`, which would regenerate). A foreign
-`prepare-commit-msg` (StatusForeign) runs and may annotate; stagehand reads the message file back.
+`hook.Detect(hooksDir)`; if `StatusStagecoach`, **skip** it (the message is already generated —
+invoking it would recurse into `stagecoach hook exec`, which would regenerate). A foreign
+`prepare-commit-msg` (StatusForeign) runs and may annotate; stagecoach reads the message file back.
 
 ## 5. The commit chokepoints — verified pipeline order
 
@@ -141,8 +141,8 @@ generate.go:
   return Result                                         [step 10]
 ```
 
-### `pkg/stagehand.runPipeline` (the single-commit DRY-RUN / SystemExtra path)
-`stagehand.go:411`. Self-contained mirror of CommitStaged for `opts.DryRun || opts.SystemExtra != ""`
+### `pkg/stagecoach.runPipeline` (the single-commit DRY-RUN / SystemExtra path)
+`stagecoach.go:411`. Self-contained mirror of CommitStaged for `opts.DryRun || opts.SystemExtra != ""`
 (the common `!DryRun && SystemExtra==""` path delegates to `generate.CommitStaged` at line 148).
 `runPipeline` runs the full pipeline but **skips CommitTree/UpdateRefCAS under DryRun** (the dangling
 tree is intentional/harmless). **For FR-V8a (dry-run: skip pre/post-commit, run commit-msg on the
@@ -196,7 +196,7 @@ so a Ctrl-C during a hook still triggers the existing rescue. No signal change n
 the snapshot flow *"Bypasses pre-commit hooks"* and frames hook mode as the way to get hooks —
 **both now FALSE**. This is the headline Mode B rewrite. The "When to use which" section (lines
 327-329) also needs reframing: the two modes now COMPOSE (hook mode covers `git commit`; the snapshot
-flow covers `stagehand` and now honors hooks too).
+flow covers `stagecoach` and now honors hooks too).
 
 Other doc surfaces (Mode A, ride with work):
 - `docs/cli.md` global-flags table — add `--no-verify` row (after `--push` at line 43).

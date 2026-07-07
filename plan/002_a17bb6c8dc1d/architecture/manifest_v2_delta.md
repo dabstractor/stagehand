@@ -102,7 +102,7 @@ default: // RenderBare
 }
 ```
 
-All existing callers (generate.CommitStaged, pkg/stagehand.runPipeline) pass no mode → defaults to bare. The decompose stager passes RenderTooled.
+All existing callers (generate.CommitStaged, pkg/stagecoach.runPipeline) pass no mode → defaults to bare. The decompose stager passes RenderTooled.
 
 ## 4. agy Provider Manifest (§12.5.1)
 

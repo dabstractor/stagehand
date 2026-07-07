@@ -28,9 +28,9 @@ Pre-§9.25 the comparison was an inversion: **snapshot flow = atomic but bypasse
 but no atomicity**. Post-§9.25 (the feature this changeset ships): **snapshot flow = atomic AND honors
 hooks** (scoped to the frozen snapshot, so stage-while-generating holds; `--no-verify` skips pre-commit +
 commit-msg). Hook mode is NO LONGER "the way to get hooks" — its remaining purpose is to cover **plain
-`git commit` from an IDE/tool** when the user does NOT invoke `stagehand` (hooks honored there too via real
+`git commit` from an IDE/tool** when the user does NOT invoke `stagecoach` (hooks honored there too via real
 `git commit`, but no snapshot/atomicity/stage-while-generating; generation latency inside the commit). The
-two modes COMPOSE: §9.25 covers `stagehand` commits; hook mode covers `git commit` commits. This matches
+two modes COMPOSE: §9.25 covers `stagecoach` commits; hook mode covers `git commit` commits. This matches
 PRD §9.25 FR-V8d + the updated §9.20/§9.20-FR-H7 (in your context as `h3.41`/`h3.36`).
 
 ## 2. The VERIFY grep — distinguish REAL stale claims from CORRECT unrelated "bypass" hits (critical)
@@ -84,17 +84,17 @@ not run … bypassed") — that MUST be rewritten; (b) "add a one-line feature m
 surface area." Cleanest delivery:
 
 - **Rewrite the FAQ** (### Does it run my pre-commit hooks?, L368): flip "do not run / bypassed" → "Yes —
-  as of v2.4 the default `stagehand` command runs your repo's standard commit hooks (pre-commit →
+  as of v2.4 the default `stagecoach` command runs your repo's standard commit hooks (pre-commit →
   prepare-commit-msg → commit-msg → post-commit) around every commit, scoped to the frozen snapshot
   (atomicity + stage-while-generating preserved); `--no-verify` skips pre-commit + commit-msg (mirrors
   git). Hook mode remains for plain `git commit` from an IDE — the two compose." Cross-link
   `#commit-hooks-on-the-plumbing-path`.
 - **Add ONE Features-table row** after the "Git hook mode" row (L70): "| Commit hooks on every
-  `stagehand` commit | As of v2.4 your repo's pre-commit → prepare-commit-msg → commit-msg → post-commit
-  hooks run around every `stagehand` commit, scoped to the frozen snapshot (atomic + stage-while-
+  `stagecoach` commit | As of v2.4 your repo's pre-commit → prepare-commit-msg → commit-msg → post-commit
+  hooks run around every `stagecoach` commit, scoped to the frozen snapshot (atomic + stage-while-
   generating preserved); `--no-verify` mirrors git ([how it works](docs/how-it-works.md#commit-hooks-on-
   the-plumbing-path)). |" — one row, cross-links the M3.T2.S1 subsection. (Keeps the existing "Git hook
-  mode" row — they're complementary: hook mode = `git commit`; this row = `stagehand`.)
+  mode" row — they're complementary: hook mode = `git commit`; this row = `stagecoach`.)
 
 The README hero line (L4) and the v2.1 version-summary (L6) already cover atomicity/decompose; no edit
 needed there (the FAQ + Features row carry the hooks-on-plumbing-path message).

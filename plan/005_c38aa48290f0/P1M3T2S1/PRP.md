@@ -16,8 +16,8 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Ship the runtime half of stagehand's git hook mode (PRD §9.20): when git's
-`prepare-commit-msg` hook (installed by S2) fires `stagehand hook exec "$@"`, stagehand generates a
+**Feature Goal**: Ship the runtime half of stagecoach's git hook mode (PRD §9.20): when git's
+`prepare-commit-msg` hook (installed by S2) fires `stagecoach hook exec "$@"`, stagecoach generates a
 commit message for the STAGED diff and prepends it to git's message file — so a plain `git commit` in an
 IDE/lazygit gets an AI message with **zero ceremony and zero risk of blocking the commit**. The runtime
 reuses the single-commit generation pipeline but **strips the snapshot/commit plumbing entirely** (git
@@ -41,7 +41,7 @@ owns this commit) and inverts the failure contract (never exit non-zero unless `
    proceeds), `-m` no-op (source=message → hook no-ops).
 
 **Success Definition**:
-- A stagehand-installed hook, on a plain `git commit` with staged changes, writes the generated message
+- A stagecoach-installed hook, on a plain `git commit` with staged changes, writes the generated message
   into `.git/COMMIT_EDITMSG` at the top (comment block intact) and the commit lands with that message.
 - `git commit -m "x"` / `-t` / merge / squash / `--amend` → hook exits 0 having done nothing (source
   gated). Empty staged diff → hook exits 0 having done nothing.
@@ -56,16 +56,16 @@ owns this commit) and inverts the failure contract (never exit non-zero unless `
 **Target User**: the "plan-holder" (PRD §7.1) who commits via `git commit` in their IDE/lazygit and wants
 the message auto-filled — without learning a new command, and without ever being blocked by a model hiccup.
 
-**Use Case**: after `stagehand hook install` (S2), a plain `git commit` fires the hook → `stagehand hook
+**Use Case**: after `stagecoach hook install` (S2), a plain `git commit` fires the hook → `stagecoach hook
 exec <msgfile>` generates from the staged diff and writes the message → git opens the editor pre-filled
 (or proceeds in a non-interactive flow). The user never types `hook exec` themselves.
 
 **User Journey**: stage changes → `git commit` → hook runs generation in-process → message appears in the
-editor → save/close → commit lands. On any failure the editor opens empty (as if stagehand weren't
+editor → save/close → commit lands. On any failure the editor opens empty (as if stagecoach weren't
 installed) and the commit still works — the "invisible assistant" contract.
 
 **Pain Points Addressed**: incumbents' hooks can ABORT a commit on a model timeout (and
-`--no-verify` does NOT skip `prepare-commit-msg` — architecture §3), trapping the user. Stagehand's
+`--no-verify` does NOT skip `prepare-commit-msg` — architecture §3), trapping the user. Stagecoach's
 never-block (FR-H5) guarantees the commit always proceeds; `--strict` is the opt-in for users who want
 generation to be mandatory.
 
@@ -121,7 +121,7 @@ _This PRP names the exact generation steps to mirror (CommitStaged 1/2/4/5, with
 out), the exact exported primitives + their signatures, the S2 config-load contract (hook exec loads
 config itself because `hookCmd`'s no-op PersistentPreRunE skips it), the never-block exit-code mapping,
 the message-file write format, the cobra wiring that AVOIDS editing S2's `hook.go`, and the e2e env recipe
-(PATH + STAGEHAND_CONFIG + GIT_EDITOR). An implementer with no prior codebase knowledge can complete it
+(PATH + STAGECOACH_CONFIG + GIT_EDITOR). An implementer with no prior codebase knowledge can complete it
 from this document + codebase access._
 
 ### Documentation & References
@@ -129,12 +129,12 @@ from this document + codebase access._
 ```yaml
 - docfile: plan/005_c38aa48290f0/P1M3T2S1/research/codebase-patterns.md
   why: Condensed research — the "no plumbing" design call, the mirror-vs-extract decision (with the
-       pkg/stagehand precedent), the reusable primitive list with signatures, the config-load contract
+       pkg/stagecoach precedent), the reusable primitive list with signatures, the config-load contract
        from S2, the source-gate facts, the write format, the never-block mapping, and the e2e recipe.
   section: all
   critical: |
     hook exec CANNOT call GenerateCommit/CommitStaged (they snapshot+commit). It MIRRORS the generation
-    loop from exported primitives (same pattern pkg/stagehand already uses for buildSysPrompt/runPipeline).
+    loop from exported primitives (same pattern pkg/stagecoach already uses for buildSysPrompt/runPipeline).
     hookCmd's no-op PersistentPreRunE (S2) means hook exec must config.Load ITSELF in RunE.
 
 - file: internal/generate/generate.go
@@ -154,14 +154,14 @@ from this document + codebase access._
     hook exec must NOT (no snapshot exists). On success CommitStaged commits; hook exec WRITES THE FILE
     instead. On timeout CommitStaged returns immediately (no retry) — hook exec does the same (return err).
 
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: buildDeps (L325) is THE manifest-resolution sequence to mirror in the cmd layer
        (DecodeUserOverrides→NewRegistry→ResolveRoleModel("message")→DefaultProvider if ""→Get→Validate→
        IsInstalled→apply cfg.Output/StripCodeFence→generate.Deps). buildSysPrompt (L393) + runPipeline
        (L415) are the PRECEDENT for mirroring generate's unexported internals ("This mirrors generate.X
        (unexported — can't import). It reuses the prompt builders; NOT IP duplication.").
   critical: |
-    Do NOT import pkg/stagehand from internal/hook or internal/cmd (internal→pkg is an anti-pattern).
+    Do NOT import pkg/stagecoach from internal/hook or internal/cmd (internal→pkg is an anti-pattern).
     Copy the ~15-line resolution inline into hookexec.go (it is already duplicated between runDefault
     and buildDeps — a third copy is the accepted status quo).
 
@@ -192,7 +192,7 @@ from this document + codebase access._
              exec leaf + its init() in the new hookexec.go."
 
 - file: internal/hook/script.go   (S1 — CONTRACT, consume)
-  why: `Marker` const + `hookScript(strict)` confirm the installed script is `exec stagehand hook exec
+  why: `Marker` const + `hookScript(strict)` confirm the installed script is `exec stagecoach hook exec
        [--strict] "$@"` — i.e. `--strict` precedes the positional args, and the runtime receives
        `<msg-file> [<source> [<sha>]]` as positionals. This fixes the cobra Args shape (RangeArgs(1,3))
        and the local `--strict` flag.
@@ -227,7 +227,7 @@ from this document + codebase access._
        (provider is discarded — the manifest is selected in the cmd layer; model/reasoning feed Render).
 - file: internal/exclude/exclude.go
   why: `ResolveExcludePathspecs(cfg, repoRoot, v *ui.Verbose) ([]string, error)` (L98) — unions the
-       .stagehandignore + [generation].exclude + built-in denylist; passed into deps.Excludes → StagedDiff.
+       .stagecoachignore + [generation].exclude + built-in denylist; passed into deps.Excludes → StagedDiff.
 - file: internal/git/git.go
   why: the Git interface methods consumed: RevParseHEAD (isUnborn), StagedDiff(opts) (capture; "" ⇒ empty),
        CommitCount, RecentMessages(20), RecentSubjects(50). (HasStagedChanges NOT needed — StagedDiff==""
@@ -237,12 +237,12 @@ from this document + codebase access._
        self-printed stderr). Never-block non-strict = exit 0 (return nil); strict = exitcode.New(Error, nil)
        AFTER printing the one stderr line (silent so main doesn't double-print).
 - file: internal/e2e/harness_test.go + scenarios_test.go
-  why: THE e2e harness to extend (`//go:build e2e`). buildStagehand/buildStub (cached), newRepo,
+  why: THE e2e harness to extend (`//go:build e2e`). buildStagecoach/buildStub (cached), newRepo,
        seedCommit, writeFile, runGit, headSHA, writeStubConfig, stubEnv. Add hook-specific helpers
        (runGitCommitWithHook) + a TestE2EHookScenarios with the three subtests.
-  gotcha: "the hook script runs `stagehand` from $PATH → prepend the built bin's dir to PATH in git's env;
+  gotcha: "the hook script runs `stagecoach` from $PATH → prepend the built bin's dir to PATH in git's env;
            set GIT_EDITOR=true so git doesn't open a real editor on the hook-filled message; set
-           STAGEHAND_CONFIG + STAGEHAND_STUB_* in git's env (the hook subprocess inherits them)."
+           STAGECOACH_CONFIG + STAGECOACH_STUB_* in git's env (the hook subprocess inherits them)."
 - file: internal/stubtest/stubtest.go
   why: in-process stub for internal/hook/exec_test.go — `stubtest.Manifest(opts)`/`NewScript` return a
        provider.Manifest wired to cmd/stubagent; Env knobs (Out/Exit/SleepMS) drive failure injection.
@@ -274,7 +274,7 @@ internal/cmd/
   hookexec.go      # NEW — `hook exec` leaf + runHookExec (config.Load self, resolve manifest, never-block map) + init()
   hookexec_test.go # NEW — cobra-leaf tests (args, source gate, --strict exit code)
 internal/e2e/
-  harness_test.go        # UNCHANGED — buildStagehand/buildStub/newRepo/runGit/writeStubConfig/stubEnv
+  harness_test.go        # UNCHANGED — buildStagecoach/buildStub/newRepo/runGit/writeStubConfig/stubEnv
   scenarios_test.go      # UNCHANGED
   hook_scenarios_test.go # NEW (//go:build e2e) — real git commit via the hook (happy/failure/-m no-op)
 docs/
@@ -304,7 +304,7 @@ docs/
 // CRITICAL (never-block, FR-H5): Run returns ErrNoOp for intended no-ops (source gate / empty diff) and
 // a descriptive error for generation failures — WITHOUT having written the file. WriteMessageFile is
 // called ONLY on a fully-accepted message. The cmd layer: nil/ErrNoOp → exit 0; other err → ONE stderr
-// line ("stagehand: <err>") + exit 0 (non-strict) / exitcode.New(Error, nil) (strict). Never print more
+// line ("stagecoach: <err>") + exit 0 (non-strict) / exitcode.New(Error, nil) (strict). Never print more
 // than one line; never touch the message file on a failure.
 
 // CRITICAL (source absent): plain `git commit` invokes prepare-commit-msg with ONLY the msg-file arg —
@@ -312,7 +312,7 @@ docs/
 // the empty case we fill). NoOpSource returns true ONLY for the 5 named sources. argc can be 1, 2, or 3.
 
 // GOTCHA (mirror, not import): generate.buildSystemPrompt/recentSubjects and the loop are unexported.
-// Copy them into exec.go (the pkg/stagehand precedent — "NOT IP duplication"). Do NOT refactor
+// Copy them into exec.go (the pkg/stagecoach precedent — "NOT IP duplication"). Do NOT refactor
 // generate.CommitStaged to extract a shared helper (behavior-sensitive core; error semantics differ).
 
 // GOTCHA (timeout = no retry): provider.Execute returns context.DeadlineExceeded on timeout. Mirror
@@ -328,13 +328,13 @@ docs/
 // exitcode.New(exitcode.Error, nil) — nil err so main does NOT double-print (ExitError.Error()=="").
 // Same idiom as default_action.go's foreign-refusal / handleGenError silent paths.
 
-// GOTCHA (flag --strict placement): S1's script is `exec stagehand hook exec --strict "$@"` — --strict
+// GOTCHA (flag --strict placement): S1's script is `exec stagecoach hook exec --strict "$@"` — --strict
 // is a LOCAL flag on hookExecCmd, BEFORE the positionals. cobra parses it correctly with RangeArgs(1,3).
 // It is distinct from `hook install --strict` (S2, local to installCmd) — no collision.
 
-// GOTCHA (e2e PATH): the installed hook runs `stagehand` from $PATH (S1 script is not absolute). The e2e
-// must prepend the built stagehand binary's directory to PATH in `git commit`'s environment, and set
-// STAGEHAND_CONFIG (stub) + STAGEHAND_STUB_* + GIT_EDITOR=true (so git doesn't open a real editor).
+// GOTCHA (e2e PATH): the installed hook runs `stagecoach` from $PATH (S1 script is not absolute). The e2e
+// must prepend the built stagecoach binary's directory to PATH in `git commit`'s environment, and set
+// STAGECOACH_CONFIG (stub) + STAGECOACH_STUB_* + GIT_EDITOR=true (so git doesn't open a real editor).
 ```
 
 ## Implementation Blueprint
@@ -352,20 +352,20 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/generate" // FinalizeMessage, ExtractSubject, IsDuplicate
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/prompt"
-	"github.com/dustin/stagehand/internal/provider"
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/generate" // FinalizeMessage, ExtractSubject, IsDuplicate
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/prompt"
+	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 
 // ErrNoOp indicates Run declined to generate (FR-H4): a named message source was present, or the
 // staged diff was empty. The caller exits 0 silently — this is the intended no-op, NOT a failure.
-var ErrNoOp = errors.New("stagehand: hook no-op (message source present or nothing staged)")
+var ErrNoOp = errors.New("stagecoach: hook no-op (message source present or nothing staged)")
 
 // noOpSources are the prepare-commit-msg sources where a message already exists (architecture §3).
-// A plain `git commit` passes NO source (absent) — that is the empty case stagehand fills.
+// A plain `git commit` passes NO source (absent) — that is the empty case stagecoach fills.
 var noOpSources = map[string]struct{}{
 	"message": {}, "template": {}, "merge": {}, "squash": {}, "commit": {},
 }
@@ -406,7 +406,7 @@ Task 1: CREATE internal/hook/exec.go — NoOpSource + WriteMessageFile + ErrNoOp
 
 Task 2: CREATE internal/hook/exec.go — buildSystemPrompt + recentSubjects (MIRROR generate.go)
   - COPY generate.buildSystemPrompt (unexported) and recentSubjects verbatim into exec.go (the
-    pkg/stagehand precedent). They call the exported prompt.BuildSystemPrompt/BuildFallbackPrompt +
+    pkg/stagecoach precedent). They call the exported prompt.BuildSystemPrompt/BuildFallbackPrompt +
     prompt.DetectMultiline + git.CommitCount/RecentMessages/RecentSubjects. Rename to hookSystemPrompt/
     hookRecentSubjects to avoid any future same-package clash (hook is a different package, but be explicit).
 
@@ -457,7 +457,7 @@ Task 5: CREATE internal/cmd/hookexec.go — the `hook exec` cobra leaf + runHook
     generation failure (default: never block — exit 0 and leave the message empty)");
     hookCmd.AddCommand(hookExecCmd).  // hookCmd is S2's var; NO edit to hook.go.
   - runHookExec: repoDir:=os.Getwd(); g:=git.New(repoDir); stderr:=cmd.ErrOrStderr(); neverBlock :=
-    func(err error) — prints ONE stderr line "stagehand: <err>" and returns exitcode mapping
+    func(err error) — prints ONE stderr line "stagecoach: <err>" and returns exitcode mapping
     (nil if !strict, exitcode.New(exitcode.Error,nil) if strict). Then:
       (1) cfg, err := config.Load(cmd.Context(), config.LoadOpts{ConfigPathOverride: flagConfig,
           RepoDir: repoDir, Flags: cmd.Flags()}); on err → neverBlock(err).
@@ -496,14 +496,14 @@ Task 8: EDIT docs/how-it-works.md — add the FR-H7 FAQ entry
   - Add a "## Hook mode vs the snapshot-based flow" (or FAQ) section: plumbing path = atomic +
     stage-while-generating, but pre-commit hooks bypassed; hook mode = pre-commit hooks honored
     (husky/lint-staged), but no snapshot guarantees and generation latency is inside the commit. The two
-    compose: hook for `git commit`, flagship `stagehand` for the atomic path.
+    compose: hook for `git commit`, flagship `stagecoach` for the atomic path.
 
 Task 9: CREATE internal/e2e/hook_scenarios_test.go (//go:build e2e) — real git commit
   - Helper runHookE2E(t, repo, cfg, stubKnobs, gitArgs...) : env = os.Environ() + PATH prepend
-    (dir of buildStagehand(t)) + STAGEHAND_CONFIG=cfg + stubKnobs + GIT_EDITOR=true (+ HOME);
+    (dir of buildStagecoach(t)) + STAGECOACH_CONFIG=cfg + stubKnobs + GIT_EDITOR=true (+ HOME);
     run `git -C repo commit <gitArgs>`; return (stdout, stderr, exitCode).
-  - Setup: newRepo(t); seedCommit(t, repo,"readme.md","init"); `stagehand hook install` via runGit-like
-    subprocess (buildStagehand) with --config cfg (so hook exec resolves the stub provider); stage a change.
+  - Setup: newRepo(t); seedCommit(t, repo,"readme.md","init"); `stagecoach hook install` via runGit-like
+    subprocess (buildStagecoach) with --config cfg (so hook exec resolves the stub provider); stage a change.
   - t.Run("happy_path"): stub Out="feat: generated\n"; GIT_EDITOR=true git commit → headSHA message ==
     "feat: generated" (hook filled the file; git accepted it).
   - t.Run("failure_never_block"): stub Exit=1; GIT_EDITOR='sh -c "echo fallback > $1"' git commit →
@@ -561,10 +561,10 @@ func Run(ctx context.Context, deps generate.Deps, cfg config.Config, msgFile, so
 		out, _, execErr := provider.Execute(ctx, *spec, cfg.Timeout, deps.Verbose)
 		if execErr != nil {
 			if errors.Is(execErr, context.DeadlineExceeded) {
-				return errors.New("stagehand: hook generation timed out") // no retry; never-block
+				return errors.New("stagecoach: hook generation timed out") // no retry; never-block
 			}
 			if errors.Is(execErr, context.Canceled) {
-				return errors.New("stagehand: hook generation cancelled")
+				return errors.New("stagecoach: hook generation cancelled")
 			}
 			// non-zero exit: fall through to ParseOutput (partial stdout may be valid)
 		}
@@ -584,7 +584,7 @@ func Run(ctx context.Context, deps generate.Deps, cfg config.Config, msgFile, so
 		}
 		return WriteMessageFile(msgFile, m) // SUCCESS — write atop the file, preserve comments
 	}
-	return fmt.Errorf("stagehand: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
+	return fmt.Errorf("stagecoach: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
 }
 ```
 
@@ -596,7 +596,7 @@ var flagHookExecStrict bool
 var hookExecCmd = &cobra.Command{
 	Use:   "exec <msg-file> [<source> [<sha>]]",
 	Short: "Generate a commit message into git's prepare-commit-msg file (called by the installed hook)",
-	Long: `Called by stagehand's prepare-commit-msg hook — not by users. Generates a message for the
+	Long: `Called by stagecoach's prepare-commit-msg hook — not by users. Generates a message for the
 staged diff and writes it at the top of <msg-file>, preserving git's comment block. No-op (exit 0)
 when a message source is present (message/template/merge/squash/commit) or nothing is staged. Any
 generation failure leaves the file untouched and exits 0 (never block) unless --strict aborts. (PRD §9.20)`,
@@ -617,7 +617,7 @@ func runHookExec(cmd *cobra.Command, args []string) error {
 	stderr := cmd.ErrOrStderr()
 	repoDir, err := os.Getwd()
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: getwd: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: getwd: %w", err))
 	}
 	g := git.New(repoDir)
 	msgFile := args[0]
@@ -628,7 +628,7 @@ func runHookExec(cmd *cobra.Command, args []string) error {
 
 	// neverBlock is the FR-H5 contract: ONE stderr line; exit 0 unless --strict (then exit 1, silent).
 	neverBlock := func(err error) error {
-		fmt.Fprintf(stderr, "stagehand: %s\n", err)
+		fmt.Fprintf(stderr, "stagecoach: %s\n", err)
 		if flagHookExecStrict {
 			return exitcode.New(exitcode.Error, nil) // silent non-zero → aborts the commit
 		}
@@ -716,7 +716,7 @@ DOCS:
 
 OUT OF SCOPE (do NOT touch):
   - hook install/uninstall/status (S2); HooksPath/hookScript/Marker/ScriptMode (S1); root.go;
-    generate.CommitStaged / pkg/stagehand (consumed via MIRROR, not modified); the FR-E4 --edit rejection
+    generate.CommitStaged / pkg/stagecoach (consumed via MIRROR, not modified); the FR-E4 --edit rejection
     (P1.M5.T1.S1); README surfacing (P1.M7.T1.S1); decomposition (hook mode never decomposes).
 ```
 
@@ -725,7 +725,7 @@ OUT OF SCOPE (do NOT touch):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/hook/exec.go internal/hook/exec_test.go internal/cmd/hookexec.go internal/cmd/hookexec_test.go \
   internal/e2e/hook_scenarios_test.go
 go build ./...        # hook exec leaf + runtime must compile against S1/S2 + exported primitives
@@ -750,7 +750,7 @@ go test -race ./internal/hook/... ./internal/cmd/...
 
 ```bash
 # Drive the real binary + a real git commit through the installed hook.
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 stub=$(go build -o /tmp/stubagent ./cmd/stubagent)
 cat > /tmp/hookcfg.toml <<EOF
 config_version = 3
@@ -764,14 +764,14 @@ EOF
 tmp=$(mktemp -d); cd "$tmp"
 git init -q && git config user.name T && git config user.email t@e.co
 echo a > a.txt && git add a.txt && git commit -q -m seed
-PATH="/tmp:$PATH" STAGEHAND_CONFIG=/tmp/hookcfg.toml /tmp/stagehand hook install   # installs the hook
+PATH="/tmp:$PATH" STAGECOACH_CONFIG=/tmp/hookcfg.toml /tmp/stagecoach hook install   # installs the hook
 echo b >> a.txt; echo c > c.txt; git add a.txt c.txt
 # happy path: stub emits a message; GIT_EDITOR=true accepts it as-is
-STAGEHAND_STUB_OUT='feat: add c' STAGEHAND_CONFIG=/tmp/hookcfg.toml GIT_EDITOR=true \
+STAGECOACH_STUB_OUT='feat: add c' STAGECOACH_CONFIG=/tmp/hookcfg.toml GIT_EDITOR=true \
   PATH="/tmp:$PATH" git commit -q 2>err.txt; cat err.txt    # progress/never-block line on stderr
 git log -1 --format=%s   # → feat: add c   (hook filled the file)
 # -m no-op: source=message → hook exits 0 having done nothing
-STAGEHAND_STUB_OUT='SHOULD NOT APPEAR' STAGEHAND_CONFIG=/tmp/hookcfg.toml GIT_EDITOR=true \
+STAGECOACH_STUB_OUT='SHOULD NOT APPEAR' STAGECOACH_CONFIG=/tmp/hookcfg.toml GIT_EDITOR=true \
   PATH="/tmp:$PATH" git commit -q -m "explicit message" 2>/dev/null
 git log -1 --format=%s   # → explicit message   (stub output never landed)
 # Expected: happy-path commit message == stub output; -m commit keeps the explicit message; hook never aborts.
@@ -783,7 +783,7 @@ git log -1 --format=%s   # → explicit message   (stub output never landed)
 go test -tags e2e ./internal/e2e/... -run TestE2EHookScenarios -v
 # Expected: happy_path (HEAD == stub msg), failure_never_block (HEAD == "fallback"; commit proceeded),
 # m_flag_noop (HEAD == "explicit"; stub never ran) all pass. Skips cleanly if git/go absent.
-# Optional real-agent run (wired via STAGEHAND_RUN_REAL=1 + STAGEHAND_E2E_PROVIDER) validates against a
+# Optional real-agent run (wired via STAGECOACH_RUN_REAL=1 + STAGECOACH_E2E_PROVIDER) validates against a
 # live agent CLI — not required for green.
 ```
 
@@ -805,7 +805,7 @@ go test -tags e2e ./internal/e2e/... -run TestE2EHookScenarios -v
 - [ ] hook exec loads config itself (Config() is nil under hookCmd's no-op PersistentPreRunE); a config error never-blocks.
 
 ### Code Quality Validation
-- [ ] Runtime is a MIRROR of CommitStaged's generation steps (no refactor of generate.go / pkg/stagehand).
+- [ ] Runtime is a MIRROR of CommitStaged's generation steps (no refactor of generate.go / pkg/stagecoach).
 - [ ] No edit to S1's script.go or S2's hook.go (exec leaf in a NEW file; attaches via hookCmd.AddCommand).
 - [ ] No edit to root.go; no new third-party dependencies; no os.Exit in RunE (returns *exitcode.ExitError).
 - [ ] WriteMessageFile called ONLY on a fully-accepted message (never on a failure path).
@@ -819,7 +819,7 @@ go test -tags e2e ./internal/e2e/... -run TestE2EHookScenarios -v
 
 ## Anti-Patterns to Avoid
 
-- ❌ Don't call `pkg/stagehand.GenerateCommit` or `generate.CommitStaged` — they snapshot+commit; hook mode must NOT (FR-H4). Mirror the generation steps only.
+- ❌ Don't call `pkg/stagecoach.GenerateCommit` or `generate.CommitStaged` — they snapshot+commit; hook mode must NOT (FR-H4). Mirror the generation steps only.
 - ❌ Don't add WriteTree/CommitTree/UpdateRefCAS/DiffTree or touch internal/signal in the runtime — git owns this commit.
 - ❌ Don't construct `*RescueError`/`*CASError` or print the §18.3 recovery recipe — there is no snapshot to recover; a failure is one stderr line + exit 0.
 - ❌ Don't write the message file on any failure path — WriteMessageFile runs ONLY after an accepted message (the never-block invariant is "msg-file UNTOUCHED on failure").
@@ -829,7 +829,7 @@ go test -tags e2e ./internal/e2e/... -run TestE2EHookScenarios -v
 - ❌ Don't retry on timeout — mirror CommitStaged: bail immediately (return error → never-block).
 - ❌ Don't add the FR-E4 `--edit` rejection here — that's P1.M5.T1.S1.
 - ❌ Don't print more than one stderr line on failure, and don't print to stdout (the message belongs in the file).
-- ❌ Don't import `pkg/stagehand` from `internal/` — copy the ~15-line manifest resolution inline (runDefault/buildDeps already duplicate it).
+- ❌ Don't import `pkg/stagecoach` from `internal/` — copy the ~15-line manifest resolution inline (runDefault/buildDeps already duplicate it).
 
 ---
 
@@ -839,9 +839,9 @@ go test -tags e2e ./internal/e2e/... -run TestE2EHookScenarios -v
 pipeline (CommitStaged) with the plumbing stripped — every primitive it needs is already exported with
 stable signatures, and the loop body is written out verbatim. The never-block contract and source gate are
 small and fully specified. The −1.5 is concentrated in three places: (1) the e2e env recipe (PATH +
-STAGEHAND_CONFIG + GIT_EDITOR plumbing for a real `git commit` driving the hook — the most likely spot for
+STAGECOACH_CONFIG + GIT_EDITOR plumbing for a real `git commit` driving the hook — the most likely spot for
 a subprocess/env surprise, neutralized by the Level-3 manual recipe that mirrors it); (2) the
 config-load-self step (a subtle S2 contract — documented with its mechanism, but easy to get wrong if an
 implementer assumes `Config()` works); and (3) the message-file write format edge cases (orig already
 starting with `\n`). All three are covered by explicit tests in the blueprint. The mirror-not-extract
-decision is the established codebase pattern (pkg/stagehand) and keeps the behavior-sensitive core untouched.
+decision is the established codebase pattern (pkg/stagecoach) and keeps the behavior-sensitive core untouched.

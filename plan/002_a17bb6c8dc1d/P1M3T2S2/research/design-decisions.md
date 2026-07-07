@@ -123,7 +123,7 @@ function's.)
 
 - **NO manifest lookup.** See §4. `("", "")` is the sentinel; the registry/Render resolves the manifest layer.
 - **NO FR-R5 / FR-R5b validation.** "Switching a role's provider without updating its model is a config error
-  stagehand surfaces" (FR-R5) and "model requires provider for multi-provider agents" (FR-R5b) are validation
+  stagecoach surfaces" (FR-R5) and "model requires provider for multi-provider agents" (FR-R5b) are validation
   concerns surfaced at manifest-resolution time (the registry knows whether a provider is multi-backend and
   whether its manifest has the model). `ResolveRoleModel` is a pure string resolver; it has no manifest
   knowledge. Pushing validation here would couple config→provider (import cycle) and split the validation

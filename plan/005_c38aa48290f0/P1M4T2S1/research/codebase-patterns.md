@@ -6,13 +6,13 @@ command surface) and the git alias mechanics (architecture/external_deps.md §7,
 ## 1. The git alias mechanics (gates FR-I4) — VERIFIED
 
 From `architecture/external_deps.md` §7 + the work item CONTRACT:
-- **Install:** `git config --global alias.<name> '!stagehand'`. The `!` prefix = "run as a shell command
-  from the repo toplevel, args appended." Default name `stagehand` → `git stagehand`.
+- **Install:** `git config --global alias.<name> '!stagecoach'`. The `!` prefix = "run as a shell command
+  from the repo toplevel, args appended." Default name `stagecoach` → `git stagecoach`.
 - **Read-back:** `git config --global --get alias.<name>` prints the stored value **INCLUDING the `!`**
-  (i.e. `!stagehand`). Strip the leading `!` when comparing "is it ours" → the command part is `stagehand`.
+  (i.e. `!stagecoach`). Strip the leading `!` when comparing "is it ours" → the command part is `stagecoach`.
   Exit 1 / empty stdout when unset (NOT an error).
 - **Remove:** `git config --global --unset alias.<name>`. Exit 5 when the key is not set. FR-I6: only
-  unset when the current value is ours (sans-`!` == `stagehand`); a foreign value is left untouched.
+  unset when the current value is ours (sans-`!` == `stagecoach`); a foreign value is left untouched.
 - **git performs the .gitconfig edit itself** → the FR-I3 file machinery (parse/backup/atomic/validate) is
   UNNECESSARY for git-alias. BUT FR-I3c (preview + confirm) still applies: the command + resulting usage
   are shown and confirmed (`y/N`; `--yes` skips); a conflicting `alias.<name>` is surfaced before overwrite.
@@ -83,7 +83,7 @@ to S2's code minimal (defaultEntries body + one resetIntegrateFlags line).
 ## 5. Command-layer conventions to mirror (from hook.go + providers.go + S2)
 
 - `--alias-name <n>`: a LOCAL flag on BOTH `integrateInstallCmd` and `integrateRemoveCmd` (shared backing
-  var `flagAliasName`; default `""` → resolved to `"stagehand"`). Registered in `init()` inside
+  var `flagAliasName`; default `""` → resolved to `"stagecoach"`). Registered in `init()` inside
   `integrate_gitalias.go`. Mirrors hook.go's `--strict`/`--print` (local to hookInstallCmd) — but here
   both install AND remove need the name (you remove the alias by name). Reset in `resetIntegrateFlags`
   (S2's helper; T2.S1 appends the `--alias-name` reset line).
@@ -97,7 +97,7 @@ to S2's code minimal (defaultEntries body + one resetIntegrateFlags line).
 | Action | Current alias state | Outcome | Writes? |
 |--------|--------------------|---------|---------|
 | Install | unset (not found) | **Created** | yes (after confirm) |
-| Install | set & ours (`!stagehand`) | **NoChange** | no (idempotent) |
+| Install | set & ours (`!stagecoach`) | **NoChange** | no (idempotent) |
 | Install | set & foreign | **Updated** (after surfacing conflict + confirm) | yes |
 | Install | (any) user declines / non-TTY no --yes | **Declined** | no |
 | Remove | unset | **NoChange** | no |
@@ -107,7 +107,7 @@ to S2's code minimal (defaultEntries body + one resetIntegrateFlags line).
 ## 7. Test isolation pattern (the work item's mandate)
 
 - `t.Setenv("GIT_CONFIG_GLOBAL", <tmpfile path>)` — fully isolates (replaces `~/.gitconfig`). Tests assert
-  on the temp file's contents (e.g. `git config --global --get alias.stagehand` → `!stagehand`).
+  on the temp file's contents (e.g. `git config --global --get alias.stagecoach` → `!stagecoach`).
 - The real global config is NEVER touched. For paranoia, tests MAY also `t.Setenv("GIT_CONFIG_NOSYSTEM",
   "1")` to ignore system config (rarely relevant for aliases).
 - Construct the entry with `git.New(t.TempDir())` (no repo init needed — `git config --global` works

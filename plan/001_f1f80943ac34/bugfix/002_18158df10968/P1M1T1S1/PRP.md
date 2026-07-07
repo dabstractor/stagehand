@@ -2,7 +2,7 @@
 name: "P1.M1.T1.S1 — Add explicit-vs-discovery distinction in config.Load and fail fast on a missing explicit path"
 description: |
   Bugfix-002 Issue 1 (Major). In `internal/config/load.go` `Load`, track whether the global config
-  path came from an EXPLICIT source (`--config` flag or `STAGEHAND_CONFIG` env) vs the DISCOVERY default.
+  path came from an EXPLICIT source (`--config` flag or `STAGECOACH_CONFIG` env) vs the DISCOVERY default.
   When the source is explicit AND the file is missing, return a hard error ("config file not found: <path>")
   instead of silently treating it as "layer absent" and falling back to provider auto-detection (which
   currently invokes a real, installed AI agent). The discovery path's `(nil,nil)` absence tolerance is
@@ -12,13 +12,13 @@ description: |
 ## Goal
 
 **Feature Goal**: Eliminate the silent-wrong-behavior bug where an explicit `--config <path>` (or
-`STAGEHAND_CONFIG=<path>`) pointing at a **nonexistent** file is indistinguishable from "the discovery
-default isn't there yet" — causing Stagehand to silently auto-detect and invoke a real, installed AI
+`STAGECOACH_CONFIG=<path>`) pointing at a **nonexistent** file is indistinguishable from "the discovery
+default isn't there yet" — causing Stagecoach to silently auto-detect and invoke a real, installed AI
 agent instead of erroring. Make a missing explicit path a hard, fail-fast error (exit 1) naming the
 path, consistent with how a *malformed* or *directory* explicit path already errors today.
 
 **Deliverable** (exactly two edits in ONE production file, `internal/config/load.go`):
-1. Compute `explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGEHAND_CONFIG") != ""` where the
+1. Compute `explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGECOACH_CONFIG") != ""` where the
    global path is resolved.
 2. Add an `else if explicit { return nil, fmt.Errorf("config file not found: %s", globalPath) }` arm to
    the existing `loadTOML` if/else chain — firing only when the file is missing (`g == nil && err == nil`)
@@ -27,18 +27,18 @@ path, consistent with how a *malformed* or *directory* explicit path already err
 Plus: focused unit tests in `internal/config/load_test.go`, and two doc updates (Mode A).
 
 **Success Definition**: `Load` returns a non-nil error whose message contains `config file not found`
-and the path, when `opts.ConfigPathOverride` or `STAGEHAND_CONFIG` points at a missing file; `Load`
+and the path, when `opts.ConfigPathOverride` or `STAGECOACH_CONFIG` points at a missing file; `Load`
 returns `(nil)` silently-absent (no error) for the discovery path with no global file, byte-for-byte
 unchanged. The malformed-file and directory-path cases remain errors via the existing `err != nil`
 arm (unaffected). `go build/vet/gofmt` clean; `go test -race ./...` green.
 
 ## User Persona
 
-**Target User**: The Stagehand CLI user who passes `--config` (or sets `STAGEHAND_CONFIG`) and makes a
+**Target User**: The Stagecoach CLI user who passes `--config` (or sets `STAGECOACH_CONFIG`) and makes a
 typo / points at a not-yet-created file.
 
-**Use Case**: `stagehand --config ~/.config/stagehand/confgi.toml` (typo) or
-`STAGEHAND_CONFIG=~/new.toml stagehand` before writing `new.toml`.
+**Use Case**: `stagecoach --config ~/.config/stagecoach/confgi.toml` (typo) or
+`STAGECOACH_CONFIG=~/new.toml stagecoach` before writing `new.toml`.
 
 **Pain Points Addressed**: Today such a typo silently falls back to provider auto-detection and
 **invokes a real agent** (consuming the user's wait, API call, quota — and possibly committing with a
@@ -68,24 +68,24 @@ A purely additive control-flow change to `internal/config/load.go` `Load`:
 2. **Fail fast** in a new `else if explicit` arm when the file is missing.
 
 No changes to `loadTOML`, `file.go`, `root.go`, the CLI wiring, the discovery default path, or any
-other package. `--config` already flows via `ConfigPathOverride` (root.go:64); `STAGEHAND_CONFIG` is
+other package. `--config` already flows via `ConfigPathOverride` (root.go:64); `STAGECOACH_CONFIG` is
 already read in `Load`.
 
 ### Success Criteria
 
 - [ ] `Load` returns a non-nil error when `opts.ConfigPathOverride` points at a missing file; the
       error message contains `config file not found` and the path.
-- [ ] `Load` returns a non-nil error when `STAGEHAND_CONFIG` points at a missing file (same message).
+- [ ] `Load` returns a non-nil error when `STAGECOACH_CONFIG` points at a missing file (same message).
 - [ ] `Load` returns `(nil, nil)` (no error) for the discovery path when no global file exists —
       unchanged (regression-guarded by a test).
 - [ ] The malformed-file case still returns a `global config: parse config…` error via the existing
       `err != nil` arm (unaffected).
 - [ ] The directory-path case still returns a `global config: read config…is a directory` error
       (unaffected).
-- [ ] `ConfigPathOverride` still beats `STAGEHAND_CONFIG` (existing precedence preserved).
+- [ ] `ConfigPathOverride` still beats `STAGECOACH_CONFIG` (existing precedence preserved).
 - [ ] Only `internal/config/load.go` is modified in production source.
 - [ ] `go build ./...`, `go vet ./...`, `gofmt -l .` clean; `go test -race ./...` green.
-- [ ] `docs/cli.md` and `docs/configuration.md` note that a missing explicit `--config`/`STAGEHAND_CONFIG`
+- [ ] `docs/cli.md` and `docs/configuration.md` note that a missing explicit `--config`/`STAGECOACH_CONFIG`
       fails fast with exit 1.
 
 ## All Needed Context
@@ -104,10 +104,10 @@ architecture analysis (`issue_analysis.md` ISSUE 1) pre-resolved root cause + bl
 # MUST READ — the binding fix analysis (do not re-litigate)
 - docfile: plan/001_f1f80943ac34/bugfix/002_18158df10968/architecture/issue_analysis.md
   why: "ISSUE 1 section quotes the exact buggy Load block, the exact loadTOML (nil,nil) contract, the exact fix (explicit + else-if-error), the CLI wrap chain ('config: config file not found: <path>' → exit 1), and the test helpers/idioms to reuse."
-  critical: "States loadTOML's (nil,nil)-on-IsNotExist contract MUST be preserved for the discovery path. States ONLY internal/config/load.go is touched in production (not file.go, not root.go). Confirms --config already flows via ConfigPathOverride and STAGEHAND_CONFIG is already read in Load — no wiring change."
+  critical: "States loadTOML's (nil,nil)-on-IsNotExist contract MUST be preserved for the discovery path. States ONLY internal/config/load.go is touched in production (not file.go, not root.go). Confirms --config already flows via ConfigPathOverride and STAGECOACH_CONFIG is already read in Load — no wiring change."
 
 - docfile: plan/001_f1f80943ac34/bugfix/002_18158df10968/architecture/system_context.md
-  why: "Confirms the 7-layer config model and that Load resolves globalPath = ConfigPathOverride > STAGEHAND_CONFIG > globalConfigPath() discovery."
+  why: "Confirms the 7-layer config model and that Load resolves globalPath = ConfigPathOverride > STAGECOACH_CONFIG > globalConfigPath() discovery."
 
 # The single production file under edit
 - file: internal/config/load.go
@@ -125,7 +125,7 @@ architecture analysis (`issue_analysis.md` ISSUE 1) pre-resolved root cause + bl
   pattern: "PersistentPreRunE: cfg,err:=config.Load(...); if err!=nil { return exitcode.New(exitcode.Error, fmt.Errorf('config: %w', err)) }. So the user sees `config: config file not found: <path>` and exit 1."
 
 - file: internal/config/load_test.go
-  why: "EDIT TARGET (tests). Reuses package-private helpers: writeConfigFile (:18), chdir (:35), newFlagSet (:50), loadEnvSetup (:62). Existing TestLoad_ConfigPathOverride (:510) + TestLoad_STAGEHAND_CONFIG_EnvPath (:526) use EXISTING files → still pass unchanged."
+  why: "EDIT TARGET (tests). Reuses package-private helpers: writeConfigFile (:18), chdir (:35), newFlagSet (:50), loadEnvSetup (:62). Existing TestLoad_ConfigPathOverride (:510) + TestLoad_STAGECOACH_CONFIG_EnvPath (:526) use EXISTING files → still pass unchanged."
   pattern: "Error idiom: `strings.Contains(err.Error(), \"<tag>\")`. Place new tests in the 'Load — path resolution tests' block (near :545)."
 
 - docfile: plan/001_f1f80943ac34/bugfix/002_18158df10968/P1M1T1S1/research/s1_implementation_notes.md
@@ -135,7 +135,7 @@ architecture analysis (`issue_analysis.md` ISSUE 1) pre-resolved root cause + bl
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/config/
 │   ├── load.go        # EDIT TARGET (Load — the single production change)
 │   ├── load_test.go   # EDIT TARGET (add ~3 focused path-resolution tests)
@@ -152,7 +152,7 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/config/load.go         # +2 edits (explicit var; else-if-error arm)
     internal/config/load_test.go    # +3 tests (missing override / missing env / discovery-absent OK)
@@ -168,7 +168,7 @@ stagehand/
 | `docs/configuration.md` | MODIFY | Mode A: the config-path NOTE states missing-explicit fails fast (exit 1). |
 
 **Explicitly NOT touched**: `internal/config/file.go` (loadTOML), `internal/config/git.go`,
-`internal/cmd/root.go` (wiring unchanged), `pkg/stagehand/*`, any provider/manifest code,
+`internal/cmd/root.go` (wiring unchanged), `pkg/stagecoach/*`, any provider/manifest code,
 `PRD.md`, `tasks.json`, `prd_snapshot.md`, anything under `plan/`. Issue 2/3/4 belong to their own
 subtasks; the README + overview-doc sweep is the final M5 task.
 
@@ -181,8 +181,8 @@ subtasks; the README + overview-doc sweep is the final M5 task.
 // differently depending on whether the path was explicit or discovered.
 
 // CRITICAL: compute `explicit` from the SOURCE, not from whether globalPath is non-empty.
-//   explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGEHAND_CONFIG") != ""
-// This is true iff the path came from --config or STAGEHAND_CONFIG (NOT from globalConfigPath()).
+//   explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGECOACH_CONFIG") != ""
+// This is true iff the path came from --config or STAGECOACH_CONFIG (NOT from globalConfigPath()).
 // Do NOT write `explicit := globalPath != ""` — that would also be true after discovery populated it.
 
 // CRITICAL: the new arm must be `else if explicit` AFTER `else if g != nil` — it fires ONLY when
@@ -195,10 +195,10 @@ subtasks; the README + overview-doc sweep is the final M5 task.
 // unit test asserts `strings.Contains(err.Error(), "config file not found")` + the path — NOT "config:".
 
 // GOTCHA (test isolation): loadEnvSetup(t) sets HOME and XDG_CONFIG_HOME to a temp dir and creates a
-// repo. With NO global file written to globalDir and NO --config/STAGEHAND_CONFIG, discovery returns
+// repo. With NO global file written to globalDir and NO --config/STAGECOACH_CONFIG, discovery returns
 // (nil) — this is the regression guard for the discovery-absent contract.
 
-// GOTCHA (no wiring change): --config already flows to ConfigPathOverride (root.go:64); STAGEHAND_CONFIG
+// GOTCHA (no wiring change): --config already flows to ConfigPathOverride (root.go:64); STAGECOACH_CONFIG
 // is already read in Load. Do NOT edit root.go. The fix is purely inside Load's globalPath handling.
 ```
 
@@ -211,7 +211,7 @@ No data-model changes. `LoadOpts` is unchanged:
 ```go
 // internal/config/load.go (EXISTING — unchanged by S1)
 type LoadOpts struct {
-	ConfigPathOverride string         // from --config (CLI); "" => fall back to STAGEHAND_CONFIG, then discovery
+	ConfigPathOverride string         // from --config (CLI); "" => fall back to STAGECOACH_CONFIG, then discovery
 	RepoDir            string         // repo root for git config
 	Flags              *pflag.FlagSet // nil => skip the CLI-flag layer
 }
@@ -228,24 +228,24 @@ Task 1: EDIT internal/config/load.go — compute `explicit` + add the missing-ex
   - LOCATE: the "Resolve the global-file path" block + the immediately-following "Layer 2" if/else chain.
   - EDIT A (compute explicit): change the globalPath-resolution block to also record the source.
       OLD (verbatim):
-        // Resolve the global-file path: --config > STAGEHAND_CONFIG > discovery.
+        // Resolve the global-file path: --config > STAGECOACH_CONFIG > discovery.
         globalPath := opts.ConfigPathOverride
         if globalPath == "" {
-            if env := os.Getenv("STAGEHAND_CONFIG"); env != "" {
+            if env := os.Getenv("STAGECOACH_CONFIG"); env != "" {
                 globalPath = env
             } else {
                 globalPath = globalConfigPath()
             }
         }
       NEW:
-        // Resolve the global-file path: --config > STAGEHAND_CONFIG > discovery.
-        // `explicit` records whether the path came from the user (--config / STAGEHAND_CONFIG) vs the
+        // Resolve the global-file path: --config > STAGECOACH_CONFIG > discovery.
+        // `explicit` records whether the path came from the user (--config / STAGECOACH_CONFIG) vs the
         // discovery default — a missing EXPLICIT path is a hard error (PRD §15.2 "overrides discovery");
         // a missing discovery file is the normal "layer absent" sentinel (tolerated below).
         globalPath := opts.ConfigPathOverride
-        explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGEHAND_CONFIG") != ""
+        explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGECOACH_CONFIG") != ""
         if globalPath == "" {
-            if env := os.Getenv("STAGEHAND_CONFIG"); env != "" {
+            if env := os.Getenv("STAGECOACH_CONFIG"); env != "" {
                 globalPath = env
             } else {
                 globalPath = globalConfigPath()
@@ -253,14 +253,14 @@ Task 1: EDIT internal/config/load.go — compute `explicit` + add the missing-ex
         }
   - EDIT B (fail fast on missing explicit path): extend the Layer-2 if/else chain with an else-if arm.
       OLD (verbatim):
-        // Layer 2: global TOML (or --config/STAGEHAND_CONFIG override). nil => absent (no error).
+        // Layer 2: global TOML (or --config/STAGECOACH_CONFIG override). nil => absent (no error).
         if g, err := loadTOML(globalPath); err != nil {
             return nil, fmt.Errorf("global config: %w", err)
         } else if g != nil {
             overlay(&cfg, g)
         }
       NEW:
-        // Layer 2: global TOML (or --config/STAGEHAND_CONFIG override). A present file is overlaid; a
+        // Layer 2: global TOML (or --config/STAGECOACH_CONFIG override). A present file is overlaid; a
         // read/parse error is wrapped. A MISSING file is "layer absent" (no error) for discovery, but a
         // HARD ERROR when the path was explicit (a typo'd --config must not silently fall back to
         // auto-detection and invoke an unintended agent). loadTOML's (nil,nil) contract is preserved.
@@ -278,7 +278,7 @@ Task 1: EDIT internal/config/load.go — compute `explicit` + add the missing-ex
 
 Task 2: ADD focused tests in internal/config/load_test.go
   - PLACEMENT: in the "Load — path resolution tests" block, next to TestLoad_ConfigPathOverride (:510)
-    and TestLoad_STAGEHAND_CONFIG_EnvPath (:526).
+    and TestLoad_STAGECOACH_CONFIG_EnvPath (:526).
   - REUSE helpers: loadEnvSetup(t), writeConfigFile(t,dir,relPath,body), chdir(t,dir).
   - ADD test 1 — TestLoad_ConfigPathOverride_MissingFileFails:
       _, repo, _ := loadEnvSetup(t); chdir(t, repo)
@@ -287,33 +287,33 @@ Task 2: ADD focused tests in internal/config/load_test.go
       ASSERT err != nil
       ASSERT strings.Contains(err.Error(), "config file not found")
       ASSERT strings.Contains(err.Error(), "does-not-exist.toml")
-  - ADD test 2 — TestLoad_STAGEHAND_CONFIG_EnvPath_MissingFileFails:
+  - ADD test 2 — TestLoad_STAGECOACH_CONFIG_EnvPath_MissingFileFails:
       _, repo, _ := loadEnvSetup(t); chdir(t, repo)
-      t.Setenv("STAGEHAND_CONFIG", filepath.Join(t.TempDir(), "nope.toml"))
+      t.Setenv("STAGECOACH_CONFIG", filepath.Join(t.TempDir(), "nope.toml"))
       _, err := Load(context.Background(), LoadOpts{RepoDir: repo})  // no ConfigPathOverride
       ASSERT err != nil && strings.Contains(err.Error(), "config file not found") && contains "nope.toml"
   - ADD test 3 (regression guard) — TestLoad_DiscoveryMissingFileOK:
       _, repo, _ := loadEnvSetup(t); chdir(t, repo)
-      // no --config, no STAGEHAND_CONFIG, NO global file written to globalDir
-      os.Unsetenv("STAGEHAND_CONFIG")  // belt-and-suspenders (loadEnvSetup doesn't set it)
+      // no --config, no STAGECOACH_CONFIG, NO global file written to globalDir
+      os.Unsetenv("STAGECOACH_CONFIG")  // belt-and-suspenders (loadEnvSetup doesn't set it)
       cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
       ASSERT err == nil            // discovery tolerates absence — contract preserved
       ASSERT cfg != nil            // Defaults() still returned
   - OPTIONAL test 4 — TestLoad_ConfigPathOverride_MissingBeatsEnv: both ConfigPathOverride (missing)
-    and STAGEHAND_CONFIG set → still errors (override is the resolved path); confirms precedence + error.
+    and STAGECOACH_CONFIG set → still errors (override is the resolved path); confirms precedence + error.
   - COVERAGE: each test asserts the error TAG + the PATH substring (the CLI adds "config: "; Load does not).
-  - DO NOT: change existing TestLoad_ConfigPathOverride / TestLoad_STAGEHAND_CONFIG_EnvPath (they use
+  - DO NOT: change existing TestLoad_ConfigPathOverride / TestLoad_STAGECOACH_CONFIG_EnvPath (they use
     existing files → still pass). DO NOT assert on "config:" prefix at the Load level.
 
 Task 3: UPDATE docs (Mode A — rides with the work)
   - docs/cli.md:
       · --config row (line ~20): append to the description that a path pointing at a MISSING file fails
         fast with exit 1 (like a malformed/directory path), rather than falling back to discovery.
-      · prose note (line ~30): add one sentence — an explicit --config / STAGEHAND_CONFIG to a missing
+      · prose note (line ~30): add one sentence — an explicit --config / STAGECOACH_CONFIG to a missing
         file errors with `config: config file not found: <path>` (exit 1) instead of silently
         auto-detecting a provider.
   - docs/configuration.md:
-      · the `[!NOTE]` at line ~34 (the --config/STAGEHAND_CONFIG note): add the same one sentence —
+      · the `[!NOTE]` at line ~34 (the --config/STAGECOACH_CONFIG note): add the same one sentence —
         a missing explicit path fails fast with exit 1; only the discovery default tolerates absence.
   - SCOPE: only the config-path wording. Do NOT touch Issue 2/3/4 doc areas (output/strip_code_fence,
     merge-conflict message, dry-run exit codes) — those belong to their subtasks / the M5 sweep.
@@ -331,21 +331,21 @@ Task 4: VALIDATE (run all gates; all must pass before declaring done)
 ```go
 // === Load's globalPath block AFTER S1 (the complete edited region) ===
 
-	// Resolve the global-file path: --config > STAGEHAND_CONFIG > discovery.
-	// `explicit` records whether the path came from the user (--config / STAGEHAND_CONFIG) vs the
+	// Resolve the global-file path: --config > STAGECOACH_CONFIG > discovery.
+	// `explicit` records whether the path came from the user (--config / STAGECOACH_CONFIG) vs the
 	// discovery default — a missing EXPLICIT path is a hard error (PRD §15.2 "overrides discovery");
 	// a missing discovery file is the normal "layer absent" sentinel (tolerated below).
 	globalPath := opts.ConfigPathOverride
-	explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGEHAND_CONFIG") != ""
+	explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGECOACH_CONFIG") != ""
 	if globalPath == "" {
-		if env := os.Getenv("STAGEHAND_CONFIG"); env != "" {
+		if env := os.Getenv("STAGECOACH_CONFIG"); env != "" {
 			globalPath = env
 		} else {
 			globalPath = globalConfigPath()
 		}
 	}
 
-	// Layer 2: global TOML (or --config/STAGEHAND_CONFIG override). A present file is overlaid; a
+	// Layer 2: global TOML (or --config/STAGECOACH_CONFIG override). A present file is overlaid; a
 	// read/parse error is wrapped. A MISSING file is "layer absent" (no error) for discovery, but a
 	// HARD ERROR when the path was explicit (a typo'd --config must not silently fall back to
 	// auto-detection and invoke an unintended agent). loadTOML's (nil,nil) contract is preserved.
@@ -364,7 +364,7 @@ Task 4: VALIDATE (run all gates; all must pass before declaring done)
 //   --config /missing.toml             override  explicit  (nil,nil)→ ERROR "config file not found" (FIXED)
 //   --config /malformed.toml           override  explicit  parseErr → "global config: parse config…" (unchanged)
 //   --config /somedir                  override  explicit  readErr  → "global config: read config…is a directory" (unchanged)
-//   STAGEHAND_CONFIG=/missing (only)   env       explicit  (nil,nil)→ ERROR (FIXED)
+//   STAGECOACH_CONFIG=/missing (only)   env       explicit  (nil,nil)→ ERROR (FIXED)
 //   neither, no global file            discovery !explicit (nil,nil)→ no error, layer absent (unchanged)
 //   neither, global file present       discovery !explicit g!=nil   → overlay (unchanged)
 ```
@@ -373,7 +373,7 @@ Task 4: VALIDATE (run all gates; all must pass before declaring done)
 
 ```yaml
 PRODUCTION (internal/config/load.go Load):
-  - var added: "explicit := opts.ConfigPathOverride != \"\" || os.Getenv(\"STAGEHAND_CONFIG\") != \"\""
+  - var added: "explicit := opts.ConfigPathOverride != \"\" || os.Getenv(\"STAGECOACH_CONFIG\") != \"\""
   - arm added: "else if explicit { return nil, fmt.Errorf(\"config file not found: %s\", globalPath) }"
   - fires ONLY when: g == nil && err == nil (missing file) AND explicit == true
 
@@ -385,7 +385,7 @@ NO-TOUCH (explicitly):
   - internal/config/file.go (loadTOML (nil,nil) contract — PRESERVED)
   - internal/config/git.go
   - internal/cmd/root.go (ConfigPathOverride wiring already in place; CLI wrap already exists)
-  - pkg/stagehand/*, internal/provider/*, internal/git/*   # provider resolution is DOWNSTREAM of this fail-fast
+  - pkg/stagecoach/*, internal/provider/*, internal/git/*   # provider resolution is DOWNSTREAM of this fail-fast
   - PRD.md, tasks.json, prd_snapshot.md, plan/*
 
 DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S1):
@@ -400,7 +400,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S1):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l .                       # Expected: empty (run `gofmt -w internal/config/load.go` if it lists it)
 go vet ./internal/config/...     # Expected: exit 0
@@ -412,13 +412,13 @@ go build ./...                   # Expected: exit 0
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The three new path-resolution tests
-go test -race -run 'TestLoad_ConfigPathOverride_MissingFileFails|TestLoad_STAGEHAND_CONFIG_EnvPath_MissingFileFails|TestLoad_DiscoveryMissingFileOK' ./internal/config/ -v
+go test -race -run 'TestLoad_ConfigPathOverride_MissingFileFails|TestLoad_STAGECOACH_CONFIG_EnvPath_MissingFileFails|TestLoad_DiscoveryMissingFileOK' ./internal/config/ -v
 
 # The existing path tests MUST still pass (they use existing files)
-go test -race -run 'TestLoad_ConfigPathOverride|TestLoad_STAGEHAND_CONFIG_EnvPath' ./internal/config/ -v
+go test -race -run 'TestLoad_ConfigPathOverride|TestLoad_STAGECOACH_CONFIG_EnvPath' ./internal/config/ -v
 
 # Full config-package suite
 go test -race ./internal/config/ -v
@@ -430,7 +430,7 @@ go test -race ./internal/config/ -v
 ### Level 3: Whole-Repository Regression (No Behavior Change Elsewhere)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages pass
 go vet ./...                     # Expected: exit 0
@@ -443,21 +443,21 @@ git diff --stat -- internal/ pkg/ cmd/
 ### Level 4: End-to-End Smoke (reproduces the PRD repro — optional but recommended)
 
 ```bash
-cd /home/dustin/projects/stagehand
-make build 2>/dev/null || go build -o bin/stagehand ./cmd/stagehand
+cd /home/dustin/projects/stagecoach
+make build 2>/dev/null || go build -o bin/stagecoach ./cmd/stagecoach
 
 # Setup a throwaway repo
 cd /tmp && rm -rf cfgbug && mkdir cfgbug && cd cfgbug
 git init -q && git config user.email t@t.com && git config user.name t
 git commit -q --allow-empty -m init && echo "content here" > file.txt && git add file.txt
-SH=/home/dustin/projects/stagehand/bin/stagehand
+SH=/home/dustin/projects/stagecoach/bin/stagecoach
 
 # (a) missing --config → now exit 1 with "config file not found" (was: exit 0, real agent invoked)
 $SH --config /tmp/cfgbug/DOES_NOT_EXIST.toml --dry-run ; echo "EXIT=$?"
 # Expected: stderr contains "config: config file not found: /tmp/cfgbug/DOES_NOT_EXIST.toml"; EXIT=1
 
-# (b) missing STAGEHAND_CONFIG → same
-STAGEHAND_CONFIG=/tmp/cfgbug/NOPE2.toml $SH --dry-run ; echo "EXIT=$?"
+# (b) missing STAGECOACH_CONFIG → same
+STAGECOACH_CONFIG=/tmp/cfgbug/NOPE2.toml $SH --dry-run ; echo "EXIT=$?"
 # Expected: EXIT=1, "config file not found"
 
 # (c) discovery with NO global file → still exit-able normally (NOT an error); provider auto-detect proceeds
@@ -482,10 +482,10 @@ printf 'bad [toml' > bad.toml && $SH --config bad.toml --dry-run ; echo "EXIT=$?
 ### Feature Validation
 
 - [ ] `Load` errors with `config file not found: <path>` for a missing `ConfigPathOverride` path.
-- [ ] `Load` errors with `config file not found: <path>` for a missing `STAGEHAND_CONFIG` path.
+- [ ] `Load` errors with `config file not found: <path>` for a missing `STAGECOACH_CONFIG` path.
 - [ ] `Load` returns `(nil)` (no error) for discovery with no global file — regression-guarded by a test.
 - [ ] Malformed-file and directory-path cases remain errors via the existing `err != nil` arm.
-- [ ] `ConfigPathOverride` precedence over `STAGEHAND_CONFIG` preserved.
+- [ ] `ConfigPathOverride` precedence over `STAGECOACH_CONFIG` preserved.
 - [ ] End-to-end smoke (Level 4): missing explicit → exit 1; discovery-absent → not an error.
 
 ### Scope Discipline Validation
@@ -509,7 +509,7 @@ printf 'bad [toml' > bad.toml && $SH --config bad.toml --dry-run ; echo "EXIT=$?
 - ❌ Don't modify `loadTOML` or `file.go` — the `(nil,nil)`-on-`IsNotExist` return is the discovery
   path's "layer absent" sentinel and is shared by both paths. The distinction must live in `Load`.
 - ❌ Don't compute `explicit` from `globalPath != ""` — discovery populates `globalPath` too. Compute it
-  from the SOURCE: `opts.ConfigPathOverride != "" || os.Getenv("STAGEHAND_CONFIG") != ""`.
+  from the SOURCE: `opts.ConfigPathOverride != "" || os.Getenv("STAGECOACH_CONFIG") != ""`.
 - ❌ Don't reorder the if/else so malformed/directory files hit the new arm — those return non-nil
   ERRORS from `loadTOML` and must continue to hit the `err != nil` arm. The new arm is the LAST
   `else if`, firing only when `g == nil && err == nil`.
@@ -517,7 +517,7 @@ printf 'bad [toml' > bad.toml && $SH --config bad.toml --dry-run ; echo "EXIT=$?
   Load errors as `config: %w` → exit 1. The fix is entirely inside `Load`.
 - ❌ Don't assert on the `config:` prefix in a `Load`-level unit test — that prefix is CLI-only
   (`PersistentPreRunE`'s wrap). At the package-config level the error is `config file not found: <path>`.
-- ❌ Don't change existing `TestLoad_ConfigPathOverride` / `TestLoad_STAGEHAND_CONFIG_EnvPath` — they
+- ❌ Don't change existing `TestLoad_ConfigPathOverride` / `TestLoad_STAGECOACH_CONFIG_EnvPath` — they
   use existing files and remain valid. Add new tests alongside them.
 - ❌ Don't sweep Issue 2/3/4 docs or README in this subtask — those belong to their own subtasks and
   the final M5 changeset sweep.

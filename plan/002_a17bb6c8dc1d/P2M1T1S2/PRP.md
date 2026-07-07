@@ -45,7 +45,7 @@ description: |
                                            tests stay GREEN unchanged).
     MODIFY internal/generate/generate.go  — forward `BinaryExtensions: cfg.BinaryExtensions` at the
                                            StagedDiff call site (CommitStaged, line ~143).
-    MODIFY pkg/stagehand/stagehand.go     — forward `BinaryExtensions: cfg.BinaryExtensions` at the
+    MODIFY pkg/stagecoach/stagecoach.go     — forward `BinaryExtensions: cfg.BinaryExtensions` at the
                                            StagedDiff call site (public Commit, line ~247).
 
   SUCCESS: `go build ./... && go test ./...` green; `go vet ./...` + `golangci-lint run` clean;
@@ -77,7 +77,7 @@ completely unaffected (markdown per-file capture, caps, lock/snap/map/vendor exc
    hold.
 3. `internal/generate/generate.go` — one line: add `BinaryExtensions: cfg.BinaryExtensions,` to the
    `git.StagedDiffOptions{…}` literal at the `CommitStaged` call site.
-4. `pkg/stagehand/stagehand.go` — one line: add `BinaryExtensions: cfg.BinaryExtensions,` to the
+4. `pkg/stagecoach/stagecoach.go` — one line: add `BinaryExtensions: cfg.BinaryExtensions,` to the
    `git.StagedDiffOptions{…}` literal at the public `Commit` call site.
 
 **Success Definition**:
@@ -101,7 +101,7 @@ The binary placeholder is consumed by the agent's prompt: instead of burning pro
 asset with the feature that uses it (PRD §9.1 FR3b rationale) during decomposition.
 
 **Use Case**: a user stages a feature branch that adds code (`feature.go`) AND a binary asset
-(`assets/logo.png`). `stagehand` calls `StagedDiff`; the payload now contains the `feature.go` diff plus
+(`assets/logo.png`). `stagecoach` calls `StagedDiff`; the payload now contains the `feature.go` diff plus
 `A\t[binary] assets/logo.png`, not a multi-line binary hunk.
 
 **Pain Points Addressed**: today a staged binary produces a useless, prompt-budget-wasting
@@ -143,7 +143,7 @@ interface changes, no new dependencies.
 - [ ] A staged binary's `Binary files … differ` body is ABSENT from the payload; a staged text file
       alongside it is fully present.
 - [ ] All 12 existing `TestStagedDiff_*` tests pass unchanged; new binary-integration tests pass.
-- [ ] `generate.go` and `stagehand.go` forward `BinaryExtensions: cfg.BinaryExtensions` at their
+- [ ] `generate.go` and `stagecoach.go` forward `BinaryExtensions: cfg.BinaryExtensions` at their
       `StagedDiffOptions{…}` literals.
 - [ ] `go build ./... && go test ./...` GREEN; `go vet ./...` + `golangci-lint run` clean; `gofmt -l
       internal/ pkg/` empty; go.mod/go.sum UNCHANGED.
@@ -252,7 +252,7 @@ internal/git/
   committree_test.go  # READ: defines writeFile/stageFile/setIdentityConfig/writeTreeOf/headSHA/commitMessage.
   (*_test.go)         # READ: other exemplars (same package git).
 internal/generate/generate.go   # MODIFY: StagedDiff call site (~143) — add BinaryExtensions: cfg.BinaryExtensions.
-pkg/stagehand/stagehand.go      # MODIFY: StagedDiff call site (~247) — add BinaryExtensions: cfg.BinaryExtensions.
+pkg/stagecoach/stagecoach.go      # MODIFY: StagedDiff call site (~247) — add BinaryExtensions: cfg.BinaryExtensions.
 internal/config/config.go       # READ-ONLY: Config.BinaryExtensions already exists (default nil).
 go.mod / go.sum      # UNCHANGED (stdlib "sort" only).
 .golangci.yml        # READ: stagediff_test.go is errcheck-EXEMPT (but other linters still apply).
@@ -273,7 +273,7 @@ internal/git/stagediff_test.go   # MODIFY — ADD (do not alter existing) test f
                                  #   TestStagedDiff_NoBinaryWhenOnlyText (regression guard)
 internal/generate/generate.go    # MODIFY — 1 line: `BinaryExtensions: cfg.BinaryExtensions,` in the
                                  #   git.StagedDiffOptions{…} literal at CommitStaged.
-pkg/stagehand/stagehand.go       # MODIFY — 1 line: `BinaryExtensions: cfg.BinaryExtensions,` in the
+pkg/stagecoach/stagecoach.go       # MODIFY — 1 line: `BinaryExtensions: cfg.BinaryExtensions,` in the
                                  #   git.StagedDiffOptions{…} literal at the public Commit.
 # go.mod/go.sum UNCHANGED. binary.go/binary_test.go UNCHANGED. The Git interface UNCHANGED. 0 new files.
 ```
@@ -434,10 +434,10 @@ Task 3: MODIFY internal/git/stagediff_test.go — ADD binary-integration tests (
       ContextCancelled are ALREADY covered by existing tests — no change needed.)
   - PLACEMENT: internal/git/stagediff_test.go (append new functions; do NOT alter existing 12).
 
-Task 4: MODIFY internal/generate/generate.go + pkg/stagehand/stagehand.go — forward BinaryExtensions
+Task 4: MODIFY internal/generate/generate.go + pkg/stagecoach/stagecoach.go — forward BinaryExtensions
   - EDIT generate.go (~line 143, inside CommitStaged's `git.StagedDiffOptions{ … }` literal): add
       `BinaryExtensions: cfg.BinaryExtensions,` alongside the existing `MaxDiffBytes`/`MaxMDLines` lines.
-  - EDIT stagehand.go (~line 247, inside the public Commit's `git.StagedDiffOptions{ … }` literal): add
+  - EDIT stagecoach.go (~line 247, inside the public Commit's `git.StagedDiffOptions{ … }` literal): add
       the same line.
   - GOTCHA: `cfg.BinaryExtensions` defaults to nil (config Defaults()) ⇒ StagedDiff treats nil as
       "built-in denylist only" ⇒ byte-identical behavior to today for default config (back-compatible).
@@ -446,14 +446,14 @@ Task 4: MODIFY internal/generate/generate.go + pkg/stagehand/stagehand.go — fo
   - PLACEMENT: the two StagedDiff call sites (1 line each).
 
 Task 5: VERIFY (run all gates; fix before declaring done)
-  - `gofmt -w internal/git/git.go internal/git/stagediff_test.go internal/generate/generate.go pkg/stagehand/stagehand.go`
+  - `gofmt -w internal/git/git.go internal/git/stagediff_test.go internal/generate/generate.go pkg/stagecoach/stagecoach.go`
   - `go build ./... && go vet ./...`
   - `go test -race ./internal/git/ -run "TestStagedDiff" -v`   (all 12 existing + new binary tests)
-  - `go test -race ./internal/generate/ ./pkg/stagehand/`      (call-site wiring doesn't break consumers)
+  - `go test -race ./internal/generate/ ./pkg/stagecoach/`      (call-site wiring doesn't break consumers)
   - `golangci-lint run ./...`   (errcheck/gosimple/govet/ineffassign/staticcheck/unused)
   - `go test ./...`             (FULL regression)
   - `git diff --exit-code go.mod go.sum` ⇒ empty.
-  - `git status --short` ⇒ EXACTLY 4 modified files (git.go, stagediff_test.go, generate.go, stagehand.go);
+  - `git status --short` ⇒ EXACTLY 4 modified files (git.go, stagediff_test.go, generate.go, stagecoach.go);
     0 new files; binary.go/binary_test.go UNCHANGED.
 ```
 
@@ -547,7 +547,7 @@ INTERNAL/GIT BINARY.GO (CONSUME — UNCHANGED):
 CONFIG WIRING (the 2 call sites — MODIFY, 1 line each):
   - internal/generate/generate.go (~143): "+ BinaryExtensions: cfg.BinaryExtensions," in the
           git.StagedDiffOptions{…} literal at CommitStaged.
-  - pkg/stagehand/stagehand.go (~247): "+ BinaryExtensions: cfg.BinaryExtensions," in the
+  - pkg/stagecoach/stagecoach.go (~247): "+ BinaryExtensions: cfg.BinaryExtensions," in the
           git.StagedDiffOptions{…} literal at the public Commit.
   - config.Config.BinaryExtensions ALREADY EXISTS (config.go:81, default nil) and is plumbed through
           file.go. No config-layer work.
@@ -570,14 +570,14 @@ FROZEN/LEAVE (do NOT edit):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
-gofmt -w internal/git/git.go internal/git/stagediff_test.go internal/generate/generate.go pkg/stagehand/stagehand.go
+cd /home/dustin/projects/stagecoach
+gofmt -w internal/git/git.go internal/git/stagediff_test.go internal/generate/generate.go pkg/stagecoach/stagecoach.go
 go vet ./...
 golangci-lint run ./...
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
 # Expected: go vet clean; golangci-lint clean (stagediff_test.go is errcheck-EXEMPT; other linters apply);
 #           go.mod/go.sum unchanged. NOTE: run `go vet ./...` (not just ./internal/git/) since generate.go
-#           and stagehand.go are also modified.
+#           and stagecoach.go are also modified.
 ```
 
 ### Level 2: Unit Tests (Component Validation)
@@ -596,7 +596,7 @@ go test -race ./internal/git/ -run "TestStagedDiff" -v
 #   DefaultsOnZero, MarkdownExtensions, GitBinaryMissing, ContextCancelled) all still pass UNCHANGED.
 
 # Call-site consumers still build + test (wiring doesn't break them; cfg.BinaryExtensions defaults nil):
-go test -race ./internal/generate/ ./pkg/stagehand/
+go test -race ./internal/generate/ ./pkg/stagecoach/
 
 # Full regression:
 go test ./...
@@ -628,14 +628,14 @@ cd /; rm -rf "$T"
 ### Level 4: Regression & Audit
 
 ```bash
-cd /home/dustin/projects/stagehand
-go build ./...                 # whole module compiles (git.go, generate.go, stagehand.go all modified)
+cd /home/dustin/projects/stagecoach
+go build ./...                 # whole module compiles (git.go, generate.go, stagecoach.go all modified)
 go test ./...                  # FULL regression
 git status --short             # Expected: EXACTLY 4 modified files:
                                #    M internal/git/git.go
                                #    M internal/git/stagediff_test.go
                                #    M internal/generate/generate.go
-                               #    M pkg/stagehand/stagehand.go
+                               #    M pkg/stagecoach/stagecoach.go
                                # 0 new files; binary.go/binary_test.go UNCHANGED.
 git diff --stat internal/git/binary.go internal/git/binary_test.go   # Expected: empty (S1's files untouched)
 # Expected: build + full test green; only 4 modified files; S1's files untouched; go.mod/go.sum unchanged.
@@ -647,7 +647,7 @@ git diff --stat internal/git/binary.go internal/git/binary_test.go   # Expected:
 
 - [ ] Level 1: `gofmt -l internal/ pkg/` empty; `go vet ./...` clean; `golangci-lint run ./...` clean.
 - [ ] Level 2: `go test -race ./internal/git/ -run TestStagedDiff` green — 12 existing + new binary tests.
-- [ ] Level 2: `go test -race ./internal/generate/ ./pkg/stagehand/` green (call-site wiring safe).
+- [ ] Level 2: `go test -race ./internal/generate/ ./pkg/stagecoach/` green (call-site wiring safe).
 - [ ] Level 3: empirical proof — staged real binary ⇒ placeholder `A\t[binary] logo.png`, body absent.
 - [ ] Level 4: `go build ./...` + `go test ./...` green; `git status` shows EXACTLY 4 modified files;
       binary.go/binary_test.go + go.mod/go.sum UNCHANGED.
@@ -663,7 +663,7 @@ git diff --stat internal/git/binary.go internal/git/binary_test.go   # Expected:
 - [ ] A binary in a subdirectory (`assets/logo.png`) emits `A\t[binary] assets/logo.png`.
 - [ ] Markdown per-file capture (Part 1), the byte cap, and the lock/snap/map/vendor excludes are all
       UNCHANGED for non-binary files (existing 12 tests prove this).
-- [ ] `generate.go` + `stagehand.go` forward `BinaryExtensions: cfg.BinaryExtensions` (default nil ⇒
+- [ ] `generate.go` + `stagecoach.go` forward `BinaryExtensions: cfg.BinaryExtensions` (default nil ⇒
       back-compatible).
 
 ### Code Quality Validation

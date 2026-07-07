@@ -28,7 +28,7 @@ description: |
 
   ⚠️ **THE third design call — call sites + `buildDiffArgs` clamp are UNCHANGED.** The 6 production call sites
   already consume `cfg.DiffContextValue()` / `deps.Config.DiffContextValue()` (generate.go:184,
-  decompose.go:624, message.go:96, planner.go:85, hook/exec.go:128, stagehand.go:442) — leave them. After
+  decompose.go:624, message.go:96, planner.go:85, hook/exec.go:128, stagecoach.go:442) — leave them. After
   validation, `DiffContextValue()` returns a value in [0,3], so `buildDiffArgs`'s clamp (git.go:689) is NEVER
   hit for config-loaded runs — leave it as belt-and-suspenders for programmatic `Config` construction (which
   bypasses `Load`/`Validate`). Do NOT touch `DiffContextValue`, `buildDiffArgs`, `materialize`, or `overlay`.
@@ -69,9 +69,9 @@ unchanged; no file outside `internal/config/load.go` + the test + the 2 doc surf
 ## User Persona
 
 **Target User**: A user who sets `diff_context` in config or git-config and mistypes an out-of-range value
-(e.g. `diff_context = 5`, or `git config stagehand.diffContext 9`). Transitively PRD §9.1 FR3f ("integer 0–3").
+(e.g. `diff_context = 5`, or `git config stagecoach.diffContext 9`). Transitively PRD §9.1 FR3f ("integer 0–3").
 
-**Use Case**: `diff_context = 5` in `~/.config/stagehand/config.toml` → stagehand fails at load with
+**Use Case**: `diff_context = 5` in `~/.config/stagecoach/config.toml` → stagecoach fails at load with
 `diff_context: must be in range [0,3]: got 5` instead of silently running with `-U1`.
 
 **User Journey**: config file/git-config → `Load()` → `validateDiffContext(cfg.DiffContext)` → error or
@@ -171,8 +171,8 @@ git/diff-internals knowledge required — this is a pure config-value range chec
 
 - file: internal/config/git.go
   section: diff_context git-config resolver (203-214)
-  why: confirms diff_context can come from git-config (`stagehand.diffContext`) as well as file. The resolver
-       parses the integer but does NOT range-check — so a `git config stagehand.diffContext 5` flows through
+  why: confirms diff_context can come from git-config (`stagecoach.diffContext`) as well as file. The resolver
+       parses the integer but does NOT range-check — so a `git config stagecoach.diffContext 5` flows through
        overlay into cfg.DiffContext and is caught by your Load-time validation (the single chokepoint).
   gotcha: do NOT add a range check here — keep validation single-site at Load.
 
@@ -367,7 +367,7 @@ FROZEN / NOT-EDITED:
   - internal/config/git.go (diff_context git-config resolver — parses int, no range check; validation is
     single-site at Load).
   - internal/git/git.go (buildDiffArgs clamp — stays as belt-and-suspenders; now dead for config-loaded runs).
-  - The 6 StagedDiffOptions call sites (generate/decompose/hook/stagehand — already consume DiffContextValue()).
+  - The 6 StagedDiffOptions call sites (generate/decompose/hook/stagecoach — already consume DiffContextValue()).
   - internal/config/file_test.go::TestMaterializeOverlay_DiffContext_TokenLimit (regression anchor; the
     explicit_0 row MUST still pass — do NOT edit).
 
@@ -409,7 +409,7 @@ go test -race ./...              # Full suite — no regression (valid/unset con
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only the listed files changed:
 git diff --name-only | grep -Ev 'internal/config/load\.go|internal/config/load_test\.go|docs/configuration\.md|internal/config/bootstrap\.go' \

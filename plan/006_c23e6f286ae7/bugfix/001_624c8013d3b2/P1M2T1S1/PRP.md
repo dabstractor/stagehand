@@ -3,7 +3,7 @@ name: "P1.M2.T1.S1 (bugfix Issue 2) — Remove lock file in Release() and add cl
 description: |
   Bugfix for Issue 2 (Minor — disk hygiene): FR52 per-repo run-lock files accumulate indefinitely.
   `Locker.Release()` (`internal/lock/lock.go`) closes the fd + clears the singleton but never removes
-  the `<hash>.lock` file from `$XDG_RUNTIME_DIR/stagehand/locks/`. flock auto-releases on fd close, so the
+  the `<hash>.lock` file from `$XDG_RUNTIME_DIR/stagecoach/locks/`. flock auto-releases on fd close, so the
   leftovers are inert shells, but they grow without bound (210 observed during QA). Fix: on `Release()`,
   after closing the fd, call `os.Remove(l.path)` ignoring errors — the conventional flock lock-file
   pattern (PRD §18.5 issue-analysis option b). The next `Acquire` recreates the file via
@@ -12,7 +12,7 @@ description: |
   ⚠️ **THE central design call — CRITICAL ordering: close the fd FIRST (releases the flock), THEN
   `os.Remove`.** The inverted order (remove while still holding the flock on inode A) is a real FR52
   safety bug: unlinking the path lets a contender `OpenFile(path, O_CREATE)` create a NEW inode B and
-  flock it (B is free) → both processes believe they hold the lock → two concurrent stagehand runs on the
+  flock it (B is free) → both processes believe they hold the lock → two concurrent stagecoach runs on the
   same repo. Close-then-remove guarantees the holder has released before the path is unlinked. `os.Remove`
   errors are IGNORED (file may already be gone, or a concurrent Acquire recreated it — both harmless). The
   idempotency guard (`l.file == nil` → return) is PRESERVED, so a second `Release()` returns before
@@ -63,10 +63,10 @@ outside `internal/lock/lock.go` + `internal/lock/lock_test.go` is touched.
 **Target User**: Long-lived developer machines and CI runners that create many distinct repo paths —
 transitively PRD §18.5 "Location/Mechanism" (disk hygiene; the lock spec didn't mandate cleanup).
 
-**Use Case**: Running stagehand across many repos (or many temp repos per CI job) no longer leaves a
-permanent `<hash>.lock` per repo in `$XDG_RUNTIME_DIR/stagehand/locks/`.
+**Use Case**: Running stagecoach across many repos (or many temp repos per CI job) no longer leaves a
+permanent `<hash>.lock` per repo in `$XDG_RUNTIME_DIR/stagecoach/locks/`.
 
-**User Journey**: `stagehand` runs → `Acquire` creates `<hash>.lock` + flocks it → work → `Release`
+**User Journey**: `stagecoach` runs → `Acquire` creates `<hash>.lock` + flocks it → work → `Release`
 closes the fd (auto-releases flock) AND now `os.Remove`s the file → the locks dir stays bounded.
 
 **Pain Points Addressed**: removes unbounded inert lock-file accumulation (210 seen in QA) without
@@ -173,7 +173,7 @@ go.mod / go.sum      # unchanged (no new dep; "os" already imported)
 ```go
 // CRITICAL: close the fd FIRST (l.file.Close() releases the advisory flock), THEN os.Remove(path).
 // Remove-while-held is a real FR52 safety bug: unlinking the path lets a contender OpenFile(O_CREATE) a
-// NEW inode and flock it (free) → both processes hold "the lock" → two concurrent stagehand runs. The
+// NEW inode and flock it (free) → both processes hold "the lock" → two concurrent stagecoach runs. The
 // contract + issue_analysis both mandate close-then-remove.
 
 // CRITICAL: preserve the idempotency guard `if l == nil || l.file == nil { return }` VERBATIM, at the
@@ -194,7 +194,7 @@ go.mod / go.sum      # unchanged (no new dep; "os" already imported)
 // lock_unix.go / lock_windows.go.
 
 // GOTCHA (test): isolate XDG_RUNTIME_DIR to t.TempDir() (t.Setenv) + clear XDG_CACHE_HOME, so the test
-// never touches the real $XDG_RUNTIME_DIR/stagehand/locks/. Call resetCurrent(t) to avoid singleton
+// never touches the real $XDG_RUNTIME_DIR/stagecoach/locks/. Call resetCurrent(t) to avoid singleton
 // poisoning. Do NOT call t.Parallel() (the existing lock tests don't — the singleton is process-global).
 ```
 
@@ -349,14 +349,14 @@ go test -race ./...                      # Full suite — NO regressions (no cal
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only the two listed files changed:
 git diff --name-only | grep -Ev 'internal/lock/lock\.go|internal/lock/lock_test\.go' \
   && echo "UNEXPECTED file changed" || echo "only internal/lock/lock.go + lock_test.go changed (good)"
-# Manual hygiene smoke (optional): run a stagehand invocation in a temp repo, then confirm the lock file is
+# Manual hygiene smoke (optional): run a stagecoach invocation in a temp repo, then confirm the lock file is
 # gone after exit:
-#   TMP=$(mktemp -d); git -C "$TMP" init -q; … run stagehand … ; ls $XDG_RUNTIME_DIR/stagehand/locks/
+#   TMP=$(mktemp -d); git -C "$TMP" init -q; … run stagecoach … ; ls $XDG_RUNTIME_DIR/stagecoach/locks/
 #   (expect: the <hash>.lock for $TMP is absent post-run; previously it was left behind).
 ```
 

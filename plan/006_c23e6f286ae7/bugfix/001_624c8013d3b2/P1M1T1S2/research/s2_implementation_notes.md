@@ -20,18 +20,18 @@ issue_analysis.md's recommended lowest-risk fix) — NO code change.
 ## 1. The exact current text (docs/cli.md:379 — ONE logical markdown line)
 
 ```
-Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors: if a contending run's staged changes are already covered by the in-progress run's published snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. Stagehand never force-breaks the lock.
+Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors: if a contending run's staged changes are already covered by the in-progress run's published snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. Stagecoach never force-breaks the lock.
 ```
 
 ## 2. The exact target text (the contract's authoritative phrasing — ONE logical markdown line)
 
 ```
-Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors. On the single-commit path (changes staged): if a contending run's staged changes are already covered by the in-progress run's published index snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. On the decompose path (nothing staged, working tree dirty): an accidental double-run exits **5** (Busy) rather than 0 — the holder publishes a working-tree snapshot (`T_start`) that a lock-free contender cannot reproduce from the index alone, so it conservatively refuses. Stagehand never force-breaks the lock.
+Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors. On the single-commit path (changes staged): if a contending run's staged changes are already covered by the in-progress run's published index snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. On the decompose path (nothing staged, working tree dirty): an accidental double-run exits **5** (Busy) rather than 0 — the holder publishes a working-tree snapshot (`T_start`) that a lock-free contender cannot reproduce from the index alone, so it conservatively refuses. Stagecoach never force-breaks the lock.
 ```
 
 ### What is PRESERVED verbatim (the contract's "keep" list)
 - First sentence: `Code \`5\` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed."`
-- Last sentence: `Stagehand never force-breaks the lock.`
+- Last sentence: `Stagecoach never force-breaks the lock.`
 - The single-commit path's BOTH outcomes: exit **0** (nothing-to-do) AND exit **5** (Busy if genuinely new work is staged).
 - The "nothing to do — an in-progress run already covers your staged changes" string (consistent w/ README/how-it-works).
 
@@ -44,7 +44,7 @@ Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "b
 
 - EDIT ONLY line 379 (the contention-behavior prose paragraph). It is ONE logical markdown line.
 - Do NOT edit the **exit-code TABLE** (lines 368-375: `| Code | Meaning |` … `| 124 | Timeout |`). The
-  table is generic and does NOT over-claim — it correctly says "`5` | Busy — another stagehand run holds
+  table is generic and does NOT over-claim — it correctly says "`5` | Busy — another stagecoach run holds
   the per-repo lock; retry after it finishes." Leave it.
 - Do NOT edit the "Exit codes mirror the constants in `internal/exitcode/exitcode.go`…" explanation
   paragraph (immediately above line 379) — it is correct and unrelated.

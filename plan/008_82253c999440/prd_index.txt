@@ -1,4 +1,4 @@
-h1.0 Stagehand — Product Requirements & Technical Specification
+h1.0 Stagecoach — Product Requirements & Technical Specification
  h2.0 0. How to read this document
 h1.1 PART I — PRODUCT REQUIREMENTS
  h2.1 1. Executive summary
@@ -10,7 +10,7 @@ h1.1 PART I — PRODUCT REQUIREMENTS
   h3.3 3.1 The problem, in one sentence
   h3.4 3.2 The secondary problem
   h3.5 3.3 The tertiary problem
-  h3.6 3.4 What Stagehand is not solving
+  h3.6 3.4 What Stagecoach is not solving
  h2.4 4. Competitive landscape
   h3.7 4.1 Direct competitors
   h3.8 4.2 What each incumbent does well (so we respect them, not dismiss them)
@@ -94,7 +94,7 @@ h1.2 PART II — TECHNICAL SPECIFICATION
    h4.8 13.6.6 Failure handling within the loop
    h4.9 13.6.7 Why this is safe (the one-paragraph proof)
  h2.14 14. Package layout (Go)
-  h3.68 14.1 The public library surface (pkg/stagehand)
+  h3.68 14.1 The public library surface (pkg/stagecoach)
  h2.15 15. CLI reference
   h3.69 15.1 Synopsis
   h3.70 15.2 Global flags

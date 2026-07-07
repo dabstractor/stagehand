@@ -49,7 +49,7 @@ is left alone.
   claims drifted from the binary: the failure table omitted the (now clean) merge-conflict outcome,
   and the rescue protocol described the recovery recipe as the universal generation-failure outcome.
 - A user reading "When generation fails after the snapshot is taken (exit 3 or 124) … prints a
-  recovery block" and then running `stagehand --dry-run` into a timeout gets **exit 1 + a short line**
+  recovery block" and then running `stagecoach --dry-run` into a timeout gets **exit 1 + a short line**
   — contradicting the doc. Likewise, a user hitting a merge conflict now sees a clean one-liner, but
   the doc never mentions that failure mode at all.
 - This is the **only** documentation task scoped to `docs/how-it-works.md`. S1 owns README (done).
@@ -117,7 +117,7 @@ this repo can complete it from this file + `docs/how-it-works.md` + `docs/cli.md
 - file: internal/git/git.go
   why: Issue 3's clean merge-conflict error message (line 230) — the accurate wording to reflect.
   string: |
-    "unresolved merge conflicts in the index — resolve them first, then re-run stagehand"
+    "unresolved merge conflicts in the index — resolve them first, then re-run stagecoach"
   semantics: exit 1, PRE-generation (WriteTree is step 3, before the model runs), HEAD/index untouched, no snapshot, no rescue.
 
 - file: internal/cmd/default_action.go
@@ -126,7 +126,7 @@ this repo can complete it from this file + `docs/how-it-works.md` + `docs/cli.md
     rescue (parse/dup exhaustion): "could not generate a commit message; run without --dry-run to see retries and the recovery recipe"
     timeout:                      "generation timed out; run without --dry-run to see the recovery recipe"
     → exitcode.New(exitcode.Error, nil)   // exit 1, NO FormatRescue recovery recipe printed
-  semantics: the library (pkg/stagehand) is UNCHANGED (still returns *RescueError 3/124); only the
+  semantics: the library (pkg/stagecoach) is UNCHANGED (still returns *RescueError 3/124); only the
     CLI rendering special-cases dry-run. The recipe + codes 3/124 remain the real-commit (default action) semantics.
 
 # SUPPORTING — root cause + why each fix was made
@@ -187,7 +187,7 @@ docs/how-it-works.md      # ← EDITED (Edit A row + Edit B dry-run exception + 
 # Do NOT "improve" code, the config init template, README, or other docs.
 
 # CRITICAL — quote the EXACT shipped strings, do not loosely paraphrase:
-#   Issue 3 (git.go:230): "unresolved merge conflicts in the index — resolve them first, then re-run stagehand"
+#   Issue 3 (git.go:230): "unresolved merge conflicts in the index — resolve them first, then re-run stagecoach"
 #   Issue 4 dry-run messages (default_action.go:181/183): use the docs/cli.md substance (exit 1 + short
 #   message, no recovery recipe). The how-it-works.md prose may be slightly more compact than cli.md but
 #   must NOT contradict it.
@@ -203,7 +203,7 @@ docs/how-it-works.md      # ← EDITED (Edit A row + Edit B dry-run exception + 
 # fails after the snapshot is taken" is still literally true (the snapshot IS taken in dry-run) — the
 # drift is that it then says "… prints a recovery block", which is now false for dry-run.
 
-# GOTCHA — the library API (pkg/stagehand) still returns *RescueError (3/124) for dry-run; only the
+# GOTCHA — the library API (pkg/stagecoach) still returns *RescueError (3/124) for dry-run; only the
 # CLI layer (handleGenError) special-cases it to exit 1. The doc should describe the USER-VISIBLE
 # behavior (exit 1, no recipe), not the internal return type. Do not mention *RescueError in the doc.
 
@@ -228,7 +228,7 @@ Task 1 (REQUIRED, Edit A): add a merge-conflict row to the failure-modes table  
          requires noting "merge conflicts produce a clean 'resolve merge conflicts first' message
          (exit 1)".
   ADD (one row, wording mirrors git.go:230 substance — keep it tight):
-         | Unresolved merge conflicts in the index | 1 (Error) | Resolve the conflicts, then re-run `stagehand` (caught before the snapshot) |
+         | Unresolved merge conflicts in the index | 1 (Error) | Resolve the conflicts, then re-run `stagecoach` (caught before the snapshot) |
   GOTCHA: merge conflicts are PRE-generation / PRE-snapshot → 1 (Error), NOT 3 (Rescue). Do NOT imply a
           snapshot or rescue is involved. The "caught before the snapshot" phrase pairs this row with
           the existing "Agent missing on $PATH" pre-generation framing.
@@ -238,10 +238,10 @@ Task 2 (REQUIRED, Edit B): scope the rescue recipe to real commits; add the dry-
   WHERE: (i) refine the intro at line 68 to scope the recipe to a real commit; (ii) add a dry-run
          exception paragraph at the END of the section (after line 83, before "## Prompt engineering").
   CURRENT intro (line 68, verbatim):
-         "When generation fails after the snapshot is taken (exit 3 or 124), Stagehand prints a recovery
+         "When generation fails after the snapshot is taken (exit 3 or 124), Stagecoach prints a recovery
          block to stderr with the frozen tree SHA and the exact `git commit-tree` command to commit manually:"
   CHANGE (minimal — append a scoping clause; keep the ```text block lines 70-82 UNCHANGED):
-         "When generation fails after the snapshot is taken on a real commit (exit 3 or 124), Stagehand
+         "When generation fails after the snapshot is taken on a real commit (exit 3 or 124), Stagecoach
          prints a recovery block to stderr with the frozen tree SHA and the exact `git commit-tree`
          command to commit manually:"
     (Only addition: the words "on a real commit".)
@@ -249,7 +249,7 @@ Task 2 (REQUIRED, Edit B): scope the rescue recipe to real commits; add the dry-
          "Under `--dry-run`, the full pipeline still runs and the snapshot is still taken, but a generation
          failure (timeout or parse/duplicate-check exhaustion) exits **1** with a short stderr message and
          omits this recovery recipe — no commit was ever intended. The recipe and exit codes 3/124 apply
-         to a real `stagehand` commit."
+         to a real `stagecoach` commit."
   GOTCHA: do NOT weaken the existing "after the snapshot is taken" accuracy (the snapshot IS taken in
           dry-run). Only scope the RECIPE. Do NOT change the ```text rescue-block example (lines 70-82)
           or the line-83 rejected-candidate note — those describe the real-commit recipe and are still
@@ -289,7 +289,7 @@ Task 4 (VERIFY-ONLY pass): confirm no OTHER overview drift exists
 # existing ```text fenced-block style. markdownlint allows them (MD031/MD040 are satisfied; MD013 off).
 
 # CRITICAL: quote the shipped strings accurately. Issue 3's message is "resolve them first, then
-# re-run stagehand" (git.go:230); Issue 4's dry-run outcome is "exit 1 + short message, no recipe"
+# re-run stagecoach" (git.go:230); Issue 4's dry-run outcome is "exit 1 + short message, no recipe"
 # (cli.md:26/86). Do not invent wording the binary doesn't produce.
 
 # CRITICAL: do NOT change the rescue-block ```text example (lines 70-82) or line 83. They describe the

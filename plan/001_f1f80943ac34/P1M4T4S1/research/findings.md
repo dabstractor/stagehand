@@ -1,7 +1,7 @@
 # P1.M4.T4.S1 Research Findings — `--dry-run` stderr notice
 
 ## TL;DR
-`stagehand --dry-run` is **~95% already shipped**. The flag, the `DryRun` pass-through to the public
+`stagecoach --dry-run` is **~95% already shipped**. The flag, the `DryRun` pass-through to the public
 API, the dry-run success branch, message→stdout, exit 0, HEAD-unchanged, and the `↳ Generating…`
 progress line are ALL present (P1.M4.T1.S2 default action + P1.M3.T5.S1 public API). The default-action
 author **explicitly deferred exactly one decoration** to P1.M4.T4 — visible in the source comment at
@@ -16,14 +16,14 @@ dry-run success path, and assert it in the existing CLI test.** Everything else 
 
 | Contract clause (item_description) | Status | Evidence |
 |---|---|---|
-| RESEARCH: "public API already supports DryRun in Options (P1.M3.T5.S1)" | ✅ DONE | `pkg/stagehand/stagehand.go:36` `DryRun bool`; `runPipeline` dry-run branch L254-276 |
+| RESEARCH: "public API already supports DryRun in Options (P1.M3.T5.S1)" | ✅ DONE | `pkg/stagecoach/stagecoach.go:36` `DryRun bool`; `runPipeline` dry-run branch L254-276 |
 | INPUT: "GenerateCommit with DryRun=true" | ✅ DONE | `internal/cmd/default_action.go:118` `DryRun: flagDryRun` |
 | LOGIC: "Print the message to stdout (clean, for piping)" | ✅ DONE | `printDryRunMessage(stdout, res.Message)` L129 + helper L194-196 |
 | LOGIC: "Print '(no commit created)' to stderr" | ❌ **GAP (THE deliverable)** | no such line anywhere; deferred in comment L128 |
 | LOGIC: "Exit 0" | ✅ DONE | `return nil` L130; `exitcode.Success=0` doc notes "dry-run message printed" (`exitcode.go:23`) |
 | LOGIC: "commit-tree/update-ref are skipped" (HEAD unchanged) | ✅ DONE | `runPipeline` dry-run returns before CommitTree/UpdateRefCAS; proven by `TestRunDefault_DryRun` (HEAD unchanged) |
 | Mock: "integration test — dry-run produces a message, HEAD unchanged" | ✅ EXISTS (needs +1 assertion) | `TestRunDefault_DryRun` (`default_action_test.go:252`) asserts stdout=msg + HEAD unchanged + err==nil |
-| OUTPUT: "Working stagehand --dry-run" | ✅ (after the 1-line fix) | works end-to-end once the stderr notice is added |
+| OUTPUT: "Working stagecoach --dry-run" | ✅ (after the 1-line fix) | works end-to-end once the stderr notice is added |
 | DOCS: "none" | ✅ N/A | CLI help already shows `--dry-run` (`root.go:89`); README is P1.M5.T4 |
 
 ## §2 The one gap — `(no commit created)` to stderr
@@ -39,7 +39,7 @@ if flagDryRun || res.CommitSHA == "" {
 ```
 **Fix:** add `fmt.Fprintln(stderr, "(no commit created)")` between the two lines. Plain (no `↳ ` prefix,
 no color) — Appendix B.3 shows it verbatim/plain, and the contract says "Print '(no commit created)'"
-verbatim. On STDERR so stdout stays clean for piping (`stagehand --dry-run --no-color | tee`).
+verbatim. On STDERR so stdout stays clean for piping (`stagecoach --dry-run --no-color | tee`).
 
 The `↳ Generating…` progress (also Appendix B.3) is **already present** — emitted to stderr by
 `u.Progress(label)` earlier in `runDefault` (default_action.go ~L110). P1.M4.T3.S1 owns it; it is done.
@@ -47,7 +47,7 @@ The `↳ Generating…` progress (also Appendix B.3) is **already present** — 
 ## §3 Why NOT to touch the public API (snapshot discrepancy — scoped OUT)
 
 The contract prose says *"The snapshot is still taken (write-tree runs) but commit-tree/update-ref are
-skipped."* The public API (`pkg/stagehand.runPipeline` L221-228) **skips `WriteTree` in dry-run** (and
+skipped."* The public API (`pkg/stagecoach.runPipeline` L221-228) **skips `WriteTree` in dry-run** (and
 also skips duplicate-check — the dry-run branch does a single generate→parse pass):
 
 ```go
@@ -70,7 +70,7 @@ if !dryRun {
 4. **All OBSERVABLE success criteria are already satisfied:** message produced ✓, HEAD unchanged ✓,
    exit 0 ✓. FR49's load-bearing clause is *"do not create the commit or move HEAD"* — both honored.
 5. **Risk of destabilization.** `TestGenerateCommit_DryRun` + `TestGenerateCommit_Timeout` "dryrun"
-   (`pkg/stagehand/stagehand_test.go`) pin the current dry-run error shapes (bare `ErrTimeout`, no
+   (`pkg/stagecoach/stagecoach_test.go`) pin the current dry-run error shapes (bare `ErrTimeout`, no
    `*RescueError`, no `TreeSHA`). Re-running write-tree would require re-arming the rescue path and
    reshaping these errors — a P1.M3.T5.S1 regression, not a P1.M4.T4.S1 concern.
 

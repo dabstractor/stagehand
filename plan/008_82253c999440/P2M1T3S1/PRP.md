@@ -70,7 +70,7 @@ description: |
       Do NOT re-add the field or change parse code.
     - `docs/how-it-works.md` → P2.M1.T2.S2 (the Mode-A stager-narrative doc edit rides with T2). Item §5:
       NO DOCS here.
-    - `internal/config/*`, `cmd/stagehand/*`, `docs/cli.md`, `docs/configuration.md` → no new flags/keys.
+    - `internal/config/*`, `cmd/stagecoach/*`, `docs/cli.md`, `docs/configuration.md` → no new flags/keys.
     - `internal/prompt/reserve.go` → the stager has NO reserve token calc (stagerReserveTokens does not
       exist; only planner/message do). reserve.go UNCHANGED; reserve_test.go UNCHANGED.
 
@@ -131,7 +131,7 @@ files list is GUIDANCE only — FR-M1c (content ⊆ T_start) remains the sole co
 
 ## User Persona
 
-**Target User**: a developer running `stagehand` auto-decompose on a mixed working tree. The planner has
+**Target User**: a developer running `stagecoach` auto-decompose on a mixed working tree. The planner has
 already partitioned the changes into concepts and declared, per concept, which files it touches (FR-M3,
 P2.M1.T1.S1). The tooled stager agent (one invocation per concept) now receives that file list as guidance
 so it knows WHERE to look — it still resolves the exact hunks mechanically and FR-M1c is the hard content
@@ -163,7 +163,7 @@ planner omits files (empty/nil), the block vanishes cleanly so no stale/empty gu
 - **Updated guardrails wording.** §17.6 rewords the second guardrails sentence to reference the files block
   ("the files above are where they live") so the stager ties the "Stage ONLY … this concept" instruction to
   the surfaced file list. The hard guardrails (no commit/amend/push/ref-mutation) and the structural
-  enforcement (tooled_flags; stagehand owns all ref ops) are unchanged.
+  enforcement (tooled_flags; stagecoach owns all ref ops) are unchanged.
 - **Clean omission.** §17.6: "an empty list simply omits the files block." No blank-line artifact, no
   empty header — the prompt stays well-formed whether or not files are present.
 
@@ -363,7 +363,7 @@ passes `concept.Files` straight through). `PlannerOutput`, `BuildPlannerUserPayl
 ```go
 // stagerGuardrails is the verbatim §17.6 five-line git-instructions + hard-guardrails block. It is the
 // prompt-level restatement of §13.6.2/§17.6's structural guardrails (no commit/amend/push/ref-mutation;
-// only update the index), enforced STRUCTURALLY too via tooled_flags (§12.1; stagehand owns all ref ops).
+// only update the index), enforced STRUCTURALLY too via tooled_flags (§12.1; stagecoach owns all ref ops).
 // The second sentence references the surfaced files block ("the files above are where they live").
 //
 // NOTE the TWO BACKTICK chars (`git add <path>` and `git apply --cached`) — hence a double-quoted "..."
@@ -396,7 +396,7 @@ const stagerFilesHeader = "Files for this concept (where these changes live):"
 //
 // The stager returns free-form text ("list of paths staged"); the truth source is the index
 // (git diff --cached --name-only), hence NO JSON contract / NO parse — the caller reads the exit code.
-// The guardrails are ALSO enforced structurally (tooled_flags §12.1; stagehand owns all ref ops —
+// The guardrails are ALSO enforced structurally (tooled_flags §12.1; stagecoach owns all ref ops —
 // §17.6's safety proof).
 //
 // files is GUIDANCE (where the concept's changes live), NOT a hard constraint — FR-M1c (content ⊆ T_start)
@@ -562,7 +562,7 @@ TESTS:
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/prompt/stager.go internal/prompt/stager_test.go internal/decompose/stager.go
 go vet ./internal/prompt/... ./internal/decompose/...
 # Expected: zero issues. If stager.go did not import "strings", gofmt/goimports adds it; confirm it is present.
@@ -695,7 +695,7 @@ if pNil != legacy {
       (P2.M1.T2.S1 COMPLETE).
 - [ ] `internal/decompose/decompose*.go` UNCHANGED (P2.M1.T1.S2 COMPLETE).
 - [ ] `docs/how-it-works.md` UNCHANGED (P2.M1.T2.S2 — Mode-A doc; item §5 says NO DOCS here).
-- [ ] `internal/config/*`, `cmd/stagehand/*`, `docs/cli.md`, `docs/configuration.md` UNCHANGED.
+- [ ] `internal/config/*`, `cmd/stagecoach/*`, `docs/cli.md`, `docs/configuration.md` UNCHANGED.
 
 ---
 

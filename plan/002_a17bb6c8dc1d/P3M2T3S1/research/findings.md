@@ -8,7 +8,7 @@ CONTRACT (P3.M2.T3.S1, from the work item):
 1. RESEARCH NOTE: The stager (§13.6.2, FR-M5) is the ONLY tooled role. It receives a concept's
    title+description as a task (prompt/stager.go from P3.M1.T1.S2), runs with tools ON via RenderTooled
    mode (P1.M1.T2.S1). It stages changes via git add and hunk-staging. It MUST NOT commit/amend/push —
-   stagehand owns all ref mutations. After stager[i] returns, the orchestrator FREEZES tree[i] =
+   stagecoach owns all ref mutations. After stager[i] returns, the orchestrator FREEZES tree[i] =
    write-tree BEFORE stager[i+1] starts (§13.6.3 invariant 1). Stager failure: retry once, then treat
    as empty (FR-M8). The stager mutates the INDEX only (not refs).
 2. INPUT: Deps with Stager manifest (tooled_flags non-empty) from P3.M2.T1.S1, prompt/stager.go from
@@ -40,7 +40,7 @@ SCOPE BOUNDARY (frozen / owned elsewhere — do NOT edit):
 - internal/config/roles.go — CONSUMED: ResolveRoleModel("stager", cfg) → (provider, model).
 - internal/decompose/{message,arbiter,chain,decompose}.go — DO NOT EXIST YET. This task creates ONLY
   stager.go (+ stager_test.go). Other tasks own the rest.
-- cmd/, pkg/stagehand/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires stageConcept/freezeSnapshot;
+- cmd/, pkg/stagecoach/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires stageConcept/freezeSnapshot;
   NOT this task).
 
 ## §2. The SHIPPED Deps shape (NO Models field)
@@ -156,7 +156,7 @@ apply the FR-M8/M12 retry-once-then-empty. This mirrors callPlanner's ErrPlanner
 
 Non-rescue semantics: stageConcept mutates the INDEX only (the agent runs git add / git apply --cached).
 It NEVER commits, amends, or moves refs (the prompt guardrails §17.6 + the structural tooled_flags
-scope + the fact that stagehand owns all ref mutations). A stager failure leaves the index in whatever
+scope + the fact that stagecoach owns all ref mutations). A stager failure leaves the index in whatever
 state the agent left it; the orchestrator retries or treats-as-empty. freezeSnapshot is READ-ONLY w.r.t.
 refs (WriteTree writes a tree object to the object store but touches NEITHER index NOR HEAD — §13.2).
 Neither stageConcept's nor freezeSnapshot's errors involve a HEAD move or a ref — they are NOT
@@ -211,7 +211,7 @@ func tooledStubManifest(t *testing.T, bin string, o stubtest.Options) provider.M
 ```
 TooledFlags is `[]string` (internal/provider/manifest.go:68). Any non-empty slice works — the stub agent
 (cmd/stubagent) reads stdin + env, emits output, exits; it IGNORES its argv entirely (verified: main.go
-calls io.Copy(io.Discard, os.Stdin) then emits STAGEHAND_STUB_OUT/script). So TooledFlags=["--anything"]
+calls io.Copy(io.Discard, os.Stdin) then emits STAGECOACH_STUB_OUT/script). So TooledFlags=["--anything"]
 is a valid no-op for the stub while satisfying RenderTooled's non-empty requirement.
 
 THE STUB IS A GIT NO-OP: the stub does NOT run git (it can't — it's a fixed binary that emits canned
@@ -305,12 +305,12 @@ All read-only. No new config keys. config.Defaults() populates Timeout=120s etc.
 ## §12. No new deps, no import cycle, zero edits, additive file
 
 - stager.go is the 3rd file in package decompose (roles.go 1st, planner.go 2nd). Same `package decompose`.
-- Imports: "context"; "errors"; "fmt"; "github.com/dustin/stagehand/internal/config";
-  "github.com/dustin/stagehand/internal/git"; "github.com/dustin/stagehand/internal/prompt";
-  "github.com/dustin/stagehand/internal/provider". (config/git/prompt/provider already imported by
+- Imports: "context"; "errors"; "fmt"; "github.com/dustin/stagecoach/internal/config";
+  "github.com/dustin/stagecoach/internal/git"; "github.com/dustin/stagecoach/internal/prompt";
+  "github.com/dustin/stagecoach/internal/provider". (config/git/prompt/provider already imported by
   roles.go; "context"/"errors"/"fmt" are stdlib. No new third-party. No import cycle.)
 - ZERO edits to any shipped file (roles.go, planner.go, prompt/*, provider/*, git/*, config/*, cmd/*,
-  pkg/stagehand all CONSUMED read-only). go.mod/go.sum UNCHANGED.
+  pkg/stagecoach all CONSUMED read-only). go.mod/go.sum UNCHANGED.
 - stageConcept/freezeSnapshot are consumed later (P3.M4.T1.S1); NO caller wiring here → zero merge
   friction with the parallel planner.go.
 

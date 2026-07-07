@@ -8,7 +8,7 @@ description: |
     (a) `func Load(ctx context.Context, opts LoadOpts) (*Config, error)` — applies layers in precedence
         order: `Defaults()` → global TOML → repo TOML → git config → env vars → CLI flags;
     (b) `type LoadOpts struct { ConfigPathOverride string; RepoDir string; Flags *pflag.FlagSet }`;
-    (c) `func loadEnv(cfg *Config)` — presence-checked `STAGEHAND_*` overlay, DIRECT field set for
+    (c) `func loadEnv(cfg *Config)` — presence-checked `STAGECOACH_*` overlay, DIRECT field set for
         bools (the boolean-false escape hatch S2/S3 documented);
     (d) `func loadFlags(cfg *Config, fs *pflag.FlagSet)` — `flags.Changed()`-gated overlay, DIRECT field
         set; and
@@ -25,7 +25,7 @@ description: |
   `false` or an int/string zero — a documented v1 limitation. **S4 resolves exactly this** for the two
   highest layers: `loadEnv` and `loadFlags` do NOT build a partial `*Config`+`overlay()`; they mutate
   the resolved `*Config` IN PLACE — env when the var is PRESENT, flags when `flags.Changed(name)`. So
-  `STAGEHAND_VERBOSE=false` and an explicit `--no-color` correctly yield `Verbose=false`/`NoColor=false`
+  `STAGECOACH_VERBOSE=false` and an explicit `--no-color` correctly yield `Verbose=false`/`NoColor=false`
   after `Load`. This is the "force false via env (S4)/CLI (S4)" escape hatch S2/S3 pointed at. (Layers
   2–4 stay partial-`*Config` + `overlay()` — unchanged.)
 
@@ -40,22 +40,22 @@ description: |
   ⚠️ **THE third design call — arch §2.6–2.8 is a NON-AUTHORITATIVE sketch.** That code targets an OLD
   NESTED-struct `Config` (`cfg.Defaults.Provider`, a typed `cfg.Provider[name].APIKey` map). The real
   `Config` (S1) is FLAT + plain-typed (`Provider string`, `Timeout time.Duration`, …). Therefore: use
-  the PRD §15.2/FR35 env NAMES (`STAGEHAND_PROVIDER`, `STAGEHAND_MODEL`, `STAGEHAND_TIMEOUT`,
-  `STAGEHAND_CONFIG`, `STAGEHAND_VERBOSE`, `STAGEHAND_NO_COLOR`) — NOT arch's invented
-  `STAGEHAND_DEFAULT_*`; and set the flat `cfg.Model`/`cfg.Provider` strings — NOT a typed manifest map.
+  the PRD §15.2/FR35 env NAMES (`STAGECOACH_PROVIDER`, `STAGECOACH_MODEL`, `STAGECOACH_TIMEOUT`,
+  `STAGECOACH_CONFIG`, `STAGECOACH_VERBOSE`, `STAGECOACH_NO_COLOR`) — NOT arch's invented
+  `STAGECOACH_DEFAULT_*`; and set the flat `cfg.Model`/`cfg.Provider` strings — NOT a typed manifest map.
   The arch sketch's CORE IDEAS ARE followed: presence-check env vars, and `flags.Changed()` for
   explicitly-set flags. (See research/findings.md FINDING 2.)
 
-  ⚠️ **THE fourth design call — `STAGEHAND_CONFIG` selects a FILE PATH, not a value overlay.** PRD §15.2:
-  `--config`/`STAGEHAND_CONFIG` = "Path to a config file (overrides discovery)." They choose WHICH file
+  ⚠️ **THE fourth design call — `STAGECOACH_CONFIG` selects a FILE PATH, not a value overlay.** PRD §15.2:
+  `--config`/`STAGECOACH_CONFIG` = "Path to a config file (overrides discovery)." They choose WHICH file
   becomes layer 2; they are NOT a layer-5 value. Path precedence: `--config` (carried in
-  `opts.ConfigPathOverride`) > `STAGEHAND_CONFIG` (env) > `globalConfigPath()` discovery. `Load` resolves
-  this at the TOP (before layer 2 loads). `loadEnv` does NOT treat `STAGEHAND_CONFIG` as a value;
+  `opts.ConfigPathOverride`) > `STAGECOACH_CONFIG` (env) > `globalConfigPath()` discovery. `Load` resolves
+  this at the TOP (before layer 2 loads). `loadEnv` does NOT treat `STAGECOACH_CONFIG` as a value;
   `loadFlags` does NOT touch `config` (the caller — cobra PersistentPreRunE, P1.M4.T1.S1 — fills
   `opts.ConfigPathOverride` from the `--config` flag).
 
   ⚠️ **THE fifth design call — `loadRepoLocalConfig()` (S2) is frozen; `opts.RepoDir` feeds ONLY git.**
-  S2's `loadRepoLocalConfig()` takes NO args, reads `.stagehand.toml` RELATIVE TO CWD, and emits the §19
+  S2's `loadRepoLocalConfig()` takes NO args, reads `.stagecoach.toml` RELATIVE TO CWD, and emits the §19
   provider-redirect notice. S4 calls it AS-IS (no S2 edit — S2 is COMPLETE). `opts.RepoDir` is passed to
   `loadGitConfig(opts.RepoDir)` ONLY. Normally CWD == repoDir (PRD §11.2 process model); tests of the
   repo-local layer use `os.Chdir` (Go 1.22 has no `t.Chdir`).
@@ -67,7 +67,7 @@ description: |
   cancellation thread.
 
   ⚠️ **THE seventh design call — `--timeout` should be a pflag STRING flag.** Contract: "parse `120s` /
-  integer seconds." `STAGEHAND_TIMEOUT` (raw env string) may be either form; `parseTimeout` handles
+  integer seconds." `STAGECOACH_TIMEOUT` (raw env string) may be either form; `parseTimeout` handles
   both (`time.ParseDuration` first, then `strconv.Atoi`→seconds). Recommend P1.M4.T1.S1 register
   `--timeout` as a STRING flag so `loadFlags` reads `flags.GetString("timeout")` + `parseTimeout`
   (identical to env). S4's own tests build a pflag.FlagSet with `timeout` as a string flag.
@@ -82,9 +82,9 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Give Stagehand its 7-layer configuration resolver (PRD §16.1, FR34): a single
+**Feature Goal**: Give Stagecoach its 7-layer configuration resolver (PRD §16.1, FR34): a single
 `Load()` that produces one fully-resolved `*Config` by applying, lowest→highest, the built-in defaults,
-global TOML, repo-local TOML, repo git config, `STAGEHAND_*` environment variables, and CLI flags —
+global TOML, repo-local TOML, repo git config, `STAGECOACH_*` environment variables, and CLI flags —
 where env/flags are the two layers S1/S2/S3 deferred, and where "higher wins" is enforced per field.
 Critically, the env and CLI layers must be able to force a boolean to `false` (the documented escape
 hatch the lower, non-zero-overlay layers cannot), and CLI flags must overlay ONLY the flags the user
@@ -93,14 +93,14 @@ explicitly set (`flags.Changed()`).
 **Deliverable**:
 1. **CREATE** `internal/config/load.go` (`package config`) —
    (a) `func Load(ctx context.Context, opts LoadOpts) (*Config, error)` — resolve the global-file path
-       (`opts.ConfigPathOverride` > `STAGEHAND_CONFIG` > `globalConfigPath()`); then apply layers:
+       (`opts.ConfigPathOverride` > `STAGECOACH_CONFIG` > `globalConfigPath()`); then apply layers:
        `cfg := Defaults()`; `overlay(&cfg, loadTOML(globalPath))`; `overlay(&cfg, loadRepoLocalConfig())`;
        `overlay(&cfg, loadGitConfig(opts.RepoDir))`; `loadEnv(&cfg)`; if `opts.Flags != nil`:
        `loadFlags(&cfg, opts.Flags)`; return `&cfg`.
    (b) `type LoadOpts struct { ConfigPathOverride string; RepoDir string; Flags *pflag.FlagSet }`.
-   (c) `func loadEnv(cfg *Config)` — for `STAGEHAND_PROVIDER/MODEL` (non-empty string → set),
-       `STAGEHAND_TIMEOUT` (`parseTimeout` → set), `STAGEHAND_VERBOSE` (`ParseBool` → DIRECT set),
-       `STAGEHAND_NO_COLOR` (`ParseBool` → DIRECT set). `STAGEHAND_CONFIG` is consumed at path
+   (c) `func loadEnv(cfg *Config)` — for `STAGECOACH_PROVIDER/MODEL` (non-empty string → set),
+       `STAGECOACH_TIMEOUT` (`parseTimeout` → set), `STAGECOACH_VERBOSE` (`ParseBool` → DIRECT set),
+       `STAGECOACH_NO_COLOR` (`ParseBool` → DIRECT set). `STAGECOACH_CONFIG` is consumed at path
        resolution, NOT here. DIRECT set = the boolean-false escape hatch.
    (d) `func loadFlags(cfg *Config, fs *pflag.FlagSet)` — for each of `provider`/`model`/`timeout`/
        `verbose`/`no-color`: if `fs.Changed(name)`, read the value and DIRECT-set the field. (Only the
@@ -110,7 +110,7 @@ explicitly set (`flags.Changed()`).
 2. **CREATE** `internal/config/load_test.go` (`package config`, white-box) — table-driven precedence
    tests (see Task 5): defaults-only, each layer overriding the one below, env-over-git, CLI-over-env,
    **unset-CLI-flag does NOT override** (the `flags.Changed` correctness test), boolean-false escape
-   hatch (env + CLI), `STAGEHAND_CONFIG`/`--config` path resolution, `parseTimeout` both forms, and
+   hatch (env + CLI), `STAGECOACH_CONFIG`/`--config` path resolution, `parseTimeout` both forms, and
    error propagation (bad global file, git-binary missing). Reuses `initRepo`/`setGitConfig` from
    `git_test.go` (S3, same package) + its own TOML-file/chdir/pflag helpers.
 
@@ -125,13 +125,13 @@ can force booleans false, and unset CLI flags leave lower-layer values intact.
 
 ## User Persona
 
-**Target User**: Downstream Stagehand subtasks **P1.M4.T1** (CLI: calls `Load(ctx, LoadOpts{
+**Target User**: Downstream Stagecoach subtasks **P1.M4.T1** (CLI: calls `Load(ctx, LoadOpts{
 ConfigPathOverride: cfgFlag, RepoDir: repoRoot, Flags: cmd.Flags()})` in cobra's `PersistentPreRunE`)
 and **P1.M3.T4** (generate orchestrator: consumes the resolved `*Config`). Transitively US8
-(configuration & precedence, FR34/FR35) and every user who configures Stagehand via env vars or flags.
+(configuration & precedence, FR34/FR35) and every user who configures Stagecoach via env vars or flags.
 
-**Use Case**: A user runs `STAGEHAND_PROVIDER=gemini stagehand --model flash --verbose` or
-`stagehand --provider claude --no-color`. `Load` merges defaults + files + git + env + flags and the
+**Use Case**: A user runs `STAGECOACH_PROVIDER=gemini stagecoach --model flash --verbose` or
+`stagecoach --provider claude --no-color`. `Load` merges defaults + files + git + env + flags and the
 explicit flag wins; an unset `--model` leaves the env/file/git/default value intact.
 
 **User Journey**: (internal API until P1.M4) cobra `PersistentPreRunE` → `cfg, err := config.Load(ctx,
@@ -141,7 +141,7 @@ pipeline.
 
 **Pain Points Addressed**: Removes "what order are layers applied", "how do env vars map to fields",
 "can env/CLI force a bool false", "how do I detect an explicitly-set flag vs a default", "does
-`STAGEHAND_CONFIG` pick a file or set a value", and "where does pflag enter the module" ambiguity for
+`STAGECOACH_CONFIG` pick a file or set a value", and "where does pflag enter the module" ambiguity for
 P1.M4 and P1.M3.T4.
 
 ## Why
@@ -168,10 +168,10 @@ type (P1.M2.T1), no edit to S1/S2/S3 files.
 - [ ] `internal/config/load.go` exists, `package config`, imports stdlib (`context`, `fmt`, `os`,
       `strconv`, `time`) + `github.com/spf13/pflag` (the ONLY new third-party import).
 - [ ] `Load(ctx, opts)` resolves the global path as `opts.ConfigPathOverride` (non-empty) → else
-      `os.Getenv("STAGEHAND_CONFIG")` (non-empty) → else `globalConfigPath()`; applies layers 1–7 in
+      `os.Getenv("STAGECOACH_CONFIG")` (non-empty) → else `globalConfigPath()`; applies layers 1–7 in
       §16.1 order; returns `&cfg` (never nil on success) or a wrapped error.
-- [ ] `loadEnv` overlays `STAGEHAND_PROVIDER`/`STAGEHAND_MODEL` (non-empty→set),
-      `STAGEHAND_TIMEOUT` (`parseTimeout`), `STAGEHAND_VERBOSE`/`STAGEHAND_NO_COLOR` (`ParseBool`→
+- [ ] `loadEnv` overlays `STAGECOACH_PROVIDER`/`STAGECOACH_MODEL` (non-empty→set),
+      `STAGECOACH_TIMEOUT` (`parseTimeout`), `STAGECOACH_VERBOSE`/`STAGECOACH_NO_COLOR` (`ParseBool`→
       DIRECT set). A present-but-unparseable bool or timeout yields a wrapped error.
 - [ ] `loadFlags` overlays ONLY `flags.Changed(name)` flags among `provider`/`model`/`timeout`/
       `verbose`/`no-color`; DIRECT-set (so `--no-color` can mean "false" semantics appropriately).
@@ -197,9 +197,9 @@ pure layer-glue + two direct-set overlays + path resolution.
   why: the EMPIRICAL basis for every design call. FINDING 1 (pflag NEW dep), FINDING 2 (arch §2.6–2.8
        is a NON-authoritative sketch of an abandoned nested model — use PRD §15.2 env names + flat
        fields), FINDING 3 (env/CLI bool DIRECT set = the boolean-false escape hatch), FINDING 4
-       (STAGEHAND_CONFIG = file PATH not a value), FINDING 5 (loadRepoLocalConfig frozen, reads CWD),
+       (STAGECOACH_CONFIG = file PATH not a value), FINDING 5 (loadRepoLocalConfig frozen, reads CWD),
        FINDING 7 (parseTimeout dual-form + --timeout as STRING flag).
-  critical: do NOT copy arch §2.6–2.8 verbatim — its `STAGEHAND_DEFAULT_*` names and typed
+  critical: do NOT copy arch §2.6–2.8 verbatim — its `STAGECOACH_DEFAULT_*` names and typed
        `cfg.Provider[name]` manifest map target a model that does not exist in S1.
 
 - file: internal/config/config.go
@@ -209,13 +209,13 @@ pure layer-glue + two direct-set overlays + path resolution.
        `AutoStageAll bool`, `Verbose bool`, `NoColor bool \`toml:"-"\``, `MaxDiffBytes int`, …,
        `Output string`, `StripCodeFence bool`, `Providers map[string]map[string]any \`toml:"-"\``).
   gotcha: `NoColor` is `toml:"-"` — EXCLUDED from layers 2–4 (file/git) by S1/S2/S3 — but S4 makes it
-       settable via `STAGEHAND_NO_COLOR` (env) and `--no-color` (CLI). `Providers` raw map is populated
+       settable via `STAGECOACH_NO_COLOR` (env) and `--no-color` (CLI). `Providers` raw map is populated
        ONLY by S2's TOML loader — S4 NEVER touches it (no env/CLI provider-manifest mutation).
 
 - file: internal/config/file.go
   why: the S2 OUTPUT contract S4 composes. S4 CALLS (does not edit): `globalConfigPath()`,
        `loadTOML(path) (*Config, error)` (nil,nil if file absent), `loadRepoLocalConfig() (*Config,
-       error)` (CWD-relative `.stagehand.toml`, emits §19 notice), and `overlay(dst, src *Config)`
+       error)` (CWD-relative `.stagecoach.toml`, emits §19 notice), and `overlay(dst, src *Config)`
        (NON-ZERO field-by-field copy).
   pattern: `loadTOML`/`loadRepoLocalConfig`/`overlay` signatures + `globalConfigPath` (XDG→HOME→CWD
        fallback). `Load` wraps each call: `if g, err := loadTOML(p); err != nil { return nil, err }
@@ -229,7 +229,7 @@ pure layer-glue + two direct-set overlays + path resolution.
   why: the S3 OUTPUT contract S4 composes. S4 CALLS (does not edit): `loadGitConfig(repoDir string)
        (*Config, error)` (partial *Config, only found keys non-zero; nil-safe: always non-nil on
        success). `opts.RepoDir` is passed here.
-  pattern: `loadGitConfig` reads camelCase `stagehand.*` keys; returns non-nil *Config (possibly
+  pattern: `loadGitConfig` reads camelCase `stagecoach.*` keys; returns non-nil *Config (possibly
        all-zero); errors on bad value / missing git binary. `Load` wraps it the same way as loadTOML.
   gotcha: `loadGitConfig` takes `repoDir` (a STRING path), NOT CWD. Pass `opts.RepoDir` (may be "" —
        the CLI layer will resolve the repo root in P1.M4; "" is fine for tests that pre-create a repo
@@ -240,7 +240,7 @@ pure layer-glue + two direct-set overlays + path resolution.
   why: REUSABLE same-package test helpers (S3). `load_test.go` is `package config`, so it can call
        `initRepo`/`setGitConfig` DIRECTLY (no copy). Both use `t.Setenv("HOME", t.TempDir())` for
        global-config isolation.
-  pattern: `initRepo(t, repo)`; `setGitConfig(t, repo, "stagehand.provider", "pi")`. For the git
+  pattern: `initRepo(t, repo)`; `setGitConfig(t, repo, "stagecoach.provider", "pi")`. For the git
        PRECEDENCE layer in load_test, reuse these.
   gotcha: `_test.go` helpers ARE visible across files IN THE SAME package — so load_test.go reuses
        S3's helpers. load_test.go adds ONLY its own NEW helpers (TOML-file writer, chdir save/restore,
@@ -258,13 +258,13 @@ pure layer-glue + two direct-set overlays + path resolution.
   why: (informational) env-var semantics. `os.LookupEnv` distinguishes unset vs empty; PRD §15.2 env
        vars are PRESENCE-semantic. For STRINGS use `os.Getenv("X") != ""`; for BOOLS parse the value
        with `strconv.ParseBool` (accepts 1/0/t/f/T/F/true/false/TRUE/FALSE/…). A present but empty
-       `STAGEHAND_VERBOSE=` is treated as "not set" (skip) to match the string convention.
+       `STAGECOACH_VERBOSE=` is treated as "not set" (skip) to match the string convention.
 
 - file: PRD.md
   section: "16.1 Resolution order" (h3.57), "15.2 Global flags" (h3.53, the env+flag NAME table +
        defaults), "9.8" (h3.24, FR34/FR35)
   why: §16.1 fixes the layer ORDER; §15.2 is the AUTHORITATIVE env-var + flag-name + default table
-       (overrides arch §2.6's invented `STAGEHAND_DEFAULT_*`); FR34 = "higher wins", FR35 = the env
+       (overrides arch §2.6's invented `STAGECOACH_DEFAULT_*`); FR34 = "higher wins", FR35 = the env
        var set. Defaults: provider "" (auto-detect), model "" (manifest default), timeout "120s",
        verbose false, no-color TTY-aware.
 ```
@@ -272,7 +272,7 @@ pure layer-glue + two direct-set overlays + path resolution.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; require go-toml/v2 v2.4.2  (pflag ABSENT)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; require go-toml/v2 v2.4.2  (pflag ABSENT)
 go.sum                          # no spf13 entries
 internal/
   config/
@@ -285,7 +285,7 @@ internal/
     load.go                     # NEW (S4) ← Load + LoadOpts + loadEnv + loadFlags + parseTimeout
     load_test.go                # NEW (S4) ← table-driven precedence tests
   git/                          # T2/T3 (Git interface + gitRunner.run) — untouched by S4
-cmd/stagehand/main.go           # `package main; func main(){}` stub — untouched
+cmd/stagecoach/main.go           # `package main; func main(){}` stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -311,8 +311,8 @@ go.sum                          # + spf13/pflag entries                   (NEW d
 
 // CRITICAL (FINDING 2): arch go_ecosystem_patterns.md §2.6–2.8 is a NON-AUTHORITATIVE sketch. It
 // targets an ABANDONED nested-struct Config (cfg.Defaults.Provider, cfg.Provider[name].APIKey typed
-// map). DO NOT copy it. Use PRD §15.2/FR35 env names (STAGEHAND_PROVIDER/MODEL/TIMEOUT/CONFIG/VERBOSE/
-// NO_COLOR — NOT STAGEHAND_DEFAULT_*), and set FLAT fields (cfg.Provider/cfg.Model strings — NOT a
+// map). DO NOT copy it. Use PRD §15.2/FR35 env names (STAGECOACH_PROVIDER/MODEL/TIMEOUT/CONFIG/VERBOSE/
+// NO_COLOR — NOT STAGECOACH_DEFAULT_*), and set FLAT fields (cfg.Provider/cfg.Model strings — NOT a
 // typed manifest map). The sketch's CORE IDEAS (presence-check env; flags.Changed()) ARE correct.
 
 // CRITICAL (FINDING 3): env + CLI bool overlays set DIRECTLY on the *Config, NOT via overlay().
@@ -320,12 +320,12 @@ go.sum                          # + spf13/pflag entries                   (NEW d
 // cfg.Field = parsedValue DIRECTLY (so Verbose=false, NoColor=false work). This is THE fix for the
 // S2/S3-documented boolean-false limitation. (String/int fields can also direct-set; uniform it.)
 
-// CRITICAL (FINDING 4): STAGEHAND_CONFIG selects the GLOBAL file PATH (layer 2), it is NOT a layer-5
-// value. Resolve at Load top: opts.ConfigPathOverride (non-empty) > os.Getenv("STAGEHAND_CONFIG")
-// (non-empty) > globalConfigPath(). loadEnv must NOT touch STAGEHAND_CONFIG. loadFlags must NOT touch
+// CRITICAL (FINDING 4): STAGECOACH_CONFIG selects the GLOBAL file PATH (layer 2), it is NOT a layer-5
+// value. Resolve at Load top: opts.ConfigPathOverride (non-empty) > os.Getenv("STAGECOACH_CONFIG")
+// (non-empty) > globalConfigPath(). loadEnv must NOT touch STAGECOACH_CONFIG. loadFlags must NOT touch
 // the "config" flag (the cobra caller fills opts.ConfigPathOverride).
 
-// CRITICAL (FINDING 5): loadRepoLocalConfig() (S2) is FROZEN — takes no args, reads CWD .stagehand.toml,
+// CRITICAL (FINDING 5): loadRepoLocalConfig() (S2) is FROZEN — takes no args, reads CWD .stagecoach.toml,
 // emits the §19 notice. Call it AS-IS. opts.RepoDir feeds ONLY loadGitConfig(opts.RepoDir). Do NOT edit
 // file.go. Tests of the repo-local layer use os.Chdir into a temp dir + t.Cleanup to restore CWD.
 
@@ -335,10 +335,10 @@ go.sum                          # + spf13/pflag entries                   (NEW d
 // CRITICAL (FINDING 7): --timeout should be a pflag STRING flag (recommend in P1.M4.T1.S1) so loadFlags
 // uses flags.GetString("timeout") + parseTimeout (both "120s" and "120" work, identical to env).
 // parseTimeout: time.ParseDuration(s) first; on error strconv.Atoi(s) -> time.Duration(n)*time.Second;
-// else wrapped error. STAGEHAND_TIMEOUT env uses the same parseTimeout.
+// else wrapped error. STAGECOACH_TIMEOUT env uses the same parseTimeout.
 
 // CRITICAL (FINDING 8): use os.LookupEnv to tell "unset" from "set-to-empty". For STRINGS, non-empty
-// check (os.Getenv("X") != "") means "set". For BOOLS (STAGEHAND_VERBOSE/NO_COLOR), parse the value with
+// check (os.Getenv("X") != "") means "set". For BOOLS (STAGECOACH_VERBOSE/NO_COLOR), parse the value with
 // strconv.ParseBool; a present-but-unparseable value is a wrapped load error (fail at load, like S2/S3).
 // Treat empty string as "not set" (skip) for both, matching the string convention.
 
@@ -347,12 +347,12 @@ go.sum                          # + spf13/pflag entries                   (NEW d
 // CLI control-flow handled in P1.M4.T1/T4 — S4 ignores them (they are not Config fields). If
 // opts.Flags is nil, skip loadFlags entirely (programmatic callers).
 
-// GOTCHA: NoColor (toml:"-") becomes config-resolvable for the FIRST time in S4 (via STAGEHAND_NO_COLOR
+// GOTCHA: NoColor (toml:"-") becomes config-resolvable for the FIRST time in S4 (via STAGECOACH_NO_COLOR
 // env + --no-color CLI). The UI layer (P1.M4.T3.S1) later makes it TTY-aware at runtime; S4 just
 // resolves the configured value (true/false; "" defaults stay false until UI decides).
 
 // GOTCHA: Providers map is NEVER touched by loadEnv/loadFlags (no env/CLI provider-manifest mutation in
-// v1 — manifests are P1.M2.T1; the raw map is S2's TOML domain). STAGEHAND_PROVIDER sets the Provider
+// v1 — manifests are P1.M2.T1; the raw map is S2's TOML domain). STAGECOACH_PROVIDER sets the Provider
 // NAME string (cfg.Provider), NOT a manifest.
 
 // GOTCHA: wrap loader errors with the layer context, e.g. fmt.Errorf("global config: %w", err), so the
@@ -373,12 +373,12 @@ go.sum                          # + spf13/pflag entries                   (NEW d
 // internal/config/config.go — UNCHANGED by S4. Quoted only so the implementer maps env/flags to fields.
 // (See the real file; do not retype.) Flat + plain-typed + resolved.
 type Config struct {
-	Provider            string        // <- STAGEHAND_PROVIDER  / --provider
-	Model               string        // <- STAGEHAND_MODEL     / --model
-	Timeout             time.Duration // <- STAGEHAND_TIMEOUT   / --timeout  (parseTimeout: "120s" or 120)
-	AutoStageAll        bool          // NOT env/CLI settable in v1 (no STAGEHAND_/flag for it per §15.2)
-	Verbose             bool          // <- STAGEHAND_VERBOSE   / --verbose   (DIRECT set; can be false)
-	NoColor             bool          // <- STAGEHAND_NO_COLOR  / --no-color  (DIRECT set; can be true)
+	Provider            string        // <- STAGECOACH_PROVIDER  / --provider
+	Model               string        // <- STAGECOACH_MODEL     / --model
+	Timeout             time.Duration // <- STAGECOACH_TIMEOUT   / --timeout  (parseTimeout: "120s" or 120)
+	AutoStageAll        bool          // NOT env/CLI settable in v1 (no STAGECOACH_/flag for it per §15.2)
+	Verbose             bool          // <- STAGECOACH_VERBOSE   / --verbose   (DIRECT set; can be false)
+	NoColor             bool          // <- STAGECOACH_NO_COLOR  / --no-color  (DIRECT set; can be true)
 	MaxDiffBytes        int           // NOT env/CLI settable in v1
 	MaxMdLines          int           // NOT env/CLI settable in v1
 	MaxDuplicateRetries int           // NOT env/CLI settable in v1
@@ -408,18 +408,18 @@ import (
 // P1.M4.T1.S1): ConfigPathOverride from the --config flag ("" if not passed); RepoDir = resolved repo
 // root (for git config); Flags = cmd.Flags() (nil for programmatic callers -> no flag overlay).
 type LoadOpts struct {
-	ConfigPathOverride string        // from --config (CLI); "" => fall back to STAGEHAND_CONFIG, then discovery
+	ConfigPathOverride string        // from --config (CLI); "" => fall back to STAGECOACH_CONFIG, then discovery
 	RepoDir            string        // repo root for git config (passed to loadGitConfig); "" is valid for tests
 	Flags              *pflag.FlagSet // cobra/pflag set; nil => skip the CLI-flag layer
 }
 
-// Load resolves the full Stagehand configuration by applying PRD §16.1 layers in precedence order
+// Load resolves the full Stagecoach configuration by applying PRD §16.1 layers in precedence order
 // (lowest → highest): (1) built-in Defaults(); (2) global TOML; (3) repo-local TOML; (4) repo git
-// config; (5) STAGEHAND_* env vars; (7) CLI flags (only explicitly-set ones). Higher wins. Returns one
+// config; (5) STAGECOACH_* env vars; (7) CLI flags (only explicitly-set ones). Higher wins. Returns one
 // fully-resolved *Config (never nil on success). Any layer's hard error (unreadable file, bad parse,
 // git failure) is wrapped with its layer context and returned, failing load.
 //
-// The global-file PATH itself is resolved FIRST: opts.ConfigPathOverride (--config) > STAGEHAND_CONFIG
+// The global-file PATH itself is resolved FIRST: opts.ConfigPathOverride (--config) > STAGECOACH_CONFIG
 // (env) > globalConfigPath() discovery (FINDING 4). loadEnv/loadFlags set bool fields DIRECTLY (not via
 // overlay) so a boolean can be forced false — the documented escape hatch the non-zero overlay layers
 // cannot provide (FINDING 3). loadGitConfig(opts.RepoDir) is layer 4; loadRepoLocalConfig() reads CWD.
@@ -431,31 +431,31 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 
 	cfg := Defaults() // Layer 1 (by value)
 
-	// Resolve the global-file path: --config > STAGEHAND_CONFIG > discovery.
+	// Resolve the global-file path: --config > STAGECOACH_CONFIG > discovery.
 	globalPath := opts.ConfigPathOverride
 	if globalPath == "" {
-		if env := os.Getenv("STAGEHAND_CONFIG"); env != "" {
+		if env := os.Getenv("STAGECOACH_CONFIG"); env != "" {
 			globalPath = env
 		} else {
 			globalPath = globalConfigPath()
 		}
 	}
 
-	// Layer 2: global TOML (or --config/STAGEHAND_CONFIG override). nil => absent (no error).
+	// Layer 2: global TOML (or --config/STAGECOACH_CONFIG override). nil => absent (no error).
 	if g, err := loadTOML(globalPath); err != nil {
 		return nil, fmt.Errorf("global config: %w", err)
 	} else if g != nil {
 		overlay(&cfg, g)
 	}
 
-	// Layer 3: repo-local TOML (CWD .stagehand.toml; emits the §19 notice). nil => absent.
+	// Layer 3: repo-local TOML (CWD .stagecoach.toml; emits the §19 notice). nil => absent.
 	if r, err := loadRepoLocalConfig(); err != nil {
 		return nil, fmt.Errorf("repo config: %w", err)
 	} else if r != nil {
 		overlay(&cfg, r)
 	}
 
-	// Layer 4: repo git config (stagehand.* keys). Non-nil partial *Config; errors propagate.
+	// Layer 4: repo git config (stagecoach.* keys). Non-nil partial *Config; errors propagate.
 	gc, err := loadGitConfig(opts.RepoDir)
 	if err != nil {
 		return nil, fmt.Errorf("git config: %w", err)
@@ -464,7 +464,7 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 		overlay(&cfg, gc)
 	}
 
-	// Layer 5: STAGEHAND_* env vars (DIRECT set — booleans can be false).
+	// Layer 5: STAGECOACH_* env vars (DIRECT set — booleans can be false).
 	if err := loadEnv(&cfg); err != nil {
 		return nil, fmt.Errorf("env config: %w", err)
 	}
@@ -477,36 +477,36 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 	return &cfg, nil
 }
 
-// loadEnv overlays STAGEHAND_* environment variables (PRD §15.2/FR35, §16.1 layer 5). Presence-semantic:
+// loadEnv overlays STAGECOACH_* environment variables (PRD §15.2/FR35, §16.1 layer 5). Presence-semantic:
 // a PRESENT, non-empty value overrides; an unset/empty var is a no-op. Booleans are set DIRECTLY (not
-// via overlay) so STAGEHAND_VERBOSE=false / STAGEHAND_NO_COLOR=true work — the escape hatch the non-zero
-// overlay layers cannot provide (FINDING 3). STAGEHAND_CONFIG is NOT handled here (it selects the file
+// via overlay) so STAGECOACH_VERBOSE=false / STAGECOACH_NO_COLOR=true work — the escape hatch the non-zero
+// overlay layers cannot provide (FINDING 3). STAGECOACH_CONFIG is NOT handled here (it selects the file
 // path, resolved in Load). A present-but-unparseable bool/timeout is a wrapped error (fail at load).
 func loadEnv(cfg *Config) error {
-	if v, ok := os.LookupEnv("STAGEHAND_PROVIDER"); ok && v != "" {
+	if v, ok := os.LookupEnv("STAGECOACH_PROVIDER"); ok && v != "" {
 		cfg.Provider = v
 	}
-	if v, ok := os.LookupEnv("STAGEHAND_MODEL"); ok && v != "" {
+	if v, ok := os.LookupEnv("STAGECOACH_MODEL"); ok && v != "" {
 		cfg.Model = v
 	}
-	if v, ok := os.LookupEnv("STAGEHAND_TIMEOUT"); ok && v != "" {
+	if v, ok := os.LookupEnv("STAGECOACH_TIMEOUT"); ok && v != "" {
 		d, err := parseTimeout(v)
 		if err != nil {
-			return fmt.Errorf("STAGEHAND_TIMEOUT: %w", err)
+			return fmt.Errorf("STAGECOACH_TIMEOUT: %w", err)
 		}
 		cfg.Timeout = d // DIRECT set (non-zero by construction when parsed)
 	}
-	if v, ok := os.LookupEnv("STAGEHAND_VERBOSE"); ok && v != "" {
+	if v, ok := os.LookupEnv("STAGECOACH_VERBOSE"); ok && v != "" {
 		b, err := strconv.ParseBool(v)
 		if err != nil {
-			return fmt.Errorf("STAGEHAND_VERBOSE: %w", err)
+			return fmt.Errorf("STAGECOACH_VERBOSE: %w", err)
 		}
 		cfg.Verbose = b // DIRECT set — can be false (escape hatch)
 	}
-	if v, ok := os.LookupEnv("STAGEHAND_NO_COLOR"); ok && v != "" {
+	if v, ok := os.LookupEnv("STAGECOACH_NO_COLOR"); ok && v != "" {
 		b, err := strconv.ParseBool(v)
 		if err != nil {
-			return fmt.Errorf("STAGEHAND_NO_COLOR: %w", err)
+			return fmt.Errorf("STAGECOACH_NO_COLOR: %w", err)
 		}
 		cfg.NoColor = b // DIRECT set — NoColor (toml:"-") becomes resolvable here for the first time
 	}
@@ -550,7 +550,7 @@ func loadFlags(cfg *Config, fs *pflag.FlagSet) {
 }
 
 // parseTimeout parses a duration that may be EITHER a Go duration string ("120s", "2m") OR a bare
-// integer (seconds: "120"). Used by both STAGEHAND_TIMEOUT (env) and --timeout (CLI). Returns a wrapped
+// integer (seconds: "120"). Used by both STAGECOACH_TIMEOUT (env) and --timeout (CLI). Returns a wrapped
 // error if neither form parses. (S2's TOML layer uses time.ParseDuration only; S3's git layer uses
 // Atoi-only; S4 accepts BOTH because env/CLI values are free-form strings.)
 func parseTimeout(s string) (time.Duration, error) {
@@ -591,9 +591,9 @@ Task 2: CREATE internal/config/load.go — parseTimeout + LoadOpts (no pflag use
 
 Task 3: ADD loadEnv to internal/config/load.go
   - IMPLEMENT loadEnv(cfg *Config) error per the Data Models block: os.LookupEnv for
-    STAGEHAND_PROVIDER/MODEL (set on non-empty), STAGEHAND_TIMEOUT (parseTimeout), STAGEHAND_VERBOSE/
-    STAGEHAND_NO_COLOR (strconv.ParseBool -> DIRECT set). Empty/unset -> skip. Bad bool/timeout ->
-    wrapped error. DO NOT touch STAGEHAND_CONFIG (path resolution is in Load).
+    STAGECOACH_PROVIDER/MODEL (set on non-empty), STAGECOACH_TIMEOUT (parseTimeout), STAGECOACH_VERBOSE/
+    STAGECOACH_NO_COLOR (strconv.ParseBool -> DIRECT set). Empty/unset -> skip. Bad bool/timeout ->
+    wrapped error. DO NOT touch STAGECOACH_CONFIG (path resolution is in Load).
   - GOTCHA: DIRECT set for booleans (FINDING 3) — do NOT build a partial *Config + overlay() here.
 
 Task 4: ADD loadFlags + Load to internal/config/load.go
@@ -601,7 +601,7 @@ Task 4: ADD loadFlags + Load to internal/config/load.go
     verbose/no-color, gate on fs.Changed(name) and set DIRECTLY (GetString for strings, GetBool for
     bools, GetString+parseTimeout for timeout). Ignore --config/--all/--dry-run/--version/--help.
   - IMPLEMENT Load(ctx, opts LoadOpts) (*Config, error) per the Data Models block: ctx.Err() entry
-    check; resolve globalPath (opts.ConfigPathOverride > STAGEHAND_CONFIG > globalConfigPath());
+    check; resolve globalPath (opts.ConfigPathOverride > STAGECOACH_CONFIG > globalConfigPath());
     cfg := Defaults(); layer 2 loadTOML(globalPath)+overlay; layer 3 loadRepoLocalConfig()+overlay;
     layer 4 loadGitConfig(opts.RepoDir)+overlay; layer 5 loadEnv(&cfg); layer 7 loadFlags(&cfg,fs) if
     opts.Flags != nil; return &cfg. Wrap each loader error with its layer context.
@@ -620,39 +620,39 @@ Task 5: CREATE internal/config/load_test.go — helpers + parseTimeout + precede
   - TEST parseTimeout: TestParseTimeout_DurationAndSeconds + TestParseTimeout_Invalid ("120s"==120s,
     "120"==120s, "2m"==2*time.Minute, "abc"/""/"-5s" -> error).
   - TEST loadEnv: TestLoadEnv_StringsTimeoutBools (set all 5, assert direct set incl.
-    STAGEHAND_VERBOSE=false -> Verbose==false) + TestLoadEnv_NoColorResolvable (STAGEHAND_NO_COLOR=true
+    STAGECOACH_VERBOSE=false -> Verbose==false) + TestLoadEnv_NoColorResolvable (STAGECOACH_NO_COLOR=true
     -> NoColor==true; absent -> unchanged) + TestLoadEnv_BadBoolErrors + TestLoadEnv_BadTimeoutErrors +
-    TestLoadEnv_EmptyStringsSkipped (STAGEHAND_PROVIDER="" leaves Provider unchanged).
+    TestLoadEnv_EmptyStringsSkipped (STAGECOACH_PROVIDER="" leaves Provider unchanged).
   - TEST loadFlags: TestLoadFlags_ChangedOnly (set --provider=gemini via fs.Set; assert Provider==gemini
     and Model unchanged (not Changed)) — the §2.7 correctness test + TestLoadFlags_BoolDirect
     (--no-color=true -> NoColor==true) + TestLoadFlags_NoneChanged (nothing set -> cfg == Defaults()).
   - TEST Load PRECEDENCE (the contract's main case — table-driven): for each row, set up the layers and
     assert the winner per field. Cases: (a) TestLoad_DefaultsOnly (no files/env/flags -> pure Defaults);
     (b) TestLoad_GlobalFileOverridesDefaults (global TOML sets provider=pi -> Provider==pi, rest default);
-    (c) TestLoad_RepoFileOverridesGlobal (global provider=pi, repo .stagehand.toml provider=claude,
+    (c) TestLoad_RepoFileOverridesGlobal (global provider=pi, repo .stagecoach.toml provider=claude,
     chdir into repo -> Provider==claude); (d) TestLoad_GitOverridesRepoFile (repo file provider=claude,
-    git stagehand.provider=gemini -> Provider==gemini); (e) TestLoad_EnvOverridesGit (git provider=gemini,
-    STAGEHAND_PROVIDER=pi -> Provider==pi); (f) TestLoad_CLIOverridesEnv (env provider=pi, --provider
+    git stagecoach.provider=gemini -> Provider==gemini); (e) TestLoad_EnvOverridesGit (git provider=gemini,
+    STAGECOACH_PROVIDER=pi -> Provider==pi); (f) TestLoad_CLIOverridesEnv (env provider=pi, --provider
     flag=claude -> Provider==claude); (g) TestLoad_UnsetCLIFlagDoesNotOverride (env provider=pi, flagset
     with NO Set on provider -> Provider==pi; proves flags.Changed gating); (h)
     TestLoad_EnvBoolFalseEscape (Defaults Verbose==false; set Verbose true via global file... NOTE file
     overlay cannot set false; instead: global file verbose=true -> Verbose==true, then
-    STAGEHAND_VERBOSE=false -> Verbose==false; proves the escape hatch); (i) TestLoad_NoColorFromCLI
+    STAGECOACH_VERBOSE=false -> Verbose==false; proves the escape hatch); (i) TestLoad_NoColorFromCLI
     (--no-color -> NoColor==true even though toml:"-"). Use a helper that builds a temp HOME with
-    stagehand/config.toml, a temp repo dir with .stagehand.toml + git config, chdir into the repo, set
+    stagecoach/config.toml, a temp repo dir with .stagecoach.toml + git config, chdir into the repo, set
     env, set flags, call Load(context.Background(), LoadOpts{...}), assert fields.
 
 Task 6: TEST Load path resolution + error propagation
   - TestLoad_ConfigPathOverride_CLI: write a TOML at /tmp/x.toml provider=custom; Load with
     LoadOpts{ConfigPathOverride: that path} -> Provider==custom (proves --config beats discovery).
-  - TestLoad_STAGEHAND_CONFIG_EnvPath: with XDG/HOME pointing at a default-dir TOML provider=A, set
-    STAGEHAND_CONFIG=<other file> provider=B -> Provider==B (env path beats discovery). THEN set
+  - TestLoad_STAGECOACH_CONFIG_EnvPath: with XDG/HOME pointing at a default-dir TOML provider=A, set
+    STAGECOACH_CONFIG=<other file> provider=B -> Provider==B (env path beats discovery). THEN set
     opts.ConfigPathOverride=<yet another file> provider=C -> Provider==C (--config beats env path).
   - TestLoad_BadGlobalFileErrors: write a malformed TOML at the global path -> Load returns non-nil err
     wrapping "global config".
-  - TestLoad_BadEnvBoolErrors: STAGEHAND_VERBOSE=notabool -> Load returns non-nil err wrapping "env
-    config"/"STAGEHAND_VERBOSE".
-  - TestLoad_GitConfigErrorPropagates: a repo whose stagehand.timeout is non-integer (set via
+  - TestLoad_BadEnvBoolErrors: STAGECOACH_VERBOSE=notabool -> Load returns non-nil err wrapping "env
+    config"/"STAGECOACH_VERBOSE".
+  - TestLoad_GitConfigErrorPropagates: a repo whose stagecoach.timeout is non-integer (set via
     setGitConfig) -> Load returns non-nil err wrapping "git config". (Proves layer-4 errors surface.)
   - TestLoad_NilFlagsSkipped: LoadOpts{Flags: nil} -> no panic, env/file/git still applied.
 
@@ -674,10 +674,10 @@ if g, err := loadTOML(globalPath); err != nil {
 }
 
 // DIRECT set for env/CLI booleans — THE fix for the non-zero overlay limitation:
-if v, ok := os.LookupEnv("STAGEHAND_VERBOSE"); ok && v != "" {
+if v, ok := os.LookupEnv("STAGECOACH_VERBOSE"); ok && v != "" {
 	b, err := strconv.ParseBool(v)
 	if err != nil {
-		return fmt.Errorf("STAGEHAND_VERBOSE: %w", err)
+		return fmt.Errorf("STAGECOACH_VERBOSE: %w", err)
 	}
 	cfg.Verbose = b   // <-- direct, NOT overlay(&cfg, &Config{Verbose:b}); can be false
 }
@@ -688,10 +688,10 @@ if fs.Changed("provider") {
 	if v, err := fs.GetString("provider"); err == nil { cfg.Provider = v }
 }
 
-// Global-path resolution — STAGEHAND_CONFIG is a PATH selector, NOT a value (FINDING 4):
+// Global-path resolution — STAGECOACH_CONFIG is a PATH selector, NOT a value (FINDING 4):
 globalPath := opts.ConfigPathOverride
 if globalPath == "" {
-	if env := os.Getenv("STAGEHAND_CONFIG"); env != "" {
+	if env := os.Getenv("STAGECOACH_CONFIG"); env != "" {
 		globalPath = env
 	} else {
 		globalPath = globalConfigPath()   // XDG_CONFIG_HOME -> HOME -> CWD fallback (S2)
@@ -704,8 +704,8 @@ if globalPath == "" {
 func TestLoad_CLIOverridesEnv(t *testing.T) {
 	env := newLoadEnv(t)               // helper: temp HOME+repo, isolation, helpers wired
 	env.setGlobalTOML(t, "[defaults]\nprovider = \"pi\"\n")
-	env.chdirToRepo(t)                 // repo dir; .stagehand.toml absent here
-	t.Setenv("STAGEHAND_PROVIDER", "gemini")
+	env.chdirToRepo(t)                 // repo dir; .stagecoach.toml absent here
+	t.Setenv("STAGECOACH_PROVIDER", "gemini")
 	fs := newFlagSet(t)
 	if err := fs.Set("provider", "claude"); err != nil { t.Fatal(err) }   // Changed("provider")==true
 
@@ -725,7 +725,7 @@ func TestLoad_EnvBoolFalseEscape(t *testing.T) {
 	env := newLoadEnv(t)
 	env.setGlobalTOML(t, "[defaults]\nverbose = true\n")  // file overlay: Verbose=true (non-zero OK)
 	env.chdirToRepo(t)
-	t.Setenv("STAGEHAND_VERBOSE", "false")                 // env DIRECT set -> Verbose=false (escape hatch)
+	t.Setenv("STAGECOACH_VERBOSE", "false")                 // env DIRECT set -> Verbose=false (escape hatch)
 
 	cfg, err := Load(context.Background(), LoadOpts{RepoDir: env.repo})
 	if err != nil { t.Fatalf("Load: %v", err) }
@@ -796,7 +796,7 @@ go test -race ./...
 
 ```bash
 # Build + dependency + additive-scope checks:
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"   # main.go stub still links.
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"   # main.go stub still links.
 git diff go.mod go.sum | grep -q spf13/pflag && echo "pflag ADDED (expected)"   # MUST print.
 # Confirm S4 did NOT touch S1/S2/S3 files:
 git diff --exit-code internal/config/config.go internal/config/config_test.go \
@@ -808,12 +808,12 @@ grep -n 'func loadEnv\|func loadFlags\|func parseTimeout' internal/config/load.g
 #   parseTimeout present.
 
 # Smoke Load end-to-end against a real layered setup (sanity for P1.M3.T4/P1.M4 authors):
-TMP=$(mktemp -d); mkdir -p "$TMP/xdg/stagehand"
-printf '[defaults]\nprovider = "pi"\ntimeout = "60s"\n' > "$TMP/xdg/stagehand/config.toml"
+TMP=$(mktemp -d); mkdir -p "$TMP/xdg/stagecoach"
+printf '[defaults]\nprovider = "pi"\ntimeout = "60s"\n' > "$TMP/xdg/stagecoach/config.toml"
 REPO=$(mktemp -d); git -C "$REPO" init -q
-printf '[defaults]\nprovider = "claude"\n' > "$REPO/.stagehand.toml"
-git -C "$REPO" config stagehand.provider gemini      # camelCase (S3); beats both files
-( cd "$REPO" && XDG_CONFIG_HOME="$TMP/xdg" STAGEHAND_PROVIDER=pi \
+printf '[defaults]\nprovider = "claude"\n' > "$REPO/.stagecoach.toml"
+git -C "$REPO" config stagecoach.provider gemini      # camelCase (S3); beats both files
+( cd "$REPO" && XDG_CONFIG_HOME="$TMP/xdg" STAGECOACH_PROVIDER=pi \
     go test ./internal/config/ -run 'TestLoad_CLIOverridesEnv' -v )   # already asserts env>git>file
 # (Or add a one-off /tmp snippet calling config.Load directly — the table tests cover this already.)
 rm -rf "$TMP" "$REPO"
@@ -827,7 +827,7 @@ rm -rf "$TMP" "$REPO"
 # resolved cfg.Provider / cfg.Verbose / cfg.NoColor / cfg.Timeout, to eyeball "higher wins".
 cat > /tmp/smoke_load_test.go <<'EOF'
 package main
-import ("context";"fmt";"os";"github.com/dustin/stagehand/internal/config";"github.com/spf13/pflag")
+import ("context";"fmt";"os";"github.com/dustin/stagecoach/internal/config";"github.com/spf13/pflag")
 func main(){
   fs := pflag.NewFlagSet("smoke", pflag.ContinueOnError)
   fs.String("provider","",""); fs.String("timeout","",""); fs.Bool("verbose",false,""); fs.Bool("no-color",false,"")
@@ -860,8 +860,8 @@ golangci-lint run ./internal/config/ 2>/dev/null || echo "golangci-lint not inst
       TestLoad_NoColorFromCLI, TestLoadEnv_StringsTimeoutBools) — the S2/S3 escape hatch now works.
 - [ ] An UNSET CLI flag does NOT override lower layers (TestLoad_UnsetCLIFlagDoesNotOverride,
       TestLoadFlags_ChangedOnly) — `flags.Changed()` correctness.
-- [ ] `STAGEHAND_CONFIG`/`--config` select the global FILE path, not a value, with CLI > env >
-      discovery (TestLoad_ConfigPathOverride_CLI, TestLoad_STAGEHAND_CONFIG_EnvPath).
+- [ ] `STAGECOACH_CONFIG`/`--config` select the global FILE path, not a value, with CLI > env >
+      discovery (TestLoad_ConfigPathOverride_CLI, TestLoad_STAGECOACH_CONFIG_EnvPath).
 - [ ] `parseTimeout` accepts `"120s"` AND `120` (TestParseTimeout_DurationAndSeconds); rejects garbage.
 - [ ] Hard errors (bad global TOML, bad env bool, git timeout parse) propagate wrapped with the layer
       name (TestLoad_BadGlobalFileErrors, TestLoad_BadEnvBoolErrors, TestLoad_GitConfigErrorPropagates).
@@ -870,7 +870,7 @@ golangci-lint run ./internal/config/ 2>/dev/null || echo "golangci-lint not inst
 ### Code Quality Validation
 
 - [ ] Follows the flat `Config` + frozen S1/S2/S3 function signatures (no retype, no signature change).
-- [ ] env/flag names match PRD §15.2/FR35 (NOT arch §2.6's `STAGEHAND_DEFAULT_*`).
+- [ ] env/flag names match PRD §15.2/FR35 (NOT arch §2.6's `STAGECOACH_DEFAULT_*`).
 - [ ] pflag is the ONLY new import; no other dependency creep (`go mod tidy` clean).
 - [ ] Errors are wrapped with layer context and use `%w`; no panics on missing files/nil flags.
 
@@ -888,7 +888,7 @@ golangci-lint run ./internal/config/ 2>/dev/null || echo "golangci-lint not inst
   env names + the flat `Config` fields.
 - ❌ Don't route env/CLI booleans through `overlay()` — it's non-zero and CANNOT force `false`. DIRECT-set.
 - ❌ Don't compare a flag's value to its default to detect "set" — use `flags.Changed(name)` ONLY.
-- ❌ Don't treat `STAGEHAND_CONFIG` as a layer-5 value — it selects the global file PATH (resolve in Load).
+- ❌ Don't treat `STAGECOACH_CONFIG` as a layer-5 value — it selects the global file PATH (resolve in Load).
 - ❌ Don't edit S1/S2/S3 files (`config.go`/`file.go`/`git.go` + tests) — S4 is additive + go.mod only.
 - ❌ Don't forget `go get github.com/spf13/pflag` — without it `load.go` won't compile (pflag is absent today).
 - ❌ Don't mutate `Config.Providers` from env/CLI — provider manifests are P1.M2.T1; the raw map is S2's.

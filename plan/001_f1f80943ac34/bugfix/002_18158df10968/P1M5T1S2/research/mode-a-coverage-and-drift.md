@@ -25,7 +25,7 @@ Issue 4 → cli.md only. Both deferred how-it-works.md here.)
 
 **Issue 3 — `internal/git/git.go:230`** (the clean merge-conflict error):
 ```
-"unresolved merge conflicts in the index — resolve them first, then re-run stagehand"
+"unresolved merge conflicts in the index — resolve them first, then re-run stagecoach"
 ```
 Exit 1, **pre-generation** (WriteTree is step 3, before the model is invoked), HEAD/index untouched,
 no snapshot, no rescue. (Probe: `git ls-files -u` non-empty ⇒ return the clean single line.)
@@ -36,7 +36,7 @@ rescue (parse/dup exhaustion): "could not generate a commit message; run without
 timeout:                      "generation timed out; run without --dry-run to see the recovery recipe"
 → exitcode.New(exitcode.Error, nil)  // exit 1, no FormatRescue recovery recipe printed
 ```
-The library (`pkg/stagehand`) is UNCHANGED — it still returns `*RescueError` (3/124); only the CLI
+The library (`pkg/stagecoach`) is UNCHANGED — it still returns `*RescueError` (3/124); only the CLI
 rendering special-cases dry-run.
 
 ## Current state of docs/how-it-works.md (verified line numbers)
@@ -54,7 +54,7 @@ Line 64: `See [cli.md](cli.md#exit-codes) for the full exit-code table.`
 
 §"Rescue protocol" (lines 66-83):
 - Line 68 (THE OVER-CLAIM): `When generation fails after the snapshot is taken (exit 3 or 124),
-  Stagehand prints a recovery block to stderr with the frozen tree SHA and the exact git commit-tree
+  Stagecoach prints a recovery block to stderr with the frozen tree SHA and the exact git commit-tree
   command to commit manually:` — implies ANY post-snapshot generation failure → 3/124 + recovery block.
   Under `--dry-run` the snapshot IS taken (bugfix-001 Issue 6) but failure → exit 1 + short message.
 - Lines 70-82: the rescue block example.

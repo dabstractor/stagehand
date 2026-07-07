@@ -45,11 +45,11 @@ the no-context path, and the `docs/cli.md` `--context` row (Mode A).
 ("this is a hotfix for #812", "revert of yesterday's perf experiment") and wants the agent to treat that as
 authoritative when writing the message or partitioning commits.
 
-**Use Case**: `stagehand --context "hotfix for the auth regression in #812"` — the message role receives the
+**Use Case**: `stagecoach --context "hotfix for the auth regression in #812"` — the message role receives the
 context so it can name the intent; on the decompose path the planner receives it so it groups the changes
 sensibly. Composes with `--format`/`--locale` (S3) and duplicate-rejection retries (§9.7).
 
-**User Journey**: user runs `stagehand --context "…"` → `config.Load` records `cfg.Context` from the flag
+**User Journey**: user runs `stagecoach --context "…"` → `config.Load` records `cfg.Context` from the flag
 (flag-only; per-invocation) → the message/planner call sites pass `cfg.Context` into the payload builders →
 the builders insert the `Additional context…` block in the correct slot → the agent's stdin carries it.
 
@@ -82,7 +82,7 @@ correct slot with an explicit, test-locked ordering contract.
 - [ ] `BuildPlannerUserPayload(diff, context string, forcedCount int)`: inserts the same block after
       `plannerUserInstruction`, before the diff (after the forced-count line in forced mode). `context==""`
       byte-identical.
-- [ ] All 4 call sites (generate.go, decompose/message.go, pkg/stagehand/stagehand.go, decompose/planner.go)
+- [ ] All 4 call sites (generate.go, decompose/message.go, pkg/stagecoach/stagecoach.go, decompose/planner.go)
       pass `cfg.Context`; stager/arbiter builders untouched.
 - [ ] Canonical-exact + property tests: ordering (instruction→context→rejection→diff), byte-identity of the
       empty-context path, planner normal + forced.
@@ -166,7 +166,7 @@ prior codebase knowledge can complete it from this document + codebase access._
        git/file loaders. No validation (like Locale, FR-F6 — but context isn't even validated by spec).
   pattern: |
     // §9.19 FR-F7 — context via CLI flag ONLY (no env/git/file source; per-invocation). Mirrors --exclude's
-    // flag-only discipline (there is no STAGEHAND_CONTEXT / stagehand.context / [generation].context).
+    // flag-only discipline (there is no STAGECOACH_CONTEXT / stagecoach.context / [generation].context).
     if fs.Changed("context") {
         if v, err := fs.GetString("context"); err == nil {
             cfg.Context = v
@@ -195,7 +195,7 @@ prior codebase knowledge can complete it from this document + codebase access._
        `payload := prompt.BuildUserPayload(diff, rejected)`; here cfg is `deps.Config`.
   pattern: "payload := prompt.BuildUserPayload(diff, deps.Config.Context, rejected)"
 
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: CALL SITE #3 (public API wrapper — a third copy of the generation loop). Line 481:
        `payload := prompt.BuildUserPayload(diff, rejected)`; cfg is `cfg`.
   pattern: "payload := prompt.BuildUserPayload(diff, cfg.Context, rejected)"
@@ -245,7 +245,7 @@ internal/config/load.go     # ADD fs.Changed("context") block in loadFlags (NO e
 internal/cmd/root.go        # ADD flagContext var + --context StringVar registration
 internal/generate/generate.go        # CALL SITE #1 (line 194)
 internal/decompose/message.go        # CALL SITE #2 (line 119)
-pkg/stagehand/stagehand.go           # CALL SITE #3 (line 481)
+pkg/stagecoach/stagecoach.go           # CALL SITE #3 (line 481)
 internal/decompose/planner.go        # CALL SITE #4 (line 85)
 docs/cli.md                          # ADD --context row (Mode A)
 ```
@@ -275,15 +275,15 @@ planner.go (same package).
 
 // CRITICAL: FOUR callers. grep to confirm none missed after the signature change:
 //   grep -rn 'BuildUserPayload\|BuildPlannerUserPayload' --include='*.go' | grep -v '_test.go' | grep -v 'func Build'
-// (expected: generate.go:194, decompose/message.go:119, pkg/stagehand/stagehand.go:481, decompose/planner.go:85)
+// (expected: generate.go:194, decompose/message.go:119, pkg/stagecoach/stagecoach.go:481, decompose/planner.go:85)
 
 // CRITICAL (parallel S3): S3 (P1.M2.T1.S3) edits the SYSTEM-prompt builders (BuildSystemPrompt/
 // BuildFallbackPrompt/BuildPlannerSystemPrompt) and explicitly does NOT touch payload.go or the USER-payload
 // funcs. planner.go is shared but the functions are disjoint (BuildPlannerSystemPrompt=S3 vs
 // BuildPlannerUserPayload=here). Do NOT edit BuildPlannerSystemPrompt or add format/locale here.
 
-// FLAG-ONLY (FR-F7): Context comes ONLY from the flag. NOTHING in loadEnv (no STAGEHAND_CONTEXT), NOTHING in
-// the git-config reader (no stagehand.context), NOTHING in fileConfig (no [generation].context). toml:"-" on
+// FLAG-ONLY (FR-F7): Context comes ONLY from the flag. NOTHING in loadEnv (no STAGECOACH_CONTEXT), NOTHING in
+// the git-config reader (no stagecoach.context), NOTHING in fileConfig (no [generation].context). toml:"-" on
 // the Config field. Context is passed VERBATIM — no trimming, no validation (an empty flag value == unset).
 
 // GOTCHA: Do NOT modify the stager (stager.go) or arbiter (arbiter.go) payload builders — the work item scopes
@@ -354,7 +354,7 @@ Task 5: EDIT internal/cmd/root.go — register --context
 Task 6: EDIT the four call sites — thread cfg.Context
   - internal/generate/generate.go:194 → prompt.BuildUserPayload(diff, cfg.Context, rejected)
   - internal/decompose/message.go:119 → prompt.BuildUserPayload(diff, deps.Config.Context, rejected)
-  - pkg/stagehand/stagehand.go:481 → prompt.BuildUserPayload(diff, cfg.Context, rejected)
+  - pkg/stagecoach/stagecoach.go:481 → prompt.BuildUserPayload(diff, cfg.Context, rejected)
   - internal/decompose/planner.go:85 → prompt.BuildPlannerUserPayload(diff, deps.Config.Context, forcedCount)
   - grep-verify zero remaining old-arity calls.
 
@@ -439,7 +439,7 @@ PROMPT PACKAGE:
   - UNCHANGED: stager.go, arbiter.go, BuildPlannerSystemPrompt (planner.go), BuildSystemPrompt/BuildFallbackPrompt (S3).
 
 CALL SITES (thread cfg.Context):
-  - internal/generate/generate.go, internal/decompose/message.go, pkg/stagehand/stagehand.go (message role),
+  - internal/generate/generate.go, internal/decompose/message.go, pkg/stagecoach/stagecoach.go (message role),
     internal/decompose/planner.go (planner role).
 
 DOCS (Mode A):
@@ -455,7 +455,7 @@ OUT OF SCOPE:
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/prompt/payload.go internal/prompt/planner.go internal/prompt/payload_test.go \
         internal/config/config.go internal/config/load.go internal/cmd/root.go
 go build ./...      # all four call sites MUST compile — proves no caller missed the arity change
@@ -477,16 +477,16 @@ go test ./internal/prompt/... -v
 #  - New: BuildPlannerUserPayload context normal + forced; empty-context byte-identical.
 
 go test ./internal/config/... -v      # Config.Context default "", flag wiring (if a loadFlags test exists)
-go test ./internal/generate/... ./internal/decompose/... ./pkg/stagehand/... -v   # call-site threading compiles + passes
+go test ./internal/generate/... ./internal/decompose/... ./pkg/stagecoach/... -v   # call-site threading compiles + passes
 ```
 
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 # Verify the flag exists and is documented as flag-only:
-/tmp/stagehand --help 2>&1 | grep -A1 -- '--context'
-# Optional stub-agent smoke (mirror internal/generate/generate_test.go's STAGEHAND_STUB_STDINFILE pattern to
+/tmp/stagecoach --help 2>&1 | grep -A1 -- '--context'
+# Optional stub-agent smoke (mirror internal/generate/generate_test.go's STAGECOACH_STUB_STDINFILE pattern to
 # assert the captured stdin CONTAINS "Additional context from the user (treat as authoritative):" when
 # --context is set) — the user-payload half is delivered via stdin (render.go stdin delivery).
 ```
@@ -515,7 +515,7 @@ golangci-lint run ./...
 - [ ] `--context "X"` + rejection → block AFTER period-instruction, BEFORE "IMPORTANT:" (ordering enforced).
 - [ ] Planner payload gets the block in normal + forced modes.
 - [ ] Stager + arbiter payloads unchanged; hook exec has no --context.
-- [ ] Flag-only: no STAGEHAND_CONTEXT, no stagehand.context, no [generation].context.
+- [ ] Flag-only: no STAGECOACH_CONTEXT, no stagecoach.context, no [generation].context.
 
 ### Code Quality Validation
 - [ ] Matches internal/prompt conventions: consts no trailing newline; assembler owns "\n" placement; doc
@@ -536,7 +536,7 @@ golangci-lint run ./...
 - ❌ Don't add env/git/config-file resolution for context — FR-F7 is flag-only (mirror flagExclude discipline).
 - ❌ Don't edit BuildPlannerSystemPrompt / BuildSystemPrompt / BuildFallbackPrompt — that is S3 (parallel).
 - ❌ Don't touch stager.go or arbiter.go — context is message + planner ONLY.
-- ❌ Don't miss pkg/stagehand/stagehand.go:481 — a third copy of the generation loop; a missed caller = build break.
+- ❌ Don't miss pkg/stagecoach/stagecoach.go:481 — a third copy of the generation loop; a missed caller = build break.
 - ❌ Don't trim/validate the context text — pass it verbatim; only "" gates the block.
 - ❌ Don't give the context block a trailing newline in the helper — the assembler owns inter-block "\n\n".
 - ❌ Don't build --template here — that is S2.T2.S2.

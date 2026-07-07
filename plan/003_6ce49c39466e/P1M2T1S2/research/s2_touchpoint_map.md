@@ -59,7 +59,7 @@ reasoning ⇒ no divergence.
 
 ## 5. Single-commit path: reasoning comes from cfg.Reasoning (Options has NO Reasoning field)
 
-`pkg/stagehand.Options` (Provider/Model/SystemExtra/DryRun/Timeout/Verbose/VerboseOn/Config) has NO
+`pkg/stagecoach.Options` (Provider/Model/SystemExtra/DryRun/Timeout/Verbose/VerboseOn/Config) has NO
 `Reasoning` field — and the item does NOT ask S2 to add one (only `RoleModel` gets Reasoning). So the
 single-commit path's reasoning = `cfg.Reasoning` from `config.Load` (S1's file/env/flag plumbing) →
 `generate.go`/`runPipeline` pass `cfg.Reasoning` as Render's 4th arg (S1's Task 6). **Item (e) is
@@ -69,7 +69,7 @@ flip it to `cfg.Reasoning` (one-liner; keeps the build green). Do NOT add Reason
 
 ## 6. applyRoleOverride + the per-role gate must gain Reasoning
 
-`resolveDecomposeConfig`'s per-role field-merge gate (stagehand.go ~261) currently checks only
+`resolveDecomposeConfig`'s per-role field-merge gate (stagecoach.go ~261) currently checks only
 `Provider`/`Model` for planner/stager/arbiter. S2 adds `|| opts.<X>.Reasoning != ""` so a
 reasoning-only `RoleModel{Reasoning:"high"}` triggers the merge. `applyRoleOverride` gains a
 `if rm.Reasoning != "" { rc.Reasoning = rm.Reasoning }` branch + the early-return guard becomes

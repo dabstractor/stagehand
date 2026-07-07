@@ -1,4 +1,4 @@
-# System Context — Stagehand plan/003 (Config v3 changeset)
+# System Context — Stagecoach plan/003 (Config v3 changeset)
 
 **Scope.** This plan delivers a **delta onto a fully-implemented v2** codebase. The v1
 single-commit core AND the v2 multi-commit decomposition pipeline are already shipped and
@@ -55,7 +55,7 @@ func (m Manifest) Render(model, sysPrompt, userPayload, reasoning string, mode .
 | file:line | current args | v3 args |
 |---|---|---|
 | `internal/generate/generate.go:196` | `(cfg.Model, "", sysPrompt, payload)` | `(cfg.Model, sysPrompt, payload, reasoning)` |
-| `pkg/stagehand/stagehand.go:461` | `(cfg.Model, "", sysPrompt, payload)` | `(cfg.Model, sysPrompt, payload, reasoning)` |
+| `pkg/stagecoach/stagecoach.go:461` | `(cfg.Model, "", sysPrompt, payload)` | `(cfg.Model, sysPrompt, payload, reasoning)` |
 | `internal/decompose/planner.go:98` | `(mdl, "", sysPrompt, payload, RenderBare)` | `(mdl, sysPrompt, payload, reasoning, RenderBare)` |
 | `internal/decompose/message.go:129` | `(mdl, "", sysPrompt, payload, RenderBare)` | `(mdl, sysPrompt, payload, reasoning, RenderBare)` |
 | `internal/decompose/arbiter.go:97` | `(mdl, "", sysPrompt, payload, RenderBare)` | `(mdl, sysPrompt, payload, reasoning, RenderBare)` |
@@ -91,8 +91,8 @@ in `scout_config_model.md`; the load-bearing touchpoints:
 - **File plumbing**: `fileRoleConfig` (`file.go:21-24`), `materialize` (`file.go:202-208`),
   `overlay` role field-merge (`file.go:284-296`), `fileDefaults` (global reasoning default).
 - **Env/flag**: new `setRoleReasoning`; loop body `load.go:190-194` (env) + `load.go:243-252`
-  (flags) gain `STAGEHAND_<ROLE>_REASONING` / `--<role>-reasoning`; add `--reasoning` global +
-  `STAGEHAND_REASONING`. **Flag registration in `internal/cmd/root.go:108-133`** — register
+  (flags) gain `STAGECOACH_<ROLE>_REASONING` / `--<role>-reasoning`; add `--reasoning` global +
+  `STAGECOACH_REASONING`. **Flag registration in `internal/cmd/root.go:108-133`** — register
   `<role>-reasoning` for **all four roles incl. `message`** (the v2 gap: no `--message-*` flags).
 - **Shipped role defaults** (FR-R6): `planner=high`, `stager=message=arbiter=off`. Apply these as
   the role-resolution layer (not a hard-coded Config default), so a user's `--reasoning` global still
@@ -127,8 +127,8 @@ Update the many `config_version = 2` test fixtures (`config_test.go`, `default_a
   inference/model, e.g. zai/glm-5.2".
 - `RoleModels` / `RoleConfig` carry `Reasoning`. `ResolveRoles` returns the 3-tuple per role. The
   4 callers (planner/message/arbiter/stager) pass resolved reasoning into `Render`.
-- `pkg/stagehand` public `RoleModel{Provider, Model}` (`stagehand.go:64`) gains `Reasoning` (additive;
-  zero-value ⇒ off — backward compatible). `applyRoleOverride` (`stagehand.go:274`) threads it.
+- `pkg/stagecoach` public `RoleModel{Provider, Model}` (`stagecoach.go:64`) gains `Reasoning` (additive;
+  zero-value ⇒ off — backward compatible). `applyRoleOverride` (`stagecoach.go:274`) threads it.
 
 ---
 
@@ -195,7 +195,7 @@ model string already carries the inference prefix (FR-R5b) so no special formatt
 (planner). Add a formatting helper in `ui` (or at the call site) and update both.
 
 **E2E harness (§20.5)** — a `//go:build e2e` throwaway-repo suite: per scenario, `git init` temp
-repo → seed → run `stagehand` (real agent where feasible, else stub) → assert history. Must-cover:
+repo → seed → run `stagecoach` (real agent where feasible, else stub) → assert history. Must-cover:
 nothing→N commits (auto + `--commits N`); one-file→single **no planner call**; concurrent mid-run
 file→excluded from every commit, left in working tree; bare model on multi-backend→**hard error**;
 arbiter reconcile (new/tip/mid-chain); rescue mid-loop; CAS abort. Extend the v2 stub decompose suite

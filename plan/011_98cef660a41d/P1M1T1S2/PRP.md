@@ -123,7 +123,7 @@ S2's). The change is a rename + 1 added arg, repeated 3×.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/git/
     ├── git.go           # EDIT (3 spots): the >0 branches of StagedDiff/TreeDiff/WorkingTreeDiff
     ├── tokengate.go     # READ-ONLY (S1 landed: closedLoopGate + applyWaterFillGate + constants)
@@ -133,7 +133,7 @@ stagehand/
 ### Desired Codebase Tree After S2
 
 ```bash
-stagehand/
+stagecoach/
 └── (only git.go modified — 3 spots, no new files)
     internal/git/git.go   # 3 sites: applyWaterFillGate(...) → closedLoopGate(..., opts.MeasureAssembled)
 ```
@@ -274,7 +274,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S2):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/git/git.go
 gofmt -l .                       # Expected: empty after the -w
@@ -285,7 +285,7 @@ go build ./...                   # Expected: exit 0 (closedLoopGate exists; sign
 ### Level 2: Existing Diff-Function Tests (behavior-preservation proof)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The 3 diff functions' tests — prove byte-identical output under nil MeasureAssembled (every current caller).
 go test -race ./internal/git/ -v -run 'TestStagedDiff|TestTreeDiff|TestWorkingTreeDiff'
@@ -297,7 +297,7 @@ go test -race ./internal/git/ -v -run 'TestStagedDiff|TestTreeDiff|TestWorkingTr
 ### Level 3: The Wiring Gate (grep — the 3 sites swapped)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 grep -n "closedLoopGate(" internal/git/git.go        # Expected: exactly 3 matches (the 3 diff sites)
 grep -n "applyWaterFillGate(" internal/git/git.go    # Expected: ZERO (all 3 swapped to closedLoopGate)
@@ -310,7 +310,7 @@ git diff --stat -- internal/git/
 ### Level 4: Scope + Baseline-Caveat Check
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # S2 does NOT touch tokengate.go (S1's territory — owns the closedLoopGate convergence bug)
 git diff --stat -- internal/git/tokengate.go internal/git/tokengate_test.go   # Expected: EMPTY (S2 untouched)

@@ -36,7 +36,7 @@ Add to the `Options` struct (alongside `RescueFormat`/`Out`/`Kill`/`Exit`):
 	// rescue exit 3 AND the pre-snapshot 130/143 exit). It is the exit-path lock-release seam: wired in
 	// main.go to lock.ReleaseCurrent so the lock file is removed before os.Exit skips the deferred Release
 	// (FR52 §18.5). Defaulted to a no-op here so the signal package stays stdlib-only (it cannot import
-	// internal/lock) and so library use of pkg/stagehand (no Install wiring) is unaffected.
+	// internal/lock) and so library use of pkg/stagecoach (no Install wiring) is unaffected.
 	OnRescueExit func()
 ```
 DEFAULT in `Install()` (after the other `if opts.X == nil` defaults):
@@ -80,7 +80,7 @@ So BOTH exit branches can orphan; BOTH need OnRescueExit. This is the lock_reapi
 
 ## 3. The injectable-seam pattern (signal stays stdlib-only)
 
-`internal/signal` is **deliberately stdlib-only** — its package doc: *"This package imports NO stagehand
+`internal/signal` is **deliberately stdlib-only** — its package doc: *"This package imports NO stagecoach
 packages (stdlib-only). The rescue message reaches the handler via the Options.RescueFormat callback (wired
 in main.go), avoiding a signal↔generate import cycle."* `OnRescueExit` is the SAME pattern: a `func()` field
 on `Options`, defaulted to a no-op in `Install`, **wired in `main.go`** (by P1.M2.T2.S2, NOT this task) to
@@ -190,8 +190,8 @@ git diff --exit-code go.mod go.sum
 # Confirm ReleaseCurrent + OnRescueExit landed:
 grep -n 'func ReleaseCurrent' internal/lock/lock.go
 grep -n 'OnRescueExit' internal/signal/signal.go        # struct field + Install default + 2 handle() calls (≥4 hits)
-# Confirm signal still imports NO stagehand package (stdlib-only):
-grep -n 'dustin/stagehand' internal/signal/signal.go && echo "BAD: signal imports a stagehand pkg" || echo "signal stdlib-only (good)"
+# Confirm signal still imports NO stagecoach package (stdlib-only):
+grep -n 'dustin/stagecoach' internal/signal/signal.go && echo "BAD: signal imports a stagecoach pkg" || echo "signal stdlib-only (good)"
 # Confirm OnRescueExit is NOT in RestoreDefault (success path uses defer Release):
 grep -n 'OnRescueExit' internal/signal/signal.go | grep -i restore && echo "BAD: OnRescueExit in RestoreDefault" || echo "RestoreDefault clean (good)"
 ```

@@ -70,7 +70,7 @@ addresses (provider.strPtr is unexported; cross-package can't call it — but fi
 ```go
 import (
     "bytes"
-    "github.com/dustin/stagehand/internal/ui"
+    "github.com/dustin/stagecoach/internal/ui"
 )
 ...
 bin := stubtest.Build(t)
@@ -94,7 +94,7 @@ res, err := CommitStaged(context.Background(), deps, cfg)
 ```
 
 Why this is faithful: `cfg.Provider = "pi"` is exactly what the bootstrap config / `--provider pi` /
-`git config stagehand.provider pi` produce. Before the fix, Render("pi") → `--provider pi` (the
+`git config stagecoach.provider pi` produce. Before the fix, Render("pi") → `--provider pi` (the
 bug). After the fix, Render("") → falls back to DefaultProvider="openrouter" → `--provider openrouter`.
 The negative assertion `!strings.Contains(buf, "--provider pi")` is the direct regression guard.
 

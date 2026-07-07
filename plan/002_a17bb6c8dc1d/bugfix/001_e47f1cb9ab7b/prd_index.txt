@@ -5,7 +5,7 @@ h1.0 Bug Fix Requirements
  h2.2 Major Issues (Should Fix)
   h3.1 Issue 2: The stager's toolset is not actually scoped — PRD §19's "structurally constrained, cannot commit/amend/push" claim does not hold
   h3.2 Issue 3: After the arbiter runs, stdout prints stale (now-dangling) commit SHAs and omits the arbiter's new commit entirely
-  h3.3 Issue 4: config init / config upgrade / config path ignore --config and STAGEHAND_CONFIG and always operate on the global config path
+  h3.3 Issue 4: config init / config upgrade / config path ignore --config and STAGECOACH_CONFIG and always operate on the global config path
  h2.3 Minor Issues (Nice to Fix)
   h3.4 Issue 5: The bootstrap config for the default provider (pi) is not functional out-of-the-box for generation (latent; surfaces once Issue 1 is fixed)
  h2.4 Testing Summary

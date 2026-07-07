@@ -14,7 +14,7 @@ description: |
 ## Goal
 
 **Feature Goal**: Add a distinct, script-distinguishable `Busy` exit code (`5`) to the exit-code registry
-so the FR52 per-repo run-lock contention path can signal "another stagehand run holds the lock; retry"
+so the FR52 per-repo run-lock contention path can signal "another stagecoach run holds the lock; retry"
 separately from the commit-failure codes (1/3/124) — letting wrappers/CI tell "busy, retry" from "failed."
 
 **Deliverable** (one production file + its test + one doc, all surgical):
@@ -29,11 +29,11 @@ separately from the commit-failure codes (1/3/124) — letting wrappers/CI tell 
 
 ## User Persona
 
-**Target User**: (1) The S2 contributor wiring the contention path (`runDefault` will `return exitcode.New(exitcode.Busy, nil)` after printing the holder message); (2) end users / CI scripts that wrap stagehand and need to distinguish "busy, retry" from a real failure.
+**Target User**: (1) The S2 contributor wiring the contention path (`runDefault` will `return exitcode.New(exitcode.Busy, nil)` after printing the holder message); (2) end users / CI scripts that wrap stagecoach and need to distinguish "busy, retry" from a real failure.
 
-**Use Case**: A user accidentally runs stagehand twice in two terminals on the same repo. The second run finds the lock held, sees genuinely new staged work, prints "another stagehand run is already in progress (pid N on host)… re-run after it finishes," and exits **5**. The user's wrapper script sees 5 (not 1/3/124), knows it was not a failure, and can retry or surface a "busy" status.
+**Use Case**: A user accidentally runs stagecoach twice in two terminals on the same repo. The second run finds the lock held, sees genuinely new staged work, prints "another stagecoach run is already in progress (pid N on host)… re-run after it finishes," and exits **5**. The user's wrapper script sees 5 (not 1/3/124), knows it was not a failure, and can retry or surface a "busy" status.
 
-**User Journey**: second stagehand invocation → `lock.Acquire` returns `*HeldError` → `runDefault` prints the contention message → `return exitcode.New(exitcode.Busy, nil)` → `main.go`'s `exitcode.For(err)` short-circuit returns 5 → process exits 5 (no double-print, since `ExitError{Err:nil}.Error()==""`).
+**User Journey**: second stagecoach invocation → `lock.Acquire` returns `*HeldError` → `runDefault` prints the contention message → `return exitcode.New(exitcode.Busy, nil)` → `main.go`'s `exitcode.For(err)` short-circuit returns 5 → process exits 5 (no double-print, since `ExitError{Err:nil}.Error()==""`).
 
 **Pain Points Addressed**: Removes the ambiguity where a contention refusal would otherwise reuse code 1 (indistinguishable from a generation failure) — scripts can now branch on 5 = "retry later."
 
@@ -123,7 +123,7 @@ baseline is green. No inference required.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/exitcode/
     ├── exitcode.go        # EDIT TARGET: const block + (unchanged) For/ExitError/New
     └── exitcode_test.go   # EDIT TARGET: +1 TestFor row + TestBusyCodeValue
@@ -135,7 +135,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/exitcode/exitcode.go        # +Busy = 5 constant (const block); For/ExitError/New unchanged
     internal/exitcode/exitcode_test.go   # +1 TestFor row + TestBusyCodeValue
@@ -171,7 +171,7 @@ any other package, `PRD.md`, `tasks.json`, `prd_snapshot.md`, anything under `pl
 
 // GOTCHA (G4 — comment style): the const block uses inline comments that do NOT repeat the constant name
 // (Rescue = 3 // snapshot taken…, NOT // Rescue — snapshot taken…). Drop the contract's redundant
-// "Busy — " prefix; use: Busy = 5 // another stagehand run holds the per-repo lock; retry after it finishes (FR52 §18.5)
+// "Busy — " prefix; use: Busy = 5 // another stagecoach run holds the per-repo lock; retry after it finishes (FR52 §18.5)
 
 // GOTCHA (G5 — gofmt re-aligns the block): adding Busy changes the column alignment (the `=` and `//`
 // columns are gofmt-aligned across the block). Run `gofmt -w internal/exitcode/exitcode.go` after the
@@ -217,7 +217,7 @@ const (
 	Error           = 1   // general error (generation failed, parse failed, agent missing, CAS, usage/flag)
 	NothingToCommit = 2   // clean tree after auto-stage, or nothing staged with --no-auto-stage
 	Rescue          = 3   // snapshot taken, commit not created — manual recovery printed
-	Busy            = 5   // another stagehand run holds the per-repo lock; retry after it finishes (FR52 §18.5)
+	Busy            = 5   // another stagecoach run holds the per-repo lock; retry after it finishes (FR52 §18.5)
 	Timeout         = 124 // generation exceeded --timeout (mirrors GNU `timeout`)
 )
 ```
@@ -229,7 +229,7 @@ Task 1: EDIT internal/exitcode/exitcode.go — add the Busy constant
   - FILE: internal/exitcode/exitcode.go
   - LOCATE the const block (the `const (` … `)` containing Success/Error/NothingToCommit/Rescue/Timeout).
   - INSERT one line AFTER the `Rescue = 3 …` line and BEFORE the `Timeout = 124 …` line:
-        Busy            = 5   // another stagehand run holds the per-repo lock; retry after it finishes (FR52 §18.5)
+        Busy            = 5   // another stagecoach run holds the per-repo lock; retry after it finishes (FR52 §18.5)
   - COMMENT: inline, NO redundant "Busy — " prefix (match sibling style). Text exactly as above.
   - DO NOT: edit For(), ExitError, New, Error(), Unwrap(), or the package/const doc comments.
   - RUN: gofmt -w internal/exitcode/exitcode.go   (re-aligns the `=` and `//` columns)
@@ -256,7 +256,7 @@ Task 3: EDIT docs/cli.md — the table row + the contention note
   - FILE: docs/cli.md
   - EDIT 1 (table row): in the `## Exit codes` table, INSERT a new row BETWEEN the `3` (Rescue) row and
     the `124` (Timeout) row:
-        | `5` | Busy — another stagehand run holds the per-repo lock; retry after it finishes. |
+        | `5` | Busy — another stagecoach run holds the per-repo lock; retry after it finishes. |
   - EDIT 2 (note): AFTER the existing explanatory paragraph that begins "Exit codes mirror the constants
     in `internal/exitcode/exitcode.go`." (line ~376), ADD a new paragraph:
         Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from
@@ -264,7 +264,7 @@ Task 3: EDIT docs/cli.md — the table row + the contention note
         staged changes are already covered by the in-progress run's published snapshot, it exits **0**
         ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work
         is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a
-        re-run. Stagehand never force-breaks the lock.
+        re-run. Stagecoach never force-breaks the lock.
   - DO NOT: reorder the existing table rows; do NOT edit other sections of docs/cli.md.
 
 Task 4: VALIDATE (run all gates; all must pass before declaring done)
@@ -294,7 +294,7 @@ Task 4: VALIDATE (run all gates; all must pass before declaring done)
 // === Why the comment drops the "Busy — " prefix ===
 // The 5 sibling constants all use inline comments that describe the constant WITHOUT restating its name:
 //   Rescue = 3 // snapshot taken, commit not created — manual recovery printed
-// Mirror that: Busy = 5 // another stagehand run holds the per-repo lock; retry after it finishes (FR52 §18.5)
+// Mirror that: Busy = 5 // another stagecoach run holds the per-repo lock; retry after it finishes (FR52 §18.5)
 // (The contract's "Busy — …" wording was prose narration, not the literal comment text.)
 
 // === Why a value-pin test (Busy == 5) ===
@@ -331,7 +331,7 @@ NO-TOUCH (explicitly — owned by sibling subtasks):
 
 DOWNSTREAM HOOKS (informational — owned by the SIBLING S2, NOT this task):
   - S2 wires runDefault: lock.Acquire → on *HeldError, print message + return exitcode.New(exitcode.Busy, nil)
-  - S2's E2E asserts the stagehand subprocess exits 5 on a held lock (distinct from 1/3/124)
+  - S2's E2E asserts the stagecoach subprocess exits 5 on a held lock (distinct from 1/3/124)
 ```
 
 ## Validation Loop
@@ -339,7 +339,7 @@ DOWNSTREAM HOOKS (informational — owned by the SIBLING S2, NOT this task):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/exitcode/         # Expected: empty (run gofmt -w if listed — it re-aligns the const block)
 go vet ./internal/exitcode/...      # Expected: exit 0
@@ -351,7 +351,7 @@ go build ./...                      # Expected: exit 0 (adding an unused constan
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Targeted: the new + existing exitcode tests
 go test -race ./internal/exitcode/ -v -run 'TestFor|TestBusyCodeValue|TestExitError_NilErr'
@@ -366,7 +366,7 @@ go test -race ./internal/exitcode/ -v
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...                  # Expected: ALL packages green (only exitcode + docs/cli.md changed)
 go vet ./...                         # Expected: exit 0
@@ -383,12 +383,12 @@ git diff --stat -- internal/lock/ internal/cmd/ internal/generate/ internal/deco
 ### Level 4: Behavioral Cross-Check (prove the short-circuit + the value)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Throwaway main: proves For(New(Busy,nil))==5 (the exact S2 contention path) end-to-end.
 cat > /tmp/sh_busy_check.go <<'EOF'
 package main
-import ("fmt";"github.com/dustin/stagehand/internal/exitcode")
+import ("fmt";"github.com/dustin/stagecoach/internal/exitcode")
 func main() {
   code := exitcode.For(exitcode.New(exitcode.Busy, nil))
   fmt.Printf("For(New(Busy,nil)) = %d (Busy=%d)\n", code, exitcode.Busy)

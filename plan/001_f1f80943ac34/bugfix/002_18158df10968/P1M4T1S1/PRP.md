@@ -8,7 +8,7 @@
 
 ## Goal
 
-**Feature Goal**: Special-case `--dry-run` generation failures in the CLI's `handleGenError` so a dry-run timeout or parse/dedupe-exhaustion (rescue) exits **1** with a **short, single-line stderr message** and **NO manual `git commit-tree` recovery recipe** — instead of exit 124/3 + the full rescue block. The library API (`pkg/stagehand`) is **unchanged**: it still returns `*generate.RescueError`; only the CLI rendering wraps a dry-run failure to exit 1.
+**Feature Goal**: Special-case `--dry-run` generation failures in the CLI's `handleGenError` so a dry-run timeout or parse/dedupe-exhaustion (rescue) exits **1** with a **short, single-line stderr message** and **NO manual `git commit-tree` recovery recipe** — instead of exit 124/3 + the full rescue block. The library API (`pkg/stagecoach`) is **unchanged**: it still returns `*generate.RescueError`; only the CLI rendering wraps a dry-run failure to exit 1.
 
 **Deliverable**:
 1. **Code** (~7 lines): one new branch at the **TOP** of `internal/cmd/default_action.go::handleGenError`, before the existing `errors.As(err, &re)` block. It reads the package var `flagDryRun` directly (same package; no signature/import change).
@@ -16,24 +16,24 @@
 3. **Docs (Mode A)**: `docs/cli.md` — the `--dry-run` Global-flags row (line ~26) and the "Exit codes" table/section (line ~76) note that a dry-run generation failure exits 1 with a short message (not 3/124 + a recovery recipe).
 
 **Success Definition**:
-- `go build ./...`, `go vet ./...`, `go test -race ./internal/cmd/... ./pkg/stagehand/...`, `go test -race ./...`, `make lint` all green.
-- `stagehand --dry-run` against a timeout stub → exit 1 + stderr `generation timed out; run without --dry-run to see the recovery recipe` + NO `git commit-tree` recipe.
-- `stagehand --dry-run` against an unparseable/blank stub (parse/dedupe exhaustion) → exit 1 + stderr `could not generate a commit message; run without --dry-run to see retries and the recovery recipe` + NO recipe.
-- The **commit-path** CLI tests (`TestRunDefault_Rescue` → exit 3; `TestRunDefault_Timeout` → exit 124) and the **library** test (`pkg/stagehand` `TestGenerateCommit_Timeout` "dryrun" → library returns `*RescueError{Kind:ErrTimeout}`, `exitcode.For == 124`) are **unchanged and still pass**.
+- `go build ./...`, `go vet ./...`, `go test -race ./internal/cmd/... ./pkg/stagecoach/...`, `go test -race ./...`, `make lint` all green.
+- `stagecoach --dry-run` against a timeout stub → exit 1 + stderr `generation timed out; run without --dry-run to see the recovery recipe` + NO `git commit-tree` recipe.
+- `stagecoach --dry-run` against an unparseable/blank stub (parse/dedupe exhaustion) → exit 1 + stderr `could not generate a commit message; run without --dry-run to see retries and the recovery recipe` + NO recipe.
+- The **commit-path** CLI tests (`TestRunDefault_Rescue` → exit 3; `TestRunDefault_Timeout` → exit 124) and the **library** test (`pkg/stagecoach` `TestGenerateCommit_Timeout` "dryrun" → library returns `*RescueError{Kind:ErrTimeout}`, `exitcode.For == 124`) are **unchanged and still pass**.
 
 ## Why
 
-- **User impact**: `--dry-run` is the "preview a message before trusting it" command (US9). On generation failure, a user reasonably expects either a message or a clear "couldn't generate" outcome — not a non-zero exit with a multi-line `git commit-tree … | xargs git update-ref` recovery recipe for a commit that was never going to happen. A script doing `msg=$(stagehand --dry-run)` currently gets a non-zero exit + no message + a confusing recipe.
+- **User impact**: `--dry-run` is the "preview a message before trusting it" command (US9). On generation failure, a user reasonably expects either a message or a clear "couldn't generate" outcome — not a non-zero exit with a multi-line `git commit-tree … | xargs git update-ref` recovery recipe for a commit that was never going to happen. A script doing `msg=$(stagecoach --dry-run)` currently gets a non-zero exit + no message + a confusing recipe.
 - **Consistent with FR49**: dry-run already (correctly, per bugfix-001) runs the full pipeline incl. the snapshot. That means a dry-run failure legitimately surfaces a `*RescueError` from the library. The CLI is the right place to translate that into a dry-run-appropriate *outcome* (exit 1, no recipe) without perturbing the library's stable, well-tested contract.
 - **Minimal blast radius**: a single CLI function + package-var read. The library, the registry, the parser, and the config loaders are untouched.
 
 ## What
 
 ### User-visible behavior (after fix)
-- `stagehand --dry-run` (timeout) → exit 1; stderr single line `generation timed out; run without --dry-run to see the recovery recipe`; no recipe.
-- `stagehand --dry-run` (parse/dedupe exhaustion / rescue) → exit 1; stderr single line `could not generate a commit message; run without --dry-run to see retries and the recovery recipe`; no recipe.
-- `stagehand --dry-run` (success) → exit 0 + message on stdout (unchanged).
-- `stagehand` (no `--dry-run`) timeout/rescue → exit 124/3 + full rescue recipe (unchanged).
+- `stagecoach --dry-run` (timeout) → exit 1; stderr single line `generation timed out; run without --dry-run to see the recovery recipe`; no recipe.
+- `stagecoach --dry-run` (parse/dedupe exhaustion / rescue) → exit 1; stderr single line `could not generate a commit message; run without --dry-run to see retries and the recovery recipe`; no recipe.
+- `stagecoach --dry-run` (success) → exit 0 + message on stdout (unchanged).
+- `stagecoach` (no `--dry-run`) timeout/rescue → exit 124/3 + full rescue recipe (unchanged).
 - Dry-run CAS / nothing-to-commit / generic errors → exit 1/2 as before (the new branch intercepts ONLY `*generate.RescueError`).
 
 ### Success Criteria
@@ -83,7 +83,7 @@
 - file: internal/generate/generate.go
   lines: 54 (var ErrTimeout); 59 (var ErrRescue); 76-93 (type RescueError{Kind error; ...}; Unwrap returns Kind)
   why: errors.As(err, &*generate.RescueError) matches BOTH timeout and rescue. errors.Is(err, generate.ErrTimeout)
-       discriminates (RescueError.Unwrap() returns e.Kind). pkg/stagehand.runPipeline returns
+       discriminates (RescueError.Unwrap() returns e.Kind). pkg/stagecoach.runPipeline returns
        *RescueError{Kind:ErrTimeout|ErrRescue} on dry-run failures — unchanged by this task.
 
 # exitcode values (confirmed)
@@ -96,16 +96,16 @@
 - file: internal/cmd/default_action_test.go
   lines: 268-308 (TestRunDefault_DryRun — the rootCmd.SetArgs({...,--dry-run}) + saveRootState/restoreRootState
          + Execute(ctx) pattern); 504-541 (TestRunDefault_Rescue — setupStubRepoRaw + [generation]
-         max_duplicate_retries=0 + STAGEHAND_STUB_OUT="" → exit 3); 563-595 (TestRunDefault_Timeout —
+         max_duplicate_retries=0 + STAGECOACH_STUB_OUT="" → exit 3); 563-595 (TestRunDefault_Timeout —
          setupStubRepoWithTimeout(t, out, sleepMs, timeout) → exit 124)
   why: Copy the save/restore bracket + buffer setup verbatim. For the dry-run TIMEOUT test reuse
        setupStubRepoWithTimeout(t, "feat: slow", 2000, 150*time.Millisecond). For the dry-run RESCUE test
-       reuse setupStubRepoRaw + max_duplicate_retries=0 + STAGEHAND_STUB_OUT="".
+       reuse setupStubRepoRaw + max_duplicate_retries=0 + STAGECOACH_STUB_OUT="".
   pattern: assert exitcode.For(err) == exitcode.Error (1); assert stderr CONTAINS the short message;
            assert stderr does NOT contain "git commit-tree" (no recipe); assert HEAD unchanged.
 
 # The library regression guard — DO NOT MODIFY
-- file: pkg/stagehand/stagehand_test.go
+- file: pkg/stagecoach/stagecoach_test.go
   lines: ~296-362 (TestGenerateCommit_Timeout "dryrun" subtest)
   why: Asserts the LIBRARY returns *RescueError{Kind:ErrTimeout} and exitcode.For(err)==Timeout(124).
        Still holds: the library is unchanged; only the CLI wraps to exit 1. Leave this test alone.
@@ -129,9 +129,9 @@ internal/generate/
   generate.go             # ErrTimeout (54), ErrRescue (59), RescueError (76) — read, NOT modified
 internal/exitcode/
   exitcode.go             # Error=1, Rescue=3, Timeout=124, New(code,err) — read, NOT modified
-pkg/stagehand/
-  stagehand.go            # runPipeline returns *RescueError on dry-run failure — NOT modified
-  stagehand_test.go       # TestGenerateCommit_Timeout "dryrun" — NOT modified (library contract)
+pkg/stagecoach/
+  stagecoach.go            # runPipeline returns *RescueError on dry-run failure — NOT modified
+  stagecoach_test.go       # TestGenerateCommit_Timeout "dryrun" — NOT modified (library contract)
 docs/
   cli.md                  # Mode A doc edits (Global flags + Exit codes)
 ```
@@ -157,9 +157,9 @@ docs/cli.md                          # Mode A: --dry-run row + Exit codes note
 
 // CRITICAL — return exitcode.New(exitcode.Error, nil) — the `nil` err makes it SILENT (main prints
 // nothing extra), because the short message is ALREADY on stderr via fmt.Fprintln. Passing the err
-// instead would make main double-print "stagehand: <...>".
+// instead would make main double-print "stagecoach: <...>".
 
-// CRITICAL — DO NOT modify pkg/stagehand or its TestGenerateCommit_Timeout "dryrun" subtest. The
+// CRITICAL — DO NOT modify pkg/stagecoach or its TestGenerateCommit_Timeout "dryrun" subtest. The
 // library intentionally returns *RescueError (FR49 full pipeline). Only the CLI translates it.
 
 // GOTCHA — RescueError.Unwrap() returns e.Kind (ErrTimeout|ErrRescue), so errors.Is(err, generate.ErrTimeout)
@@ -203,7 +203,7 @@ Task 1: MODIFY internal/cmd/default_action.go :: handleGenError (the branch)
             `fmt.Fprintln(stderr, msg)`; `return exitcode.New(exitcode.Error, nil)`.
   - NO new imports: errors, fmt, io, generate, exitcode are all already imported by default_action.go.
   - DO NOT: change handleGenError's signature (stderr io.Writer, err error) error; touch the existing
-            rescue/CAS/nothing/generic branches; modify pkg/stagehand or any library code.
+            rescue/CAS/nothing/generic branches; modify pkg/stagecoach or any library code.
   - VERIFY after: `go build ./...` && `go vet ./...` (types already line up — flagDryRun is a package
             var; generate.ErrTimeout/generate.RescueError are exported; exitcode.Error/New exist).
 
@@ -223,7 +223,7 @@ Task 2: ADD two CLI tests in internal/cmd/default_action_test.go
       * Bracket as above.
       * `bin := stubtest.Build(t)`; `repo := setupStubRepoRaw(t, fmt.Sprintf([provider.stub] ... [generation]
         max_duplicate_retries = 0, bin))` (mirror TestRunDefault_Rescue's toml exactly).
-      * commit the config, add+stage z.txt. `t.Setenv("STAGEHAND_STUB_OUT", "")` (blank → unparseable).
+      * commit the config, add+stage z.txt. `t.Setenv("STAGECOACH_STUB_OUT", "")` (blank → unparseable).
       * SetArgs `{"--provider","stub","--dry-run"}`.
       * assert `exitcode.For(err) == exitcode.Error` (1) (NOT Rescue=3).
       * assert stderr CONTAINS "could not generate a commit message; run without --dry-run".
@@ -232,7 +232,7 @@ Task 2: ADD two CLI tests in internal/cmd/default_action_test.go
   - FOLLOW pattern: TestRunDefault_DryRun (268) for the SetArgs/save-restore/Execute structure;
             TestRunDefault_Timeout (563) for setupStubRepoWithTimeout; TestRunDefault_Rescue (504)
             for the rescue toml + blank stub.
-  - DO NOT: modify TestRunDefault_Rescue (504), TestRunDefault_Timeout (563), or pkg/stagehand
+  - DO NOT: modify TestRunDefault_Rescue (504), TestRunDefault_Timeout (563), or pkg/stagecoach
             TestGenerateCommit_Timeout "dryrun" — they are regression guards.
 
 Task 3: MODIFY docs/cli.md (Mode A)
@@ -274,12 +274,12 @@ CODE:
     function: handleGenError
     change: "+~16-line block (comment + 7 LOC logic) at the top of the body"
     risk: ADDITIVE only on the dry-run path. Non-dry-run rescue/timeout/CAS/nothing/generic behavior is
-          byte-for-byte unchanged. The library (pkg/stagehand) is untouched.
+          byte-for-byte unchanged. The library (pkg/stagecoach) is untouched.
 
 TESTS:
   - file: internal/cmd/default_action_test.go
     change: "+2 tests (TestRunDefault_DryRun_Timeout_Exit1, TestRunDefault_DryRun_Rescue_Exit1)"
-    guards: TestRunDefault_Rescue (504), TestRunDefault_Timeout (563), pkg/stagehand
+    guards: TestRunDefault_Rescue (504), TestRunDefault_Timeout (563), pkg/stagecoach
             TestGenerateCommit_Timeout "dryrun" (~296-362) stay GREEN UNCHANGED.
 
 NO DATABASE / NO NEW CONFIG KEYS / NO NEW ROUTES / NO NEW DEPENDENCIES / NO LIBRARY CHANGES.
@@ -305,10 +305,10 @@ go test -race ./internal/cmd/ -run 'TestRunDefault_DryRun_(Timeout|Rescue)_Exit1
 # Expected: both PASS (exit 1 + short msg + no recipe + HEAD unchanged).
 
 # Targeted regression gate (the binding contract gate):
-go test -race ./internal/cmd/... ./pkg/stagehand/...
+go test -race ./internal/cmd/... ./pkg/stagecoach/...
 # Expected: ALL green, INCLUDING unchanged:
 #   - internal/cmd TestRunDefault_Rescue (exit 3) and TestRunDefault_Timeout (exit 124)
-#   - pkg/stagehand TestGenerateCommit_Timeout "dryrun" (library returns *RescueError → exitcode.For==124)
+#   - pkg/stagecoach TestGenerateCommit_Timeout "dryrun" (library returns *RescueError → exitcode.For==124)
 
 # Full suite (Makefile `test`):
 go test -race ./...
@@ -319,13 +319,13 @@ go test -race ./...
 ### Level 3: Integration / End-to-End Smoke (manual proof)
 
 ```bash
-go build -o bin/stagehand ./cmd/stagehand
+go build -o bin/stagecoach ./cmd/stagecoach
 go build -o bin/stubagent ./cmd/stubagent   # if a build target exists; else `go build ./cmd/stubagent`
 
 tmp=$(mktemp -d) && cd "$tmp"
 git init -q && git config user.email t@t && git config user.name t
 # Stub provider config (point command at the built stubagent; mirror providers/ stub manifests):
-cat > .stagehand.toml <<'EOF'
+cat > .stagecoach.toml <<'EOF'
 [provider.stub]
 command = "<abs path to bin/stubagent>"
 prompt_delivery = "stdin"
@@ -338,17 +338,17 @@ echo a > a.txt && git add a.txt && git commit -qm init
 
 # CASE A — dry-run timeout (stub sleeps past 1s):
 echo b > b.txt && git add b.txt
-STAGEHAND_STUB_SLEEP_MS=5000 ./bin/stagehand --provider stub --dry-run
+STAGECOACH_STUB_SLEEP_MS=5000 ./bin/stagecoach --provider stub --dry-run
 echo "exit=$?"
 # Expected: exit=1, stderr "...generation timed out; run without --dry-run...", NO "git commit-tree" line.
 
 # CASE B — dry-run rescue (blank/unparseable stub):
-STAGEHAND_STUB_OUT="" STAGEHAND_STUB_SLEEP_MS=0 ./bin/stagehand --provider stub --dry-run
+STAGECOACH_STUB_OUT="" STAGECOACH_STUB_SLEEP_MS=0 ./bin/stagecoach --provider stub --dry-run
 echo "exit=$?"
 # Expected: exit=1, stderr "...could not generate a commit message; run without --dry-run...", NO recipe.
 
 # CASE C — regression: NON-dry-run timeout still exits 124 + recipe:
-STAGEHAND_STUB_SLEEP_MS=5000 ./bin/stagehand --provider stub
+STAGECOACH_STUB_SLEEP_MS=5000 ./bin/stagecoach --provider stub
 echo "exit=$?"   # Expected: 124 + stderr contains "git commit-tree" recovery recipe.
 
 cd - && rm -rf "$tmp"
@@ -358,8 +358,8 @@ cd - && rm -rf "$tmp"
 
 ```bash
 # The --dry-run row + Exit codes section read correctly:
-go build -o /tmp/stagehand ./cmd/stagehand
-/tmp/stagehand --help | grep -A1 "dry-run"   # confirm the flag help is sensible (help text unchanged)
+go build -o /tmp/stagecoach ./cmd/stagecoach
+/tmp/stagecoach --help | grep -A1 "dry-run"   # confirm the flag help is sensible (help text unchanged)
 # Markdown lint (repo has .markdownlint.json) — advisory:
 npx --yes markdownlint-cli docs/cli.md 2>/dev/null || true
 ```
@@ -369,7 +369,7 @@ npx --yes markdownlint-cli docs/cli.md 2>/dev/null || true
 ### Technical Validation
 - [ ] `go build ./...` clean.
 - [ ] `go vet ./...` clean.
-- [ ] `go test -race ./internal/cmd/... ./pkg/stagehand/...` green (incl. the two new tests + the 3 regression guards).
+- [ ] `go test -race ./internal/cmd/... ./pkg/stagecoach/...` green (incl. the two new tests + the 3 regression guards).
 - [ ] `go test -race ./...` green.
 - [ ] `make lint` — zero findings.
 
@@ -387,15 +387,15 @@ npx --yes markdownlint-cli docs/cli.md 2>/dev/null || true
 
 ### Documentation & Boundaries
 - [ ] Mode A docs (cli.md) shipped here (S1); P1.M5.T1 (Mode B sweep: README.md + how-it-works.md) runs last and reconciles against these.
-- [ ] Library `pkg/stagehand` + `TestGenerateCommit_Timeout "dryrun"` explicitly UNCHANGED (the library contract is a regression guard, not a deliverable).
+- [ ] Library `pkg/stagecoach` + `TestGenerateCommit_Timeout "dryrun"` explicitly UNCHANGED (the library contract is a regression guard, not a deliverable).
 
 ---
 
 ## Anti-Patterns to Avoid
 
 - ❌ Don't place the branch AFTER the existing `errors.As(err, &re)` block — the dry-run failure would be consumed by the rescue branch first (recipe + exit 3/124).
-- ❌ Don't `return exitcode.New(exitcode.Error, err)` — that makes main double-print `stagehand: <...>`; use `nil` (silent) since the short message is already on stderr.
-- ❌ Don't modify `pkg/stagehand` or its `TestGenerateCommit_Timeout` "dryrun" subtest — the library intentionally returns `*RescueError` (FR49 full pipeline); only the CLI translates it to exit 1.
+- ❌ Don't `return exitcode.New(exitcode.Error, err)` — that makes main double-print `stagecoach: <...>`; use `nil` (silent) since the short message is already on stderr.
+- ❌ Don't modify `pkg/stagecoach` or its `TestGenerateCommit_Timeout` "dryrun" subtest — the library intentionally returns `*RescueError` (FR49 full pipeline); only the CLI translates it to exit 1.
 - ❌ Don't modify `TestRunDefault_Rescue` (504) or `TestRunDefault_Timeout` (563) — they are the commit-path regression guards and stay exit 3 / 124.
 - ❌ Don't intercept dry-run CAS / nothing-to-commit / generic errors — they already exit 1/2 correctly; only `*generate.RescueError` needs the dry-run special-case.
 - ❌ Don't change `handleGenError`'s signature or add a new parameter/import — `flagDryRun` is a same-package var, read directly.

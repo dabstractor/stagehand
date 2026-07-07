@@ -2,37 +2,37 @@
 name: "P1.M4.T1.S1 — Root command, global flags, and custom exit-code wiring (cobra) — PRD §15.2 / §15.4 / §21.1"
 description: |
 
-  Build the cobra CLI scaffold for Stagehand: the ROOT command (PRD §15.1), ALL §15.2 global flags,
+  Build the cobra CLI scaffold for Stagecoach: the ROOT command (PRD §15.1), ALL §15.2 global flags,
   a `PersistentPreRunE` that loads the fully-resolved config via `config.Load()` (skipping for the
   future `config init`/`config path` + auto-skipped help/version), a new `internal/exitcode` package
-  that maps any error to a PRD §15.4 exit code (0/1/2/3/124), and a real `cmd/stagehand/main.go`
+  that maps any error to a PRD §15.4 exit code (0/1/2/3/124), and a real `cmd/stagecoach/main.go`
   that wires Execute → `exitcode.For` → `os.Exit` + declares `var version string` (the Makefile's
   `-ldflags -X main.version=…` target). Add `github.com/spf13/cobra` to go.mod.
 
-  The default-action BODY (auto-stage-all → `stagehand.GenerateCommit` → report) and the
+  The default-action BODY (auto-stage-all → `stagecoach.GenerateCommit` → report) and the
   `providers`/`config` SUBCOMMANDS land in S2/S3/S4 respectively; signal handling in P1.M4.T2;
   UI/color/verbose in P1.M4.T3; the `--dry-run` RunE in P1.M4.T4. S1 ships the SCAFFOLD they hang
   on: a binary that parses every global flag, loads config once, prints help by default, prints
   `--version`, and exits with the correct code on any error.
 
   DELIVERABLES (NEW files + targeted edits; nothing under `internal/{config,generate,git,prompt,
-  provider}` or `pkg/stagehand` is touched):
+  provider}` or `pkg/stagecoach` is touched):
     1. CREATE `internal/exitcode/exitcode.go`      — ExitError + New + For + §15.4 constants.
     2. CREATE `internal/exitcode/exitcode_test.go` — For() mapping matrix (all §15.4 codes).
     3. CREATE `internal/cmd/root.go`               — rootCmd + all §15.2 persistent flags +
        PersistentPreRunE (config load + skip) + Execute(ctx) + Version/config store + stub RunE.
     4. CREATE `internal/cmd/root_test.go`          — flag registration, --version, config loading
        through cobra (precedence), SilenceErrors.
-    5. REWRITE `cmd/stagehand/main.go`             — `var version string`; ctx; cmd.Execute(ctx);
+    5. REWRITE `cmd/stagecoach/main.go`             — `var version string`; ctx; cmd.Execute(ctx);
        exitcode.For; os.Exit; baseline error print.
     6. MODIFY `go.mod`/`go.sum`                    — add `github.com/spf13/cobra`.
 
   CONTRACT (PRD §15.2 — every global flag below MUST exist on root, persistent, inheriting to all
   subcommands; §15.4 — the 5 exit codes; §21.1 — `make build` injects version):
-    - `--provider <name>` (env `STAGEHAND_PROVIDER`, git `stagehand.provider`, default auto-detected)
-    - `--model <name>`    (env `STAGEHAND_MODEL`,    git `stagehand.model`,    default manifest `default_model`)
-    - `--config <path>`   (env `STAGEHAND_CONFIG`,   no git, default resolved path) → `LoadOpts.ConfigPathOverride`
-    - `--timeout <dur>`   (env `STAGEHAND_TIMEOUT`,  git `stagehand.timeout`,  default 120s)  [STRING flag]
+    - `--provider <name>` (env `STAGECOACH_PROVIDER`, git `stagecoach.provider`, default auto-detected)
+    - `--model <name>`    (env `STAGECOACH_MODEL`,    git `stagecoach.model`,    default manifest `default_model`)
+    - `--config <path>`   (env `STAGECOACH_CONFIG`,   no git, default resolved path) → `LoadOpts.ConfigPathOverride`
+    - `--timeout <dur>`   (env `STAGECOACH_TIMEOUT`,  git `stagecoach.timeout`,  default 120s)  [STRING flag]
     - `--all`, `-a`; `--no-auto-stage`; `--dry-run`; `--verbose`, `-v`; `--no-color`; `--version`; `--help`, `-h`
     Config-backed flags (provider/model/config/timeout/verbose/no-color) are registered with ZERO
     defaults; `config.Load` applies the real precedence via `fs.Changed` (Layer 7). Behavioral flags
@@ -59,7 +59,7 @@ description: |
   flags via `fs.Changed`+`fs.GetString("timeout")`; timeout is a STRING flag, FINDING 7).
   `generate.ErrNothingToCommit`/`ErrTimeout`/`ErrRescue`/`ErrCASFailed` + `*generate.RescueError`
   (Unwrap→Kind) + `*generate.CASError` (Unwrap→git.ErrCASFailed) (internal/generate, P1.M3.T4.S2 —
-  drives exitcode.For's mapping). `pkg/stagehand.GenerateCommit` (P1.M3.T5.S1, parallel — the seam
+  drives exitcode.For's mapping). `pkg/stagecoach.GenerateCommit` (P1.M3.T5.S1, parallel — the seam
   S2 will call; S1 does not import it). `Makefile` (`-X main.version=$(VERSION)` already wired).
 
   OUTPUT (downstream consumers): S2 sets `rootCmd.RunE` to the default action and reads
@@ -76,13 +76,13 @@ description: |
   those. The only explicit skip needed is `cmd.Name()=="init"||cmd.Name()=="path"` (for S4). (design §5/§6)
 
   Deliverable: 4 NEW files + rewritten main.go + go.mod/go.sum. `make build` produces
-  `./bin/stagehand` that parses flags, loads config, prints `--version`, and exits with §15.4 codes.
+  `./bin/stagecoach` that parses flags, loads config, prints `--version`, and exits with §15.4 codes.
 
 ---
 
 ## Goal
 
-**Feature Goal**: Ship Stagehand's cobra CLI foundation (PRD §15.1/§15.2/§15.4/§21.1): a root command
+**Feature Goal**: Ship Stagecoach's cobra CLI foundation (PRD §15.1/§15.2/§15.4/§21.1): a root command
 holding all eleven §15.2 global flags (persistent, inherited by every future subcommand), a
 `PersistentPreRunE` that resolves config exactly once via the existing `config.Load()` 7-layer
 precedence, a centralized `internal/exitcode` package mapping any error to the precise PRD §15.4
@@ -92,7 +92,7 @@ This is the scaffold the default action (S2), subcommands (S3/S4), signals (P1.M
 and dry-run (P1.M4.T4) hang on.
 
 **Deliverable** (4 NEW files + rewritten main.go + go.mod/go.sum; NO edits under internal/{config,
-generate,git,prompt,provider} or pkg/stagehand):
+generate,git,prompt,provider} or pkg/stagecoach):
 1. `internal/exitcode/exitcode.go` — `package exitcode`. `type ExitError{Code; Err}`, `func New(code,
    err) *ExitError`, `func For(err) int` (full §15.4 matrix), constants `Success/Error/
    NothingToCommit/Rescue/Timeout`.
@@ -102,31 +102,31 @@ generate,git,prompt,provider} or pkg/stagehand):
    `func Execute(ctx) error`, `var Version string`, config store + `Config()` accessor, stub RunE.
 4. `internal/cmd/root_test.go` — `package cmd`. Flag registration/defaults, `--version` output,
    config loading through cobra (Layer precedence), `SilenceErrors` behavior. Own git/CWD helpers.
-5. `cmd/stagehand/main.go` — `package main`. `var version string`; `ctx := context.Background()`;
+5. `cmd/stagecoach/main.go` — `package main`. `var version string`; `ctx := context.Background()`;
    `cmd.Version = version`; `err := cmd.Execute(ctx)`; `os.Exit(exitcode.For(err))`; baseline stderr
    error print.
 6. `go.mod`/`go.sum` — `go get github.com/spf13/cobra@latest` (+ transitive deps in go.sum).
 
-**Success Definition**: `make build` → `./bin/stagehand`; `./bin/stagehand --version` prints the
-version; `./bin/stagehand --help` lists ALL §15.2 flags with descriptions matching PRD §15.2/FR35;
-`./bin/stagehand` (inside a git repo) loads config and prints help (stub RunE); any error returns
+**Success Definition**: `make build` → `./bin/stagecoach`; `./bin/stagecoach --version` prints the
+version; `./bin/stagecoach --help` lists ALL §15.2 flags with descriptions matching PRD §15.2/FR35;
+`./bin/stagecoach` (inside a git repo) loads config and prints help (stub RunE); any error returns
 the correct §15.4 code via `exitcode.For`. `go test -race ./internal/exitcode/ ./internal/cmd/`
 green; `go test -race ./...` shows NO regression; `go vet ./...` clean; `gofmt -l` empty; only
 go.mod/go.sum + the listed files changed.
 
 ## User Persona
 
-**Target User**: The Stagehand CLI user (PRD §7 primary persona "the plan-holder") who runs
-`stagehand` at the terminal, and transitively lazygit/CI integrators who invoke `stagehand`
+**Target User**: The Stagecoach CLI user (PRD §7 primary persona "the plan-holder") who runs
+`stagecoach` at the terminal, and transitively lazygit/CI integrators who invoke `stagecoach`
 non-interactively (PRD §15.5 lazygit example). For S1 specifically: a user who can already run the
 binary, see the complete global-flag help surface, set any flag/env/git-config, get `--version`,
 and observe correct exit codes — even though the default commit action is a stub until S2.
 
-**Use Case**: `stagehand --version` (release sanity); `stagehand --help` (discover flags); `stagehand
+**Use Case**: `stagecoach --version` (release sanity); `stagecoach --help` (discover flags); `stagecoach
 --provider claude --model sonnet --dry-run` (flags parse + config resolves; the action body is S2/S4);
-`stagehand` with a broken config file exits `1` with a clear message.
+`stagecoach` with a broken config file exits `1` with a clear message.
 
-**User Journey**: user runs `stagehand [<flags>]` → cobra parses flags → `PersistentPreRunE` resolves
+**User Journey**: user runs `stagecoach [<flags>]` → cobra parses flags → `PersistentPreRunE` resolves
 config (defaults→file→git→env→flags) → (stub) RunE runs → main maps any error to a §15.4 exit code.
 For `--version`/`--help`, cobra short-circuits before config load and exits 0.
 
@@ -141,7 +141,7 @@ pre-run.
   + one config-load path + exit-code wiring. Shipping it first means S2/S3/S4 are thin additions
   (`rootCmd.RunE = …`, `rootCmd.AddCommand(…)`).
 - **Closes the "CLI owns exit codes" loop (PRD §15.4).** The pipeline (`generate.CommitStaged` /
-  `pkg/stagehand.GenerateCommit`) returns typed errors; the CLI is the ONLY layer that may call
+  `pkg/stagecoach.GenerateCommit`) returns typed errors; the CLI is the ONLY layer that may call
   `os.Exit`. `exitcode.For` centralizes that mapping so it can't drift across commands.
 - **Honors the build contract (§21.1).** `make build` already passes `-X main.version=$(VERSION)`; it
   is a silent no-op until `main.go` declares `var version string`. S1 is the natural owner of main.go.
@@ -162,13 +162,13 @@ no verbose output; no commit; no subcommand bodies.
 ### Success Criteria
 
 - [ ] `internal/exitcode/exitcode.go` exists, `package exitcode`, imports `errors`+`context`+
-      `github.com/dustin/stagehand/internal/generate` ONLY. Exports `ExitError`, `New`, `For`,
+      `github.com/dustin/stagecoach/internal/generate` ONLY. Exports `ExitError`, `New`, `For`,
       `Success`, `Error`, `NothingToCommit`, `Rescue`, `Timeout`. Has a `// Package exitcode …` doc.
 - [ ] `For(nil)==0`; `For(ExitError{Code:2,…})==2`; `For(generate.ErrNothingToCommit)==2`;
       `For(&generate.RescueError{Kind:ErrRescue})==3`; `For(&generate.RescueError{Kind:ErrTimeout})==124`;
       `For(context.DeadlineExceeded)==124`; `For(generate.ErrCASFailed)==1`; `For(errors.New("x"))==1`.
 - [ ] `internal/cmd/root.go` exists, `package cmd`, imports `cobra`+`pflag`+`context`+`fmt`+`os`+
-      `github.com/dustin/stagehand/internal/{config,exitcode}`. `rootCmd` has `SilenceErrors`+
+      `github.com/dustin/stagecoach/internal/{config,exitcode}`. `rootCmd` has `SilenceErrors`+
       `SilenceUsage` true. ALL eleven §15.2 flags exist on `rootCmd.PersistentFlags()` with the exact
       names + shorthands from §15.2 (`-a` for all, `-v` for verbose, `-h` help built-in).
 - [ ] `PersistentPreRunE` calls `config.Load` with `ConfigPathOverride=flagConfig`,
@@ -176,8 +176,8 @@ no verbose output; no commit; no subcommand bodies.
       `cmd.Name()=="init"||cmd.Name()=="path"`. On `config.Load` error returns
       `exitcode.New(exitcode.Error, fmt.Errorf("config: %w", err))`.
 - [ ] `--version` prints the version (cobra `Version` field) and exits 0 WITHOUT loading config.
-- [ ] `cmd/stagehand/main.go` declares `var version string`, sets `cmd.Version = version`, calls
-      `cmd.Execute(ctx)`, and `os.Exit(exitcode.For(err))`. Prints `stagehand: <err>\n` to stderr for
+- [ ] `cmd/stagecoach/main.go` declares `var version string`, sets `cmd.Version = version`, calls
+      `cmd.Execute(ctx)`, and `os.Exit(exitcode.For(err))`. Prints `stagecoach: <err>\n` to stderr for
       a non-empty error.
 - [ ] `go.mod` adds `github.com/spf13/cobra`; `go build ./...` + `make build` succeed;
       `go test -race ./...` green; `go vet ./...` clean; `gofmt -l` empty; only listed files changed.
@@ -226,7 +226,7 @@ default-action/signal/UI/subcommand knowledge required.
        + `func parseTimeout(s string) (time.Duration, error)`.
   why: PersistentPreRunE calls `config.Load(ctx, config.LoadOpts{ConfigPathOverride: flagConfig,
        RepoDir: repoDir, Flags: cmd.Flags()})`. Path resolution is INSIDE Load (--config >
-       STAGEHAND_CONFIG > discovery) — the CLI only forwards the --config string. loadFlags reads ONLY
+       STAGECOACH_CONFIG > discovery) — the CLI only forwards the --config string. loadFlags reads ONLY
        flags where `fs.Changed(name)` via `fs.GetString`/`fs.GetBool` (Layer 7, highest precedence).
   pattern: Flags==nil skips the flag layer (programmatic callers); the CLI passes cmd.Flags(). The 5
        config-backed flags loadFlags reads are EXACTLY: provider, model, timeout, verbose, no-color.
@@ -266,7 +266,7 @@ default-action/signal/UI/subcommand knowledge required.
   gotcha: initRepo sets GIT_AUTHOR/COMMITTER identity via env. chdir() restores CWD in t.Cleanup.
        newFlagSet uses STRING for timeout — mirror that exact registration in root.go.
 
-- file: cmd/stagehand/main.go   (P1.M1.T1.S1 stub — REWRITE this file)
+- file: cmd/stagecoach/main.go   (P1.M1.T1.S1 stub — REWRITE this file)
   section: currently `package main\n\nfunc main() {}` — a 29-byte placeholder.
   why: S1 replaces it with the real main: `var version string`, ctx, cmd.Execute(ctx), exitcode.For,
        os.Exit. The Makefile's `-ldflags "-X main.version=…"` targets this `var version string`.
@@ -274,12 +274,12 @@ default-action/signal/UI/subcommand knowledge required.
        cmd's Version is set FROM it (main sets cmd.Version = version before Execute).
 
 - file: Makefile   (P1.M1.T1.S2 — READ; do NOT edit)
-  section: `VERSION ?= dev`, `LDFLAGS := -X main.version=$(VERSION)`, `build:` target → `./bin/stagehand`.
+  section: `VERSION ?= dev`, `LDFLAGS := -X main.version=$(VERSION)`, `build:` target → `./bin/stagecoach`.
   why: confirms the build injects version into `main.version`; the `var version string` S1 adds in
        main.go is exactly what makes this effective (currently a silent no-op per the Makefile NOTE).
   pattern: `make build` is the validation command; `make test` runs `go test -race ./...`.
 
-- file: pkg/stagehand/stagehand.go   (P1.M3.T5.S1, parallel/Implementing — READ the contract; do NOT edit)
+- file: pkg/stagecoach/stagecoach.go   (P1.M3.T5.S1, parallel/Implementing — READ the contract; do NOT edit)
   section: `func GenerateCommit(ctx context.Context, opts Options) (Result, error)` + `type Options`
        + `type Result`.
   why: this is the seam S2's default action will call ("parse flags → maybe auto-stage →
@@ -302,9 +302,9 @@ default-action/signal/UI/subcommand knowledge required.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; go-toml/v2 + pflag  (cobra ADDED by this subtask)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; go-toml/v2 + pflag  (cobra ADDED by this subtask)
 go.sum                          # grows: cobra + transitive deps
-cmd/stagehand/main.go           # 29-byte stub (P1.M1.T1) — REWRITTEN by this subtask
+cmd/stagecoach/main.go           # 29-byte stub (P1.M1.T1) — REWRITTEN by this subtask
 internal/
   config/{config,file,git,load}.go   # P1.M1.T4 — Load/LoadOpts/Config (read-only ref)
   config/load_test.go           # P1.M1.T4 — TEST PATTERN + helpers to mirror (NOT import)
@@ -315,7 +315,7 @@ internal/
   cmd/                          # EMPTY — this subtask creates root.go + root_test.go here
   ui/                           # EMPTY — P1.M4.T3 (untouched)
   {git,generate,provider,prompt,stubtest}/  # untouched by S1
-pkg/stagehand/stagehand.go      # P1.M3.T5.S1 (parallel) — GenerateCommit contract (read-only ref)
+pkg/stagecoach/stagecoach.go      # P1.M3.T5.S1 (parallel) — GenerateCommit contract (read-only ref)
 Makefile                        # build/test(-race)/coverage/lint/clean/help + -X main.version  (UNCHANGED)
 ```
 
@@ -336,10 +336,10 @@ internal/cmd/root.go               # NEW — package cmd. rootCmd (SilenceErrors
 internal/cmd/root_test.go          # NEW — package cmd. flag registration/defaults/shorthands; --version
                                    #        output; config loading through cobra (precedence); SilenceErrors.
                                    #        Own copied helpers (initRepo/setGitConfig/writeConfigFile/chdir/loadEnvSetup).
-cmd/stagehand/main.go              # REWRITE — var version string; ctx; cmd.Version=version; cmd.Execute(ctx);
+cmd/stagecoach/main.go              # REWRITE — var version string; ctx; cmd.Version=version; cmd.Execute(ctx);
                                    #        os.Exit(exitcode.For(err)); baseline stderr error print.
 go.mod / go.sum                    # MODIFY — add github.com/spf13/cobra (+ transitive in go.sum).
-# All other files UNCHANGED. internal/{config,generate,git,prompt,provider}, pkg/stagehand UNCHANGED.
+# All other files UNCHANGED. internal/{config,generate,git,prompt,provider}, pkg/stagecoach UNCHANGED.
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -384,7 +384,7 @@ go.mod / go.sum                    # MODIFY — add github.com/spf13/cobra (+ tr
 // hatch for non-repo use. Tests must run inside a temp git repo (chdir).
 
 // GOTCHA (SilenceErrors means main must print, design §7): with SilenceErrors+SilenceUsage true, cobra
-// prints NOTHING on error. main() prints a baseline `stagehand: <err>\n` to stderr so failures aren't
+// prints NOTHING on error. main() prints a baseline `stagecoach: <err>\n` to stderr so failures aren't
 // silent. Guard: if err.Error()=="" (ExitError with nil Err, e.g. a clean non-zero exit) print nothing.
 // P1.M4.T3 (UI) refines this (color, verbosity-aware). Do NOT call os.Exit from inside cobra/RunE.
 
@@ -399,8 +399,8 @@ go.mod / go.sum                    # MODIFY — add github.com/spf13/cobra (+ tr
 // root_test.go. initRepo sets GIT_AUTHOR/COMMITTER identity via env. chdir restores CWD in t.Cleanup.
 
 // GOTCHA (version is package main): the Makefile's -X main.version=… injects into package main, so
-// `var version string` lives in cmd/stagehand/main.go (NOT internal/cmd). main sets cmd.Version =
-// version before Execute. cobra's default version template prints "stagehand version <version>".
+// `var version string` lives in cmd/stagecoach/main.go (NOT internal/cmd). main sets cmd.Version =
+// version before Execute. cobra's default version template prints "stagecoach version <version>".
 ```
 
 ## Implementation Blueprint
@@ -415,7 +415,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/dustin/stagehand/internal/generate"
+	"github.com/dustin/stagecoach/internal/generate"
 )
 
 // PRD §15.4 exit codes (AUTHORITATIVE — overrides arch/go_ecosystem_patterns.md §1.2's generic table,
@@ -489,8 +489,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/exitcode"
 )
 
 // Version is set by main.go from the ldflags-injected `var version string` before Execute.
@@ -521,7 +521,7 @@ var loadedCfg *config.Config
 
 // rootCmd is the cobra root. SilenceErrors+SilenceUsage → the CLI (main) controls all output.
 var rootCmd = &cobra.Command{
-	Use:           "stagehand",
+	Use:           "stagecoach",
 	Short:         "AI-assisted commit message generator",
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -534,7 +534,7 @@ var rootCmd = &cobra.Command{
 		}
 		repoDir, err := os.Getwd()
 		if err != nil {
-			return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: getwd: %w", err))
+			return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: getwd: %w", err))
 		}
 		cfg, err := config.Load(cmd.Context(), config.LoadOpts{
 			ConfigPathOverride: flagConfig,
@@ -548,7 +548,7 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	// STUB: prints help until S2 implements the default commit action
-	// (auto-stage-all → stagehand.GenerateCommit → report). TODO(P1.M4.T1.S2).
+	// (auto-stage-all → stagecoach.GenerateCommit → report). TODO(P1.M4.T1.S2).
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return cmd.Help()
 	},
@@ -557,12 +557,12 @@ var rootCmd = &cobra.Command{
 func init() {
 	pf := rootCmd.PersistentFlags()
 	// §15.2 config-backed flags (zero defaults; config.Load owns Layer-7 precedence via fs.Changed).
-	pf.StringVar(&flagProvider, "provider", "", "Provider/agent to use (env STAGEHAND_PROVIDER, git stagehand.provider; default auto-detected)")
-	pf.StringVar(&flagModel, "model", "", "Model override (env STAGEHAND_MODEL, git stagehand.model; default per-manifest default_model)")
-	pf.StringVar(&flagConfig, "config", "", "Path to a config file, overrides discovery (env STAGEHAND_CONFIG)")
-	pf.StringVar(&flagTimeout, "timeout", "", "Generation timeout, e.g. \"120s\" or 120 (env STAGEHAND_TIMEOUT, git stagehand.timeout; default 120s)")
-	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "Print resolved command, raw output, retries (env STAGEHAND_VERBOSE)")
-	pf.BoolVar(&flagNoColor, "no-color", false, "Disable color (env STAGEHAND_NO_COLOR, NO_COLOR; default TTY-aware)")
+	pf.StringVar(&flagProvider, "provider", "", "Provider/agent to use (env STAGECOACH_PROVIDER, git stagecoach.provider; default auto-detected)")
+	pf.StringVar(&flagModel, "model", "", "Model override (env STAGECOACH_MODEL, git stagecoach.model; default per-manifest default_model)")
+	pf.StringVar(&flagConfig, "config", "", "Path to a config file, overrides discovery (env STAGECOACH_CONFIG)")
+	pf.StringVar(&flagTimeout, "timeout", "", "Generation timeout, e.g. \"120s\" or 120 (env STAGECOACH_TIMEOUT, git stagecoach.timeout; default 120s)")
+	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "Print resolved command, raw output, retries (env STAGECOACH_VERBOSE)")
+	pf.BoolVar(&flagNoColor, "no-color", false, "Disable color (env STAGECOACH_NO_COLOR, NO_COLOR; default TTY-aware)")
 	// §15.2 behavioral flags (read by S2/S4 RunE; not Config fields).
 	pf.BoolVarP(&flagAll, "all", "a", false, "Run `git add -A` before snapshotting, even if something is staged")
 	pf.BoolVar(&flagNoAutoStage, "no-auto-stage", false, "If nothing is staged, exit instead of auto-staging")
@@ -595,7 +595,7 @@ func Execute(ctx context.Context) error {
 ```
 
 ```go
-// cmd/stagehand/main.go  (REWRITE the 29-byte stub)
+// cmd/stagecoach/main.go  (REWRITE the 29-byte stub)
 package main
 
 import (
@@ -603,8 +603,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/dustin/stagehand/internal/cmd"
-	"github.com/dustin/stagehand/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/cmd"
+	"github.com/dustin/stagecoach/internal/exitcode"
 )
 
 // version is injected at build time via -ldflags "-X main.version=…" (Makefile VERSION, default "dev").
@@ -616,7 +616,7 @@ func main() {
 	err := cmd.Execute(context.Background())
 	code := exitcode.For(err)
 	if err != nil && err.Error() != "" {
-		fmt.Fprintf(os.Stderr, "stagehand: %v\n", err)
+		fmt.Fprintf(os.Stderr, "stagecoach: %v\n", err)
 	}
 	os.Exit(code)
 }
@@ -633,7 +633,7 @@ Task 1: ADD cobra to go.mod (do this FIRST so imports resolve)
 
 Task 2: CREATE internal/exitcode/exitcode.go (no dependency on cobra; pure)
   - FILE: NEW internal/exitcode/exitcode.go. PACKAGE: `package exitcode`.
-  - DOC: `// Package exitcode maps Stagehand errors to PRD §15.4 process exit codes (0/1/2/3/124).
+  - DOC: `// Package exitcode maps Stagecoach errors to PRD §15.4 process exit codes (0/1/2/3/124).
       For() is the single source of truth used by the CLI's main(); it covers explicit *ExitError
       overrides, the generate-domain mapping (nothing-to-commit/rescue/timeout/CAS), and a default
       of 1. §15.4 overrides arch/go_ecosystem_patterns.md §1.2's generic table (2=nothing-to-commit,
@@ -645,7 +645,7 @@ Task 2: CREATE internal/exitcode/exitcode.go (no dependency on cobra; pure)
 
 Task 3: CREATE internal/exitcode/exitcode_test.go (pure unit; no git/cobra)
   - FILE: NEW internal/exitcode/exitcode_test.go. PACKAGE: `package exitcode`.
-  - IMPORT: context, errors, fmt, testing, github.com/dustin/stagehand/internal/generate.
+  - IMPORT: context, errors, fmt, testing, github.com/dustin/stagecoach/internal/generate.
   - CASES (table-driven, one t.Run each):
       * For(nil) == Success(0)
       * For(New(NothingToCommit, errors.New("x"))) == 2  (explicit ExitError wins)
@@ -694,7 +694,7 @@ Task 5: CREATE internal/cmd/root_test.go (cobra + git integration)
         to a capture fn that reads Config() and returns nil; Execute(ctx). Assert Config()!=nil,
         Config().Provider=="" (Defaults), Timeout==120s. (Restores RunE in cleanup.)
       * TestRoot_FlagOverridesEnvOverridesGit: loadEnvSetup + chdir(repo); setGitConfig(repo,
-        "stagehand.provider","git-p"); t.Setenv("STAGEHAND_PROVIDER","env-p"); SetArgs(["--provider",
+        "stagecoach.provider","git-p"); t.Setenv("STAGECOACH_PROVIDER","env-p"); SetArgs(["--provider",
         "cli-p"]); capture RunE; Execute. Assert Config().Provider=="cli-p" (CLI > env > git). Then a
         second sub-case with no --provider → Config().Provider=="env-p" (env > git).
       * TestRoot_ConfigLoadErrorMapsToExit1: writeConfigFile(globalDir,"config.toml","bad {toml");
@@ -707,24 +707,24 @@ Task 5: CREATE internal/cmd/root_test.go (cobra + git integration)
         CLI, error→exit-code propagation, SilenceErrors. All behavioral flags' PRESENCE asserted (their
         RunE logic is S2/S4 — not tested here).
 
-Task 6: REWRITE cmd/stagehand/main.go
-  - FILE: OVERWRITE cmd/stagehand/main.go (currently the 29-byte stub). Follow "Data models" skeleton.
+Task 6: REWRITE cmd/stagecoach/main.go
+  - FILE: OVERWRITE cmd/stagecoach/main.go (currently the 29-byte stub). Follow "Data models" skeleton.
   - BODY: `var version = "dev"` (default literal; -X overrides); main() sets cmd.Version=version;
       err := cmd.Execute(context.Background()); code := exitcode.For(err); print baseline error to
       stderr if err != nil && err.Error() != ""; os.Exit(code).
-  - GOTCHA: `var version string` (not `= "dev"`)? Use `var version = "dev"` so `stagehand` run WITHOUT
+  - GOTCHA: `var version string` (not `= "dev"`)? Use `var version = "dev"` so `stagecoach` run WITHOUT
       ldflags (e.g. `go run`) prints "dev" instead of empty. -X replaces it on `make build`.
   - GOTCHA: do NOT import cobra in main (main only touches cmd + exitcode). context.Background() is the
       S1 baseline; P1.M4.T2 swaps it.
 
 Task 7: VALIDATE (run all gates; fix before declaring done)
-  - `make build` → ./bin/stagehand exists; `./bin/stagehand --version` prints a version string.
-  - `./bin/stagehand --help` → lists ALL §15.2 flags with the §15.2/FR35 descriptions.
+  - `make build` → ./bin/stagecoach exists; `./bin/stagecoach --version` prints a version string.
+  - `./bin/stagecoach --help` → lists ALL §15.2 flags with the §15.2/FR35 descriptions.
   - `go test -race ./internal/exitcode/ ./internal/cmd/` → green.
   - `go test -race ./...` → green (NO regression in config/generate/git/provider/prompt).
   - `go vet ./...` clean; `gofmt -l internal/ cmd/` empty.
   - Confirm `git status` shows ONLY: new internal/exitcode/{exitcode.go,exitcode_test.go}, new
-    internal/cmd/{root.go,root_test.go}, modified cmd/stagehand/main.go, modified go.mod/go.sum.
+    internal/cmd/{root.go,root_test.go}, modified cmd/stagecoach/main.go, modified go.mod/go.sum.
 ```
 
 ### Implementation Patterns & Key Details
@@ -736,7 +736,7 @@ PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
     repoDir, err := os.Getwd()
     if err != nil { return exitcode.New(exitcode.Error, fmt.Errorf("getwd: %w", err)) }
     cfg, err := config.Load(cmd.Context(), config.LoadOpts{
-        ConfigPathOverride: flagConfig,                // --config > STAGEHAND_CONFIG > discovery (inside Load)
+        ConfigPathOverride: flagConfig,                // --config > STAGECOACH_CONFIG > discovery (inside Load)
         RepoDir:            repoDir,                   // git -C <cwd> config walks up to repo root
         Flags:              cmd.Flags(),               // Layer 7: only fs.Changed flags apply
     })
@@ -751,7 +751,7 @@ func main() {
     err := cmd.Execute(context.Background())
     code := exitcode.For(err)            // centralized §15.4 mapping
     if err != nil && err.Error() != "" {
-        fmt.Fprintf(os.Stderr, "stagehand: %v\n", err)  // baseline; P1.M4.T3 refines (color/verbose)
+        fmt.Fprintf(os.Stderr, "stagecoach: %v\n", err)  // baseline; P1.M4.T3 refines (color/verbose)
     }
     os.Exit(code)
 }
@@ -806,12 +806,12 @@ MAKEFILE:
 
 ```bash
 # Run after each file creation - fix before proceeding
-go build ./internal/exitcode/ ./internal/cmd/ ./cmd/stagehand/
-gofmt -w internal/exitcode/ internal/cmd/ cmd/stagehand/
-go vet ./internal/exitcode/ ./internal/cmd/ ./cmd/stagehand/
+go build ./internal/exitcode/ ./internal/cmd/ ./cmd/stagecoach/
+gofmt -w internal/exitcode/ internal/cmd/ cmd/stagecoach/
+go vet ./internal/exitcode/ ./internal/cmd/ ./cmd/stagecoach/
 
 # Expected: zero errors. gofmt rewrites formatting; govet reports none.
-# GOTCHA: `go build ./cmd/stagehand/` will FAIL with "version flag registered" panic at TEST time only
+# GOTCHA: `go build ./cmd/stagecoach/` will FAIL with "version flag registered" panic at TEST time only
 #         if you double-register --version — `go build` itself won't catch it; the --version test will.
 ```
 
@@ -834,29 +834,29 @@ go test -race ./internal/cmd/ -v
 make build
 
 # --version prints the injected version (VERSION=dev by default)
-./bin/stagehand --version
-# Expected: a line containing "dev" (cobra default template: "stagehand version dev")
+./bin/stagecoach --version
+# Expected: a line containing "dev" (cobra default template: "stagecoach version dev")
 
 # --help lists ALL §15.2 global flags (Mode A docs surface)
-./bin/stagehand --help
+./bin/stagecoach --help
 # Expected: --provider, --model, --config, --timeout, --all (-a), --no-auto-stage, --dry-run,
 #           --verbose (-v), --no-color, --version, --help (-h) all present with §15.2 descriptions.
 
 # Inside a git repo: stub RunE prints help (config loads first; no error)
 cd /tmp/emptyrepo  # any git repo; create with `git init`
-/home/dustin/projects/stagehand/bin/stagehand
+/home/dustin/projects/stagecoach/bin/stagecoach
 # Expected: help text printed, exit 0.
 
 # Outside a git repo: config.Load fails (git-config layer exits 128) → exit 1
-cd /tmp && /home/dustin/projects/stagehand/bin/stagehand
+cd /tmp && /home/dustin/projects/stagecoach/bin/stagecoach
 echo $?   # Expected: 1
 
 # Bad config file → exit 1 with a clear message
-echo 'bad {toml' > /tmp/bad.toml && /home/dustin/projects/stagehand/bin/stagehand --config /tmp/bad.toml
-# Expected: "stagehand: config: global config: ..." on stderr, exit 1.
+echo 'bad {toml' > /tmp/bad.toml && /home/dustin/projects/stagecoach/bin/stagecoach --config /tmp/bad.toml
+# Expected: "stagecoach: config: global config: ..." on stderr, exit 1.
 
 # Verify the version injection path the Makefile already wires
-make build VERSION=v9.9.9 && ./bin/stagehand --version
+make build VERSION=v9.9.9 && ./bin/stagecoach --version
 # Expected: contains "v9.9.9" (proves var version is the -X target main.go declared).
 ```
 
@@ -871,16 +871,16 @@ go test -race ./internal/exitcode/ -run TestFor -v
 # Confirm no regression across the WHOLE module (config/generate/git/provider/prompt untouched)
 go test -race ./...
 # Expected: all green. If a config/generate test broke, S1 over-reached — recheck that internal/*
-# files were NOT edited (only internal/exitcode + internal/cmd are new; cmd/stagehand rewritten).
+# files were NOT edited (only internal/exitcode + internal/cmd are new; cmd/stagecoach rewritten).
 ```
 
 ## Final Validation Checklist
 
 ### Technical Validation
 
-- [ ] `make build` succeeds → `./bin/stagehand` exists.
-- [ ] `./bin/stagehand --version` prints a version string; `make build VERSION=vX` injects it.
-- [ ] `./bin/stagehand --help` lists ALL eleven §15.2 flags with §15.2/FR35 descriptions.
+- [ ] `make build` succeeds → `./bin/stagecoach` exists.
+- [ ] `./bin/stagecoach --version` prints a version string; `make build VERSION=vX` injects it.
+- [ ] `./bin/stagecoach --help` lists ALL eleven §15.2 flags with §15.2/FR35 descriptions.
 - [ ] `go test -race ./...` green (exitcode + cmd new; NO regression elsewhere).
 - [ ] `go vet ./...` clean; `gofmt -l internal/ cmd/` empty.
 - [ ] `git status` shows ONLY: 4 new files (exitcode ×2, cmd ×2), rewritten main.go, go.mod/go.sum.
@@ -903,7 +903,7 @@ go test -race ./...
 - [ ] Exit codes follow PRD §15.4 (NOT the arch doc's generic §1.2 table).
 - [ ] File placement matches the desired tree (internal/exitcode/, internal/cmd/).
 - [ ] No os.Exit/Print inside cobra RunE or internal/exitcode (only main exits/prints).
-- [ ] No edits to internal/{config,generate,git,prompt,provider} or pkg/stagehand (read-only contracts).
+- [ ] No edits to internal/{config,generate,git,prompt,provider} or pkg/stagecoach (read-only contracts).
 - [ ] cobra is the only new dependency; go directive stays 1.22.
 
 ### Documentation & Deployment
@@ -911,7 +911,7 @@ go test -race ./...
 - [ ] Help text (auto-generated) matches PRD §15.2/FR35 (Mode A docs ride with this subtask).
 - [ ] Every exported symbol (ExitError, New, For, Execute, Config, Version, the 5 constants) has a
       Go-doc comment.
-- [ ] No new env vars beyond the documented STAGEHAND_* set (config.Load already handles them).
+- [ ] No new env vars beyond the documented STAGECOACH_* set (config.Load already handles them).
 
 ---
 
@@ -930,7 +930,7 @@ go test -race ./...
 - ❌ Don't call `os.Exit` or print inside cobra RunE / internal/exitcode — only `main` exits/prints.
 - ❌ Don't create the default action / subcommands / signal handler / verbose output / dry-run RunE —
   those are S2/S3/S4/P1.M4.T2/T3/T4. S1 is the SCAFFOLD only.
-- ❌ Don't edit any file under internal/{config,generate,git,prompt,provider} or pkg/stagehand — they
-  are READ-ONLY upstream contracts (P1.M3.T5.S1 is running in parallel on pkg/stagehand).
+- ❌ Don't edit any file under internal/{config,generate,git,prompt,provider} or pkg/stagecoach — they
+  are READ-ONLY upstream contracts (P1.M3.T5.S1 is running in parallel on pkg/stagecoach).
 - ❌ Don't forget to restore rootCmd state in root_test.go's t.Cleanup — it's a package-level singleton
   reused across tests; leaking SetArgs/SetOut/RunE poisons siblings (and trips -race).

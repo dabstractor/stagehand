@@ -1,4 +1,4 @@
-# Research: GoReleaser v2 Configuration for Go CLI Distribution (`stagehand`)
+# Research: GoReleaser v2 Configuration for Go CLI Distribution (`stagecoach`)
 
 > **CRITICAL TOOLING CAVEAT — READ FIRST.**
 > This session had **only `read` and `write` tools available**; there was **no `web_search` tool**, so **no URL was live-fetched or verified in this run**. Every URL below is reconstructed from knowledge of the stable `goreleaser.com` doc-site structure and is marked `[NOT LIVE-VERIFIED]`. Before relying on any field name — **especially the AUR pipe (§6) and the `formats` vs `format` archives change (§3)** — open the cited page and confirm against the **current** docs (GoReleaser ships frequently and has renamed keys across v2.x patches). Confidence markers: **[HIGH]** stable/long-standing, **[MED]** verify field name, **[LOW]** verify existence + semantics.
@@ -9,7 +9,7 @@
 
 ## Summary
 
-GoReleaser v2 uses **plural section keys** (`brews:`, `scoops:`, `aurs:`) and a **`repository:` sub-object** (with `owner`/`name`/`token`) that **replaces the v1 `tap:`/`bucket:` keys**. It requires a top-level **`version: 2`**. Cross-compiling the 6 linux/darwin/windows × amd64/arm64 targets requires `env: [CGO_ENABLED=0]` in `builds:`; archives split windows→`zip` via `format_overrides`; checksums and a sorted changelog are built-in. There **is a native `aurs:` pipe** in v2 (key is `aurs:`, plural) that emits `-bin`-style PKGBUILDs and pushes over **SSH** (not a PAT) — but it does **not** generate a from-source `stagehand` package; for that you hand-maintain a PKGBUILD. The canonical CI flow is `on: push: tags: ['v*']` → `checkout@v4 (fetch-depth: 0)` → `setup-go@v5` → `goreleaser-action@v6 (args: release --clean)`, with a **separate PAT** secret per external repo (tap/bucket) and an **SSH key** for AUR.
+GoReleaser v2 uses **plural section keys** (`brews:`, `scoops:`, `aurs:`) and a **`repository:` sub-object** (with `owner`/`name`/`token`) that **replaces the v1 `tap:`/`bucket:` keys**. It requires a top-level **`version: 2`**. Cross-compiling the 6 linux/darwin/windows × amd64/arm64 targets requires `env: [CGO_ENABLED=0]` in `builds:`; archives split windows→`zip` via `format_overrides`; checksums and a sorted changelog are built-in. There **is a native `aurs:` pipe** in v2 (key is `aurs:`, plural) that emits `-bin`-style PKGBUILDs and pushes over **SSH** (not a PAT) — but it does **not** generate a from-source `stagecoach` package; for that you hand-maintain a PKGBUILD. The canonical CI flow is `on: push: tags: ['v*']` → `checkout@v4 (fetch-depth: 0)` → `setup-go@v5` → `goreleaser-action@v6 (args: release --clean)`, with a **separate PAT** secret per external repo (tap/bucket) and an **SSH key** for AUR.
 
 ---
 
@@ -27,9 +27,9 @@ Exact v2 keys:
 
 ```yaml
 builds:
-  - id: stagehand            # unique id; referenced by archives/brews/scoops/aurs via `ids`
-    main: ./cmd/stagehand    # path to main package
-    binary: stagehand        # output binary name (inside the archive)
+  - id: stagecoach            # unique id; referenced by archives/brews/scoops/aurs via `ids`
+    main: ./cmd/stagecoach    # path to main package
+    binary: stagecoach        # output binary name (inside the archive)
     env:
       - CGO_ENABLED=0        # REQUIRED for static cross-compile — see §11
     goos:   [linux, darwin, windows]
@@ -39,14 +39,14 @@ builds:
 ```
 
 - This produces **exactly 6 binaries** (3 × 2). No `goarm`/`gomips` needed (arm64 only; no 32-bit ARM/MIPS).
-- `main:` may be omitted if there's a single `main` package at repo root; **explicit is safer** because stagehand's main lives in `./cmd/stagehand`.
+- `main:` may be omitted if there's a single `main` package at repo root; **explicit is safer** because stagecoach's main lives in `./cmd/stagecoach`.
 - `binary:` controls the name **inside** the archive; `project_name:` controls the archive **prefix**.
 
 **Template var semantics (build-time ldflags context):**  **[HIGH]**
 - `{{.Version}}` → tag with the **leading `v` stripped**. Tag `v1.2.3` → `1.2.3`. This is what you want for `-X main.version=`.
 - `{{.Tag}}` → the **full git tag** incl. `v`: `v1.2.3`.
 - `{{.Date}}` → commit timestamp, RFC3339 (e.g. `2026-06-29T12:00:00Z`).
-- `-s -w` strips symbol/DWARF info (smaller binary). Keep `-X main.version=…` exactly as the stagehand `main.go` declares `var version = "dev"` (confirmed in `cmd/stagehand/main.go`).
+- `-s -w` strips symbol/DWARF info (smaller binary). Keep `-X main.version=…` exactly as the stagecoach `main.go` declares `var version = "dev"` (confirmed in `cmd/stagecoach/main.go`).
 
 Docs: `https://goreleaser.com/customization/builds/` `[NOT LIVE-VERIFIED]`.
 
@@ -57,7 +57,7 @@ Docs: `https://goreleaser.com/customization/builds/` `[NOT LIVE-VERIFIED]`.
 ```yaml
 archives:
   - id: default
-    ids: [stagehand]            # reference the build id (field is `ids:` in v2; v1 used `builds:`)
+    ids: [stagecoach]            # reference the build id (field is `ids:` in v2; v1 used `builds:`)
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     format: tar.gz              # v2: PREFER `formats: [tar.gz]` (see note)
@@ -66,7 +66,7 @@ archives:
         format: zip             # v2: PREFER `formats: [zip]`
 ```
 
-- `name_template` yields e.g. `stagehand_1.2.3_linux_amd64.tar.gz` and `stagehand_1.2.3_windows_amd64.zip`. `.Os`/`.Arch` are already lowercased here.
+- `name_template` yields e.g. `stagecoach_1.2.3_linux_amd64.tar.gz` and `stagecoach_1.2.3_windows_amd64.zip`. `.Os`/`.Arch` are already lowercased here.
 - **`replacements:` / `rlcp:` are NOT needed in v2.** The v1 `replacements:` map (for `darwin→Darwin` etc.) and the `rlcp` toggle were **removed/deprecated** in the v1→v2 transition. Use `name_template` with filters like `{{ title .Os }}` if you want title-casing. **Do not add `replacements:` or `rlcp:` to a v2 config** — `goreleaser check` will flag/error.
 - **`format` → `formats` rename [MED, VERIFY]:** Recent v2 releases (≈ v2.4–v2.6, late 2024 / early 2025) introduced **`formats:`** (a **list**, e.g. `formats: [tar.gz, tar]`) to allow emitting **multiple** archive formats per target, and deprecated the singular `format:` / `format_overrides[].format`. The singular form **may still be accepted as a deprecated alias** in the version you install — confirm on the archives page and prefer `formats` (plural) for a fresh config.
 
@@ -81,19 +81,19 @@ Docs: `https://goreleaser.com/customization/archive/` `[NOT LIVE-VERIFIED]` (not
 
 ```yaml
 brews:
-  - name: stagehand
+  - name: stagecoach
     ids: [default]                       # archive id(s) this formula pulls from
     repository:
       owner: dustin
       name: homebrew-tap                 # tap repo: github.com/dustin/homebrew-tap
       token: '{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}'   # see §9 / token defaulting
-    homepage: https://github.com/dustin/stagehand     # NOTE: `homepage`, NOT `home`
-    description: "stagehand — …"
+    homepage: https://github.com/dustin/stagecoach     # NOTE: `homepage`, NOT `home`
+    description: "stagecoach — …"
     license: "MIT"
     install: |
-      bin.install "stagehand"
+      bin.install "stagecoach"
     test: |
-      system "#{bin}/stagehand", "--version"
+      system "#{bin}/stagecoach", "--version"
     caveats: "…"                          # optional string shown on install
     commit_author:
       name: goreleaserbot
@@ -117,17 +117,17 @@ Docs: `https://goreleaser.com/customization/homebrew/` `[NOT LIVE-VERIFIED]` (UR
 
 ```yaml
 scoops:
-  - name: stagehand
+  - name: stagecoach
     ids: [default]
     repository:
       owner: dustin
       name: scoop-bucket                 # github.com/dustin/scoop-bucket
       token: '{{ .Env.SCOOP_BUCKET_GITHUB_TOKEN }}'
-    homepage: https://github.com/dustin/stagehand
-    description: "stagehand — …"
+    homepage: https://github.com/dustin/stagecoach
+    description: "stagecoach — …"
     license: "MIT"
-    url_template: "https://github.com/dustin/stagehand/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-    short_name: stagehand
+    url_template: "https://github.com/dustin/stagecoach/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    short_name: stagecoach
     persist: []                           # optional
 ```
 
@@ -143,28 +143,28 @@ Docs: `https://goreleaser.com/customization/scoop/` `[NOT LIVE-VERIFIED]` (slug 
 - **It produces `-bin`-style PKGBUILDs only** (downloads a prebuilt release archive + checksums, installs the binary). It does **NOT** emit a from-source `go build` PKGBUILD.
 - **Push is over SSH** to `aur.archlinux.org`, **not a GitHub PAT**. You supply an SSH **private key** via env/secret. **[LOW — exact field name (`private_key`? `git_ssh_command`?) and env-var name need live verification.]**
 
-### Producing BOTH `stagehand` and `stagehand-bin`
-- **`stagehand-bin` (prebuilt):** native pipe handles this. One `aurs:` entry with `name: stagehand-bin`, `ids: [default]`.
-- **`stagehand` (from-source):** the **native pipe cannot generate a from-source `go build` PKGBUILD**. AUR naming convention: `foo`/`foo-git` build from source; `foo-bin` uses prebuilt binaries. To ship a real from-source `stagehand`, you must **hand-author a `PKGBUILD`** that clones the repo at the tagged commit and runs `go build`. This is outside goreleaser's scope.
+### Producing BOTH `stagecoach` and `stagecoach-bin`
+- **`stagecoach-bin` (prebuilt):** native pipe handles this. One `aurs:` entry with `name: stagecoach-bin`, `ids: [default]`.
+- **`stagecoach` (from-source):** the **native pipe cannot generate a from-source `go build` PKGBUILD**. AUR naming convention: `foo`/`foo-git` build from source; `foo-bin` uses prebuilt binaries. To ship a real from-source `stagecoach`, you must **hand-author a `PKGBUILD`** that clones the repo at the tagged commit and runs `go build`. This is outside goreleaser's scope.
 
 ### Recommended approach for this project
-1. Use the **native `aurs:` pipe for `stagehand-bin`** (low effort, goreleaser-managed autoupdate).
-2. For **`stagehand` (from-source)**: maintain a **community/manual PKGBUILD** in the AUR (separate git clone of `ssh://aur@aur.archlinux.org/stagehand.git`). Update it on each release via an **`after.hooks`** step or a small release script that templates the PKGBUILD and pushes. **This is the standard fallback** when the native pipe doesn't fit.
+1. Use the **native `aurs:` pipe for `stagecoach-bin`** (low effort, goreleaser-managed autoupdate).
+2. For **`stagecoach` (from-source)**: maintain a **community/manual PKGBUILD** in the AUR (separate git clone of `ssh://aur@aur.archlinux.org/stagecoach.git`). Update it on each release via an **`after.hooks`** step or a small release script that templates the PKGBUILD and pushes. **This is the standard fallback** when the native pipe doesn't fit.
 3. If the native pipe proves unstable in your testing, **drop it entirely** and manage **both** packages with manual PKGBUILDs + `after.hooks`. Many Go CLIs do exactly this.
 
-### Native `aurs:` config sketch (stagehand-bin)
+### Native `aurs:` config sketch (stagecoach-bin)
 ```yaml
 aurs:
-  - name: stagehand-bin
+  - name: stagecoach-bin
     ids: [default]
-    homepage: https://github.com/dustin/stagehand
-    description: "stagehand — …"
+    homepage: https://github.com/dustin/stagecoach
+    description: "stagecoach — …"
     maintainers:
       - "Dustin Sallings <dustin@spy.net>"     # REPLACE with real email
     license: "MIT"
     depends: [git]
-    provides: [stagehand]
-    conflicts: [stagehand]                      # conflicts with the from-source pkg
+    provides: [stagecoach]
+    conflicts: [stagecoach]                      # conflicts with the from-source pkg
     private_key: '{{ .Env.AUR_SSH_PRIVATE_KEY }}'   # [LOW — verify field name]
     commit_author:
       name: goreleaserbot
@@ -175,7 +175,7 @@ aurs:
 
 **Falling back to manual PKGBUILD** (if native pipe rejected): in `.github/workflows/release.yml` add a post-goreleaser job/`after.hooks` step that:
 - renders a `PKGBUILD` from a template (`pkgver={{.Version}}`, `sha256sums` from `dist/*_checksums.txt`),
-- commits + pushes to `ssh://aur@aur.archlinux.org/stagehand.git` (and `…/stagehand-bin.git`) using the SSH key.
+- commits + pushes to `ssh://aur@aur.archlinux.org/stagecoach.git` (and `…/stagecoach-bin.git`) using the SSH key.
 
 Docs: `https://goreleaser.com/customization/aur/` `[NOT LIVE-VERIFIED]` — **OPEN THIS PAGE FIRST** to confirm: (a) plural `aurs:`, (b) stable vs experimental label, (c) exact key for the SSH private key, (d) `package:`/`provides`/`conflicts` field names.
 
@@ -224,7 +224,7 @@ Docs: `https://goreleaser.com/customization/checksum/` and `https://goreleaser.c
 release:
   github:
     owner: dustin
-    name: stagehand
+    name: stagecoach
   draft: false
   prerelease: auto          # auto = prerelease if tag matches a prerelease pattern (e.g. -rc1)
   disable: false            # set true to skip GitHub Release creation
@@ -282,7 +282,7 @@ jobs:
 ```
 
 **Key facts / permissions:**
-- `${{ secrets.GITHUB_TOKEN }}` (auto-provided) is enough **only** for the release in `dustin/stagehand`. It **cannot** push to other repos (`dustin/homebrew-tap`, `dustin/scoop-bucket`) because the default token is scoped to the workflow's repo. → Use **separate PATs** (fine-grained, `contents: write` on each target repo) or a GitHub App.
+- `${{ secrets.GITHUB_TOKEN }}` (auto-provided) is enough **only** for the release in `dustin/stagecoach`. It **cannot** push to other repos (`dustin/homebrew-tap`, `dustin/scoop-bucket`) because the default token is scoped to the workflow's repo. → Use **separate PATs** (fine-grained, `contents: write` on each target repo) or a GitHub App.
 - `fetch-depth: 0` is **mandatory** — without it the changelog is truncated to the shallow clone.
 - `--clean` removes `dist/` before building (prevents stale artifacts). `args: release --clean` is the v2 idiomatic form (older docs used `--rm-dist`, now deprecated/removed in favor of `--clean`).
 - `version: latest` (action field, distinct from the `.goreleaser.yaml` `version:`) pulls the newest goreleaser binary. Pin (`~> v2`) for reproducible releases.
@@ -324,7 +324,7 @@ Docs:
 1. **CGO must be disabled for cross-compilation.** Without `env: [CGO_ENABLED=0]`, the darwin/windows/linux cross-builds fail on the Go toolchain's inability to find a C cross-compiler. This is **the #1 cause** of broken cross-compile in CI. Set it in `builds[].env`.
 2. **We want SEPARATE amd64/arm64 archives, NOT a universal/fat binary.** GoReleaser does **not** auto-create macOS universal binaries — Go has no native fat-binary output. Default behavior (listing `amd64` and `arm64` in `goarch`) yields **separate** archives per arch, which is what we want. Do **not** add any "universal"/`lipo` step. (An older `universal_binaries:` pipe existed for darwin; it's deprecated/removed — avoid.)
 3. **Archive/build `id` collisions.** Every `builds[].id` must be unique; every `archives[].id` unique; `ids:` references must match real ids. Mismatches cause "no archives found" errors.
-4. **`gomod.proxy`** (`gomod: { proxy: true }`) is **not deprecated** in v2 [MED—verify]; it's optional and improves reproducibility by vendoring via the proxy. Default (`go mod download`) is usually fine. Not required for stagehand.
+4. **`gomod.proxy`** (`gomod: { proxy: true }`) is **not deprecated** in v2 [MED—verify]; it's optional and improves reproducibility by vendoring via the proxy. Default (`go mod download`) is usually fine. Not required for stagecoach.
 5. **`before:` hooks are NOT required** for version injection — `ldflags -X main.version=…` handles it directly (confirmed: `main.go` has `var version = "dev"`). Only add `before.hooks` if you generate assets (`go generate`, embed files, etc.). `go mod tidy` as a hook is optional hygiene.
 6. **`--rm-dist` is gone** in v2 — use **`--clean`**. Using the old flag errors.
 7. **`replacements:`/`rlcp:` removed in v2** — use `name_template` only (§3).
@@ -351,9 +351,9 @@ Available in `name_template`, `ldflags`, `url_template`, `commit_msg_template`, 
 | `.Date` | commit timestamp RFC3339 | `2026-06-29T12:00:00Z` |
 | `.IsSnapshot` | bool: snapshot mode | `true`/`false` |
 | `.Summary` | one-line commit summary | — |
-| `.GitURL` | origin URL | `https://github.com/dustin/stagehand` |
-| `.ModulePath` | Go module path | `github.com/dustin/stagehand` |
-| `.ProjectName` | from `project_name` / repo | `stagehand` |
+| `.GitURL` | origin URL | `https://github.com/dustin/stagecoach` |
+| `.ModulePath` | Go module path | `github.com/dustin/stagecoach` |
+| `.ProjectName` | from `project_name` / repo | `stagecoach` |
 | `.Os` `.Arch` `.Arm` `.Amd64` `.Mips` `.X86` | target GOOS/GOARCH (normalized) | `linux` `amd64` |
 | `.Env` | map of env vars | `{{ .Env.MY_VAR }}` |
 | `.Title` / `.Upper` / `.Lower` / `.Trim` | string filters (Go template + sprig) | `{{ title .Os }}` |
@@ -373,7 +373,7 @@ Docs: `https://goreleaser.com/customization/templates/` (full variable table) `[
 # Docs: https://goreleaser.com/customization/
 version: 2
 
-project_name: stagehand
+project_name: stagecoach
 
 # Optional hygiene; remove if it causes issues. NOT required for version injection.
 before:
@@ -381,9 +381,9 @@ before:
     - go mod tidy
 
 builds:
-  - id: stagehand
-    main: ./cmd/stagehand
-    binary: stagehand
+  - id: stagecoach
+    main: ./cmd/stagecoach
+    binary: stagecoach
     env:
       - CGO_ENABLED=0          # REQUIRED: static cross-compile (see §11.1)
     goos:   [linux, darwin, windows]
@@ -393,7 +393,7 @@ builds:
 
 archives:
   - id: default
-    ids: [stagehand]
+    ids: [stagecoach]
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     formats: [tar.gz]          # [VERIFY] prefer plural `formats`; `format:` may still work as deprecated alias
@@ -422,59 +422,59 @@ changelog:
 release:
   github:
     owner: dustin
-    name: stagehand
+    name: stagecoach
   draft: false
   prerelease: auto
   name_template: '{{.ProjectName}}_{{.Version}}'
 
 brews:
-  - name: stagehand
+  - name: stagecoach
     ids: [default]
     repository:
       owner: dustin
       name: homebrew-tap
       token: '{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}'
-    homepage: https://github.com/dustin/stagehand
-    description: 'stagehand — …'      # REPLACE
+    homepage: https://github.com/dustin/stagecoach
+    description: 'stagecoach — …'      # REPLACE
     license: MIT                       # REPLACE with actual license
     install: |
-      bin.install "stagehand"
+      bin.install "stagecoach"
     test: |
-      system "#{bin}/stagehand", "--version"
+      system "#{bin}/stagecoach", "--version"
     commit_author:
       name: goreleaserbot
       email: bot@goreleaser.com
 
 scoops:
-  - name: stagehand
+  - name: stagecoach
     ids: [default]
     repository:
       owner: dustin
       name: scoop-bucket
       token: '{{ .Env.SCOOP_BUCKET_GITHUB_TOKEN }}'
-    homepage: https://github.com/dustin/stagehand
-    description: 'stagehand — …'      # REPLACE
+    homepage: https://github.com/dustin/stagecoach
+    description: 'stagecoach — …'      # REPLACE
     license: MIT                       # REPLACE
-    url_template: 'https://github.com/dustin/stagehand/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
+    url_template: 'https://github.com/dustin/stagecoach/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
 
-# AUR: native pipe produces stagehand-BIN only. [VERIFY all field names §6]
+# AUR: native pipe produces stagecoach-BIN only. [VERIFY all field names §6]
 aurs:
-  - name: stagehand-bin
+  - name: stagecoach-bin
     ids: [default]
-    homepage: https://github.com/dustin/stagehand
-    description: 'stagehand — …'      # REPLACE
+    homepage: https://github.com/dustin/stagecoach
+    description: 'stagecoach — …'      # REPLACE
     maintainers:
       - 'Dustin Sallings <dustin@spy.net>'   # REPLACE email
     license: MIT                       # REPLACE
     depends: [git]
-    provides: [stagehand]
-    conflicts: [stagehand]
+    provides: [stagecoach]
+    conflicts: [stagecoach]
     private_key: '{{ .Env.AUR_SSH_PRIVATE_KEY }}'   # [VERIFY] field name + push-over-SSH semantics
     commit_author:
       name: goreleaserbot
       email: bot@goreleaser.com
 
-# NOTE: a from-source `stagehand` AUR package is NOT produced by goreleaser.
+# NOTE: a from-source `stagecoach` AUR package is NOT produced by goreleaser.
 # Maintain it manually (PKGBUILD + after.hooks or a release script). See §6 fallback.
 ```
 
@@ -524,7 +524,7 @@ jobs:
 **Required secrets (create in repo Settings → Secrets):**
 - `HOMEBREW_TAP_GITHUB_TOKEN` — fine-grained PAT, `contents: write` on `dustin/homebrew-tap`.
 - `SCOOP_BUCKET_GITHUB_TOKEN` — fine-grained PAT, `contents: write` on `dustin/scoop-bucket`.
-- `AUR_SSH_PRIVATE_KEY` — SSH private key whose public key is registered on the AUR account (for `stagehand-bin`).
+- `AUR_SSH_PRIVATE_KEY` — SSH private key whose public key is registered on the AUR account (for `stagecoach-bin`).
 - (`GITHUB_TOKEN` is auto-injected — no secret needed.)
 
 **Optional PR-gate job** (fast, non-publishing):
@@ -598,7 +598,7 @@ All URLs below are **[NOT LIVE-VERIFIED this session]** (no web tool available).
 - Run (with web access): open the AUR page, the archives page, and the templates page; copy exact field names into §13.
 - Locally: `go install github.com/goreleaser/goreleaser/v2@latest && goreleaser check` on the drafted `.goreleaser.yaml`; iterate until clean.
 - Then `goreleaser release --snapshot --clean` and inspect `dist/` for the 6 archives + checksums (no publishing occurs).
-- For from-source `stagehand` AUR: draft a `PKGBUILD` template and decide between manual-maintain vs `after.hooks` automation.
+- For from-source `stagecoach` AUR: draft a `PKGBUILD` template and decide between manual-maintain vs `after.hooks` automation.
 
 ---
 
@@ -612,7 +612,7 @@ No supervisor contact was made. No decision is blocked: the deliverable (this re
     {
       "id": "criterion-1",
       "status": "satisfied",
-      "evidence": "Scope confined to producing a single research brief answering all 12 requested GoReleaser v2 topics; no source/config files in the repo were modified. Output is a research document only, as scoped. Local project files (go.mod, cmd/stagehand/main.go) were read only to confirm the module path and the ldflags version variable — no edits."
+      "evidence": "Scope confined to producing a single research brief answering all 12 requested GoReleaser v2 topics; no source/config files in the repo were modified. Output is a research document only, as scoped. Local project files (go.mod, cmd/stagecoach/main.go) were read only to confirm the module path and the ldflags version variable — no edits."
     },
     {
       "id": "criterion-2",
@@ -626,14 +626,14 @@ No supervisor contact was made. No decision is blocked: the deliverable (this re
   "testsAddedOrUpdated": [],
   "commandsRun": [
     {
-      "command": "read /home/dustin/projects/stagehand/go.mod",
+      "command": "read /home/dustin/projects/stagecoach/go.mod",
       "result": "passed",
-      "summary": "Confirmed module github.com/dustin/stagehand, go 1.22 — matches task assumptions."
+      "summary": "Confirmed module github.com/dustin/stagecoach, go 1.22 — matches task assumptions."
     },
     {
-      "command": "read /home/dustin/projects/stagehand/cmd/stagehand/main.go",
+      "command": "read /home/dustin/projects/stagecoach/cmd/stagecoach/main.go",
       "result": "passed",
-      "summary": "Confirmed `var version = \"dev\"` exists at package main, validating the -X main.version ldflags approach and main: ./cmd/stagehand path."
+      "summary": "Confirmed `var version = \"dev\"` exists at package main, validating the -X main.version ldflags approach and main: ./cmd/stagecoach path."
     },
     {
       "command": "(not available) goreleaser check / web_search",
@@ -647,8 +647,8 @@ No supervisor contact was made. No decision is blocked: the deliverable (this re
   "residualRisks": [
     "No live URL verification: every cited goreleaser.com URL and several field names (AUR private_key field, formats-vs-format, snapshot.version_template, brews homepage vs home) are reconstructed from training knowledge and MUST be confirmed against current docs before committing the generated configs.",
     "AUR native pipe status (stable vs experimental) and exact config keys are the single largest uncertainty; §6 verdict should be re-confirmed by reading https://goreleaser.com/customization/aur/ directly.",
-    "A from-source `stagehand` AUR package is out of scope for the native pipe and requires a manual PKGBUILD — flagged as a follow-up decision (manual vs after.hooks automation).",
-    "The task references a write path 'plan/001_f1f80943ac34/P1M5T3S2/research/goreleaser_research.md' but the authoritative runtime override path '/home/dustin/projects/stagehand/research.md' was used instead per the explicit runtime instruction."
+    "A from-source `stagecoach` AUR package is out of scope for the native pipe and requires a manual PKGBUILD — flagged as a follow-up decision (manual vs after.hooks automation).",
+    "The task references a write path 'plan/001_f1f80943ac34/P1M5T3S2/research/goreleaser_research.md' but the authoritative runtime override path '/home/dustin/projects/stagecoach/research.md' was used instead per the explicit runtime instruction."
   ],
   "noStagedFiles": true,
   "diffSummary": "Created one new file: research.md (a structured GoReleaser v2 research brief). No repo source, config, or workflow files were created or modified — this is a research/planning deliverable only. The brief covers all 12 requested topics with v2-correct config keys, two canonical configs (.goreleaser.yaml + release.yml), a v1→v2 naming-diff table, a clear AUR verdict (native aurs: pipe exists for -bin; manual PKGBUILD for from-source), gotchas, cited URLs, and an explicit Gaps list driven by the session's lack of a web_search tool.",

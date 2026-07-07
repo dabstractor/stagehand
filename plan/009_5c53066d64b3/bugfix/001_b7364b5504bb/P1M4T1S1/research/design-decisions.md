@@ -77,7 +77,7 @@ handle the same content delivered in smaller pieces.”):
 > it composes with the never-block contract; see [Hook mode](#hook-mode-vs-the-snapshot-based-flow) below).
 
 Verified the three gate sites exist: `internal/generate/generate.go:304` (CommitStaged),
-`pkg/stagehand/stagehand.go:555` (runPipeline / dry-run), `internal/hook/exec.go:215` (hook.Run). The
+`pkg/stagecoach/stagecoach.go:555` (runPipeline / dry-run), `internal/hook/exec.go:215` (hook.Run). The
 cross-link target `#hook-mode-vs-the-snapshot-based-flow` is the existing anchor for the hook section
 header. One sentence; low-risk; directly delivers the OUTPUT.
 
@@ -101,7 +101,7 @@ regression check (still green, unchanged). No new tests (docs-only). The `docs/c
   edit (a)'s "on any failure … exits 0 with the message file untouched (FR-H5)".
 - `internal/generate/generate.go:340` — the progress line is UNCONDITIONAL (`fmt.Fprintf(os.Stderr,…)`); the
   `VerboseWarn` (L343) is the verbose-gated line — grounds edit (c)'s accurate wording.
-- `internal/{generate/generate.go:304, hook/exec.go:215}` + `pkg/stagehand/stagehand.go:555` — the three gate
+- `internal/{generate/generate.go:304, hook/exec.go:215}` + `pkg/stagecoach/stagecoach.go:555` — the three gate
   sites confirm the "three paths" claim (edit (d)).
 - `plan/009…/P1M1T2S1/research/mtpayload_fix_notes.md` (Issue 4) — mtPayload rebuilt from `diff` ⇒ the FR-T12
   paragraph is already accurate (edit (b) is a verify/no-op).

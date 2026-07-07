@@ -36,13 +36,13 @@ approximate — see design-decisions D2/D8.
 
 ## 2. The "~4 chars ≈ 1 token" estimate (model-agnostic budgeting)
 
-Stagehand never loads a tokenizer (it shells out to an arbitrary agent CLI — the whole product premise), so
+Stagecoach never loads a tokenizer (it shells out to an arbitrary agent CLI — the whole product premise), so
 FR3d/FR3i budget tokens with the standard heuristic: **≈4 characters per token**, ceiling-rounded, RUNE-based
 (not byte-based, so CJK/emoji don't over-count). Implemented as `EstimateTokens(s) = ceil(runes/4)`
 (`internal/git/tokens.go`).
 
 - Reference (the heuristic's origin): OpenAI's coarse guidance that ~4 chars ≈ 1 token for English text
-  (https://platform.openai.com/docs/guides/tokens — "a useful rule of thumb"). Stagehand uses it as a
+  (https://platform.openai.com/docs/guides/tokens — "a useful rule of thumb"). Stagecoach uses it as a
   model-agnostic CONSERVATIVE estimate; the user sets `token_limit` with their own slack below the real
   context window, and a safety `margin` absorbs the code-vs-prose density gap.
 - The contract PINS chars/4 (NOT the architecture doc's chars/3 ceiling-recommendation); the chars/3 gap is

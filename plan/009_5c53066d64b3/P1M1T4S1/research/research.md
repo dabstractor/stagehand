@@ -47,9 +47,9 @@ STDIN (PromptDelivery="stdin") so it is NOT in the command args (only its byte S
 VerbosePayload). ⇒ substring counts on the verbose buffer are safe and exact:
 
 - (b) N+1 multi-turn invocations: `strings.Count(buf, "--session-id") == N+1`. Cross-check: the
-  shared `STAGEHAND_STUB_COUNTER` file == `1 (one-shot) + (N+1) (multi-turn) == N+2`.
+  shared `STAGECOACH_STUB_COUNTER` file == `1 (one-shot) + (N+1) (multi-turn) == N+2`.
 - (c) every turn has --session-id: count == N+1 (above). stable value: `regexp.FindAllString(buf,
-  -1)` for `stagehand-[0-9a-f]{32}` ⇒ all N+1 must be IDENTICAL (one id minted per Run, FR-T6).
+  -1)` for `stagecoach-[0-9a-f]{32}` ⇒ all N+1 must be IDENTICAL (one id minted per Run, FR-T6).
   --no-session dropped from multi-turn: `strings.Count(buf, "--no-session") == 1` (only the one-shot
   turn). PLUS a byte-exact cross-check on the FINAL turn via ArgsFile (see §5).
 - (d) turn-1-only sys prompt: `strings.Count(buf, "--system") == 1` (only turn 1 emits it; turns
@@ -61,11 +61,11 @@ silently. The script + clamp-to-last (§6) makes the test correct for ANY N≥2.
 
 ## 5. ArgsFile = byte-exact cross-check of the FINAL turn (turn N+1)
 
-The stub's `STAGEHAND_STUB_ARGSFILE` writes `strings.Join(os.Args, "\x00")` and **OVERWRITES** each
+The stub's `STAGECOACH_STUB_ARGSFILE` writes `strings.Join(os.Args, "\x00")` and **OVERWRITES** each
 call (stubagent main.go:35) ⇒ after the run it holds only the LAST invocation (turn N+1). That's the
 `TestCommitStaged_MessageRoleOverride` sliceContains pattern (generate_test.go:541). For turn N+1
 (>1): `sliceContains(args, "--session-id")` true; `sliceContains(args, "--no-session")` false;
-`sliceContains(args, "--system")` false. Set via `m.Env["STAGEHAND_STUB_ARGSFILE"] = argsFile`
+`sliceContains(args, "--system")` false. Set via `m.Env["STAGECOACH_STUB_ARGSFILE"] = argsFile`
 (`m.Env` is a mutable map from `optsEnvMap`; NewScript leaves it set). This complements (does not
 replace) the verbose-buffer every-turn coverage — ArgsFile proves byte-exact argv for one turn, the
 verbose counts prove the property across ALL turns. (Per-turn files for ALL turns would need a stub

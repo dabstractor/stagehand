@@ -24,7 +24,7 @@ bare invocation with `--no-tools` REMOVED → pi's native tool system is ON. Eve
 ⚠️ **pi has NO git-scoped allowlist flag.** `pi --help` (external_deps.md §pi) shows only the all-or-nothing
 `--no-tools`/`-nt`; there is no `--allowed-tools`/`--tools` equivalent. So pi's tooled profile turns ALL
 tools on — the §12.7.1 stager safety ("tools scoped to staging, never commit/update-ref/push") for pi is
-therefore enforced by the **stager task prompt (§17.6)** + stagehand's monopoly on ref mutations (§13.6.2,
+therefore enforced by the **stager task prompt (§17.6)** + stagecoach's monopoly on ref mutations (§13.6.2,
 §19), NOT by `tooled_flags` scoping. This is acceptable for v1 (the field expresses pi's idiom honestly:
 "tooled = tools on, no chrome"). Do NOT invent a non-existent allowlist flag.
 
@@ -188,7 +188,7 @@ NO bare/tooled mode in its "Command rendering" section, and NO stager mention. A
    - **Stager-capable (non-empty `tooled_flags`):** pi (tools on, no chrome), claude (git/read/edit allowlist).
    - **NOT stager-capable (empty `tooled_flags`):** gemini, agy (experimental), opencode, codex, cursor.
    - Note the safety model (§12.7.1): the stager's safety is "tools scoped to staging, never
-     commit/update-ref/push" — enforced by `tooled_flags` + stagehand's ref-mutation monopoly + the stager
+     commit/update-ref/push" — enforced by `tooled_flags` + stagecoach's ref-mutation monopoly + the stager
      task prompt; FR-D4 falls back to the next stager-capable provider when the chosen one can't stager.
 4. **Provider table** (`## The 7 built-in providers`): optionally ADD a "Stager?" column
    (pi=yes, claude=yes, others=no). This directly satisfies "show which providers are stager-capable".
@@ -209,7 +209,7 @@ this task's doc edits on `tooled_flags` + the stager.
   stager subsection + capability marker).
 - **FROZEN (do NOT edit):** `manifest.go` (the TooledFlags field — already exists), `merge.go`, `render.go`,
   `registry.go`, `manifest_test.go`, `merge_test.go`, `render_test.go`, `referencefiles_test.go`,
-  `internal/config/*`, `internal/git/*`, `cmd/stagehand/main.go`, `Makefile`, `go.mod`, `go.sum`, the five
+  `internal/config/*`, `internal/git/*`, `cmd/stagecoach/main.go`, `Makefile`, `go.mod`, `go.sum`, the five
   non-stager provider constructors + their TOML/tests, **PRD.md** (Appendix D — human-owned).
 - **IMPORTS:** `builtin.go` stays ZERO-import (literal `[]string` + strPtr/boolPtr only — same as the other
   fields). `builtin_test.go` already imports testing+reflect+toml; the tooled render tests use the REAL

@@ -6,7 +6,7 @@
 
 ## The contract (PRD §9.17 FR-B1/B2, §9.16 FR-D1/D4, §16.4)
 
-`stagehand config init` must now write a **POPULATED, working** config (not the inert template):
+`stagecoach config init` must now write a **POPULATED, working** config (not the inert template):
 - Cascading detection (FR-D1) finds the highest-priority INSTALLED built-in (order: pi, opencode,
   cursor, agy, gemini, codex, claude).
 - Writes `[defaults] provider = <detected>` UNCOMMENTED.
@@ -89,7 +89,7 @@ const; read-only). This is what makes the P1.M4.T1.S1 advisory SILENT for a fres
 
 ## F7 — `cmd` → `provider` is already a dependency (no new cycle)
 
-`internal/cmd/default_action.go` and `providers.go` already `import "github.com/dustin/stagehand/
+`internal/cmd/default_action.go` and `providers.go` already `import "github.com/dustin/stagecoach/
 internal/provider"`. So `config.go` importing `provider` (for `NewRegistry`/`Registry`/`IsInstalled`/
 `DefaultProvider`) adds NO new edge. `provider` does not import `cmd`. No cycle. Mirror providers.go's
 `installedNames(reg)` helper verbatim (it's unexported there — re-implement the 5-line loop locally, or

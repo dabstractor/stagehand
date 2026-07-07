@@ -11,7 +11,7 @@ Mode-A config documentation surface). The `config_version` header block (lines ~
 
 ```
 # config_version — schema version (PRD §9.17 FR-B4). Top-level metadata, NOT a [defaults] key and
-# NOT a precedence layer (§16.1): it never overrides another field; it only tells stagehand which
+# NOT a precedence layer (§16.1): it never overrides another field; it only tells stagecoach which
 # schema the file was written for. This binary supports config_version = 2.   <-- STALE: 2 -> 3
 # ---------------------------------------------------------------------------
 # config_version = 2   <-- STALE example line: 2 -> 3

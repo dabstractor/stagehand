@@ -7,13 +7,13 @@
 > lock file before `os.Exit` orphans it.
 >
 > Sources: `architecture/lock_reaping.md` Fix 2 (the wiring spec), the S1 PRP (the seam contract), the live
-> `cmd/stagehand/main.go`, PRD §18.4/§18.5.
+> `cmd/stagecoach/main.go`, PRD §18.4/§18.5.
 
 ---
 
 ## §1 — The exact change (2 line additions to ONE file)
 
-`cmd/stagehand/main.go` is the sole `signal.Install` caller (verified: `grep -rn signal.Install` → 1 hit).
+`cmd/stagecoach/main.go` is the sole `signal.Install` caller (verified: `grep -rn signal.Install` → 1 hit).
 Two edits:
 
 ### Edit A — add the import (alphabetical, between `internal/generate` and `internal/signal`)
@@ -25,11 +25,11 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/dustin/stagehand/internal/cmd"
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/lock"   // NEW — exit-path lock-release seam (FR52 §18.5)
-	"github.com/dustin/stagehand/internal/signal"
+	"github.com/dustin/stagecoach/internal/cmd"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/lock"   // NEW — exit-path lock-release seam (FR52 §18.5)
+	"github.com/dustin/stagecoach/internal/signal"
 )
 ```
 
@@ -66,7 +66,7 @@ internal/signal/signal.go` → no hit. **If S1 has not landed, this task's edit 
 - `OnRescueExit: lock.ReleaseCurrent` → **`unknown field 'OnRescueExit' in struct literal of type signal.Options`**
   (field doesn't exist yet) AND **`undefined: lock.ReleaseCurrent`** (func doesn't exist yet).
 
-`go build ./cmd/stagehand` is the gate. **If those errors appear, S1 is not complete — STOP and flag; do NOT
+`go build ./cmd/stagecoach` is the gate. **If those errors appear, S1 is not complete — STOP and flag; do NOT
 invent a workaround (e.g. do NOT add the field/func yourself — that is S1's scope; do NOT wire a closure that
 imports lock into signal — that breaks signal's stdlib-only purity).** The orchestrator runs S1 to completion,
 then S2; this task assumes S1 is in the tree.
@@ -111,11 +111,11 @@ SIGKILL/crash, not the hot path.
 
 ## §5 — Validation
 
-- `gofmt -l cmd/stagehand/main.go` clean (import ordering + struct alignment).
+- `gofmt -l cmd/stagecoach/main.go` clean (import ordering + struct alignment).
 - `go vet ./...` / `go build ./...` clean — AND this is the S1-landed gate (the build proves `ReleaseCurrent`
   + `OnRescueExit` exist with matching signatures).
 - `go test -race ./...` green — NO regression. The wiring only activates on the signal path; existing unit
   tests inject their own `Options` (they don't go through main.go's `Install`), so they're unaffected.
-- Smoke (Level 3): `go build -o /tmp/stagehand ./cmd/stagehand`; confirm `OnRescueExit` is wired
-  (`grep 'OnRescueExit: lock.ReleaseCurrent' cmd/stagehand/main.go`); confirm `internal/lock` is imported.
+- Smoke (Level 3): `go build -o /tmp/stagecoach ./cmd/stagecoach`; confirm `OnRescueExit` is wired
+  (`grep 'OnRescueExit: lock.ReleaseCurrent' cmd/stagecoach/main.go`); confirm `internal/lock` is imported.
 - The end-to-end behavior (Ctrl-C removes the lock file) is asserted by P1.M2.T3.S2's committed tests, NOT here.

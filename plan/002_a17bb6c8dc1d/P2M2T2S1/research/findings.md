@@ -208,7 +208,7 @@ Both match the work-item contract and §2's empirical behaviors exactly. The sig
 
 ## §9. Validation gates (verified-present in this repo)
 
-- `go build ./...` (module: `github.com/dustin/stagehand`, go 1.22)
+- `go build ./...` (module: `github.com/dustin/stagecoach`, go 1.22)
 - `go vet ./...`
 - `golangci-lint run ./...` (config: `.golangci.yml`; enabled: errcheck, gosimple, govet, ineffassign, staticcheck, unused)
 - `go test -race ./internal/git/ -run "TestStatusPorcelain" -v` (new tests)

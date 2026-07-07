@@ -7,7 +7,7 @@ timeout→`*RescueError` change + new tests are **S3**).
 
 ## 1. The edit site (exact, verified)
 
-`pkg/stagehand/stagehand.go`, inside `runPipeline`:
+`pkg/stagecoach/stagecoach.go`, inside `runPipeline`:
 
 ```go
 244:	// Step 3 (commit path only): snapshot. DryRun skips it (no commit → no object-store write).
@@ -39,7 +39,7 @@ the var is used in the commit branch of the same function, so Go's unused-var ch
 
 `internal/signal/signal.go`: every package wrapper (`SetSnapshot`/`SetCandidate`/`ClearSnapshot`/
 `RestoreDefault`) is a **no-op when no handler is installed** (`active.Load()` nil check). The
-`pkg/stagehand` tests **never call `signal.Install`** (confirmed: `grep signal. pkg/stagehand/*_test.go`
+`pkg/stagecoach` tests **never call `signal.Install`** (confirmed: `grep signal. pkg/stagecoach/*_test.go`
 is empty), so `SetSnapshot` is unobservable in the test suite. In the CLI, arming in dry-run is the
 **intended** behavior (FR49: rescue arms for dry-run too). The dry-run single-pass returns before
 `RestoreDefault`/`ClearSnapshot`, so the snapshot stays armed until process exit — harmless because the
@@ -49,7 +49,7 @@ process exits immediately after dry-run and a mid-generation Ctrl-C *should* fir
 
 `grep objectCount/count-objects` across `*_test.go` shows object-count guards live **only** in the
 *missing-provider-command* tests:
-- `pkg/stagehand/stagehand_test.go` `TestGenerateCommit_MissingProviderCommand_Issue3` (+ its `dryrun`
+- `pkg/stagecoach/stagecoach_test.go` `TestGenerateCommit_MissingProviderCommand_Issue3` (+ its `dryrun`
   subtest, lines ~350-421).
 - `internal/cmd/default_action_test.go` `TestRunDefault_MissingProviderCommand_Issue3` (~620-670).
 
@@ -58,7 +58,7 @@ All of these use `command = "/nonexistent/path/agent"` → `buildDeps`'s `reg.Is
 so `WriteTree` is never called → object count unchanged → unaffected by S1.
 
 Other dry-run-touching tests that stay green:
-- `TestGenerateCommit_DryRun` (stagehand_test.go ~169): successful dry-run; asserts `CommitSHA==""`,
+- `TestGenerateCommit_DryRun` (stagecoach_test.go ~169): successful dry-run; asserts `CommitSHA==""`,
   Message/Subject, HEAD unchanged. Does **not** check object count → unaffected (HEAD still unchanged).
 - `TestGenerateCommit_Timeout/dryrun` (~224): asserts `errors.Is(err, ErrTimeout)` AND `errors.As(err,&re)`
   is **false**. The dry-run single-pass still returns the bare `ErrTimeout` sentinel (S1 does not touch
@@ -73,7 +73,7 @@ neither doc makes such a claim:
 - `docs/how-it-works.md` has **no** dry-run description at all (its TOC: snapshot flow,
   stage-while-generating, safety/rescue, prompt engineering — nothing on dry-run).
 - `docs/cli.md` `--dry-run` row: "Generate and print the message; do not commit." — accurate, does **not**
-  imply the snapshot is skipped. Examples (`stagehand --dry-run`) likewise only say "without committing".
+  imply the snapshot is skipped. Examples (`stagecoach --dry-run`) likewise only say "without committing".
 
 → **No doc edit is required for S1.** Any proactive dry-run narrative for how-it-works.md belongs to
 **P1.M5.T1.S2** (docs sweep), not S1 — keeping S1 surgical avoids colliding with that future work item.

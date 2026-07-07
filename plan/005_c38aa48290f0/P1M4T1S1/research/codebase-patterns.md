@@ -92,7 +92,7 @@ machinery. The Target owns the **surgical edit**; the protocol owns the **no-man
 
 ```go
 type Target interface {
-    Marker() string                  // identity string for stagehand's contribution (FR-I3b/f)
+    Marker() string                  // identity string for stagecoach's contribution (FR-I3b/f)
     Parse(data []byte) error         // load existing content into state; err ⇒ HARD refuse (FR-I3a)
     HasEntry() bool                  // marker entry present in parsed state (idempotency / Remove no-op)
     Upsert() ([]byte, error)         // insert-or-replace the marker entry (surgical, FR-I3b/f)
@@ -128,7 +128,7 @@ Inputs: `ApplyOptions{Path, Target, Action(Upsert|Remove), Yes, Out io.Writer, C
 7. if !Yes:                                        # (c) confirm
         confirm := opts.Confirm; if nil → DefaultConfirm
         if !confirm(out, Path, diff) → OutcomeDeclined, return (NOTHING written)
-8. if !missing: backup := Path + ".stagehand-backup." + unixTs; WriteFile(backup, orig, 0o644)   # (d)
+8. if !missing: backup := Path + ".stagecoach-backup." + unixTs; WriteFile(backup, orig, 0o644)   # (d)
 9. MkdirAll(filepath.Dir(Path), 0o755)             # (g) create-if-missing parent dirs (AFTER confirm)
 10. atomicWrite(Path, newBytes):                   # (e) temp file in SAME dir + os.Rename + Chmod 0o644
 11. if verr := Target.Validate(newBytes); verr != nil:   # (e) re-parse validate
@@ -140,7 +140,7 @@ Inputs: `ApplyOptions{Path, Target, Action(Upsert|Remove), Yes, Out io.Writer, C
 - **Backup retention**: the timestamped backup is RETAINED on both success and validate-failure (FR-I3d
   says "write before modifying"; it does not say delete). On validate-failure the in-memory `orig` is
   restored over the target (equivalent to the backup) and the backup file is kept as the user's record.
-- **Atomic write**: temp file via `os.CreateTemp(dir, ".stagehand-*")` in `filepath.Dir(Path)` (same
+- **Atomic write**: temp file via `os.CreateTemp(dir, ".stagecoach-*")` in `filepath.Dir(Path)` (same
   filesystem ⇒ rename is atomic), write bytes, `os.Chmod(tmp, 0o644)`, `os.Rename(tmp, Path)`.
 - **ConfirmFunc injection** (`func(out io.Writer, path, diff string) bool`): tests pass a deterministic
   bool-returning stub; `opts.Confirm == nil` ⇒ `DefaultConfirm` (prints the diff + `Apply changes to <path>? [y/N]`
@@ -154,9 +154,9 @@ engine dep-free and deterministic):
 
 ```
 <arbitrary lines>
-# stagehand-test-marker
+# stagecoach-test-marker
 managed-line
-# end-stagehand-test-marker
+# end-stagecoach-test-marker
 <arbitrary lines>
 ```
 

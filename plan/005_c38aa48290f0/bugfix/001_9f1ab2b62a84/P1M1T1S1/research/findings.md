@@ -54,7 +54,7 @@ if missing {                       // missing == errors.Is(rerr, os.ErrNotExist)
 ```
 
 In the foreign-key test, the file EXISTS (we pre-wrote foreignYAML) and has no marker
-(`exists = HasEntry() == false`). Upsert APPENDS stagehand's entry → newBytes != orig → Apply writes
+(`exists = HasEntry() == false`). Upsert APPENDS stagecoach's entry → newBytes != orig → Apply writes
 → `missing` is false, action is Upsert → **`OutcomeUpdated`**. OutcomeCreated is reserved exclusively
 for the missing-file/create path (FR-I3g). The Outcome constant is FILE-centric, not entry-centric.
 
@@ -88,14 +88,14 @@ all other nil-Out installs robust even if a future foreign+nil-Out case arises.
 
 ## WARNING wording (EXACT — from contract §3c; all sources agree)
 ```
-WARNING: a %s binding already exists (not managed by stagehand); installing will create a duplicate customCommands entry — use --key to choose a different binding.
+WARNING: a %s binding already exists (not managed by stagecoach); installing will create a duplicate customCommands entry — use --key to choose a different binding.
 ```
 Contains the substrings the tests assert: "WARNING" ✓ and "duplicate" ✓.
 
 ## Duplicate-count assertion (exactly TWO `<c-a>` entries)
 yaml.v3 Node-API encode preserves mapping key order AND emits `<c-a>` single-quoted (verified by existing
 `TestIntegrateLazygitKeyFlag` which asserts `strings.Contains(data, "key: '<c-s>'")`). So both the foreign
-(`- key: '<c-a>'`) and stagehand (`- key: '<c-a>' # stagehand-integration`) lines contain the substring
+(`- key: '<c-a>'`) and stagecoach (`- key: '<c-a>' # stagecoach-integration`) lines contain the substring
 `key: '<c-a>'` → `strings.Count(data, "key: '<c-a>'") == 2`. The robust alternative is to re-parse and count
 sequence items with `Content[0].Value=="key" && Content[1].Value=="<c-a>"`.
 

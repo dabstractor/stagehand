@@ -17,7 +17,7 @@ description: |
   `retryInstr` setup); change L196 `Render(cfg.Model, …, cfg.Reasoning)` → `Render(msgModel, …,
   msgReasoning)`; change step-10 `model := cfg.Model` → `model := msgModel` (keep the
   `if model == "" { model = *resolved.DefaultModel }` fallback so Result.Model reports the concrete model).
-  (B) `pkg/stagehand/stagehand.go` `runPipeline` — add the same ResolveRoleModel call before the loop;
+  (B) `pkg/stagecoach/stagecoach.go` `runPipeline` — add the same ResolveRoleModel call before the loop;
   change the `model` local var (~L447) `model := cfg.Model` → `model := msgModel` (keep the DefaultModel
   fallback); change L467 `Render(cfg.Model, …, cfg.Reasoning)` → `Render(msgModel, …, msgReasoning)`. The
   two `Result.Model` returns (~L529 dryRun, ~L566 commit) already reference the `model` var — NO separate
@@ -34,16 +34,16 @@ description: |
   ⚠️ **THE third design call — observability for the test.** `provider.Manifest` is a CONCRETE struct
   (`Deps.Manifest provider.Manifest`) and `Render` is a value receiver, so a per-instance "recording
   Render" is impossible. `cmd/stubagent` ignores its argv (stdin+env only). To faithfully assert "Render
-  received model=haiku, reasoning=high" end-to-end, add a TINY `STAGEHAND_STUB_ARGSFILE` env knob to
-  cmd/stubagent (write `os.Args` to a file, mirroring the existing `STAGEHAND_STUB_MARKER` file-write at
+  received model=haiku, reasoning=high" end-to-end, add a TINY `STAGECOACH_STUB_ARGSFILE` env knob to
+  cmd/stubagent (write `os.Args` to a file, mirroring the existing `STAGECOACH_STUB_MARKER` file-write at
   stubagent main.go:~40) + an `ArgsFile` field on `stubtest.Options`. Then tests read that file and assert
   the rendered argv contains `--model haiku` + the reasoning token. MODEL is ALSO observable via
   `Result.Model` (deterministic, regression-catching on its own). See research note for the no-stub-change
   minimum (Result.Model + direct `spec.Args` assertion via the realagent_test.go:83 pattern).
 
-  SCOPE: edits to `internal/generate/generate.go`, `pkg/stagehand/stagehand.go`, `cmd/stubagent/main.go`
+  SCOPE: edits to `internal/generate/generate.go`, `pkg/stagecoach/stagecoach.go`, `cmd/stubagent/main.go`
   (+ `internal/stubtest/stubtest.go` for the ArgsFile option), and tests in `internal/generate/generate_test.go`
-  + `pkg/stagehand/*_test.go`. NO config-layer changes (the loaders/flags already work), NO render.go/
+  + `pkg/stagecoach/*_test.go`. NO config-layer changes (the loaders/flags already work), NO render.go/
   manifest.go, NO default_action.go, NO docs (README/cli.md already document the flags — they just start
   working). INPUT = `cfg config.Config` (already received by both funcs) carrying `cfg.Roles["message"]`.
   OUTPUT = `--message-*` / `[role.message]` now drive the single-commit Render (both CommitStaged and
@@ -54,20 +54,20 @@ description: |
 
 **Feature Goal**: Make the single-commit generation path honor per-role `message` overrides by resolving
 the `message` role via `config.ResolveRoleModel("message", cfg)` and feeding its (model, reasoning) to
-`provider.Manifest.Render` — in BOTH `generate.CommitStaged` and `pkg/stagehand.runPipeline` — with no
+`provider.Manifest.Render` — in BOTH `generate.CommitStaged` and `pkg/stagecoach.runPipeline` — with no
 behavior change when no message override is set (back-compatible global fallback).
 
 **Deliverable** (edits to existing files; one tiny test-infra addition):
 1. **`internal/generate/generate.go`** (`CommitStaged`) — add `_, msgModel, msgReasoning :=
    config.ResolveRoleModel("message", cfg)` before the dedupe loop; change the Render call to use
    `msgModel`/`msgReasoning`; change step-10 `model := cfg.Model` → `model := msgModel`.
-2. **`pkg/stagehand/stagehand.go`** (`runPipeline`) — add the same ResolveRoleModel call before the loop;
+2. **`pkg/stagecoach/stagecoach.go`** (`runPipeline`) — add the same ResolveRoleModel call before the loop;
    change the `model` local var to start from `msgModel`; change the Render call to use
    `msgModel`/`msgReasoning` (the two `Result.Model` returns inherit `model` automatically).
-3. **`cmd/stubagent/main.go`** + **`internal/stubtest/stubtest.go`** — add a `STAGEHAND_STUB_ARGSFILE` knob
+3. **`cmd/stubagent/main.go`** + **`internal/stubtest/stubtest.go`** — add a `STAGECOACH_STUB_ARGSFILE` knob
    (write `os.Args` join-by-NUL or newline to a file) + `stubtest.Options.ArgsFile` so tests can observe
    the exact rendered argv end-to-end.
-4. **`internal/generate/generate_test.go`** + **`pkg/stagehand/*_test.go`** — regression tests:
+4. **`internal/generate/generate_test.go`** + **`pkg/stagecoach/*_test.go`** — regression tests:
    (a) message override (model+reasoning) reaches Render/Result; (b) no-override case is unchanged.
 
 **Success Definition**: `go build ./...`, `go vet ./...`, `gofmt -l` clean; `go test -race ./...` green
@@ -80,10 +80,10 @@ Result.Model == cfg.Model or manifest default). go.mod/go.sum unchanged.
 ## User Persona
 
 **Target User**: Any user who configures the message role on the single-commit (default) path —
-`stagehand --message-model haiku`, `STAGEHAND_MESSAGE_REASONING=high`, or `[role.message] model=…` in
+`stagecoach --message-model haiku`, `STAGECOACH_MESSAGE_REASONING=high`, or `[role.message] model=…` in
 config. Transitively PRD §9.15 FR-R3 ("every role exposes all three flags, including message").
 
-**Use Case**: `stagehand --message-model haiku` (with something staged) must generate the commit with the
+**Use Case**: `stagecoach --message-model haiku` (with something staged) must generate the commit with the
 haiku model. Today it silently uses the global/manifest default.
 
 **User Journey**: flag/env/file → `Load()` writes `cfg.Roles["message"]` → single-commit path resolves
@@ -113,11 +113,11 @@ observe the rendered argv. No config-layer, render, manifest, CLI-routing, or do
 
 - [ ] `generate.go` `CommitStaged`: `_, msgModel, msgReasoning := config.ResolveRoleModel("message", cfg)`
       before the loop; `Render(msgModel, sysPrompt, payload, msgReasoning)`; step-10 `model := msgModel`.
-- [ ] `stagehand.go` `runPipeline`: `_, msgModel, msgReasoning := config.ResolveRoleModel("message", cfg)`
+- [ ] `stagecoach.go` `runPipeline`: `_, msgModel, msgReasoning := config.ResolveRoleModel("message", cfg)`
       before the loop; `model := msgModel` (DefaultModel fallback kept); `Render(msgModel, …, msgReasoning)`.
 - [ ] Neither site uses `msgProv` (discard with `_`) — provider→manifest selection stays in buildDeps
       (P1.M2.T2.S1). No "declared and not used" compile error.
-- [ ] `cmd/stubagent` writes `os.Args` to `STAGEHAND_STUB_ARGSFILE` when set; `stubtest.Options.ArgsFile`
+- [ ] `cmd/stubagent` writes `os.Args` to `STAGECOACH_STUB_ARGSFILE` when set; `stubtest.Options.ArgsFile`
       threads it into the Env map.
 - [ ] New tests: message override (model+reasoning) reaches Render (`ARGSFILE` contains `--model haiku` +
       reasoning token) and `Result.Model == "haiku"`; no-override case unchanged (regression-safe).
@@ -138,7 +138,7 @@ approach. No provider/config internals beyond "ResolveRoleModel returns (provide
 # MUST READ - Include these in your context window
 - docfile: plan/003_6ce49c39466e/bugfix/001_ccbb2681877e/P1M2T1S1/research/message_role_single_path.md
   why: the verified two-call-site fix, the msgProv-unused compile GOTCHA (use `_`), the reference pattern,
-       the test-observability constraint + STAGEHAND_STUB_ARGSFILE approach, and the back-comat proof.
+       the test-observability constraint + STAGECOACH_STUB_ARGSFILE approach, and the back-comat proof.
   critical: contract (B)'s literal `msgProv, ...` WILL NOT COMPILE (unused var). Discard with `_` in both
        sites. Provider/manifest selection is P1.M2.T2.S1 — out of scope.
 
@@ -159,17 +159,17 @@ approach. No provider/config internals beyond "ResolveRoleModel returns (provide
        loop (~L178-180) — add the ResolveRoleModel call right there. `resolved` is in scope at step 10.
   pattern: see Implementation Blueprint (A).
 
-- file: pkg/stagehand/stagehand.go   (runPipeline L401; model var L447-449; Render L467; Result L529,L566)
+- file: pkg/stagecoach/stagecoach.go   (runPipeline L401; model var L447-449; Render L467; Result L529,L566)
   why: call site (B). The `model` var feeds BOTH Result returns — change its initializer to msgModel and
        the two returns inherit it (no edit at L529/L566). Render L467 uses cfg.Model/cfg.Reasoning today.
   pattern: see Implementation Blueprint (B).
 
 - file: internal/stubtest/stubtest.go   + cmd/stubagent/main.go
   why: the test harness. stubtest.Manifest builds a real provider.Manifest backed by the stub binary;
-       stubtest.Options→STAGEHAND_STUB_* env. stubagent drains stdin, reads env, writes canned stdout
-       (IGNORES argv). Add STAGEHAND_STUB_ARGSFILE (write os.Args) + Options.ArgsFile to observe the
+       stubtest.Options→STAGECOACH_STUB_* env. stubagent drains stdin, reads env, writes canned stdout
+       (IGNORES argv). Add STAGECOACH_STUB_ARGSFILE (write os.Args) + Options.ArgsFile to observe the
        rendered argv end-to-end.
-  pattern: mirror the STAGEHAND_STUB_MARKER file-write at stubagent main.go:~40 (`os.WriteFile(marker,…)`).
+  pattern: mirror the STAGECOACH_STUB_MARKER file-write at stubagent main.go:~40 (`os.WriteFile(marker,…)`).
   gotcha: provider.Manifest is a STRUCT — you cannot substitute a recording mock via Deps.Manifest; the
        ARGSFILE knob is how you observe Render's output (the rendered command) through the real Execute seam.
 
@@ -189,11 +189,11 @@ approach. No provider/config internals beyond "ResolveRoleModel returns (provide
 
 ```bash
 internal/generate/generate.go        # CommitStaged — Render L196, Result.Model L287-289   ← EDIT (A)
-pkg/stagehand/stagehand.go           # runPipeline — model var L447, Render L467, Result L529/L566  ← EDIT (B)
+pkg/stagecoach/stagecoach.go           # runPipeline — model var L447, Render L467, Result L529/L566  ← EDIT (B)
 cmd/stubagent/main.go                # stub binary (ignores argv today)                      ← EDIT (ARGSFILE knob)
-internal/stubtest/stubtest.go        # Options→STAGEHAND_STUB_* env                         ← EDIT (Options.ArgsFile)
+internal/stubtest/stubtest.go        # Options→STAGECOACH_STUB_* env                         ← EDIT (Options.ArgsFile)
 internal/generate/generate_test.go   # CommitStaged integration tests (stubtest harness)    ← EDIT (regression tests)
-pkg/stagehand/*_test.go              # GenerateCommit/runPipeline tests                     ← EDIT (regression tests)
+pkg/stagecoach/*_test.go              # GenerateCommit/runPipeline tests                     ← EDIT (regression tests)
 internal/config/roles.go             # ResolveRoleModel (3-return) — INPUT, NO edit
 internal/decompose/message.go        # reference pattern (already correct) — NO edit
 internal/cmd/default_action.go       # runGenerate — NO edit (provider routing is P1.M2.T2.S1)
@@ -218,15 +218,15 @@ go.mod / go.sum                      # unchanged
 // CRITICAL: keep the DefaultModel fallback on the Result.Model path. Render receives the RAW msgModel
 // (may be "" ⇒ Render/manifest uses its default); Result.Model must report the CONCRETE model, so keep
 // `if model == "" { model = *resolved.DefaultModel }` after `model := msgModel`. (resolved is in scope:
-// generate.go computes it before the loop; stagehand.go computes it at ~L446.)
+// generate.go computes it before the loop; stagecoach.go computes it at ~L446.)
 
-// CRITICAL: stagehand.go's two Result.Model returns (dryRun ~L529, commit ~L566) reference the `model`
+// CRITICAL: stagecoach.go's two Result.Model returns (dryRun ~L529, commit ~L566) reference the `model`
 // LOCAL VAR, not cfg.Model. So changing `model := cfg.Model` → `model := msgModel` (one line, ~L447)
 // propagates to BOTH returns — do NOT edit L529/L566 separately (you'd risk divergence).
 
 // CRITICAL (test): provider.Manifest is a CONCRETE struct; Deps.Manifest is not an interface. You CANNOT
 // substitute a per-instance recording Render. cmd/stubagent ignores argv. To observe "Render received
-// model=haiku, reasoning=high" end-to-end, add STAGEHAND_STUB_ARGSFILE (stub writes os.Args) and read it
+// model=haiku, reasoning=high" end-to-end, add STAGECOACH_STUB_ARGSFILE (stub writes os.Args) and read it
 // in the test. Result.Model is the no-stub-change minimum observable for MODEL.
 
 // GOTCHA: ResolveRoleModel("message", cfg) with NO message override returns (cfg.Provider, cfg.Model,
@@ -251,8 +251,8 @@ go.mod / go.sum                      # unchanged
 No new types. The only structural addition is a stub env knob:
 
 ```go
-// cmd/stubagent/main.go — after the stdin drain + MARKER write, near the existing STAGEHAND_STUB_MARKER block:
-if argsFile := os.Getenv("STAGEHAND_STUB_ARGSFILE"); argsFile != "" {
+// cmd/stubagent/main.go — after the stdin drain + MARKER write, near the existing STAGECOACH_STUB_MARKER block:
+if argsFile := os.Getenv("STAGECOACH_STUB_ARGSFILE"); argsFile != "" {
 	// Join argv with NUL so flag values with spaces survive; tests split on "\x00".
 	_ = os.WriteFile(argsFile, []byte(strings.Join(os.Args, "\x00")), 0o644)
 }
@@ -260,9 +260,9 @@ if argsFile := os.Getenv("STAGEHAND_STUB_ARGSFILE"); argsFile != "" {
 // internal/stubtest/stubtest.go — add to Options:
 type Options struct {
 	// ... existing fields ...
-	ArgsFile string // STAGEHAND_STUB_ARGSFILE (writes the stub's os.Args to this path — observe rendered argv)
+	ArgsFile string // STAGECOACH_STUB_ARGSFILE (writes the stub's os.Args to this path — observe rendered argv)
 }
-// and in optsEnvMap: if o.ArgsFile != "" { m["STAGEHAND_STUB_ARGSFILE"] = o.ArgsFile }
+// and in optsEnvMap: if o.ArgsFile != "" { m["STAGECOACH_STUB_ARGSFILE"] = o.ArgsFile }
 ```
 
 ```go
@@ -281,7 +281,7 @@ if model == "" {
 	model = *resolved.DefaultModel
 }
 
-// pkg/stagehand/stagehand.go — runPipeline (replace the L447-449 block):
+// pkg/stagecoach/stagecoach.go — runPipeline (replace the L447-449 block):
 resolved := deps.Manifest.Resolve()
 _, msgModel, msgReasoning := config.ResolveRoleModel("message", cfg) // FR-R3: honor [role.message] (back-compat fallback)
 model := msgModel
@@ -304,7 +304,7 @@ Task 1: generate.go CommitStaged — resolve message role for Render + Result.Mo
   - CHANGE step-10 (L287): `model := cfg.Model` → `model := msgModel` (keep the `if model == ""` DefaultModel fallback).
   - GOTCHA: use `_` for the provider (NOT msgProv) — unused-var compile error otherwise.
 
-Task 2: stagehand.go runPipeline — resolve message role for Render + the model var
+Task 2: stagecoach.go runPipeline — resolve message role for Render + the model var
   - ADD before the loop (right after `resolved := deps.Manifest.Resolve()`): the same
     `_, msgModel, msgReasoning := config.ResolveRoleModel("message", cfg)` line.
   - CHANGE the model var (L447): `model := cfg.Model` → `model := msgModel` (keep DefaultModel fallback).
@@ -313,10 +313,10 @@ Task 2: stagehand.go runPipeline — resolve message role for Render + the model
   - GOTCHA: do NOT edit L529/L566 — they reference `model` and inherit msgModel. Use `_` for the provider.
 
 Task 3: stub argv-observation knob (test infra)
-  - cmd/stubagent/main.go: after the stdin drain + MARKER write, add the STAGEHAND_STUB_ARGSFILE block
+  - cmd/stubagent/main.go: after the stdin drain + MARKER write, add the STAGECOACH_STUB_ARGSFILE block
     (os.WriteFile of strings.Join(os.Args, "\x00")).
   - internal/stubtest/stubtest.go: add `ArgsFile string` to Options; in optsEnvMap add
-    `if o.ArgsFile != "" { m["STAGEHAND_STUB_ARGSFILE"] = o.ArgsFile }`.
+    `if o.ArgsFile != "" { m["STAGECOACH_STUB_ARGSFILE"] = o.ArgsFile }`.
   - WHY: provider.Manifest is a struct (no mock Render); the stub ignores argv today. This knob lets a
     test read the exact rendered argv end-to-end (model + reasoning token).
 
@@ -330,7 +330,7 @@ Task 4: regression tests
       * TestCommitStaged_NoMessageOverride_Regression: cfg.Roles=nil, cfg.Model="openrouter/gpt-5.4";
         assert argsfile has "--model","openrouter/gpt-5.4" and NO "--thinking"; Result.Model==
         "openrouter/gpt-5.4" (mirrors the existing L428 fixture — regression-safe).
-  - pkg/stagehand/*_test.go:
+  - pkg/stagecoach/*_test.go:
       * TestRunPipeline_MessageRoleOverride (via GenerateCommit, DryRun:true): cfg.Roles["message"]=
         {Model:"haiku"}; assert Result.Model=="haiku" (the contract's dryRun assertion).
       * TestRunPipeline_NoMessageOverride_Regression: cfg.Roles=nil, cfg.Model=<X>; Result.Model==<X>.
@@ -340,7 +340,7 @@ Task 4: regression tests
 
 Task 5: VERIFY (no further file change)
   - RUN the full Validation Loop. go.mod/go.sum byte-unchanged. No files outside the listed edits.
-    Existing generate/stagehand tests stay green (no-override path is byte-identical).
+    Existing generate/stagecoach tests stay green (no-override path is byte-identical).
 ```
 
 ### Implementation Patterns & Key Details
@@ -356,7 +356,7 @@ if model == "" {
 	model = *resolved.DefaultModel
 }
 
-// stagehand.go: the `model` var is shared by BOTH Result returns — change one initializer, both update:
+// stagecoach.go: the `model` var is shared by BOTH Result returns — change one initializer, both update:
 model := msgModel
 if model == "" {
 	model = *resolved.DefaultModel
@@ -415,8 +415,8 @@ DOWNSTREAM / NEXT (do NOT implement here):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-gofmt -w internal/generate/generate.go pkg/stagehand/stagehand.go cmd/stubagent/main.go \
-  internal/stubtest/stubtest.go internal/generate/generate_test.go pkg/stagehand/*_test.go
+gofmt -w internal/generate/generate.go pkg/stagecoach/stagecoach.go cmd/stubagent/main.go \
+  internal/stubtest/stubtest.go internal/generate/generate_test.go pkg/stagecoach/*_test.go
 test -z "$(gofmt -l internal/ pkg/ cmd/)" && echo "gofmt clean" || echo "GOFMT DIRTY"
 go vet ./...        # Catches the msgProv unused-var if you forgot `_`.
 go build ./...      # Whole module compiles (stubagent rebuilds in tests via stubtest.Build).
@@ -428,7 +428,7 @@ git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
 
 ```bash
 go test -race ./internal/generate/ -v -run 'CommitStaged|MessageRole'   # override + no-override regression
-go test -race ./pkg/stagehand/ -v      -run 'Pipeline|GenerateCommit|MessageRole'
+go test -race ./pkg/stagecoach/ -v      -run 'Pipeline|GenerateCommit|MessageRole'
 go test -race ./internal/stubtest/ ./...   # stub knob + full suite (no regressions)
 # Expected: PASS. Key assertions: with cfg.Roles["message"]={Model:"haiku",Reasoning:"high"} + cfg.Model=""
 #   → Render argv has --model haiku + the reasoning token AND Result.Model=="haiku"; with cfg.Roles empty
@@ -438,10 +438,10 @@ go test -race ./internal/stubtest/ ./...   # stub knob + full suite (no regressi
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only the listed files changed:
-git diff --name-only | grep -Ev 'internal/generate/generate\.go|pkg/stagehand/stagehand\.go|cmd/stubagent/main\.go|internal/stubtest/stubtest\.go|internal/generate/generate_test\.go|pkg/stagehand/.*_test\.go' \
+git diff --name-only | grep -Ev 'internal/generate/generate\.go|pkg/stagecoach/stagecoach\.go|cmd/stubagent/main\.go|internal/stubtest/stubtest\.go|internal/generate/generate_test\.go|pkg/stagecoach/.*_test\.go' \
   && echo "UNEXPECTED file changed" || echo "only listed files changed (good)"
 # Functional smoke (requires an installed agent OR rely on the stub-backed unit tests above): the unit
 # tests with the stub manifest ARE the integration proof (real Execute seam, real Render, real ResolveRoleModel).
@@ -468,7 +468,7 @@ git diff --name-only | grep -Ev 'internal/generate/generate\.go|pkg/stagehand/st
 
 - [ ] `generate.go` CommitStaged: ResolveRoleModel("message") before loop; Render uses msgModel/msgReasoning;
       Result.Model uses msgModel (+ DefaultModel fallback).
-- [ ] `stagehand.go` runPipeline: same; the shared `model` var updated (both Result returns inherit it).
+- [ ] `stagecoach.go` runPipeline: same; the shared `model` var updated (both Result returns inherit it).
 - [ ] Neither site uses `msgProv` (discarded with `_`).
 - [ ] New tests prove message override (model+reasoning) reaches Render AND Result.Model; no-override case
       is unchanged (regression-safe).
@@ -495,7 +495,7 @@ git diff --name-only | grep -Ev 'internal/generate/generate\.go|pkg/stagehand/st
   P1.M2.T2.S1 (buildDeps), not this task.
 - ❌ Don't drop the `if model == "" { model = *resolved.DefaultModel }` fallback on Result.Model. Render
   takes the raw msgModel (may be ""); Result.Model must report the CONCRETE model. resolved is in scope.
-- ❌ Don't edit stagehand.go's two Result.Model returns (L529/L566) separately — they reference the shared
+- ❌ Don't edit stagecoach.go's two Result.Model returns (L529/L566) separately — they reference the shared
   `model` var; change the var's initializer (one line) and both inherit it. Editing them separately risks
   divergence.
 - ❌ Don't add config-layer changes. The loaders/flags already populate cfg.Roles["message"] correctly

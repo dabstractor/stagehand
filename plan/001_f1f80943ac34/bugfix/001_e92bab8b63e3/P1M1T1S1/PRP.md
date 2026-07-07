@@ -2,7 +2,7 @@
 name: "P1.M1.T1.S1 — Add resolved-config injection to Options; skip config.Load in resolveConfig when provided"
 description: |
   Bugfix (Issue 1 + Issue 5 root cause). Add an additive, nil-optional `Config *config.Config` field to
-  `pkg/stagehand.Options`. In `resolveConfig`, when `opts.Config != nil`, use a shallow copy of the
+  `pkg/stagecoach.Options`. In `resolveConfig`, when `opts.Config != nil`, use a shallow copy of the
   caller-supplied config and SKIP `config.Load` entirely (preserving the `os.Getwd()` repoDir derivation
   and the existing Options Provider/Model/Timeout/Verbose overrides). When `opts.Config == nil`,
   behavior is UNCHANGED (standalone single-Load path). No signature change, no docs, no CLI wiring.
@@ -12,11 +12,11 @@ description: |
 
 **Feature Goal**: Close the architectural seam that is the **single root cause** of PRD Issue 1
 (`--config` silently ignored by the default commit action) and Issue 5 (the §19 repo-local provider
-notice printed twice): `pkg/stagehand.resolveConfig` unconditionally re-runs `config.Load` with a
+notice printed twice): `pkg/stagecoach.resolveConfig` unconditionally re-runs `config.Load` with a
 fresh `LoadOpts` that drops `--config` and re-fires Layer-3 side effects. Give callers a way to inject
 an already-resolved config so `GenerateCommit` does not load a second time.
 
-**Deliverable** (exactly two edits in ONE file, `pkg/stagehand/stagehand.go`):
+**Deliverable** (exactly two edits in ONE file, `pkg/stagecoach/stagecoach.go`):
 1. A new additive field `Config *config.Config` on the `Options` struct (documented nil-optional /
    in-module CLI use, ADDITIVE-ONLY per the v1.0 stability contract).
 2. A branch at the top of `resolveConfig`: if `opts.Config != nil`, `cfg := *opts.Config` (shallow
@@ -30,7 +30,7 @@ byte-for-byte as today. All existing tests pass under `-race`; build/vet/gofmt c
 
 ## User Persona
 
-**Target User**: The Stagehand contributor implementing the immediately-following subtasks S2 (CLI
+**Target User**: The Stagecoach contributor implementing the immediately-following subtasks S2 (CLI
 wiring) and S3 (regression tests), plus future library consumers.
 
 **Use Case**: S2 (`internal/cmd/default_action.go`) will pass the CLI's already-loaded `*config.Config`
@@ -44,7 +44,7 @@ no way to suppress the duplicate Layer-3 notice.
 ## Why
 
 - **Single root cause, two bugs.** Per `architecture/decisions.md` D1 and `seam_config_handoff.md` §4/§9,
-  the one `config.Load` call inside `resolveConfig` (`stagehand.go:114`) is responsible for BOTH the
+  the one `config.Load` call inside `resolveConfig` (`stagecoach.go:114`) is responsible for BOTH the
   dropped `--config` (ConfigPathOverride omitted) and the doubled §19 notice (Layer-3
   `loadRepoLocalConfig` runs a second time). Letting the caller supply the resolved config eliminates
   the second Load entirely, fixing both at once.
@@ -52,7 +52,7 @@ no way to suppress the duplicate Layer-3 notice.
   fix Issue 1 but NOT Issue 5 (the second Load still runs). Passing the resolved config fixes both and
   removes the double-load's side effects wholesale.
 - **API-stable.** `Options` is documented "Stable as of v1.0 / ADDITIVE-ONLY" — adding a field is
-  explicitly permitted. `pkg/stagehand` **already imports `internal/config`** (used today in
+  explicitly permitted. `pkg/stagecoach` **already imports `internal/config`** (used today in
   `resolveConfig`'s signature), so the new field type introduces **no new import edge** and no
   import-cycle risk.
 - **Precedence contract preserved.** `Options` overrides > Layer-7 flags > env > git-config >
@@ -64,7 +64,7 @@ no way to suppress the duplicate Layer-3 notice.
 
 ## What
 
-A purely additive internal change to `pkg/stagehand/stagehand.go`:
+A purely additive internal change to `pkg/stagecoach/stagecoach.go`:
 
 1. **`Options` struct** gains one field: `Config *config.Config`.
 2. **`resolveConfig`** gains a nil-check: if `opts.Config != nil`, copy the supplied config by value
@@ -83,8 +83,8 @@ No changes to `GenerateCommit`'s signature, `Result`, `buildDeps`, `runPipeline`
       (redundant for the CLI path, mandatory for the standalone-library precedence contract).
 - [ ] `GenerateCommit` signature is unchanged: `func GenerateCommit(ctx context.Context, opts Options) (Result, error)`.
 - [ ] `Options.Config == nil` path is byte-for-byte identical to the current behavior.
-- [ ] A new focused unit test in `pkg/stagehand/stagehand_test.go` proves the injected-config path
-      resolves the injected provider (no `--config` file, no repo-local `.stagehand.toml` provider →
+- [ ] A new focused unit test in `pkg/stagecoach/stagecoach_test.go` proves the injected-config path
+      resolves the injected provider (no `--config` file, no repo-local `.stagecoach.toml` provider →
       only the in-memory `Config.Providers` map can supply the provider, proving Load was skipped).
 - [ ] `go build ./...`, `go vet ./...`, `gofmt -l .` all clean; `go test -race ./...` green (existing
       tests untouched and passing).
@@ -113,8 +113,8 @@ are referenced by section with their conclusions distilled inline.
   critical: "§4 proves the fix is single-point: guarding the ONE config.Load call closes both bugs. §7 lists the verbatim signatures (Options, resolveConfig, Load, LoadOpts, Config) an implementer must match."
 
 # The two source files under edit / cross-reference
-- file: pkg/stagehand/stagehand.go
-  why: "THE edit target. Contains Options (struct), resolveConfig (the function to branch), GenerateCommit (signature — must NOT change). pkg/stagehand already imports internal/config — no new import."
+- file: pkg/stagecoach/stagecoach.go
+  why: "THE edit target. Contains Options (struct), resolveConfig (the function to branch), GenerateCommit (signature — must NOT change). pkg/stagecoach already imports internal/config — no new import."
   pattern: "resolveConfig currently: repoDir:=os.Getwd() → cfgPtr,err:=config.Load(...) → cfg:=*cfgPtr → apply overrides → return. New branch inserts 'if opts.Config != nil { cfg = *opts.Config } else { <existing Load> }' BEFORE the override block."
   gotcha: "cfg := *opts.Config is a SHALLOW copy — the Providers map header is shared. This is SAFE (resolveConfig/buildDeps never write cfg.Providers[k]) and matches the existing cfg := *cfgPtr pattern. Do NOT deep-copy."
 
@@ -124,7 +124,7 @@ are referenced by section with their conclusions distilled inline.
 
 - file: internal/config/config.go
   why: "Defines the Config struct (incl. Providers map[string]map[string]any at line ~55) and Defaults(). Read to confirm the shallow-copy safety: only scalar fields are written by resolveConfig's override block."
-  gotcha: "Providers is a map → shallow copy aliases it. Safe per above. NoColor has toml:\"-\"; pkg/stagehand does not read NoColor (grep confirms zero refs) — do not add handling for it in S1."
+  gotcha: "Providers is a map → shallow copy aliases it. Safe per above. NoColor has toml:\"-\"; pkg/stagecoach does not read NoColor (grep confirms zero refs) — do not add handling for it in S1."
 
 - docfile: plan/001_f1f80943ac34/bugfix/001_e92bab8b63e3/P1M1T1S1/research/s1_implementation_notes.md
   why: "Distilled S1-specific findings: the single edit locus, the shallow-copy safety proof, the no-new-import confirmation, the unaffected-existing-tests inventory, and the S1-vs-S2-vs-S3 scope boundary."
@@ -133,10 +133,10 @@ are referenced by section with their conclusions distilled inline.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
-├── pkg/stagehand/
-│   ├── stagehand.go        # EDIT TARGET (Options + resolveConfig)
-│   └── stagehand_test.go   # EDIT TARGET (add ONE focused unit test for the injected path)
+stagecoach/
+├── pkg/stagecoach/
+│   ├── stagecoach.go        # EDIT TARGET (Options + resolveConfig)
+│   └── stagecoach_test.go   # EDIT TARGET (add ONE focused unit test for the injected path)
 └── internal/
     ├── config/
     │   ├── config.go       # Config struct (read-only ref — Providers map, Defaults)
@@ -150,17 +150,17 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
-└── pkg/stagehand/
-    ├── stagehand.go        # MODIFIED: Options +1 field; resolveConfig +1 nil-check branch
-    └── stagehand_test.go   # MODIFIED: +1 focused test (TestGenerateCommit_InjectedConfig)
+stagecoach/
+└── pkg/stagecoach/
+    ├── stagecoach.go        # MODIFIED: Options +1 field; resolveConfig +1 nil-check branch
+    └── stagecoach_test.go   # MODIFIED: +1 focused test (TestGenerateCommit_InjectedConfig)
 # (no other files touched)
 ```
 
 | Path | Action | Responsibility |
 |---|---|---|
-| `pkg/stagehand/stagehand.go` | MODIFY | Add `Config *config.Config` to `Options`; branch `resolveConfig` to skip `config.Load` when non-nil. |
-| `pkg/stagehand/stagehand_test.go` | MODIFY | Add one unit test proving the injected-config path resolves the injected provider without a Load. |
+| `pkg/stagecoach/stagecoach.go` | MODIFY | Add `Config *config.Config` to `Options`; branch `resolveConfig` to skip `config.Load` when non-nil. |
+| `pkg/stagecoach/stagecoach_test.go` | MODIFY | Add one unit test proving the injected-config path resolves the injected provider without a Load. |
 
 **Explicitly NOT touched in S1** (later subtasks / out of scope):
 `internal/cmd/default_action.go` (S2 wiring), `internal/cmd/default_action_test.go` (S3 regression),
@@ -187,7 +187,7 @@ signature / `Result`, docs (contract: "DOCS: none").
 // Layer-7 flags into the passed cfg), but the standalone-library contract requires Options to be the
 // highest-precedence layer. Removing the override block would break the Options>everything guarantee.
 
-// GOTCHA: no new import. pkg/stagehand already imports internal/config (resolveConfig's return type
+// GOTCHA: no new import. pkg/stagecoach already imports internal/config (resolveConfig's return type
 // + config.Load). The new field *config.Config reuses it. Do NOT add an import.
 
 // GOTCHA (API stability): Options is documented "Stable as of v1.0 / ADDITIVE-ONLY". Adding a field
@@ -197,7 +197,7 @@ signature / `Result`, docs (contract: "DOCS: none").
 
 // GOTCHA (test boundary): the "§19 notice printed exactly once" property is ONLY observable end-to-
 // end through the CLI — loadRepoLocalConfig writes to internal/config.noticeOut (unexported package
-// var, inaccessible from pkg/stagehand tests). That assertion belongs to S3 (default_action_test.go),
+// var, inaccessible from pkg/stagecoach tests). That assertion belongs to S3 (default_action_test.go),
 // NOT S1. S1's own test proves Load was skipped by resolving an injected provider that exists ONLY in
 // the in-memory Config.Providers map (no on-disk config file supplies it).
 ```
@@ -210,7 +210,7 @@ No new data models. The change extends the existing `Options` struct with one fi
 to the existing `resolveConfig`. The relevant types (verbatim from source):
 
 ```go
-// pkg/stagehand/stagehand.go (EXISTING — to be extended)
+// pkg/stagecoach/stagecoach.go (EXISTING — to be extended)
 type Options struct {
 	Provider    string
 	Model       string
@@ -251,7 +251,7 @@ type Config struct {
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: ADD the Config field to Options (pkg/stagehand/stagehand.go)
+Task 1: ADD the Config field to Options (pkg/stagecoach/stagecoach.go)
   - LOCATE: the Options struct (the one with the "ADDITIVE-ONLY for future versions" doc comment).
   - ADD a new field as the LAST field of the struct (preserves field order; additive-only):
         // Config optionally supplies an already-resolved configuration, skipping config.Load entirely
@@ -290,30 +290,30 @@ Task 2: BRANCH resolveConfig to skip config.Load when opts.Config != nil
         return cfg, repoDir, nil
   - GOTCHA: use `var cfg config.Config` + assignment in both branches (NOT a redeclaration); keep the
     `// copy to value` comment on BOTH `cfg = *...` lines to flag the shallow-copy semantics.
-  - VERIFY: `go build ./pkg/stagehand/` compiles; `opts.Config == nil` path is textually the old code.
+  - VERIFY: `go build ./pkg/stagecoach/` compiles; `opts.Config == nil` path is textually the old code.
 
-Task 3: ADD a focused unit test (pkg/stagehand/stagehand_test.go)
+Task 3: ADD a focused unit test (pkg/stagecoach/stagecoach_test.go)
   - NAME: TestGenerateCommit_InjectedConfig (or TestResolveConfig_InjectedConfig if resolveConfig
-    is testable directly — it is unexported but the test is in package stagehand, so direct call works).
+    is testable directly — it is unexported but the test is in package stagecoach, so direct call works).
   - PREFER testing resolveConfig DIRECTLY (in-package test can call unexported funcs):
       - Build a config.Config{Provider: "stub", Providers: map[string]map[string]any{"stub": {...}}}
-        matching the stub manifest shape used by setupTestRepo's .stagehand.toml (command=prompt_delivery
+        matching the stub manifest shape used by setupTestRepo's .stagecoach.toml (command=prompt_delivery
         stdin, output raw, strip_code_fence true). Use stubtest.Build(t) for the command path.
       - Call resolveConfig(ctx, Options{Config: &injected}).
       - ASSERT: returned cfg.Provider == "stub" AND returned cfg.Providers["stub"] != nil AND err == nil.
-      - ASSERT (proves Load skipped): run in a temp dir with NO .stagehand.toml and NO STAGEHAND_CONFIG
+      - ASSERT (proves Load skipped): run in a temp dir with NO .stagecoach.toml and NO STAGECOACH_CONFIG
         env (os.Unsetenv) — if Load ran, it would find no "stub" provider (built-ins only) and the
         cfg.Providers map would be empty / provider would be "". The injected map surviving proves Load
         was skipped.
   - ALTERNATIVELY (if exercising GenerateCommit end-to-end is preferred): use the existing
     setupTestRepo machinery but pass Options{Config: <a config whose Providers registers the stub>}
-    instead of relying on the repo-local .stagehand.toml, and run in a repo with NO .stagehand.toml.
-  - FOLLOW pattern: existing stagehand_test.go helpers (initRepo, writeFile, stageFile, stubtest.Build).
+    instead of relying on the repo-local .stagecoach.toml, and run in a repo with NO .stagecoach.toml.
+  - FOLLOW pattern: existing stagecoach_test.go helpers (initRepo, writeFile, stageFile, stubtest.Build).
   - COVERAGE: (a) injected Config is used as-is (provider resolved), (b) Options overrides still apply
     on top of the injected config (e.g. Options{Config: &cfg, Provider: "stub"} where cfg.Provider="").
   - DO NOT: assert on the §19 notice count (that is S3, requires CLI stderr capture of noticeOut).
   - DO NOT: add CLI / runDefault tests (S2/S3 own the cross-package seam).
-  - PLACEMENT: alongside the existing TestGenerateCommit_* functions in stagehand_test.go.
+  - PLACEMENT: alongside the existing TestGenerateCommit_* functions in stagecoach_test.go.
 
 Task 4: VALIDATE (run all gates; all must pass before declaring done)
   - RUN: go build ./...
@@ -390,12 +390,12 @@ type Options struct {
 ### Integration Points
 
 ```yaml
-PUBLIC API (pkg/stagehand.Options):
+PUBLIC API (pkg/stagecoach.Options):
   - field added: "Config *config.Config"   # nil-optional, ADDITIVE-ONLY
   - signature unchanged: "func GenerateCommit(ctx context.Context, opts Options) (Result, error)"
   - Result unchanged
 
-INTERNAL (pkg/stagehand.resolveConfig):
+INTERNAL (pkg/stagecoach.resolveConfig):
   - branch added: "if opts.Config != nil { cfg = *opts.Config } else { config.Load(...) }"
   - os.Getwd() repoDir derivation: preserved in both branches
   - Options override block: preserved, runs unconditionally in both branches
@@ -416,25 +416,25 @@ DOWNSTREAM HOOKS (informational — implemented by LATER subtasks, NOT S1):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
-gofmt -l .                       # Expected: empty (reformat if it lists pkg/stagehand/*.go)
-go vet ./pkg/stagehand/...       # Expected: exit 0
+gofmt -l .                       # Expected: empty (reformat if it lists pkg/stagecoach/*.go)
+go vet ./pkg/stagecoach/...       # Expected: exit 0
 go build ./...                   # Expected: exit 0
 
-# Expected: Zero output/errors. If gofmt lists files, run `gofmt -w pkg/stagehand/stagehand.go`.
+# Expected: Zero output/errors. If gofmt lists files, run `gofmt -w pkg/stagecoach/stagecoach.go`.
 ```
 
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new focused test for the injected-config path
-go test -race -run 'TestGenerateCommit_InjectedConfig|TestResolveConfig_InjectedConfig' ./pkg/stagehand/ -v
+go test -race -run 'TestGenerateCommit_InjectedConfig|TestResolveConfig_InjectedConfig' ./pkg/stagecoach/ -v
 
-# Full pkg/stagehand suite (existing tests must remain green on the nil path)
-go test -race ./pkg/stagehand/ -v
+# Full pkg/stagecoach suite (existing tests must remain green on the nil path)
+go test -race ./pkg/stagecoach/ -v
 
 # Expected: new test PASSES (proves Load skipped — injected provider resolved with no on-disk config);
 #           all existing tests PASS unchanged (they use Options{} with Config == nil).
@@ -443,18 +443,18 @@ go test -race ./pkg/stagehand/ -v
 ### Level 3: Whole-Repository Regression (No Behavior Change on the nil Path)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages pass (config, git, generate, provider, cmd, …)
 go vet ./...                     # Expected: exit 0
 
 # Confirm GenerateCommit signature is byte-for-byte unchanged
-grep -n "func GenerateCommit(ctx context.Context, opts Options) (Result, error)" pkg/stagehand/stagehand.go
+grep -n "func GenerateCommit(ctx context.Context, opts Options) (Result, error)" pkg/stagecoach/stagecoach.go
 # Expected: exactly one match, unchanged signature.
 
 # Confirm the Options field is additive (Result struct untouched; no field removed/renamed)
-grep -n "type Options struct" -A 12 pkg/stagehand/stagehand.go   # Config *config.Config present, others intact
-grep -n "type Result struct" -A 8  pkg/stagehand/stagehand.go    # unchanged
+grep -n "type Options struct" -A 12 pkg/stagecoach/stagecoach.go   # Config *config.Config present, others intact
+grep -n "type Result struct" -A 8  pkg/stagecoach/stagecoach.go    # unchanged
 ```
 
 ### Level 4: Targeted Bug-Reproduction Check (manual smoke, optional for S1)
@@ -464,14 +464,14 @@ grep -n "type Result struct" -A 8  pkg/stagehand/stagehand.go    # unchanged
 > notice-once assertions are S3's validation gates.
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Confirm the field is present and documented
-grep -n "Config \*config.Config" pkg/stagehand/stagehand.go      # Expected: one match (the Options field)
+grep -n "Config \*config.Config" pkg/stagecoach/stagecoach.go      # Expected: one match (the Options field)
 
 # Confirm resolveConfig now guards config.Load behind opts.Config == nil
-grep -n "if opts.Config != nil" pkg/stagehand/stagehand.go       # Expected: one match
-grep -n "config.Load(ctx" pkg/stagehand/stagehand.go             # Expected: still one match, now in the else-branch
+grep -n "if opts.Config != nil" pkg/stagecoach/stagecoach.go       # Expected: one match
+grep -n "config.Load(ctx" pkg/stagecoach/stagecoach.go             # Expected: still one match, now in the else-branch
 ```
 
 ## Final Validation Checklist

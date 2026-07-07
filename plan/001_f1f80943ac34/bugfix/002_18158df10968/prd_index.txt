@@ -2,7 +2,7 @@ h1.0 Bug Fix Requirements
  h2.0 Overview
  h2.1 Critical Issues (Must Fix)
  h2.2 Major Issues (Should Fix)
-  h3.0 Issue 1: An explicit --config / STAGEHAND_CONFIG pointing at a NONEXISTENT file is silently ignored → Stagehand invokes a real agent instead of erroring
+  h3.0 Issue 1: An explicit --config / STAGECOACH_CONFIG pointing at a NONEXISTENT file is silently ignored → Stagecoach invokes a real agent instead of erroring
   h3.1 Issue 2: Manifest-level output and strip_code_fence are silently overridden by the [generation] defaults (JSON output mode is dead at the manifest level)
  h2.3 Minor Issues (Nice to Fix)
   h3.2 Issue 3: Unresolved merge conflicts surface a raw, multi-line git write-tree error instead of the PRD's clean "resolve merge conflicts first" message

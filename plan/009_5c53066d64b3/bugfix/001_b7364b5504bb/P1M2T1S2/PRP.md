@@ -1,12 +1,12 @@
 ---
 name: "P1.M2.T1.S2 — Insert FR-T1 multi-turn trigger gate into runPipeline with dedupe and verbose"
 description: |
-  Close Issue 1 (Major): the `--dry-run` path (`runPipeline` in `pkg/stagehand/stagehand.go`) silently lacks
-  the FR-T1 multi-turn fallback that `CommitStaged` (the commit path) already has — so `stagehand --dry-run`
-  on a large diff rescues (exit 1) where `stagehand` (no --dry-run) succeeds via multi-turn, directly
+  Close Issue 1 (Major): the `--dry-run` path (`runPipeline` in `pkg/stagecoach/stagecoach.go`) silently lacks
+  the FR-T1 multi-turn fallback that `CommitStaged` (the commit path) already has — so `stagecoach --dry-run`
+  on a large diff rescues (exit 1) where `stagecoach` (no --dry-run) succeeds via multi-turn, directly
   contradicting FR49 ("--dry-run runs the full pipeline"). This subtask PORTS the proven FR-T1 trigger gate
   from `internal/generate/generate.go::CommitStaged` (~L290-374) into `runPipeline`, verbatim but with
-  `generate.`/`prompt.`/`git.`/`signal.` package prefixes (runPipeline is package stagehand). PRD: §9.12 FR49,
+  `generate.`/`prompt.`/`git.`/`signal.` package prefixes (runPipeline is package stagecoach). PRD: §9.12 FR49,
   §9.24 FR-T1–FR-T12. Research: `docs/architecture/resolution_strategy.md` ISSUE 1 Edit 3 (the authoritative
   full gate code), `docs/architecture/research_runpipeline_dryrun.md` §4/§5/§6/§10, and
   `research/s2_runpipeline_gate_map.md` (verified-against-live touchpoint map).
@@ -29,7 +29,7 @@ description: |
   Result{CommitSHA:"", Subject:..., Message: msg}, nil }` at ~L565) or the commit tail. The rescue return is
   byte-identical to today when the gate doesn't win. See `research/s2_runpipeline_gate_map.md` §2/§3/§6.
 
-  ⚠️ **THE third design call — ZERO new imports; all gate dependencies already imported in stagehand.go.** Verified
+  ⚠️ **THE third design call — ZERO new imports; all gate dependencies already imported in stagecoach.go.** Verified
   live: `fmt`, `os`, `time`, `git`, `prompt`, `generate`, `signal` are ALL in the import block. `generate.Run`
   (signature: `Run(ctx, deps, cfg, manifest, sysPrompt, payload, msgModel, msgReasoning) (msg, ok, cause)`) and
   `generate.ChunkCount(payload, chunkTokens) int` are exported. Do NOT add imports (an unused import fails go vet)
@@ -42,62 +42,62 @@ description: |
   structurally harmless (payload stays function-scoped + used by the loop body). Do NOT "use" the hoisted payload
   in the gate — that would reintroduce the Issue 4 bug (retryInstr preamble leaking into multi-turn).
 
-  ⚠️ **THE fifth design call — test infra: append-mode stub via TOML (appendScriptManifest is NOT in stagehand_test.go).**
+  ⚠️ **THE fifth design call — test infra: append-mode stub via TOML (appendScriptManifest is NOT in stagecoach_test.go).**
   The `appendScriptManifest` helper exists ONLY in internal/generate (returns a direct provider.Manifest for
-  CommitStaged tests). pkg/stagehand tests go through GenerateCommit → config.Load → buildDeps (registry), so the
-  stub is registered via repo-local `.stagehand.toml` `[provider.stub]`. VERIFIED: `RenderMultiTurn` is a METHOD on
+  CommitStaged tests). pkg/stagecoach tests go through GenerateCommit → config.Load → buildDeps (registry), so the
+  stub is registered via repo-local `.stagecoach.toml` `[provider.stub]`. VERIFIED: `RenderMultiTurn` is a METHOD on
   `provider.Manifest` (render.go:203) and `SessionMode *string toml:"session_mode"` (manifest.go:66) is a TOML
   field → a TOML `[provider.stub]` with `session_mode = "append"` supports multi-turn through the registry. S2
   EXTENDS the existing setupScriptedRepo/setupTestRepo pattern (add `session_mode = "append"` to the TOML block)
   and writes 4 integration tests mirroring internal/generate/generate_multiturn_test.go (large diff via a
   strings.Builder loop + MultiTurnChunkTokens=50 + MultiTurnFallback=true). See `research/s2_runpipeline_gate_map.md` §7.
 
-  Deliverable (edits to existing files only — NO new files, NO new deps, NO go.mod change): (1) `pkg/stagehand/
-  stagehand.go` — insert the FR-T1 gate into runPipeline's `if !success {` block (verbatim from resolution_strategy
-  Edit 3); (2) `pkg/stagehand/stagehand_test.go` — add an append-mode stub-registration helper + 4 integration tests.
+  Deliverable (edits to existing files only — NO new files, NO new deps, NO go.mod change): (1) `pkg/stagecoach/
+  stagecoach.go` — insert the FR-T1 gate into runPipeline's `if !success {` block (verbatim from resolution_strategy
+  Edit 3); (2) `pkg/stagecoach/stagecoach_test.go` — add an append-mode stub-registration helper + 4 integration tests.
   INPUT = the hoisted payload (S1, done) + CommitStaged's proven gate (P1.M1.T3.S3 + Issue 4 fix P1.M1.T2.S1 +
   Issue 3 verbose P1.M1.T3.S1) + generate.ChunkCount (P1.M1.T1.S1) + the live runPipeline insertion point.
-  OUTPUT = runPipeline has the full FR-T1 gate; `stagehand --dry-run` on a large diff with an append-mode provider
+  OUTPUT = runPipeline has the full FR-T1 gate; `stagecoach --dry-run` on a large diff with an append-mode provider
   activates multi-turn identically to the commit path; the existing dry-run success early-return + byte-identical
   rescue on failure are preserved. DOCS = none per-file (the cross-cutting overview/README sync is the final Mode B
-  task P1.M4.T1). SCOPE: pkg/stagehand/{stagehand.go, stagehand_test.go} ONLY. Do NOT touch internal/generate/*
+  task P1.M4.T1). SCOPE: pkg/stagecoach/{stagecoach.go, stagecoach_test.go} ONLY. Do NOT touch internal/generate/*
   (the reference gate is INPUT) or internal/hook/exec.go (P1.M3's scope).
 ---
 
 ## Goal
 
 **Feature Goal**: Port the FR-T1 multi-turn trigger gate from `CommitStaged` into `runPipeline` (the `--dry-run` /
-SystemExtra path in `pkg/stagehand/stagehand.go`) so that `stagehand --dry-run` on a large diff whose one-shot
+SystemExtra path in `pkg/stagecoach/stagecoach.go`) so that `stagecoach --dry-run` on a large diff whose one-shot
 generation exhausts activates the multi-turn fallback identically to the commit path — closing the Issue 1
 inconsistency where `--dry-run` rescues (exit 1) but the commit path succeeds (exit 0) on the same diff. The four
 FR-T1 conditions, the FR-T12 token-limit re-capture, the Issue 4 mtPayload rebuild, the Issue 3 chunk-tokens
 verbose line, the dedupe of the multi-turn result, and the byte-identical rescue-on-failure are all preserved.
 
 **Deliverable** (edits to existing files only):
-1. **`pkg/stagehand/stagehand.go`** — insert the FR-T1 multi-turn trigger gate (verbatim from
+1. **`pkg/stagecoach/stagecoach.go`** — insert the FR-T1 multi-turn trigger gate (verbatim from
    `docs/architecture/resolution_strategy.md` ISSUE 1 Edit 3) INTO runPipeline's `if !success {` block, before
    the rescue return. Uses `generate.ChunkCount`/`generate.Run`/`generate.FinalizeMessage`/`generate.IsDuplicate`/
    `generate.ExtractSubject`, `prompt.BuildUserPayload`, `git.StagedDiff`/`git.EstimateTokens`, `signal.SetCandidate`,
    `fmt.Fprintf(os.Stderr, ...)`. ZERO new imports (all already present).
-2. **`pkg/stagehand/stagehand_test.go`** — (a) a helper (or extension of setupScriptedRepo/setupTestRepo) that
-   registers the stub provider with `session_mode = "append"` in the repo-local `.stagehand.toml`; (b) 4 integration
+2. **`pkg/stagecoach/stagecoach_test.go`** — (a) a helper (or extension of setupScriptedRepo/setupTestRepo) that
+   registers the stub provider with `session_mode = "append"` in the repo-local `.stagecoach.toml`; (b) 4 integration
    tests: `TestGenerateCommit_DryRun_MultiTurnSuccess`, `_MultiTurnSkipped_NonAppend`, `_MultiTurnSmallPayloadSkip`,
    `_MultiTurnMidTurnFailure` — mirroring `internal/generate/generate_multiturn_test.go` patterns.
 
 **Success Definition**: `gofmt -l`, `go vet ./...`, `go build ./...` clean; `go test -race ./...` green (existing
-tests unchanged + 4 new tests pass); `stagehand --dry-run` on a large diff with an append-mode provider activates
+tests unchanged + 4 new tests pass); `stagecoach --dry-run` on a large diff with an append-mode provider activates
 multi-turn (the progress line prints, multi-turn Run is called, the message is produced and returned with
 CommitSHA="" for dry-run); a non-append provider / small payload / mid-turn failure all fall through to the
 byte-identical rescue; the dry-run success early-return fires on a multi-turn win; go.mod/go.sum byte-unchanged;
-only `pkg/stagehand/{stagehand.go, stagehand_test.go}` touched.
+only `pkg/stagecoach/{stagecoach.go, stagecoach_test.go}` touched.
 
 ## User Persona
 
-**Target User**: The user who runs `stagehand --dry-run` (FR49) — especially on a large diff with an append-mode
+**Target User**: The user who runs `stagecoach --dry-run` (FR49) — especially on a large diff with an append-mode
 provider (pi with `session_mode="append"`). Today they see a rescue error where the commit path would succeed;
 after S2, dry-run runs the FULL pipeline including multi-turn.
 
-**Use Case**: `stagehand --dry-run` on a 200+ line diff with pi configured `session_mode = "append"` — the one-shot
+**Use Case**: `stagecoach --dry-run` on a 200+ line diff with pi configured `session_mode = "append"` — the one-shot
 generation exhausts (empty/unparseable after retries), the FR-T1 gate fires, multi-turn losslessly re-delivers the
 diff across N+1 session turns, produces a single message, and dry-run returns it (exit 0, no commit).
 
@@ -128,7 +128,7 @@ quadrant. No new types, no new files, no dependency change, no config change.
 
 ### Success Criteria
 
-- [ ] `pkg/stagehand/stagehand.go` runPipeline: the `if !success { return Result{}, &generate.RescueError{...} }`
+- [ ] `pkg/stagecoach/stagecoach.go` runPipeline: the `if !success { return Result{}, &generate.RescueError{...} }`
       block is replaced by `if !success { <FR-T1 gate> ; if !success { return Result{}, &generate.RescueError{...} } }`,
       where the gate is VERBATIM from resolution_strategy.md ISSUE 1 Edit 3 (the 4 conditions, FR-T12 re-capture,
       Issue 4 mtPayload rebuild from `diff`, Issue 3 chunk-tokens Fprintf, `generate.Run`, FinalizeMessage →
@@ -136,16 +136,16 @@ quadrant. No new types, no new files, no dependency change, no config change.
 - [ ] The gate uses `generate.ChunkCount(mtPayload, cfg.MultiTurnChunkTokens)` (NOT the unexported `chunkPayload`)
       and `generate.`-prefixed Run/FinalizeMessage/IsDuplicate/ExtractSubject; `signal.SetCandidate`;
       `prompt.BuildUserPayload(diff, cfg.Context, rejected)`; `git.EstimateTokens`/`git.StagedDiff`.
-- [ ] ZERO new imports in stagehand.go (fmt/os/time/git/prompt/generate/signal already present); go.mod/go.sum
+- [ ] ZERO new imports in stagecoach.go (fmt/os/time/git/prompt/generate/signal already present); go.mod/go.sum
       byte-unchanged.
 - [ ] The dry-run success early-return (`if dryRun { ... return Result{CommitSHA:"", ...}, nil }`) is UNCHANGED —
       it fires on a multi-turn win because the gate only sets msg/success.
 - [ ] The rescue `&generate.RescueError{Kind: ErrRescue, TreeSHA, ParentSHA, Candidate, Cause: lastCause}` is
       byte-identical on fall-through (gate condition fail OR multi-turn failure OR duplicate).
-- [ ] `pkg/stagehand/stagehand_test.go`: an append-mode stub-registration helper exists (writes
+- [ ] `pkg/stagecoach/stagecoach_test.go`: an append-mode stub-registration helper exists (writes
       `session_mode = "append"` into `[provider.stub]`); the 4 named tests exist and pass.
 - [ ] `go build ./...`, `go vet ./...`, `gofmt -l`, `go test -race ./...` clean/green; go.mod/go.sum byte-unchanged;
-      only `pkg/stagehand/{stagehand.go, stagehand_test.go}` touched; no edits to `internal/generate/*` or
+      only `pkg/stagecoach/{stagecoach.go, stagecoach_test.go}` touched; no edits to `internal/generate/*` or
       `internal/hook/exec.go`.
 
 ## All Needed Context
@@ -191,7 +191,7 @@ git/provider internals beyond "RenderMultiTurn is a method on provider.Manifest;
   gotcha: generate.go's gate calls `Run(...)` unqualified (same package); runPipeline MUST call `generate.Run(...)`.
        Likewise `chunkPayload` → `generate.ChunkCount` (ChunkCount is the EXPORTED wrapper; chunkPayload is unexported).
 
-- file: pkg/stagehand/stagehand.go   (the file you EDIT — runPipeline, ~L415-570)
+- file: pkg/stagecoach/stagecoach.go   (the file you EDIT — runPipeline, ~L415-570)
   why: the insertion site. The var block (~L483-488, payload ALREADY hoisted by S1), the loop (~L490-540), and the
        `if !success { return ... &generate.RescueError{...} }` block (~L542-548) you wrap with the gate.
   pattern: the gate's rescue return must match the EXISTING one byte-for-byte (`Kind: generate.ErrRescue, TreeSHA:
@@ -200,15 +200,15 @@ git/provider internals beyond "RenderMultiTurn is a method on provider.Manifest;
        (~L474), diff (~L446), rejected, recent (~L464), candidate/msg/success/lastCause, treeSHA, parentSHA. NO new
        upstream vars needed.
 
-- file: pkg/stagehand/stagehand_test.go   (the test file you EDIT)
+- file: pkg/stagecoach/stagecoach_test.go   (the test file you EDIT)
   why: the test patterns + stub infra. setupScriptedRepo (L82) + setupTestRepo (L122) register [provider.stub] via
-       repo-local .stagehand.toml + STAGEHAND_STUB_SCRIPT/STAGEHAND_STUB_COUNTER env (call-varying responses).
+       repo-local .stagecoach.toml + STAGECOACH_STUB_SCRIPT/STAGECOACH_STUB_COUNTER env (call-varying responses).
        TestGenerateCommit_DryRun (L232) is the dry-run test PATTERN (setupTestRepo + GenerateCommit(DryRun:true)).
   pattern: EXTEND setupScriptedRepo/setupTestRepo to emit `session_mode = "append"` in the [provider.stub] TOML
            block (a new helper or an option). The 4 new tests mirror TestGenerateCommit_DryRun + generate_multiturn_test.go
            (large diff via strings.Builder loop + MultiTurnChunkTokens=50 + MultiTurnFallback=true).
   gotcha: appendScriptManifest is NOT in this file (it's in internal/generate, returns a direct provider.Manifest for
-           CommitStaged). pkg/stagehand tests MUST register the append stub via TOML — VERIFIED to work because
+           CommitStaged). pkg/stagecoach tests MUST register the append stub via TOML — VERIFIED to work because
            RenderMultiTurn is a method on provider.Manifest and session_mode is a TOML field (render.go:203 / manifest.go:66).
 
 - file: internal/generate/generate_multiturn_test.go   (READ ONLY — the test patterns to mirror)
@@ -229,9 +229,9 @@ git/provider internals beyond "RenderMultiTurn is a method on provider.Manifest;
 ### Current Codebase tree (relevant slice)
 
 ```bash
-pkg/stagehand/
-  stagehand.go          # runPipeline (~L415-570): var block (payload hoisted by S1) + loop + `if !success { rescue }`  ← EDIT (insert gate)
-  stagehand_test.go     # setupScriptedRepo (L82) + setupTestRepo (L122) + TestGenerateCommit_DryRun (L232)            ← EDIT (append helper + 4 tests)
+pkg/stagecoach/
+  stagecoach.go          # runPipeline (~L415-570): var block (payload hoisted by S1) + loop + `if !success { rescue }`  ← EDIT (insert gate)
+  stagecoach_test.go     # setupScriptedRepo (L82) + setupTestRepo (L122) + TestGenerateCommit_DryRun (L232)            ← EDIT (append helper + 4 tests)
 internal/generate/
   generate.go           # CommitStaged FR-T1 gate (~L290-374) — the REFERENCE (READ ONLY; do NOT edit)                   ← (INPUT)
   multiturn.go          # Run (L145) + ChunkCount (L96) + chunkPayload (L52, unexported) — exported surface S2 calls      ← (INPUT)
@@ -263,7 +263,7 @@ go.mod / go.sum         # unchanged (no new dep)
 // the rescue return — it must fire byte-identically when the gate doesn't win.
 
 // CRITICAL (design call #3): ZERO new imports. fmt/os/time/git/prompt/generate/signal are ALL already imported in
-// stagehand.go (verified). Do NOT add an import (an unused one fails go vet) and do NOT change go.mod. If the gate
+// stagecoach.go (verified). Do NOT add an import (an unused one fails go vet) and do NOT change go.mod. If the gate
 // doesn't compile on an undefined symbol, you used the wrong package prefix (e.g. chunkPayload instead of
 // generate.ChunkCount, or Run instead of generate.Run).
 
@@ -273,7 +273,7 @@ go.mod / go.sum         # unchanged (no new dep)
 // leaking into multi-turn, which has its own priming preamble).
 
 // CRITICAL (design call #5): use generate.ChunkCount (EXPORTED, P1.M1.T1.S1), NOT chunkPayload (unexported —
-// internal/generate only). runPipeline is package stagehand. Likewise generate.Run / generate.FinalizeMessage /
+// internal/generate only). runPipeline is package stagecoach. Likewise generate.Run / generate.FinalizeMessage /
 // generate.IsDuplicate / generate.ExtractSubject / signal.SetCandidate.
 
 // GOTCHA: the rescue return on fall-through must be byte-identical to today: `&generate.RescueError{Kind:
@@ -285,17 +285,17 @@ go.mod / go.sum         # unchanged (no new dep)
 // CommitSHA:"", Subject:..., Message: msg, ...}, nil }`). It fires unchanged on a multi-turn win (msg now carries
 // the multi-turn result). The gate is a pure msg/success transformation.
 
-// GOTCHA: appendScriptManifest is NOT in pkg/stagehand/stagehand_test.go (it's in internal/generate). pkg/stagehand
-// tests MUST register the append stub via repo-local .stagehand.toml with `session_mode = "append"` in [provider.stub].
+// GOTCHA: appendScriptManifest is NOT in pkg/stagecoach/stagecoach_test.go (it's in internal/generate). pkg/stagecoach
+// tests MUST register the append stub via repo-local .stagecoach.toml with `session_mode = "append"` in [provider.stub].
 // VERIFIED this works: RenderMultiTurn is a method on provider.Manifest (render.go:203) + SessionMode is a TOML field
 // (manifest.go:66) → the registry-built stub manifest supports multi-turn. Mirror setupScriptedRepo/setupTestRepo.
 
 // GOTCHA: for the Success test, the stub script must be call-varying: the one-shot retries return empty/garbage
 // (exhaust MaxDuplicateRetries ⇒ !success), THEN the multi-turn turns return content (final turn returns the message).
-// The existing STAGEHAND_STUB_SCRIPT + STAGEHAND_STUB_COUNTER infra drives call-varying responses.
+// The existing STAGECOACH_STUB_SCRIPT + STAGECOACH_STUB_COUNTER infra drives call-varying responses.
 
 // GOTCHA: do NOT edit internal/generate/* (the reference gate is INPUT — P1.M1.T3.S3 wired it; it's frozen) or
-// internal/hook/exec.go (P1.M3.T1 owns the hook-path propagation). This task is pkg/stagehand ONLY.
+// internal/hook/exec.go (P1.M3.T1 owns the hook-path propagation). This task is pkg/stagecoach ONLY.
 ```
 
 ## Implementation Blueprint
@@ -308,7 +308,7 @@ runPipeline locals (msg/success/candidate/lastCause) + the rebuilt `mtPayload`.
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: stagehand.go — insert the FR-T1 gate into runPipeline's `if !success {` block
+Task 1: stagecoach.go — insert the FR-T1 gate into runPipeline's `if !success {` block
   - LOCATE the block (post-loop, ~L542-548):
       if !success {
           return Result{}, &generate.RescueError{Kind: generate.ErrRescue, TreeSHA: treeSHA,
@@ -357,10 +357,10 @@ Task 1: stagehand.go — insert the FR-T1 gate into runPipeline's `if !success {
   - GOTCHA: preserve the rescue's byte-identical shape (Kind/TreeSHA/ParentSHA/Candidate/Cause). Do NOT touch the
     later dry-run success early-return or the commit tail.
 
-Task 2: stagehand_test.go — append-mode stub registration helper
+Task 2: stagecoach_test.go — append-mode stub registration helper
   - ADD a helper (e.g. setupScriptedAppendRepo, OR extend setupScriptedRepo/setupTestRepo with an append option)
-    that writes the repo-local `.stagehand.toml` `[provider.stub]` block INCLUDING `session_mode = "append"`,
-    pointing at the stubtest binary with STAGEHAND_STUB_SCRIPT (call-varying responses) + STAGEHAND_STUB_COUNTER.
+    that writes the repo-local `.stagecoach.toml` `[provider.stub]` block INCLUDING `session_mode = "append"`,
+    pointing at the stubtest binary with STAGECOACH_STUB_SCRIPT (call-varying responses) + STAGECOACH_STUB_COUNTER.
     Mirror setupScriptedRepo (L82) — just add the `session_mode = "append"` line to the TOML writer.
   - PATTERN: the existing helpers do `sb.WriteString("[provider.stub]\n") ... sb.WriteString("command = ...\n")`
     etc.; add `sb.WriteString("session_mode = \"append\"\n")` to the [provider.stub] block.
@@ -368,10 +368,10 @@ Task 2: stagehand_test.go — append-mode stub registration helper
     is a method on provider.Manifest (render.go:203) and SessionMode is a TOML field (manifest.go:66). No
     direct-manifest injection seam needed (GenerateCommit goes through the registry).
 
-Task 3: stagehand_test.go — TestGenerateCommit_DryRun_MultiTurnSuccess
+Task 3: stagecoach_test.go — TestGenerateCommit_DryRun_MultiTurnSuccess
   - SETUP: scripted-append repo; stage a LARGE diff (strings.Builder ~60 lines, mirroring generate_multiturn_test.go);
     cfg via Options? No — cfg.MultiTurnChunkTokens/MultiTurnFallback come from config. Set them via the repo-local
-    .stagehand.toml `[generation]` block (multi_turn_chunk_tokens = 50, multi_turn_fallback = true) OR via a Config
+    .stagecoach.toml `[generation]` block (multi_turn_chunk_tokens = 50, multi_turn_fallback = true) OR via a Config
     override (Options.Config). Mirror how existing tests set cfg fields (check whether setupTestRepo writes [generation]).
   - SCRIPT responses: one-shot retries return "" (exhaust MaxDuplicateRetries ⇒ !success); multi-turn turns return
     chunks; final turn returns "feat: multi-turn result".
@@ -379,30 +379,30 @@ Task 3: stagehand_test.go — TestGenerateCommit_DryRun_MultiTurnSuccess
   - ASSERT: err == nil; res.CommitSHA == "" (dry-run); res.Subject == "feat: multi-turn result" (or the finalized
     form); res.Message non-empty. (Exit 0 — the bug fix: previously this rescued.)
 
-Task 4: stagehand_test.go — TestGenerateCommit_DryRun_MultiTurnSkipped_NonAppend
+Task 4: stagecoach_test.go — TestGenerateCommit_DryRun_MultiTurnSkipped_NonAppend
   - SETUP: scripted repo WITHOUT session_mode="append" (the plain setupTestRepo); large diff; multi_turn_fallback=true,
     multi_turn_chunk_tokens=50.
   - SCRIPT: one-shot returns "" (exhaust).
   - ASSERT: err != nil; errors.As(err, &*generate.RescueError) (or whatever the existing dry-run-rescue tests assert);
     the gate was SKIPPED (condition d false). Mirror the existing TestGenerateCommit_DryRun rescue assertions.
 
-Task 5: stagehand_test.go — TestGenerateCommit_DryRun_MultiTurnSmallPayloadSkip
+Task 5: stagecoach_test.go — TestGenerateCommit_DryRun_MultiTurnSmallPayloadSkip
   - SETUP: scripted-append repo; TINY diff (1-2 lines ⇒ EstimateTokens(payload) ≤ 50); multi_turn_fallback=true,
     multi_turn_chunk_tokens=50.
   - SCRIPT: one-shot returns "" (exhaust).
   - ASSERT: err != nil (rescue) — condition (b) false (payload ≤ chunk threshold) so the gate skipped. Confirms the
     small-payload invariant (don't fire multi-turn when one chunk suffices).
 
-Task 6: stagehand_test.go — TestGenerateCommit_DryRun_MultiTurnMidTurnFailure
+Task 6: stagecoach_test.go — TestGenerateCommit_DryRun_MultiTurnMidTurnFailure
   - SETUP: scripted-append repo; large diff; multi_turn_fallback=true, multi_turn_chunk_tokens=50.
-  - SCRIPT: one-shot returns "" (exhaust); a multi-turn turn exits non-zero (STAGEHAND_STUB_SCRIPT returns an
+  - SCRIPT: one-shot returns "" (exhaust); a multi-turn turn exits non-zero (STAGECOACH_STUB_SCRIPT returns an
     exit-1 response, or the script arranges a mid-turn failure).
   - ASSERT: err != nil; RescueError — multi-turn Run aborted (cause != nil) → lastCause set → byte-identical rescue.
     Confirms FR-T7 (any turn failure → rescue).
 
 Task 7: VERIFY (no further file change)
-  - RUN `gofmt -w`; `go vet ./...`; `go build ./...`; `go test -race ./pkg/stagehand/... -v`; `go test -race ./...`.
-  - go.mod/go.sum byte-unchanged. Only pkg/stagehand/{stagehand.go, stagehand_test.go} touched. internal/generate/*
+  - RUN `gofmt -w`; `go vet ./...`; `go build ./...`; `go test -race ./pkg/stagecoach/... -v`; `go test -race ./...`.
+  - go.mod/go.sum byte-unchanged. Only pkg/stagecoach/{stagecoach.go, stagecoach_test.go} touched. internal/generate/*
     and internal/hook/exec.go byte-unchanged. Existing dry-run tests stay green (the gate only adds a path, doesn't
     alter the one-shot path).
 ```
@@ -410,7 +410,7 @@ Task 7: VERIFY (no further file change)
 ### Implementation Patterns & Key Details
 
 ```go
-// The gate, in miniature — port verbatim from CommitStaged with cross-package prefixes (runPipeline is pkg stagehand):
+// The gate, in miniature — port verbatim from CommitStaged with cross-package prefixes (runPipeline is pkg stagecoach):
 if cfg.MultiTurnFallback && resolved.SessionMode != nil && *resolved.SessionMode == "append" { // c + d
 	mtPayload := prompt.BuildUserPayload(diff, cfg.Context, rejected) // Issue 4: from diff, NOT the hoisted payload
 	if cfg.TokenLimit != 0 { // FR-T12: re-capture untruncated
@@ -429,7 +429,7 @@ if cfg.MultiTurnFallback && resolved.SessionMode != nil && *resolved.SessionMode
 }
 // then the byte-identical inner `if !success { return &generate.RescueError{...} }`
 
-// The append-mode stub registration (pkg/stagehand tests, via TOML — NOT the generate pkg's direct-manifest helper):
+// The append-mode stub registration (pkg/stagecoach tests, via TOML — NOT the generate pkg's direct-manifest helper):
 // in the [provider.stub] TOML block written by setupScriptedRepo/setupTestRepo, ADD:
 sb.WriteString("session_mode = \"append\"\n")
 // VERIFIED: RenderMultiTurn is a method on provider.Manifest (render.go:203) + SessionMode is a TOML field
@@ -437,14 +437,14 @@ sb.WriteString("session_mode = \"append\"\n")
 ```
 
 ```go
-// stagehand_test.go — the Success test skeleton (mirror TestGenerateCommit_DryRun + generate_multiturn_test.go):
+// stagecoach_test.go — the Success test skeleton (mirror TestGenerateCommit_DryRun + generate_multiturn_test.go):
 func TestGenerateCommit_DryRun_MultiTurnSuccess(t *testing.T) {
-	// scripted-append repo: [provider.stub] with session_mode="append"; STAGEHAND_STUB_SCRIPT call-varying
+	// scripted-append repo: [provider.stub] with session_mode="append"; STAGECOACH_STUB_SCRIPT call-varying
 	// (one-shot returns "" × MaxDuplicateRetries+1 to exhaust; multi-turn turns return chunks; final returns msg).
 	repo := setupScriptedAppendRepo(t, "initial", []string{"", "", "", "feat: multi-turn result"})
 	chdir(t, repo)
 	// stage a LARGE diff (~60 lines ⇒ EstimateTokens ≫ 50) + set multi_turn_chunk_tokens=50, multi_turn_fallback=true
-	// via the repo-local .stagehand.toml [generation] block (or Options.Config).
+	// via the repo-local .stagecoach.toml [generation] block (or Options.Config).
 	stageLargeDiff(t, repo) // strings.Builder loop, mirror generate_multiturn_test.go
 	ctx := context.Background()
 	res, err := GenerateCommit(ctx, Options{Provider: "stub", DryRun: true})
@@ -466,9 +466,9 @@ func TestGenerateCommit_DryRun_MultiTurnSuccess(t *testing.T) {
 GO MODULE (go.mod / go.sum): NONE — pure control-flow port + tests; no new dep. go mod tidy MUST be a no-op.
 
 PACKAGE EDGES:
-  - pkg/stagehand → internal/generate (generate.Run/ChunkCount/FinalizeMessage/IsDuplicate/ExtractSubject/RescueError),
+  - pkg/stagecoach → internal/generate (generate.Run/ChunkCount/FinalizeMessage/IsDuplicate/ExtractSubject/RescueError),
     internal/git (StagedDiff/EstimateTokens), internal/prompt (BuildUserPayload), internal/signal (SetCandidate).
-    ALL already imported in stagehand.go — NO new import edge. NO new dep.
+    ALL already imported in stagecoach.go — NO new import edge. NO new dep.
 
 FROZEN / NOT-EDITED:
   - internal/generate/* (the reference gate in CommitStaged + multiturn.go's Run/ChunkCount are INPUT — frozen;
@@ -490,17 +490,17 @@ TokenLimit/Timeout — all already plumbed by P1.M1.T2) / NO CLI WIRING / NO NEW
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-gofmt -w pkg/stagehand/stagehand.go pkg/stagehand/stagehand_test.go
-test -z "$(gofmt -l pkg/stagehand/)" && echo "gofmt clean" || echo "GOFMT DIRTY"
+gofmt -w pkg/stagecoach/stagecoach.go pkg/stagecoach/stagecoach_test.go
+test -z "$(gofmt -l pkg/stagecoach/)" && echo "gofmt clean" || echo "GOFMT DIRTY"
 go vet ./...          # Expect zero diagnostics (catches an undefined symbol → wrong package prefix, e.g. chunkPayload vs generate.ChunkCount).
 go build ./...        # Whole module compiles.
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
-# Confirm ZERO new imports in stagehand.go (the gate reuses fmt/os/time/git/prompt/generate/signal already present):
-git diff pkg/stagehand/stagehand.go | grep -E '^\+.*"(fmt|os|time)"|^\+.*internal/(git|prompt|generate|signal)' && echo "UNEXPECTED new import (re-check)" || echo "no new imports (good)"
+# Confirm ZERO new imports in stagecoach.go (the gate reuses fmt/os/time/git/prompt/generate/signal already present):
+git diff pkg/stagecoach/stagecoach.go | grep -E '^\+.*"(fmt|os|time)"|^\+.*internal/(git|prompt|generate|signal)' && echo "UNEXPECTED new import (re-check)" || echo "no new imports (good)"
 # Confirm the gate landed + the rescue is preserved:
-grep -n 'falling back to multi-turn' pkg/stagehand/stagehand.go   # the Fprintf (1 hit inside the gate)
-grep -n 'generate.ChunkCount\|generate.Run(' pkg/stagehand/stagehand.go   # cross-package calls
-grep -A2 'if !success {' pkg/stagehand/stagehand.go | grep 'generate.RescueError'   # the byte-identical rescue still present
+grep -n 'falling back to multi-turn' pkg/stagecoach/stagecoach.go   # the Fprintf (1 hit inside the gate)
+grep -n 'generate.ChunkCount\|generate.Run(' pkg/stagecoach/stagecoach.go   # cross-package calls
+grep -A2 'if !success {' pkg/stagecoach/stagecoach.go | grep 'generate.RescueError'   # the byte-identical rescue still present
 # Expected: clean. If `go vet`/`go build` fails on an undefined `chunkPayload`/`Run`/`FinalizeMessage`, add the
 #   `generate.` prefix. If it fails on an unused import, REMOVE the import you wrongly added (none should be needed).
 ```
@@ -508,7 +508,7 @@ grep -A2 'if !success {' pkg/stagehand/stagehand.go | grep 'generate.RescueError
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-go test -race ./pkg/stagehand/... -v   # the 4 new DryRun_MultiTurn* tests + every existing dry-run/generate test stays green
+go test -race ./pkg/stagecoach/... -v   # the 4 new DryRun_MultiTurn* tests + every existing dry-run/generate test stays green
 go test -race ./...                    # full module — NO regression (internal/generate/provider/config untouched).
 # Expected: all PASS. Key new assertions:
 #   TestGenerateCommit_DryRun_MultiTurnSuccess       → err==nil, CommitSHA=="", Subject set (Issue 1 FIX: previously rescued).
@@ -520,15 +520,15 @@ go test -race ./...                    # full module — NO regression (internal
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
-# Confirm only pkg/stagehand/{stagehand.go,stagehand_test.go} changed:
-git diff --name-only | grep -Ev 'pkg/stagehand/(stagehand|stagehand_test)\.go' && echo "UNEXPECTED file changed" || echo "only listed files changed (good)"
+# Confirm only pkg/stagecoach/{stagecoach.go,stagecoach_test.go} changed:
+git diff --name-only | grep -Ev 'pkg/stagecoach/(stagecoach|stagecoach_test)\.go' && echo "UNEXPECTED file changed" || echo "only listed files changed (good)"
 # Confirm the reference gate (internal/generate) + hook path are byte-unchanged (frozen inputs / other scope):
 git diff --exit-code -- internal/generate internal/hook && echo "generate + hook UNCHANGED (expected)"
 # Optional manual smoke (requires a real append-mode provider like pi): on a repo with a large staged diff +
-# session_mode="append", `stagehand --dry-run` prints the "↳ falling back to multi-turn" line and returns a
-# message (exit 0); before S2 it rescued (exit 1). (The in-package stagehand_test covers this without a real agent.)
+# session_mode="append", `stagecoach --dry-run` prints the "↳ falling back to multi-turn" line and returns a
+# message (exit 0); before S2 it rescued (exit 1). (The in-package stagecoach_test covers this without a real agent.)
 ```
 
 ### Level 4: Creative & Domain-Specific Validation
@@ -537,22 +537,22 @@ git diff --exit-code -- internal/generate internal/hook && echo "generate + hook
 # Parity audit: the runPipeline gate should be byte-identical to CommitStaged's gate modulo (a) chunkPayload→
 # generate.ChunkCount, (b) generate./signal. prefixes, (c) generate.RescueError/ErrRescue (runPipeline style).
 diff <(sed -n '/FR-T1 multi-turn fallback trigger gate/,/if !success {/p' internal/generate/generate.go) \
-     <(sed -n '/FR-T1 multi-turn fallback trigger gate/,/if !success {/p' pkg/stagehand/stagehand.go) || true
+     <(sed -n '/FR-T1 multi-turn fallback trigger gate/,/if !success {/p' pkg/stagecoach/stagecoach.go) || true
 # Eyeball the diff: only the 3 expected transformations differ; the 4 conditions, FR-T12 re-capture, Issue 4
 # mtPayload, Issue 3 Fprintf, dedupe, and failure→rescue are identical.
 # golangci-lint: `make lint` (project-wide gate).
 # FR49 belt-and-suspenders: confirm runPipeline now references MultiTurnFallback/multiturn (it had ZERO before):
-grep -c 'MultiTurnFallback\|generate.Run\|generate.ChunkCount' pkg/stagehand/stagehand.go   # ≥3 (the gate is wired)
+grep -c 'MultiTurnFallback\|generate.Run\|generate.ChunkCount' pkg/stagecoach/stagecoach.go   # ≥3 (the gate is wired)
 ```
 
 ## Final Validation Checklist
 
 ### Technical Validation
 
-- [ ] Level 1 clean: `gofmt -l pkg/stagehand/`, `go vet ./...`, `go build ./...`, `go mod tidy` no-op;
-      `git diff --exit-code go.mod go.sum` empty; ZERO new imports in stagehand.go.
-- [ ] Level 2 green: `go test -race ./pkg/stagehand/...` (4 new + existing) AND `go test -race ./...`.
-- [ ] Level 3: binary builds; go.mod/go.sum unchanged; only `pkg/stagehand/{stagehand.go, stagehand_test.go}`
+- [ ] Level 1 clean: `gofmt -l pkg/stagecoach/`, `go vet ./...`, `go build ./...`, `go mod tidy` no-op;
+      `git diff --exit-code go.mod go.sum` empty; ZERO new imports in stagecoach.go.
+- [ ] Level 2 green: `go test -race ./pkg/stagecoach/...` (4 new + existing) AND `go test -race ./...`.
+- [ ] Level 3: binary builds; go.mod/go.sum unchanged; only `pkg/stagecoach/{stagecoach.go, stagecoach_test.go}`
       changed; internal/generate + internal/hook byte-unchanged.
 
 ### Feature Validation
@@ -591,7 +591,7 @@ grep -c 'MultiTurnFallback\|generate.Run\|generate.ChunkCount' pkg/stagehand/sta
   `payload` would reintroduce the retryInstr-preamble-leak bug (P1.M1.T2.S1 fixed it in CommitStaged). The hoist
   (S1) is structurally harmless; the gate is independent of it.
 - ❌ Don't use the unexported `chunkPayload` or unprefixed `Run`/`FinalizeMessage`/`IsDuplicate`/`ExtractSubject`.
-  runPipeline is package stagehand — use `generate.ChunkCount`, `generate.Run`, `generate.FinalizeMessage`,
+  runPipeline is package stagecoach — use `generate.ChunkCount`, `generate.Run`, `generate.FinalizeMessage`,
   `generate.IsDuplicate`, `generate.ExtractSubject`, `signal.SetCandidate`. (`go build` will catch a miss.)
 - ❌ Don't add imports or change go.mod. fmt/os/time/git/prompt/generate/signal are ALL already imported (verified).
   An unused import fails `go vet`; a new dep is wrong (the gate needs none).
@@ -599,13 +599,13 @@ grep -c 'MultiTurnFallback\|generate.Run\|generate.ChunkCount' pkg/stagehand/sta
   Candidate/Cause) when the gate doesn't win. Wrap it: gate first, then `if !success { return rescue }`.
 - ❌ Don't touch the dry-run success early-return or the commit tail. The gate only sets msg/success; those paths
   fire unchanged on a multi-turn win. Editing them is out of scope and risks the dry-run semantics.
-- ❌ Don't look for `appendScriptManifest` in pkg/stagehand/stagehand_test.go — it's in internal/generate (direct-
-  manifest for CommitStaged). pkg/stagehand tests register the append stub via TOML (`session_mode = "append"` in
+- ❌ Don't look for `appendScriptManifest` in pkg/stagecoach/stagecoach_test.go — it's in internal/generate (direct-
+  manifest for CommitStaged). pkg/stagecoach tests register the append stub via TOML (`session_mode = "append"` in
   `[provider.stub]`), VERIFIED to work because RenderMultiTurn is a method on provider.Manifest + SessionMode is a
   TOML field.
 - ❌ Don't edit `internal/generate/*` (the reference gate is a frozen INPUT) or `internal/hook/exec.go` (P1.M3's
-  scope). This task is `pkg/stagehand/{stagehand.go, stagehand_test.go}` ONLY.
+  scope). This task is `pkg/stagecoach/{stagecoach.go, stagecoach_test.go}` ONLY.
 - ❌ Don't change go.mod/go.sum or add new files. One gate insertion + tests, two files.
-- ❌ Don't skip `go vet`/`go build`/`go test -race ./pkg/stagehand/...`/`go test -race ./...` — they catch a wrong
+- ❌ Don't skip `go vet`/`go build`/`go test -race ./pkg/stagecoach/...`/`go test -race ./...` — they catch a wrong
   package prefix (chunkPayload vs generate.ChunkCount), an unused import, a broken rescue, and a regression in the
   existing dry-run path. The 4 new tests pin the Issue 1 fix (dry-run × multi-turn).

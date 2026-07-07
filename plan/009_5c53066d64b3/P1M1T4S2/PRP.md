@@ -5,7 +5,7 @@ description: |
   conditions b/d). Three scenarios, each asserting the FULL rescue invariant (Kind, TreeSHA==frozen,
   ParentSHA, atomic-HEAD, idempotent-index §20.2) AND a stub-counter call-count that proves whether
   the multi-turn phase was entered:
-    (a) MID-TURN FAILURE → RESCUE: SessionMode="append" + large payload + GLOBAL STAGEHAND_STUB_EXIT=1
+    (a) MID-TURN FAILURE → RESCUE: SessionMode="append" + large payload + GLOBAL STAGECOACH_STUB_EXIT=1
         ⇒ one-shot exits-1-but-parses-empty (exhausts ⇒ gate fires) ⇒ Run's first turn exits 1 ⇒ Run
         aborts (FR-T7) ⇒ *RescueError{Kind:ErrRescue}. Counter == 2 (1 one-shot + 1 turn). Cause != nil.
     (b) SMALL-PAYLOAD SKIP: SessionMode="append" + TINY diff + default chunkTokens(32000) ⇒ cond (b)
@@ -30,11 +30,11 @@ description: |
   NEW, distinctly-named file `internal/generate/generate_multiturn_failure_test.go` (avoids file-level
   collision with T4.S1's `generate_multiturn_test.go`). REUSE generate_test.go helpers (same package).
 
-  ⚠️ **THE mechanism for a mid-turn failure — GLOBAL `STAGEHAND_STUB_EXIT=1`, NO stub change.** The stub
-  (`cmd/stubagent/main.go`) has ONE exit knob — `STAGEHAND_STUB_EXIT` (envInt, applied to EVERY call);
-  `STAGEHAND_STUB_SCRIPT` varies OUTPUT only, never exit code. There is NO per-call exit without modifying
+  ⚠️ **THE mechanism for a mid-turn failure — GLOBAL `STAGECOACH_STUB_EXIT=1`, NO stub change.** The stub
+  (`cmd/stubagent/main.go`) has ONE exit knob — `STAGECOACH_STUB_EXIT` (envInt, applied to EVERY call);
+  `STAGECOACH_STUB_SCRIPT` varies OUTPUT only, never exit code. There is NO per-call exit without modifying
   the stub, which T4.S1's PRP forbids and this item's "existing harness" constraint discourages. So set
-  `m.Env["STAGEHAND_STUB_EXIT"]="1"` GLOBALLY: the one-shot exits 1 BUT its stdout is still `""` (script[0])
+  `m.Env["STAGECOACH_STUB_EXIT"]="1"` GLOBALLY: the one-shot exits 1 BUT its stdout is still `""` (script[0])
   ⇒ CommitStaged's non-zero-exit branch (generate.go ~line 258: `lastCause=execErr`, fall through) runs
   ParseOutput("") ⇒ ok=false ⇒ exhausts (MaxDuplicateRetries=0) ⇒ the FR-T1 gate fires (all 4 conds hold)
   ⇒ Run's turn 1 exits 1 ⇒ `provider.Execute` returns a wrapped `*exec.ExitError` (executor.go:77) ⇒ Run
@@ -45,7 +45,7 @@ description: |
 
   ⚠️ **THE counter is the discriminator between "gate fired + Run aborted" and "gate skipped".**
   `stubtest.NewScript`/`appendScriptManifest` create a call-counter file
-  (`m.Env["STAGEHAND_STUB_COUNTER"]`); the stub increments it once per process (cmd/stubagent selectScripted
+  (`m.Env["STAGECOACH_STUB_COUNTER"]`); the stub increments it once per process (cmd/stubagent selectScripted
   reads N, writes N+1). So after a run: counter=="1" ⇒ ONLY the one-shot ran (gate SKIPPED Run — conds b/d
   false); counter=="2" ⇒ one-shot + exactly 1 multi-turn turn (gate FIRED, Run aborted at turn 1). This is
   the assertion T3.S3's skip tests LACK — they cannot prove multi-turn was never entered.
@@ -89,7 +89,7 @@ It REUSES `generate_test.go`'s package-level helpers (`initRepo`, `writeFile`, `
 
 ## User Persona
 
-**Target User**: The Stagehand contributor/maintainer (PRD §20 QA). Transitively US9.24 / G21 (multi-turn
+**Target User**: The Stagecoach contributor/maintainer (PRD §20 QA). Transitively US9.24 / G21 (multi-turn
 fallback) — this test is the regression net proving a future refactor of the FR-T1 gate or `multiturn.Run`'s
 failure handling cannot (a) leave the repo mutated after a mid-turn failure, nor (b) accidentally invoke
 multi-turn when a gate condition is false, nor (c) surface a NEW exit code/message on a multi-turn failure.
@@ -140,7 +140,7 @@ turn error propagated). No production code changes. No stub changes. No new depe
 - [ ] ONE shared helper `assertMultiTurnRescue` (full invariant: Kind/TreeSHA/ParentSHA/atomic-HEAD/
       idempotent-index-names/idempotent-index-full/counter); reuses generate_test.go helpers (no redeclaration).
 - [ ] Exactly THREE tests (a)/(b)/(c); no second happy-path test; no re-test of T3.S3's Kind-only asserts.
-- [ ] (a) `m.Env["STAGEHAND_STUB_EXIT"]="1"` (global) + append + chunkTokens=4 + large file ⇒ counter==2,
+- [ ] (a) `m.Env["STAGECOACH_STUB_EXIT"]="1"` (global) + append + chunkTokens=4 + large file ⇒ counter==2,
       `re.Kind==ErrRescue`, `re.TreeSHA==frozen`, `re.ParentSHA==beforeHEAD`, `re.Cause != nil`, index unchanged.
 - [ ] (b) append + tiny file + default chunkTokens(32000) ⇒ counter==1 (multi-turn NOT entered), full invariant.
 - [ ] (c) non-append (raw `stubtest.NewScript`) + large file + chunkTokens=4 ⇒ counter==1, full invariant.
@@ -179,7 +179,7 @@ appendScriptManifest). The global-EXIT mechanism and the counter discriminator a
        return (`Kind:ErrRescue`, ~line 327); (3) the non-zero-exit one-shot branch (~line 258) sets lastCause
        and falls through to ParseOutput (does NOT early-return) ⇒ a global EXIT=1 one-shot still EXHAUSTS
        (parse-fail) and reaches the gate.
-  critical: this is why global STAGEHAND_STUB_EXIT=1 works — the one-shot exit-1 is swallowed as a parse-fail,
+  critical: this is why global STAGECOACH_STUB_EXIT=1 works — the one-shot exit-1 is swallowed as a parse-fail,
             and the multi-turn turn-1 exit-1 becomes the rescue Cause.
 
 - file: internal/generate/multiturn.go
@@ -200,15 +200,15 @@ appendScriptManifest). The global-EXIT mechanism and the counter discriminator a
 
 - file: cmd/stubagent/main.go
   section: "main" (the exit knob) + "selectScripted" (the counter)
-  why: confirms (1) exit is `os.Exit(envInt("STAGEHAND_STUB_EXIT", 0))` — a SINGLE global value applied to
+  why: confirms (1) exit is `os.Exit(envInt("STAGECOACH_STUB_EXIT", 0))` — a SINGLE global value applied to
        EVERY call (no per-call exit; the script varies OUTPUT only); (2) selectScripted reads counter N,
        writes N+1, returns lines[N] (clamp-to-last) — so the counter file is the authoritative call count.
   critical: stdout is written BEFORE os.Exit, so exit=1 still yields the scripted line ("" for call 0).
 
 - file: internal/stubtest/stubtest.go
   why: confirms (1) NewScript writes a script file + counter file in t.TempDir() and sets
-       m.Env["STAGEHAND_STUB_COUNTER"]=counter; (2) Manifest's Env is `optsEnvMap(o)` — a MUTABLE map, so
-       `m.Env["STAGEHAND_STUB_EXIT"]="1"` after appendScriptManifest is persistent and reaches the stub
+       m.Env["STAGECOACH_STUB_COUNTER"]=counter; (2) Manifest's Env is `optsEnvMap(o)` — a MUTABLE map, so
+       `m.Env["STAGECOACH_STUB_EXIT"]="1"` after appendScriptManifest is persistent and reaches the stub
        via CmdSpec.Env→cmd.Env; (3) NewScript does NOT set SessionMode (nil) ⇒ cond (d) false.
   gotcha: appendScriptManifest(t,bin,responses) = NewScript + m.SessionMode=&"append". For scenario (c)
           use RAW stubtest.NewScript (no SessionMode).
@@ -244,7 +244,7 @@ internal/generate/
   rescue.go                   # FormatRescue (the message assembler; RescueError type lives in generate.go)
 internal/provider/executor.go # Execute → wrapped *exec.ExitError on non-zero exit (line 77)
 internal/stubtest/stubtest.go # Build, NewScript (counter), Manifest (mutable Env), optsEnvMap
-cmd/stubagent/main.go         # the fake agent: STAGEHAND_STUB_EXIT (global), STAGEHAND_STUB_COUNTER (per-call)
+cmd/stubagent/main.go         # the fake agent: STAGECOACH_STUB_EXIT (global), STAGECOACH_STUB_COUNTER (per-call)
 ```
 
 ### Desired Codebase tree with files to be added
@@ -264,9 +264,9 @@ internal/generate/
 // Kind-only skip tests + the final-turn-dedupe-rescue test. T4.S2 adds (a) the mid-turn Execute-error path
 // and (b)/(c) the idempotent-index + counter strengthenings. Do NOT re-assert only Kind==ErrRescue.
 
-// CRITICAL: the stub has ONE global exit knob (STAGEHAND_STUB_EXIT); the script varies OUTPUT only. To
+// CRITICAL: the stub has ONE global exit knob (STAGECOACH_STUB_EXIT); the script varies OUTPUT only. To
 // trigger a mid-turn Execute error WITHOUT modifying the stub (forbidden by T4.S1 + "existing harness"),
-// set m.Env["STAGEHAND_STUB_EXIT"]="1" GLOBALLY. The one-shot exit-1 is swallowed (parse-fail ⇒ exhaust ⇒
+// set m.Env["STAGECOACH_STUB_EXIT"]="1" GLOBALLY. The one-shot exit-1 is swallowed (parse-fail ⇒ exhaust ⇒
 // gate fires); the first multi-turn turn exit-1 ⇒ Run aborts ⇒ rescue. The failure lands on turn 1 (Run
 // aborts at the FIRST error) — equivalent FR-T7 coverage to a later turn.
 
@@ -303,7 +303,7 @@ internal/generate/
 No production data models. The tests build:
 - A **stub manifest** = `appendScriptManifest(t, bin, script)` (scenarios a/b) for SessionMode="append",
   OR raw `stubtest.NewScript(t, bin, []string{""})` (scenario c) for SessionMode unset.
-- For scenario (a) ONLY: `m.Env["STAGEHAND_STUB_EXIT"] = "1"` (global non-zero exit → mid-turn failure).
+- For scenario (a) ONLY: `m.Env["STAGECOACH_STUB_EXIT"] = "1"` (global non-zero exit → mid-turn failure).
 - A **config** = `config.Defaults()` with `MaxDuplicateRetries=0`; `MultiTurnChunkTokens` per scenario
   (4 for a/c; default 32000 for b); `MultiTurnFallback=true` (the default; explicit optional).
 - A **staged file** sized to control cond (b): normal ("hello world\n", scenarios a/c) or tiny ("hi\n", b).
@@ -374,9 +374,9 @@ func assertMultiTurnRescue(t *testing.T, repo string, m provider.Manifest, cfg c
 	if got := gitOut(t, repo, "diff", "--cached"); got != beforeIndexFull {
 		t.Errorf("staged index content changed (idempotent-index §20.2 full diff)")
 	}
-	cf := m.Env["STAGEHAND_STUB_COUNTER"]
+	cf := m.Env["STAGECOACH_STUB_COUNTER"]
 	if cf == "" {
-		t.Fatalf("manifest Env lacks STAGEHAND_STUB_COUNTER (use stubtest.NewScript/appendScriptManifest)")
+		t.Fatalf("manifest Env lacks STAGECOACH_STUB_COUNTER (use stubtest.NewScript/appendScriptManifest)")
 	}
 	raw, rerr := os.ReadFile(cf)
 	if rerr != nil {
@@ -388,7 +388,7 @@ func assertMultiTurnRescue(t *testing.T, repo string, m provider.Manifest, cfg c
 	return re
 }
 
-// (a) MID-TURN FAILURE → RESCUE (FR-T7). Global STAGEHAND_STUB_EXIT=1 ⇒ the one-shot exits 1 but its
+// (a) MID-TURN FAILURE → RESCUE (FR-T7). Global STAGECOACH_STUB_EXIT=1 ⇒ the one-shot exits 1 but its
 // stdout is "" (script[0]) ⇒ parse-fail ⇒ exhaust ⇒ gate fires (conds a/b/c/d all hold) ⇒ Run's turn 1
 // exits 1 ⇒ Execute returns a wrapped *exec.ExitError ⇒ Run aborts ⇒ rescue. Counter == 2.
 func TestCommitStaged_MultiTurnMidTurnFailureRescue(t *testing.T) {
@@ -404,7 +404,7 @@ func TestCommitStaged_MultiTurnMidTurnFailureRescue(t *testing.T) {
 	// Run's turn-1 exit-1 ⇒ Run aborts (FR-T7) ⇒ rescue. (No per-call exit knob without a stub change;
 	// turn-1 failure == later-turn failure coverage — Run aborts at the first error.)
 	m := appendScriptManifest(t, bin, []string{"", "ok", "ok", "feat: unreachable"})
-	m.Env["STAGEHAND_STUB_EXIT"] = "1" // mutable Env map (optsEnvMap); applies to every stub call
+	m.Env["STAGECOACH_STUB_EXIT"] = "1" // mutable Env map (optsEnvMap); applies to every stub call
 
 	cfg := config.Defaults()
 	cfg.MaxDuplicateRetries = 0   // exactly 1 one-shot call ⇒ counter math clean
@@ -466,7 +466,7 @@ func TestCommitStaged_MultiTurnNonAppendSkip_RescueInvariant(t *testing.T) {
 
 ```yaml
 TEST WIRING (the ONLY integration):
-  - scenario (a): appendScriptManifest(t,bin,["","ok","ok","feat: unreachable"]) + m.Env["STAGEHAND_STUB_EXIT"]="1";
+  - scenario (a): appendScriptManifest(t,bin,["","ok","ok","feat: unreachable"]) + m.Env["STAGECOACH_STUB_EXIT"]="1";
                   cfg.MaxDuplicateRetries=0, MultiTurnChunkTokens=4, MultiTurnFallback=true; wantCalls=2.
   - scenario (b): appendScriptManifest(t,bin,[""]); cfg=Defaults() (chunkTokens 32000), MaxDuplicateRetries=0; wantCalls=1.
   - scenario (c): stubtest.NewScript(t,bin,[""]) (NO SessionMode); cfg.MaxDuplicateRetries=0, MultiTurnChunkTokens=4; wantCalls=1.
@@ -539,7 +539,7 @@ golangci-lint run ./internal/generate/ 2>/dev/null || echo "golangci-lint not in
 
 ### Feature Validation
 
-- [ ] (a) `m.Env["STAGEHAND_STUB_EXIT"]="1"` + append + chunkTokens=4 ⇒ `*RescueError{Kind:ErrRescue}`,
+- [ ] (a) `m.Env["STAGECOACH_STUB_EXIT"]="1"` + append + chunkTokens=4 ⇒ `*RescueError{Kind:ErrRescue}`,
       TreeSHA==frozen, ParentSHA==beforeHEAD, Cause != nil, idempotent-index, counter==2.
 - [ ] (b) append + tiny file + default chunkTokens ⇒ full invariant + counter==1 (Run NOT entered).
 - [ ] (c) raw NewScript (SessionMode unset) + large file + chunkTokens=4 ⇒ full invariant + counter==1.
@@ -568,7 +568,7 @@ golangci-lint run ./internal/generate/ 2>/dev/null || echo "golangci-lint not in
   (TreeSHA/ParentSHA/idempotent-index/counter) and the mid-turn-failure path — distinct assertions.
 - ❌ Don't redeclare `initRepo`/`headSHA`/`gitOut`/`appendScriptManifest` — same package, reuse them.
 - ❌ Don't modify `cmd/stubagent` to add a per-call exit knob — T4.S1 forbids stub changes and the "existing
-  harness" constraint discourages it. Use GLOBAL `m.Env["STAGEHAND_STUB_EXIT"]="1"`; the one-shot exit-1 is
+  harness" constraint discourages it. Use GLOBAL `m.Env["STAGECOACH_STUB_EXIT"]="1"`; the one-shot exit-1 is
   swallowed (parse-fail ⇒ exhaust ⇒ gate fires) and the first multi-turn turn exit-1 aborts Run.
 - ❌ Don't assert `Kind==ErrTimeout` for a multi-turn failure — use `ErrRescue` (exit 3, byte-identical to
   one-shot-exhaustion). `ErrTimeout` is reserved for the one-shot DeadlineExceeded kill.

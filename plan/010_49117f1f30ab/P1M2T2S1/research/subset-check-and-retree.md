@@ -1,7 +1,7 @@
 # Research — P1.M2.T2.S1: Subset-check helper + re-tree-on-permitted-mutation (FR-V3)
 
 > Scope: the FR-V3 freeze-enforcement backstop for scoped `pre-commit`. After the hook runs against a
-> throwaway index primed from the snapshot tree (P1.M2.T1.S2's `ReadTreeInto`/`WriteTreeFrom`), stagehand
+> throwaway index primed from the snapshot tree (P1.M2.T1.S2's `ReadTreeInto`/`WriteTreeFrom`), stagecoach
 > must verify the hook introduced NO new paths (a formatter modifying an existing snapshot file is fine;
 > a hook that stages a path not in the snapshot is a hard error — it would sweep concurrent work in).
 > This task = the subset-check helper `enforceSubset` + its typed error, placed in a NEW `internal/hooks`

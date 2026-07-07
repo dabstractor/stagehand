@@ -11,7 +11,7 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` |
 | Edit targets | `internal/exitcode/exitcode.go`, `internal/exitcode/exitcode_test.go`, `docs/cli.md` |
 | Baseline | `go test ./internal/exitcode/` → **ok (cached)** |
 | `Busy` present? | **ABSENT** repo-wide — `grep -rn Busy internal/exitcode/ docs/cli.md` → none (confirmed). Genuine addition, not a verify-and-confirm. |
@@ -39,7 +39,7 @@ const (
 	Error           = 1   // general error (generation failed, parse failed, agent missing, CAS, usage/flag)
 	NothingToCommit = 2   // clean tree after auto-stage, or nothing staged with --no-auto-stage
 	Rescue          = 3   // snapshot taken, commit not created — manual recovery printed
-	Busy            = 5   // another stagehand run holds the per-repo lock; retry after it finishes (FR52 §18.5)
+	Busy            = 5   // another stagecoach run holds the per-repo lock; retry after it finishes (FR52 §18.5)
 	Timeout         = 124 // generation exceeded --timeout (mirrors GNU `timeout`)
 )
 ```
@@ -51,9 +51,9 @@ reserved for future use → `5` is the chosen value. Keeping `Timeout = 124` LAS
 
 **Comment-style decision:** the existing block uses INLINE comments that do NOT repeat the constant name
 (`Rescue = 3 // snapshot taken…`, not `Rescue = 3 // Rescue — snapshot taken…`). The contract's prose
-("Busy — another stagehand run…") narrates the name; the actual comment should DROP the redundant
+("Busy — another stagecoach run…") narrates the name; the actual comment should DROP the redundant
 `Busy — ` prefix to match the 5 sibling constants. Final comment text:
-`// another stagehand run holds the per-repo lock; retry after it finishes (FR52 §18.5)`.
+`// another stagecoach run holds the per-repo lock; retry after it finishes (FR52 §18.5)`.
 (gofmt re-aligns the `=` and `//` columns automatically after the insert — run `gofmt -w`.)
 
 ---
@@ -141,7 +141,7 @@ Exit codes mirror the constants in `internal/exitcode/exitcode.go`. A timeout is
 
 ### Target — (a) one table row (insert BETWEEN `3` and `124`, ascending numeric order matching the const block)
 ```
-| `5` | Busy — another stagehand run holds the per-repo lock; retry after it finishes. |
+| `5` | Busy — another stagecoach run holds the per-repo lock; retry after it finishes. |
 ```
 
 ### Target — (b) a note paragraph AFTER the existing "Exit codes mirror…" paragraph (line 376)
@@ -150,7 +150,7 @@ Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "b
 Contention on the per-repo run lock (FR52) has two behaviors: if a contending run's staged changes are
 already covered by the in-progress run's published snapshot, it exits **0** ("nothing to do — an in-progress
 run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's
-pid/host and leaves the new changes staged for a re-run. Stagehand never force-breaks the lock.
+pid/host and leaves the new changes staged for a re-run. Stagecoach never force-breaks the lock.
 ```
 This is the contract's "note below the table explaining the two contention behaviors (no-op exit 0 and busy
 exit 5) and that this is distinct from commit-failure codes."
@@ -165,7 +165,7 @@ exit 5) and that this is distinct from commit-failure codes."
 | D2 | Placement in const block? | After `Rescue=3`, before `Timeout=124`. | Contract mandate: keep `Timeout=124` LAST (mirrors GNU timeout). Ascending order otherwise. |
 | D3 | Change For()? | **NO.** | The `*ExitError` short-circuit (`errors.As → ee.Code`) already returns 5 for `New(Busy,nil)`. Busy never flows through a sentinel arm. Adding an arm = dead code. |
 | D4 | Change ExitError/New? | **NO.** | `New(code, nil)` + `Err:nil → Error()==""` already support the silent non-zero exit (proven by TestExitError_NilErr). |
-| D5 | Comment text? | Inline, no redundant "Busy — " prefix: `// another stagehand run holds the per-repo lock; retry after it finishes (FR52 §18.5)`. | Matches the 5 sibling constants' inline-comment style (none repeat the name). Contract's "Busy — " was prose narration. |
+| D5 | Comment text? | Inline, no redundant "Busy — " prefix: `// another stagecoach run holds the per-repo lock; retry after it finishes (FR52 §18.5)`. | Matches the 5 sibling constants' inline-comment style (none repeat the name). Contract's "Busy — " was prose narration. |
 | D6 | Test approach? | One `TestFor` row (`New(Busy,nil)→Busy`) + one `TestBusyCodeValue` (==5). | The row proves the short-circuit path S2 relies on; the pin guards the public integer contract for scripts. |
 | D7 | Docs row position? | Between `3` and `124`. | Ascending numeric order, matching the const block (Busy before Timeout). |
 | D8 | Scope vs S1/S2/S3? | ONLY exitcode.go + exitcode_test.go + docs/cli.md. | S1 = lock pkg + 2 docs; S2 (sibling) = wiring/contention-message/E2E; S3 = README. This task is the constant + the cli.md row only. |

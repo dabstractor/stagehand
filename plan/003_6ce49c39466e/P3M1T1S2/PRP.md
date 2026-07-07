@@ -102,7 +102,7 @@ live `WorkingTreeDiff`s.
 
 ## User Persona
 
-**Target User**: the end user running `stagehand` on an un-staged working tree to get multiple
+**Target User**: the end user running `stagecoach` on an un-staged working tree to get multiple
 logically-coherent commits, while another tool (an editor auto-save, a concurrent coding agent) may also
 be writing files. The freeze is NOT a user-facing flag; it is an internal safety guarantee.
 

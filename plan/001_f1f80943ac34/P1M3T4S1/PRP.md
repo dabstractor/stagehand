@@ -11,10 +11,10 @@ description: |
     1. **CREATE `cmd/stubagent/main.go`** (`package main`, **STDLIB ONLY**) — the fake-agent binary. It
        reads stdin (drains the prompt payload, as a real agent does), then behaves per **environment
        variables** (the manifest `Env` seam, already wired end-to-end by Render+Execute): emit a canned
-       message to stdout (`STAGEHAND_STUB_OUT`), exit non-zero (`STAGEHAND_STUB_EXIT`), sleep to simulate
-       timeout (`STAGEHAND_STUB_SLEEP_MS`), write stderr (`STAGEHAND_STUB_STDERR`), and — for the dedupe
+       message to stdout (`STAGECOACH_STUB_OUT`), exit non-zero (`STAGECOACH_STUB_EXIT`), sleep to simulate
+       timeout (`STAGECOACH_STUB_SLEEP_MS`), write stderr (`STAGECOACH_STUB_STDERR`), and — for the dedupe
        loop — return a DIFFERENT output per successive call via a file-backed script + counter
-       (`STAGEHAND_STUB_SCRIPT` / `STAGEHAND_STUB_COUNTER`). The stub IS the mock: no external services.
+       (`STAGECOACH_STUB_SCRIPT` / `STAGECOACH_STUB_COUNTER`). The stub IS the mock: no external services.
     2. **CREATE `internal/stubtest/stubtest.go`** (`package stubtest`, imports `internal/provider` + stdlib)
        — the reusable, importable helper. Exports `Build(t) string` (compiles `./cmd/stubagent` ONCE per
        process, cached), `Options`, `Manifest(bin, opts)` (a test-only provider.Manifest pointing Command
@@ -61,9 +61,9 @@ description: |
   this with a 1 MiB payload + sleep. (design-decisions §4)
 
   ⚠️ **Call-varying output via file-backed script+counter (for the dedupe loop).** Env doesn't persist
-  across separate stub processes, so cross-call state needs a FILE. `STAGEHAND_STUB_SCRIPT` = a file whose
+  across separate stub processes, so cross-call state needs a FILE. `STAGECOACH_STUB_SCRIPT` = a file whose
   `\n`-split lines are ordered responses (BLANK lines are significant — empty output ⇒ parse ok=false ⇒
-  retry); `STAGEHAND_STUB_COUNTER` = a file holding the call index (read→use→increment; out-of-range ⇒
+  retry); `STAGECOACH_STUB_COUNTER` = a file holding the call index (read→use→increment; out-of-range ⇒
   last response). No file lock — the orchestrator calls the agent SERIALLY (one in-flight per CommitStaged).
   (design-decisions §3)
 
@@ -82,7 +82,7 @@ description: |
   Deliverable: CREATE `cmd/stubagent/main.go` + `internal/stubtest/stubtest.go` +
   `internal/stubtest/stubtest_test.go`. STDLIB-ONLY stub binary; helper imports only `internal/provider`.
   `go mod tidy` MUST be a no-op. Touches ONLY these three NEW files — NO go.mod/go.sum change, NO edit to
-  any `internal/*`, `cmd/stagehand`, `pkg/*`, or the Makefile.
+  any `internal/*`, `cmd/stagecoach`, `pkg/*`, or the Makefile.
 
 ---
 
@@ -100,11 +100,11 @@ property tests (M5.T1) writable as plain table-driven tests with zero external d
 
 **Deliverable** (three NEW files, nothing else touched):
 1. **`cmd/stubagent/main.go`** — `package main`, imports `bufio`/`fmt`/`io`/`os`/`strconv`/`strings`/`time`
-   ONLY. Reads behavior from the `STAGEHAND_STUB_*` env vars; drains stdin; (optionally) sleeps; writes
+   ONLY. Reads behavior from the `STAGECOACH_STUB_*` env vars; drains stdin; (optionally) sleeps; writes
    stderr; writes stdout (single-response OR scripted); exits with the configured code. Has a
    `// Command stubagent is the test fake-agent …` doc comment.
 2. **`internal/stubtest/stubtest.go`** — `package stubtest`, imports `os`/`os/exec`/`sync`/`testing` +
-   `github.com/dustin/stagehand/internal/provider`. Exports `Build(t testing.TB) string`,
+   `github.com/dustin/stagecoach/internal/provider`. Exports `Build(t testing.TB) string`,
    `Options` struct, `Manifest(bin string, o Options) provider.Manifest`, `Env(o Options) []string`,
    `NewScript(t testing.TB, bin string, responses []string) provider.Manifest`. Has a
    `// Package stubtest …` doc comment.
@@ -118,7 +118,7 @@ property tests (M5.T1) writable as plain table-driven tests with zero external d
 `go vet ./cmd/stubagent/ ./internal/stubtest/` clean; `gofmt -l cmd/stubagent/ internal/stubtest/` empty;
 `golangci-lint run` (if available) clean; go.mod/go.sum byte-unchanged; the stub behaves correctly through
 the REAL `provider.Execute` seam for every §20.1 layer-3 capability (success/exit-nonzero/timeout/stderr/
-call-varying/blank-output); a manual `STAGEHAND_STUB_OUT="hi" go run ./cmd/stubagent` prints `hi` and exits 0.
+call-varying/blank-output); a manual `STAGECOACH_STUB_OUT="hi" go run ./cmd/stubagent` prints `hi` and exits 0.
 
 ## User Persona
 
@@ -162,7 +162,7 @@ script. (4) Boilerplate to build/locate a helper binary per test — solved by t
 ## What
 
 A new `main` package (`cmd/stubagent`) implementing the fake agent, plus a new importable helper package
-(`internal/stubtest`) and its tests. The binary reads `STAGEHAND_STUB_*` env vars, drains stdin, optionally
+(`internal/stubtest`) and its tests. The binary reads `STAGECOACH_STUB_*` env vars, drains stdin, optionally
 sleeps, writes stderr/stdout, and exits with a configured code; in script mode it varies output per call
 via a file-backed counter. The helper builds the binary once and constructs test-only manifests. No new
 types in `internal/provider`, no changes to the pipeline, no config, no git, no signals.
@@ -171,20 +171,20 @@ types in `internal/provider`, no changes to the pipeline, no config, no git, no 
 
 - [ ] `cmd/stubagent/main.go` exists, `package main`, imports EXACTLY stdlib (`bufio`/`fmt`/`io`/`os`/
       `strconv`/`strings`/`time`) — NO `internal/*`, NO third-party. Has a `// Command stubagent …` doc.
-      `func main()` drains stdin (`io.Copy(io.Discard, os.Stdin)`), then sleeps `STAGEHAND_STUB_SLEEP_MS`
-      (parsed via `strconv.Atoi`, default 0, never panics on malformed), then writes `STAGEHAND_STUB_STDERR`
-      to `os.Stderr`, then writes the selected output to `os.Stdout` (single-response = `STAGEHAND_STUB_OUT`;
-      script-mode = the counter-indexed line of `STAGEHAND_STUB_SCRIPT`), then `os.Exit(code)` where code =
-      `STAGEHAND_STUB_EXIT` (parsed, default 0, never panics).
-- [ ] Script mode: when `STAGEHAND_STUB_SCRIPT` is set, the stub reads `STAGEHAND_STUB_COUNTER` (integer,
+      `func main()` drains stdin (`io.Copy(io.Discard, os.Stdin)`), then sleeps `STAGECOACH_STUB_SLEEP_MS`
+      (parsed via `strconv.Atoi`, default 0, never panics on malformed), then writes `STAGECOACH_STUB_STDERR`
+      to `os.Stderr`, then writes the selected output to `os.Stdout` (single-response = `STAGECOACH_STUB_OUT`;
+      script-mode = the counter-indexed line of `STAGECOACH_STUB_SCRIPT`), then `os.Exit(code)` where code =
+      `STAGECOACH_STUB_EXIT` (parsed, default 0, never panics).
+- [ ] Script mode: when `STAGECOACH_STUB_SCRIPT` is set, the stub reads `STAGECOACH_STUB_COUNTER` (integer,
       0 if absent/unparseable), selects `lines[index]` (out-of-range ⇒ last line; BLANK lines are kept
       verbatim — empty output ⇒ `ParseOutput` ok=false), increments+writes back the counter, emits that
-      line. When `STAGEHAND_STUB_SCRIPT` is unset, emit `STAGEHAND_STUB_OUT` (single-response, every call).
+      line. When `STAGECOACH_STUB_SCRIPT` is unset, emit `STAGECOACH_STUB_OUT` (single-response, every call).
 - [ ] `internal/stubtest/stubtest.go` exists, `package stubtest`, imports `os`/`os/exec`/`sync`/`testing` +
       `internal/provider` ONLY. Exports `Build(t testing.TB) string` (compiles `./cmd/stubagent` to a
       temp path ONCE via `sync.Once`, `t.Skip`s if `go` not on PATH), `Options` (Out/Exit/SleepMS/Stderr/
       Script/Counter/Output/StripCodeFence), `Manifest(bin, o)` (test-only `provider.Manifest`: Command=bin,
-      PromptDelivery="stdin", Output/StripCodeFence per o, Env=the STAGEHAND_STUB_* knobs), `Env(o)` (the
+      PromptDelivery="stdin", Output/StripCodeFence per o, Env=the STAGECOACH_STUB_* knobs), `Env(o)` (the
       `K=V` slice incl. `os.Environ()`), `NewScript(t, bin, responses)` (writes responses one-per-line to a
       file in `t.TempDir()`, wires Script+Counter, returns a Manifest). Has a `// Package stubtest …` doc.
 - [ ] `internal/stubtest/stubtest_test.go` exists, `package stubtest` (white-box), drives the built binary
@@ -197,7 +197,7 @@ types in `internal/provider`, no changes to the pipeline, no config, no git, no 
       `go vet ./cmd/stubagent/ ./internal/stubtest/` clean; `gofmt -l cmd/stubagent/ internal/stubtest/` empty.
 - [ ] go.mod/go.sum byte-unchanged (`git diff --exit-code go.mod go.sum` empty).
 - [ ] Every other file byte-unchanged (all of `internal/{git,provider,prompt,config,generate}`,
-      `cmd/stagehand`, `pkg/*`, `Makefile`).
+      `cmd/stagecoach`, `pkg/*`, `Makefile`).
 
 ## All Needed Context
 
@@ -263,8 +263,8 @@ is a standalone stdlib binary + a thin helper.
   why: PROVES the stub's env-var design needs no new plumbing. A test-only Manifest's `Env` map is copied
        verbatim into `CmdSpec.Env` and applied by Execute as `cmd.Env`. The stub reads `os.Getenv`. End-to-
        end verified. This is why behavior-via-env-vars is the elegant choice (design-decisions §2).
-  gotcha: manifest Env is appended AFTER os.Environ() ⇒ last-wins ⇒ overrides any real STAGEHAND_* var.
-          Prefix stub knobs with STAGEHAND_STUB_ to avoid colliding with real config env (config §16.1).
+  gotcha: manifest Env is appended AFTER os.Environ() ⇒ last-wins ⇒ overrides any real STAGECOACH_* var.
+          Prefix stub knobs with STAGECOACH_STUB_ to avoid colliding with real config env (config §16.1).
 
 - file: internal/provider/manifest.go   (P1.M2.T1 — READ for the Manifest pointer-scalar design; do NOT edit)
   section: the `Manifest` struct + `strPtr`/`boolPtr` (UNEXPORTED) + `Env map[string]string` (plain map).
@@ -298,10 +298,10 @@ is a standalone stdlib binary + a thin helper.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — stub adds NO dep)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — stub adds NO dep)
 go.sum                          # unchanged
 cmd/
-  stagehand/main.go             # stub (P1.M1.T1) — UNCHANGED
+  stagecoach/main.go             # stub (P1.M1.T1) — UNCHANGED
   stubagent/
     main.go                     # NEW (this subtask) ← the fake-agent binary (stdlib only)
 internal/
@@ -321,7 +321,7 @@ Makefile                        # build/test(-race)/coverage/lint/clean/help —
 
 ```bash
 cmd/stubagent/main.go              # NEW — fake-agent binary: drain stdin → sleep → stderr → stdout → exit(code),
-                                   #        behavior from STAGEHAND_STUB_* env (OUT/EXIT/SLEEP_MS/STDERR/SCRIPT/COUNTER).
+                                   #        behavior from STAGECOACH_STUB_* env (OUT/EXIT/SLEEP_MS/STDERR/SCRIPT/COUNTER).
                                    #        Script mode = file-backed counter for call-varying output (dedupe loop).
 internal/stubtest/stubtest.go      # NEW — Build(t) compiles ./cmd/stubagent once; Options; Manifest(bin,o);
                                    #        Env(o); NewScript(t,bin,responses). FROZEN API for S2 + M5.T1.
@@ -345,7 +345,7 @@ internal/stubtest/stubtest_test.go # NEW — drives the built binary through pro
 // CRITICAL (behavior via ENV VARS): the seam already exists — Manifest.Env → Render(os.Environ()+env) →
 // CmdSpec.Env → Execute(cmd.Env=spec.Env) → stub os.Getenv. A test-only Manifest's Env map configures the
 // stub with NO new plumbing. stdin is the PROMPT (drain it, don't parse it for config). Prefix knobs
-// STAGEHAND_STUB_ to dodge real STAGEHAND_* config env. (§2)
+// STAGECOACH_STUB_ to dodge real STAGECOACH_* config env. (§2)
 
 // CRITICAL (DRAIN STDIN BEFORE SLEEP/OUTPUT — deadlock guard): the executor pipes the payload via a
 // bounded OS pipe (~64 KiB). If the stub sleeps before draining and the payload exceeds the buffer,
@@ -355,9 +355,9 @@ internal/stubtest/stubtest_test.go # NEW — drives the built binary through pro
 // pipes) → NO deadlock risk on the output side, only on stdin.
 
 // CRITICAL (call-varying output via FILE — for the dedupe loop): env doesn't persist across separate
-// stub processes (each Execute is a fresh process), so cross-call state needs a FILE. STAGEHAND_STUB_SCRIPT
+// stub processes (each Execute is a fresh process), so cross-call state needs a FILE. STAGECOACH_STUB_SCRIPT
 // = a file whose \n-split lines are ordered responses (BLANK lines SIGNIFICANT — empty ⇒ ParseOutput
-// ok=false ⇒ orchestrator retries = parse-failure-then-rescue). STAGEHAND_STUB_COUNTER = integer index
+// ok=false ⇒ orchestrator retries = parse-failure-then-rescue). STAGECOACH_STUB_COUNTER = integer index
 // (read→use→increment; out-of-range ⇒ last line). No file lock — orchestrator calls the agent SERIALLY
 // (one in-flight per CommitStaged); each test owns its own script/counter files in t.TempDir(). (§3)
 
@@ -377,7 +377,7 @@ internal/stubtest/stubtest_test.go # NEW — drives the built binary through pro
 
 // GOTCHA (build once, cache): N tests in one `go test` run would rebuild the stub N times if Build
 // weren't cached. Use sync.Once + a package-level path (os.MkdirTemp) so the compile happens EXACTLY
-// once per test process. Build via import path `github.com/dustin/stagehand/cmd/stubagent` (resolves
+// once per test process. Build via import path `github.com/dustin/stagecoach/cmd/stubagent` (resolves
 // from any cwd — no cmd.Dir needed). Skip (t.Skip) if exec.LookPath("go") fails. (§6)
 
 // GOTCHA (// Command, not // Package, for main): cmd/stubagent/main.go is `package main`. Its doc
@@ -401,12 +401,12 @@ internal/stubtest/stubtest_test.go # NEW — drives the built binary through pro
 
 // internal/stubtest/stubtest.go — the ONE exported data model:
 type Options struct {
-	Out           string  // STAGEHAND_STUB_OUT (single-response). Used when Script=="".
-	Exit          int     // STAGEHAND_STUB_EXIT  (default 0; non-zero simulates a failed agent)
-	SleepMS       int     // STAGEHAND_STUB_SLEEP_MS (default 0; >0 simulates a slow/timing-out agent)
-	Stderr        string  // STAGEHAND_STUB_STDERR (default ""; written to the child's stderr)
-	Script        string  // STAGEHAND_STUB_SCRIPT path (call-varying mode; "" disables)
-	Counter       string  // STAGEHAND_STUB_COUNTER path (used with Script; "" → Script ignores the counter)
+	Out           string  // STAGECOACH_STUB_OUT (single-response). Used when Script=="".
+	Exit          int     // STAGECOACH_STUB_EXIT  (default 0; non-zero simulates a failed agent)
+	SleepMS       int     // STAGECOACH_STUB_SLEEP_MS (default 0; >0 simulates a slow/timing-out agent)
+	Stderr        string  // STAGECOACH_STUB_STDERR (default ""; written to the child's stderr)
+	Script        string  // STAGECOACH_STUB_SCRIPT path (call-varying mode; "" disables)
+	Counter       string  // STAGECOACH_STUB_COUNTER path (used with Script; "" → Script ignores the counter)
 	Output         string // manifest Output; "" → "raw"
 	StripCodeFence *bool  // manifest StripCodeFence; nil → true (so a test can emit fences to exercise the parser)
 }
@@ -419,10 +419,10 @@ type Options struct {
 ```yaml
 Task 1: CREATE cmd/stubagent/main.go — the fake-agent binary (STDLIB ONLY)
   - FILE: NEW cmd/stubagent/main.go. PACKAGE: `package main`. DOC: `// Command stubagent is a tiny
-      fake-agent binary for Stagehand's integration/property tests (PRD §20.1 layer 3). It reads the
+      fake-agent binary for Stagecoach's integration/property tests (PRD §20.1 layer 3). It reads the
       prompt from stdin and writes a canned commit message to stdout, with behavior (output, exit code,
       simulated timeout, stderr, and per-call output variation for the dedupe loop) controlled entirely by
-      STAGEHAND_STUB_* environment variables — set via a test-only provider.Manifest's Env map (the existing
+      STAGECOACH_STUB_* environment variables — set via a test-only provider.Manifest's Env map (the existing
       Manifest.Env→CmdSpec.Env→cmd.Env seam). It is invoked through provider.Execute exactly like a real
       agent. STDLIB ONLY; no internal/*, no third-party.`
   - IMPORT: EXACTLY `bufio`, `fmt`, `io`, `os`, `strconv`, `strings`, `time`. NO internal/*, NO third-party.
@@ -433,21 +433,21 @@ Task 1: CREATE cmd/stubagent/main.go — the fake-agent binary (STDLIB ONLY)
       1. DRAIN STDIN FIRST (deadlock guard, §4): `io.Copy(io.Discard, os.Stdin)` — ignore the returned
          error (EOF/nil both fine; the executor gives /dev/null when Stdin==""). This consumes the prompt
          payload so a large payload + later sleep can't deadlock the bounded OS pipe.
-      2. SLEEP (AFTER drain): `if ms := envInt("STAGEHAND_STUB_SLEEP_MS", 0); ms > 0 { time.Sleep(time.Duration(ms)*time.Millisecond) }`.
-      3. WRITE STDERR: `if s := os.Getenv("STAGEHAND_STUB_STDERR"); s != "" { fmt.Fprint(os.Stderr, s) }`.
+      2. SLEEP (AFTER drain): `if ms := envInt("STAGECOACH_STUB_SLEEP_MS", 0); ms > 0 { time.Sleep(time.Duration(ms)*time.Millisecond) }`.
+      3. WRITE STDERR: `if s := os.Getenv("STAGECOACH_STUB_STDERR"); s != "" { fmt.Fprint(os.Stderr, s) }`.
       4. SELECT + WRITE STDOUT:
-         - scriptFile := os.Getenv("STAGEHAND_STUB_SCRIPT")
-         - if scriptFile == "" : out := os.Getenv("STAGEHAND_STUB_OUT")  // single-response mode
+         - scriptFile := os.Getenv("STAGECOACH_STUB_SCRIPT")
+         - if scriptFile == "" : out := os.Getenv("STAGECOACH_STUB_OUT")  // single-response mode
          - else: out = selectScripted(scriptFile)   // call-varying mode (see helper below)
          - `fmt.Fprint(os.Stdout, out)`  // Fprint (NOT Println) — emit EXACTLY `out`, no extra newline
-           (the test's STAGEHAND_STUB_OUT is the verbatim desired stdout; ParseOutput trims anyway, but
+           (the test's STAGECOACH_STUB_OUT is the verbatim desired stdout; ParseOutput trims anyway, but
            emitting exactly what was configured makes assertions byte-exact).
-      5. EXIT: `os.Exit(envInt("STAGEHAND_STUB_EXIT", 0))`.
+      5. EXIT: `os.Exit(envInt("STAGECOACH_STUB_EXIT", 0))`.
   - IMPLEMENT selectScripted(scriptFile string) string (script mode, §3):
       - data, err := os.ReadFile(scriptFile); if err != nil { return "" }  (missing/unreadable ⇒ empty output)
       - lines := strings.Split(string(data), "\n")   // BLANK lines kept verbatim (significant: empty ⇒ parse ok=false)
       - if len(lines) == 0 { return "" }
-      - index := 0; counterFile := os.Getenv("STAGEHAND_STUB_COUNTER")
+      - index := 0; counterFile := os.Getenv("STAGECOACH_STUB_COUNTER")
         if counterFile != "" { index = readCounter(counterFile) ; writeCounter(counterFile, index+1) }
       - if index < 0 || index >= len(lines) { index = len(lines)-1 }   // clamp to last (stable tail)
       - return lines[index]
@@ -461,12 +461,12 @@ Task 1: CREATE cmd/stubagent/main.go — the fake-agent binary (STDLIB ONLY)
 
 Task 2: CREATE internal/stubtest/stubtest.go — the reusable helper
   - FILE: NEW internal/stubtest/stubtest.go. PACKAGE: `package stubtest`. DOC: `// Package stubtest
-      provides a reusable fake-agent (cmd/stubagent) and helpers for Stagehand's integration and property
+      provides a reusable fake-agent (cmd/stubagent) and helpers for Stagecoach's integration and property
       tests (PRD §20.1 layer 3). Build compiles the stub once per test process; Manifest/NewScript return
       test-only provider.Manifests whose Env knobs drive the stub's behavior through the real
       provider.Execute seam. Used by generate.CommitStaged integration tests (P1.M3.T4.S2) and the
       property/invariant tests (P1.M5.T1).`
-  - IMPORT: `os`, `os/exec`, `strconv`, `sync`, `testing`, `github.com/dustin/stagehand/internal/provider`.
+  - IMPORT: `os`, `os/exec`, `strconv`, `sync`, `testing`, `github.com/dustin/stagecoach/internal/provider`.
   - DEFINE `type Options struct { … }` (see Data models).
   - IMPLEMENT local pointer helpers (provider.strPtr/boolPtr are UNEXPORTED):
       func strPtr(s string) *string { return &s }
@@ -478,11 +478,11 @@ Task 2: CREATE internal/stubtest/stubtest.go — the reusable helper
       - `stubOnce.Do(func(){ ... })` body:
           goPath, err := exec.LookPath("go")
           if err != nil { stubNoGo = true; return }   // set a FLAG; do NOT t.Skip inside Do (GOTCHA)
-          dir, err := os.MkdirTemp("", "stagehand-stubagent-*"); if err != nil { panic/ Fatal? — no, can't
+          dir, err := os.MkdirTemp("", "stagecoach-stubagent-*"); if err != nil { panic/ Fatal? — no, can't
             call t.Fatal inside Do either; capture via stubPath + a stubBuildErr string }
           name := "stubagent"; if runtime.GOOS == "windows" { name = "stubagent.exe" }
           stubPath = filepath.Join(dir, name)
-          build := exec.Command(goPath, "build", "-o", stubPath, "github.com/dustin/stagehand/cmd/stubagent")
+          build := exec.Command(goPath, "build", "-o", stubPath, "github.com/dustin/stagecoach/cmd/stubagent")
           if out, err := build.CombinedOutput(); err != nil { stubBuildErr = fmt.Sprintf("%v\n%s", err, out); return }
       - AFTER `stubOnce.Do(...)`: `if stubNoGo { t.Skipf("go toolchain not on PATH; cannot build stubagent") }`;
         `if stubBuildErr != "" { t.Fatalf("go build stubagent: %s", stubBuildErr) }`; `return stubPath`.
@@ -498,13 +498,13 @@ Task 2: CREATE internal/stubtest/stubtest.go — the reusable helper
   - IMPLEMENT `func Env(o Options) []string`:
       - env := os.Environ()
       - add non-default knobs only (keeps env small + makes single-response-vs-script obvious):
-          if o.Script != "" { env = appendStr(env, "STAGEHAND_STUB_SCRIPT", o.Script)
-                              if o.Counter != "" { env = appendStr(env, "STAGEHAND_STUB_COUNTER", o.Counter) } }
-          else              { env = appendStr(env, "STAGEHAND_STUB_OUT", o.Out) }   // single-response
+          if o.Script != "" { env = appendStr(env, "STAGECOACH_STUB_SCRIPT", o.Script)
+                              if o.Counter != "" { env = appendStr(env, "STAGECOACH_STUB_COUNTER", o.Counter) } }
+          else              { env = appendStr(env, "STAGECOACH_STUB_OUT", o.Out) }   // single-response
       - always-set knobs (even defaults, so a test can rely on them): EXIT, SLEEP_MS, STDERR:
-          env = appendStr(env, "STAGEHAND_STUB_EXIT", strconv.Itoa(o.Exit))   // default "0"
-          if o.SleepMS > 0 { env = appendStr(env, "STAGEHAND_STUB_SLEEP_MS", strconv.Itoa(o.SleepMS)) }
-          if o.Stderr != "" { env = appendStr(env, "STAGEHAND_STUB_STDERR", o.Stderr) }
+          env = appendStr(env, "STAGECOACH_STUB_EXIT", strconv.Itoa(o.Exit))   // default "0"
+          if o.SleepMS > 0 { env = appendStr(env, "STAGECOACH_STUB_SLEEP_MS", strconv.Itoa(o.SleepMS)) }
+          if o.Stderr != "" { env = appendStr(env, "STAGECOACH_STUB_STDERR", o.Stderr) }
       - helper: `func appendStr(env []string, k, v string) []string { return append(env, k+"="+v) }`.
       - return env.
   - IMPLEMENT `func Manifest(bin string, o Options) provider.Manifest`:
@@ -512,7 +512,7 @@ Task 2: CREATE internal/stubtest/stubtest.go — the reusable helper
       - out := o.Output; if out == "" { out = "raw" }; m.Output = strPtr(out)
       - if o.StripCodeFence != nil { m.StripCodeFence = boolPtr(*o.StripCodeFence) } else { m.StripCodeFence = boolPtr(true) }
       - m.Env = map[string]string{}; for _, kv := range Env(o) { split on first "=" → m.Env[k]=v }
-        (OR build the map directly from o — cleaner: set map keys STAGEHAND_STUB_* mirroring Env's logic.
+        (OR build the map directly from o — cleaner: set map keys STAGECOACH_STUB_* mirroring Env's logic.
         Pick ONE source of truth — recommend a private optsToEnvMap(o) map[string]string that both Env()
         and Manifest() use, so the slice and map never drift. Env() = os.Environ()+map→slice.)
       - return m. (A Validate() call isn't needed — Name+Command are set; the test renders it.)
@@ -529,7 +529,7 @@ Task 2: CREATE internal/stubtest/stubtest.go — the reusable helper
 Task 3: CREATE internal/stubtest/stubtest_test.go — drive the stub through provider.Execute
   - FILE: NEW internal/stubtest/stubtest_test.go. PACKAGE: `package stubtest` (white-box — can call
       unexported optsToEnvMap if you made one; else black-box is fine too). IMPORT: `context`, `errors`,
-      `os/exec`, `strings`, `testing`, `time`, `github.com/dustin/stagehand/internal/provider`.
+      `os/exec`, `strings`, `testing`, `time`, `github.com/dustin/stagecoach/internal/provider`.
   - SHARED setup: `bin := Build(t)` at the top of each test (Build is cached → cheap). Each test builds a
       CmdSpec via `provider.CmdSpec{Command: bin, Env: Env(o)}` (bypasses Render — fastest) OR via
       `m := Manifest(bin, o); spec,_ := m.Render("","","","PAYLOAD"); Execute(ctx, *spec, timeout)` (full
@@ -549,7 +549,7 @@ Task 3: CREATE internal/stubtest/stubtest_test.go — drive the stub through pro
          3×: call1 stdout=="feat: dup", call2=="feat: fresh", call3=="feat: fresh" (clamp to last).
       8. TestStub_ScriptBlankIsParseFailure: NewScript(t, bin, []string{"", "feat: good"}) → call1
          stdout=="" (→ ParseOutput ok=false); call2 stdout=="feat: good".
-      9. TestStub_MalformedEnvNoPanic: CmdSpec.Env with STAGEHAND_STUB_EXIT="not-a-number" (+ OUT="x") →
+      9. TestStub_MalformedEnvNoPanic: CmdSpec.Env with STAGECOACH_STUB_EXIT="not-a-number" (+ OUT="x") →
          stub exits 0, stdout=="x" (strconv.Atoi fallback, §2 robustness).
   - PATTERN: mirror executor_test.go (CmdSpec + Execute + errors.Is/As + time.Since bounds). Each test is
       independent (own t.TempDir via NewScript where needed). NO real git, NO real agent.
@@ -561,7 +561,7 @@ Task 3: CREATE internal/stubtest/stubtest_test.go — drive the stub through pro
 
 Task 4: VERIFY (no further file change)
   - RUN the full Validation Loop (Levels 1–3). go.mod/go.sum MUST be byte-unchanged. Every other file
-      (all of internal/{git,provider,prompt,config,generate}, cmd/stagehand, pkg/*, Makefile) MUST be
+      (all of internal/{git,provider,prompt,config,generate}, cmd/stagecoach, pkg/*, Makefile) MUST be
       byte-unchanged. `go build ./...` MUST succeed (cmd/stubagent now compiles). `go test -race ./...`
       MUST be green (new stubtest tests pass, nothing regresses). `go vet` + `gofmt` clean.
 ```
@@ -600,24 +600,24 @@ func main() {
 	io.Copy(io.Discard, os.Stdin)
 
 	// 2. Sleep AFTER draining (timeout simulation). The parent isn't blocked on stdin anymore.
-	if ms := envInt("STAGEHAND_STUB_SLEEP_MS", 0); ms > 0 {
+	if ms := envInt("STAGECOACH_STUB_SLEEP_MS", 0); ms > 0 {
 		time.Sleep(time.Duration(ms) * time.Millisecond)
 	}
 
 	// 3. Stderr (captured separately by Execute; useful for verbose-mode / stderr tests).
-	if s := os.Getenv("STAGEHAND_STUB_STDERR"); s != "" {
+	if s := os.Getenv("STAGECOACH_STUB_STDERR"); s != "" {
 		fmt.Fprint(os.Stderr, s)
 	}
 
 	// 4. Select + write stdout. Script mode ⇒ call-varying (dedupe loop); else single-response OUT.
-	out := os.Getenv("STAGEHAND_STUB_OUT")
-	if scriptFile := os.Getenv("STAGEHAND_STUB_SCRIPT"); scriptFile != "" {
+	out := os.Getenv("STAGECOACH_STUB_OUT")
+	if scriptFile := os.Getenv("STAGECOACH_STUB_SCRIPT"); scriptFile != "" {
 		out = selectScripted(scriptFile)
 	}
 	fmt.Fprint(os.Stdout, out) // EXACTLY `out` — no extra newline (ParseOutput trims; assertions stay byte-exact)
 
 	// 5. Exit with the configured code (non-zero simulates a failed agent → orchestrator retry/rescue).
-	os.Exit(envInt("STAGEHAND_STUB_EXIT", 0))
+	os.Exit(envInt("STAGECOACH_STUB_EXIT", 0))
 }
 
 // selectScripted returns the call-indexed line of the script file, advancing a file-backed counter so
@@ -633,7 +633,7 @@ func selectScripted(scriptFile string) string {
 		return ""
 	}
 	index := 0
-	if counterFile := os.Getenv("STAGEHAND_STUB_COUNTER"); counterFile != "" {
+	if counterFile := os.Getenv("STAGECOACH_STUB_COUNTER"); counterFile != "" {
 		index = readCounter(counterFile)
 		writeCounter(counterFile, index+1) // best-effort; serial callers make races impossible (§3)
 	}
@@ -678,17 +678,17 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagecoach/internal/provider"
 )
 
-// Options configures a stub invocation; Manifest/Env translate it to STAGEHAND_STUB_* env vars.
+// Options configures a stub invocation; Manifest/Env translate it to STAGECOACH_STUB_* env vars.
 type Options struct {
-	Out            string // STAGEHAND_STUB_OUT (single-response; used when Script=="")
-	Exit           int    // STAGEHAND_STUB_EXIT (default 0; non-zero ⇒ failed-agent simulation)
-	SleepMS        int    // STAGEHAND_STUB_SLEEP_MS (default 0; >0 ⇒ slow/timing-out agent)
-	Stderr         string // STAGEHAND_STUB_STDERR (default "")
-	Script         string // STAGEHAND_STUB_SCRIPT path (call-varying mode; "" disables)
-	Counter        string // STAGEHAND_STUB_COUNTER path (used with Script)
+	Out            string // STAGECOACH_STUB_OUT (single-response; used when Script=="")
+	Exit           int    // STAGECOACH_STUB_EXIT (default 0; non-zero ⇒ failed-agent simulation)
+	SleepMS        int    // STAGECOACH_STUB_SLEEP_MS (default 0; >0 ⇒ slow/timing-out agent)
+	Stderr         string // STAGECOACH_STUB_STDERR (default "")
+	Script         string // STAGECOACH_STUB_SCRIPT path (call-varying mode; "" disables)
+	Counter        string // STAGECOACH_STUB_COUNTER path (used with Script)
 	Output         string // manifest Output; "" → "raw"
 	StripCodeFence *bool  // manifest StripCodeFence; nil → true
 }
@@ -714,7 +714,7 @@ func Build(t testing.TB) string {
 			stubNoGo = true
 			return
 		}
-		dir, err := os.MkdirTemp("", "stagehand-stubagent-*")
+		dir, err := os.MkdirTemp("", "stagecoach-stubagent-*")
 		if err != nil {
 			stubBuildErr = fmt.Sprintf("mkdtemp: %v", err)
 			return
@@ -725,7 +725,7 @@ func Build(t testing.TB) string {
 		}
 		stubPath = filepath.Join(dir, name)
 		// Import-path form resolves from any cwd (no cmd.Dir needed).
-		build := exec.Command(goPath, "build", "-o", stubPath, "github.com/dustin/stagehand/cmd/stubagent")
+		build := exec.Command(goPath, "build", "-o", stubPath, "github.com/dustin/stagecoach/cmd/stubagent")
 		if out, err := build.CombinedOutput(); err != nil {
 			stubBuildErr = fmt.Sprintf("%v\n%s", err, out)
 			stubPath = ""
@@ -740,29 +740,29 @@ func Build(t testing.TB) string {
 	return stubPath
 }
 
-// optsEnvMap is the single source of truth for the STAGEHAND_STUB_* knobs (Env and Manifest both use it).
+// optsEnvMap is the single source of truth for the STAGECOACH_STUB_* knobs (Env and Manifest both use it).
 func optsEnvMap(o Options) map[string]string {
 	m := map[string]string{
-		"STAGEHAND_STUB_EXIT": strconv.Itoa(o.Exit),
+		"STAGECOACH_STUB_EXIT": strconv.Itoa(o.Exit),
 	}
 	if o.SleepMS > 0 {
-		m["STAGEHAND_STUB_SLEEP_MS"] = strconv.Itoa(o.SleepMS)
+		m["STAGECOACH_STUB_SLEEP_MS"] = strconv.Itoa(o.SleepMS)
 	}
 	if o.Stderr != "" {
-		m["STAGEHAND_STUB_STDERR"] = o.Stderr
+		m["STAGECOACH_STUB_STDERR"] = o.Stderr
 	}
 	if o.Script != "" {
-		m["STAGEHAND_STUB_SCRIPT"] = o.Script
+		m["STAGECOACH_STUB_SCRIPT"] = o.Script
 		if o.Counter != "" {
-			m["STAGEHAND_STUB_COUNTER"] = o.Counter
+			m["STAGECOACH_STUB_COUNTER"] = o.Counter
 		}
 	} else {
-		m["STAGEHAND_STUB_OUT"] = o.Out // single-response mode
+		m["STAGECOACH_STUB_OUT"] = o.Out // single-response mode
 	}
 	return m
 }
 
-// Env returns the "K=V" env slice for o (os.Environ() + STAGEHAND_STUB_*). Use to build a raw CmdSpec.
+// Env returns the "K=V" env slice for o (os.Environ() + STAGECOACH_STUB_*). Use to build a raw CmdSpec.
 func Env(o Options) []string {
 	env := os.Environ()
 	for k, v := range optsEnvMap(o) {
@@ -821,13 +821,13 @@ PACKAGE EDGES (import graph):
   - cmd/stubagent/main.go → (stdlib: bufio/fmt/io/os/strconv/strings/time) ONLY. NO internal/*, NO 3rd-party.
         (Drop `bufio` if unused — final set: fmt/io/os/strconv/strings/time.)
   - internal/stubtest/stubtest.go → (stdlib: os/os/exec/path/filepath/runtime/strconv/strings/sync/testing)
-        + github.com/dustin/stagehand/internal/provider. ONE internal edge (stubtest → provider); no cycle.
+        + github.com/dustin/stagecoach/internal/provider. ONE internal edge (stubtest → provider); no cycle.
   - internal/stubtest/stubtest_test.go → stdlib (context/errors/strings/testing/time) + internal/provider
         + the stubtest package itself (white-box).
 
 UPSTREAM CONTRACT (the seam — already built by P1.M2, read-only):
   - provider.CmdSpec{Command, Args, Stdin, Env} (render.go) — the stub is invoked as Command=<bin path>,
-        Args=<none beyond payload routing>, Stdin=<prompt payload>, Env=<STAGEHAND_STUB_* + os.Environ()>.
+        Args=<none beyond payload routing>, Stdin=<prompt payload>, Env=<STAGECOACH_STUB_* + os.Environ()>.
   - provider.Execute(ctx, spec, timeout) (executor.go) — runs the stub, returns (stdout, stderr, err).
         timeout→DeadlineExceeded; non-zero exit→wrapped *exec.ExitError; setupProcessGroup makes it killable.
   - provider.Manifest{Env map[string]string} (manifest.go) — the test-only manifest's Env is the stub's
@@ -844,7 +844,7 @@ DOWNSTREAM CONTRACTS (the consumers — do NOT implement here, just honor the AP
   => The stubtest.{Build,Options,Manifest,Env,NewScript} signatures are FROZEN after this subtask.
 
 FROZEN FILES (do NOT edit):
-  - All of internal/{git,provider,prompt,config,generate}, cmd/stagehand/main.go, pkg/*, Makefile,
+  - All of internal/{git,provider,prompt,config,generate}, cmd/stagecoach/main.go, pkg/*, Makefile,
         go.mod, go.sum. Only the 3 NEW files are created.
 ```
 
@@ -863,10 +863,10 @@ go vet ./cmd/stubagent/ ./internal/stubtest/
 golangci-lint run ./cmd/stubagent/ ./internal/stubtest/ 2>/dev/null || echo "(golangci-lint not available — skip)"
 
 # Confirm cmd/stubagent/main.go imports ONLY stdlib (no internal/*, no third-party)
-go list -deps ./cmd/stubagent | grep -E 'dustin/stagehand|github\.com/' || echo "OK: stubagent has no internal/3rd-party deps"
+go list -deps ./cmd/stubagent | grep -E 'dustin/stagecoach|github\.com/' || echo "OK: stubagent has no internal/3rd-party deps"
 
 # Confirm internal/stubtest imports ONLY internal/provider (+ stdlib)
-go list -deps ./internal/stubtest | grep 'dustin/stagehand'   # → only .../internal/provider
+go list -deps ./internal/stubtest | grep 'dustin/stagecoach'   # → only .../internal/provider
 
 # Confirm cmd/stubagent uses "// Command stubagent" (not "// Package") doc comment
 grep -n '^// Command stubagent' cmd/stubagent/main.go   # → the doc line
@@ -892,7 +892,7 @@ go test ./cmd/stubagent/
 go test -race ./...
 
 # Expected: All stubtest tests pass. The load-bearing assertions are:
-#   - echo success (stdout == STAGEHAND_STUB_OUT verbatim)
+#   - echo success (stdout == STAGECOACH_STUB_OUT verbatim)
 #   - non-zero exit ⇒ wrapped *exec.ExitError (errors.As)
 #   - timeout ⇒ context.DeadlineExceeded AND returns within ~3s (process-group kill fired)
 #   - 1 MiB stdin + sleep completes (drain-before-sleep — no deadlock)
@@ -909,13 +909,13 @@ go build ./...
 
 # Manual sanity: run the stub directly and observe behavior (NOT a test — eyeball check)
 BIN=$(mktemp); go build -o "$BIN" ./cmd/stubagent
-STAGEHAND_STUB_OUT="feat: manual check" "$BIN"; echo " (exit=$?)"
+STAGECOACH_STUB_OUT="feat: manual check" "$BIN"; echo " (exit=$?)"
 # Expected: prints "feat: manual check", exit 0.
 
-STAGEHAND_STUB_EXIT=42 "$BIN" 2>/dev/null; echo "exit=$?"
+STAGECOACH_STUB_EXIT=42 "$BIN" 2>/dev/null; echo "exit=$?"
 # Expected: exit=42.
 
-echo "prompt payload" | STAGEHAND_STUB_OUT="drained ok" "$BIN"
+echo "prompt payload" | STAGECOACH_STUB_OUT="drained ok" "$BIN"
 # Expected: prints "drained ok" (stdin was drained without deadlock).
 
 # Drive it through the REAL Execute seam (one-liner via go run of a tiny check, OR rely on the stubtest
@@ -960,14 +960,14 @@ GOOS=darwin  GOARCH=arm64 go build -o /tmp/stub-check     ./cmd/stubagent && ech
 
 ### Feature Validation
 
-- [ ] The stub echoes `STAGEHAND_STUB_OUT` to stdout verbatim (no extra newline) and exits 0.
-- [ ] Multi-line `STAGEHAND_STUB_OUT` round-trips through stdout.
-- [ ] `STAGEHAND_STUB_EXIT=1` (or any non-zero) ⇒ `provider.Execute` returns a wrapped `*exec.ExitError`.
-- [ ] `STAGEHAND_STUB_SLEEP_MS` + a small Execute timeout ⇒ `context.DeadlineExceeded` within seconds
+- [ ] The stub echoes `STAGECOACH_STUB_OUT` to stdout verbatim (no extra newline) and exits 0.
+- [ ] Multi-line `STAGECOACH_STUB_OUT` round-trips through stdout.
+- [ ] `STAGECOACH_STUB_EXIT=1` (or any non-zero) ⇒ `provider.Execute` returns a wrapped `*exec.ExitError`.
+- [ ] `STAGECOACH_STUB_SLEEP_MS` + a small Execute timeout ⇒ `context.DeadlineExceeded` within seconds
       (the process-group kill fired — the stub is killable like a real agent).
-- [ ] `STAGEHAND_STUB_STDERR` is captured to Execute's stderr return, separate from stdout.
+- [ ] `STAGECOACH_STUB_STDERR` is captured to Execute's stderr return, separate from stdout.
 - [ ] A 1 MiB stdin payload + `SLEEP_MS` completes without hanging (stdin drained BEFORE sleep — §4).
-- [ ] Script mode (`STAGEHAND_STUB_SCRIPT`+`_COUNTER`) returns successive responses per call (call-varying),
+- [ ] Script mode (`STAGECOACH_STUB_SCRIPT`+`_COUNTER`) returns successive responses per call (call-varying),
       clamps to the last response after exhaustion, and treats BLANK lines as empty output (parse ok=false).
 - [ ] Malformed numeric env (`EXIT="x"`) never panics — falls back to the default (0).
 - [ ] Scope respected: NO CommitStaged (S2), NO property-test bodies (M5.T1), NO integration_real suite
@@ -987,7 +987,7 @@ GOOS=darwin  GOARCH=arm64 go build -o /tmp/stub-check     ./cmd/stubagent && ech
 ### Documentation & Deployment
 
 - [ ] Code is self-documenting with PRD-§20.1-cited doc comments (the stub IS §20.1 layer 3's fake agent).
-- [ ] No new environment variables in the SHIPPED product (STAGEHAND_STUB_* are test-only — they configure
+- [ ] No new environment variables in the SHIPPED product (STAGECOACH_STUB_* are test-only — they configure
       a test binary, never read by production code).
 - [ ] No new config keys (none needed — the stub is configured via a test-only Manifest's Env map).
 
@@ -1005,4 +1005,4 @@ GOOS=darwin  GOARCH=arm64 go build -o /tmp/stub-check     ./cmd/stubagent && ech
 - ❌ Don't let a malformed env value panic — `strconv.Atoi` errors must fall back to the default (robustness).
 - ❌ Don't rebuild the stub per test — cache via `sync.Once` so one `go test` run compiles it exactly once.
 - ❌ Don't implement CommitStaged, the property tests, or the integration_real suite here — those are S2 / M5.T1 / M5.T1.S2. This subtask is the stub + helper ONLY.
-- ❌ Don't add a trailing newline beyond the configured output — emit EXACTLY `STAGEHAND_STUB_OUT`/the script line so assertions stay byte-exact (ParseOutput trims anyway, but exactness makes tests crisp).
+- ❌ Don't add a trailing newline beyond the configured output — emit EXACTLY `STAGECOACH_STUB_OUT`/the script line so assertions stay byte-exact (ParseOutput trims anyway, but exactness makes tests crisp).

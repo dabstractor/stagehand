@@ -69,7 +69,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Define the single provider-manifest type for all of Stagehand — a `Manifest` struct
+**Feature Goal**: Define the single provider-manifest type for all of Stagecoach — a `Manifest` struct
 whose 18 fields carry the PRD §12.1 schema (name, detect, command, subcommand, prompt_delivery,
 prompt_flag, print_flag, model_flag, default_model, system_prompt_flag, provider_flag,
 default_provider, bare_flags, output, json_field, strip_code_fence, retry_instruction, env) as
@@ -134,7 +134,7 @@ package outside the stdlib (in particular NOT `internal/config`).
 
 ## User Persona
 
-**Target User**: Downstream Stagehand subtasks — S2 (field-by-field merge), P1.M2.T3 (registry: decodes
+**Target User**: Downstream Stagecoach subtasks — S2 (field-by-field merge), P1.M2.T3 (registry: decodes
 `config.Providers[<name>]` raw map → Manifest, merges with the built-in, Validate, Resolve), P1.M2.T4
 (renderer: reads the resolved Manifest per §12.2), P1.M2.T5 (executor: reads Command/Env), P1.M2.T6
 (parser: reads Output/JsonField/StripCodeFence), and the built-in manifest authors (P1.M2.T2). Transit-
@@ -313,7 +313,7 @@ required — this subtask is one self-contained struct + three methods + tests.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; require go-toml/v2 v2.4.2 + pflag v1.0.10  (UNCHANGED by S1)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; require go-toml/v2 v2.4.2 + pflag v1.0.10  (UNCHANGED by S1)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 (Config + loaders + Load) — FROZEN, do NOT touch; do NOT import from provider
@@ -323,7 +323,7 @@ internal/
   provider/                     # NEW (S1) ← Manifest struct + Validate + DetectCommand + Resolve + constants
     manifest.go                 # NEW
     manifest_test.go            # NEW
-cmd/stagehand/main.go           # `package main; func main(){}` stub — untouched
+cmd/stagecoach/main.go           # `package main; func main(){}` stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -741,7 +741,7 @@ PACKAGE EDGES (import graph):
 
 FROZEN FILES (do NOT edit):
   - internal/config/* (P1.M1.T4): Config.Providers raw map is the bridge target the registry consumes.
-  - internal/git/* (P1.M1.T2/T3), cmd/stagehand/main.go, Makefile: untouched.
+  - internal/git/* (P1.M1.T2/T3), cmd/stagecoach/main.go, Makefile: untouched.
 
 DOWNSTREAM CONTRACTS (do NOT implement here — just honor the shapes they will consume):
   - P1.M2.T1.S2 (field-by-field merge): for each field, `if override.Field != nil { base.Field =
@@ -796,7 +796,7 @@ go test -race ./...
 
 ```bash
 # Build + scope/additive checks:
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"   # main.go stub still links.
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"   # main.go stub still links.
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum unchanged"
 # Confirm S1 did NOT touch anything outside internal/provider/:
 git diff --exit-code -- internal/config internal/git cmd Makefile && echo "frozen files UNCHANGED by S1"
@@ -811,7 +811,7 @@ grep -c 'toml:"' internal/provider/manifest.go   # MUST print 18.
 # argv the renderer WOULD build — eyeball it against the §12.3 rendered command.
 cat > /tmp/smoke_manifest_test.go <<'EOF'
 package main
-import ("fmt";"os";"github.com/pelletier/go-toml/v2";"github.com/dustin/stagehand/internal/provider")
+import ("fmt";"os";"github.com/pelletier/go-toml/v2";"github.com/dustin/stagecoach/internal/provider")
 func main(){
   tomlSrc := []byte(`name="pi"
 detect="pi"

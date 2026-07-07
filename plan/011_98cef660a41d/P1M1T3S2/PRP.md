@@ -11,7 +11,7 @@ description: |
   (1) MESSAGE-ROLE (PRIMARY): `TestCommitStaged_TokenLimitInvariant_AssembledPromptFits` in a NEW file
   `internal/generate/tokenlimit_invariant_test.go` (package generate) — stage a large diff (~1600 runes
   ≈ 390 tokens), set cfg.TokenLimit=200 (≪ untruncated ⇒ the gate MUST truncate), run CommitStaged with
-  a stub provider whose stdin is captured via STAGEHAND_STUB_STDINFILE (the TestCommitStaged_ExcludedPayloadCapture
+  a stub provider whose stdin is captured via STAGECOACH_STUB_STDINFILE (the TestCommitStaged_ExcludedPayloadCapture
   pattern at generate_test.go:660), read the captured stdin, assert `git.EstimateTokens(stdin) ≤
   cfg.TokenLimit + assembledPromptSeparatorTokens` (assembledPromptSeparatorTokens = EstimateTokens("\n\n")
   = 1 — the Render prepend separator at render.go:158; FR3j's invariant is on the separator-free
@@ -20,7 +20,7 @@ description: |
   PLANNER-ROLE (SECONDARY, "Consider"): `TestDecompose_TokenLimitInvariant_PlannerPromptFits` APPENDED
   to `internal/decompose/decompose_test.go` (package decompose — the dcm* harness's home) — drive
   Decompose() with cfg.TokenLimit set + a large working-tree diff; isolate the planner's stdin via
-  role-specific Env (`plannerM.Env["STAGEHAND_STUB_STDINFILE"] = plannerFile` — ONLY the planner manifest
+  role-specific Env (`plannerM.Env["STAGECOACH_STUB_STDINFILE"] = plannerFile` — ONLY the planner manifest
   carries it, so stager/message/arbiter invocations drain to io.Discard and don't overwrite it; cleaner
   than the tee-wrapper); assert the planner's captured stdin fits tokenLimit+separator + contains
   "[truncated]". Both tests run in the STANDARD test pass (in-process via CommitStaged/Decompose; NOT
@@ -106,7 +106,7 @@ separatorAllowance`.
 
 Stage a large diff (~1600 runes ≈ 390 tokens), set `cfg.TokenLimit = 200` (≪ 390 ⇒ the gate MUST
 truncate to fit), run `CommitStaged` with a stub provider whose stdin is captured via
-`STAGEHAND_STUB_STDINFILE`. Read the captured stdin. Assert:
+`STAGECOACH_STUB_STDINFILE`. Read the captured stdin. Assert:
 - `git.EstimateTokens(capturedStdin) ≤ cfg.TokenLimit + assembledPromptSeparatorTokens` where
   `assembledPromptSeparatorTokens = git.EstimateTokens("\n\n")` (= 1). (FR3j guarantees the closure's
   measurement — `sysPrompt + payload`, no separator — is ≤ tokenLimit; the stub's stdin adds the
@@ -117,7 +117,7 @@ truncate to fit), run `CommitStaged` with a stub provider whose stdin is capture
 ### (2) Planner-role (SECONDARY) — `TestDecompose_TokenLimitInvariant_PlannerPromptFits`
 
 Drive `Decompose()` with a large working-tree diff + `cfg.TokenLimit` set. Isolate the planner's stdin
-via **role-specific Env** — set `STAGEHAND_STUB_STDINFILE` on ONLY the planner manifest's `Env` map (the
+via **role-specific Env** — set `STAGECOACH_STUB_STDINFILE` on ONLY the planner manifest's `Env` map (the
 stager/message/arbiter manifests do NOT carry it ⇒ their invocations drain to io.Discard ⇒ never
 overwrite the planner's file). Read the planner's captured stdin. Assert the same invariant +
 `"[truncated]"` sentinel.
@@ -127,11 +127,11 @@ overwrite the planner's file). Read the planner's captured stdin. Assert the sam
 - [ ] `internal/generate/tokenlimit_invariant_test.go` exists (`package generate`) with
       `TestCommitStaged_TokenLimitInvariant_AssembledPromptFits`.
 - [ ] The message-role test stages a diff whose untruncated assembled prompt exceeds `cfg.TokenLimit`,
-      sets `STAGEHAND_STUB_STDINFILE`, runs `CommitStaged`, reads the captured stdin, and asserts
+      sets `STAGECOACH_STUB_STDINFILE`, runs `CommitStaged`, reads the captured stdin, and asserts
       `EstimateTokens(stdin) ≤ cfg.TokenLimit + assembledPromptSeparatorTokens` AND `stdin` contains
       `"[truncated]"`.
 - [ ] `internal/decompose/decompose_test.go` has `TestDecompose_TokenLimitInvariant_PlannerPromptFits`.
-- [ ] The planner test isolates the planner's stdin via role-specific `Env["STAGEHAND_STUB_STDINFILE"]`
+- [ ] The planner test isolates the planner's stdin via role-specific `Env["STAGECOACH_STUB_STDINFILE"]`
       (only the planner manifest carries it), runs `Decompose`, and asserts the same invariant.
 - [ ] `assembledPromptSeparatorTokens` is `git.EstimateTokens("\n\n")` (the Render separator allowance;
       documented, not a magic number).
@@ -156,7 +156,7 @@ generate_test.go; `dcm*` in decompose_test.go), and the hard scope fences. No in
 ```yaml
 # MUST READ — the FR3j spec, the gate, and this task's research
 - file: PRD.md
-  why: "§9.1 FR3j (the closed-loop budget guarantee: 'stagehand assembles the actual full prompt — the
+  why: "§9.1 FR3j (the closed-loop budget guarantee: 'stagecoach assembles the actual full prompt — the
         system prompt plus BuildUserPayload(gatedDiff) — measures it with the same EstimateTokens used
         for sizing, and if it exceeds token_limit, reduces the body budget and re-applies truncation.
         Invariant: EstimateTokens(assembledFullPrompt) ≤ token_limit, always'). §9.1 FR3i (the water-fill
@@ -209,11 +209,11 @@ generate_test.go; `dcm*` in decompose_test.go), and the hard scope fences. No in
 # The pattern file (the template) + the code under test (READ-ONLY)
 - file: internal/generate/generate_test.go
   why: "THE TEMPLATE. TestCommitStaged_ExcludedPayloadCapture (:660-731) is the exact STDINFILE-capture
-        pattern: t.Setenv(STAGEHAND_STUB_STDINFILE, stdinFile) → stubtest.Manifest → CommitStaged →
+        pattern: t.Setenv(STAGECOACH_STUB_STDINFILE, stdinFile) → stubtest.Manifest → CommitStaged →
         os.ReadFile(stdinFile). Reuse its helpers: initRepo (:23), writeFile (:31), stageFile (:39),
         commitRaw (:45). The doc comment at :741 documents 'provider.Render prepends the system prompt
         to the payload with a \\n\\n delimiter' — the separator this test accounts for."
-  pattern: "stdinFile := filepath.Join(t.TempDir(), 'stdin.txt'); t.Setenv(STAGEHAND_STUB_STDINFILE,
+  pattern: "stdinFile := filepath.Join(t.TempDir(), 'stdin.txt'); t.Setenv(STAGECOACH_STUB_STDINFILE,
             stdinFile); m := stubtest.Manifest(stub, Options{Out: ...}); CommitStaged(...); data, _ :=
             os.ReadFile(stdinFile)."
   gotcha: "The stub manifest has NO SystemPromptFlag ⇒ Render prepends sysPrompt+'\\n\\n'+payload to
@@ -238,14 +238,14 @@ generate_test.go; `dcm*` in decompose_test.go), and the hard scope fences. No in
   gotcha: "The diff is captured ONCE before the dedupe loop. The stub's stdin (first attempt) =
            sysPrompt + '\\n\\n' + BuildUserPayload(gatedDiff, cfg.Context, nil) — exactly the closure's
            measurement + separator. (On a dedupe retry the stdin would carry a rejection block, but the
-           stub's STAGEHAND_STUB_STDINFILE captures the LAST invocation — which is the successful one,
+           stub's STAGECOACH_STUB_STDINFILE captures the LAST invocation — which is the successful one,
            no rejection block. So the captured stdin matches the closure's nil-rejected measurement.)"
 
 - file: internal/decompose/planner.go
   why: "READ-ONLY. The planner's TreeDiff call (:89) with MeasureAssembled (:81) + TokenLimit (:94).
         Confirms the planner-role path is wired (T2.S2, Complete). The closure measures
         EstimateTokens(sysPrompt + BuildPlannerUserPayload(gatedDiff, cfg.Context, forcedCount))."
-  gotcha: "The planner manifest's Env is the isolation seam (D2): set STAGEHAND_STUB_STDINFILE on ONLY
+  gotcha: "The planner manifest's Env is the isolation seam (D2): set STAGECOACH_STUB_STDINFILE on ONLY
            the planner manifest so stager/message/arbiter invocations don't overwrite it."
 
 - file: internal/git/tokens.go
@@ -264,7 +264,7 @@ generate_test.go; `dcm*` in decompose_test.go), and the hard scope fences. No in
 ### Current Codebase Tree (this task's scope)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/generate/
 │   ├── generate_test.go                  # READ-ONLY (the template: TestCommitStaged_ExcludedPayloadCapture :660 + helpers)
 │   └── tokenlimit_invariant_test.go      # NEW (PRIMARY message-role test)
@@ -276,7 +276,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/generate/
 │   └── tokenlimit_invariant_test.go      # NEW — TestCommitStaged_TokenLimitInvariant_AssembledPromptFits
 └── internal/decompose/
@@ -323,15 +323,15 @@ in-process), any docs (P1.M3), `README.md`, `PRD.md`, `tasks.json`, `prd_snapsho
 // size would pass trivially without exercising the gate. (D4.)
 
 // CRITICAL (G4 — the planner's stdin isolation via role-specific Env, NOT t.Setenv). A decompose run
-// invokes the stub multiple times (planner → stager → message → arbiter). `t.Setenv(STAGEHAND_STUB_STDINFILE,
+// invokes the stub multiple times (planner → stager → message → arbiter). `t.Setenv(STAGECOACH_STUB_STDINFILE,
 // path)` would be inherited by ALL invocations ⇒ overwritten by the last (message/arbiter). Instead, set
-// STAGEHAND_STUB_STDINFILE on ONLY the planner manifest's Env map: `plannerM.Env["STAGEHAND_STUB_STDINFILE"]
+// STAGECOACH_STUB_STDINFILE on ONLY the planner manifest's Env map: `plannerM.Env["STAGECOACH_STUB_STDINFILE"]
 // = plannerFile`. Render builds spec.Env = os.Environ() + manifest.Env, so ONLY the planner invocation's
 // stub sees it; the stager/message/arbiter manifests don't carry it ⇒ their stubs drain to io.Discard.
 // (Research §4 / D2.)
 
 // GOTCHA (G5 — STDINFILE captures the LAST invocation for the message-role case, which is correct).
-// CommitStaged's dedupe loop may invoke the stub multiple times (on retry). STAGEHAND_STUB_STDINFILE
+// CommitStaged's dedupe loop may invoke the stub multiple times (on retry). STAGECOACH_STUB_STDINFILE
 // captures the LAST invocation's stdin. The LAST invocation is the SUCCESSFUL one (the one that produced
 // the committed message) — its stdin has NO rejection block (rejected is nil on success, or the final
 // accepted attempt). The diff is captured ONCE (before the loop), so the gated diff is identical across
@@ -358,7 +358,7 @@ in-process), any docs (P1.M3), `README.md`, `PRD.md`, `tasks.json`, `prd_snapsho
 // CommitStaged/Decompose directly) and runs in `go test ./...`. Do NOT add a build tag. (D6.)
 
 // GOTCHA (G9 — do NOT modify production code). The gate (tokengate.go), the closures (generate.go,
-// planner.go, message.go, arbiter.go, stagehand.go, exec.go), and the diff functions (git.go) are
+// planner.go, message.go, arbiter.go, stagecoach.go, exec.go), and the diff functions (git.go) are
 // LANDED by T1/T2. This task is TEST-ONLY. If a test FAILS, the bug is in the test's setup (wrong
 // tokenLimit value, missing STDINFILE, wrong role manifest), NOT in the production code — debug the
 // test, do not "fix" the gate. (If the production invariant genuinely fails, that's a real bug — but
@@ -393,9 +393,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/stubtest"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/stubtest"
 )
 
 // assembledPromptSeparatorTokens is the Render stdin-separator allowance: provider.Render prepends
@@ -432,7 +432,7 @@ func TestCommitStaged_TokenLimitInvariant_AssembledPromptFits(t *testing.T) {
 
 	// Capture the stub's received stdin (the assembled prompt). Mirrors TestCommitStaged_ExcludedPayloadCapture.
 	stdinFile := filepath.Join(t.TempDir(), "stdin.txt")
-	t.Setenv("STAGEHAND_STUB_STDINFILE", stdinFile)
+	t.Setenv("STAGECOACH_STUB_STDINFILE", stdinFile)
 	stub := stubtest.Build(t)
 	m := stubtest.Manifest(stub, stubtest.Options{Out: "feat: add big feature"})
 
@@ -447,7 +447,7 @@ func TestCommitStaged_TokenLimitInvariant_AssembledPromptFits(t *testing.T) {
 	// Read the captured assembled prompt (sysPrompt + "\n\n" + payload wrapping the gated diff).
 	data, err := os.ReadFile(stdinFile)
 	if err != nil {
-		t.Fatalf("read captured stdin: %v (did the stub run? STAGEHAND_STUB_STDINFILE=%s)", err, stdinFile)
+		t.Fatalf("read captured stdin: %v (did the stub run? STAGECOACH_STUB_STDINFILE=%s)", err, stdinFile)
 	}
 	captured := string(data)
 
@@ -490,7 +490,7 @@ func truncForLog(s string, n int) string {
 // TestDecompose_TokenLimitInvariant_PlannerPromptFits (PRD §9.1 FR3j / §20.5) is the SECOND consumer
 // path of the closed-loop invariant: the decompose PLANNER's assembled prompt (TreeDiff-gated) fits
 // token_limit. The planner is the FIRST stub invocation in a decompose run; later invocations (stager/
-// message/arbiter) would overwrite a plain STAGEHAND_STUB_STDINFILE, so the planner manifest's Env map
+// message/arbiter) would overwrite a plain STAGECOACH_STUB_STDINFILE, so the planner manifest's Env map
 // carries it ALONE (the role-specific isolation seam) — the other roles' stubs drain to io.Discard and
 // never touch the planner's file. Reuses the dcm* harness.
 func TestDecompose_TokenLimitInvariant_PlannerPromptFits(t *testing.T) {
@@ -505,10 +505,10 @@ func TestDecompose_TokenLimitInvariant_PlannerPromptFits(t *testing.T) {
 
 	plannerJSON := `{"count":1,"single":true,"commits":[{"title":"add big","description":"big.go"}],"message":"feat: add big"}`
 	plannerM := dcmPlannerManifest(t, bin, plannerJSON)
-	// Isolate the planner's stdin: ONLY the planner manifest carries STAGEHAND_STUB_STDINFILE. The
+	// Isolate the planner's stdin: ONLY the planner manifest carries STAGECOACH_STUB_STDINFILE. The
 	// stager/message/arbiter manifests don't ⇒ their stubs see os.Getenv("") ⇒ drain to io.Discard.
 	plannerStdin := filepath.Join(t.TempDir(), "planner-stdin.txt")
-	plannerM.Env["STAGEHAND_STUB_STDINFILE"] = plannerStdin
+	plannerM.Env["STAGECOACH_STUB_STDINFILE"] = plannerStdin
 
 	messageM := dcmMessageManifest(t, bin, "feat: add big")
 	stagerM := tooledStubManifest(t, bin, stubtest.Options{Out: ""})
@@ -632,7 +632,7 @@ Task 3: VALIDATE — full gate set + scope discipline
 
 // === Why role-specific Env isolates the planner's stdin (D2/G4) ===
 // Render builds spec.Env = os.Environ() + manifest.Env (render.go). The planner manifest's Env carries
-// STAGEHAND_STUB_STDINFILE=plannerFile; the stager/message/arbiter manifests do NOT. So:
+// STAGECOACH_STUB_STDINFILE=plannerFile; the stager/message/arbiter manifests do NOT. So:
 //   - planner invocation: stub env has STDINFILE ⇒ writes stdin to plannerFile.
 //   - stager/message/arbiter: stub env lacks STDINFILE ⇒ os.Getenv("") ⇒ drains to io.Discard.
 // plannerFile holds ONLY the planner's stdin. (t.Setenv would be inherited by ALL invocations ⇒
@@ -675,7 +675,7 @@ REUSED HELPERS (do NOT redeclare):
 GATE: go test -race ./... → GREEN ; git status → ONLY the 2 test files (1 new, 1 appended)
 
 NO-TOUCH (explicitly — owned by siblings / out of scope):
-  - internal/git/tokengate.go + the 6 closure sites (generate.go, stagehand.go, hook/exec.go, planner.go,
+  - internal/git/tokengate.go + the 6 closure sites (generate.go, stagecoach.go, hook/exec.go, planner.go,
     message.go, arbiter.go) — LANDED by T1/T2; read-only
   - internal/git/tokengate_test.go (S1's pure unit tests — parallel; no overlap)
   - internal/e2e/* (the //go:build e2e subprocess harness — this is in-process)
@@ -688,7 +688,7 @@ NO-TOUCH (explicitly — owned by siblings / out of scope):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/generate/tokenlimit_invariant_test.go internal/decompose/decompose_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -702,7 +702,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: The Two Invariant Tests (the deliverable)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./internal/generate/ -v -run TestCommitStaged_TokenLimitInvariant
 # Expected: PASS. Proves: EstimateTokens(captured stdin) ≤ tokenLimit(200) + 1; stdin contains "[truncated]".
@@ -714,7 +714,7 @@ go test -race ./internal/decompose/ -v -run TestDecompose_TokenLimitInvariant
 ### Level 3: Whole-Repository Regression + Scope Discipline
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...    # Expected: ALL packages green (additive tests; no production change)
 go vet ./...           # Expected: exit 0
@@ -737,14 +737,14 @@ grep -rn 'go:build e2e' internal/generate/tokenlimit_invariant_test.go || echo "
 ### Level 4: Behavioral Cross-Check (manual repro of the invariant)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The PRIMARY test IS the proof (it asserts EstimateTokens(captured stdin) ≤ tokenLimit+1 against a real
 # repo + the real closure + the real stub). For a manual cross-check of the separator math:
 #   EstimateTokens("\n\n") should be 1 (ceil(2/4)):
 cat > /tmp/sh_sep.go <<'EOF'
 package main
-import ("fmt";"github.com/dustin/stagehand/internal/git")
+import ("fmt";"github.com/dustin/stagecoach/internal/git")
 func main() { fmt.Printf("EstimateTokens(\"\\n\\n\") = %d (want 1)\n", git.EstimateTokens("\n\n")) }
 EOF
 go run /tmp/sh_sep.go ; rm -f /tmp/sh_sep.go
@@ -765,7 +765,7 @@ go run /tmp/sh_sep.go ; rm -f /tmp/sh_sep.go
 - [ ] The message-role test stages a large diff, sets TokenLimit ≪ untruncated, runs CommitStaged, and
       asserts `EstimateTokens(captured stdin) ≤ cfg.TokenLimit + assembledPromptSeparatorTokens`.
 - [ ] The message-role test asserts the captured stdin contains `"[truncated]"` (the gate ran).
-- [ ] The planner test isolates the planner's stdin via role-specific `Env["STAGEHAND_STUB_STDINFILE"]`
+- [ ] The planner test isolates the planner's stdin via role-specific `Env["STAGECOACH_STUB_STDINFILE"]`
       (only the planner manifest), runs Decompose, and asserts the same invariant + sentinel.
 - [ ] `assembledPromptSeparatorTokens` is `git.EstimateTokens("\n\n")` (= 1), documented as the Render
       separator allowance (not a magic number, not a violation).
@@ -798,7 +798,7 @@ go run /tmp/sh_sep.go ; rm -f /tmp/sh_sep.go
 - ❌ Don't set `cfg.TokenLimit` above the payload size. The gate must RUN (truncate) for the test to
   prove anything; a no-op fit is trivial. Make the untruncated prompt ≫ tokenLimit AND assert the
   "[truncated]" sentinel (G3/D4).
-- ❌ Don't use `t.Setenv(STAGEHAND_STUB_STDINFILE, ...)` for the PLANNER case. A decompose run invokes
+- ❌ Don't use `t.Setenv(STAGECOACH_STUB_STDINFILE, ...)` for the PLANNER case. A decompose run invokes
   the stub multiple times; the plain env var is inherited by all ⇒ overwritten by the last (arbiter/
   message). Set it on ONLY the planner manifest's `Env` map (role-specific isolation) (G4/D2).
 - ❌ Don't add a `//go:build e2e` tag. This is an IN-PROCESS test (calls CommitStaged/Decompose directly);

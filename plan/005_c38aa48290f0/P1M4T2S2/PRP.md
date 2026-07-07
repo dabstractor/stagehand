@@ -5,8 +5,8 @@ description: |
   YAML round-trip** (`gopkg.in/yaml.v3` Node API), driven through S1's no-mangle `integrate.Apply` protocol
   (parse-first refusal → idempotent marker upsert → unified-diff preview+confirm → timestamped backup →
   atomic write → re-parse validate+auto-restore → create-if-missing). Entry defaults (FR-I5): `key: '<c-a>'`
-  (`--key <k>` override), `context: 'files'`, `command: 'stagehand'`, `output: 'none'`, `loadingText:
-  'Generating commit message…'`, `description: 'stagehand: AI commit'`, marked with a `# stagehand-integration`
+  (`--key <k>` override), `context: 'files'`, `command: 'stagecoach'`, `output: 'none'`, `loadingText:
+  'Generating commit message…'`, `description: 'stagecoach: AI commit'`, marked with a `# stagecoach-integration`
   `LineComment` on the entry's `key` value scalar for FR-I3b idempotency (replace, never duplicate). Config
   discovery: `lazygit --print-config-dir` when available, else the platform default (`os.UserConfigDir()` +
   `lazygit/config.yml`). `integrate install|remove lazygit` end-to-end with uninstall symmetry (FR-I6: remove
@@ -25,14 +25,14 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Ship the `lazygit` integration target end-to-end so `stagehand integrate install lazygit`
-adds exactly one stagehand `customCommands` entry to lazygit's `config.yml` — surgically, comment-preserving,
-idempotent — and `stagehand integrate remove lazygit` cleanly undoes it, both through S1's no-mangle protocol
+**Feature Goal**: Ship the `lazygit` integration target end-to-end so `stagecoach integrate install lazygit`
+adds exactly one stagecoach `customCommands` entry to lazygit's `config.yml` — surgically, comment-preserving,
+idempotent — and `stagecoach integrate remove lazygit` cleanly undoes it, both through S1's no-mangle protocol
 (parse-first, preview+confirm, backup, validate+restore). A hand-maintained, commented lazygit config is
-never mangled: only the stagehand-marker entry is touched; all other content (other customCommands, GUI/git
+never mangled: only the stagecoach-marker entry is touched; all other content (other customCommands, GUI/git
 blocks, user comments) is preserved. A corrupt `config.yml` is HARD-REFUSED (never written). A re-install of
-an already-present stagehand entry is `NoChange` (no write). The stagehand entry is identified by its
-`# stagehand-integration` marker comment (replace, never duplicate) — independent of the `key` binding.
+an already-present stagecoach entry is `NoChange` (no write). The stagecoach entry is identified by its
+`# stagecoach-integration` marker comment (replace, never duplicate) — independent of the `key` binding.
 
 **Deliverable**:
 1. `go.mod` + `go.sum` — `require gopkg.in/yaml.v3 v3.0.1` (pinned; archived-upstream note in a source comment).
@@ -58,14 +58,14 @@ Tests never touch the real config. `go build ./...`, `go test ./...`, `go vet ./
 
 ## User Persona
 
-**Target User**: the "plan-holder" (PRD §7.1) who lives in lazygit and wants `stagehand` one keystroke away
+**Target User**: the "plan-holder" (PRD §7.1) who lives in lazygit and wants `stagecoach` one keystroke away
 — press `<c-a>` in the files panel, get an AI commit, stay in the UI (US8: `output: 'none'`). They run
-`stagehand integrate install lazygit` once. Their fear: "did stagehand clobber my hand-tuned lazygit
+`stagecoach integrate install lazygit` once. Their fear: "did stagecoach clobber my hand-tuned lazygit
 config?" The comment-preserving, parse-first, backup+restore protocol is the answer.
 
-**Use Case**: `stagehand integrate install lazygit` → preview the unified diff (entry added, nothing else) →
-confirm `y` → the entry lands; pressing `<c-a>` in lazygit's files panel runs `stagehand`. Later `integrate
-remove lazygit` removes only the stagehand entry.
+**Use Case**: `stagecoach integrate install lazygit` → preview the unified diff (entry added, nothing else) →
+confirm `y` → the entry lands; pressing `<c-a>` in lazygit's files panel runs `stagecoach`. Later `integrate
+remove lazygit` removes only the stagecoach entry.
 
 **User Journey**: `integrate list` (see lazygit DETECTED ✓, not installed, CONFIG=~/.config/lazygit/config.yml)
 → `integrate install lazygit` (see diff → `y`) → use `<c-a>` → later `integrate remove lazygit` (confirm →
@@ -78,14 +78,14 @@ marker makes re-install idempotent and remove surgical.
 ## Why
 
 - **PRD §9.21 FR-I5**: lazygit adds a `customCommands` entry to its config file (located via `lazygit
-  --print-config-dir`, else platform default); defaults `key:'<c-a>'`/`context:'files'`/`command:'stagehand'`/
-  `output:'none'`/`loadingText`/`description`, marked `# stagehand-integration`; comment-preserving YAML edit
+  --print-config-dir`, else platform default); defaults `key:'<c-a>'`/`context:'files'`/`command:'stagecoach'`/
+  `output:'none'`/`loadingText`/`description`, marked `# stagecoach-integration`; comment-preserving YAML edit
   via a node-level round-trip (yaml.v3 Node API); schema field names verified against the current lazygit
   release (FR-D5 — recorded in external_deps.md §1, verified 2026-07-02 against lazygit v0.62.2).
 - **PRD §9.21 FR-I3 (a)–(g)**: the no-mangle write protocol — lazygit is the FILE-EDITING target that
   exercises the FULL machinery (unlike git-alias, which delegates the write to `git config` and skips it).
-- **PRD §9.21 FR-I6**: uninstall symmetry — remove restores the file to its pre-stagehand state for that entry.
-- **PRD §15.5**: the documented `customCommands` shape stagehand writes.
+- **PRD §9.21 FR-I6**: uninstall symmetry — remove restores the file to its pre-stagecoach state for that entry.
+- **PRD §15.5**: the documented `customCommands` shape stagecoach writes.
 - **architecture/external_deps.md §1–§2** (VERIFIED): `output` (not `subprocess`/`showOutput`), `loadingText`
   valid, files-panel context is `files`, `lazygit --print-config-dir` exists (no `--config-dir`), platform
   defaults; yaml.v3 v3.0.1 node upsert works with `SetIndent(2)` but whole-doc normalization is unavoidable
@@ -104,7 +104,7 @@ Two co-located adapters in one new file (`internal/cmd/integrate_lazygit.go`):
 1. **`lazygitTarget`** — implements S1's `integrate.Target` over `gopkg.in/yaml.v3`'s Node API. Holds the
    configured `key` + the parsed `*yaml.Node` root. `Parse` round-trips bytes→node (any error ⇒ refuse).
    `HasEntry` walks the `customCommands` sequence (LOCATED BY PAIR-WALKING the top mapping — never a hardcoded
-   index) for an item whose `key` value scalar carries the `stagehand-integration` `LineComment`. `Upsert`
+   index) for an item whose `key` value scalar carries the `stagecoach-integration` `LineComment`. `Upsert`
    builds the entry node from a YAML template, REPLACES the marked item if present (else APPENDS), and
    re-encodes with `SetIndent(2)`. `Remove` deletes the marked item (leaves `customCommands: []` if emptied).
    `Validate` re-parses on a throwaway (clean, side-effect-free probe).
@@ -144,7 +144,7 @@ Two co-located adapters in one new file (`internal/cmd/integrate_lazygit.go`):
 _This PRP names the EXACT `integrate.Target` + `integrate.Entry` method sets (read from the completed S1/S2
 source, not the PRPs), the EXACT yaml.v3 Node surgery (verified empirically — locate-by-pair-walk,
 marker-on-value-scalar, insert/replace/remove, `SetIndent(2)`, create-if-missing, corrupt-refuse), the EXACT
-entry defaults + the `# stagehand-integration` marker placement, the EXACT config discovery
+entry defaults + the `# stagecoach-integration` marker placement, the EXACT config discovery
 (`lazygit --print-config-dir` → platform default), the `defaultEntries`/`resetIntegrateFlags` additive edits
 to S2's files (co-resident with T2.S1's `--alias-name`), the `--key` flag placement (mirrors `--alias-name`),
 the `integrate.Apply` envelope contract (Apply owns parse/backup/atomic/validate/diff; the Target owns the
@@ -160,13 +160,13 @@ placement. An implementer with no prior codebase knowledge can build it from thi
        match), build-entry-from-template (`doc.Content[0].Content[0]`), insert-vs-replace, remove (slice
        trick) leaving `customCommands: []`, encode (`NewEncoder`+`SetIndent(2)`+`Encode(&doc)`+`Close()`),
        create-if-missing (empty-file + absent-key), corrupt-YAML→refuse (`Unmarshal` non-nil err), and the
-       whole-doc-normalization gotcha (idempotency relies on Apply's byte-equality of stagehand's OWN writes).
+       whole-doc-normalization gotcha (idempotency relies on Apply's byte-equality of stagecoach's OWN writes).
   section: all
   critical: |
     NEVER index customCommands by a hardcoded position — walk topMap.Content IN PAIRS (Content[i]=key,
     Content[i+1]=value). The throwaway test that hardcoded Content[1] mutated the wrong node (gui's value)
     and left the marker untouched. The marker is on item.Content[1] (the `key` VALUE scalar), matched by the
-    SUBSTRING "stagehand-integration" (yaml keeps the "# " prefix in LineComment). enc.Close() is REQUIRED.
+    SUBSTRING "stagecoach-integration" (yaml keeps the "# " prefix in LineComment). enc.Close() is REQUIRED.
 
 - docfile: plan/005_c38aa48290f0/architecture/external_deps.md
   why: §1 (lazygit schema, VERIFIED 2026-07-02 v0.62.2) — current field is `output` (values none|terminal|
@@ -270,7 +270,7 @@ placement. An implementer with no prior codebase knowledge can build it from thi
        `git config`; lazygit delegates to `integrate.Apply` — the Install/Remove bodies differ, the SKELETON is
        identical.)
   pattern: "var flagX string; init(){ installCmd.Flags().StringVar(&flagX,...); removeCmd.Flags().StringVar(&flagX,...) }; newEntry() reads flagX, resolves path."
-  gotcha: "git-alias's --alias-name is the ENTRY IDENTITY (alias.<name>); lazygit's --key is the BINDING stagehand
+  gotcha: "git-alias's --alias-name is the ENTRY IDENTITY (alias.<name>); lazygit's --key is the BINDING stagecoach
            WRITES — the entry's identity is the MARKER comment. So lazygit Remove targets the marker (not the
            key). Register --key on both for UI symmetry + resetIntegrateFlags parity, but document remove-by-marker."
 
@@ -362,7 +362,7 @@ go.sum                         # EDIT — (via go get/tidy)
 // byte-identity outside the edited node is NOT guaranteed (it may drop a blank line between sections or
 // normalize inline-comment spacing — research/yaml-node-api.md §7). The no-mangle GUARANTEE therefore lives
 // in integrate.Apply (preview-diff shows any normalization; re-parse validate + auto-restore catches
-// breakage), NOT in the serializer. Idempotency works because after stagehand's OWN write the file is in
+// breakage), NOT in the serializer. Idempotency works because after stagecoach's OWN write the file is in
 // yaml.v3's canonical form, so a second Upsert is byte-identical ⇒ Apply NoChange.
 
 // CRITICAL (NEVER hardcode the customCommands index): the top-level mapping's Content is a flat slice read
@@ -371,9 +371,9 @@ go.sum                         # EDIT — (via go get/tidy)
 // A throwaway test that hardcoded root.Content[0].Content[1] mutated the WRONG node (gui's value) and left the
 // marker untouched (research/yaml-node-api.md §2 — reproduced + fixed empirically).
 
-// CRITICAL (the marker is on the VALUE scalar, matched by substring): stagehand's entry is identified by a
-// LineComment "# stagehand-integration" on item.Content[1] (the `key` VALUE scalar "<c-a>", NOT the key NAME).
-// yaml.v3 KEEPS the "# " prefix in the stored LineComment, so detect via strings.Contains(lc, "stagehand-integration")
+// CRITICAL (the marker is on the VALUE scalar, matched by substring): stagecoach's entry is identified by a
+// LineComment "# stagecoach-integration" on item.Content[1] (the `key` VALUE scalar "<c-a>", NOT the key NAME).
+// yaml.v3 KEEPS the "# " prefix in the stored LineComment, so detect via strings.Contains(lc, "stagecoach-integration")
 // (substring — robust to the prefix). The marker — NOT the binding — is the idempotency identity (FR-I3b).
 
 // CRITICAL (lazygit's identity is the marker; --key is the binding): contrast git-alias, whose identity IS
@@ -430,7 +430,7 @@ go.sum                         # EDIT — (via go get/tidy)
 
 ```go
 // === internal/cmd/integrate_lazygit.go ===
-package cmd // import "github.com/dustin/stagehand/internal/cmd"
+package cmd // import "github.com/dustin/stagecoach/internal/cmd"
 
 import (
 	"bytes"
@@ -441,7 +441,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dustin/stagehand/internal/integrate"
+	"github.com/dustin/stagecoach/internal/integrate"
 	"gopkg.in/yaml.v3" // v3.0.1 — archived upstream (2025); pinned for the Node API (HeadComment/LineComment/
 	                  // FootComment) used for comment-preserving customCommands upsert. Verified 2026-07-02.
 )
@@ -449,33 +449,33 @@ import (
 const (
 	lazygitTargetName = "lazygit"
 	defaultLazygitKey = "<c-a>"          // FR-I5: the binding the originating commit-pi workflow used (PRD §2.1)
-	lazygitMarker     = "stagehand-integration" // the LineComment substring that identifies stagehand's entry
+	lazygitMarker     = "stagecoach-integration" // the LineComment substring that identifies stagecoach's entry
 
 	// lazygitSchemaVerified = "2026-07-02 against lazygit v0.62.2" // record in a comment (FR-D5)
 )
 
-// entryTpl is the ONE stagehand customCommands entry, as a one-item YAML sequence document. The %s is the key
-// binding. The `# stagehand-integration` marker rides on the `key` VALUE scalar (LineComment) — stagehand's
+// entryTpl is the ONE stagecoach customCommands entry, as a one-item YAML sequence document. The %s is the key
+// binding. The `# stagecoach-integration` marker rides on the `key` VALUE scalar (LineComment) — stagecoach's
 // idempotency identity (FR-I3b), independent of the binding. Field names verified against lazygit v0.62.2
 // (external_deps.md §1): `output` (not the older subprocess/showOutput), `loadingText` valid, context `files`.
-var entryTpl = `- key: '%s' # stagehand-integration
+var entryTpl = `- key: '%s' # stagecoach-integration
   context: 'files'
-  command: 'stagehand'
+  command: 'stagecoach'
   loadingText: 'Generating commit message…'
   output: 'none'
-  description: 'stagehand: AI commit'
+  description: 'stagecoach: AI commit'
 `
 
 var flagLazygitKey string // --key (local on integrateInstallCmd AND integrateRemoveCmd; mirrors --alias-name)
 
 func init() {
 	// Register --key on BOTH leaves for UI symmetry + resetIntegrateFlags parity with --alias-name.
-	// (Remove targets the MARKER entry regardless of --key — the marker is stagehand's identity; --key is the
-	// binding stagehand writes. Documented in docs/cli.md.) Shared var; default "" → resolved to "<c-a>".
+	// (Remove targets the MARKER entry regardless of --key — the marker is stagecoach's identity; --key is the
+	// binding stagecoach writes. Documented in docs/cli.md.) Shared var; default "" → resolved to "<c-a>".
 	integrateInstallCmd.Flags().StringVar(&flagLazygitKey, "key", "",
 		"lazygit key binding to install (default: <c-a>)")
 	integrateRemoveCmd.Flags().StringVar(&flagLazygitKey, "key", "",
-		"lazygit key binding (default: <c-a>; remove targets the marked stagehand entry)")
+		"lazygit key binding (default: <c-a>; remove targets the marked stagecoach entry)")
 }
 
 // ---------------------------------------------------------------------------
@@ -485,7 +485,7 @@ func init() {
 // ---------------------------------------------------------------------------
 
 // lazygitTarget implements integrate.Target for lazygit's config.yml (PRD §9.21 FR-I5). key is the binding
-// stagehand writes; root is the parsed document (populated by Parse). Stateful: Parse populates root;
+// stagecoach writes; root is the parsed document (populated by Parse). Stateful: Parse populates root;
 // HasEntry/Upsert/Remove read/mutate it; Validate is a clean local probe (no Parse reliance).
 type lazygitTarget struct {
 	key  string      // the binding ("<c-a>"); never "" (factory resolves)
@@ -508,7 +508,7 @@ func (t *lazygitTarget) Parse(data []byte) error {
 // HasEntry reports whether the marker-identified entry is present in the parsed tree.
 func (t *lazygitTarget) HasEntry() bool { return t.findMarkedItem() != nil }
 
-// Upsert returns new bytes with the stagehand entry inserted (absent) or replaced (present). Surgical:
+// Upsert returns new bytes with the stagecoach entry inserted (absent) or replaced (present). Surgical:
 // only the marker entry changes semantically (incidental whole-doc normalization is possible — architecture
 // §2 — and surfaced by Apply's preview-diff).
 func (t *lazygitTarget) Upsert() ([]byte, error) {
@@ -530,7 +530,7 @@ func (t *lazygitTarget) Upsert() ([]byte, error) {
 	// REPLACE the marked item if present (idempotent — never duplicate), else APPEND.
 	replaced := false
 	for i, it := range seq.Content {
-		if isStagehandItem(it) {
+		if isStagecoachItem(it) {
 			seq.Content[i] = entry
 			replaced = true
 			break
@@ -554,7 +554,7 @@ func (t *lazygitTarget) Remove() ([]byte, error) {
 		return t.encode(t.root) // no customCommands at all — unchanged
 	}
 	for i, it := range seq.Content {
-		if isStagehandItem(it) {
+		if isStagecoachItem(it) {
 			seq.Content = append(seq.Content[:i], seq.Content[i+1:]...)
 			break // at most one marked entry (Upsert guarantees it)
 		}
@@ -606,7 +606,7 @@ func (t *lazygitTarget) findMarkedItem() *yaml.Node {
 		return nil
 	}
 	for _, it := range seq.Content {
-		if isStagehandItem(it) {
+		if isStagecoachItem(it) {
 			return it
 		}
 	}
@@ -627,18 +627,18 @@ func (t *lazygitTarget) findKeyItem(key string) *yaml.Node {
 			continue
 		}
 		// Content[0]="key" name, Content[1]=value; only the first field is the binding
-		if it.Content[0].Value == "key" && it.Content[1].Value == key && !isStagehandItem(it) {
+		if it.Content[0].Value == "key" && it.Content[1].Value == key && !isStagecoachItem(it) {
 			return it
 		}
 	}
 	return nil
 }
 
-// newEntryNode builds the stagehand entry from entryTpl and returns its single MappingNode.
+// newEntryNode builds the stagecoach entry from entryTpl and returns its single MappingNode.
 func (t *lazygitTarget) newEntryNode() (*yaml.Node, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(fmt.Sprintf(entryTpl, t.key)), &doc); err != nil {
-		return nil, fmt.Errorf("build stagehand entry: %w", err)
+		return nil, fmt.Errorf("build stagecoach entry: %w", err)
 	}
 	return doc.Content[0].Content[0], nil // DocumentNode → SequenceNode → the one MappingNode item
 }
@@ -657,8 +657,8 @@ func (t *lazygitTarget) encode(root *yaml.Node) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// isStagehandItem reports whether a sequence item is stagehand's (marker on the `key` value scalar).
-func isStagehandItem(item *yaml.Node) bool {
+// isStagecoachItem reports whether a sequence item is stagecoach's (marker on the `key` value scalar).
+func isStagecoachItem(item *yaml.Node) bool {
 	return item.Kind == yaml.MappingNode && len(item.Content) >= 2 &&
 		strings.Contains(item.Content[1].LineComment, lazygitMarker)
 }
@@ -816,7 +816,7 @@ Task 2: CREATE internal/cmd/testdata/lazygit/{golden_input.yml, golden_corrupt.y
   - golden_input.yml: a HAND-MAINTAINED, COMMENTED lazygit config — a `gui:` block (with a user comment), a
     `customCommands:` sequence with ONE pre-existing entry (e.g. `key: 'b', command: "echo existing",
     context: 'files'`), a `git:` block (with nested keys), and a blank line between sections (to surface the
-    whole-doc-normalization behavior). NO stagehand entry (the install fixture). Keep it realistic + commented.
+    whole-doc-normalization behavior). NO stagecoach entry (the install fixture). Keep it realistic + commented.
   - golden_corrupt.yml: malformed YAML (e.g. an unclosed flow `[unclosed` or bad indent) for the parse-refusal test.
   - PLACEMENT: internal/cmd/testdata/lazygit/ (Go ignores testdata/ in builds; tests read via
     os.ReadFile("testdata/lazygit/golden_input.yml") — cwd is the package dir during `go test`).
@@ -824,7 +824,7 @@ Task 2: CREATE internal/cmd/testdata/lazygit/{golden_input.yml, golden_corrupt.y
 Task 3: CREATE internal/cmd/integrate_lazygit.go — lazygitTarget + lazygitEntry + --key + init()
   - IMPLEMENT lazygitTarget (all 6 integrate.Target methods) per the Blueprint's data-models block:
     Marker/Parse/HasEntry/Upsert/Remove/Validate + helpers (topMap/locateSeq/findMarkedItem/findKeyItem/
-    newEntryNode/encode) + isStagehandItem. USE the pair-walking locateSeq; the substring marker match;
+    newEntryNode/encode) + isStagecoachItem. USE the pair-walking locateSeq; the substring marker match;
     enc.SetIndent(2)+enc.Close(); the empty-seq-on-remove behavior; the create-if-missing (empty root +
     absent-key) paths.
   - IMPLEMENT lazygitEntry (all 6 integrate.Entry methods): Name/Detect/ConfigPath/Status/Install/Remove +
@@ -866,7 +866,7 @@ Task 6: CREATE internal/cmd/integrate_lazygit_test.go — golden-file + matrix +
       blocks (gui/git) present with their comments; (d) the marker substring present. (Assert SEMANTIC content
       via re-parse, NOT byte-equality of unrelated nodes — whole-doc normalization is allowed.)
     * TestLazygitTarget_Upsert_IdempotentStableRoundTrip: take Upsert's output, Parse it, Upsert AGAIN →
-      bytes.Equal(firstOutput, secondOutput)==true (stagehand's own writes round-trip stably ⇒ Apply NoChange).
+      bytes.Equal(firstOutput, secondOutput)==true (stagecoach's own writes round-trip stably ⇒ Apply NoChange).
     * TestLazygitTarget_Upsert_ReplaceNotDuplicate: Parse an input that ALREADY has the marker entry → Upsert
       → re-parse → exactly ONE marked item (the customCommands sequence length unchanged; the entry replaced).
     * TestLazygitTarget_Remove_DeletesOnlyMarked: Parse an input with the marker entry + a sibling 'b' entry →
@@ -874,11 +874,11 @@ Task 6: CREATE internal/cmd/integrate_lazygit_test.go — golden-file + matrix +
     * TestLazygitTarget_Remove_EmptySeq: Parse an input whose ONLY entry is the marked one → Remove → re-parse
       OK; customCommands present as empty (`[]` or absent) — assert HasEntry()==false on a fresh Parse.
     * TestLazygitTarget_Remove_NoMarkerUnchanged: Parse golden (no marker) → Remove → output re-parses; no
-      stagehand entry present (remove is a no-op on a clean file).
+      stagecoach entry present (remove is a no-op on a clean file).
     * TestLazygitTarget_ParseCorruptRefuses: Parse(golden_corrupt) → non-nil error (Apply will refuse).
     * TestLazygitTarget_Validate: Validate(wellFormedBytes)==nil; Validate(corruptBytes)!=nil (clean probe).
     * TestLazygitTarget_CreateIfMissing_EmptyFile: Parse([]byte("")) then Upsert → output is a valid config
-      with exactly the stagehand entry (re-parse; HasEntry true; one customCommands item).
+      with exactly the stagecoach entry (re-parse; HasEntry true; one customCommands item).
     * TestLazygitTarget_CreateIfMissing_AbsentKey: Parse a config with NO customCommands key (but other top
       keys) → Upsert → re-parse → customCommands now present with the entry AND all original top-level keys
       preserved (the absent-key append must not rebuild the whole mapping).
@@ -887,13 +887,13 @@ Task 6: CREATE internal/cmd/integrate_lazygit_test.go — golden-file + matrix +
     * TestLazygitEntry_Install_Creates: missing tmpfile → Install(Yes) → OutcomeCreated; file exists; re-read
       → marked entry present; Backup=="" (created, not modified).
     * TestLazygitEntry_Install_Updated: pre-write golden to tmpfile → Install(Yes) → OutcomeUpdated; Backup
-      starts with ".stagehand-backup." (a backup was written for the existing-file modification); entry present.
+      starts with ".stagecoach-backup." (a backup was written for the existing-file modification); entry present.
     * TestLazygitEntry_Install_IdempotentNoChange: Install(Yes) then Install(Yes) AGAIN → second is
       OutcomeNoChange (no second write; backup unchanged).
     * TestLazygitEntry_Install_DeclineWritesNothing: Confirm stub returns false → OutcomeDeclined; tmpfile
       UNCHANGED (or absent); no backup.
     * TestLazygitEntry_Install_ConfirmReceivesDiff: capture the `diff` arg the Confirm stub receives → contains
-      "+  - key: '<c-a>'" / "stagehand-integration" / "customCommands" (a real unified diff from git diff --no-index).
+      "+  - key: '<c-a>'" / "stagecoach-integration" / "customCommands" (a real unified diff from git diff --no-index).
     * TestLazygitEntry_Install_CorruptRefuses: write golden_corrupt to tmpfile → Install(Yes) → non-nil error
       containing "parse error" / "refused to write"; tmpfile UNCHANGED (byte-identical to the corrupt input).
     * TestLazygitEntry_Remove_Removed: install then Remove(Yes) → OutcomeRemoved; re-read → no marked entry;
@@ -929,12 +929,12 @@ Task 6: CREATE internal/cmd/integrate_lazygit_test.go — golden-file + matrix +
 Task 7: EDIT docs/cli.md — lazygit target section (Mode A, EXTENDS S2's integrate group section)
   - ADD a `### \`lazygit\` target` subsection within/after S2's `integrate` group section (and after T2.S1's
     git-alias subsection if present): what it does (adds ONE `customCommands` entry to lazygit's config.yml
-    via a comment-preserving YAML round-trip; the entry runs `stagehand` on `<c-a>` in the files panel with
+    via a comment-preserving YAML round-trip; the entry runs `stagecoach` on `<c-a>` in the files panel with
     `output: 'none'` so you stay in the UI — US8); the entry defaults table; the `--key <k>` override; config
     discovery order (`lazygit --print-config-dir` → platform default); the no-mangle protocol (parse-first,
-    preview, backup, validate+restore) + that a corrupt config is refused; the marker (`# stagehand-integration`)
+    preview, backup, validate+restore) + that a corrupt config is refused; the marker (`# stagecoach-integration`)
     identity + idempotency (re-install = no-op; replace-not-duplicate); uninstall symmetry (remove deletes
-    only the stagehand entry, leaving the rest); what `list` shows (DETECTED ✓ when on $PATH; STATUS; CONFIG).
+    only the stagecoach entry, leaving the rest); what `list` shows (DETECTED ✓ when on $PATH; STATUS; CONFIG).
     One example each for install/remove + `--key`.
   - GOTCHA: S2 wrote the `integrate list/install/remove` GROUP subsections; T2.S1 adds git-alias; T2.S2 ADDS the
     lazygit TARGET detail + the --key flag + the customCommands entry shape (PRD §15.5). Do NOT rewrite S2's
@@ -942,12 +942,12 @@ Task 7: EDIT docs/cli.md — lazygit target section (Mode A, EXTENDS S2's integr
   - INCLUDE (per PRD §15.5) the documented entry:
     ```yaml
     customCommands:
-      - key: '<c-a>'                       # stagehand-integration
+      - key: '<c-a>'                       # stagecoach-integration
         context: 'files'
-        command: 'stagehand'
+        command: 'stagecoach'
         loadingText: 'Generating commit message…'
         output: 'none'
-        description: 'stagehand: AI commit'
+        description: 'stagecoach: AI commit'
     ```
 
 Task 8: VERIFY build/test/lint (go.mod gains exactly yaml.v3)
@@ -971,9 +971,9 @@ func (t *lazygitTarget) locateSeq(top *yaml.Node) *yaml.Node {
 	return nil
 }
 
-// isStagehandItem — the marker is on item.Content[1] (the `key` VALUE scalar), matched by substring
+// isStagecoachItem — the marker is on item.Content[1] (the `key` VALUE scalar), matched by substring
 // (yaml keeps the "# " prefix in LineComment). The marker — not the binding — is the identity.
-func isStagehandItem(item *yaml.Node) bool {
+func isStagecoachItem(item *yaml.Node) bool {
 	return item.Kind == yaml.MappingNode && len(item.Content) >= 2 &&
 		strings.Contains(item.Content[1].LineComment, lazygitMarker)
 }
@@ -982,7 +982,7 @@ func isStagehandItem(item *yaml.Node) bool {
 func (t *lazygitTarget) newEntryNode() (*yaml.Node, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(fmt.Sprintf(entryTpl, t.key)), &doc); err != nil {
-		return nil, fmt.Errorf("build stagehand entry: %w", err)
+		return nil, fmt.Errorf("build stagecoach entry: %w", err)
 	}
 	return doc.Content[0].Content[0], nil // DocumentNode → SequenceNode → the one MappingNode
 }
@@ -1082,10 +1082,10 @@ go test ./...                          # full suite — no regression (config/pr
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 
 # list now shows BOTH targets (git-alias + lazygit):
-/tmp/stagehand integrate list
+/tmp/stagecoach integrate list
 # Expected: a lazygit row — DETECTED ✓ (if on $PATH), STATUS not installed, CONFIG = the resolved config.yml.
 
 # Real install against a THROWAWAY config (NEVER your real ~/.config/lazygit/config.yml in this manual check).
@@ -1101,20 +1101,20 @@ customCommands:
     context: 'files'
 YML
 # (lazygit --print-config-dir may still resolve to the real XDG path; if so, copy the fixture there instead.)
-/tmp/stagehand integrate install lazygit --yes
-# Expected: OutcomeCreated/Updated; re-read the config → the stagehand entry present; the 'b' entry PRESERVED;
+/tmp/stagecoach integrate install lazygit --yes
+# Expected: OutcomeCreated/Updated; re-read the config → the stagecoach entry present; the 'b' entry PRESERVED;
 # comments/formatting otherwise intact.
-/tmp/stagehand integrate install lazygit --yes    # again → "No changes for lazygit (already installed)."
-/tmp/stagehand integrate remove lazygit --yes     # → "Removed lazygit integration"; 'b' entry still there.
+/tmp/stagecoach integrate install lazygit --yes    # again → "No changes for lazygit (already installed)."
+/tmp/stagecoach integrate remove lazygit --yes     # → "Removed lazygit integration"; 'b' entry still there.
 
 # corrupt config → refuse
 echo 'customCommands: [unclosed' > "$HOME/.config/lazygit/config.yml"
-/tmp/stagehand integrate install lazygit --yes; echo "exit=$?"
+/tmp/stagecoach integrate install lazygit --yes; echo "exit=$?"
 # Expected: exit 1, stderr "refused to write ...: parse error"; config UNCHANGED on disk.
 
 # --key override
 rm -f "$HOME/.config/lazygit/config.yml"
-/tmp/stagehand integrate install lazygit --yes --key '<c-s>'
+/tmp/stagecoach integrate install lazygit --yes --key '<c-s>'
 grep -q "key: '<c-s>'" "$HOME/.config/lazygit/config.yml" && echo "OK: custom key written"
 unset HOME
 ```
@@ -1122,24 +1122,24 @@ unset HOME
 ### Level 4: Creative & Domain-Specific Validation
 
 ```bash
-# Comment-preservation audit — install into the golden fixture, then assert EVERY non-stagehand node survived:
+# Comment-preservation audit — install into the golden fixture, then assert EVERY non-stagecoach node survived:
 export HOME=/tmp/sh-audit; mkdir -p "$HOME/.config/lazygit"
 cp internal/cmd/testdata/lazygit/golden_input.yml "$HOME/.config/lazygit/config.yml"
-/tmp/stagehand integrate install lazygit --yes
+/tmp/stagecoach integrate install lazygit --yes
 python3 - <<'PY'   # (or eyeball it) — assert the pre-existing entry + gui/git blocks are intact post-install
 import yaml, sys
 d = yaml.safe_load(open("/tmp/sh-audit/.config/lazygit/config.yml"))
 assert d["customCommands"][0]["key"] == "b", "pre-existing entry lost!"
 assert d["gui"]["showRandomTip"] is False, "gui block mangled!"
-print("OK: non-stagehand content preserved")
+print("OK: non-stagecoach content preserved")
 PY
 unset HOME
 
 # Idempotency stress — install 10×; the config stabilizes after the first (NoChange, no drift, one entry):
 export HOME=/tmp/sh-idem; mkdir -p "$HOME/.config/lazygit"; rm -f "$HOME/.config/lazygit/config.yml"
-for i in $(seq 1 10); do /tmp/stagehand integrate install lazygit --yes >/dev/null; done
-N=$(grep -c "stagehand-integration" "$HOME/.config/lazygit/config.yml")
-[ "$N" = "1" ] && echo "OK: exactly one stagehand entry after 10 installs" || echo "FAIL: $N entries (drift!)"
+for i in $(seq 1 10); do /tmp/stagecoach integrate install lazygit --yes >/dev/null; done
+N=$(grep -c "stagecoach-integration" "$HOME/.config/lazygit/config.yml")
+[ "$N" = "1" ] && echo "OK: exactly one stagecoach entry after 10 installs" || echo "FAIL: $N entries (drift!)"
 unset HOME
 
 # Isolation audit — confirm NO test wrote the real lazygit config:
@@ -1171,9 +1171,9 @@ go test ./internal/cmd/... -run 'LazygitTarget_Remove_DeletesOnlyMarked|LazygitE
 - [ ] A corrupt `config.yml` → install REFUSES with a parse-error message and writes NOTHING (exit 1).
 - [ ] `integrate remove lazygit` deletes ONLY the marker entry (sibling entries intact; empty seq left if it
       was the only entry); re-run is NoChange (FR-I6 uninstall symmetry).
-- [ ] `--key '<c-s>'` writes that binding; the marker (`# stagehand-integration`) is the idempotency identity.
+- [ ] `--key '<c-s>'` writes that binding; the marker (`# stagecoach-integration`) is the idempotency identity.
 - [ ] Decline (user N / non-TTY no --yes) writes nothing; Outcome=Declined.
-- [ ] A backup (`<file>.stagehand-backup.<ts>`) is written for existing-file modifications (not for creates).
+- [ ] A backup (`<file>.stagecoach-backup.<ts>`) is written for existing-file modifications (not for creates).
 
 ### Code Quality Validation
 - [ ] `lazygitTarget` locates `customCommands` by PAIR-WALKING (never a hardcoded index); the marker is on the
@@ -1200,7 +1200,7 @@ go test ./internal/cmd/... -run 'LazygitTarget_Remove_DeletesOnlyMarked|LazygitE
   `Content[i+1]`=value). The throwaway test that indexed `Content[1]` mutated gui's value, not customCommands,
   and left the marker untouched (research/yaml-node-api.md §2 — reproduced empirically).
 - ❌ Don't match the marker on the `key` NAME scalar — it's on the `key` VALUE scalar (`item.Content[1]`), via
-  `strings.Contains(LineComment, "stagehand-integration")` (yaml keeps the "# " prefix). The marker — not the
+  `strings.Contains(LineComment, "stagecoach-integration")` (yaml keeps the "# " prefix). The marker — not the
   binding — is the identity.
 - ❌ Don't hand-roll preview/confirm/backup/atomic-write/validate — `integrate.Apply` owns ALL of FR-I3.
   `lazygitEntry.Install` builds `ApplyOptions{Target: &lazygitTarget{…}, Action: ActionUpsert, …}` and maps the
@@ -1226,13 +1226,13 @@ go test ./internal/cmd/... -run 'LazygitTarget_Remove_DeletesOnlyMarked|LazygitE
 - ❌ Don't rewrite S2's/T2.S1's integrate.go/integrate_test.go — the only edits are `defaultEntries` (append
   `newLazygitEntry()`) + `resetIntegrateFlags` (append the `--key` block). Everything lazygit owns lives in its
   own `integrate_lazygit.go`/`_test.go` + `testdata/lazygit/`.
-- ❌ Don't confuse `--key` (the binding stagehand WRITES) with the entry identity (the MARKER). Remove targets
+- ❌ Don't confuse `--key` (the binding stagecoach WRITES) with the entry identity (the MARKER). Remove targets
   the marker regardless of `--key`. Register `--key` on install AND remove for UI symmetry + resetIntegrateFlags
   parity, but document remove-by-marker.
 - ❌ Don't assert byte-equality of UNRELATED nodes in the golden round-trip test — yaml.v3 re-encodes the whole
   doc (may normalize blank lines / inline-comment spacing). Assert SEMANTIC content via re-parse (the marker
   entry's fields, sibling entries preserved, other blocks present + their comments). Idempotency (NoChange) is
-  asserted on stagehand's OWN writes round-tripping stably, which they do.
+  asserted on stagecoach's OWN writes round-tripping stably, which they do.
 
 ---
 

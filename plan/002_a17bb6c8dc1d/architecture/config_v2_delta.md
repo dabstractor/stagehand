@@ -116,10 +116,10 @@ if len(src.BinaryExtensions) > 0 { dst.BinaryExtensions = src.BinaryExtensions }
 
 ### New env vars (loadEnv)
 ```go
-// Per-role: STAGEHAND_<ROLE>_PROVIDER / STAGEHAND_<ROLE>_MODEL
+// Per-role: STAGECOACH_<ROLE>_PROVIDER / STAGECOACH_<ROLE>_MODEL
 for _, role := range []string{"planner", "stager", "message", "arbiter"} {
-    envProv := "STAGEHAND_" + strings.ToUpper(role) + "_PROVIDER"
-    envModel := "STAGEHAND_" + strings.ToUpper(role) + "_MODEL"
+    envProv := "STAGECOACH_" + strings.ToUpper(role) + "_PROVIDER"
+    envModel := "STAGECOACH_" + strings.ToUpper(role) + "_MODEL"
     if v, ok := os.LookupEnv(envProv); ok && v != "" {
         cfg.setRoleProvider(role, v)
     }
@@ -128,8 +128,8 @@ for _, role := range []string{"planner", "stager", "message", "arbiter"} {
     }
 }
 
-// STAGEHAND_COMMITS
-if v, ok := os.LookupEnv("STAGEHAND_COMMITS"); ok && v != "" {
+// STAGECOACH_COMMITS
+if v, ok := os.LookupEnv("STAGECOACH_COMMITS"); ok && v != "" {
     if n, err := strconv.Atoi(v); err == nil { cfg.Commits = n }
 }
 ```
@@ -197,7 +197,7 @@ Rewrites existing config to CurrentConfigVersion in place:
 - Simple, idempotent, future-extensible
 
 ### First-run fallback (FR-B3)
-If stagehand starts with no global config and no STAGEHAND_CONFIG:
+If stagecoach starts with no global config and no STAGECOACH_CONFIG:
 - Auto-write bootstrap config once
 - Print notice with path
 - Continue — tool is never "unconfigured"

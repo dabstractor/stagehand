@@ -51,7 +51,7 @@ if providerToUse == "" {
    never reads it because the caller overrides with the manifest name.
 3. The FR37a fix that preserves `default_provider` across config layers is **entirely defeated**.
 4. This triggers in ALL common pi configurations: bootstrap config, `--provider pi`, `git config
-   stagehand.provider pi`, `STAGEHAND_PROVIDER=pi`.
+   stagecoach.provider pi`, `STAGECOACH_PROVIDER=pi`.
 
 ## Why CI Doesn't Catch It
 
@@ -95,7 +95,7 @@ Pass `""` for the provider parameter at ALL call sites, so Render falls back to 
    command, OR inspect the stub's received args via an env-var probe.
 
 2. **End-to-end integration test**: Drive the real CLI binary with a pi-shaped stubagent config
-   (`default_provider = "openrouter"`), run `stagehand --dry-run --verbose`, and assert the DEBUG
+   (`default_provider = "openrouter"`), run `stagecoach --dry-run --verbose`, and assert the DEBUG
    command line shows `--provider openrouter`. This mirrors the PRD's reproduction steps.
 
 ## Files to Touch

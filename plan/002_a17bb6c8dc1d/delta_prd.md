@@ -1,4 +1,4 @@
-# Stagehand — Delta PRD (v1.0 → v2.0)
+# Stagecoach — Delta PRD (v1.0 → v2.0)
 
 **Base revision:** `plan/001_f1f80943ac34/prd_snapshot.md` (v1.0, single-commit core — **fully implemented**, all P1.M1–M5 tasks Complete).
 **Target revision:** `PRD.md` (v2.0).
@@ -19,7 +19,7 @@ The headline addition is **multi-commit decomposition, promoted from the deferre
 | **D. Cascading provider priority + tiered/decoupled defaults** | §9.16, FR-D1–D5 | Modify `registry.go`, `builtin.go`; pi default decoupled from z.ai | provider registry |
 | **E. Config bootstrap & versioning** | §9.17, FR-B1–B6 | Rework `config init`; add `config upgrade`; `config_version` | config, cmd |
 | **F. Antigravity (`agy`) provider** | §12.5.1 | New built-in manifest (experimental); `providers/agy.toml`; PTY-shim research | provider package, D |
-| **H. Public API `Decompose()`** | §14.1 | Modify `pkg/stagehand/stagehand.go` | generate, decompose |
+| **H. Public API `Decompose()`** | §14.1 | Modify `pkg/stagecoach/stagecoach.go` | generate, decompose |
 | **I. CLI wiring** | §15.2, §15.3, §15.5 | New flags; default-action branching; config subcommand changes | all of the above |
 
 The clusters are ordered by dependency in the table; the suggested phasing in §10 follows it.
@@ -67,13 +67,13 @@ For each cluster: **new vs modified**, the requirements that need implementation
 
 **New requirements (§9.15, §16.4, FR-R1–R5b):**
 - **FR-R1 — four roles:** planner, stager, message, arbiter (§13.6.2). Each resolves its provider+model independently.
-- **FR-R2 — global default:** `[defaults].provider`/`.model` (`--provider`/`--model`, `STAGEHAND_PROVIDER`/`_MODEL`, `stagehand.provider`/`.model`) is the fallback for any unoverridden role. On the single-commit path the only active role is `message` ⇒ **identical to v1, fully back-compatible.**
-- **FR-R3 — per-role overrides:** `[role.<role>].provider`/`.model` config; `STAGEHAND_<ROLE>_PROVIDER`/`_MODEL` env; `--<role>-provider`/`--<role>-model` flags. Precedence (highest wins): flag > env > per-role config > global config > built-in manifest `default_model`.
+- **FR-R2 — global default:** `[defaults].provider`/`.model` (`--provider`/`--model`, `STAGECOACH_PROVIDER`/`_MODEL`, `stagecoach.provider`/`.model`) is the fallback for any unoverridden role. On the single-commit path the only active role is `message` ⇒ **identical to v1, fully back-compatible.**
+- **FR-R3 — per-role overrides:** `[role.<role>].provider`/`.model` config; `STAGECOACH_<ROLE>_PROVIDER`/`_MODEL` env; `--<role>-provider`/`--<role>-model` flags. Precedence (highest wins): flag > env > per-role config > global config > built-in manifest `default_model`.
 - **FR-R4 — one model covers all** unless you opt into granularity.
 - **FR-R5 — model strings are provider-specific:** a role's `model` is interpreted by *that role's* resolved provider's manifest. Switching a role's provider without updating its model is a surfaced config error.
-- **FR-R5b — model requires provider for multi-provider agents** (pi, opencode, agy): `(provider, model)` is a coupled unit; stagehand always emits `--provider <p>` alongside `--model <m>` for these (or the combined `provider/model` form), never a bare `--model`. Single-backend agents (claude, codex, gemini, cursor) emit only `--model`.
+- **FR-R5b — model requires provider for multi-provider agents** (pi, opencode, agy): `(provider, model)` is a coupled unit; stagecoach always emits `--provider <p>` alongside `--model <m>` for these (or the combined `provider/model` form), never a bare `--model`. Single-backend agents (claude, codex, gemini, cursor) emit only `--model`.
 
-**Files:** modify `internal/config/config.go` (add `Roles map[string]RoleModel` / `map[string]map[string]any` raw, mirroring the existing `Providers` pattern), `internal/config/load.go` (role resolution + precedence), `internal/cmd/root.go` (new flags + env). The per-role `RoleModel` type also surfaces in `pkg/stagehand.DecomposeOptions` (Cluster H) and `internal/decompose/roles.go` (Cluster G).
+**Files:** modify `internal/config/config.go` (add `Roles map[string]RoleModel` / `map[string]map[string]any` raw, mirroring the existing `Providers` pattern), `internal/config/load.go` (role resolution + precedence), `internal/cmd/root.go` (new flags + env). The per-role `RoleModel` type also surfaces in `pkg/stagecoach.DecomposeOptions` (Cluster H) and `internal/decompose/roles.go` (Cluster G).
 
 **Mode A docs:** Go-doc on the role-resolution function; the `[role.*]` tables and precedence documented in the `config init` template (Cluster E) and §16.4 reference.
 
@@ -105,7 +105,7 @@ For each cluster: **new vs modified**, the requirements that need implementation
 **New requirements (§9.17, FR-B1–B6):**
 - **FR-B1 — `config init` writes a POPULATED, working config** (not the v1 inert all-commented template). It runs cascading detection (FR-D1), writes `[defaults] provider=<detected>` and that provider's `[role.*]` per-role default models (FR-D4) **uncommented**; other *installed* providers written as commented-out `[role.*]` blocks. Parent dirs created; existing file not overwritten unless `--force`. Path always printed.
 - **FR-B2 — flags:** `config init --provider <name>` targets one; `--force` overwrites; `--template` retains the v1 inert reference behavior.
-- **FR-B3 — bootstrap on install + first-run fallback.** Where an install method permits a post-install step (Homebrew `post_install`, curl\|sh, Scoop), run the equivalent of `config init`. First-run fallback: if stagehand starts with no global config and no `STAGEHAND_CONFIG`, auto-write the bootstrap config once, print a notice with the path, and continue — the tool is never "unconfigured."
+- **FR-B3 — bootstrap on install + first-run fallback.** Where an install method permits a post-install step (Homebrew `post_install`, curl\|sh, Scoop), run the equivalent of `config init`. First-run fallback: if stagecoach starts with no global config and no `STAGECOACH_CONFIG`, auto-write the bootstrap config once, print a notice with the path, and continue — the tool is never "unconfigured."
 - **FR-B4 — config schema version.** Every config file carries `config_version=<int>`; binary knows `CurrentConfigVersion` (compile-time constant). On load: missing/older ⇒ warning + remediation (`config upgrade` / `config init --force`); newer ⇒ "file ahead of binary" warning. **Advisory only, no auto-migration** (no existing users). `config_version` is metadata, **not** a precedence layer (§16.1).
 - **FR-B5 — `config upgrade`** rewrites an existing config to `CurrentConfigVersion` in place: preserve user values for keys that still exist, comment out removed/renamed keys with a note. Simple, idempotent.
 - **FR-B6 — help de-duplication.** Remove the manual "Subcommands:" block from `config`/`providers` parent `Long` text; cobra's auto-generated "Available Commands" is the single source. (Fixes a v1 redundancy.)
@@ -125,17 +125,17 @@ For each cluster: **new vs modified**, the requirements that need implementation
 **New requirement (§12.5.1):** a built-in manifest for **`agy`**, Google's Gemini-CLI successor (superseded `gemini` on 2026-06-18). Its coding-plan quota is reachable only through `agy` — the same structural reason every provider exists. **Flag surface is assembled from docs + issue tracker, NOT `--help`-verified** ⇒ the heaviest `# TO CONFIRM` load of any built-in ⇒ ships `experimental=true` until a real run clears the items.
 
 **`# TO CONFIRM` (§12.5.1.1) — these gate `agy`'s usability and carry as the manifest's honest caveats:**
-1. **CRITICAL/blocking — non-TTY stdout drop (issue [#76](https://github.com/google-antigravity/antigravity-cli/issues/76)):** `agy -p` silently drops stdout when spawned as a subprocess (exactly how stagehand spawns agents). **Gate:** either a PTY-shim workaround (allocate a PTY for the `agy` child while still capturing bytes) **or** wait for upstream. Gates ALL `agy` roles. This is the single biggest open item.
+1. **CRITICAL/blocking — non-TTY stdout drop (issue [#76](https://github.com/google-antigravity/antigravity-cli/issues/76)):** `agy -p` silently drops stdout when spawned as a subprocess (exactly how stagecoach spawns agents). **Gate:** either a PTY-shim workaround (allocate a PTY for the `agy` child while still capturing bytes) **or** wait for upstream. Gates ALL `agy` roles. This is the single biggest open item.
 2. Model flag (`-m` vs `--model`).
 3. System-prompt flag (none in gemini-cli lineage → prepend; confirm whether `agy` gained one).
 4. **Tooled (stager) flags:** the exact non-interactive, git-scoped, **non-`--dangerously-skip-permissions`** combination. Until known, `tooled_flags=[]` ⇒ `agy` cannot stager (bare roles only, once item 1 clears).
-5. `--print-timeout` wiring to stagehand's `--timeout`.
+5. `--print-timeout` wiring to stagecoach's `--timeout`.
 
 **Files:** new built-in manifest in `internal/provider/builtin.go` (`agy`, `experimental=true`); new `providers/agy.toml` reference; update Appendix D quick-ref (and the `providers list`/cascading order from Cluster D). A **PTY-shim path in the executor** (`internal/provider/executor.go` + possibly a `creack/pty`-style dep) gated on item 1 — research the exact approach; if a dep is needed it rides with this cluster.
 
 **Mode A docs:** `providers/agy.toml` reference file with the full `# TO CONFIRM` block commented inline (honest, matches §12.7.2 progressive-verification ethos); Appendix D row.
 
-**Prior research applies / extends:** `external_deps.md` does NOT cover `agy` (predates it). FR-D5's research directive (Cluster D) covers current Gemini model tokens for `agy`. The non-TTY stdout bug is **new research** — confirm whether the PTY-shim works under stagehand's `SysProcAttr.Setpgid`/process-group model (cross-ref `critical_findings.md` and the signal-handling work in P1.M2.T5.S2/P1.M4.T2.S1).
+**Prior research applies / extends:** `external_deps.md` does NOT cover `agy` (predates it). FR-D5's research directive (Cluster D) covers current Gemini model tokens for `agy`. The non-TTY stdout bug is **new research** — confirm whether the PTY-shim works under stagecoach's `SysProcAttr.Setpgid`/process-group model (cross-ref `critical_findings.md` and the signal-handling work in P1.M2.T5.S2/P1.M4.T2.S1).
 
 ---
 
@@ -143,7 +143,7 @@ For each cluster: **new vs modified**, the requirements that need implementation
 
 **New requirements (§9.14, §11.4, §13.6, FR-M1–M12).** This composes the v1 `CommitStaged` primitive N times. New package `internal/decompose/`.
 
-**Activation (FR-M1, §13.6.1):** decomposition activates **iff** nothing is staged AND the working tree has changes. If anything is staged, the single-commit primitive runs **unchanged** — stagehand never re-partitions a hand-staged index.
+**Activation (FR-M1, §13.6.1):** decomposition activates **iff** nothing is staged AND the working tree has changes. If anything is staged, the single-commit primitive runs **unchanged** — stagecoach never re-partitions a hand-staged index.
 
 **Modes (FR-M2):**
 - **Auto-decompose (default)** — planner decides count + partition; if it judges one commit correct, emits the message in the same call (**single-call shortcut**, FR-M11).
@@ -163,7 +163,7 @@ For each cluster: **new vs modified**, the requirements that need implementation
 - **max_commits cap** (default 12) unless `--commits`/`--max-commits` forces higher (FR-M4).
 - **Empty-concept skip:** `tree[i]==tree[i-1]` ⇒ skip commit[i], never an empty commit (FR-M8).
 - **Stager non-zero** ⇒ retry once, then treat as empty (FR-M8).
-- **Arbiter (§13.6.5, FR-M9/M10):** if `git status --porcelain` non-empty after loop, arbiter returns `{"target": <sha>|null}`. **Stagehand performs ALL git; arbiter only decides.** `null`→new (N+1)-th commit; `target==HEAD`→plumbing amend of tip; `target==earlier commit[i]`→**deterministic linear-chain rebuild** via `read-tree`/`write-tree`/`commit-tree` (NEVER interactive rebase; HEAD only). Ambiguous → `null`. Amend restricted to commits made *this run*.
+- **Arbiter (§13.6.5, FR-M9/M10):** if `git status --porcelain` non-empty after loop, arbiter returns `{"target": <sha>|null}`. **Stagecoach performs ALL git; arbiter only decides.** `null`→new (N+1)-th commit; `target==HEAD`→plumbing amend of tip; `target==earlier commit[i]`→**deterministic linear-chain rebuild** via `read-tree`/`write-tree`/`commit-tree` (NEVER interactive rebase; HEAD only). Ambiguous → `null`. Amend restricted to commits made *this run*.
 - **Per-concept failure isolation (FR-M12, §13.6.6):** `message[i]` failure → rescue **for concept i only** (scoped to frozen `tree[i]`); prior commits 0..i-1 stand; remaining staged work left in index. `stager[i+1]` in flight is allowed to complete so its staging isn't lost. CAS failure on commit[i] → abort run with §13.5 message; prior commits stand. Planner fails → error, nothing snapshotted (exit 1, not rescue).
 
 **New CLI flags (§15.2):** `--commits <N>` (0=auto; 1≡`--single`), `--single`/`--no-decompose`, `--max-commits <N>` (default 12); plus the per-role flags from Cluster C.
@@ -187,7 +187,7 @@ For each cluster: **new vs modified**, the requirements that need implementation
 
 ### Cluster H — Public API: `Decompose()`
 
-**New (§14.1):** add to `pkg/stagehand/stagehand.go`:
+**New (§14.1):** add to `pkg/stagecoach/stagecoach.go`:
 - `type DecomposeOptions struct { Options; Count int; Single bool; MaxCommits int; Planner, Stager, Arbiter RoleModel }`
 - `type RoleModel struct { Provider, Model string }`
 - `type DecomposeResult struct { Commits []Result; Amended int; Provider string }`
@@ -240,7 +240,7 @@ For each cluster: **new vs modified**, the requirements that need implementation
 
 **Genuinely NEW research needed (not in prior sessions):**
 1. **FR-D5 (Cluster D):** current flagship/mid/fast model tokens per provider (pi, opencode, cursor, agy, gemini, codex, claude) + verification date. Record in manifest source.
-2. **`agy` (Cluster F):** live `--help` capture; the five `# TO CONFIRM` items (esp. the non-TTY stdout PTY-shim feasibility under stagehand's process-group model). 
+2. **`agy` (Cluster F):** live `--help` capture; the five `# TO CONFIRM` items (esp. the non-TTY stdout PTY-shim feasibility under stagecoach's process-group model). 
 3. **pi OpenAI routing (Appendix E item 12):** which pi sub-provider routes to an OpenAI model, so pi's default + `default_provider` wire end-to-end.
 
 ---
@@ -256,8 +256,8 @@ For each cluster: **new vs modified**, the requirements that need implementation
 | D | `providers list` output; pi personal-override note in `providers/pi.toml` | cmd + reference toml |
 | E | **The populated `config init` template itself** (primary config doc: `[defaults]`, `[generation]` w/ `binary_extensions`+`max_commits`, `[provider.X]` w/ `tooled_flags` note, `[role.*]`, `config_version`) | `config init` output |
 | F | `providers/agy.toml` with full `# TO CONFIRM` block; Appendix D row | reference toml |
-| G | Go-doc on `Decompose`/`DecomposeOptions`/`DecomposeResult`/`RoleModel` | `pkg/stagehand` |
-| H | (same as G) | `pkg/stagehand` |
+| G | Go-doc on `Decompose`/`DecomposeOptions`/`DecomposeResult`/`RoleModel` | `pkg/stagecoach` |
+| H | (same as G) | `pkg/stagecoach` |
 | I | New global flags + env + exit codes in cobra `--help` | CLI help text |
 
 ### Mode B — changeset-level documentation (final task, depends on all clusters)

@@ -119,7 +119,7 @@ defaults, then `MergeManifest(builtin, userOverride)` (S2) to overlay any `[prov
 config, then `Validate()` + `Resolve()` before handing the manifest to the renderer/executor/parser.
 Transitively every user story routed through "call an agent" (US) and FR36/FR37 (provider management).
 
-**Use Case**: A user runs `stagehand` with zero config. The registry has no `[provider.*]` overrides, so
+**Use Case**: A user runs `stagecoach` with zero config. The registry has no `[provider.*]` overrides, so
 `BuiltinManifests()["pi"]` IS the resolved pi manifest; the renderer turns it into the `pi …` argv; the
 executor runs it; the parser cleans stdout. This subtask is what makes "zero config" work for the two
 most common agents.
@@ -138,7 +138,7 @@ literal, decode-parity-tested, render-verified manifests now.
   (so the tool works with zero config)." pi and claude are the two "explicit tool-disable switch"
   providers (§12.7.1) — the cleanest, fastest bare calls. Landing them first lets the registry (P1.M2.T3)
   and renderer (P1.M2.T4) be built + tested against real targets immediately.
-- **The pi manifest MUST match commit-pi byte-for-byte.** Stagehand is the successor to commit-pi
+- **The pi manifest MUST match commit-pi byte-for-byte.** Stagecoach is the successor to commit-pi
   (PRD §2.1); the pi invocation is the compatibility anchor. The render test pins this so a future edit
   to `builtinPi()` cannot silently drift from commit-pi.
 - **Unlocks the registry + renderer.** P1.M2.T3 imports `BuiltinManifests()`; P1.M2.T4 renders one.
@@ -290,7 +290,7 @@ No git/config/generation knowledge required — this subtask is two literal stru
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; require go-toml/v2 v2.4.2 + pflag v1.0.10  (UNCHANGED by this subtask)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; require go-toml/v2 v2.4.2 + pflag v1.0.10  (UNCHANGED by this subtask)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — FROZEN, do NOT touch; do NOT import from provider
@@ -302,7 +302,7 @@ internal/
     merge_test.go               # S2 — tests  (do NOT edit)
     builtin.go                  # NEW (this subtask) ← BuiltinManifests() + builtinPi() + builtinClaude()
     builtin_test.go             # NEW (this subtask) ← 8 test groups
-cmd/stagehand/main.go           # `package main; func main(){}` stub — untouched
+cmd/stagecoach/main.go           # `package main; func main(){}` stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -673,7 +673,7 @@ FROZEN FILES (do NOT edit):
         are a CONTRACT. This subtask ADDS builtin.go/builtin_test.go; it does not modify S1's files.
   - internal/provider/merge.go + merge_test.go (S2): MergeManifest. This subtask does NOT depend on S2
         (it depends only on S1's Manifest type); do NOT edit S2's files (they may still be in flight).
-  - internal/config/* (P1.M1.T4), internal/git/* (P1.M1.T2/T3), cmd/stagehand/main.go, Makefile.
+  - internal/config/* (P1.M1.T4), internal/git/* (P1.M1.T2/T3), cmd/stagecoach/main.go, Makefile.
 
 DOWNSTREAM CONTRACTS (do NOT implement here — just honor the shapes they will consume):
   - P1.M2.T3 (registry): `builtins := BuiltinManifests(); base := builtins[<name>]; merged := MergeManifest(base,
@@ -734,7 +734,7 @@ go test -race ./...
 
 ```bash
 # Build + scope checks:
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"   # main.go stub still links.
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"   # main.go stub still links.
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum unchanged"
 # Confirm this subtask touched ONLY the two new files:
 git diff --exit-code -- internal/config internal/git cmd Makefile internal/provider/manifest.go internal/provider/manifest_test.go internal/provider/merge.go internal/provider/merge_test.go && echo "frozen + S1 + S2 files UNCHANGED by this subtask"

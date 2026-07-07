@@ -1,11 +1,11 @@
 ---
-name: "P1.M5.T1.S2 — Real-agent integration test scaffold (§20.1 layer 4): //go:build integration_real, STAGEHAND_RUN_REAL=1, drives all 6 real provider manifests through CommitStaged"
+name: "P1.M5.T1.S2 — Real-agent integration test scaffold (§20.1 layer 4): //go:build integration_real, STAGECOACH_RUN_REAL=1, drives all 6 real provider manifests through CommitStaged"
 description: |
 
   THIS IS A TEST-ONLY TASK. Deliver ONE new file: `internal/generate/realagent_test.go`
   (package generate, `//go:build integration_real`). It is the PRD §20.1 layer-4 "Integration — real
   agents (opt-in, not in CI)" suite: a table-driven `TestRealAgents` that, ONLY when built with
-  `-tags integration_real` AND `STAGEHAND_RUN_REAL=1` is set, resolves each of the 6 SHIPPED builtin
+  `-tags integration_real` AND `STAGECOACH_RUN_REAL=1` is set, resolves each of the 6 SHIPPED builtin
   provider manifests (pi/claude/gemini/opencode/codex/cursor) via the registry, skips any whose binary
   is not on `$PATH`, then runs `generate.CommitStaged` (P1.M3.T4.S2, COMPLETE) against a temp git repo
   with a staged change using a REAL agent subprocess, and asserts a non-empty commit message was
@@ -13,10 +13,10 @@ description: |
 
   CONTRACT (P1.M5.T1.S2, verbatim):
     1. RESEARCH: "PRD §20.1 layer 4 — a //go:build integration_real suite that invokes the actual
-       pi/claude/gemini/etc. if installed and STAGEHAND_RUN_REAL=1. Used manually before releases;
+       pi/claude/gemini/etc. if installed and STAGECOACH_RUN_REAL=1. Used manually before releases;
        skipped in CI. All 6 agents are installed on this machine (see external_deps.md)."
     2. INPUT: "CommitStaged (P1.M3.T4.S2). Real agent binaries on $PATH."
-    3. LOGIC: "Create test files with //go:build integration_real that, when STAGEHAND_RUN_REAL=1 is
+    3. LOGIC: "Create test files with //go:build integration_real that, when STAGECOACH_RUN_REAL=1 is
        set, run CommitStaged with each real provider manifest against a temp repo with staged changes,
        asserting a non-empty commit message is produced and a commit is created. Skip gracefully if the
        agent isn't installed. These are manual release-gate tests, NOT CI. Mock: no mocks — uses real
@@ -42,7 +42,7 @@ description: |
         internal/provider/procgroup_unix.go's `//go:build !windows` style).
       - `TestRealAgents` (table-driven): one subtest per provider in registry order
         [pi, claude, gemini, opencode, codex, cursor].
-      - THREE gates, all `t.Skip` (never t.Fatal): build tag (implicit), `STAGEHAND_RUN_REAL=1` env,
+      - THREE gates, all `t.Skip` (never t.Fatal): build tag (implicit), `STAGECOACH_RUN_REAL=1` env,
         and per-subtest `reg.IsInstalled(m)`.
       - `realConfig(name)` helper: env-overridable model+provider per provider (§"Implementation
         Patterns"); `Timeout` from `config.Defaults()` (120s/attempt — ample).
@@ -53,8 +53,8 @@ description: |
         generate_test.go (same package — DO NOT redeclare). Helper names DISTINCT from S1's
         (`snapshotRepo`/`treeSHAFromErr`/`assertInvariants`) so the two files coexist under the tag.
 
-  SUCCESS: `STAGEHAND_RUN_REAL=0 go test -tags integration_real ./internal/generate/ -run TestRealAgents
-  -v` skips cleanly (env gate); `STAGEHAND_RUN_REAL=1 ... -timeout 30m` runs the installed subset
+  SUCCESS: `STAGECOACH_RUN_REAL=0 go test -tags integration_real ./internal/generate/ -run TestRealAgents
+  -v` skips cleanly (env gate); `STAGECOACH_RUN_REAL=1 ... -timeout 30m` runs the installed subset
   green (manual); `make test` (NO tag) excludes the file and stays green; `go vet -tags integration_real
   ./internal/generate/` clean; `gofmt -l internal/generate/` empty; `git status` shows ONLY the new
   file. NO production-code changes. NO new go.mod deps. Resolves the external_deps.md TO CONFIRM items.
@@ -63,7 +63,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Give Stagehand a PRD §20.1 layer-4 "Integration — real agents (opt-in, not in CI)"
+**Feature Goal**: Give Stagecoach a PRD §20.1 layer-4 "Integration — real agents (opt-in, not in CI)"
 suite: a single, auditable, table-driven `TestRealAgents` that proves EVERY one of the 6 SHIPPED
 builtin provider manifests (pi/claude/gemini/opencode/codex/cursor) can be driven end-to-end through
 `generate.CommitStaged` using the ACTUAL agent binaries — producing a non-empty commit message and
@@ -74,15 +74,15 @@ exercised in the repo, and it resolves the two `// TO CONFIRM (integration)` not
 **Deliverable**: ONE new Go test file — `internal/generate/realagent_test.go` (`package generate`,
 `//go:build integration_real`) — containing a table-driven `TestRealAgents` (one subtest per provider)
 that: resolves each builtin manifest via `provider.NewRegistry(nil)`, skips on three gates (build tag,
-`STAGEHAND_RUN_REAL=1`, binary-on-`$PATH`), drives `generate.CommitStaged` with a REAL agent subprocess
+`STAGECOACH_RUN_REAL=1`, binary-on-`$PATH`), drives `generate.CommitStaged` with a REAL agent subprocess
 against a temp git repo holding a staged change, logs the resolved command, and asserts a commit was
 created (HEAD moved, message round-trips, valid SHA, non-empty `Result.Changes`).
 
 **Success Definition**:
 - The file is EXCLUDED from `make test` / `make coverage` / CI by the build tag (they pass no `-tags`).
-- With `-tags integration_real` but `STAGEHAND_RUN_REAL != "1"`, `TestRealAgents` skips cleanly with a
-  "set STAGEHAND_RUN_REAL=1" message (no real agents run, no API cost).
-- With `-tags integration_real` and `STAGEHAND_RUN_REAL=1`, each subtest whose binary is on `$PATH`
+- With `-tags integration_real` but `STAGECOACH_RUN_REAL != "1"`, `TestRealAgents` skips cleanly with a
+  "set STAGECOACH_RUN_REAL=1" message (no real agents run, no API cost).
+- With `-tags integration_real` and `STAGECOACH_RUN_REAL=1`, each subtest whose binary is on `$PATH`
   runs the real agent and passes; each missing binary skips gracefully (`<name> (<bin>) not on $PATH`).
 - A passing `TestRealAgents/codex` RESOLVES the codex `// TO CONFIRM` (exec writes stdout, exits 0).
 - A passing `TestRealAgents/cursor` RESOLVES the cursor `// TO CONFIRM` (`--mode ask --trust` is a
@@ -92,11 +92,11 @@ created (HEAD moved, message round-trips, valid SHA, non-empty `Result.Changes`)
 
 ## User Persona
 
-**Target User**: the Stagehand maintainer / release engineer (PRD §20). This is test infrastructure,
+**Target User**: the Stagecoach maintainer / release engineer (PRD §20). This is test infrastructure,
 not a user-facing feature.
 
 **Use Case**: before tagging a release, run
-`STAGEHAND_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v -timeout 30m`
+`STAGECOACH_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v -timeout 30m`
 on a machine where all 6 agents are installed and authenticated. A green run is a release gate that
 every shipped manifest actually works against the real CLI it wraps. A failing subtest flags either a
 regression in a manifest OR an environment issue (model unavailable) — the logged resolved command lets
@@ -130,12 +130,12 @@ A new `internal/generate/realagent_test.go` (`package generate`, `//go:build int
    `pi`→{model "", provider "zai"}; `claude`/`gemini`→{model "", provider ""} (manifest defaults);
    `opencode`→{model "anthropic/claude-sonnet-4", provider ""} (manifest default is ""); `codex`/`cursor`
    →{model "", provider ""} (agent-config-driven). Sourced from `architecture/external_deps.md`.
-2. **An `envOr(key, def)` helper** reading `STAGEHAND_REAL_MODEL_<NAME>` / `STAGEHAND_REAL_PROVIDER_<NAME>`.
+2. **An `envOr(key, def)` helper** reading `STAGECOACH_REAL_MODEL_<NAME>` / `STAGECOACH_REAL_PROVIDER_<NAME>`.
 3. **A `realConfig(name)` helper** returning `config.Defaults()` with `Model`/`Provider` set from the
    env/map (so pi gets `--provider zai`, opencode gets `-m anthropic/claude-sonnet-4`, etc.).
 4. **A `logResolvedCommand(t, name, m, cfg)` helper** that `m.Render(...)`s the spec and `t.Logf`s the
    command + args (payload truncated) — the operator's audit trail, resolves TO CONFIRM visually.
-5. **`TestRealAgents`** — gates on `STAGEHAND_RUN_REAL==1`; builds a registry; iterates the 6 names;
+5. **`TestRealAgents`** — gates on `STAGECOACH_RUN_REAL==1`; builds a registry; iterates the 6 names;
    per name: `Get` the manifest, `Skip` if `!IsInstalled`, seed a temp repo (born + initial commit +
    staged real-ish file), `logResolvedCommand`, call `CommitStaged` with `Deps{Git: git.New(repo),
    Manifest: m}`, assert the commit (non-empty message, valid SHA, HEAD moved, round-trip, non-empty
@@ -244,7 +244,7 @@ effect of codex/cursor passing.
 
 - url: (PRD internal) PRD.md §20.1 layer 4 ("Integration — real agents (opt-in, not in CI). A
        //go:build integration_real suite that invokes the actual pi/claude/etc. if installed and
-       STAGEHAND_RUN_REAL=1. Used manually before releases; skipped in CI.").
+       STAGECOACH_RUN_REAL=1. Used manually before releases; skipped in CI.").
   why: AUTHORITATIVE spec for WHAT this suite is. Verbatim contract.
 ```
 
@@ -263,7 +263,7 @@ internal/provider/
   procgroup_unix.go           # P1.M2.T5.S2 — the //go:build STYLE reference (READ only)
 internal/git/git.go           # P1.M1.T2/T3 — git.New (READ only)
 Makefile                      # test/coverage (NO -tags) → CI exclusion (UNCHANGED)
-go.mod                        # module github.com/dustin/stagehand (UNCHANGED — no new deps)
+go.mod                        # module github.com/dustin/stagecoach (UNCHANGED — no new deps)
 ```
 
 ### Desired Codebase tree with files to be added
@@ -282,10 +282,10 @@ internal/generate/realagent_test.go   # NEW — package generate; //go:build int
 // `go test ./...` (no -tags) EXCLUDES the file → CI-safe; `go test -tags integration_real ./...` includes it.
 
 // CRITICAL (DOUBLE GATE — never run in CI, never run accidentally): the build tag alone is not enough.
-// Also gate at runtime: `if os.Getenv("STAGEHAND_RUN_REAL") != "1" { t.Skip("...set STAGEHAND_RUN_REAL=1...") }`.
+// Also gate at runtime: `if os.Getenv("STAGECOACH_RUN_REAL") != "1" { t.Skip("...set STAGECOACH_RUN_REAL=1...") }`.
 // A maintainer running `go test -tags integration_real ./...` WITHOUT the env var would otherwise spawn
 // 6 slow, network-bound, API-cost-incurring real agents. The env gate is defense-in-depth (PRD §20.1:
-// "if installed and STAGEHAND_RUN_REAL=1"). Skip via t.Skip — NEVER t.Fatal for a gate.
+// "if installed and STAGECOACH_RUN_REAL=1"). Skip via t.Skip — NEVER t.Fatal for a gate.
 
 // CRITICAL (MODEL/PROVIDER IS ENVIRONMENT-SPECIFIC): Render uses cfg.Model, falling back to the
 // manifest DefaultModel; cfg.Provider falls back to DefaultProvider. The manifests do NOT encode a
@@ -296,7 +296,7 @@ internal/generate/realagent_test.go   # NEW — package generate; //go:build int
 //   - codex/cursor: default_model="" → no model flag → agent uses its OWN config (config.toml / per-account).
 //            → leave cfg.Model="" (correct; agent-config-driven).
 // Fix = the env-overridable realDefaults map. If a model isn't available in this env, the operator sets
-// STAGEHAND_REAL_MODEL_<NAME>. A failing subtest with the logged command distinguishes "manifest wrong"
+// STAGECOACH_REAL_MODEL_<NAME>. A failing subtest with the logged command distinguishes "manifest wrong"
 // from "model unavailable" — that's WHY logResolvedCommand exists.
 
 // CRITICAL (cursor: detect ≠ name): cursor's binary is `agent` (Detect="agent", ≠ Name "cursor"). The
@@ -346,7 +346,7 @@ type realDefault struct {
 }
 
 // realDefaults — sourced from architecture/external_deps.md (2026-06-29 verification).
-// Override per-run via STAGEHAND_REAL_MODEL_<NAME> / STAGEHAND_REAL_PROVIDER_<NAME>.
+// Override per-run via STAGECOACH_REAL_MODEL_<NAME> / STAGECOACH_REAL_PROVIDER_<NAME>.
 var realDefaults = map[string]realDefault{
 	"pi":       {"", "zai"},                    // glm-5-turbo from manifest default; provider=zai (commit-pi)
 	"claude":   {"", ""},                       // sonnet from manifest default
@@ -389,8 +389,8 @@ Task 2: CREATE internal/generate/realagent_test.go — file head + helpers (the 
   - realConfig body:
       cfg := config.Defaults()            // Timeout=120s/attempt, MaxDuplicateRetries=3
       d := realDefaults[name]
-      cfg.Model    = envOr("STAGEHAND_REAL_MODEL_"    + strings.ToUpper(name), d.model)
-      cfg.Provider = envOr("STAGEHAND_REAL_PROVIDER_" + strings.ToUpper(name), d.provider)
+      cfg.Model    = envOr("STAGECOACH_REAL_MODEL_"    + strings.ToUpper(name), d.model)
+      cfg.Provider = envOr("STAGECOACH_REAL_PROVIDER_" + strings.ToUpper(name), d.provider)
       return cfg
   - logResolvedCommand body:
       t.Helper()
@@ -406,7 +406,7 @@ Task 2: CREATE internal/generate/realagent_test.go — file head + helpers (the 
 
 Task 3: ASSEMBLE TestRealAgents — the three gates + the table + the run + the assertions
   - FILE: append `func TestRealAgents(t *testing.T)`.
-  - GATE 1 (env): `if os.Getenv("STAGEHAND_RUN_REAL") != "1" { t.Skip("skipping real-agent suite; set STAGEHAND_RUN_REAL=1 and build with -tags integration_real") }`
+  - GATE 1 (env): `if os.Getenv("STAGECOACH_RUN_REAL") != "1" { t.Skip("skipping real-agent suite; set STAGECOACH_RUN_REAL=1 and build with -tags integration_real") }`
   - BODY:
       reg := provider.NewRegistry(nil)   // pure built-ins — no user-config noise
       for _, name := range providerNames {
@@ -444,14 +444,14 @@ Task 3: ASSEMBLE TestRealAgents — the three gates + the table + the run + the 
 Task 4: FINAL VALIDATION (the gate — does NOT require real agents to pass)
   - RUN: `go test -tags integration_real ./internal/generate/` → COMPILES (proves the file + tag are
       well-formed; runs but every subtest skips on the env gate → PASS).
-  - RUN: `STAGEHAND_RUN_REAL=0 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v`
+  - RUN: `STAGECOACH_RUN_REAL=0 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v`
       → every subtest SKIPS with the env message (proves gate 1; no real agents run).
   - RUN: `gofmt -w internal/generate/realagent_test.go`; `gofmt -l internal/generate/` (empty).
   - RUN: `go vet -tags integration_real ./internal/generate/` (clean).
   - RUN: `make test` → green AND no real agent ran (file excluded — no -tags). This is the CI-exclusion proof.
   - RUN: `git status --short` → ONLY `?? internal/generate/realagent_test.go`.
   - (OPTIONAL, manual, requires agents+network) RUN:
-      `STAGEHAND_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v -timeout 30m`
+      `STAGECOACH_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v -timeout 30m`
       → installed subset passes; missing binaries skip. A green codex+cursor RESOLVES the TO CONFIRM items.
 ```
 
@@ -461,7 +461,7 @@ Task 4: FINAL VALIDATION (the gate — does NOT require real agents to pass)
 //go:build integration_real
 
 // Package generate test: the PRD §20.1 layer-4 "Integration — real agents (opt-in, not in CI)" suite.
-// Built ONLY under -tags integration_real; runs ONLY when STAGEHAND_RUN_REAL=1. NOT in CI
+// Built ONLY under -tags integration_real; runs ONLY when STAGECOACH_RUN_REAL=1. NOT in CI
 // (make test / make coverage pass no -tags). Drives generate.CommitStaged against each of the 6 real
 // builtin provider manifests (pi/claude/gemini/opencode/codex/cursor). Resolves the two
 // `// TO CONFIRM (integration)` notes in internal/provider/builtin.go (codex exec→stdout; cursor --mode ask).
@@ -474,9 +474,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/provider"
 )
 
 type realDefault struct{ model, provider string }
@@ -506,8 +506,8 @@ func envOr(key, def string) string {
 func realConfig(name string) config.Config {
 	cfg := config.Defaults()
 	d := realDefaults[name]
-	cfg.Model = envOr("STAGEHAND_REAL_MODEL_"+strings.ToUpper(name), d.model)
-	cfg.Provider = envOr("STAGEHAND_REAL_PROVIDER_"+strings.ToUpper(name), d.provider)
+	cfg.Model = envOr("STAGECOACH_REAL_MODEL_"+strings.ToUpper(name), d.model)
+	cfg.Provider = envOr("STAGECOACH_REAL_PROVIDER_"+strings.ToUpper(name), d.provider)
 	return cfg
 }
 
@@ -529,10 +529,10 @@ func logResolvedCommand(t *testing.T, name string, m provider.Manifest, cfg conf
 }
 
 // TestRealAgents drives each real builtin provider manifest through CommitStaged end-to-end. Opt-in:
-// build tag (integration_real) + STAGEHAND_RUN_REAL=1 + binary on $PATH. NOT in CI.
+// build tag (integration_real) + STAGECOACH_RUN_REAL=1 + binary on $PATH. NOT in CI.
 func TestRealAgents(t *testing.T) {
-	if os.Getenv("STAGEHAND_RUN_REAL") != "1" {
-		t.Skip("skipping real-agent suite; set STAGEHAND_RUN_REAL=1 and build with -tags integration_real")
+	if os.Getenv("STAGECOACH_RUN_REAL") != "1" {
+		t.Skip("skipping real-agent suite; set STAGECOACH_RUN_REAL=1 and build with -tags integration_real")
 	}
 	reg := provider.NewRegistry(nil)
 	for _, name := range providerNames {
@@ -635,17 +635,17 @@ gofmt -l internal/generate/                                 # must be empty
 
 ```bash
 # Gate 1: env not set → every subtest SKIPS cleanly (no real agent spawned, no API cost).
-# (Run from a shell where STAGEHAND_RUN_REAL is unset:)
-unset STAGEHAND_RUN_REAL
+# (Run from a shell where STAGECOACH_RUN_REAL is unset:)
+unset STAGECOACH_RUN_REAL
 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v
-# Expected: --- SKIP: TestRealAgents ("skipping real-agent suite; set STAGEHAND_RUN_REAL=1 …")
+# Expected: --- SKIP: TestRealAgents ("skipping real-agent suite; set STAGECOACH_RUN_REAL=1 …")
 # OR, if env is explicitly 0:
-STAGEHAND_RUN_REAL=0 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v
+STAGECOACH_RUN_REAL=0 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v
 # Expected: same SKIP.
 
 # Gate 2 (install): with the env set, subtests for MISSING binaries SKIP; installed ones RUN. On a
 # machine with none of the agents, ALL subtests SKIP with "<name> (<bin>) not on $PATH":
-STAGEHAND_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v
+STAGECOACH_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v
 # Expected (no agents): one SKIP per provider ("<name> (<bin>) not on $PATH"). No failures.
 ```
 
@@ -654,15 +654,15 @@ STAGEHAND_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run Te
 ```bash
 # THE release gate. Requires all 6 agents installed + authenticated (external_deps.md: all present).
 # -timeout 30m: Go's test timeout (real agents are slow); distinct from cfg.Timeout=120s per attempt.
-STAGEHAND_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v -timeout 30m
+STAGECOACH_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v -timeout 30m
 # Expected: --- PASS for each installed agent; the t.Logf lines show the resolved command + produced message.
 #   - A PASSING TestRealAgents/codex  → RESOLVES the codex  TO CONFIRM (exec → stdout, exit 0).
 #   - A PASSING TestRealAgents/cursor → RESOLVES the cursor TO CONFIRM (--mode ask --trust read-only one-shot).
 # If a subtest FAILS: read the logged "resolved command" → is the flag wrong (manifest bug) or is the
-#   model unavailable (env: set STAGEHAND_REAL_MODEL_<NAME>)? Distinguish before filing a bug.
+#   model unavailable (env: set STAGECOACH_REAL_MODEL_<NAME>)? Distinguish before filing a bug.
 
 # Per-provider model override examples (if a default isn't available in this env):
-STAGEHAND_RUN_REAL=1 STAGEHAND_REAL_MODEL_OPENCODE=openai/gpt-4o \
+STAGECOACH_RUN_REAL=1 STAGECOACH_REAL_MODEL_OPENCODE=openai/gpt-4o \
     go test -tags integration_real ./internal/generate/ -run TestRealAgents/opencode -v -timeout 10m
 ```
 
@@ -690,8 +690,8 @@ go vet -tags integration_real ./...         # clean (proves no package-wide brea
 - [ ] Level 1: `gofmt -l internal/generate/` empty; `go vet -tags integration_real ./internal/generate/` clean.
 - [ ] Level 1: `go test -tags integration_real ./internal/generate/` COMPILES (file + tag well-formed).
 - [ ] Level 2: env unset → `TestRealAgents` SKIPS (no real agent run, no API cost).
-- [ ] Level 2: `STAGEHAND_RUN_REAL=1` with no agents → every subtest SKIPS ("not on $PATH"), no failures.
-- [ ] Level 3 (manual): `STAGEHAND_RUN_REAL=1 … -timeout 30m` → installed subset PASS; codex+cursor
+- [ ] Level 2: `STAGECOACH_RUN_REAL=1` with no agents → every subtest SKIPS ("not on $PATH"), no failures.
+- [ ] Level 3 (manual): `STAGECOACH_RUN_REAL=1 … -timeout 30m` → installed subset PASS; codex+cursor
       green RESOLVE the TO CONFIRM items.
 - [ ] Level 4: `make test` green AND no real agent ran (file excluded); `git status` shows ONLY the new file.
 - [ ] No new `go.mod` dependencies (stdlib + existing internal imports only).
@@ -720,9 +720,9 @@ go vet -tags integration_real ./...         # clean (proves no package-wide brea
 
 - [ ] File-level doc comment names PRD §20.1 layer 4 and the two external_deps.md TO CONFIRM items resolved.
 - [ ] `realDefaults` map is documented (env-overridable; source = external_deps.md).
-- [ ] The manual run command (`STAGEHAND_RUN_REAL=1 go test -tags integration_real … -timeout 30m`) is
+- [ ] The manual run command (`STAGECOACH_RUN_REAL=1 go test -tags integration_real … -timeout 30m`) is
       stated in the file doc comment so a future maintainer discovers it.
-- [ ] No new env vars/config keys/CLI flags in PRODUCTION (the `STAGEHAND_REAL_*` / `STAGEHAND_RUN_REAL`
+- [ ] No new env vars/config keys/CLI flags in PRODUCTION (the `STAGECOACH_REAL_*` / `STAGECOACH_RUN_REAL`
       vars are TEST-ONLY, consumed solely by this tagged file).
 
 ---

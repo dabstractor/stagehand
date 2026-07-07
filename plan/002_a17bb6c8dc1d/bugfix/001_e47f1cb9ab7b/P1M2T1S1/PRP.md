@@ -36,10 +36,10 @@ both decode-parity oracles stay green (`builtinClaude()` == decoded `claudeTOML`
 ## Why
 
 - **PRD §19 / §11.5 / §17.6 / §22.1**: the stager agent is *sold* as "structurally constrained — it
-  cannot commit, amend, or push, because stagehand owns every ref mutation." The shipped claude
+  cannot commit, amend, or push, because stagecoach owns every ref mutation." The shipped claude
   `Bash(git:*)` allowlist does NOT deliver this: it permits **every** git subcommand.
 - A misbehaving claude stager could run `git commit`, `git push --force`, `git update-ref HEAD`, or
-  `git reset --hard HEAD~5` — breaking the ref-mutation monopoly that underpins Stagehand's safety model.
+  `git reset --hard HEAD~5` — breaking the ref-mutation monopoly that underpins Stagecoach's safety model.
 - The fix restricts the allowlist to `git add`/`git apply`/`git status`/`git diff` (+ `Read`/`Edit`),
   making ref mutation structurally unreachable for the claude stager. (Full root-cause + the three-pronged
   plan: `architecture/issue2_stager_toolset.md`.)
@@ -259,8 +259,8 @@ go test ./...    # Expected: all PASS. internal/decompose stager tests check len
 ### Level 4: Behavioral spot-check (proves the structural guarantee)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
-/tmp/stagehand providers show claude | grep -A3 tooled_flags
+go build -o /tmp/stagecoach ./cmd/stagecoach
+/tmp/stagecoach providers show claude | grep -A3 tooled_flags
 # Expect: --allowed-tools "Bash(git add:*,git apply:*,git status:*,git diff:*),Read,Edit" ...
 # (and NO "Bash(git:*)" anywhere in the output).
 grep -rn 'Bash(git:\*)' internal/provider/ providers/claude.toml   # Expected: ZERO matches (old value gone).

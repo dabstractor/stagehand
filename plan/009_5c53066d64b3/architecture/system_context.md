@@ -33,7 +33,7 @@ doc sync.
 | `MergeManifest` | `internal/provider/merge.go:28` (regime-1 scalars, ~:80) | Add `if override.SessionMode != nil { out.SessionMode = override.SessionMode }`. **A plain `*string` merges identically to every other scalar** — confirmed. |
 | `builtinPi()` | `internal/provider/builtin.go:30–96` | Add `SessionMode: strPtr("append")` with inline `// VERIFIED 2026-07-05 ... FR-T9` comment. `BareFlags` (line 60) contains `"--no-session"` — the flag the render variant must DROP. All other builtins ship absent (Resolve→`""`). |
 | `providers/pi.toml` | line ~34 | Add `session_mode = "append"` with the matching VERIFIED comment. |
-| Render variant | `internal/provider/render.go:89` | **Preferred: a sibling `RenderMultiTurn` method**, NOT a widened `Render` signature (24+ call sites across generate/hook/stagehand/decompose/stubtest would break). It reuses the §12.2 token pipeline but swaps the bare-flags block: filter out `"--no-session"`, append `"--session-id", sessionID`, keep `-p`, emit the system-prompt flag on turn 1 ONLY. Error if `*r.SessionMode != "append"` (capability gate, FR-T8/T9). |
+| Render variant | `internal/provider/render.go:89` | **Preferred: a sibling `RenderMultiTurn` method**, NOT a widened `Render` signature (24+ call sites across generate/hook/stagecoach/decompose/stubtest would break). It reuses the §12.2 token pipeline but swaps the bare-flags block: filter out `"--no-session"`, append `"--session-id", sessionID`, keep `-p`, emit the system-prompt flag on turn 1 ONLY. Error if `*r.SessionMode != "append"` (capability gate, FR-T8/T9). |
 
 **CRITICAL — no existing "drop a specific bare_flag" mechanism.** The renderer treats `BareFlags` as
 an opaque verbatim slice (`args = append(args, r.BareFlags...)`, render.go:135). The only precedent
@@ -65,7 +65,7 @@ explicitly accepts "follow whatever pattern auto_stage_all uses." Surface in `do
 |---|---|---|
 | Trigger gate | `internal/generate/generate.go:288` (the `if !success { return … &RescueError }` boundary) | Insert FR-T1 (a–d) gate BETWEEN the loop close (`:287`) and `if !success` (`:288`). All four conditions: (a) loop exhausted on empty/unparseable output (true at that point); (b) `EstimateTokens(payload) > cfg.MultiTurnChunkTokens`; (c) `cfg.MultiTurnFallback`; (d) `deps.Manifest.Resolve().SessionMode == "append"`. Any false → fall through to the EXISTING rescue (byte-identical). |
 | Chunker + protocol | NEW `internal/generate/multiturn.go` | `N = ceil(EstimateTokens(payload) / cfg.MultiTurnChunkTokens)`; split into N consecutive chunks ≤ budget; anchor each boundary FORWARD to the next newline (no fractured diff line); prefix each `"PART i/N:"` OUTSIDE the budget. |
-| N+1 turn protocol | `multiturn.go` | Mint session id `stagehand-<run-uuid>`. Turn 1: sys prompt (via flag) + priming preamble (verbatim w/ N) + chunk 1. Turns 2..N: `"PART i/N:"` + chunk i. Turn N+1: `"Now write the commit message…Output ONLY the message."`. Discard intermediate `ok`. Final stdout → existing `ParseOutput` + dedupe unchanged. |
+| N+1 turn protocol | `multiturn.go` | Mint session id `stagecoach-<run-uuid>`. Turn 1: sys prompt (via flag) + priming preamble (verbatim w/ N) + chunk 1. Turns 2..N: `"PART i/N:"` + chunk i. Turn N+1: `"Now write the commit message…Output ONLY the message."`. Discard intermediate `ok`. Final stdout → existing `ParseOutput` + dedupe unchanged. |
 | Per-turn execution | `provider.Execute(ctx, *spec, cfg.Timeout, deps.Verbose)` UNCHANGED | One `Execute` per turn; same `cfg.Timeout` per turn; total budget `timeout × (N+1)`. |
 | Failure handling (FR-T7) | `generate.go:288` | Any turn non-zero-exit (not timeout) / turn timeout / final-turn parse|dedupe failure → `return Result{}, &RescueError{Kind: ErrRescue, TreeSHA, ParentSHA, Candidate, Cause}` byte-identical to one-shot. Use `ErrRescue` (exit 3), NOT `ErrTimeout` (124) — `ErrTimeout` is reserved for the one-shot kill. |
 | Progress (FR-T5) | new one-liner at fallback time | `"falling back to multi-turn: N+1 turns, ~Mm total"` to stderr. `CommitStaged` does NOT print progress itself today (only `Deps.Progress` hook callback) — emit via `deps.Verbose` is insufficient (verbose is opt-in); a new stderr progress write or a new `Deps` callback is needed. |
@@ -84,7 +84,7 @@ for the literal "do not recompute" reading. The multi-turn payload is the UNTRUN
 
 The `internal/stubtest` stub-agent (`cmd/stubagent/main.go`) is env-var-driven and **already varies
 output per-invocation** via `NewScript(t, bin, []string{"ok","ok","feat: msg"})` (call-order indexed,
-clamps to last). `STAGEHAND_STUB_ARGSFILE` captures the rendered argv (NUL-joined) so a test can
+clamps to last). `STAGECOACH_STUB_ARGSFILE` captures the rendered argv (NUL-joined) so a test can
 ASSERT `--session-id <value>` is present and `--no-session` is absent on every turn. **This is
 sufficient** — the stub need not echo prior-turn content; the orchestrator's prompt builder
 re-sends it. `TestCommitStaged_DedupeRetryThenSuccess` (`generate_test.go:118`) is the canonical

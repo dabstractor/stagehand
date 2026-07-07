@@ -13,8 +13,8 @@
 
 A literal `diff` of `plan/005_c38aa48290f0/prd_snapshot.md` vs `PRD.md` yields five edits, all in service of a single feature:
 
-1. **§9.9 (Commit creation) — new FR52.** "Per-repo run lock." A commit-producing run acquires an exclusive, non-blocking lock scoped to the repo before snapshotting/generating, so two stagehand processes cannot race on HEAD (which would otherwise trip the §13.5 CAS and, on the duplicate-run path, surface the "already committed" message).
-2. **§18 (Concurrency) intro — one sentence added.** "At most one stagehand process may produce commits in a given repo at a time … a per-repo run lock (FR52 / §18.5) serializes concurrent invocations."
+1. **§9.9 (Commit creation) — new FR52.** "Per-repo run lock." A commit-producing run acquires an exclusive, non-blocking lock scoped to the repo before snapshotting/generating, so two stagecoach processes cannot race on HEAD (which would otherwise trip the §13.5 CAS and, on the duplicate-run path, surface the "already committed" message).
+2. **§18 (Concurrency) intro — one sentence added.** "At most one stagecoach process may produce commits in a given repo at a time … a per-repo run lock (FR52 / §18.5) serializes concurrent invocations."
 3. **§13.4 (Stage-while-generating) — one sentence added.** The single-process safety note, plus "the per-repo run lock makes that race impossible to stumble into."
 4. **§18.5 — new section (~24 lines).** The authoritative spec: scope, location (per-system runtime dir, never inside the repo), contents (pid/hostname/repo/timestamp/`snapshot=`), mechanism (advisory `flock`, `LOCK_EX|LOCK_NB`, auto-released on exit → no stale locks), contention behavior (no-op fast path + non-zero `Busy` exit naming the holder), and limits (per-host only; the CAS covers a shared filesystem).
 5. **Appendix F — one rejected-alternative entry.** "Run lock, not a run queue": explains why an auto-committing queue was rejected and records the depth-1 subtractive queue as a future possibility (out of scope).
@@ -35,7 +35,7 @@ A literal `diff` of `plan/005_c38aa48290f0/prd_snapshot.md` vs `PRD.md` yields f
 **Mechanism & location (prescribed by §18.5):**
 - `flock(2)` with `LOCK_EX | LOCK_NB` on `<hash>.lock`. Released automatically on process exit (incl. `SIGKILL`/crash) → **no stale locks, no PID-liveness heuristics.** This is a deliberate rejection of the `O_CREAT|O_EXCL`+PID-check pattern.
 - `<hash>` = `sha256` hex of the repo's **canonical absolute path**. Two repos → independent locks; two terminals in the same repo → contention (correct).
-- Location: `$XDG_RUNTIME_DIR/stagehand/locks/<hash>.lock` when set; else `$XDG_CACHE_HOME/stagehand/locks/`, falling back to `~/.cache/stagehand/locks/`. **Never inside the repo** (would pollute `git status`, be committable, be ambiguous across worktrees, lost on clone).
+- Location: `$XDG_RUNTIME_DIR/stagecoach/locks/<hash>.lock` when set; else `$XDG_CACHE_HOME/stagecoach/locks/`, falling back to `~/.cache/stagecoach/locks/`. **Never inside the repo** (would pollute `git status`, be committable, be ambiguous across worktrees, lost on clone).
 - Lock-file contents (one `key=value` per line): `pid`, `hostname`, `repo`, start `timestamp`, and `snapshot=<frozen-tree-sha>` once the holder freezes its snapshot. `pid`/`hostname`/`repo` are diagnostic (used by the contention message); `snapshot=` drives the no-op fast path. None of it is used for stale-lock reaping.
 
 ### 2.2 Modified requirements (note only — no re-implementation)
@@ -60,7 +60,7 @@ None.
 
 - **Depth-1 subtractive run queue** (auto-commit batch 2 via `diff(T1,T2)` with a disjoint-files precondition). Appendix F records it as a future possibility. **Do not build it.** Only the no-op-on-empty-delta fast path is adopted from the queue idea.
 - Shared-filesystem / cross-host mutual exclusion. The lock is per-host by design; the CAS covers that gap.
-- Serializing stagehand against *other* tools (editors, other coding agents). That is the snapshot/freeze boundary's job (FR-M1b), not the lock's.
+- Serializing stagecoach against *other* tools (editors, other coding agents). That is the snapshot/freeze boundary's job (FR-M1b), not the lock's.
 
 ---
 
@@ -90,7 +90,7 @@ Single milestone. No re-architecture; purely an additive concurrency layer over 
 **Task P1.M1.T1 — Lock primitive (`internal/lock` + `golang.org/x/sys`)**
 The location resolver, `flock`-based acquire/release, and lock-file contents read/write. Self-contained and unit-testable against temp files.
 - Add `golang.org/x/sys` to `go.mod`; use `unix.Flock(fd, unix.LOCK_EX|unix.LOCK_NB)` (auto-released when the fd/process closes — no stale-lock reaping).
-- Resolve `<hash>.lock` per §18.5: `XDG_RUNTIME_DIR/stagehand/locks/` → else `XDG_CACHE_HOME/stagehand/locks/` → else `~/.cache/stagehand/locks/`; `<hash>` = `sha256` hex of the repo's canonical absolute path (resolve symlinks to a stable path; two terminals in one repo must hash identically).
+- Resolve `<hash>.lock` per §18.5: `XDG_RUNTIME_DIR/stagecoach/locks/` → else `XDG_CACHE_HOME/stagecoach/locks/` → else `~/.cache/stagecoach/locks/`; `<hash>` = `sha256` hex of the repo's canonical absolute path (resolve symlinks to a stable path; two terminals in one repo must hash identically).
 - Lock-file contents writer/reader: `pid`, `hostname`, `repo`, start `timestamp`, and `snapshot=<frozen-tree-sha>` (the snapshot field is written *later*, after the holder freezes — expose a `SetSnapshot`/update path). Diagnostic fields only; never used for reaping.
 - *Docs (Mode A):* `docs/configuration.md` (lock-file location resolution); `docs/how-it-works.md` concurrency subsection (§18.5 spec — two-stage defense, per-host limit, never-in-repo rationale).
 - *Tests:* real `flock` contention in temp dirs; location resolution across the three env states; contents round-trip; auto-release across a forked/exited holder.
@@ -112,7 +112,7 @@ Depends on P1.M1.T1 and P1.M1.T2. The cross-cutting safety claim.
 
 ## 5. Acceptance
 
-- Two concurrent `stagehand` invocations on one repo: the loser exits `Busy` naming the holder; the winner commits normally.
+- Two concurrent `stagecoach` invocations on one repo: the loser exits `Busy` naming the holder; the winner commits normally.
 - An accidental double-run with nothing newly staged exits 0 ("nothing to do").
 - No lock file remains after any exit path (incl. `SIGKILL`) — `flock` auto-release verified.
 - Read-only subcommands and `--dry-run` never touch the lock.

@@ -274,7 +274,7 @@ This is byte-identical to the pre-multi-turn rescue (the same struct literal wou
 **Protocol** (comments L138-135 are extensive):
 
 - **(1)** Chunk the payload: `chunks := chunkPayload(payload, cfg.MultiTurnChunkTokens)` (L142); `N := len(chunks)` (L143).
-- **(2)** Mint session id: `sessionID := newSessionID()` (L145) — format `"stagehand-<32 hex>"` (L194-202), one-run-scope (FR-T6, never resumed).
+- **(2)** Mint session id: `sessionID := newSessionID()` (L145) — format `"stagecoach-<32 hex>"` (L194-202), one-run-scope (FR-T6, never resumed).
 - **(3)** Preamble: `preamble := fmt.Sprintf(preambleFmt, N)` (L148).
 - **(4) Turn 1**: system prompt + preamble + chunk 1.
   ```go
@@ -360,15 +360,15 @@ Gate at render.go:210-211:
 
 - `TestCommitStaged_MultiTurnRenderContract` (L46) — large staged file (≈600 tokens, N≥2 at chunkTokens=50). Asserts across ALL N+1 turns:
   - **(a)** commit lands (SHA hex, subject match, HEAD advanced, git log message match).
-  - **(b)** exactly 1 one-shot call + N+1 multi-turn calls; counter cross-check (`STAGEHAND_STUB_COUNTER == N+2`).
+  - **(b)** exactly 1 one-shot call + N+1 multi-turn calls; counter cross-check (`STAGECOACH_STUB_COUNTER == N+2`).
   - **(c)** every multi-turn turn carries `--session-id <stable-id>`; `--no-session` (BareFlags) absent on all multi-turn turns; id is STABLE across all turns (FR-T6).
   - **(d)** turn-1-only `--system` flag: exactly ONE multi-turn turn carries it (turn 1); turns 2..N+1 omit it. Asserted on multi-turn subset only (one-shot Render also emits `--system` — no turn gate).
-  - **Final-turn byte-exact argv** via `STAGEHAND_STUB_ARGSFILE` (holds only turn N+1).
+  - **Final-turn byte-exact argv** via `STAGECOACH_STUB_ARGSFILE` (holds only turn N+1).
 
 ### 8c. `generate_multiturn_failure_test.go` — failure/invariant integration
 
-- `assertMultiTurnRescue` helper (L58) — asserts the FULL FR-T7/idempotent invariant: `re.TreeSHA == frozen write-tree`, `ParentSHA == pre-run HEAD`, HEAD unchanged (atomic-HEAD), staged index unchanged (name-set + full diff), AND `STAGEHAND_STUB_COUNTER == wantCalls` (discriminator: 1=gate skipped Run, 2=gate fired + Run aborted at turn 1).
-- `TestCommitStaged_MultiTurnMidTurnFailureRescue` (L101) — (a) global `STAGEHAND_STUB_EXIT=1` ⇒ one-shot exits 1 but stdout "" ⇒ parse-fail ⇒ exhaust ⇒ gate fires ⇒ Run turn-1 exits 1 ⇒ abort ⇒ rescue. Counter==2. `re.Cause != nil` (the wrapped `*exec.ExitError` supersedes one-shot's lastCause).
+- `assertMultiTurnRescue` helper (L58) — asserts the FULL FR-T7/idempotent invariant: `re.TreeSHA == frozen write-tree`, `ParentSHA == pre-run HEAD`, HEAD unchanged (atomic-HEAD), staged index unchanged (name-set + full diff), AND `STAGECOACH_STUB_COUNTER == wantCalls` (discriminator: 1=gate skipped Run, 2=gate fired + Run aborted at turn 1).
+- `TestCommitStaged_MultiTurnMidTurnFailureRescue` (L101) — (a) global `STAGECOACH_STUB_EXIT=1` ⇒ one-shot exits 1 but stdout "" ⇒ parse-fail ⇒ exhaust ⇒ gate fires ⇒ Run turn-1 exits 1 ⇒ abort ⇒ rescue. Counter==2. `re.Cause != nil` (the wrapped `*exec.ExitError` supersedes one-shot's lastCause).
 - `TestCommitStaged_MultiTurnSmallPayloadSkip_RescueInvariant` (L135) — (b) tiny diff + default chunkTokens=32000 ⇒ condition (b) false ⇒ gate skips Run ⇒ existing rescue. Counter==1.
 - `TestCommitStaged_MultiTurnNonAppendSkip_RescueInvariant` (L153) — (d) SessionMode unset (raw `stubtest.NewScript`, SessionMode nil) + large payload ⇒ condition (d) false ⇒ gate skips Run silently ⇒ existing rescue. Counter==1.
 
@@ -504,7 +504,7 @@ This is a research/scouting task: read-only investigation, no code changes. The 
     "Per-chunk token estimate is absent from verbose output (L332-341) — flagged as a known gap per the task brief; propagation should decide whether to add it."
   ],
   "noStagedFiles": true,
-  "diffSummary": "No diff. Findings written to /home/dustin/projects/stagehand/.pi-subagents/artifacts/outputs/9ac638be/plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/research_commitstaged_reference.md and progress to progress.md. No source files in the repo were modified.",
+  "diffSummary": "No diff. Findings written to /home/dustin/projects/stagecoach/.pi-subagents/artifacts/outputs/9ac638be/plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/architecture/research_commitstaged_reference.md and progress to progress.md. No source files in the repo were modified.",
   "reviewFindings": [
     "no blockers — read-only research task complete"
   ],

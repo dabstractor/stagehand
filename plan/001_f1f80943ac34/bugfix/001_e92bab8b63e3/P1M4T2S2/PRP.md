@@ -81,7 +81,7 @@ the notice IS present when n=2).
 - [ ] Test asserts: exit code == `exitcode.NothingToCommit` (2).
 - [ ] Test asserts: `err.Error()` contains "Nothing to commit." (the main-printed message survives).
 - [ ] Test asserts: stderr does NOT contain the substring "staging all changes" (the Issue 7 fix).
-- [ ] Test asserts: HEAD unchanged (last commit subject still "init: add stagehand config").
+- [ ] Test asserts: HEAD unchanged (last commit subject still "init: add stagecoach config").
 - [ ] Test uses the standard `saveRootState`/`restoreRootState` + `setupStubRepo` harness.
 - [ ] `TestRunDefault_AutoStageNotice_FR18` and `TestRunDefault_NothingStaged_FR17` stay GREEN + unchanged.
 - [ ] No production files modified (test-only).
@@ -119,7 +119,7 @@ clean-tree setup (`setupStubRepo` with everything committed), the exact assertio
             // ... assertions on err, exitcode.For(err), outBuf, errBuf, git log ...
         }
   gotcha: |
-    setupStubRepo(t, stubOut) creates a temp git repo, writes+COMMITS a .stagehand.toml pointing at the
+    setupStubRepo(t, stubOut) creates a temp git repo, writes+COMMITS a .stagecoach.toml pointing at the
     stub binary, and chdirs into it. Because the config is committed, a repo straight from setupStubRepo
     with NO further writeFile/stageFile is a FULLY CLEAN tree — exactly the Issue 7 scenario. Do NOT add
     any writeFile/stageFile calls (that would make the tree dirty and defeat the test).
@@ -214,7 +214,7 @@ No new files. No new packages. No production-code edits. No config/schema/migrat
 //   deliverable is the DEDICATED test (the contract's "or add a dedicated test" alternative). Do not
 //   touch the existing in-line assertion in …_FR17; leave it as an extra guard.
 
-// GOTCHA: setupStubRepo(t, stubOut) COMMITS the .stagehand.toml, so a repo straight from it with NO
+// GOTCHA: setupStubRepo(t, stubOut) COMMITS the .stagecoach.toml, so a repo straight from it with NO
 //   further writeFile/stageFile is a CLEAN tree. Adding any writeFile/stageFile would make the tree
 //   dirty and break the test (the notice WOULD then correctly print for n>0). The Issue 7 scenario
 //   requires the tree to be clean — so arrange NOTHING after setupStubRepo.
@@ -262,7 +262,7 @@ Task 1: MODIFY internal/cmd/default_action_test.go — append the dedicated Issu
             origArgs, origOut, origErr, origRunE := saveRootState(t)
             defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
 
-            // setupStubRepo COMMITS .stagehand.toml, so with NO further writeFile/stageFile the tree is
+            // setupStubRepo COMMITS .stagecoach.toml, so with NO further writeFile/stageFile the tree is
             // fully clean — exactly the Issue 7 scenario (nothing to auto-stage).
             repo := setupStubRepo(t, "feat: x")
 
@@ -293,8 +293,8 @@ Task 1: MODIFY internal/cmd/default_action_test.go — append the dedicated Issu
             }
 
             // HEAD unchanged — last commit is still the config commit from setupStubRepo.
-            if logMsg := gitOut(t, repo, "log", "--format=%s", "-n1"); logMsg != "init: add stagehand config" {
-                t.Errorf("HEAD moved to %q, want 'init: add stagehand config'", logMsg)
+            if logMsg := gitOut(t, repo, "log", "--format=%s", "-n1"); logMsg != "init: add stagecoach config" {
+                t.Errorf("HEAD moved to %q, want 'init: add stagecoach config'", logMsg)
             }
         }
 
@@ -336,7 +336,7 @@ Task 1: MODIFY internal/cmd/default_action_test.go — append the dedicated Issu
 //   if exitcode.For(err) != exitcode.NothingToCommit { t.Errorf(...) }   // == 2
 //   if !strings.Contains(err.Error(), "Nothing to commit.") { ... }     // message survives
 //   if strings.Contains(stderr, "staging all changes") { t.Errorf(...) } // Issue 7 regression
-//   if gitOut(...,"log","--format=%s","-n1") != "init: add stagehand config" { ... } // HEAD pinned
+//   if gitOut(...,"log","--format=%s","-n1") != "init: add stagecoach config" { ... } // HEAD pinned
 ```
 
 ### Integration Points
@@ -385,20 +385,20 @@ go test -race ./...
 
 ```bash
 # Build the binary
-make build    # → ./bin/stagehand
+make build    # → ./bin/stagecoach
 
 # Reproduce the Issue 7 scenario on a clean tree via the real binary (positive proof the fix + test align):
 cd "$(mktemp -d)" && git init -q && git config user.email t@t && git config user.name t \
   && git commit -q --allow-empty -m "init"
 # Clean tree. Run with any provider (auto_stage_all default = true):
-./bin/stagehand --provider stub 2>err.txt ; echo "exit=$?"
+./bin/stagecoach --provider stub 2>err.txt ; echo "exit=$?"
 # AFTER the fix: err.txt contains ONLY "Nothing to commit." (NO "staging all changes (0 files).").
 grep -c "staging all changes" err.txt   # Expected: 0  (the property the new test locks in)
 grep -c "Nothing to commit"    err.txt   # Expected: >=1
 # exit=2. HEAD unchanged: git log --format=%s -n1 == "init".
 
 # Positive control (the n>0 notice still prints verbatim on a dirty tree — guards against over-fixing):
-echo x > a.txt && ./bin/stagehand --provider stub 2>err2.txt
+echo x > a.txt && ./bin/stagecoach --provider stub 2>err2.txt
 grep -c "staging all changes (1 files)" err2.txt   # Expected: 1  (FR18 notice survives for n>0)
 ```
 
@@ -437,7 +437,7 @@ make coverage    # informational; Expected: no regression in internal/{git,provi
 - [ ] It asserts exit code == `exitcode.NothingToCommit` (2)
 - [ ] It asserts `err.Error()` contains "Nothing to commit."
 - [ ] It asserts stderr does NOT contain "staging all changes"
-- [ ] It asserts HEAD unchanged (last commit == "init: add stagehand config")
+- [ ] It asserts HEAD unchanged (last commit == "init: add stagecoach config")
 - [ ] `TestRunDefault_AutoStageNotice_FR18` (n=2 notice) stays GREEN + unchanged
 - [ ] `TestRunDefault_NothingStaged_FR17` stays GREEN (S1's in-line assertion left in place)
 - [ ] Level 4 negative-control: reverting S1's `if n == 0` guard makes the new test FAIL (true guard)

@@ -8,7 +8,7 @@ description: |
   takes `runArbiter`'s target decision (P3.M3.T1.S1 — `prompt.ArbiterOutput.Target`, nil⇒new /
   &sha⇒amend) plus the parallel `[]CommitInfo` + `[]ChainEntry` arrays built this run, and reconciles
   the leftover working-tree changes so `git status` is clean. It dispatches to ONE of three pure
-  git-plumbing paths — ALL git owned by stagehand (FR-M10); the arbiter only decided:
+  git-plumbing paths — ALL git owned by stagecoach (FR-M10); the arbiter only decided:
 
     (A) null / new → resolveNewCommit: AddAll → WriteTree → generateMessage (REUSED from P3.M2.T4.S1;
         concept diff = the leftovers) → CommitTree → UpdateRefCAS. Lands an (N+1)-th commit.
@@ -91,7 +91,7 @@ description: |
       decision as a PARAMETER. No caller wiring in this task.
     - internal/signal/* — DO NOT IMPORT. resolveArbiter is SIGNAL-FREE (a synchronous resolution
       primitive; the orchestrator P3.M4.T1.S2/S4 owns signal arming).
-    - cmd/, pkg/stagehand/ — UNCHANGED.
+    - cmd/, pkg/stagecoach/ — UNCHANGED.
 
   DELIVERABLES (4 git changes: 1 NEW file + 1 NEW test in decompose; 1 EDIT + 1 NEW test in git):
     CREATE internal/decompose/chain.go — package `decompose`; `ErrArbiterResolutionFailed` sentinel;
@@ -132,7 +132,7 @@ this run) and reconciles the leftover working-tree changes via pure git plumbing
 clean afterward. It dispatches to one of three deterministic paths — new (N+1)-th commit (null), tip
 plumbing-amend (target==tip), or mid-chain linear rebuild (target==earlier) — ALL of which build commits
 from frozen trees via `commit-tree` and move HEAD via a single CAS `update-ref` (refs move ONLY at the
-final UpdateRefCAS per §18.1). Stagehand performs ALL git; the arbiter only decided (FR-M10).
+final UpdateRefCAS per §18.1). Stagecoach performs ALL git; the arbiter only decided (FR-M10).
 
 **Deliverable** (4 git changes across 2 packages):
 1. `internal/decompose/chain.go` (NEW) — `ErrArbiterResolutionFailed`; `type ChainEntry struct { SHA,
@@ -179,15 +179,15 @@ final UpdateRefCAS per §18.1). Stagehand performs ALL git; the arbiter only dec
   (ReadTree/StatusPorcelain/WriteTree/CommitTree/UpdateRefCAS — P1/P2), and the `generate` typed-error
   family (RescueError/CASError — so the orchestrator's existing error handling works unchanged). It is
   the RESOLUTION half of P3.M3; the orchestrator (P3.M4.T1.S1) wires runArbiter → resolveArbiter.
-- **Problems this solves and for whom**: the plan-holder persona (§7.1) runs `stagehand` expecting a
+- **Problems this solves and for whom**: the plan-holder persona (§7.1) runs `stagecoach` expecting a
   clean history with no leftover noise. The mid-chain rebuild is the hard part: it lets the arbiter
   attribute leftovers to an EARLIER commit (not just the tip or a new commit) WITHOUT an interactive
-  rebase — deterministically, via the plumbing stagehand already owns.
+  rebase — deterministically, via the plumbing stagecoach already owns.
 
 ## What
 
 **User-visible behavior**: after a multi-commit decomposition run, if the arbiter ran (working tree was
-non-empty after the loop) and decided where the leftovers belong, stagehand performs all git to make it
+non-empty after the loop) and decided where the leftovers belong, stagecoach performs all git to make it
 so. The user sees a clean working tree (`git status` empty) and a history where the leftovers landed in
 exactly one place: a brand-new (N+1)-th commit, a plumbing-amended tip, or a mid-chain fold into an
 earlier commit (which deterministically rebuilds that commit and every one after it). HEAD only ever

@@ -29,10 +29,10 @@ and `load.go` will not compile.
 typed provider-manifest map (`Providers` is `map[string]map[string]any`, `toml:"-"`, S2-owned).
 Therefore arch §2.6–2.8 code MUST NOT be copied verbatim. Two concrete divergences:
 
-- **Env var NAMES.** arch §2.6 invents `STAGEHAND_DEFAULT_PROVIDER`, `STAGEHAND_DEFAULT_MODEL`. The
-  AUTHORITATIVE names are PRD §15.2 / FR35 (also the contract): `STAGEHAND_PROVIDER`,
-  `STAGEHAND_MODEL`, `STAGEHAND_TIMEOUT`, `STAGEHAND_CONFIG`, `STAGEHAND_VERBOSE`,
-  `STAGEHAND_NO_COLOR`. Use the PRD names.
+- **Env var NAMES.** arch §2.6 invents `STAGECOACH_DEFAULT_PROVIDER`, `STAGECOACH_DEFAULT_MODEL`. The
+  AUTHORITATIVE names are PRD §15.2 / FR35 (also the contract): `STAGECOACH_PROVIDER`,
+  `STAGECOACH_MODEL`, `STAGECOACH_TIMEOUT`, `STAGECOACH_CONFIG`, `STAGECOACH_VERBOSE`,
+  `STAGECOACH_NO_COLOR`. Use the PRD names.
 - **Flag overlay targets.** arch §2.7 sets `cfg.Provider[cfg.Defaults.Provider].Model` (typed
   manifest). S4 sets the flat `cfg.Model` string only. No provider-manifest mutation in S4
   (manifests are P1.M2.T1; `Config.Providers` raw map is populated ONLY by S2's TOML loader).
@@ -49,27 +49,27 @@ exactly this limitation** for the two highest layers:
 
 - **Env (layer 5)** and **CLI flags (layer 7)** do NOT build a partial `*Config` + `overlay()`. They
   set `Config` fields DIRECTLY on the target: env when the var is PRESENT (`os.LookupEnv` / non-empty),
-  flags when `flags.Changed(name)`. So `STAGEHAND_VERBOSE=false` and `--no-color` (explicitly false
+  flags when `flags.Changed(name)`. So `STAGECOACH_VERBOSE=false` and `--no-color` (explicitly false
   meaning) correctly produce `Verbose=false` / `NoColor=false` after Load. This is the documented
   "force false via env/CLI" escape hatch from S2/S3 — S4 is where it lands.
 
 Implication: `loadEnv`/`loadFlags` mutate `*Config` in place; they are NOT pure overlay-partial
 builders. `loadGitConfig`/`loadTOML` (layers 2–4) remain partial-`*Config` + `overlay()`.
 
-## FINDING 4 — `STAGEHAND_CONFIG` controls the global FILE PATH, not a layer-5 value.
+## FINDING 4 — `STAGECOACH_CONFIG` controls the global FILE PATH, not a layer-5 value.
 
-PRD §15.2: both `--config` and `STAGEHAND_CONFIG` mean "Path to a config file (overrides discovery)."
+PRD §15.2: both `--config` and `STAGECOACH_CONFIG` mean "Path to a config file (overrides discovery)."
 They select WHICH file becomes layer 2 — they are NOT a value overlay. Precedence for the path
-itself: `--config` (CLI, carried in `opts.ConfigPathOverride`) > `STAGEHAND_CONFIG` (env) > discovery
+itself: `--config` (CLI, carried in `opts.ConfigPathOverride`) > `STAGECOACH_CONFIG` (env) > discovery
 (`globalConfigPath()`). S4 resolves this at the TOP of `Load`, then layers 2–4 load. `loadEnv` does
-NOT touch `STAGEHAND_CONFIG` as a value (it's consumed for the path). `loadFlags` does NOT touch
+NOT touch `STAGECOACH_CONFIG` as a value (it's consumed for the path). `loadFlags` does NOT touch
 `config` (the caller — cobra PersistentPreRunE, P1.M4.T1.S1 — populates `opts.ConfigPathOverride`
 from the `--config` flag; S4 just honors it).
 
 ## FINDING 5 — `loadRepoLocalConfig()` (S2) reads CWD; `opts.RepoDir` feeds ONLY `loadGitConfig`.
 
 S2's `loadRepoLocalConfig()` is frozen: signature `func loadRepoLocalConfig() (*Config, error)`,
-reads `.stagehand.toml` RELATIVE TO CWD, and emits the §19 provider-redirect notice to stderr. It
+reads `.stagecoach.toml` RELATIVE TO CWD, and emits the §19 provider-redirect notice to stderr. It
 takes NO `repoDir`. S4 calls it AS-IS (no S2 modification — S2 is COMPLETE). `opts.RepoDir` is passed
 to `loadGitConfig(opts.RepoDir)` only. In normal operation CWD == repoDir (PRD §11.2: process CWD =
 repo root), so the two coincide; tests that exercise the repo-local layer use `os.Chdir` into a temp
@@ -82,10 +82,10 @@ Contract: `Load(ctx, opts LoadOpts) (*Config, error)`. `loadTOML`, `loadRepoLoca
 internally. S4 honors `ctx` minimally: a single `ctx.Err()` check at entry (cancellation requested →
 bail early). It is the seam for a future ctx-aware loader variant; not a full cancellation thread.
 
-## FINDING 7 — timeout dual-form parse for `STAGEHAND_TIMEOUT`.
+## FINDING 7 — timeout dual-form parse for `STAGECOACH_TIMEOUT`.
 
 Contract: "For timeout, parse `120s` / integer seconds." S2's TOML layer uses `time.ParseDuration`
-(`"120s"`); S3's git layer uses `strconv.Atoi`→seconds (`90`). `STAGEHAND_TIMEOUT` (env, a raw string)
+(`"120s"`); S3's git layer uses `strconv.Atoi`→seconds (`90`). `STAGECOACH_TIMEOUT` (env, a raw string)
 may legally be EITHER form. S4 adds a shared `parseTimeout(s) (time.Duration, error)`:
 1. `time.ParseDuration(s)` first — handles `"120s"`, `"2m"`, `"1h30m"`.
 2. on error, `strconv.Atoi(s)` → `time.Duration(n) * time.Second` — handles bare `"120"`.
@@ -116,15 +116,15 @@ Per PRD §15.2 the global flags are `--provider --model --config --timeout --all
 `config` is consumed for the path (FINDING 4). The behavioral flags `--all/-a`, `--no-auto-stage`,
 `--dry-run`, `--version`, `--help/-h` are CLI control-flow handled in the command layer (P1.M4.T1/T4),
 NOT Config fields — S4 ignores them. `NoColor` is the one field that is `toml:"-"` (excluded from the
-file/git layers by S1/S2/S3) but IS settable via env (`STAGEHAND_NO_COLOR`, layer 5) and CLI
+file/git layers by S1/S2/S3) but IS settable via env (`STAGECOACH_NO_COLOR`, layer 5) and CLI
 (`--no-color`, layer 7) — S4 is where `NoColor` first becomes config-resolvable (the UI layer
 P1.M4.T3.S1 makes it TTY-aware at runtime; S4 just resolves the configured value).
 
 ## FINDING 10 — env-var values and the bool parse.
 
 `os.LookupEnv` distinguishes "unset" from "set-to-empty". PRD §15.2 env vars are PRESENCE-semantic
-(`STAGEHAND_PROVIDER` present = override). For strings use non-empty check (`os.Getenv("X") != ""`).
-For bools (`STAGEHAND_VERBOSE`, `STAGEHAND_NO_COLOR`) use `strconv.ParseBool` on the value
+(`STAGECOACH_PROVIDER` present = override). For strings use non-empty check (`os.Getenv("X") != ""`).
+For bools (`STAGECOACH_VERBOSE`, `STAGECOACH_NO_COLOR`) use `strconv.ParseBool` on the value
 (accepts `1/0/t/f/T/F/true/false/TRUE/FALSE/...`); a present-but-unparseable bool is a wrapped load
-error (fail at load, consistent with S2/S3's timeout/parse stance). Empty-string env (`STAGEHAND_VERBOSE=`
+error (fail at load, consistent with S2/S3's timeout/parse stance). Empty-string env (`STAGECOACH_VERBOSE=`
 with nothing) is treated as "not set" (skip) to match the string convention.

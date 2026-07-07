@@ -1,8 +1,8 @@
-# Research: Git CLI semantics for diff-payload optimization (Stagehand)
+# Research: Git CLI semantics for diff-payload optimization (Stagecoach)
 
 > **Scope.** Authoritative facts on six `git diff` topics needed to implement a "diff payload
 > optimization" feature: `-M` rename detection, `-U<n>` context lines, `--numstat`, the
-> `index` line, token estimation, and water-fill truncation. Grounded in Stagehand's actual
+> `index` line, token estimation, and water-fill truncation. Grounded in Stagecoach's actual
 > architecture (snapshot plumbing, `max_diff_bytes=300000`, tree-to-tree concept diffs in the
 > decompose pipeline, binary `[binary]`/`[excluded]` placeholders).
 
@@ -132,7 +132,7 @@ also configurable via `diff.context`. `n` may be any non-negative integer.
 ### Composes with `--cached` and tree-to-tree
 Confirmed: `-U0`/`-U1` work identically with the staged diff and with tree-to-tree comparisons.
 `git diff --cached -U1`, `git diff --cached -U0`, and `git diff -U0 <treeA> <treeB>` are all
-valid and behave as specified. This matters for Stagehand's decompose pipeline, where
+valid and behave as specified. This matters for Stagecoach's decompose pipeline, where
 `message[i]` reasons over `diff(tree[i-1], tree[i])`.
 
 ### Verification commands
@@ -313,7 +313,7 @@ Abbreviation behavior: git ≥ 2.11 auto-scales abbreviation based on repo size 
 **~4 characters ≈ 1 token** for English-ish text is the standard, well-documented rule of thumb
 (originating from OpenAI's tokenizer guidance: "~4 characters per token", "~100 tokens ≈ 75
 words"). A **character-based estimate is the standard model-agnostic approach** when you do not
-have a specific tokenizer available — which is exactly Stagehand's situation, since it shells out
+have a specific tokenizer available — which is exactly Stagecoach's situation, since it shells out
 to an arbitrary CLI agent whose tokenizer it never loads.
 
 ### Calibration & caveats
@@ -322,7 +322,7 @@ to an arbitrary CLI agent whose tokenizer it never loads.
   **~3 chars/token** (i.e., code is slightly *more* token-dense than the prose heuristic).
   `git diff` output is mostly code, so expect ~3–4 chars/token.
 - **Whitespace/newlines:** tokenized (a newline or run of spaces costs tokens).
-- **Non-Latin (CJK, etc.):** denser — often ~1–2 chars/token — but Stagehand's diff payload is
+- **Non-Latin (CJK, etc.):** denser — often ~1–2 chars/token — but Stagecoach's diff payload is
   dominated by ASCII code/paths.
 
 **Recommendation for budgeting:** use `tokens ≈ chars / 4` as the model-agnostic estimate, but
@@ -418,7 +418,7 @@ char/token estimate (§5) for the budget unit.
    file's captured patch to its allotment (e.g. first/last N hunks + a `…truncated…` marker).
 
 All six are independent, additive optimizations that compose without conflict and respect
-Stagehand's existing invariants (payload-only; the committed content is unaffected — only what
+Stagecoach's existing invariants (payload-only; the committed content is unaffected — only what
 the model *sees* is shrunk, exactly like the `[binary]`/`[excluded]` placeholders).
 
 ---
@@ -436,7 +436,7 @@ the model *sees* is shrunk, exactly like the `[binary]`/`[excluded]` placeholder
 - **Dropped:** SEO-heavy "how to read a git diff" blog posts — no primary value over the man
   page; excluded to avoid format drift.
 - **Dropped:** provider-specific tokenizer libraries (tiktoken, etc.) — the feature must be
-  model-agnostic (Stagehand never loads a tokenizer), so they are out of scope for §5.
+  model-agnostic (Stagecoach never loads a tokenizer), so they are out of scope for §5.
 
 ## Gaps
 

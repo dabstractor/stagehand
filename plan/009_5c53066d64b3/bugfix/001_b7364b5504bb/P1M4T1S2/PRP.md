@@ -6,11 +6,11 @@ description: |
   multi-turn gate to all three generation loops, the README.md Features-table "Multi-turn fallback" row
   (line 68) is reviewed for whether it implies commit-path-only. This is a CONDITIONAL task: the contract
   (item_description §3) says "If the existing wording is already generic enough to cover all paths (it
-  says 'stagehand' generically, not 'the commit path'), no change may be needed — document that decision
+  says 'stagecoach' generically, not 'the commit path'), no change may be needed — document that decision
   in a brief comment and leave the row unchanged. If the wording implies commit-path-only, update it."
 
   DECISION (research/design-decisions.md §0–§3): the row is ALREADY generic enough. Its subject is
-  "stagehand" (the tool), not "the commit path"; it never says "on the commit path / when committing /
+  "stagecoach" (the tool), not "the commit path"; it never says "on the commit path / when committing /
   snapshot / commit-tree / HEAD". The one commit-flavored phrase — "no extra commits" — is a UNIVERSALLY-
   TRUE anti-misconception note (multi-turn yields ONE message/commit delivered across turns, not N),
   accurate on all three paths (commit / --dry-run / hook). The authoritative docs-sync analysis
@@ -32,15 +32,15 @@ description: |
       after "lands") + the same comment. Do NOT enumerate paths in the row; do NOT add a sentence.
 
   CONTRACT (item_description §3–§5):
-    - §3: review README.md:68; if generic enough (says "stagehand" not "the commit path"), no change —
+    - §3: review README.md:68; if generic enough (says "stagecoach" not "the commit path"), no change —
       document in a brief comment; if commit-path-only, update to cover commit / --dry-run / hook. Keep
       changes minimal; README is high-level, not path-by-path. Do NOT add new sections.
     - §4 OUTPUT: "README.md features row accurately reflects multi-turn coverage. If no change was needed,
       that decision is documented."
     - §5: "This IS the documentation task (Mode B). No further docs subtask needed."
 
-  SCOPE NOTE (the row is generic; §0/§1): the contract's own no-change criterion ("it says 'stagehand'
-    generically, not 'the commit path'") is SATISFIED — the row's subject is "stagehand". research §5c
+  SCOPE NOTE (the row is generic; §0/§1): the contract's own no-change criterion ("it says 'stagecoach'
+    generically, not 'the commit path'") is SATISFIED — the row's subject is "stagecoach". research §5c
     (the authoritative docs-sync implications list) names how-it-works.md + configuration.md but NOT
     README.md ⇒ the auditor did not consider the row stale.
 
@@ -55,7 +55,7 @@ description: |
     minimal-edit Mode-B docs task.
 
   INPUT (upstream — already built): the multi-turn gate on all three paths (P1.M2.T1.S2 dry-run at
-    pkg/stagehand/stagehand.go:555; P1.M3.T1.S2 hook at internal/hook/exec.go:215; CommitStaged at
+    pkg/stagecoach/stagecoach.go:555; P1.M3.T1.S2 hook at internal/hook/exec.go:215; CommitStaged at
     internal/generate/generate.go:304). P1.M4.T1.S1 (parallel) updates docs/how-it-works.md to state the
     three-paths coverage explicitly. OUTPUT: the README features row is accurate (generic + the decision
     documented); no stale README claim remains.
@@ -75,7 +75,7 @@ description: |
 
 **Feature Goal**: Ensure the README.md Features-table "Multi-turn fallback" row accurately reflects that
 multi-turn runs on every generation path (snapshot commit / `--dry-run` / git hook) — by applying the
-contract's conditional decision: the row is ALREADY generic enough (subject = "stagehand", not "the commit
+contract's conditional decision: the row is ALREADY generic enough (subject = "stagecoach", not "the commit
 path"), so leave the row text byte-unchanged and document the decision in a brief source comment. The
 path-by-path detail is carried by the linked docs/how-it-works.md section (which P1.M4.T1.S1 updates to
 state the three paths explicitly).
@@ -98,8 +98,8 @@ go test ./...` green and unchanged (Mode B — no code touched).
 ## User Persona
 
 **Target User**: The README reader (PRD §7.1 "the plan-holder") scanning the Features table to decide
-whether multi-turn helps them — on a `stagehand` snapshot commit, a `stagehand --dry-run`, or a `git commit`
-via the installed hook. After this sync (primary path), the row reads generically ("stagehand") and points
+whether multi-turn helps them — on a `stagecoach` snapshot commit, a `stagecoach --dry-run`, or a `git commit`
+via the installed hook. After this sync (primary path), the row reads generically ("stagecoach") and points
 to a how-it-works.md section that explicitly covers all three paths; no reader concludes multi-turn is
 commit-path-only.
 
@@ -139,7 +139,7 @@ files, no new README sections, no path enumeration in the row.
 - [ ] **FALLBACK** (if taken): the ONLY row-text change is the insertion of ` on any generation path`
       immediately after "lands" (4 words); no other row text, link, or table structure changed; the
       comment is also present.
-- [ ] The comment states: the row is intentionally generic ("stagehand", not "the commit path"); multi-turn
+- [ ] The comment states: the row is intentionally generic ("stagecoach", not "the commit path"); multi-turn
       covers all three paths (snapshot commit / `--dry-run` / hook); the per-path detail lives in the linked
       docs/how-it-works.md section; "no extra commits" is an accurate anti-misconception note.
 - [ ] The comment is NOT inside the Markdown table (it would break rendering) — it is in the table→`## Install` gap.
@@ -162,7 +162,7 @@ wording, and the LEAVE list (don't touch other docs / code). No multi-turn-inter
 ```yaml
 # MUST READ — the AUTHORITATIVE design decisions
 - docfile: plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/P1M4T1S2/research/design-decisions.md
-  why: the 6 decisions. §0 (the row says "stagehand" generically ⇒ the contract's no-change criterion is
+  why: the 6 decisions. §0 (the row says "stagecoach" generically ⇒ the contract's no-change criterion is
        MET — verbatim row + per-phrase path-specificity table), §1 (research §5c does NOT flag the README
        row ⇒ the auditor didn't consider it stale), §2 (README = high-level POINTER; how-it-works.md carries
        the path detail — S1 adds the "three paths" sentence THERE), §3 (PRIMARY: comment only, exact text +
@@ -197,7 +197,7 @@ wording, and the LEAVE list (don't touch other docs / code). No multi-turn-inter
 - file: README.md   (EDIT; the ONLY file)
   section: the "## Features" table, row 2 ("Multi-turn fallback", ~line 68). Verbatim current text:
            "| Multi-turn fallback | Lossless multi-turn fallback: when a one-shot generation of a large diff
-           fails, stagehand re-delivers the full diff across session turns so the message still lands — no
+           fails, stagecoach re-delivers the full diff across session turns so the message still lands — no
            truncation, no extra commits ([how it works](docs/how-it-works.md#multi-turn-generation-fallback)
            · [knobs](docs/configuration.md#built-in-defaults)). |"
            The table ends at the "| Discovery | … |" row, followed by a BLANK line, then "## Install".
@@ -209,8 +209,8 @@ wording, and the LEAVE list (don't touch other docs / code). No multi-turn-inter
 
 # Confirms the three-paths reality (grounds the comment's coverage claim)
 - note: "the FR-T1 multi-turn gate lives at internal/generate/generate.go:304 (CommitStaged),
-         pkg/stagehand/stagehand.go:555 (runPipeline / --dry-run), and internal/hook/exec.go:215 (hook.Run).
-         All three paths have it ⇒ the row's generic 'stagehand' wording covers all three."
+         pkg/stagecoach/stagecoach.go:555 (runPipeline / --dry-run), and internal/hook/exec.go:215 (hook.Run).
+         All three paths have it ⇒ the row's generic 'stagecoach' wording covers all three."
 
 - url: (Bug-Fix PRD §h2.0 Overview + §h2.3 Minor Issues / Issue 2 — in context as selected_prd_content;
        also plan/009…/bugfix/001_b7364b5504bb/prd_snapshot.md.)
@@ -243,7 +243,7 @@ docs/README.md         # READ ONLY (docs index; no multi-turn capability line �
 
 ```markdown
 <!-- CRITICAL (PRIMARY path = NO row-text change, design §0/§3): the contract's no-change criterion ("it
-     says 'stagehand' generically, not 'the commit path'") is MET — the row's subject is "stagehand". Do NOT
+     says 'stagecoach' generically, not 'the commit path'") is MET — the row's subject is "stagecoach". Do NOT
      change the row text on the primary path. Add ONLY the <!-- --> comment. "Improving" the row by
      enumerating paths violates "not a path-by-path reference" (§2). -->
 
@@ -285,8 +285,8 @@ docs/README.md         # READ ONLY (docs index; no multi-turn capability line �
 Task 1: REVIEW README.md:68 (the "Multi-turn fallback" row) — apply the decision
   - OPEN README.md; locate the "## Features" table; find the "Multi-turn fallback" row (~line 68). Read its
       full text (quoted verbatim in "Documentation & References" / research §5b).
-  - APPLY the contract's criterion (§3): does the row say "stagehand" generically (not "the commit path")?
-      — YES. Does it enumerate or imply a single path? — NO (the subject is "stagehand"; "no extra commits"
+  - APPLY the contract's criterion (§3): does the row say "stagecoach" generically (not "the commit path")?
+      — YES. Does it enumerate or imply a single path? — NO (the subject is "stagecoach"; "no extra commits"
       is an anti-misconception note, not a scoping claim — §0). ⇒ PRIMARY path: NO row-text change.
   - DECISION: take the PRIMARY path (Task 2). Take the FALLBACK (Task 3) ONLY if you (or a reviewer) judge
       "so the message still lands — no extra commits" reads as commit-path-only despite §0.
@@ -295,7 +295,7 @@ Task 2: PRIMARY — add the decision comment in the Features-table→## Install 
   - LOCATE the blank line BETWEEN the end of the Features table (the "| Discovery | … |" row) and the
       "## Install" header.
   - INSERT (in that blank-line gap) this comment, verbatim:
-      <!-- Multi-turn fallback (Features row above): intentionally generic — "stagehand" re-delivers, NOT
+      <!-- Multi-turn fallback (Features row above): intentionally generic — "stagecoach" re-delivers, NOT
            "the commit path". Multi-turn runs on EVERY generation path (snapshot commit, `--dry-run`, hook
            mode); the per-path detail lives in docs/how-it-works.md#multi-turn-generation-fallback (linked
            from the row), so this high-level row deliberately does NOT enumerate paths. "no extra commits"
@@ -309,8 +309,8 @@ Task 2: PRIMARY — add the decision comment in the Features-table→## Install 
 
 Task 3: FALLBACK (only if the reviewer judges the row commit-path-only) — 4-word row insertion + comment
   - EDIT the "Multi-turn fallback" row: insert " on any generation path" IMMEDIATELY after "lands":
-      BEFORE: …stagehand re-delivers the full diff across session turns so the message still lands — no truncation, no extra commits…
-      AFTER:  …stagehand re-delivers the full diff across session turns so the message still lands on any generation path — no truncation, no extra commits…
+      BEFORE: …stagecoach re-delivers the full diff across session turns so the message still lands — no truncation, no extra commits…
+      AFTER:  …stagecoach re-delivers the full diff across session turns so the message still lands on any generation path — no truncation, no extra commits…
   - ADD the Task 2 comment (the decision documentation applies either way).
   - GOTCHA: this is the CEILING of acceptable change. Do NOT enumerate "commit / --dry-run / hook" in the
       row (that's how-it-works.md's job — §2). Do NOT add a sentence. Do NOT touch the links. The 4-word
@@ -332,12 +332,12 @@ Task 4: VERIFY (Mode B validation)
 ### Implementation Patterns & Key Details
 
 ```markdown
-<!-- THE decision (one sentence): the row already says "stagehand" generically ⇒ the contract's no-change
+<!-- THE decision (one sentence): the row already says "stagecoach" generically ⇒ the contract's no-change
      criterion is met ⇒ PRIMARY = comment only, row unchanged. The path detail is in the LINKED
      how-it-works.md section (S1's edit (d) states all three paths there). -->
 
 <!-- THE comment (primary deliverable), placed in the Features-table→## Install gap (NOT in the table):
-     <!-- Multi-turn fallback (Features row above): intentionally generic — "stagehand" re-delivers, NOT
+     <!-- Multi-turn fallback (Features row above): intentionally generic — "stagecoach" re-delivers, NOT
           "the commit path". Multi-turn runs on EVERY generation path (snapshot commit, `--dry-run`, hook
           mode); the per-path detail lives in docs/how-it-works.md#multi-turn-generation-fallback (linked
           from the row), so this high-level row deliberately does NOT enumerate paths. "no extra commits"
@@ -348,7 +348,7 @@ Task 4: VERIFY (Mode B validation)
      "so the message still lands" → "so the message still lands on any generation path" -->
 
 <!-- THE accuracy pins:
-  - "stagehand" is the row's subject (generic) — NOT "the commit path". (decision criterion)
+  - "stagecoach" is the row's subject (generic) — NOT "the commit path". (decision criterion)
   - "no extra commits" is accurate on all 3 paths (commit: one; dry-run: zero; hook: one via git). (§0)
   - The row links to how-it-works.md#multi-turn-generation-fallback, which (post-S1) states all 3 paths. (§2)
   - The comment is invisible in rendered GitHub markdown (HTML comment). -->
@@ -370,7 +370,7 @@ DOCS.LEFT-UNCHANGED (do NOT edit — other-scope / already accurate):
 CODE.LEFT-UNCHANGED: NO .go / test / config / go.mod / Makefile / PRD.md changes (Mode B — docs only).
 
 UPSTREAM (the changeset this docs task reflects — already built, do NOT re-do):
-  - P1.M2.T1.S2 (dry-run runPipeline gate, stagehand.go:555) + P1.M3.T1.S2 (hook gate, exec.go:215) +
+  - P1.M2.T1.S2 (dry-run runPipeline gate, stagecoach.go:555) + P1.M3.T1.S2 (hook gate, exec.go:215) +
     CommitStaged gate (generate.go:304) — all three paths carry the FR-T1 multi-turn gate.
   - P1.M4.T1.S1 (parallel) — adds the "runs on every generation path" sentence + hook-mode note to
     docs/how-it-works.md (the page the README row links to).
@@ -383,7 +383,7 @@ DOWNSTREAM: none. This is the README end-state for the multi-turn propagation ch
 ### Level 1: Markdown sanity
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Confirm the comment landed in the table→## Install gap (NOT inside the table):
 grep -n "Multi-turn fallback (Features row above)" README.md   # → the comment, AFTER the | Discovery | row
@@ -392,7 +392,7 @@ grep -nE '^\| (Multi-turn fallback|Discovery|Payload optimization|Message shapin
 # Expected: the rows are intact and contiguous; the comment sits AFTER the last row (| Discovery |).
 
 # PRIMARY path: confirm the row text is byte-identical to research §5b's quote:
-grep -n "stagehand re-delivers the full diff across session turns so the message still lands" README.md
+grep -n "stagecoach re-delivers the full diff across session turns so the message still lands" README.md
 # Expected (primary): the line ends "…so the message still lands — no truncation…" (NO "on any generation path").
 # Expected (fallback): the line reads "…so the message still lands on any generation path — no truncation…".
 
@@ -425,7 +425,7 @@ git diff --exit-code go.mod go.sum Makefile PRD.md && echo "go.mod/Makefile/PRD 
 
 ```bash
 # Verify the comment's coverage claim — all three paths carry the FR-T1 gate:
-grep -rn "MultiTurnFallback && " internal/generate/generate.go pkg/stagehand/stagehand.go internal/hook/exec.go
+grep -rn "MultiTurnFallback && " internal/generate/generate.go pkg/stagecoach/stagecoach.go internal/hook/exec.go
 # Expected: 3 matches (CommitStaged + runPipeline/dry-run + hook.Run) ⇒ "every generation path" is accurate.
 
 # Confirm the README row's link target exists (and is reinforced by S1's edit (d)):
@@ -455,7 +455,7 @@ grep -n "runs on every generation path" docs/how-it-works.md || echo "S1 not yet
 ### Code Quality Validation
 - [ ] The edit is minimal (primary: a comment, zero row-text change; fallback: a 4-word insertion) — no new
       section, no path enumeration in the row, no wholesale rewrite.
-- [ ] The decision criterion (the row says "stagehand" generically) is applied and documented.
+- [ ] The decision criterion (the row says "stagecoach" generically) is applied and documented.
 - [ ] Anti-patterns avoided (see below); no out-of-scope churn (other docs / code frozen).
 
 ### Documentation
@@ -466,7 +466,7 @@ grep -n "runs on every generation path" docs/how-it-works.md || echo "S1 not yet
 
 ## Anti-Patterns to Avoid
 
-- ❌ **Don't change the row text on the PRIMARY path.** The contract's no-change criterion ("says 'stagehand'
+- ❌ **Don't change the row text on the PRIMARY path.** The contract's no-change criterion ("says 'stagecoach'
   generically, not 'the commit path'") is MET (§0); research §5c does NOT flag the README row (§1). Add ONLY
   the `<!-- -->` comment. The 4-word fallback is the ceiling, taken only if a reviewer disagrees. (§0/§3)
 - ❌ **Don't enumerate paths in the row.** "commit / --dry-run / hook" belongs in docs/how-it-works.md (S1's
@@ -496,7 +496,7 @@ grep -n "runs on every generation path" docs/how-it-works.md || echo "S1 not yet
 
 Rationale: this is a single-file, minimal-edit Mode-B docs task with a clear, decided primary path (no row-
 text change + a comment). The current row text is quoted VERBATIM (from the file + cross-checked against
-research §5b), the decision criterion is applied explicitly (the row says "stagehand" generically ⇒ no
+research §5b), the decision criterion is applied explicitly (the row says "stagecoach" generically ⇒ no
 change), the exact comment text + its safe placement (the table→`## Install` gap, NOT inside the table) are
 specified, and the 4-word fallback is provided with exact before/after. The authoritative docs-sync
 analysis (§5c) independently corroborates the no-row-change decision by NOT flagging the README. The one

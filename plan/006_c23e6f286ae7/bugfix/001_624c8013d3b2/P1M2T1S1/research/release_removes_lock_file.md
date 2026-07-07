@@ -6,7 +6,7 @@ Verified against the live codebase. Source of truth for the one-method fix + the
 
 `Release()` (`internal/lock/lock.go`, currently ~L108-117) closes the fd + clears the singleton but
 **never `os.Remove`s the file**. Every distinct repo path ever visited leaves a permanent
-`<hash>.lock` in `$XDG_RUNTIME_DIR/stagehand/locks/` (210 observed during QA). flock auto-releases on
+`<hash>.lock` in `$XDG_RUNTIME_DIR/stagecoach/locks/` (210 observed during QA). flock auto-releases on
 fd close, so the leftovers are inert empty shells, but they grow without bound.
 
 ## Current Release()
@@ -49,7 +49,7 @@ Add `"os"` is already imported. No new imports.
 inode; only then is the path unlinked. The inverted order (remove-while-held) is a real safety bug:
 unlinking the path while still holding the flock on inode A lets a contender `OpenFile(path, O_CREATE)`
 create a **new** inode B and flock it (B is free) → both processes believe they hold the FR52 lock → two
-concurrent stagehand runs on the same repo. Close-then-remove guarantees the holder has released before
+concurrent stagecoach runs on the same repo. Close-then-remove guarantees the holder has released before
 the path is unlinked, so the next `Acquire` recreates a fresh file/inode and flocks it cleanly.
 
 `os.Remove` errors are IGNORED: the file may already be gone (double Release is a no-op — the idempotency
@@ -75,7 +75,7 @@ succeeds) which stays green.
 - `lock_test.go` is `package lock` (white-box) → can read `l.path`, call `lockPath`/`lockHash`, and use the
   `resetCurrent(t)` helper (stores nil in the singleton on cleanup — prevents cross-test poisoning).
 - Isolate the lock dir: `t.Setenv("XDG_RUNTIME_DIR", t.TempDir())` + `t.Setenv("XDG_CACHE_HOME", "")` so
-  the test never touches the real `$XDG_RUNTIME_DIR/stagehand/locks/` (deterministic + no pollution).
+  the test never touches the real `$XDG_RUNTIME_DIR/stagecoach/locks/` (deterministic + no pollution).
   (Several existing Acquire tests do NOT isolate XDG — a pre-existing hygiene gap; my new test DOES isolate,
   the cleaner pattern shown by the `TestLockDir_*` tests.)
 - Assertions: Acquire → file exists at `l.path`; Release → `os.Stat(l.path)` satisfies `os.IsNotExist`;

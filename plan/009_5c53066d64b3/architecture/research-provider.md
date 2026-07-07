@@ -129,7 +129,7 @@ The cleanest seam is the **mode switch above (render.go:124–136)**. Two viable
 
 ### v1 `Render` call sites (for impact analysis — DO NOT change)
 - `internal/generate/generate.go:237` (the one-shot message loop — **this is where multi-turn will be wired in, just before line 288's `RescueError`**)
-- `pkg/stagehand/stagehand.go:495`, `internal/hook/exec.go:163`
+- `pkg/stagecoach/stagecoach.go:495`, `internal/hook/exec.go:163`
 - `internal/decompose/{planner,message,stager,arbiter}.go` (stager uses `RenderTooled`; others use bare default)
 - `internal/stubtest/stubtest_test.go` (the stub-agent harness the multi-turn integration test should extend)
 
@@ -280,7 +280,7 @@ func ParseOutput(raw string, m Manifest) (msg string, ok bool, fellback bool)
 m, ok, _ := provider.ParseOutput(out, deps.Manifest)
 if !ok { parseFail = true; candidate = m; ...; continue }  // FR29 retry
 ```
-Other call sites: `pkg/stagehand/stagehand.go:520`, `internal/hook/exec.go:179`, `internal/decompose/message.go:165`.
+Other call sites: `pkg/stagecoach/stagecoach.go:520`, `internal/hook/exec.go:179`, `internal/decompose/message.go:165`.
 
 ### Multi-turn integration
 FR-T4 specifies: **the FINAL turn's stdout is parsed by the EXISTING pipeline unchanged** — intermediate turns' "ok" stdout is discarded. So `ParseOutput` is called exactly ONCE per multi-turn run, on the final turn's `out`, and the result then runs through duplicate rejection (§9.7) as normal. No change to `ParseOutput` is required.
@@ -346,7 +346,7 @@ config [provider.<name>]  ──►  DecodeUserOverrides (registry.go:161)
 ## Constraints, risks, open questions
 - **FR-T9 is BLOCKING for the pi `"append"` value.** If empirical verification fails, ship pi with `SessionMode` absent/`""` and the whole feature is inert — surface this clearly (`delta_prd.md:92`).
 - **No existing "drop a specific bare_flag" mechanism** — the multi-turn variant must introduce one (filter `--no-session` by exact token, or add a manifest field naming the kill flag). PRD does not name a `SessionKillFlag` field; simplest correct path is hardcoding `--no-session` (pi-only-shipped value).
-- **`Render` signature widening is high-blast-radius** (24+ call sites across generate/hook/stagehand/decompose/stubtest). Prefer a sibling method (`RenderMultiTurn`) over a 7th positional param.
+- **`Render` signature widening is high-blast-radius** (24+ call sites across generate/hook/stagecoach/decompose/stubtest). Prefer a sibling method (`RenderMultiTurn`) over a 7th positional param.
 - **Per-turn timeout × (N+1) can be many minutes** (FR-T5) — progress-line surface belongs in `generate.go`, not the provider package.
 - **`token_limit` MUST NOT interact** with multi-turn (FR-T12) — the multi-turn payload is the UNTRUNCATED captured payload.
 

@@ -1,7 +1,7 @@
 # S2 Implementation Notes — downstream test assertions + user-facing surfaces (verify-and-confirm)
 
 > Scope: P1.M1.T1.S2 — the ripple-effect updates after S1 removed the shipped `planner=high` reasoning
-> default. Five sites: decompose/roles_test.go, default_action_test.go, root.go, pkg/stagehand,
+> default. Five sites: decompose/roles_test.go, default_action_test.go, root.go, pkg/stagecoach,
 > docs/cli.md. **STATUS: ~95% ALREADY REALIZED in the live codebase (2026-07-02).** Like S1, this is a
 > VERIFY-AND-CONFIRM runbook with ONE genuine micro-edit (a stale section-header comment). Verified.
 
@@ -19,7 +19,7 @@
 | a | `internal/decompose/roles_test.go` (rename + 2 assertions) | rename `TestResolveRoles_ReasoningShippedDefault` → `..._NoShippedReasoningDefault`; planner `"high"`→`""` (both tests) | FUNC already `TestResolveRoles_NoShippedReasoningDefault` (:542); planner asserts `""` (:551-552, :579-580); `ReasoningPerRoleSet` message="low" (:582). **DONE.** But the SECTION-HEADER COMMENT at :537 still reads `// TestResolveRoles_ReasoningShippedDefault` (stale — doesn't match the renamed func). | ⚠️ ONE micro-edit (the comment) |
 | b | `internal/cmd/default_action_test.go:1440` (assertion inversion) | assert NO `(reasoning: …)` suffix on any role line | Line 1440 already `if strings.Contains(stderr, "(reasoning:") {` → error; comment :1439 already says "no (reasoning: …) suffix". **DONE.** | ✅ no edit |
 | c | `internal/cmd/root.go:137` (--reasoning help) | 'default off, planner: high' → 'default off for every role' | Already `"…default off for every role)"` (:137). **DONE.** | ✅ no edit |
-| d | `pkg/stagehand/stagehand.go:62,66` (RoleModel comments) | 'shipped default' → 'off by default for every role' | Already `"off by default for every role"` (:62) + `"off by default"` (:66). **DONE.** | ✅ no edit |
+| d | `pkg/stagecoach/stagecoach.go:62,66` (RoleModel comments) | 'shipped default' → 'off by default for every role' | Already `"off by default for every role"` (:62) + `"off by default"` (:66). **DONE.** | ✅ no edit |
 | e | `docs/cli.md:43` (--reasoning default column) | `'"" (off; planner: high)'` → `'"" (off)'` | Already `"" (off)` (:43). **DONE.** | ✅ no edit |
 
 ## 2. The ONE genuine edit — the stale section-header comment
@@ -48,7 +48,7 @@ a "zero matches" gate. It will STILL legitimately match (do NOT "fix" these — 
   {Reasoning: "high"}` as an explicit per-role cfg value, and "per-role off beats global high"). Valid.
 - `internal/ui/verbose_test.go:13,20,43,53` — `reasoningSuffix` **FORMAT** tests (fixture sets
   `Reasoning:"high"` explicitly to test the formatter). critical_findings.md **Finding 3: must NOT change.**
-- `docs/configuration.md:153` — a per-role env-var **EXAMPLE** (`STAGEHAND_PLANNER_REASONING=high`). Valid.
+- `docs/configuration.md:153` — a per-role env-var **EXAMPLE** (`STAGECOACH_PLANNER_REASONING=high`). Valid.
 - False positives on the word "higher" (e.g. `internal/config/file_test.go:602,608,612` — "higher layer"
   in model-merge comments; `planner.*high` matches "planner"… "high"er).
 

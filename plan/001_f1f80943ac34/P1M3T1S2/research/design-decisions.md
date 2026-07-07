@@ -197,5 +197,5 @@ No subprocess, no temp repo, no git — pure-function tests (same as S1's prompt
 
 Everything EXCEPT the two additive edits to `internal/prompt/system.go` and
 `internal/prompt/system_test.go`: `internal/provider/*`, `internal/config/*`, `internal/git/*`,
-`cmd/stagehand/main.go`, `pkg/*`, `Makefile`, `go.mod`, `go.sum`, and S1's existing symbols/comments
+`cmd/stagecoach/main.go`, `pkg/*`, `Makefile`, `go.mod`, `go.sum`, and S1's existing symbols/comments
 within the two prompt files. The diff is purely append-at-end-of-file for both.

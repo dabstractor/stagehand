@@ -5,16 +5,16 @@ codebase at research time (HEAD = `aaf125a`).
 
 ## 1. Codebase facts (verified)
 
-- **Module**: `github.com/dustin/stagehand` (go.mod); **`go 1.22`**.
-- **Main binary**: `./cmd/stagehand` (Makefile `MAIN_PKG`). Also `./cmd/stubagent`.
+- **Module**: `github.com/dustin/stagecoach` (go.mod); **`go 1.22`**.
+- **Main binary**: `./cmd/stagecoach` (Makefile `MAIN_PKG`). Also `./cmd/stubagent`.
 - **Core packages** (PRD §20.3 coverage targets): `internal/git`, `internal/provider`,
   `internal/generate`, `internal/config`. Plus `internal/{cmd,prompt,signal,stubtest,ui,exitcode}`,
-  `pkg/stagehand`.
+  `pkg/stagecoach`.
 - **No existing CI**: `.github/` does not exist. No `.golangci.yml`, no `.goreleaser.yaml`, no
   `release.yml`. Greenfield.
 - **Default branch**: `main` (`* main`, `remotes/origin/main`). Trigger filter = `branches: [main]`.
-- **Makefile targets** (the ones CI mirrors): `build` (`go build -ldflags … -o bin/stagehand
-  ./cmd/stagehand`), `test` (`go test -race ./...`), `coverage` (`go test -coverprofile=coverage.out
+- **Makefile targets** (the ones CI mirrors): `build` (`go build -ldflags … -o bin/stagecoach
+  ./cmd/stagecoach`), `test` (`go test -race ./...`), `coverage` (`go test -coverprofile=coverage.out
   ./...` + `go tool cover -func`), `lint` (`golangci-lint run`), `clean`, `install`.
   - NOTE: `make coverage` does NOT gate (it only prints). A gate is NEW work (this task + S3).
 - **`.gitignore`** already ignores `/bin/`, `coverage.out`, `/dist/` — safe; CI artifacts won't pollute.

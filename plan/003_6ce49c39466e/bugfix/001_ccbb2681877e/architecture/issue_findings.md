@@ -68,8 +68,8 @@
   reasoning). When no override: returns `(cfg.Provider, cfg.Model, cfg.Reasoning)` —
   back-compatible.
 - The multi-commit path resolves correctly: message.go:103-126.
-- The single path does NOT: generate.go:196 and stagehand.go:467 use `cfg.Model`/`cfg.Reasoning`.
-- `buildDeps` (stagehand.go:316) selects the manifest from global `cfg.Provider` — a
+- The single path does NOT: generate.go:196 and stagecoach.go:467 use `cfg.Model`/`cfg.Reasoning`.
+- `buildDeps` (stagecoach.go:316) selects the manifest from global `cfg.Provider` — a
   `--message-provider` override selects the wrong manifest. buildDeps is called ONLY from
   `GenerateCommit` (single path), confirmed by grep.
 - NOTE: PRD references `runGenerate` — actual function is `runDefault` (default_action.go:44).
@@ -82,13 +82,13 @@
    Then at line 196: `deps.Manifest.Render(msgModel, sysPrompt, payload, msgReasoning)`.
    (`config` already imported, generate.go:12.)
 
-2. **stagehand.go** `runPipeline` (line 401): same pattern. Before the loop (~line 446),
+2. **stagecoach.go** `runPipeline` (line 401): same pattern. Before the loop (~line 446),
    resolve the message role. At line 467 use resolved model/reasoning. ALSO update the
    `model` local var (lines 446-448) and `Result.Model` fields (lines 520, 555) to use the
    resolved model for consistent FR42 reporting.
-   (`config` already imported, stagehand.go:16.)
+   (`config` already imported, stagecoach.go:16.)
 
-3. **stagehand.go** `buildDeps` (line 316): resolve the message provider for manifest
+3. **stagecoach.go** `buildDeps` (line 316): resolve the message provider for manifest
    selection. Change `name := cfg.Provider` to resolve from the message role:
    ```go
    msgProvider, _, _ := config.ResolveRoleModel("message", cfg)
@@ -96,7 +96,7 @@
    if name == "" { /* existing auto-detect */ }
    ```
    When no message-provider override, msgProvider == cfg.Provider (or "" → auto-detect) —
-   back-compatible. Needs `config` import (already present at stagehand.go:16).
+   back-compatible. Needs `config` import (already present at stagecoach.go:16).
 
 4. Tests (implicit TDD): stub Manifest that records received model/reasoning; set
    `cfg.Roles["message"] = {Model: "haiku"}` with `cfg.Model == ""`; assert stub receives
@@ -157,22 +157,22 @@ omits the 5 reasoning env vars that ARE real, ARE read by loadEnv, and ARE in do
 ### Confirmed facts
 - `bootstrapHeader` const: bootstrap.go:194-252.
 - Missing env vars (all read by load.go, documented in docs/cli.md:43-49, docs/configuration.md:152-156):
-  `STAGEHAND_REASONING`, `STAGEHAND_PLANNER_REASONING`, `STAGEHAND_STAGER_REASONING`,
-  `STAGEHAND_MESSAGE_REASONING`, `STAGEHAND_ARBITER_REASONING`.
-- **CORRECTION**: `STAGEHAND_MAX_COMMITS` is NOT an env var (no LookupEnv in load.go; docs/cli.md
+  `STAGECOACH_REASONING`, `STAGECOACH_PLANNER_REASONING`, `STAGECOACH_STAGER_REASONING`,
+  `STAGECOACH_MESSAGE_REASONING`, `STAGECOACH_ARBITER_REASONING`.
+- **CORRECTION**: `STAGECOACH_MAX_COMMITS` is NOT an env var (no LookupEnv in load.go; docs/cli.md
   shows "—" for env). It must NOT be added — it would document a non-existent env var.
 
 ### Fix location
 In `bootstrapHeader` (bootstrap.go), insert after the per-role `_PROVIDER / _MODEL` lines
-and before `STAGEHAND_COMMITS`:
+and before `STAGECOACH_COMMITS`:
 ```
-#   STAGEHAND_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)
-#   STAGEHAND_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)
+#   STAGECOACH_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)
+#   STAGECOACH_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)
 ```
 Matches the existing `_PROVIDER / _MODEL` shorthand style.
 
 ### Test (implicit TDD)
-Assert the bootstrap output contains `STAGEHAND_REASONING` and `STAGEHAND_PLANNER_REASONING`.
+Assert the bootstrap output contains `STAGECOACH_REASONING` and `STAGECOACH_PLANNER_REASONING`.
 
 ---
 

@@ -15,7 +15,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Every place stagehand produces a commit message honors the resolved `--format` mode and
+**Feature Goal**: Every place stagecoach produces a commit message honors the resolved `--format` mode and
 `--locale`: `auto` behaves exactly as today; `conventional`/`gitmoji`/`plain` swap the learned-style block
 for an explicit format contract (and omit the history examples entirely); and a set locale appends the
 one-line language instruction in all modes and both repo-age paths. The planner's *partitioning* prompt is
@@ -42,7 +42,7 @@ prompt-construction subsection on format-mode substitution and the locale line.
   and in both the mature (`BuildSystemPrompt`) and new-repo (`BuildFallbackPrompt`) paths, and on the
   planner builder (FR-F6). Empty locale → no such line (byte-identical to no-locale).
 - Applied at ALL message-production sites: message role (`internal/generate`), decompose message
-  (`internal/decompose/message.go`), the public API (`pkg/stagehand`), and the planner FR-M11 shortcut
+  (`internal/decompose/message.go`), the public API (`pkg/stagecoach`), and the planner FR-M11 shortcut
   (`internal/decompose/planner.go`). The arbiter N+1 message inherits automatically (it flows through the
   decompose message path). The arbiter *decision* prompt (`BuildArbiterSystemPrompt`) is unchanged.
 - `go build ./...`, `go test ./...`, `go vet ./...`, `golangci-lint run` all green; coverage on
@@ -50,13 +50,13 @@ prompt-construction subsection on format-mode substitution and the locale line.
 
 ## User Persona
 
-**Target User**: The "plan-holder" / "API-key refusenik" (PRD §7) who runs `stagehand --format gitmoji`,
-`--format conventional`, `--format plain`, or `--locale French` (or sets `stagehand.format` /
-`[generation].format` / `STAGEHAND_FORMAT`, resolved by S1). Immediate consumer: the hook-exec runtime
+**Target User**: The "plan-holder" / "API-key refusenik" (PRD §7) who runs `stagecoach --format gitmoji`,
+`--format conventional`, `--format plain`, or `--locale French` (or sets `stagecoach.format` /
+`[generation].format` / `STAGECOACH_FORMAT`, resolved by S1). Immediate consumer: the hook-exec runtime
 (P1.M3.T2.S1), which builds the message-role prompt through these same builders.
 
 **Use Case**: A user whose repo history is idiosyncratic (or empty) wants a clean, explicit commit format
-without teaching stagehand from bad examples — `--format conventional`/`gitmoji`/`plain` — or wants
+without teaching stagecoach from bad examples — `--format conventional`/`gitmoji`/`plain` — or wants
 messages authored in another language — `--locale "Spanish"`. Both compose (`--format gitmoji --locale ja`).
 
 **User Journey**: S1 resolves `cfg.Format`/`cfg.Locale` through the precedence chain and validates Format →
@@ -65,7 +65,7 @@ mode scaffold (not the learned-style block) plus the locale line → emits e.g. 
 in the requested language. Duplicate rejection (§9.7) still runs in every mode (unchanged; it operates on
 the generated subject, not the prompt).
 
-**Pain Points Addressed**: (1) Incumbents ship 20-locale i18n prompt files; stagehand appends one sentence
+**Pain Points Addressed**: (1) Incumbents ship 20-locale i18n prompt files; stagecoach appends one sentence
 and lets the model do it (FR-F6). (2) A repo with a weird/empty history can't produce a sane learned-style
 prompt; the format modes are the "ignore my history" escape hatch (FR-F1/F4). (3) gitmoji users get the
 canonical table compiled in, offline (S2's `RenderGitmojiTable`), no network fetch.
@@ -210,7 +210,7 @@ with no prior codebase knowledge can complete it from this document + codebase a
        three calls at 229/236/242), using deps.Config. Update identically.
   pattern: "Add cfg.Format, cfg.Locale to the three calls (cfg here = deps.Config)."
 
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: CALL SITE #3 (public API wrapper — a THIRD verbatim copy of the message-prompt helper). Lines
        395/402/408 call BuildFallbackPrompt/BuildSystemPrompt exactly like sites #1/#2. MUST be updated or
        the signature change fails to compile.
@@ -240,7 +240,7 @@ with no prior codebase knowledge can complete it from this document + codebase a
 
 - file: internal/generate/generate_test.go
   why: THE stub-agent integration pattern. Lines 555-592 (the exclusion test) set
-       `STAGEHAND_STUB_STDINFILE` via t.Setenv, run CommitStaged with a stubtest.Manifest, then
+       `STAGECOACH_STUB_STDINFILE` via t.Setenv, run CommitStaged with a stubtest.Manifest, then
        os.ReadFile the captured stdin and assert on its content. Because the stub manifest has NO
        system_prompt_flag and uses stdin delivery, provider.Render PREPENDS the system prompt to the
        payload with a "\n\n" delimiter (render.go:157) — so the captured stdin CONTAINS the rendered
@@ -253,7 +253,7 @@ with no prior codebase knowledge can complete it from this document + codebase a
     - Assert the captured stdin (system-prompt half) Contains "Begin the subject with exactly ONE emoji",
       Contains a table row (e.g. "🎨 - "), Contains "Write the commit message in French.", and does NOT
       Contain "Match the tone and style".
-  gotcha: "STAGEHAND_STUB_STDINFILE is an ENV knob read by cmd/stubagent/main.go:36 (t.Setenv it directly),
+  gotcha: "STAGECOACH_STUB_STDINFILE is an ENV knob read by cmd/stubagent/main.go:36 (t.Setenv it directly),
            not an Options field. The stub Out can be any non-empty string that passes the dedupe check."
 
 - docfile: docs/how-it-works.md
@@ -278,7 +278,7 @@ internal/prompt/
   *_test.go        # system_test.go / planner_test.go call the builders → update signatures + add cases
 internal/generate/generate.go        # buildSystemPrompt (312-328) — CALL SITE #1
 internal/decompose/message.go        # messageSystemPrompt (227-243) — CALL SITE #2
-pkg/stagehand/stagehand.go           # buildSystemPrompt copy (395-408) — CALL SITE #3
+pkg/stagecoach/stagecoach.go           # buildSystemPrompt copy (395-408) — CALL SITE #3
 internal/decompose/planner.go        # callPlanner (84) — CALL SITE #4
 internal/config/config.go            # Config.Format / Config.Locale (S1, landed) — READ-ONLY
 docs/how-it-works.md                 # 'Prompt engineering' section — EDIT (Mode A doc)
@@ -303,7 +303,7 @@ internal/prompt/format_test.go   # NEW — table-driven per-mode tests for the s
 // them (only update call args to add "auto", "").
 
 // CRITICAL: There are FOUR callers of BuildSystemPrompt/BuildFallbackPrompt (generate.go, decompose/
-// message.go, pkg/stagehand/stagehand.go) and ONE of BuildPlannerSystemPrompt (decompose/planner.go). ALL
+// message.go, pkg/stagecoach/stagecoach.go) and ONE of BuildPlannerSystemPrompt (decompose/planner.go). ALL
 // must be updated for the signature change or the build breaks. grep to confirm none are missed:
 //   grep -rn 'BuildSystemPrompt\|BuildFallbackPrompt\|BuildPlannerSystemPrompt' --include='*.go' | grep -v 'func Build'
 
@@ -445,7 +445,7 @@ Task 4: EDIT internal/prompt/planner.go — extend BuildPlannerSystemPrompt
 Task 5: EDIT the four call sites — thread cfg.Format, cfg.Locale
   - internal/generate/generate.go:314,321,327 → add cfg.Format, cfg.Locale to each Build* call.
   - internal/decompose/message.go:229,236,242 → add cfg.Format, cfg.Locale (cfg = deps.Config).
-  - pkg/stagehand/stagehand.go:395,402,408 → add cfg.Format, cfg.Locale.
+  - pkg/stagecoach/stagecoach.go:395,402,408 → add cfg.Format, cfg.Locale.
   - internal/decompose/planner.go:84 → BuildPlannerSystemPrompt(examples, deps.Config.Format, deps.Config.Locale).
   - NO other logic changes; NO new branching. grep-verify zero remaining old-arity calls.
 
@@ -470,7 +470,7 @@ Task 7: CREATE internal/prompt/format_test.go — unit-test the helpers
     single-newline separator (test both a string ending in "\n" and one without).
 
 Task 8: CREATE the stub-agent integration test (internal/generate/*_test.go, follow generate_test.go:555)
-  - Real temp repo with ≥2 commits (mature path). t.Setenv("STAGEHAND_STUB_STDINFILE", captureFile).
+  - Real temp repo with ≥2 commits (mature path). t.Setenv("STAGECOACH_STUB_STDINFILE", captureFile).
     stubtest.Build(t) + stubtest.Manifest(bin, Options{Out:"🎨 refactor auth"}). cfg with Format:"gitmoji",
     Locale:"French". Run CommitStaged; os.ReadFile the capture; assert it Contains the gitmoji instruction,
     Contains a table row, Contains "Write the commit message in French.", and does NOT Contain "Match the
@@ -541,7 +541,7 @@ func BuildPlannerSystemPrompt(examples []string, format, locale string) string {
 	return withLocale(b.String(), locale)
 }
 
-// CALL SITE shape (all three message copies — generate.go / decompose/message.go / pkg/stagehand):
+// CALL SITE shape (all three message copies — generate.go / decompose/message.go / pkg/stagecoach):
 //   return prompt.BuildFallbackPrompt(cfg.SubjectTargetChars, cfg.Format, cfg.Locale), nil
 //   return prompt.BuildSystemPrompt(msgs, prompt.DetectMultiline(msgs), cfg.SubjectTargetChars, cfg.Format, cfg.Locale), nil
 ```
@@ -557,7 +557,7 @@ PROMPT PACKAGE (S2 landed):
   - consume: prompt.RenderGitmojiTable() for the gitmoji scaffold body.
 
 CALL SITES (thread two args, no logic change):
-  - internal/generate/generate.go, internal/decompose/message.go, pkg/stagehand/stagehand.go (message role),
+  - internal/generate/generate.go, internal/decompose/message.go, pkg/stagecoach/stagecoach.go (message role),
     internal/decompose/planner.go (planner FR-M11). Arbiter N+1 inherits via decompose message path.
 
 DOCS (Mode A):
@@ -574,7 +574,7 @@ OUT OF SCOPE (do NOT touch):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/prompt/format.go internal/prompt/format_test.go internal/prompt/system.go internal/prompt/planner.go
 go build ./...                         # all four call sites MUST compile — proves no caller was missed
 go vet ./...
@@ -597,7 +597,7 @@ go test ./internal/prompt/... -v       # canonical-exact (auto) unchanged; per-m
 #    + the planner builder; "" → no locale line.
 #  - TestFormatScaffoldBody / TestWithLocale (format_test.go).
 
-go test ./internal/generate/... ./internal/decompose/... ./pkg/stagehand/... -v
+go test ./internal/generate/... ./internal/decompose/... ./pkg/stagecoach/... -v
 # Expected: existing suites green (signature threading only); stub-agent format test green.
 ```
 
@@ -605,15 +605,15 @@ go test ./internal/generate/... ./internal/decompose/... ./pkg/stagehand/... -v
 
 ```bash
 # Build the binary and drive each mode against a real stub provider (or eyeball with --dry-run --verbose).
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 
 # The stub-agent format test is the authoritative integration check (Task 8): it renders the REAL system
 # prompt through provider.Render and asserts the gitmoji scaffold + locale line reach the agent's stdin.
 go test ./internal/generate/... -run 'Format|Gitmoji|Locale' -v
 
 # Optional manual smoke (needs a real agent on PATH; otherwise rely on the stub test):
-#   stagehand --format gitmoji --dry-run --verbose      # verbose prints the resolved command; message is 🎨-prefixed
-#   stagehand --format conventional --locale French --dry-run
+#   stagecoach --format gitmoji --dry-run --verbose      # verbose prints the resolved command; message is 🎨-prefixed
+#   stagecoach --format conventional --locale French --dry-run
 ```
 
 ### Level 4: Regression & Cross-cutting
@@ -663,7 +663,7 @@ golangci-lint run ./...
 - ❌ Don't duplicate the promptPreamble text — split maturePromptHeader with compile-time constant concat.
 - ❌ Don't add repo-age branching at the call sites — both BuildSystemPrompt and BuildFallbackPrompt dispatch
   to the scaffold, so callers only thread cfg.Format/cfg.Locale.
-- ❌ Don't miss pkg/stagehand/stagehand.go — it is a third verbatim copy of the message-prompt helper.
+- ❌ Don't miss pkg/stagecoach/stagecoach.go — it is a third verbatim copy of the message-prompt helper.
 - ❌ Don't validate/normalize the locale — pass it verbatim (FR-F6); only the empty check gates the line.
 - ❌ Don't edit plannerSystemPrompt or BuildArbiterSystemPrompt — the partitioning + decision prompts are
   unchanged (FR-F5).
@@ -677,10 +677,10 @@ golangci-lint run ./...
 
 **9/10** for one-pass implementation success. The seam is well-understood: S1 (config) and S2 (gitmoji
 table) are landed and their exact identifiers are pinned; the four call sites are enumerated with line
-numbers (including the easy-to-miss pkg/stagehand copy); the byte-identity trick (compile-time constant
+numbers (including the easy-to-miss pkg/stagecoach copy); the byte-identity trick (compile-time constant
 concat + locale gated on empty) makes FR-F1 mechanically enforceable by the existing canonical tests; the
 §17.8 scaffold text is quoted verbatim; and the stub-agent assertion has a concrete, existing pattern to
-copy (generate_test.go:555, STAGEHAND_STUB_STDINFILE). The −1 is a genuine spec ambiguity flagged in the
+copy (generate_test.go:555, STAGECOACH_STUB_STDINFILE). The −1 is a genuine spec ambiguity flagged in the
 gotchas: whether `plain` retains the multi-line rule (§17.8's intro says the multi-line rule is retained for
 all non-auto modes; FR-F4's "output rules + essence + subject-length target only" reads narrower). This PRP
 resolves it in favor of the intro (retain the multi-line rule + FR12 detection in every non-auto mode, per

@@ -53,13 +53,13 @@ the upgraded `TestDecompose_ConcurrentChangeExclusion` asserts sentinel-in-no-co
 
 ## User Persona
 
-**Target User**: Stagehand contributors/maintainers — this is the regression net PRD §20.5 mandates
+**Target User**: Stagecoach contributors/maintainers — this is the regression net PRD §20.5 mandates
 ("Every bug found in the wild becomes a scenario here"). The end-user behavior it guards is "a concurrent
 editor save / coding-agent write during a decompose run never lands in one of my commits, and never
 provokes a spurious extra arbiter commit."
 
 **Use Case**: A field report that "a file another tool wrote mid-decompose ended up in an arbiter commit"
-or "stagehand created an extra commit for a concurrent change" becomes a scenario here. The two initial
+or "stagecoach created an extra commit for a concurrent change" becomes a scenario here. The two initial
 scenarios cover the §18.5/§20.2 spec for the empty-leftover + exclusion + completeness cases.
 
 **User Journey**: `go test -race ./internal/decompose/` → the upgraded exclusion test + the new
@@ -221,7 +221,7 @@ confirmed LANDED (gate/decompose.go:223, resolveArbiter/chain.go:50). No inferen
 ### Current Codebase Tree (this task's scope)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/decompose/
     └── decompose_test.go   # EDIT (only file): upgrade TestDecompose_ConcurrentChangeExclusion (:819); add TestDecompose_TStartCompleteness
 # (chain.go/decompose.go/arbiter.go = the LANDED freeze-safe arbiter — read-only; chain_test.go = S1+S2 territory; git/* = read-only)
@@ -230,7 +230,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/decompose/
     └── decompose_test.go   # one test upgraded, one test added (both reuse dcm* + concurrentSentinelSeam)
 ```
@@ -585,7 +585,7 @@ DOWNSTREAM HOOK (informational — owned by the SIBLING, NOT this task):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/decompose/decompose_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -598,7 +598,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: The Two Named Tests (the deliverable)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./internal/decompose/ -v -run 'TestDecompose_ConcurrentChangeExclusion|TestDecompose_TStartCompleteness'
 # Expected: BOTH PASS, exit 0.
@@ -615,7 +615,7 @@ go test -race ./internal/decompose/ -v -run 'TestDecompose_ConcurrentChangeExclu
 ### Level 3: Whole-Repository Regression + Scope Discipline
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green (the new/edited tests are the only change)
 go vet ./...                     # Expected: exit 0
@@ -636,7 +636,7 @@ git grep -nE 'legitimate.*leftover|arbiter.*runs|non-empty.*leftover' internal/d
 ### Level 4: Behavioral Smoke (manual repro of the freeze property)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The two tests ARE the smoke test (they drive the full Decompose() against real git on a temp repo with
 # stub agents). For a manual cross-check, build a tiny repo and confirm a post-freeze untracked file is

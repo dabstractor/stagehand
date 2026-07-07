@@ -47,7 +47,7 @@ A user's §16.2 file can legitimately set any of these to its **zero value**:
 
 FR34 (PRD §9.8, P0) requires the file to beat built-in defaults. A faithful implementation of the
 contract's "non-zero fields" overlay on a flat `*Config` silently ignores these three overrides. The
-higher presence-aware layers (env: `STAGEHAND_AUTO_STAGE_ALL=false`; CLI flag) would still work, but
+higher presence-aware layers (env: `STAGECOACH_AUTO_STAGE_ALL=false`; CLI flag) would still work, but
 the **file layer specifically** would be broken — and that is exactly what S2 owns.
 
 ## 3. The resolution (what the PRP specifies)
@@ -93,11 +93,11 @@ concern rather than a Config field.
 
 ## 5. Path correction (arch doc is stale)
 
-PRD §16.1 Layer 4 + the item contract both say the repo-local file is **`./.stagehand.toml`**. The
-arch doc §2.1/§2.8 says `./.stagehand/config.toml` — that is a stale error in the arch example
+PRD §16.1 Layer 4 + the item contract both say the repo-local file is **`./.stagecoach.toml`**. The
+arch doc §2.1/§2.8 says `./.stagecoach/config.toml` — that is a stale error in the arch example
 (written for the nested-Config sketch). PRD + item contract win → `repoLocalConfigPath()` returns
-`".stagehand.toml"`. Global: `$XDG_CONFIG_HOME/stagehand/config.toml`, default
-`~/.config/stagehand/config.toml` (empty/unset XDG → home fallback).
+`".stagecoach.toml"`. Global: `$XDG_CONFIG_HOME/stagecoach/config.toml`, default
+`~/.config/stagecoach/config.toml` (empty/unset XDG → home fallback).
 
 ## 6. Confidence & evidence
 

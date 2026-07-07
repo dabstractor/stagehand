@@ -11,7 +11,7 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` |
 | Edit targets | `internal/generate/generate.go` (line 311 + comment at ~307), `internal/generate/multiturn_test.go` (new test) |
 | Bug line | generate.go:311 `mtPayload := payload` (confirmed verbatim) |
 | Baseline | `go test ./internal/generate/` → **ok (4.140s)** |
@@ -85,7 +85,7 @@ new test mirrors it for the TokenLimit==0 + parseFail case:
 1. Multi-turn fires + succeeds (commit lands, err==nil) — mirrors the existing test.
 2. The mtPayload delivered to the multi-turn protocol does NOT contain the retryInstr preamble. The
    retryInstr-specific substring is `"No preamble, no markdown, no quotes."` (NOT the ambiguous "Output
-   ONLY" which also appears in the multi-turn final-turn prompt). Observe via `STAGEHAND_STUB_STDINFILE`
+   ONLY" which also appears in the multi-turn final-turn prompt). Observe via `STAGECOACH_STUB_STDINFILE`
    (the stub writes received stdin to that file) OR via the verbose turn-count (if the retryInstr inflated
    the payload, the chunk count would differ). The implementing agent should verify the observation path
    works (the STDINFILE captures the last turn's stdin; the first chunk's content may need a per-turn
@@ -100,5 +100,5 @@ new test mirrors it for the TokenLimit==0 + parseFail case:
 | D1 | The fix? | Replace `mtPayload := payload` with `mtPayload := prompt.BuildUserPayload(diff, cfg.Context, rejected)`. | Rebuilds from the untruncated diff WITHOUT retryInstr, matching the TokenLimit≠0 path (L323). `diff` is already in scope. |
 | D2 | Comment update? | YES — update L307 to reflect mtPayload is ALWAYS rebuilt from diff (not just TokenLimit≠0). | The current comment says "When token_limit is unset, `payload` is already untruncated... so we use it directly" — this is now wrong (we rebuild from `diff`, not reuse `payload`). |
 | D3 | Test assertion substring? | `"No preamble, no markdown, no quotes."` (the retryInstr-specific tail). | NOT "Output ONLY the commit message" — that phrase ALSO appears in the multi-turn final-turn prompt ("Output ONLY the message"), causing a false positive. |
-| D4 | Test observation mechanism? | STAGEHAND_STUB_STDINFILE (preferred) or verbose turn-count (proxy). | Direct mtPayload inspection isn't possible (it's a local in CommitStaged). The STDINFILE captures stdin per turn (last turn survives); the implementing agent verifies the path. |
+| D4 | Test observation mechanism? | STAGECOACH_STUB_STDINFILE (preferred) or verbose turn-count (proxy). | Direct mtPayload inspection isn't possible (it's a local in CommitStaged). The STDINFILE captures stdin per turn (last turn survives); the implementing agent verifies the path. |
 | D5 | Scope? | ONLY generate.go (L311 + comment) + multiturn_test.go (new test). | The corrected gate is the copy source for P1.M2.T1.S2 (runPipeline) and P1.M3.T1.S2 (hook). This task is the reference gate fix only. |

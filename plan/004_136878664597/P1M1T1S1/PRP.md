@@ -32,7 +32,7 @@ fix described in "If a check fails" — do not churn correct code.
 
 ## User Persona
 
-**Target User**: The Stagehand contributor / reviewer confirming the plan/004 "reasoning opt-in
+**Target User**: The Stagecoach contributor / reviewer confirming the plan/004 "reasoning opt-in
 everywhere" changeset is correctly landed at the config layer before downstream subtasks (S2: decompose/
 cmd/doc surfaces) and dependent work proceed.
 
@@ -113,14 +113,14 @@ describe the intended delta; the live code already reflects the "After" state.
 - file: internal/decompose/roles_test.go        # S2: rename TestResolveRoles_ReasoningShippedDefault; planner high→""
 - file: internal/cmd/default_action_test.go     # S2: TestProgressLabel_DecomposeVerboseRoles reasoning-suffix assertion
 - file: internal/cmd/root.go                     # S2: --reasoning help string
-- file: pkg/stagehand/stagehand.go              # S2: RoleModel comment
+- file: pkg/stagecoach/stagecoach.go              # S2: RoleModel comment
 - file: docs/cli.md                              # S2: --reasoning default column
 ```
 
 ### Current Codebase Tree (S1 scope = internal/config only)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/config/
     ├── roles.go          # VERIFY (already post-change)
     ├── roles_test.go     # VERIFY (already flipped/renamed)
@@ -131,7 +131,7 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── (NO CHANGES — the tree is already in the desired state)
     # internal/config/{roles,config,roles_test}.go already reflect "off for every role; opt-in"
 ```
@@ -142,7 +142,7 @@ stagehand/
 | `internal/config/config.go` | VERIFY (no edit) | Confirm 3 doc comments say "off/opt-in". |
 | `internal/config/roles_test.go` | VERIFY (no edit) | Confirm assertions flipped + `..._NoShippedReasoningDefault` rename. |
 
-**Explicitly NOT touched in S1**: `internal/decompose/*`, `internal/cmd/*`, `pkg/stagehand/*`, `docs/*`
+**Explicitly NOT touched in S1**: `internal/decompose/*`, `internal/cmd/*`, `pkg/stagecoach/*`, `docs/*`
 (all S2 / P1.M1.T1.S2), `PRD.md`, `tasks.json`, `prd_snapshot.md`, `plan/*`.
 
 ### Known Gotchas of our Codebase & Library Quirks
@@ -202,7 +202,7 @@ Task 4: VERIFY roles_test.go assertions
 
 Task 5: GATE — run the config-package tests
   - RUN: go test ./internal/config/
-  - EXPECT: `ok github.com/dustin/stagehand/internal/config` (green). This is the exhaustive oracle.
+  - EXPECT: `ok github.com/dustin/stagecoach/internal/config` (green). This is the exhaustive oracle.
 
 Task 6: DECIDE
   - IF Tasks 1–5 all pass: S1 is CONFIRMED COMPLETE. Make NO code edits. Report done.
@@ -237,7 +237,7 @@ CONFIG LAYER (internal/config) — S1 scope:
 
 NO-TOUCH (S2 = P1.M1.T1.S2 — explicitly out of S1 scope):
   - internal/decompose/roles_test.go, internal/cmd/default_action_test.go, internal/cmd/root.go,
-    pkg/stagehand/stagehand.go, docs/cli.md
+    pkg/stagecoach/stagecoach.go, docs/cli.md
 
 GATE: go test ./internal/config/  →  GREEN (the exhaustive oracle)
 
@@ -250,7 +250,7 @@ emits uncommented reasoning = "off") and P1.M1.T3 (changeset-level docs) are sib
 ### Level 1: Verification Gates (S1's "implementation")
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (1) defaultRoleReasoning absent repo-wide
 grep -rn "defaultRoleReasoning" --include="*.go" . | grep -v "/plan/" && echo "FAIL: map still present" || echo "PASS: absent"
@@ -270,7 +270,7 @@ grep -q "TestResolveRoleModel_NoShippedReasoningDefault" internal/config/roles_t
 ### Level 2: The Exhaustive Oracle (config-package tests)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test ./internal/config/            # Expected: ok (green)
 go test -race ./internal/config/ -v   # verbose, confirm the reasoning tests run + pass
@@ -282,7 +282,7 @@ go test -race ./internal/config/ -v   # verbose, confirm the reasoning tests run
 ### Level 3: Whole-Repository Sanity (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go build ./...           # Expected: exit 0
 go vet ./...             # Expected: exit 0 (config package clean)
@@ -292,7 +292,7 @@ go test -race ./...      # Expected: all packages green (proves no stale cross-p
 ### Level 4: Scope-Boundary Check (confirm S1 didn't touch S2 files)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # S1 must have made NO edits — git diff should be empty (or only the PRP/research under plan/, which is untracked/ignored)
 git diff --stat -- internal/ pkg/ cmd/ docs/
@@ -350,7 +350,7 @@ churn surrounding correct code:
   Searching for it wastes time and signals the contract's starting-state premise is stale.
 - ❌ Don't "fix" already-correct doc comments or re-flip already-correct test assertions. If a check
   passes, leave it alone. Confirming-complete is the deliverable; churning correct code risks regressions.
-- ❌ Don't expand scope into S2 (decompose/roles_test.go, default_action_test.go, root.go, pkg/stagehand,
+- ❌ Don't expand scope into S2 (decompose/roles_test.go, default_action_test.go, root.go, pkg/stagecoach,
   docs/cli.md). S1 is the config package ONLY (contract point 4).
 - ❌ Don't treat the green `go test ./internal/config/` as insufficient. Per critical_findings.md Finding 2,
   the test suite is the exhaustive oracle — green + grep-absent = provably complete.

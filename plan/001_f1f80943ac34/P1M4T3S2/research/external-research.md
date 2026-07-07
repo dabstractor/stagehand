@@ -1,6 +1,6 @@
 # External Research — P1.M4.T3.S2 Verbose Mode
 
-Scope: `--verbose` / `-v` / `STAGEHAND_VERBOSE=1` prints (1) the resolved provider command,
+Scope: `--verbose` / `-v` / `STAGECOACH_VERBOSE=1` prints (1) the resolved provider command,
 (2) the raw agent stdout, (3) each retry attempt — to **stderr** — using a `DEBUG:` prefix
 (per the work-item contract note: "commit-pi uses VERBOSE=1 with DEBUG: prefix lines").
 
@@ -10,7 +10,7 @@ Scope: `--verbose` / `-v` / `STAGEHAND_VERBOSE=1` prints (1) the resolved provid
 
 The work-item CONTRACT explicitly states: *"commit-pi uses VERBOSE=1 with DEBUG: prefix lines."*
 PRD §2.1 names commit-pi as the originating tool, and Appendix C is a "Line-by-line porting map
-from commit-pi." Therefore Stagehand's verbose lines use a `DEBUG: ` prefix — this is the single
+from commit-pi." Therefore Stagecoach's verbose lines use a `DEBUG: ` prefix — this is the single
 most important formatting decision and it is CONTRACT-DRIVEN, not a stylistic choice.
 
 **Resolved line formats (deterministic, testable):**
@@ -27,17 +27,17 @@ most important formatting decision and it is CONTRACT-DRIVEN, not a stylistic ch
 ONLY shown with `-v`. Using a distinct `DEBUG:` prefix (a) matches commit-pi, (b) keeps the
 two output streams visually separable, (c) avoids any edit to S1's `output.go` (parallel-safe).
 
-> Appendix B.4 (`stagehand -v`) shows `↳ Attempt 1: …` lines. That is the PRD's *illustrative*
+> Appendix B.4 (`stagecoach -v`) shows `↳ Attempt 1: …` lines. That is the PRD's *illustrative*
 > rendering. The CONTRACT's `DEBUG:` convention is authoritative for the implementation; the
 > `↳ Attempt` wording is reflected in the *reason text*, not the prefix.
 
 ## 2. PRD §19 security boundary (line 1203 — load-bearing)
 
 > *"Logs in `--verbose` print the command and flags but **never stdin contents** unless
-> `STAGEHAND_VERBOSE=2`."*
+> `STAGECOACH_VERBOSE=2`."*
 
-And §19 line (No secret handling): *"Stagehand never reads, logs, or transmits the agent's
-credentials… Stagehand only spawns it with the inherited environment (plus any manifest-declared
+And §19 line (No secret handling): *"Stagecoach never reads, logs, or transmits the agent's
+credentials… Stagecoach only spawns it with the inherited environment (plus any manifest-declared
 `[env]` additions)."*
 
 **Implications for `VerboseCommand`:**
@@ -54,17 +54,17 @@ credentials… Stagehand only spawns it with the inherited environment (plus any
 
 ## 3. VERBOSE=2 is OUT OF SCOPE (future) — and currently un-parseable
 
-The contract: *"STAGEHAND_VERBOSE=2 could print stdin contents (§19 notes)."* The word "could"
+The contract: *"STAGECOACH_VERBOSE=2 could print stdin contents (§19 notes)."* The word "could"
 marks it future. Concretely, `config.Verbose` is a **`bool`**, and `config/load.go` parses it via
 `strconv.ParseBool` — which accepts `1/true/0/false` but **rejects `"2"`** (`ParseBool("2")` →
 error → config load fails). Supporting VERBOSE=2 would require changing `Config.Verbose` to an
 `int` (a cross-cutting config change owned by P1.M1.T4, NOT this task). **S2 implements VERBOSE=1
-semantics only** (`-v` / `STAGEHAND_VERBOSE=1` → bool true). VERBOSE=2/stdin is documented as a
+semantics only** (`-v` / `STAGECOACH_VERBOSE=1` → bool true). VERBOSE=2/stdin is documented as a
 deferred future enhancement; do NOT implement it.
 
 ## 4. Library-vs-CLI stream discipline (why verbose is an injectable writer, not os.Stderr)
 
-Stagehand has a public library surface (`pkg/stagehand.GenerateCommit`) used both by the CLI and
+Stagecoach has a public library surface (`pkg/stagecoach.GenerateCommit`) used both by the CLI and
 by 3rd-party Go integrators. A library function writing directly to `os.Stderr` is an anti-pattern
 (it hijacks the host process's stderr). The correct pattern: thread an **`io.Writer`** (the
 diagnostic sink) through the pipeline; `nil` ⇒ silent. The CLI supplies its `cmd.ErrOrStderr()`
@@ -107,7 +107,7 @@ the `Execute` `vb` param. This matches `internal/cmd/root_test.go`'s `bytes.Buff
 
 `internal/ui` imports only the Go stdlib (`fmt`, `io`, `os`, `strings`) — confirmed by S1's design.
 Therefore `internal/provider` and `internal/generate` importing `internal/ui` introduces **no import
-cycle** (ui has zero stagehand imports). The existing codebase already has cross-cutting internal
+cycle** (ui has zero stagecoach imports). The existing codebase already has cross-cutting internal
 imports (`internal/signal` is imported by BOTH `provider` and `generate`), so a `verbose` sink
 following the same shape is consistent with project conventions. (A purist could invert this via an
 interface defined in core + implemented by ui, but that adds a type for ~3 methods — rejected as
@@ -117,12 +117,12 @@ over-engineering for v1; see design-decisions.md D4.)
 
 - **Work-item contract** — "commit-pi uses VERBOSE=1 with DEBUG: prefix lines" (the authoritative
   formatting rule for this task).
-- **PRD.md:318 (FR50)** — "--verbose / -v / STAGEHAND_VERBOSE=1 — print the resolved provider
+- **PRD.md:318 (FR50)** — "--verbose / -v / STAGECOACH_VERBOSE=1 — print the resolved provider
   command, the raw agent stdout, and each retry attempt to stderr."
-- **PRD.md:946 (§15.2)** — `--verbose, -v | STAGEHAND_VERBOSE | — | false | Print resolved command,
+- **PRD.md:946 (§15.2)** — `--verbose, -v | STAGECOACH_VERBOSE | — | false | Print resolved command,
   raw output, retries.`
 - **PRD.md:1203 (§19)** — "Logs in --verbose print the command and flags but never stdin contents
-  unless STAGEHAND_VERBOSE=2." (the security boundary + VERBOSE=2 deferral).
+  unless STAGECOACH_VERBOSE=2." (the security boundary + VERBOSE=2 deferral).
 - **PRD Appendix B.4** — illustrative `-v` session (retry wording source; prefix per contract).
 - **P1.M4.T3.S1 PRP** — defines `internal/ui/output.go` (the `↳` Progress/color layer S2 must NOT
   edit; S2 adds `internal/ui/verbose.go` as a sibling).

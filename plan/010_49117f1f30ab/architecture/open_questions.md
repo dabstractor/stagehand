@@ -23,7 +23,7 @@ So `pre-commit` must run against a **throwaway index materialized from the froze
      tree SHAs, so it's index-agnostic already.
 2. **Runner layer** (`internal/hooks`): a higher-level helper that owns the throwaway index lifecycle:
    `RunPreCommit(ctx, g, treeSHA, hookPath, env, timeout) (postTree string, err error)`:
-   - `indexFile := filepath.Join(os.TempDir(), "stagehand-hook-<random>")`; `defer os.Remove(indexFile)`.
+   - `indexFile := filepath.Join(os.TempDir(), "stagecoach-hook-<random>")`; `defer os.Remove(indexFile)`.
    - `g.ReadTreeInto(ctx, treeSHA, indexFile)`.
    - exec `hookPath` with `env = GIT_INDEX_FILE=<abs indexFile>, GIT_EDITOR=:, GIT_DIR=<gitdir>`,
      CWD=worktree, stdin=/dev/null, stdout/stderr pass-through, bounded by `cfg.HookTimeout`.
@@ -76,7 +76,7 @@ runs against the would-be message so the user sees lint results.
 
 **The subtlety**: the single-commit path has TWO implementations:
 - `generate.CommitStaged` (commit path, `!DryRun`)
-- `pkg/stagehand.runPipeline` (dry-run + SystemExtra path)
+- `pkg/stagecoach.runPipeline` (dry-run + SystemExtra path)
 
 The delta_prd's R3 named only `CommitStaged`. **The implementing agent must handle runPipeline's
 dry-run branch**: under DryRun, run `commit-msg` (and prepare-commit-msg for recursion-prevention +
@@ -85,16 +85,16 @@ annotation) on the would-be message, but NOT pre-commit or post-commit.
 **Cleanest seam**: the hook runner takes a `mode` (commit vs dry-run) or a `skipPreCommit bool` +
 `skipPostCommit bool`. Under dry-run: `skipPreCommit=true, skipPostCommit=true`, commit-msg runs.
 Confirm runPipeline is the only dry-run single-commit path (it is — `GenerateCommit` delegates to it
-for DryRun at stagehand.go:163).
+for DryRun at stagecoach.go:163).
 
-## 5. `prepare-commit-msg` recursion: detect via `hook.Detect`, skip if StatusStagehand
+## 5. `prepare-commit-msg` recursion: detect via `hook.Detect`, skip if StatusStagecoach
 
-Before running `prepare-commit-msg`, call `hook.Detect(hooksDir)`. If `StatusStagehand`, skip it
-(the installed hook would `exec stagehand hook exec`, regenerating/recursing). If `StatusForeign`,
+Before running `prepare-commit-msg`, call `hook.Detect(hooksDir)`. If `StatusStagecoach`, skip it
+(the installed hook would `exec stagecoach hook exec`, regenerating/recursing). If `StatusForeign`,
 run it and read the message file back. If `StatusNone`, there's no prepare-commit-msg — skip.
 
 **Edge**: a foreign prepare-commit-msg that exits non-zero → abort the run (git parity, FR-V2). A
-stagehand-owned one is skipped entirely (no exit-code consideration).
+stagecoach-owned one is skipped entirely (no exit-code consideration).
 
 ## 6. Message-file location + read-back
 
@@ -103,13 +103,13 @@ prepare-commit-msg then commit-msg over it, reads it back (stripping `#`-comment
 `core.commentChar`), and passes the result to `commit-tree` (via `CommitTree`'s stdin `-F -`).
 
 **Location**: `os.TempDir()` (not `.git/` — keeps the repo clean; matches the throwaway index). Or
-`.git/STAGEHAND_HOOKMSG` (like the existing `.git/STAGEHAND_EDITMSG` for --edit). **Recommendation**:
+`.git/STAGECOACH_HOOKMSG` (like the existing `.git/STAGECOACH_EDITMSG` for --edit). **Recommendation**:
 `os.TempDir()` + `defer os.Remove`, mirroring the throwaway index lifecycle. Read-back strips
 `#`-comment lines (honor `core.commentChar` — default `#`).
 
 ## 7. `hook_timeout` config surface — file + default only
 
 FR-V6 specifies `[generation].hook_timeout` (default 10m). The PRD §15.2 flag table does NOT list a
-`--hook-timeout` flag, and there's no `STAGEHAND_HOOK_TIMEOUT` env in FR-V6. **Decision**: `HookTimeout`
+`--hook-timeout` flag, and there's no `STAGECOACH_HOOK_TIMEOUT` env in FR-V6. **Decision**: `HookTimeout`
 is config-file (`[generation].hook_timeout`) + default only (mirrors `multi_turn_chunk_tokens`). No
 env/flag/git-config. If a per-run override is wanted later, add a flag then. Keep the surface minimal.

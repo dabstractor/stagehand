@@ -35,12 +35,12 @@ contract to follow.
 
 ## User Persona
 
-**Target User**: The contributor implementing S3 (git-config `stagehand.diffContext`), S4 (bootstrap/docs),
+**Target User**: The contributor implementing S3 (git-config `stagecoach.diffContext`), S4 (bootstrap/docs),
 P1.M1.T2 (StagedDiffOptions), and P1.M2+ (the `-U<diff_context>` diff functions) — every downstream
 subtask reads `cfg.DiffContext` / `cfg.TokenLimit`. And the user who sets `diff_context = 0` expecting
 changed-lines-only diffs (FR3f).
 
-**Use Case**: A user writes `[generation] diff_context = 0` in `.stagehand.toml` to maximize diff
+**Use Case**: A user writes `[generation] diff_context = 0` in `.stagecoach.toml` to maximize diff
 savings; the resolved `cfg.DiffContext` must be `0`, not silently reverted to `1`.
 
 **Pain Points Addressed**: Without the `*int` correction, `diff_context = 0` is silently impossible to
@@ -147,7 +147,7 @@ The S1 parallel-edit coordination and the S3/future-consumer ripple are spelled 
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/config/
     ├── config.go        # EDIT: intPtr helper + Config.DiffContext → *int + Defaults intPtr(1)
     ├── config_test.go   # EDIT: TestDefaults DiffContext assertion → nil-safe *==1
@@ -160,7 +160,7 @@ stagehand/
 ### Desired Codebase Tree After S2
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/config/config.go        # intPtr + Config.DiffContext *int + Defaults intPtr(1)
     internal/config/config_test.go   # TestDefaults nil-safe DiffContext assertion
@@ -209,7 +209,7 @@ S2's `*int` is the contract S3 follows), bootstrap template + `docs/CONFIGURATIO
 
 // GOTCHA (S3 ripple): git.go's loadGitConfig (S3) currently returns a Config "designed for NON-ZERO
 // overlay" (all fields zero). For DiffContext it MUST instead set c.DiffContext = intPtr(v) when
-// stagehand.diffContext is found (nil when absent). S2 does NOT edit git.go — but S2's *int design is
+// stagecoach.diffContext is found (nil when absent). S2 does NOT edit git.go — but S2's *int design is
 // the contract S3 implements. Flag this in the S3 handoff.
 ```
 
@@ -370,7 +370,7 @@ NO-TOUCH (explicitly):
   - PRD.md, tasks.json, prd_snapshot.md, plan/*
 
 DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S2):
-  - S3 (git.go): set c.DiffContext = intPtr(v) when stagehand.diffContext found (nil when absent) — the *int contract.
+  - S3 (git.go): set c.DiffContext = intPtr(v) when stagecoach.diffContext found (nil when absent) — the *int contract.
   - P1.M1.T2/P1.M2 (consumers): deref *cfg.DiffContext (dc := 1; if cfg.DiffContext != nil { dc = *cfg.DiffContext }).
 ```
 
@@ -379,7 +379,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S2):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/config/config.go internal/config/config_test.go internal/config/file.go internal/config/file_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -390,7 +390,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: Unit Tests — the table-driven proof (the contract's required verification)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new materialize/overlay test — the explicit-0 row is the load-bearing assertion
 go test -race -run 'TestMaterializeOverlay_DiffContext_TokenLimit|TestDefaults' ./internal/config/ -v
@@ -406,7 +406,7 @@ go test -race ./internal/config/ -v
 ### Level 3: Whole-Repository Regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green
 go vet ./...                     # Expected: exit 0
@@ -423,7 +423,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 ### Level 4: End-to-End Behavior Smoke (the contract's "verify" clause)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Inline proof via a throwaway in-package test (delete after) — proves diff_context=0 survives overlay:
 cat > internal/config/zz_smoke_test.go <<'EOF'

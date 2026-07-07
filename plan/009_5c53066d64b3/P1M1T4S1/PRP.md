@@ -70,7 +70,7 @@ ONLY the one new file.
 
 ## User Persona
 
-**Target User**: The Stagehand contributor/maintainer (PRD §20 QA). Transitively US9.24 / G21 (the
+**Target User**: The Stagecoach contributor/maintainer (PRD §20 QA). Transitively US9.24 / G21 (the
 multi-turn fallback) — this test is the regression net that proves a future refactor of
 `RenderMultiTurn`/`Run` cannot silently break the per-turn argv contract (drop `--no-session`, add
 `--session-id`, system-prompt turn-1-only) while still producing a commit.
@@ -124,7 +124,7 @@ lands. No production code changes. No stub changes. No new dependencies.
       `res.Subject=="feat: add big thing"`.
 - [ ] (b) `strings.Count(buf.String(), "--session-id") == N+1` (where N+1 is the multi-turn turn count)
       AND the stub counter file reads `N+2` (1 one-shot + N+1 multi-turn). Derive N+1 from the count.
-- [ ] (c) all `stagehand-[0-9a-f]{32}` session ids found in the buffer are IDENTICAL (stable, FR-T6);
+- [ ] (c) all `stagecoach-[0-9a-f]{32}` session ids found in the buffer are IDENTICAL (stable, FR-T6);
       `strings.Count(buf.String(), "--no-session") == 1` (only the one-shot turn); the ArgsFile
       (final turn) `sliceContains(args,"--session-id")` and NOT `sliceContains(args,"--no-session")`.
 - [ ] (d) `strings.Count(buf.String(), "--system") == 1` (turn 1 only); ArgsFile (turn N+1>1) NOT
@@ -192,9 +192,9 @@ captures every turn's command) is fully explained; no guesswork.
 
 - file: internal/stubtest/stubtest.go
   why: NewScript(t, bin, responses) writes a script file + counter file in t.TempDir(); Manifest(bin,o)
-       sets Env (a MUTABLE map — you can add STAGEHAND_STUB_ARGSFILE to it after the fact). Build(t)
+       sets Env (a MUTABLE map — you can add STAGECOACH_STUB_ARGSFILE to it after the fact). Build(t)
        compiles the stub once (cached).
-  gotcha: the stub's STAGEHAND_STUB_ARGSFILE OVERWRITES each call ⇒ holds only the LAST turn after the
+  gotcha: the stub's STAGECOACH_STUB_ARGSFILE OVERWRITES each call ⇒ holds only the LAST turn after the
           run (turn N+1). It CANNOT prove "every turn" alone — that's why the verbose buffer is primary.
 
 - prd: PRD.md §9.24 (FR-T4 turn protocol, FR-T6 session lifecycle) + §20.1 layer 3 (stub integration)
@@ -246,7 +246,7 @@ internal/generate/
 // clean: total stub calls = 1 (one-shot) + (N+1) (multi-turn) = N+2. Any other value muddies the
 // "N+1 multi-turn invocations" assertion.
 
-// CRITICAL: the stub's STAGEHAND_STUB_ARGSFILE OVERWRITES per call ⇒ after the run it holds ONLY
+// CRITICAL: the stub's STAGECOACH_STUB_ARGSFILE OVERWRITES per call ⇒ after the run it holds ONLY
 // turn N+1. Use it for the FINAL-TURN byte-exact cross-check only; the verbose buffer is the
 // EVERY-TURN source of truth. (Per-turn files for all turns would require a stub change — avoided.)
 
@@ -266,7 +266,7 @@ internal/generate/
 
 No production data models. The test builds:
 - A **stub manifest** = `appendScriptManifest(t, bin, script)` + `m.BareFlags=["--no-session"]` +
-  `m.SystemPromptFlag=&"--system"` + `m.Env["STAGEHAND_STUB_ARGSFILE"]=argsFile`.
+  `m.SystemPromptFlag=&"--system"` + `m.Env["STAGECOACH_STUB_ARGSFILE"]=argsFile`.
 - A **config** = `config.Defaults()` with `MaxDuplicateRetries=0`, `MultiTurnChunkTokens=50`,
   `MultiTurnFallback=true` (explicit).
 - A **verbose sink** = `var buf bytes.Buffer; vb := ui.NewVerbose(&buf, true)`.
@@ -299,7 +299,7 @@ Task 2: VERIFY (no file change)
 // verifies the per-turn render contract (c)/(d) by observing every turn's command via the verbose
 // sink (Execute→VerboseCommand per turn) + the final turn's byte-exact argv via ArgsFile.
 
-var sessionIDRe = regexp.MustCompile(`stagehand-[0-9a-f]{32}`)
+var sessionIDRe = regexp.MustCompile(`stagecoach-[0-9a-f]{32}`)
 
 func TestCommitStaged_MultiTurnRenderContract(t *testing.T) {
 	bin := stubtest.Build(t)
@@ -330,7 +330,7 @@ func TestCommitStaged_MultiTurnRenderContract(t *testing.T) {
 
 	// Byte-exact argv for the FINAL turn (turn N+1) — the stub's ArgsFile overwrites each call.
 	argsFile := filepath.Join(t.TempDir(), "args")
-	m.Env["STAGEHAND_STUB_ARGSFILE"] = argsFile // m.Env is a mutable map (optsEnvMap)
+	m.Env["STAGECOACH_STUB_ARGSFILE"] = argsFile // m.Env is a mutable map (optsEnvMap)
 
 	cfg := config.Defaults()
 	cfg.MaxDuplicateRetries = 0     // ⇒ exactly 1 one-shot call ⇒ counter math = N+2 total
@@ -372,8 +372,8 @@ func TestCommitStaged_MultiTurnRenderContract(t *testing.T) {
 	N := multiTurnCalls - 1 // N chunks; multiTurnCalls == N+1
 	// Counter cross-check: 1 one-shot + (N+1) multi-turn == N+2 total stub invocations.
 	// (appendScriptManifest/NewScript created the counter file in its own t.TempDir(); read it via the
-	//  same Env the stub saw — re-derive the path from m.Env["STAGEHAND_STUB_COUNTER"].)
-	if cf := m.Env["STAGEHAND_STUB_COUNTER"]; cf != "" {
+	//  same Env the stub saw — re-derive the path from m.Env["STAGECOACH_STUB_COUNTER"].)
+	if cf := m.Env["STAGECOACH_STUB_COUNTER"]; cf != "" {
 		if raw, rerr := os.ReadFile(cf); rerr == nil {
 			got := strings.TrimSpace(string(raw))
 			if got != fmt.Sprintf("%d", N+2) {
@@ -424,7 +424,7 @@ func TestCommitStaged_MultiTurnRenderContract(t *testing.T) {
 ```yaml
 TEST WIRING (the ONLY integration):
   - manifest: appendScriptManifest(t, bin, script) + m.BareFlags=["--no-session"] +
-              m.SystemPromptFlag=&"--system" + m.Env["STAGEHAND_STUB_ARGSFILE"]=argsFile
+              m.SystemPromptFlag=&"--system" + m.Env["STAGECOACH_STUB_ARGSFILE"]=argsFile
   - config:   config.Defaults() then MaxDuplicateRetries=0, MultiTurnChunkTokens=50, MultiTurnFallback=true
   - deps:     Deps{Git: git.New(repo), Manifest: m, Verbose: ui.NewVerbose(&vbuf, true)}
   - drive:    CommitStaged(context.Background(), deps, cfg)

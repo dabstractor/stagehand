@@ -2,7 +2,7 @@
 
 Scope: read-only architecture investigation supporting Issue 3 (verbose per-chunk token estimate),
 Issue 4 (payload rebuild for `mtPayload`), and the final documentation sync. All paths are repo-relative
-to `/home/dustin/projects/stagehand`.
+to `/home/dustin/projects/stagecoach`.
 
 ---
 
@@ -261,7 +261,7 @@ should use `git.EstimateTokens(chunk.text)` (the authoritative estimator), NOT `
 **README.md:68** — one row in the Features table:
 ```
 | Multi-turn fallback | Lossless multi-turn fallback: when a one-shot generation of a large diff fails,
-  stagehand re-delivers the full diff across session turns so the message still lands — no truncation,
+  stagecoach re-delivers the full diff across session turns so the message still lands — no truncation,
   no extra commits ([how it works](docs/how-it-works.md#multi-turn-generation-fallback) · [knobs](docs/configuration.md#built-in-defaults)). |
 ```
 

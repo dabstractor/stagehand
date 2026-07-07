@@ -1,15 +1,15 @@
 # Research Findings — P1.M4.T1.S1 (bugfix-001, plan 002): Add `ResolveConfigPath` + refactor `config.Load`
 
-Research-only scout. Repo: `/home/dustin/projects/stagehand` (Stagehand v2.0). All refs verified.
+Research-only scout. Repo: `/home/dustin/projects/stagecoach` (Stagecoach v2.0). All refs verified.
 
 ## 1. The inline logic to extract (internal/config/load.go:76-83)
 
-Inside `Load`, the global-file PATH is resolved inline (precedence: --config > STAGEHAND_CONFIG > discovery):
+Inside `Load`, the global-file PATH is resolved inline (precedence: --config > STAGECOACH_CONFIG > discovery):
 ```go
 globalPath := opts.ConfigPathOverride
-explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGEHAND_CONFIG") != ""
+explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGECOACH_CONFIG") != ""
 if globalPath == "" {
-	if env := os.Getenv("STAGEHAND_CONFIG"); env != "" {
+	if env := os.Getenv("STAGECOACH_CONFIG"); env != "" {
 		globalPath = env
 	} else {
 		globalPath = globalConfigPath()
@@ -25,19 +25,19 @@ if globalPath == "" {
 
 file.go already imports `os` and `path/filepath` (lines 3-5). `GlobalConfigPath()` (file.go ~line 91) is
 the exported wrapper delegating to `globalConfigPath()` (XDG_CONFIG_HOME absolute → join; else
-os.UserHomeDir() → ~/.config/stagehand/config.toml; last-resort "config.toml").
+os.UserHomeDir() → ~/.config/stagecoach/config.toml; last-resort "config.toml").
 
 Add `ResolveConfigPath` next to these path helpers (after `GlobalConfigPath`/`globalConfigPath`, before
 `repoLocalConfigPath`), per the contract + architecture doc Step 1:
 ```go
 // ResolveConfigPath returns the config file path, honoring overrides in the SAME precedence as
-// config.Load: flagConfig (--config) > STAGEHAND_CONFIG env > GlobalConfigPath() discovery. It is the
+// config.Load: flagConfig (--config) > STAGECOACH_CONFIG env > GlobalConfigPath() discovery. It is the
 // shared resolver for config.Load and the config init/upgrade/path subcommands (bugfix-001 Issue 4).
 func ResolveConfigPath(flagConfig string) string {
 	if flagConfig != "" {
 		return flagConfig
 	}
-	if env := os.Getenv("STAGEHAND_CONFIG"); env != "" {
+	if env := os.Getenv("STAGECOACH_CONFIG"); env != "" {
 		return env
 	}
 	return GlobalConfigPath()
@@ -49,11 +49,11 @@ func ResolveConfigPath(flagConfig string) string {
 Replace the 8-line `globalPath` resolution block with:
 ```go
 	globalPath := ResolveConfigPath(opts.ConfigPathOverride)
-	explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGEHAND_CONFIG") != ""
+	explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGECOACH_CONFIG") != ""
 ```
 - `os` import in load.go stays needed (the `explicit` line calls os.Getenv). `ResolveConfigPath` is the
   same package (file.go) — NO new import.
-- The comment block above (lines ~71-75: "Resolve the global-file path: --config > STAGEHAND_CONFIG >
+- The comment block above (lines ~71-75: "Resolve the global-file path: --config > STAGECOACH_CONFIG >
   discovery...") stays accurate; optionally append "via ResolveConfigPath".
 - Behavior is BYTE-IDENTICAL: the extracted function reproduces the exact override+discovery order, and
   `explicit` is unchanged.
@@ -62,7 +62,7 @@ Replace the 8-line `globalPath` resolution block with:
 
 internal/config/load_test.go:
 - `TestLoad_ConfigPathOverride` (684) — ConfigPathOverride present → loads it.
-- `TestLoad_STAGEHAND_CONFIG_EnvPath` (700) — env beats discovery; ConfigPathOverride beats env.
+- `TestLoad_STAGECOACH_CONFIG_EnvPath` (700) — env beats discovery; ConfigPathOverride beats env.
 - `TestLoad_ConfigPathOverride_MissingFileFails` (728) — explicit MISSING path → "config file not found".
 - (and the bootstrap / discovery tests using DisableBootstrap.)
 These exercise Load end-to-end; the refactor must not perturb them.
@@ -72,14 +72,14 @@ These exercise Load end-to-end; the refactor must not perturb them.
 Add `TestResolveConfigPath` next to `TestGlobalConfigPath` (file_test.go:148) / `TestGlobalConfigPath_Wrapper`
 (file_test.go:321). Cases (contract item 5):
 - (a) flagConfig set (env unset) → returns flagConfig.
-- (b) flagConfig empty, STAGEHAND_CONFIG set → returns env value.
+- (b) flagConfig empty, STAGECOACH_CONFIG set → returns env value.
 - (c) BOTH set → flagConfig wins (flag > env).
 - (d) neither set → returns GlobalConfigPath().
 Use `t.Setenv` (auto-restores + non-parallel; the repo already uses t.Setenv at load_test.go:709). For (d),
 make GlobalConfigPath() deterministic by `t.Setenv("XDG_CONFIG_HOME", t.TempDir())` and compute expected =
-`filepath.Join(xdg, "stagehand", "config.toml")` (matches globalConfigPath's absolute-XDG branch).
-Guard against STAGEHAND_CONFIG leaking from the environment: in each case explicitly t.Setenv/Unsetenv
-STAGEHAND_CONFIG (or t.Setenv("STAGEHAND_CONFIG", "") for the flag-only / neither cases).
+`filepath.Join(xdg, "stagecoach", "config.toml")` (matches globalConfigPath's absolute-XDG branch).
+Guard against STAGECOACH_CONFIG leaking from the environment: in each case explicitly t.Setenv/Unsetenv
+STAGECOACH_CONFIG (or t.Setenv("STAGECOACH_CONFIG", "") for the flag-only / neither cases).
 
 ## 6. Scope boundary — S1 vs S2
 

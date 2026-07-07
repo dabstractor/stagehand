@@ -60,13 +60,13 @@ produce useful output (the curated FR-D4 tier table, via `DefaultModelsForProvid
    manifest's Detect/Command. Record the auth requirement in the source comment.
 3. **agy/opencode are subcommands**: `["agy", "models"]` / `["opencode", "models"]`.
 4. `list_models_command` is the FULL argv (binary + args) per PRD §12.1 schema example
-   `["opencode", "models"]` — NOT relative to the manifest's `command`. (S2's `stagehand models` will
+   `["opencode", "models"]` — NOT relative to the manifest's `command`. (S2's `stagecoach models` will
    run it via `exec.Command(argv[0], argv[1:]...)`; FR-L1 says "run it, print its stdout".)
 
 ## Scope boundary (do NOT do here)
 
 - S1 adds the field + wires merge + populates built-ins/TOMLs + docs. It does NOT implement the
-  `stagehand models` command (that is **P1.M6.T1.S2**, the consumer of `Manifest.ListModelsCommand`).
+  `stagecoach models` command (that is **P1.M6.T1.S2**, the consumer of `Manifest.ListModelsCommand`).
 - S1 does NOT touch `config init --interactive` (P1.M6.T2.S1).
 - User-defined providers set `list_models_command` via `[provider.<name>]` blocks **for free** through
   the existing `DecodeUserOverrides` → `MergeManifest` path (slice regime 2) — no config-layer change.

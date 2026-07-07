@@ -1,14 +1,14 @@
-# System Context — Stagehand v3 Changeset Bugfixes
+# System Context — Stagecoach v3 Changeset Bugfixes
 
-## What Stagehand Is
+## What Stagecoach Is
 
-Stagehand is a Go CLI (`module github.com/dustin/stagehand`, Go 1.22) that generates
+Stagecoach is a Go CLI (`module github.com/dustin/stagecoach`, Go 1.22) that generates
 AI-authored git commits. Two paths:
 
-1. **Single-commit path** (`pkg/stagehand.GenerateCommit` → `internal/generate.CommitStaged`
+1. **Single-commit path** (`pkg/stagecoach.GenerateCommit` → `internal/generate.CommitStaged`
    or `runPipeline`): one commit from staged changes. The **message role** is the only
    active role.
-2. **Multi-commit decompose path** (`pkg/stagehand.Decompose` → `internal/decompose.Decompose`):
+2. **Multi-commit decompose path** (`pkg/stagecoach.Decompose` → `internal/decompose.Decompose`):
    planner → stager → message → arbiter pipeline turning a dirty tree into N coherent commits.
 
 ## Architecture Layers (relevant to the 5 issues)
@@ -37,8 +37,8 @@ internal/decompose/    Multi-commit orchestration
   ├── message.go       publishCommit, generateMessage (uses ResolveRoleModel("message"))
   ├── roles.go         decompose.Deps, ResolveRoles (per-role manifest selection)
   └── ...
-pkg/stagehand/         Public library API
-  └── stagehand.go     GenerateCommit → resolveConfig → buildDeps → CommitStaged/runPipeline
+pkg/stagecoach/         Public library API
+  └── stagecoach.go     GenerateCommit → resolveConfig → buildDeps → CommitStaged/runPipeline
                        Decompose → ResolveRoles → internal.Decompose
 internal/git/          Git primitives (ReadTree, CommitTree, UpdateRefCAS, FreezeWorkingTree, ...)
 ```
@@ -46,19 +46,19 @@ internal/git/          Git primitives (ReadTree, CommitTree, UpdateRefCAS, Freez
 ## Key Invariants & Data Flows
 
 ### Provider Manifest Selection
-- **Single path**: `buildDeps(cfg, repoDir)` (`pkg/stagehand/stagehand.go:316`) selects ONE
+- **Single path**: `buildDeps(cfg, repoDir)` (`pkg/stagecoach/stagecoach.go:316`) selects ONE
   manifest from `cfg.Provider` (global). Called ONLY from `GenerateCommit`. The resulting
   `generate.Deps{Manifest: m}` is passed to `CommitStaged`/`runPipeline`.
 - **Multi path**: `decompose.ResolveRoles(cfg, reg)` resolves a per-role manifest set
   (`decompose.RoleManifests`). Each role gets its own manifest.
 - **buildDeps is single-path-only**: confirmed by grep — the only production caller is
-  `GenerateCommit` at `stagehand.go:136`. `Decompose` (multi) uses `ResolveRoles` instead.
+  `GenerateCommit` at `stagecoach.go:136`. `Decompose` (multi) uses `ResolveRoles` instead.
 
 ### Role Resolution (FR-R3)
 - `config.ResolveRoleModel(role, cfg) (provider, model, reasoning)` — precedence:
   `cfg.Roles[role]` (per-field) → global `cfg.Provider/Model/Reasoning` → `defaultRoleReasoning[role]`.
 - **Single path bug (Issue 2)**: `CommitStaged` (generate.go:196) and `runPipeline`
-  (stagehand.go:467) pass `cfg.Model`/`cfg.Reasoning` directly to `Render`, bypassing
+  (stagecoach.go:467) pass `cfg.Model`/`cfg.Reasoning` directly to `Render`, bypassing
   `ResolveRoleModel("message")`. The multi path resolves correctly (message.go:103).
 
 ### Reasoning Feature (FR-R6)

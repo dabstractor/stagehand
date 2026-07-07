@@ -109,7 +109,7 @@ and the input whose tree-to-tree (not index-vs-HEAD) nature is what makes overla
 ## User Persona
 
 **Target User**: the decompose pipeline's per-concept message-generation step (internal code, P3.M2.T4.S1),
-and by extension the end user running `stagehand` on an un-staged working tree to get multiple
+and by extension the end user running `stagecoach` on an un-staged working tree to get multiple
 logically-coherent commits. TreeDiff is NOT a user-facing CLI flag; it is the diff primitive the message
 agent consumes inside the decomposition loop.
 

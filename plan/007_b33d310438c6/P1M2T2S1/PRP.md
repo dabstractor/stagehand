@@ -92,7 +92,7 @@ context line; DiffContext:0 → changed lines only. go.mod/go.sum unchanged; onl
 on this centralized argv site.
 
 **Use Case**: A user renames a file (`git mv`) and edits a few lines across several files, then runs
-stagehand. The diff payload shows the rename compactly (`rename from`/`rename to` + residual edit) and
+stagecoach. The diff payload shows the rename compactly (`rename from`/`rename to` + residual edit) and
 each edit with one anchor context line — not a full delete+add of the renamed file plus 3-line context windows.
 
 **User Journey**: `StagedDiff`/`TreeDiff`/`WorkingTreeDiff` → each `g.run` builds argv via
@@ -437,7 +437,7 @@ FROZEN / NOT-EDITED:
   - internal/git/binary.go (detectBinaryFiles/fileStatuses — numstat/name-status; kept -M-free per
     git_diff_semantics §3). Their call sites in the 3 functions stay verbatim.
   - internal/config/* (DiffContextValue already resolves nil⇒1; the 6 call sites already pass it).
-  - The 6 production call sites (generate/hook/stagehand/decompose) — they already map cfg→opts.
+  - The 6 production call sites (generate/hook/stagecoach/decompose) — they already map cfg→opts.
   - opts.TokenLimit / opts.PromptReserveTokens — UNREAD here (M4 owns the token-limit gate + water-fill).
   - docs/* (DOCS: none; diff_context documented in P1.M1.T1.S4).
 
@@ -481,13 +481,13 @@ go test -race ./...                # generate/decompose/hook consume the (now -M
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only internal/git/ changed:
 git diff --name-only | grep -Ev '^internal/git/' && echo "UNEXPECTED file changed" || echo "only internal/git/ changed (good)"
 # Confirm binary.go byte-unchanged:
 git diff --exit-code internal/git/binary.go && echo "binary.go UNCHANGED (expected)"
-# Smoke (optional): in a temp repo, stage a rename + an edit; stagehand --dry-run; confirm the payload
+# Smoke (optional): in a temp repo, stage a rename + an edit; stagecoach --dry-run; confirm the payload
 # shows "rename from/to" + 1-line context (FR3e/FR3f end-to-end through generate).
 ```
 
@@ -495,7 +495,7 @@ git diff --exit-code internal/git/binary.go && echo "binary.go UNCHANGED (expect
 
 ```bash
 # Determinism + cross-config check (git_diff_semantics §1 verification): in a temp repo, set
-# `diff.renames=false` and confirm stagehand's captured diff STILL shows the compact rename (proves -M
+# `diff.renames=false` and confirm stagecoach's captured diff STILL shows the compact rename (proves -M
 # wins over the user's git config). Also confirm -U1 composes with tree-to-tree (TreeDiff) by staging a
 # 2-commit decompose-style change. The unit tests above cover the common path; this is the cross-config
 # belt-and-suspenders. golangci-lint: `make lint` (project-wide gate).

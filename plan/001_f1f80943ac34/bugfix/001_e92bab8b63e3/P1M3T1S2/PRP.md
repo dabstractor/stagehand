@@ -2,7 +2,7 @@
 name: "P1.M3.T1.S2 — Replace the dry-run single-pass with the bounded dedupe/retry loop; skip commit-tree/update-ref ONLY (PRD Issue 2 / FR49)"
 description: |
 
-  THE BUG (PRD Issue 2, Severity Major): `pkg/stagehand.runPipeline`'s dry-run branch is a **third,
+  THE BUG (PRD Issue 2, Severity Major): `pkg/stagecoach.runPipeline`'s dry-run branch is a **third,
   degraded** implementation of the generate loop — a SINGLE attempt with **no duplicate check, no
   parse-retry (FR29), no bounded retries (FR30–FR33)**. So `--dry-run` can print a DIFFERENT message
   than a real commit would produce (it shows the first attempt even when that attempt duplicates a
@@ -47,11 +47,11 @@ description: |
 
   ⚠️ **DO NOT perturb `generate.CommitStaged`** — D3 rejected adding a "no-commit" flag to the frozen,
   heavily-tested orchestrator. The dedup lives INSIDE `runPipeline` (which already held the second
-  copy of the loop). S2 touches ONLY `pkg/stagehand/stagehand.go` + `pkg/stagehand/stagehand_test.go`
+  copy of the loop). S2 touches ONLY `pkg/stagecoach/stagecoach.go` + `pkg/stagecoach/stagecoach_test.go`
   + (Mode A) `docs/cli.md`. (§7.)
 
-  Deliverable: EDIT `pkg/stagehand/stagehand.go` `runPipeline` (delete dry-run short-circuit; add
-  dry-run success early-return with `signal.ClearSnapshot()`); EDIT `pkg/stagehand/stagehand_test.go`
+  Deliverable: EDIT `pkg/stagecoach/stagecoach.go` `runPipeline` (delete dry-run short-circuit; add
+  dry-run success early-return with `signal.ClearSnapshot()`); EDIT `pkg/stagecoach/stagecoach_test.go`
   (flip the ONE `TestGenerateCommit_Timeout`/`dryrun` assertion); EDIT `docs/cli.md:26` (affirm
   `--dry-run` runs the full dup-check/retry pipeline). No other files. `go build ./...`, `go vet
   ./...`, `gofmt -l`, and `go test -race ./...` all green.
@@ -60,7 +60,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Make `pkg/stagehand.runPipeline`'s dry-run path run the **same** bounded
+**Feature Goal**: Make `pkg/stagecoach.runPipeline`'s dry-run path run the **same** bounded
 generate→parse→dedupe loop as the commit path (FR29 parse-retry, FR30–FR33 duplicate rejection +
 bounded retries), then stop **immediately before** `commit-tree`/`update-ref` — so `--dry-run`
 previews the EXACT message a real commit would produce (including retrying past a duplicate first
@@ -69,7 +69,7 @@ pipeline, print the resulting message, but do not create the commit or move HEAD
 collapses three near-duplicate loop implementations into one.
 
 **Deliverable**:
-1. **EDIT** `pkg/stagehand/stagehand.go` (`runPipeline`):
+1. **EDIT** `pkg/stagecoach/stagecoach.go` (`runPipeline`):
    - **DELETE** the entire `// ---- DryRun: single pass, no commit. ----` block (the `if dryRun { … }`
      short-circuit).
    - **INSERT** a dry-run success early-return after `if !success { return &generate.RescueError{…} }`
@@ -78,7 +78,7 @@ collapses three near-duplicate loop implementations into one.
    - Leave the existing loop body and the commit tail (CommitTree → RestoreDefault → UpdateRefCAS →
      CASError → ClearSnapshot → DiffTree → return) **unchanged** — they now serve only the `!dryRun`
      path. Update the now-stale loop/section comments.
-2. **EDIT** `pkg/stagehand/stagehand_test.go`: flip the ONE assertion in `TestGenerateCommit_Timeout`
+2. **EDIT** `pkg/stagecoach/stagecoach_test.go`: flip the ONE assertion in `TestGenerateCommit_Timeout`
    / `"dryrun"` from "must NOT be `*RescueError`" to "must BE `*RescueError{Kind:ErrTimeout}` with
    non-empty `TreeSHA`" (mirror the `"commit_path"` subtest).
 3. **EDIT** `docs/cli.md` (Mode A): the `--dry-run` table row (line ~26) affirms it runs the full
@@ -97,12 +97,12 @@ success. The loop appears exactly once in `runPipeline` (no third copy).
 
 **Target User**: A developer evaluating "should I trust this AI commit message?" via `--dry-run`
 before committing (PRD US9 — "judge quality before trusting it"). Transitively the CLI default action
-(`internal/cmd/default_action.go` → `pkg/stagehand.GenerateCommit` with `DryRun:true`) and any
+(`internal/cmd/default_action.go` → `pkg/stagecoach.GenerateCommit` with `DryRun:true`) and any
 library consumer calling `GenerateCommit(ctx, Options{DryRun:true})`.
 
-**Use Case**: `stagehand --dry-run` (or `stagehand --provider X --dry-run`) prints the commit message
+**Use Case**: `stagecoach --dry-run` (or `stagecoach --provider X --dry-run`) prints the commit message
 a real run WOULD produce — same dedupe, same retry, same parse-failure handling — without creating the
-commit. The printed message is byte-identical to what `stagehand` (no `--dry-run`) would commit.
+commit. The printed message is byte-identical to what `stagecoach` (no `--dry-run`) would commit.
 
 **User Journey**: `--dry-run` → `GenerateCommit(DryRun:true)` → `runPipeline(dryRun=true)` →
 RevParseHEAD → StagedDiff → WriteTree (S1, unconditional) → SetSnapshot → buildSysPrompt →
@@ -133,7 +133,7 @@ would actually be committed.
 
 ## What
 
-A surgical edit to `pkg/stagehand/stagehand.go` `runPipeline`: remove the dry-run single-pass
+A surgical edit to `pkg/stagecoach/stagecoach.go` `runPipeline`: remove the dry-run single-pass
 short-circuit, let the already-present bounded loop serve both paths, and add a dry-run success
 early-return that skips only `commit-tree`/`update-ref`. Plus one flipped test assertion and one doc
 row. No new types, no new functions, no new imports, no I/O changes, no config changes. The loop's
@@ -169,8 +169,8 @@ behavior on the commit path is byte-identical to before (it is the same code, no
 ### Context Completeness Check
 
 _Pass._ A Go developer with no prior knowledge of this repo can implement this from: the exact
-current dry-run block to delete (quoted verbatim below + in `stagehand.go`), the exact loop that stays
-(visible in `stagehand.go` and quoted in `architecture/seam_dryrun.md` §1), the exact early-return to
+current dry-run block to delete (quoted verbatim below + in `stagecoach.go`), the exact loop that stays
+(visible in `stagecoach.go` and quoted in `architecture/seam_dryrun.md` §1), the exact early-return to
 insert (copy-ready in §Implementation Blueprint), the one test assertion to flip (quoted verbatim),
 the signal disarm rationale (`internal/signal/signal.go` `handle`/`ClearSnapshot`), and the binding
 decision D3. No external research needed — this is an in-repo refactor of existing, tested code.
@@ -204,7 +204,7 @@ decision D3. No external research needed — this is an in-repo refactor of exis
   critical: §0 (S1 is DONE — do not redo the snapshot), §4 (S2 MUST flip the timeout assertion or the
        tree breaks), §5 (ClearSnapshot not RestoreDefault on dry-run success).
 
-- file: pkg/stagehand/stagehand.go   (THE file you EDIT — runPipeline)
+- file: pkg/stagecoach/stagecoach.go   (THE file you EDIT — runPipeline)
   section: `runPipeline` — the `// ---- DryRun: single pass, no commit. ----` block (DELETE) and the
            commit-path loop immediately after it (KEEP, now serves both paths).
   why: this is the entire change surface. The loop is already a faithful copy of generate.CommitStaged;
@@ -232,7 +232,7 @@ decision D3. No external research needed — this is an in-repo refactor of exis
           update-ref window, which dry-run skips). Dry-run timeout/exhaustion must NOT disarm (the
           *RescueError carries the context; dangling tree is intentional).
 
-- file: pkg/stagehand/stagehand_test.go   (THE file you EDIT — one assertion)
+- file: pkg/stagecoach/stagecoach_test.go   (THE file you EDIT — one assertion)
   section: `TestGenerateCommit_Timeout` / subtest `"dryrun"` (lines ~224-250).
   why: this test LOCKS IN the current divergent behavior (bare `ErrTimeout`, `errors.As(&re)` false).
        S2 changes that behavior, so S2 must flip this assertion. The `"commit_path"` subtest right
@@ -253,9 +253,9 @@ decision D3. No external research needed — this is an in-repo refactor of exis
 
 ```bash
 go.mod / go.sum                              # UNCHANGED — S2 adds NO dep (all primitives already imported)
-pkg/stagehand/
-  stagehand.go          # EDIT — runPipeline: delete dry-run short-circuit; add dry-run success early-return
-  stagehand_test.go     # EDIT — flip ONE assertion in TestGenerateCommit_Timeout/"dryrun"
+pkg/stagecoach/
+  stagecoach.go          # EDIT — runPipeline: delete dry-run short-circuit; add dry-run success early-return
+  stagecoach_test.go     # EDIT — flip ONE assertion in TestGenerateCommit_Timeout/"dryrun"
 internal/
   generate/generate.go      # FROZEN (CommitStaged) — READ ONLY
   generate/dedupe.go        # ExtractSubject / IsDuplicate — READ ONLY (already used)
@@ -272,9 +272,9 @@ Makefile                # UNCHANGED
 ### Desired Codebase tree with files to be added
 
 ```bash
-pkg/stagehand/
-  stagehand.go          # EDITED — runPipeline: one loop (was: dry-run short-circuit + commit loop)
-  stagehand_test.go     # EDITED — TestGenerateCommit_Timeout/"dryrun" assertion flipped to *RescueError
+pkg/stagecoach/
+  stagecoach.go          # EDITED — runPipeline: one loop (was: dry-run short-circuit + commit loop)
+  stagecoach_test.go     # EDITED — TestGenerateCommit_Timeout/"dryrun" assertion flipped to *RescueError
 docs/cli.md             # EDITED — --dry-run row affirms dup-check/retry pipeline
 # NO new files. NO new types/functions. go.mod/go.sum UNCHANGED. After S2: dry-run runs the full loop;
 # S3 will add the net-new dry-run dup/parse/retry/snapshot tests.
@@ -325,7 +325,7 @@ docs/cli.md             # EDITED — --dry-run row affirms dup-check/retry pipel
 // already imported and used by the existing commit-path loop. `go mod tidy` is a no-op; `git diff
 // --exit-code go.mod go.sum` is empty.
 
-// GOTCHA (the dry-run Result drops Changes): pkg/stagehand.Result has no Changes field (only the
+// GOTCHA (the dry-run Result drops Changes): pkg/stagecoach.Result has no Changes field (only the
 // internal generate.Result does). The dry-run early-return returns the 5-field Result like the old
 // single-pass did (CommitSHA, Subject, Message, Provider, Model). Do not invent a Changes field.
 ```
@@ -336,7 +336,7 @@ docs/cli.md             # EDITED — --dry-run row affirms dup-check/retry pipel
 
 ```go
 // NO new types. The existing types drive everything:
-//   pkg/stagehand.Result  { CommitSHA, Subject, Message, Provider, Model string }
+//   pkg/stagecoach.Result  { CommitSHA, Subject, Message, Provider, Model string }
 //   generate.RescueError  { Kind, TreeSHA, ParentSHA, Candidate string; Cause error }
 //   generate.Deps, config.Config, provider.Manifest — unchanged.
 // The dry-run success Result reuses the exact 5 fields the old single-pass returned.
@@ -345,8 +345,8 @@ docs/cli.md             # EDITED — --dry-run row affirms dup-check/retry pipel
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: EDIT pkg/stagehand/stagehand.go — runPipeline: collapse the dry-run path into the shared loop
-  - FILE: pkg/stagehand/stagehand.go, function runPipeline. NO new import.
+Task 1: EDIT pkg/stagecoach/stagecoach.go — runPipeline: collapse the dry-run path into the shared loop
+  - FILE: pkg/stagecoach/stagecoach.go, function runPipeline. NO new import.
   - DELETE the entire `// ---- DryRun: single pass, no commit. ----` block (the `if dryRun { … }`
       short-circuit: BuildUserPayload(diff,nil) → Render → Execute → ErrTimeout-bare / errors.New /
       ParseOutput → return Result{CommitSHA:""}). Remove it wholesale.
@@ -373,8 +373,8 @@ Task 1: EDIT pkg/stagehand/stagehand.go — runPipeline: collapse the dry-run pa
   - GOTCHA: ClearSnapshot() (not RestoreDefault()) on dry-run success.
   - GOTCHA: do NOT touch WriteTree / signal.SetSnapshot (S1 already made them unconditional).
 
-Task 2: EDIT pkg/stagehand/stagehand_test.go — flip the ONE locked-in timeout assertion
-  - FILE: pkg/stagehand/stagehand_test.go, TestGenerateCommit_Timeout, subtest "dryrun".
+Task 2: EDIT pkg/stagecoach/stagecoach_test.go — flip the ONE locked-in timeout assertion
+  - FILE: pkg/stagecoach/stagecoach_test.go, TestGenerateCommit_Timeout, subtest "dryrun".
   - REPLACE the block:
         var re *RescueError
         if errors.As(err, &re) {
@@ -466,12 +466,12 @@ Task 4: VERIFY (no further file change)
 
 ```yaml
 GO MODULE (go.mod / go.sum):
-  - change: NONE. Every primitive the loop uses is already imported by stagehand.go (generate.*,
+  - change: NONE. Every primitive the loop uses is already imported by stagecoach.go (generate.*,
         prompt.BuildUserPayload, provider.{Execute,ParseOutput}, signal.*, context, errors, fmt,
         strings). `go mod tidy` is a no-op; `git diff --exit-code go.mod go.sum` is empty.
 
 PACKAGE EDGES (import graph):
-  - pkg/stagehand → (internal: config, generate, git, prompt, provider, signal, ui; stdlib). UNCHANGED.
+  - pkg/stagecoach → (internal: config, generate, git, prompt, provider, signal, ui; stdlib). UNCHANGED.
   - No new import edge. internal/generate, internal/signal, internal/provider, internal/prompt are
         READ-ONLY consumers here.
 
@@ -486,7 +486,7 @@ DOWNSTREAM (the contracts S2 preserves/changes):
   - CLI (internal/cmd/default_action.go): on dry-run SUCCESS prints the message + exit 0 (unchanged);
         on dry-run *RescueError, handleGenError prints the §18.3 rescue block (exit 3) — NOW possible
         in dry-run too, which is correct (the snapshot was taken). No CLI code change needed.
-  - pkg/stagehand.GenerateCommit dispatch is UNCHANGED: `!DryRun && SystemExtra=="" → CommitStaged`;
+  - pkg/stagecoach.GenerateCommit dispatch is UNCHANGED: `!DryRun && SystemExtra=="" → CommitStaged`;
         `DryRun || SystemExtra != "" → runPipeline`. S2 only changes runPipeline's internals.
 
 FROZEN FILES (do NOT edit):
@@ -502,14 +502,14 @@ FROZEN FILES (do NOT edit):
 
 ```bash
 # Format the edited files
-gofmt -w pkg/stagehand/stagehand.go pkg/stagehand/stagehand_test.go
+gofmt -w pkg/stagecoach/stagecoach.go pkg/stagecoach/stagecoach_test.go
 
-# Vet the package (compiles stagehand.go + test)
-go vet ./pkg/stagehand/
+# Vet the package (compiles stagecoach.go + test)
+go vet ./pkg/stagecoach/
 
 # Confirm NO new import leaked and the dry-run short-circuit is gone
-grep -n "DryRun: single pass" pkg/stagehand/stagehand.go   # → no match (block deleted)
-grep -n "if dryRun {" pkg/stagehand/stagehand.go           # → exactly ONE match (the new early-return)
+grep -n "DryRun: single pass" pkg/stagecoach/stagecoach.go   # → no match (block deleted)
+grep -n "if dryRun {" pkg/stagecoach/stagecoach.go           # → exactly ONE match (the new early-return)
 
 # Confirm go.mod/go.sum unchanged
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum unchanged ✓"
@@ -524,10 +524,10 @@ git diff --exit-code internal/generate/generate.go internal/signal/signal.go && 
 
 ```bash
 # The edited timeout subtest specifically
-go test -race -v ./pkg/stagehand/ -run 'TestGenerateCommit_Timeout'
+go test -race -v ./pkg/stagecoach/ -run 'TestGenerateCommit_Timeout'
 
-# The whole stagehand package (incl. the happy-path DryRun, SystemExtra, MissingProvider tests)
-go test -race -v ./pkg/stagehand/
+# The whole stagecoach package (incl. the happy-path DryRun, SystemExtra, MissingProvider tests)
+go test -race -v ./pkg/stagecoach/
 
 # Full repo regression (S2 must not break any other package)
 go test -race ./...
@@ -548,7 +548,7 @@ go build ./... && go vet ./...
 #   repo history: "feat: init"; stub attempt 1 = "feat: init" (dup), attempt 2 = "feat: unique".
 #   Before S2: dry-run printed "feat: init" (the dup). After S2: dry-run must print "feat: unique".
 # (This is exactly the repro in PRD Issue 2's Steps to Reproduce. S3 will encode it as a unit test;
-#  S2 can spot-check it manually with bin/stagehand + a STAGEHAND_STUB_OUT-scripted stub.)
+#  S2 can spot-check it manually with bin/stagecoach + a STAGECOACH_STUB_OUT-scripted stub.)
 
 # Expected: `go build ./...` clean; the manual repro now shows dry-run retrying past the duplicate.
 ```
@@ -559,7 +559,7 @@ go build ./... && go vet ./...
 # Not applicable for S2 beyond the above (pure in-repo refactor; no DB/network/UI/service).
 # Strongest creative check: confirm the loop appears EXACTLY once in runPipeline and that the dry-run
 # success path neither commits nor moves HEAD:
-#   - grep -c "for attempt := 0; attempt <= cfg.MaxDuplicateRetries" pkg/stagehand/stagehand.go  → 1
+#   - grep -c "for attempt := 0; attempt <= cfg.MaxDuplicateRetries" pkg/stagecoach/stagecoach.go  → 1
 #   - In a dry run, `git rev-parse HEAD` is unchanged AND `git count-objects -v` shows the dangling
 #     tree (S1) but NO new commit object.
 # (The net-new dup-retry/parse-retry/snapshot unit tests are S3 — S2 ships the behavior, S3 pins it.)

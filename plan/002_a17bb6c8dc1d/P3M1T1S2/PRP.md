@@ -3,7 +3,7 @@ name: "P3.M1.T1.S2 — Implement stager task prompt in internal/prompt/stager.go
 description: |
 
   CREATE ONE NEW FILE `internal/prompt/stager.go` in the existing `prompt` package: the **stager**
-  task-prompt half of stagehand's v2 multi-commit decomposition (PRD §17.6). The stager is a **tooled**
+  task-prompt half of stagecoach's v2 multi-commit decomposition (PRD §17.6). The stager is a **tooled**
   agent (git access, repo-scoped). Unlike the planner (S1) and arbiter (S3), the stager's prompt is
   delivered **as the user payload** with a minimal/empty system prompt, it has **NO JSON contract** (it
   returns a text confirmation of paths staged, not structured output), and there is **NO parse
@@ -55,7 +55,7 @@ package. This is the prompt analogue of v1's `payload.go` — the verbatim §17.
 instruction line + the 5-line git-instructions/guardrails block) with one concept's `title` + `description`
 (from the planner, S1) interpolated between them. The stager is the ONLY tooled decompose role; its
 behavioral guardrails (no commit/amend/push/ref-mutation) live in this task prompt AND are enforced
-structurally (tooled_flags §12.1; stagehand owns all ref ops). Unlike the planner (S1), there is NO
+structurally (tooled_flags §12.1; stagecoach owns all ref ops). Unlike the planner (S1), there is NO
 system-prompt constant, NO JSON contract, and NO parse function — the stager returns free-form text and
 the orchestrator reads its exit code.
 
@@ -85,7 +85,7 @@ the orchestrator reads its exit code.
 ## User Persona
 
 **Target User**: the decompose stager agent invocation (internal code, P3.M2.T3.S1) and, by extension,
-the end user running `stagehand` on an un-staged working tree to get multiple logically-coherent commits.
+the end user running `stagecoach` on an un-staged working tree to get multiple logically-coherent commits.
 The stager task prompt is NOT user-facing CLI text; it is the user payload piped to the tooled stager
 agent (PRD §13.6.2 / §17.6). The system prompt for the stager is minimal/empty (§17.6) — the orchestrator
 passes it; this task does NOT define a system-prompt constant.
@@ -107,7 +107,7 @@ tooled_flags scoping together make a misbehaving stager unable to corrupt histor
 
 - **Closes the stager half of PRD §17.6 / §13.6.2 / FR-M5 at the prompt layer.** FR-M5: the stager
   "for one concept, find all related changes and stage them (`git add`, hunk-stage via `git apply
-  --cached`)" and "never commits, moves refs, or pushes — stagehand owns all ref mutations." This task is
+  --cached`)" and "never commits, moves refs, or pushes — stagecoach owns all ref mutations." This task is
   the literal task-prompt-construction implementation of that role — the second of the three decomposition
   prompts (planner §17.5 = S1, parallel; stager §17.6 ← THIS; arbiter §17.7 = S3).
 - **Mechanical extension of the established prompt-package pattern.** payload.go already proved the
@@ -395,7 +395,7 @@ Task 2: CREATE internal/prompt/stager.go — stagerGuardrails const (verbatim §
     NO trailing newline.
   - DOC COMMENT: cite §17.6; note it is the prompt-level restatement of §13.6.2/§17.6's structural
     guardrails (no commit/amend/push/ref-mutation; only update the index), enforced STRUCTURALLY too via
-    tooled_flags (§12.1) — stagehand owns all ref ops; NOTE the TWO BACKTICK chars (`git add <path>` and
+    tooled_flags (§12.1) — stagecoach owns all ref ops; NOTE the TWO BACKTICK chars (`git add <path>` and
     `git apply --cached`) → hence a double-quoted literal (NOT a raw string); NOTE the EM-DASH "—" (U+2014)
     in "file contents — only update the index" is the ONE non-ASCII byte (must NOT become an ASCII hyphen);
     NOTE the literal `<path>` token inside `git add <path>` is instructive (NOT a runtime placeholder).
@@ -422,7 +422,7 @@ Task 3: CREATE internal/prompt/stager.go — BuildStagerTask(title, description 
     note title/description are interpolated VERBATIM (the planner's PlannerCommit{Title,Description});
     note the stager returns free-form text ("list of paths staged") and the index is the truth source
     (hence NO JSON contract / NO parse — the caller P3.M2.T3.S1 reads exit code); note the guardrails are
-    ALSO enforced structurally (tooled_flags §12.1; stagehand owns all ref ops — §17.6 safety proof);
+    ALSO enforced structurally (tooled_flags §12.1; stagecoach owns all ref ops — §17.6 safety proof);
     defensive: empty title/description do not panic (the planner always supplies both per §17.5).
   - GOTCHA: ZERO imports (no strings, no fmt). The file's import block is OMITTED entirely.
   - PLACEMENT: function after the two consts.

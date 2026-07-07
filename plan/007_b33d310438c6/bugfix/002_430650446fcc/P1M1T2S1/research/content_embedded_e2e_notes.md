@@ -14,7 +14,7 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` |
 | Edit target | `internal/git/difftokenlimit_test.go` (add 3 top-level test funcs + 1 assertion helper + 1 body-builder helper) |
 | S1 fix status | **LANDED** — `truncatediff.go:55` `var diffSectionBoundaryRe = regexp.MustCompile("(?m)^diff --git ")`; `splitDiffSections` (lines ~85-120) uses `FindAllStringIndex` slicing (Shape B, NO re-prefix). The un-anchored `strings.Split(diff, "diff --git ")` is GONE. |
 | Baseline | `go test ./internal/git/` → **ok (8.374s)** |

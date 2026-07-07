@@ -25,7 +25,7 @@ description: |
        is non-empty after the loop. It receives: SHAs, subjects, and file-lists (diff-tree) of every
        commit made this run, plus a diff of remaining changes (WorkingTreeDiff). Returns JSON:
        {"target": "<sha>"} or {"target": null}. Ambiguous → null. May only target a commit from this run.
-       The arbiter only DECIDES; stagehand performs all git (FR-M10). Output is parsed via
+       The arbiter only DECIDES; stagecoach performs all git (FR-M10). Output is parsed via
        ParseArbiterOutput (P3.M1.T1.S3).
     2. INPUT: prompt/arbiter.go from P3.M1.T1.S3, StatusPorcelain from P2.M2.T2.S1, the list of commits
        made this run (SHAs, subjects, file-lists).
@@ -61,7 +61,7 @@ description: |
     - internal/decompose/{chain,decompose}.go — DO NOT EXIST YET. chain.go (P3.M3.T2.S1 — the "S2"
       resolution), decompose.go (P3.M4.T1.S1 — the orchestrator). This task creates ONLY arbiter.go.
     - internal/signal/* — DO NOT IMPORT. runArbiter is SIGNAL-FREE (a pure decide-and-return call).
-    - cmd/, pkg/stagehand/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires runArbiter).
+    - cmd/, pkg/stagecoach/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires runArbiter).
 
   DELIVERABLES (2 new files, 0 edits to existing files, 0 breaking changes):
     CREATE internal/decompose/arbiter.go — package `decompose`; ErrArbiterFailed sentinel; type
@@ -141,7 +141,7 @@ per FR-M9. It ONLY DECIDES — resolution (new commit / tip amend / mid-chain ch
 
 **Target User**: the decompose orchestrator (`internal/decompose/decompose.go`, P3.M4.T1.S1) and the
 arbiter resolution logic (`internal/decompose/chain.go`, P3.M3.T2.S1 "S2"), and by extension the end user
-running `stagehand` on an un-staged working tree (the default action routes to decompose per FR-M1).
+running `stagecoach` on an un-staged working tree (the default action routes to decompose per FR-M1).
 arbiter.go is internal plumbing — NOT user-facing CLI text. The user never invokes the arbiter directly;
 the orchestrator calls runArbiter ONCE, after the per-concept loop, only when `StatusPorcelain != ""`
 (some changes no stager claimed). runArbiter decides whether those leftovers fold into an existing
@@ -158,7 +158,7 @@ null) ⇒ S2 stages the leftovers, snapshots, generates a message, and publishes
 **Pain Points Addressed**: (a) leftover changes that no stager claimed must not be silently dropped — the
 arbiter decides whether they fold into an existing run-commit (amend/rebuild) or get their own new commit,
 so NO working-tree change is ever lost; (b) the arbiter ONLY decides (FR-M10) — it has no git access and
-cannot corrupt history; stagehand performs ALL ref mutations; (c) an indecisive / unparseable / out-of-
+cannot corrupt history; stagecoach performs ALL ref mutations; (c) an indecisive / unparseable / out-of-
 range arbiter output degrades SAFELY to "new commit" (§13.6.5 "when in doubt, null"), so a flaky model
 never blocks the leftovers from being committed; (d) the "may only target a commit from this run" guard
 (§13.6.5) is enforced IN runArbiter — a hallucinated or stale SHA is treated as null, never honored.
@@ -417,7 +417,7 @@ decompose knowledge beyond roles.go's Deps is required — runArbiter is fully s
 # MUST READ — the PRD spec (authoritative requirements)
 - url: PRD.md §13.6.5 (the arbiter: runs only if StatusPorcelain non-empty; receives SHAs+messages+file-lists
        of every run commit + a diff of remaining changes; returns {"target":"<sha>"} or {"target":null};
-       ambiguous → null; "may only target a commit from this run"; stagehand performs ALL git, arbiter only
+       ambiguous → null; "may only target a commit from this run"; stagecoach performs ALL git, arbiter only
        decides; the perfect run skips the arbiter)
 - url: PRD.md §9.14 FR-M9 (arbiter agent bare; {"target":"<sha>"|null}) / FR-M10 (arbiter resolution —
        S2/P3.M3.T2.S1 owns it; null/tip/mid-chain/ambiguous→null)
@@ -458,7 +458,7 @@ internal/stubtest/
   stubtest.go         # READ (test infra): Build, Manifest (bare), NewScript, Options.Counter.
 internal/generate/
   generate_test.go    # READ (test pattern): fixture helpers (copy + arb*-rename) + TestCommitStaged_Success.
-go.mod / go.sum       # UNCHANGED (module github.com/dustin/stagehand; config/git/prompt/provider already
+go.mod / go.sum       # UNCHANGED (module github.com/dustin/stagecoach; config/git/prompt/provider already
                       #   imported by roles.go/planner.go; git imported for FileChange — already via Deps.Git).
 .golangci.yml         # READ: errcheck/gosimple/govet/ineffassign/staticcheck/unused.
 ```
@@ -478,7 +478,7 @@ internal/decompose/arbiter_test.go     # NEW — stubtest (bare stubtest.Manifes
                                       #   timeout→null; non-zero-exit-but-valid-stdout; render-error→ErrArbiterFailed;
                                       #   conversion/payload assertions; no-retry (exactly 1 Execute call).
 # go.mod/go.sum UNCHANGED. roles.go + planner.go + stager.go + message.go + prompt/* + git/* + provider/*
-# + config/* + cmd/* + pkg/stagehand all UNCHANGED.
+# + config/* + cmd/* + pkg/stagecoach all UNCHANGED.
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -588,7 +588,7 @@ type CommitInfo struct {
 Task 1: CREATE internal/decompose/arbiter.go — package doc + imports + ErrArbiterFailed + CommitInfo
   - FILE DOC: cite PRD §13.6.5 (the arbiter: runs only if StatusPorcelain non-empty; receives run-commits'
     SHAs+subjects+file-lists + a leftover diff; returns {"target":"<sha>"}|{"target":null}; ambiguous→null;
-    "may only target a commit from this run"; arbiter only DECIDES; stagehand performs all git) + §9.14 FR-M9
+    "may only target a commit from this run"; arbiter only DECIDES; stagecoach performs all git) + §9.14 FR-M9
     (arbiter agent bare) + §17.7 (the arbiter system prompt + JSON contract; NO retry instruction). Note
     arbiter.go is the arbiter agent invocation (runArbiter), the decompose analogue of callPlanner's Render→
     Execute→parse pattern specialized to the arbiter's {"target":"<sha>"|null} JSON contract. Note it is
@@ -596,9 +596,9 @@ Task 1: CREATE internal/decompose/arbiter.go — package doc + imports + ErrArbi
     doubt, null" decision (degrades to null on ANY indecision; only render error returns ErrArbiterFailed).
     Note it performs ZERO git reads (the orchestrator pre-computes commits + leftoverDiff) and ONLY DECIDES
     (resolution is P3.M3.T2.S1). Consumed by the orchestrator (P3.M4.T1.S1); no caller wiring.
-  - IMPORTS: "context"; "errors"; "fmt"; "github.com/dustin/stagehand/internal/config";
-    "github.com/dustin/stagehand/internal/git"; "github.com/dustin/stagehand/internal/prompt";
-    "github.com/dustin/stagehand/internal/provider".
+  - IMPORTS: "context"; "errors"; "fmt"; "github.com/dustin/stagecoach/internal/config";
+    "github.com/dustin/stagecoach/internal/git"; "github.com/dustin/stagecoach/internal/prompt";
+    "github.com/dustin/stagecoach/internal/provider".
     (NO "ui" — deps.Verbose is the ui.Verbose handle via Deps; no direct ui symbol. NO "signal". All these are
     already imported by roles.go/planner.go EXCEPT confirm each is USED (golangci/unused rejects unused imports).
     git IS used (CommitInfo.Files []git.FileChange). prompt IS used (BuildArbiterSystemPrompt/UserPayload/
@@ -696,9 +696,9 @@ Task 3: CREATE internal/decompose/arbiter.go — runArbiter (the entry point)
 
 Task 4: CREATE internal/decompose/arbiter_test.go — fixture helpers (copied from generate_test.go, arb*-renamed)
   - IMPORTS: "context"; "errors"; "os/exec"; "strings"; "testing"; "time";
-    "github.com/dustin/stagehand/internal/config"; "github.com/dustin/stagehand/internal/git";
-    "github.com/dustin/stagehand/internal/prompt"; "github.com/dustin/stagehand/internal/provider";
-    "github.com/dustin/stagehand/internal/stubtest".
+    "github.com/dustin/stagecoach/internal/config"; "github.com/dustin/stagecoach/internal/git";
+    "github.com/dustin/stagecoach/internal/prompt"; "github.com/dustin/stagecoach/internal/provider";
+    "github.com/dustin/stagecoach/internal/stubtest".
     Package: `decompose` (internal test — runArbiter/convertArbiterCommits/targetInRun/CommitInfo visible).
   - COPY the fixture helpers from generate_test.go VERBATIM but RENAME with the `arb` prefix: arbInitRepo,
     arbWriteFile, arbStageFile, arbCommitRaw, arbRunGit, arbGitOut, arbHeadSHA (they are unimportable from
@@ -850,7 +850,7 @@ NOT TOUCHED (owned elsewhere — do NOT edit):
   - internal/decompose/decompose.go — DOES NOT EXIST YET (P3.M4.T1.S1 orchestrator). runArbiter does NOT wire
     a caller, does NOT check StatusPorcelain, does NOT compute leftoverDiff, does NOT build []CommitInfo.
   - git.StatusPorcelain / WorkingTreeDiff / DiffTree — orchestrator-side (runArbiter does NOT call them).
-  - cmd/, pkg/stagehand/ — UNCHANGED.
+  - cmd/, pkg/stagecoach/ — UNCHANGED.
 ```
 
 ## Validation Loop
@@ -859,7 +859,7 @@ NOT TOUCHED (owned elsewhere — do NOT edit):
 
 ```bash
 # Run after creating arbiter.go — fix before proceeding.
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/decompose/arbiter.go internal/decompose/arbiter_test.go   # format
 go vet ./internal/decompose/...                                               # vet
 golangci-lint run ./internal/decompose/...                                    # lint (.golangci.yml)
@@ -871,7 +871,7 @@ golangci-lint run ./internal/decompose/...                                    # 
 ### Level 2: Unit + Integration Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The arbiter-specific tests.
 go test ./internal/decompose/... -run 'Arbiter|ConvertArbiterCommits|TargetInRun' -v
@@ -892,7 +892,7 @@ go test ./...
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Build the whole module (catches import-cycle / missing-symbol errors across packages).
 go build ./...

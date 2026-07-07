@@ -99,7 +99,7 @@ the chunk token substring).
 
 ## ISSUE 1: Dry-Run Path Multi-Turn Propagation (MAJOR)
 
-**File**: `pkg/stagehand/stagehand.go`
+**File**: `pkg/stagecoach/stagecoach.go`
 **Function**: `runPipeline` (line 415)
 **Insertion point**: between the loop end (line 542) and the rescue return (line 543)
 
@@ -279,7 +279,7 @@ payload = prompt.BuildUserPayload(diff, cfg.Context, rejected)
 Before:
 ```go
 // Step G: exhaustion after bounded retries.
-return fmt.Errorf("stagehand: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
+return fmt.Errorf("stagecoach: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
 ```
 
 After (insert gate BEFORE the exhaustion return; on success calls `WriteMessageFile`;
@@ -332,7 +332,7 @@ if cfg.MultiTurnFallback &&
 }
 
 // Step G: exhaustion after bounded retries.
-return fmt.Errorf("stagehand: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
+return fmt.Errorf("stagecoach: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
 ```
 
 ### Import needed

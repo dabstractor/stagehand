@@ -52,7 +52,7 @@ effort + risk of spurious churn (e.g., re-adding then removing, or "fixing" alre
 The contract's point 4 explicitly scopes S1 to the config package: "No other package is affected yet
 (decompose/cmd tests are S2)." system_context.md §3 assigns those to P1.M1.T1.S2:
 internal/decompose/roles_test.go, internal/cmd/default_action_test.go, internal/cmd/root.go (--reasoning
-help), pkg/stagehand/stagehand.go, docs/cli.md. A grep for `planner: high` / `(off; planner: high)` /
+help), pkg/stagecoach/stagecoach.go, docs/cli.md. A grep for `planner: high` / `(off; planner: high)` /
 `shipped default` across those returned ZERO matches too — so S2's surfaces also appear clean — but that
 is S2's verification to own, not S1's. S1's gate is `go test ./internal/config/` green + repo-wide grep
 absence of `defaultRoleReasoning`.

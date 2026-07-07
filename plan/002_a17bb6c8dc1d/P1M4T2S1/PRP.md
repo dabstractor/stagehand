@@ -2,7 +2,7 @@
 name: "P1.M4.T2.S1 — Rewrite `config init` to populated bootstrap + add --provider/--force/--template flags (PRD §9.17 FR-B1/B2, §9.16 FR-D1/D4, §16.4)"
 description: |
 
-  Rewrite `stagehand config init` (internal/cmd/config.go) so its DEFAULT behavior writes a POPULATED,
+  Rewrite `stagecoach config init` (internal/cmd/config.go) so its DEFAULT behavior writes a POPULATED,
   working config (not the inert commented template). It runs cascading detection (FR-D1: highest-priority
   installed built-in in order pi, opencode, cursor, agy, gemini, codex, claude), writes `[defaults]
   provider = <detected>` UNCOMMENTED, writes that provider's `[role.*]` per-role default models
@@ -60,7 +60,7 @@ description: |
     - root.go, providers.go, default_action.go (P1.M4.T1/P4.M1 — do NOT edit).
     - role_defaults.go / RoleModelDefaults / DefaultModelsForProvider (P1.M3.T3.S1 — consume read-only).
 
-  Deliverable: `stagehand config init` writes a working config (auto-detected provider + role models);
+  Deliverable: `stagecoach config init` writes a working config (auto-detected provider + role models);
   `--provider`/`--force`/`--template` work; `go build ./... && go test ./...` green; go.mod/go.sum
   unchanged; only the 3 listed files differ.
 
@@ -68,7 +68,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Make `stagehand config init` produce a **populated, immediately-working** global config
+**Feature Goal**: Make `stagecoach config init` produce a **populated, immediately-working** global config
 (PRD §9.17 FR-B1) by running cascading provider detection (FR-D1) and writing the detected (or
 `--provider`-pinned) provider's per-role default models (FR-D4) UNCOMMENTED, with the stager fallback
 applied, other installed providers as commented `[role.*]` blocks, `config_version` uncommented, parent
@@ -87,7 +87,7 @@ retaining the v1 inert template behind `--template`.
    add deterministic `buildBootstrapConfig` unit tests + a TOML-validity check.
 3. EDIT `docs/configuration.md` — document the populated format + the 3 flags.
 
-**Success Definition**: `make build && ./bin/stagehand config init` (no flags, in a fresh HOME) writes a
+**Success Definition**: `make build && ./bin/stagecoach config init` (no flags, in a fresh HOME) writes a
 config whose `config_version = 2`, `[defaults] provider = <an installed built-in or "pi">`, and four
 uncommented `[role.*]` blocks with models from the FR-D4 table (stager routed to a stager-capable
 provider with an annotation when the default provider can't stage); re-running `config init` exits 1
@@ -99,16 +99,16 @@ listed files changed.
 
 ## User Persona
 
-**Target User**: A new Stagehand user running `config init` for the first time (PRD §7 personas). They
+**Target User**: A new Stagecoach user running `config init` for the first time (PRD §7 personas). They
 want a config that **works immediately** — not a 200-line commented reference they have to study before
 the tool does anything.
 
-**Use Case**: `stagehand config init` → stagehand detects their installed agent (e.g. claude) → writes a
-config with `[defaults] provider = "claude"` + claude's role models → next `stagehand` run "just works."
+**Use Case**: `stagecoach config init` → stagecoach detects their installed agent (e.g. claude) → writes a
+config with `[defaults] provider = "claude"` + claude's role models → next `stagecoach` run "just works."
 Later: `config init --provider pi --force` to repin; or `config init --template` to get the full reference.
 
-**User Journey**: install stagehand → `stagehand config init` → sees "Wrote config to ~/.config/.../
-config.toml" → opens it → sees their agent + sensible per-role models already filled in → runs `stagehand`
+**User Journey**: install stagecoach → `stagecoach config init` → sees "Wrote config to ~/.config/.../
+config.toml" → opens it → sees their agent + sensible per-role models already filled in → runs `stagecoach`
 → works. If they have TWO agents installed, the other appears as a commented block → uncomment one
 `[role.*]` to route that role to it.
 
@@ -264,8 +264,8 @@ and the docs target. No git/prompt/decompose knowledge required.
 # MUST READ — the global path resolver (consume; do NOT edit)
 - file: internal/config/file.go   (READ GlobalConfigPath)
   section: `func GlobalConfigPath() string` (the exported wrapper over globalConfigPath — XDG or
-       ~/.config/stagehand/config.toml). Tests set HOME=XDG_CONFIG_HOME=t.TempDir() so the path is
-       <tmp>/stagehand/config.toml (globalDir = <tmp>/stagehand).
+       ~/.config/stagecoach/config.toml). Tests set HOME=XDG_CONFIG_HOME=t.TempDir() so the path is
+       <tmp>/stagecoach/config.toml (globalDir = <tmp>/stagecoach).
   why: the write target + the always-printed path. Already used by runConfigPath (unchanged).
 
 # MUST READ — the config tests + helpers (EDIT; reuse root_test.go helpers)
@@ -284,7 +284,7 @@ and the docs target. No git/prompt/decompose knowledge required.
 
 # MUST READ — the DOCS target (Mode A)
 - file: docs/configuration.md   (EDIT — document populated format + 3 flags)
-  section: "Config file paths" (says "Written by `stagehand config init`") + "File format" (says "Every
+  section: "Config file paths" (says "Written by `stagecoach config init`") + "File format" (says "Every
        line in the `config init` template is commented out"). Update both: `config init` now writes a
        POPULATED config by default; `--template` writes the inert reference; add `--provider`/`--force`.
   why: the work item's DOCS (Mode A) requirement. The current docs describe ONLY the v1 inert behavior.
@@ -391,7 +391,7 @@ docs/configuration.md             # EDIT — populated format + 3 flags.
 
 ```go
 // internal/cmd/config.go — ADD these (KEEP all existing: configCmd/configInitCmd/configPathCmd/
-// runConfigPath/exampleConfigTemplate/init()). Add import "github.com/dustin/stagehand/internal/provider"
+// runConfigPath/exampleConfigTemplate/init()). Add import "github.com/dustin/stagecoach/internal/provider"
 // and "strings" (strings already imported? check — add if missing).
 
 // Local flags on configInitCmd (NOT persistent — must not leak to `config path` or root).
@@ -571,7 +571,7 @@ func isInstalledName(name string, installed []string) bool {
 // the EXISTING exampleConfigTemplate (precedence/env/git-key/cli-flags blocks — identical text, since both
 // configs share the same docs). Place them near exampleConfigTemplate.
 //
-// bootstrapHeader: the "# Stagehand configuration file …" intro + precedence + env vars + git keys + cli
+// bootstrapHeader: the "# Stagecoach configuration file …" intro + precedence + env vars + git keys + cli
 // flags blocks, ending with a blank line. Adapt the intro line to say "bootstrap (populated)".
 //
 // generationCommented: the "# [generation]\n# max_diff_bytes = 300000\n …" block (commented defaults).
@@ -581,7 +581,7 @@ func isInstalledName(name string, installed []string) bool {
 
 ```yaml
 Task 1: EDIT internal/cmd/config.go — add the 3 local flags + imports
-  - FILE: internal/cmd/config.go. ADD import "github.com/dustin/stagehand/internal/provider" (cmd→provider
+  - FILE: internal/cmd/config.go. ADD import "github.com/dustin/stagecoach/internal/provider" (cmd→provider
       already a dep — F7) and "strings" (if not present). KEEP existing imports (fmt, os, path/filepath,
       cobra, config, exitcode).
   - EXTEND the existing `func init()` (which does configCmd.AddCommand + rootCmd.AddCommand(configCmd)) with:
@@ -759,10 +759,10 @@ FROZEN/LEAVE (do NOT edit):
 ```bash
 gofmt -w internal/cmd/config.go internal/cmd/config_test.go
 go vet ./internal/cmd/
-# Confirm the 3 flags are LOCAL (not persistent) — must NOT appear under `stagehand config path --help`:
-go run ./cmd/stagehand config init --help   | grep -E -- "--provider|--force|--template"   # expect all 3
-go run ./cmd/stagehand config path --help   | grep -E -- "--provider|--force|--template"   # expect NONE
-go run ./cmd/stagehand --help               | grep -E -- "--template"                       # expect NONE (local to init)
+# Confirm the 3 flags are LOCAL (not persistent) — must NOT appear under `stagecoach config path --help`:
+go run ./cmd/stagecoach config init --help   | grep -E -- "--provider|--force|--template"   # expect all 3
+go run ./cmd/stagecoach config path --help   | grep -E -- "--provider|--force|--template"   # expect NONE
+go run ./cmd/stagecoach --help               | grep -E -- "--template"                       # expect NONE (local to init)
 # Confirm go.mod/go.sum unchanged:
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
 # Expected: go vet clean; flags appear ONLY under `config init --help`.
@@ -811,24 +811,24 @@ git diff --exit-code internal/cmd/root.go internal/cmd/providers.go internal/cmd
 make build
 TMP=$(mktemp -d); export HOME=$TMP XDG_CONFIG_HOME=$TMP; cd "$TMP"
 # Default (auto-detect — provider depends on what's installed):
-./bin/stagehand config init && cat "$(./bin/stagehand config path)"
+./bin/stagecoach config init && cat "$(./bin/stagecoach config path)"
 #   → expect: config_version = 2; [defaults] provider = <an installed built-in or "pi">; four [role.*]
 #     blocks uncommented (stager possibly routed to pi with an annotation); other installed providers
 #     as commented [role.*] blocks.
 # Pin a provider (deterministic):
-./bin/stagehand config init --force --provider claude && cat "$(./bin/stagehand config path)"
+./bin/stagecoach config init --force --provider claude && cat "$(./bin/stagecoach config path)"
 #   → [defaults] provider = "claude"; [role.planner] model="opus"; [role.message] model="haiku";
 #     [role.stager] model="sonnet" (claude IS stager-capable — no fallback).
 # Stager fallback (gemini cannot stage):
-./bin/stagehand config init --force --provider gemini && grep -A2 '\[role.stager\]' "$(./bin/stagehand config path)"
+./bin/stagecoach config init --force --provider gemini && grep -A2 '\[role.stager\]' "$(./bin/stagecoach config path)"
 #   → provider = "pi" + model = "gpt-5.4-mini" + the annotation.
 # Inert template:
-./bin/stagehand config init --force --template && head -5 "$(./bin/stagehand config path)"
+./bin/stagecoach config init --force --template && head -5 "$(./bin/stagecoach config path)"
 #   → the all-commented exampleConfigTemplate.
 # Errors:
-./bin/stagehand config init --provider bogus; echo "EXIT=$?"   # → exit 1, "unknown provider"
+./bin/stagecoach config init --provider bogus; echo "EXIT=$?"   # → exit 1, "unknown provider"
 # Verify the populated config LOADS cleanly (advisory silent — version matches):
-./bin/stagehand config path    # (no stderr advisory when version==2)
+./bin/stagecoach config path    # (no stderr advisory when version==2)
 ```
 
 ## Final Validation Checklist

@@ -77,7 +77,7 @@ From the authoritative Microsoft doc (https://learn.microsoft.com/en-us/windows/
 > by those processes."
 
 i.e. `GenerateConsoleCtrlEvent(CTRL_C_EVENT, pid)` is effectively a **broadcast to every process
-sharing the caller's console** — it would also interrupt Stagehand itself and unrelated processes.
+sharing the caller's console** — it would also interrupt Stagecoach itself and unrelated processes.
 Whereas **`CTRL_BREAK_EVENT` CAN be limited to a specific process group** (`dwProcessGroupId` honored).
 → The work item is correct: use **`CTRL_BREAK_EVENT`** (`syscall.CTRL_BREAK_EVENT == 1`).
 
@@ -93,7 +93,7 @@ The `dwProcessGroupId` argument = the child's PID (== its group id, post `CREATE
 - **DO set `CREATE_NEW_PROCESS_GROUP`** (puts the child in its own *group*, still sharing the console).
 - **Do NOT set `CREATE_NEW_CONSOLE`** (that would give the child its own console → it would NEVER
   receive our CTRL_BREAK → the kill silently no-ops). The default (no CREATE_NEW_CONSOLE) lets the
-  child inherit Stagehand's console → CTRL_BREAK reaches it. ✓
+  child inherit Stagecoach's console → CTRL_BREAK reaches it. ✓
 - **Honest limitation (document, do not fix in v1):** if a child agent detaches from the console
   (e.g. its own `CREATE_NEW_CONSOLE`, or a GUI daemon) or installs a handler that swallows
   CTRL_BREAK, grandchildren may survive escalation. os/exec's WaitDelay escalation on Windows only
@@ -174,7 +174,7 @@ var procGenerateConsoleCtrlEvent = syscall.NewLazyDLL("kernel32.dll").NewProc("G
 //     TerminateProcess'es the direct child).
 //
 // CONSOLE GOTCHA: GenerateConsoleCtrlEvent reaches ONLY processes attached to the caller's console.
-// We set CREATE_NEW_PROCESS_GROUP but NOT CREATE_NEW_CONSOLE so the child inherits Stagehand's
+// We set CREATE_NEW_PROCESS_GROUP but NOT CREATE_NEW_CONSOLE so the child inherits Stagecoach's
 // console. If a child detaches from the console or swallows CTRL_BREAK, grandchildren may survive
 // escalation; the robust fix is Job Objects (golang/go #17608), deferred beyond v1 (PRD §12.7.2).
 func setupProcessGroup(cmd *exec.Cmd) {

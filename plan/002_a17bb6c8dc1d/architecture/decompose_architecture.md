@@ -37,7 +37,7 @@ The decompose pipeline (`internal/decompose/`) turns a dirty, un-staged working 
 
 ## Index Model: Accumulate, Never Reset
 
-Stagehand does NOT reset the index between concepts. After stager[i], the index holds concepts[0..i]; tree[i] is the full accumulation. After commit[N-1] lands, HEAD.tree == tree[N-1] == full accumulated index, so the index is clean relative to HEAD. Un-committed residue lives ONLY in the working tree — that's the arbiter's input.
+Stagecoach does NOT reset the index between concepts. After stager[i], the index holds concepts[0..i]; tree[i] is the full accumulation. After commit[N-1] lands, HEAD.tree == tree[N-1] == full accumulated index, so the index is clean relative to HEAD. Un-committed residue lives ONLY in the working tree — that's the arbiter's input.
 
 ## Base Cases
 - `tree[-1]` = original parent tree (`git rev-parse HEAD^{tree}`, or empty tree for unborn repo)
@@ -46,11 +46,11 @@ Stagehand does NOT reset the index between concepts. After stager[i], the index 
 
 ## Single-Commit Shortcut (§13.6.4)
 
-If planner returns `single: true`, stagehand uses planner's `message` directly: `git add -A → snapshot → commit-tree → update-ref`. No separate message agent call. If that message fails the duplicate check (§9.7), fall back to standard message agent.
+If planner returns `single: true`, stagecoach uses planner's `message` directly: `git add -A → snapshot → commit-tree → update-ref`. No separate message agent call. If that message fails the duplicate check (§9.7), fall back to standard message agent.
 
 ## Arbiter Resolution (§13.6.5)
 
-Stagehand performs ALL git; arbiter only decides:
+Stagecoach performs ALL git; arbiter only decides:
 - **null / "new"**: stage leftovers, snapshot, message-agent, commit-tree + update-ref as (N+1)-th commit
 - **target == HEAD (tip)**: stage leftovers, write-tree → tree', commit-tree -p tip's parent tree' reusing tip's message, update-ref HEAD (plumbing amend)
 - **target == earlier commit[i] (mid-chain)**: rebuild linear chain via read-tree/write-tree/commit-tree reconstruction (NEVER interactive rebase, NEVER touches non-HEAD refs)

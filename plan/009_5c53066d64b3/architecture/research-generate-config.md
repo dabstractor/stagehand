@@ -320,9 +320,9 @@ string assemblers** (PRD §18.3 message text) — it contains NO error type and 
 ### 5a. The error sentinels and type (all in `generate.go`)
 
 ```go
-60	var ErrTimeout = errors.New("stagehand: generation timed out")
+60	var ErrTimeout = errors.New("stagecoach: generation timed out")
 ...
-65	var ErrRescue = errors.New("stagehand: commit generation failed after retries")
+65	var ErrRescue = errors.New("stagecoach: commit generation failed after retries")
 ...
 82	type RescueError struct {
 83		Kind      error  // ErrTimeout or ErrRescue — Unwrap() returns this (enables errors.Is)

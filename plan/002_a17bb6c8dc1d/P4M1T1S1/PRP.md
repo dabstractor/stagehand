@@ -13,7 +13,7 @@ description: |
        working tree has changes. When something IS staged, the single-commit primitive (v1) runs
        unchanged. New flags per §15.2: --commits (int, default 0=auto), --single/--no-decompose (bool),
        --max-commits (int, default 12), --planner-provider/--planner-model, --stager-provider/--stager-model,
-       --arbiter-provider/--arbiter-model. The default action currently calls stagehand.GenerateCommit;
+       --arbiter-provider/--arbiter-model. The default action currently calls stagecoach.GenerateCommit;
        when nothing is staged and !--single, it must call the decompose path instead.
     2. INPUT: config.Commits/Single/MaxCommits fields from P1.M3.T1.S1, the Decompose pipeline from
        P3.M4.T1.S1.
@@ -24,26 +24,26 @@ description: |
        && !cfg.Single && cfg.Commits != 1 → instead of AddAll→GenerateCommit, route to the decompose path
        (AddAll is NOT called — the planner receives the working-tree diff). If --single or --commits==1 →
        old AddAll→GenerateCommit behavior. If something IS already staged → old GenerateCommit behavior
-       (decompose never re-partitions a hand-staged index). The decompose CLI path calls pkg/stagehand.Decompose
+       (decompose never re-partitions a hand-staged index). The decompose CLI path calls pkg/stagecoach.Decompose
        (P4.M2.T1.S1).
-    4. OUTPUT: `stagehand` with nothing staged → decompose (auto or forced). `stagehand --single` → old
-       behavior. `stagehand` with something staged → old behavior. All new flags work.
+    4. OUTPUT: `stagecoach` with nothing staged → decompose (auto or forced). `stagecoach --single` → old
+       behavior. `stagecoach` with something staged → old behavior. All new flags work.
     5. DOCS: [Mode A] Update the root command's flag help strings to document the decompose flags. The
        changeset-level README update is in P4.M3.T1.S1.
 
   ───────────────────────────────────────────────────────────────────────────────────────────────────
   CRITICAL DEVIATION FROM THE LITERAL CONTRACT TEXT (with full justification — READ THIS FIRST):
   ───────────────────────────────────────────────────────────────────────────────────────────────────
-  The contract clause "The decompose CLI path calls pkg/stagehand.Decompose (P4.M2.T1.S1)" CANNOT be
+  The contract clause "The decompose CLI path calls pkg/stagecoach.Decompose (P4.M2.T1.S1)" CANNOT be
   honored literally: the dependency graph in tasks.json is
       P4.M1.T1.S1  deps: ['P3.M4.T1.S1', 'P1.M3.T2.S1']
       P4.M2.T1.S1  deps: ['P3.M4.T1.S1']      ← the public Decompose API; Planned, runs AFTER this task
-  i.e. P4.M1.T1.S1 does NOT depend on P4.M2.T1.S1, so `pkg/stagehand.Decompose` DOES NOT EXIST when this
+  i.e. P4.M1.T1.S1 does NOT depend on P4.M2.T1.S1, so `pkg/stagecoach.Decompose` DOES NOT EXIST when this
   task is implemented. Calling it would not compile, and the task's validation gate (`go build ./...`)
   would fail. Therefore the decompose CLI branch calls `internal/decompose.Decompose` DIRECTLY (building
   `decompose.Deps` via `decompose.ResolveRoles` in the CLI layer). This is safe: `internal/decompose`
-  imports none of `internal/cmd` / `pkg/stagehand` (verified — only doc-comment mentions), so
-  `internal/cmd → internal/decompose` is import-cycle-free. P4.M2.T1.S1 will later add `pkg/stagehand.Decompose`
+  imports none of `internal/cmd` / `pkg/stagecoach` (verified — only doc-comment mentions), so
+  `internal/cmd → internal/decompose` is import-cycle-free. P4.M2.T1.S1 will later add `pkg/stagecoach.Decompose`
   as a thin wrapper that encapsulates exactly this Deps construction, and SWAP this one CLI call site to
   use it — the exit-code mapping, FR42 result printing, and double-print-suppression logic written here
   transfer verbatim. This is a documented coordination point with P4.M2.T1.S1, NOT a blocker.
@@ -61,8 +61,8 @@ description: |
     - internal/generate/{generate.go,rescue.go} (RescueError, CASError, FormatRescue, ErrRescue,
       ErrTimeout) — CONSUMED.
     - internal/signal/signal.go (Install in main.go; loop arms SetSnapshot/ClearSnapshot) — CONSUMED.
-    - pkg/stagehand/stagehand.go (GenerateCommit, Options, Result) — CONSUMED (single-commit path only).
-    - cmd/stagehand/main.go — UNCHANGED (signal.Install already wired; ctx flows via cmd.Context()).
+    - pkg/stagecoach/stagecoach.go (GenerateCommit, Options, Result) — CONSUMED (single-commit path only).
+    - cmd/stagecoach/main.go — UNCHANGED (signal.Install already wired; ctx flows via cmd.Context()).
     - PRD.md, tasks.json, .gitignore — NEVER modify (research agent; this task edits code only).
 
   DELIVERABLES (4 file EDITS — no new files):
@@ -75,9 +75,9 @@ description: |
 
   SUCCESS: `go build ./... && go vet ./... && go test -race ./...` green; `golangci-lint run` clean;
   `gofmt -l internal/ pkg/` empty; go.mod/go.sum UNCHANGED; all 10 flags registered with correct
-  type/default/help and appear in `stagehand --help`; bare `stagehand` with nothing staged + dirty tree
-  routes to decompose (NO AddAll); `stagehand --single` / `--commits 1` / `--no-decompose` + dirty tree
-  routes to the v1 AddAll→GenerateCommit path; `stagehand` with something already staged routes to
+  type/default/help and appear in `stagecoach --help`; bare `stagecoach` with nothing staged + dirty tree
+  routes to decompose (NO AddAll); `stagecoach --single` / `--commits 1` / `--no-decompose` + dirty tree
+  routes to the v1 AddAll→GenerateCommit path; `stagecoach` with something already staged routes to
   GenerateCommit (unchanged); decompose rescue/CAS are printed ONCE (by the loop, not re-printed by the
   CLI); partial-failure runs print the landed commits to stdout and exit 3/124/1; `--dry-run` forces the
   single-commit preview path (decompose is not dry-run aware).
@@ -89,7 +89,7 @@ description: |
 **Feature Goal**: Wire the v2 multi-commit decomposition pipeline into the CLI default action (PRD §9.14
 FR-M1/M2, §15.2, §13.6.1) and expose its control surface as persistent flags. Concretely: (1) register
 the 10 §15.2 decompose/per-role flags on the root command's persistent flag set; (2) add the routing
-decision so that `stagehand` with NOTHING staged and a dirty working tree invokes the decompose pipeline
+decision so that `stagecoach` with NOTHING staged and a dirty working tree invokes the decompose pipeline
 (`internal/decompose.Decompose`) instead of `AddAll→GenerateCommit`, while `--single`/`--no-decompose`/
 `--commits 1`, an already-staged index, `--all`, and `--dry-run` all preserve the v1 single-commit
 behavior; (3) construct `decompose.Deps` and resolve the four roles via `decompose.ResolveRoles` in the
@@ -111,13 +111,13 @@ double-printing the rescue/CAS message the loop already emitted.
    path).
 
 **Success Definition**:
-- **Flags**: `stagehand --help` lists all 10 new flags with the correct type and default (`--commits` int
+- **Flags**: `stagecoach --help` lists all 10 new flags with the correct type and default (`--commits` int
   default `0`, `--single`/`--no-decompose` bool default `false`, `--max-commits` int default `12`, the six
   per-role strings default `""`). `pf.Lookup(name)` returns each with the expected `DefValue`. Passing
   `--commits 3`, `--single`, `--no-decompose`, `--max-commits 20`, `--planner-model X`, etc. sets the
   corresponding `cfg` field (verified via `loadFlags`, already shipped).
 - **Routing — decompose (FR-M1)**: a repo with a committed file PLUS uncommitted/un-staged changes,
-  invoked with bare `stagehand` (no `--single`), enters the decompose path — provable because, with only a
+  invoked with bare `stagecoach` (no `--single`), enters the decompose path — provable because, with only a
   non-tooled stub provider configured, `decompose.ResolveRoles` fails the stager role (no
   `tooled_flags`-capable fallback) and `Execute` returns a non-nil error whose message names `stager`/
   `tooled` with exit code 1. (`AddAll` is NOT called — the working-tree diff reaches the planner.)
@@ -125,12 +125,12 @@ double-printing the rescue/CAS message the loop already emitted.
   also `--no-decompose`) takes the v1 path: `AddAll` → `GenerateCommit` → exactly ONE new commit, `err==nil`.
 - **Routing — staged (FR-M1)**: a repo with changes ALREADY `git add`-ed runs `GenerateCommit`
   unchanged (no decompose) — covered by existing tests; this task must not regress it.
-- **Routing — dry-run**: `stagehand --dry-run` with a dirty/un-staged tree does NOT decompose (decompose
+- **Routing — dry-run**: `stagecoach --dry-run` with a dirty/un-staged tree does NOT decompose (decompose
   commits and is not dry-run aware); it falls to the single-commit auto-stage→preview path.
 - **Exit mapping + no double print**: a decompose `*RescueError` (incl. `*DecomposeRescueError`) maps to
   exit 3 (rescue) / 124 (timeout) and is printed ONCE (by the loop to stderr; `handleDecomposeError`
   returns a SILENT `exitcode.New(code, nil)`); a `*CASError` maps to exit 1 (silent); a planner/safety/
-  infra error maps to exit 1 and main prints `stagehand: <msg>`.
+  infra error maps to exit 1 and main prints `stagecoach: <msg>`.
 - **Partial landing (FR-M12)**: when Decompose returns `(DecomposeResult{Commits: 0..i-1}, err)`, the CLI
   prints each landed commit's FR42 line to stdout, then maps the error's exit code (rescue already on stderr).
 - `go build ./... && go vet ./... && go test -race ./...` green; `golangci-lint run` clean;
@@ -138,16 +138,16 @@ double-printing the rescue/CAS message the loop already emitted.
 
 ## User Persona
 
-**Target User**: the end user running `stagehand` at the shell (the "plan-holder" persona, PRD §7.1) and,
+**Target User**: the end user running `stagecoach` at the shell (the "plan-holder" persona, PRD §7.1) and,
 transitively, the lazygit integration (PRD §15.5 customCommand `key: '<c-a>'`).
 
-**Use Case**: the user finishes a stretch of work touching several unrelated concerns and runs `stagehand`
-on a dirty working tree with nothing staged. Instead of one sprawling commit, stagehand decomposes the
+**Use Case**: the user finishes a stretch of work touching several unrelated concerns and runs `stagecoach`
+on a dirty working tree with nothing staged. Instead of one sprawling commit, stagecoach decomposes the
 changes into logically-coherent commits. When the user wants the old one-commit behavior (a quick
 checkpoint), they pass `--single`. When they know the count, `--commits N`. When they want a different
 model for planning than for messages, `--planner-model …`.
 
-**User Journey**: (1) `stagehand` (nothing staged, dirty tree) → decompose runs; (2) stagehand prints
+**User Journey**: (1) `stagecoach` (nothing staged, dirty tree) → decompose runs; (2) stagecoach prints
 `[<sha>] <subject>` + file list for each landed concept to stdout; (3) on success exit 0; on a per-concept
 failure exit 3/124/1 with the rescue recipe already on stderr and the landed commits on stdout; (4) the
 user passes `--single` next time to force one commit, or `--commits 3` to skip the "how many?" step.
@@ -159,7 +159,7 @@ discoverable via `--help` and overridable per-invocation.
 ## Why
 
 - **Business value**: this is the user-facing integration of the v2 core (PRD §10.3, G11). The decompose
-  pipeline (P3) is useless without CLI routing — this task makes `stagehand` actually decompose by default.
+  pipeline (P3) is useless without CLI routing — this task makes `stagecoach` actually decompose by default.
   It is the single change that flips the default action from "one commit" to "the right number of commits."
 - **Integration with existing features**: consumes `internal/decompose.Decompose` + `ResolveRoles`
   (P3.M4.T1.S1/S2), the already-shipped `loadFlags` (P1.M3.T2.S1) which reads every new flag via
@@ -174,14 +174,14 @@ discoverable via `--help` and overridable per-invocation.
 ## What
 
 **User-visible behavior**:
-- `stagehand` (nothing staged, dirty tree) → decompose into N commits (auto-count via the planner, or
+- `stagecoach` (nothing staged, dirty tree) → decompose into N commits (auto-count via the planner, or
   forced via `--commits N`); each landed commit printed as `[<short-sha>] <subject>` + file list; exit 0.
-- `stagehand --single` / `--no-decompose` / `--commits 1` (nothing staged) → v1 `AddAll`→one commit.
-- `stagehand` with something already staged → v1 `GenerateCommit` (decompose never re-partitions a
+- `stagecoach --single` / `--no-decompose` / `--commits 1` (nothing staged) → v1 `AddAll`→one commit.
+- `stagecoach` with something already staged → v1 `GenerateCommit` (decompose never re-partitions a
   hand-staged index — PRD FR-M1).
-- `stagehand --all` (nothing staged) → `AddAll` stages everything → v1 single commit (`--all` is a
+- `stagecoach --all` (nothing staged) → `AddAll` stages everything → v1 single commit (`--all` is a
   single-commit intent; it stages before the staged check, so `hasStaged` is true).
-- `stagehand --dry-run` (nothing staged) → single-commit auto-stage→preview (decompose is not dry-run
+- `stagecoach --dry-run` (nothing staged) → single-commit auto-stage→preview (decompose is not dry-run
   aware; `--dry-run` is honored as a no-commit preview, FR49).
 - On a per-concept failure mid-decompose (FR-M12), the commits that landed (0..i-1) are printed to stdout;
   the §18.3 multi-commit rescue (or §13.5 CAS) message is printed to stderr by the loop; the exit code is
@@ -192,16 +192,16 @@ predicate; `runDecompose` building `decompose.Deps` (`Git`, `Registry`, `Config`
 `ResolveRoles`, `Verbose` from `ui.NewVerbose`, `Out` = stderr) and calling `decompose.Decompose`; FR42
 per-commit printing; `handleDecomposeError` mapping exit codes via `exitcode.For` and suppressing the
 re-print for rescue/CAS. The decompose call uses `internal/decompose.Decompose` directly (NOT
-`pkg/stagehand.Decompose`, which does not exist yet — see the CRITICAL DEVIATION note above).
+`pkg/stagecoach.Decompose`, which does not exist yet — see the CRITICAL DEVIATION note above).
 
 ### Success Criteria
 
 - [ ] All 10 flags registered on `rootCmd.PersistentFlags()` with correct type + default + Mode-A help:
       `--commits`(int,0), `--single`(bool,false), `--no-decompose`(bool,false), `--max-commits`(int,12),
       `--planner-provider`/`--planner-model`(str,""), `--stager-provider`/`--stager-model`(str,""),
-      `--arbiter-provider`/`--arbiter-model`(str,""). They appear in `stagehand --help`.
+      `--arbiter-provider`/`--arbiter-model`(str,""). They appear in `stagecoach --help`.
 - [ ] `shouldDecompose(cfg, dryRun, noAutoStage)` returns the FR-M1/M2 truth table exactly (see Task 2).
-- [ ] Bare `stagehand` on a dirty/un-staged tree (with a non-tooled stub provider) enters the decompose
+- [ ] Bare `stagecoach` on a dirty/un-staged tree (with a non-tooled stub provider) enters the decompose
       path — asserted via the unique `ResolveRoles` stager-fallback error (exit 1, message names `stager`).
 - [ ] `--single` (and `--commits 1`, `--no-decompose`) on the same tree takes the v1 path → 1 new commit,
       `err==nil`.
@@ -239,7 +239,7 @@ are explained, not just named.
   why: "FR-M1 (trigger: nothing staged AND working tree has changes), FR-M2 (modes: auto / --commits N /
         --single≡--no-decompose≡--commits 1), FR-M4 (max_commits safety cap, default 12). These define the
         routing predicate and the flags."
-  critical: "FR-M1: 'If anything is staged, the single-commit primitive runs unchanged; stagehand never
+  critical: "FR-M1: 'If anything is staged, the single-commit primitive runs unchanged; stagecoach never
         re-partitions a hand-staged index.' So decompose routing lives ONLY in the nothing-staged branch.
         FR-M2c: '--commits 1 ≡ --single' (config.Load already normalizes Commits==1 ⇒ Single=true)."
 
@@ -286,8 +286,8 @@ are explained, not just named.
   pattern: "Mirror handleGenError's structure in handleDecomposeError, but SUPPRESS the print for rescue/
         CAS (the loop printed) — return exitcode.New(exitcode.For(err), nil). Mirror printCommitReport in
         printDecomposeCommit (input = decompose.CommitResult). Reuse shortSHA."
-  gotcha: "default_action.go imports pkg/stagehand, generate, git, provider, ui, exitcode. ADD
-        'github.com/dustin/stagehand/internal/decompose'. The single-path provider-validation block (reg.Get)
+  gotcha: "default_action.go imports pkg/stagecoach, generate, git, provider, ui, exitcode. ADD
+        'github.com/dustin/stagecoach/internal/decompose'. The single-path provider-validation block (reg.Get)
         is NOT reused by decompose — ResolveRoles does its own install-check + FR-R5b + FR-D4 fallback.
         cfg is *config.Config here; decompose.Deps.Config + ResolveRoles take a config.Config VALUE →
         dereference with *cfg."
@@ -344,7 +344,7 @@ are explained, not just named.
 - file: internal/exitcode/exitcode.go   # CONSUMED — For + New + constants
   why: "exitcode.For(err): nil→0; *ExitError→Code; ErrNothingToCommit→2; ErrTimeout→124; ErrRescue→3;
         ErrCASFailed→1; else 1. exitcode.New(code,err)*ExitError (err may be nil → Error()==''). main prints
-        'stagehand: <err>' only when err.Error()!=''."
+        'stagecoach: <err>' only when err.Error()!=''."
   pattern: "Silent non-zero exit: exitcode.New(code, nil). Printed exit 1: exitcode.New(exitcode.Error, err)."
 
 - file: internal/ui/verbose.go + output.go   # CONSUMED — NewVerbose, New, UI.Progress
@@ -354,7 +354,7 @@ are explained, not just named.
 
 - file: internal/provider/registry.go   # CONSUMED — NewRegistry + DecodeUserOverrides
   why: "provider.DecodeUserOverrides(cfg.Providers map[string]map[string]any) (map[string]Manifest, error);
-        provider.NewRegistry(map[string]Manifest) *Registry. Mirror pkg/stagehand.buildDeps."
+        provider.NewRegistry(map[string]Manifest) *Registry. Mirror pkg/stagecoach.buildDeps."
 
 - file: internal/cmd/root_test.go   # EDIT TARGET — extend TestFlags_RegisteredAndDefaults
   why: "Table-driven {name, shorthand, defValue} asserting pf.Lookup(name)!=nil + Shorthand + DefValue.
@@ -366,7 +366,7 @@ are explained, not just named.
         clears Changed — existing harness handles this."
 
 - file: internal/cmd/default_action_test.go   # EDIT TARGET — add shouldDecompose/handleDecomposeError + routing
-  why: "setupStubRepo(t, stubOut) builds a temp repo + .stagehand.toml stub provider + STAGEHAND_STUB_OUT;
+  why: "setupStubRepo(t, stubOut) builds a temp repo + .stagecoach.toml stub provider + STAGECOACH_STUB_OUT;
         tests use rootCmd.SetOut/SetErr/SetArgs + Execute(context.Background()). saveRootState/
         restoreRootState + resetFlags isolate runs. shaRe/headSHA/runGit helpers exist."
   pattern: "shouldDecompose unit test: plain func, no git — pass &config.Config{} variants. handleDecomposeError
@@ -399,8 +399,8 @@ internal/ui/           # CONSUMED — NewVerbose, New, UI.Progress
 internal/exitcode/     # CONSUMED — For, New, constants
 internal/generate/     # CONSUMED — RescueError, CASError, FormatRescue, ErrRescue, ErrTimeout
 internal/signal/       # CONSUMED — Install (in main.go); loop arms SetSnapshot/ClearSnapshot
-pkg/stagehand/         # CONSUMED — GenerateCommit (single path only; Decompose is P4.M2.T1.S1)
-cmd/stagehand/main.go  # CONSUMED (unchanged) — signal.Install already wired
+pkg/stagecoach/         # CONSUMED — GenerateCommit (single path only; Decompose is P4.M2.T1.S1)
+cmd/stagecoach/main.go  # CONSUMED (unchanged) — signal.Install already wired
 ```
 
 ### Desired Codebase tree (files this task EDITS — no new files)
@@ -417,11 +417,11 @@ internal/cmd/default_action_test.go # +TestShouldDecompose +TestHandleDecomposeE
 ### Known Gotchas of our codebase & Library Quirks
 
 ```go
-// G-DECOMPOSE-NOT-PUBLIC (CRITICAL): pkg/stagehand.Decompose does NOT exist (it is P4.M2.T1.S1, which
+// G-DECOMPOSE-NOT-PUBLIC (CRITICAL): pkg/stagecoach.Decompose does NOT exist (it is P4.M2.T1.S1, which
 //   does not precede this task — see tasks.json deps). The decompose CLI branch MUST call
-//   internal/decompose.Decompose directly. internal/decompose imports no cmd/pkg-stagehand → no cycle.
+//   internal/decompose.Decompose directly. internal/decompose imports no cmd/pkg-stagecoach → no cycle.
 //   P4.M2.T1.S1 swaps this one call site to the public wrapper later. Do NOT add a public Decompose to
-//   pkg/stagehand here (that is P4.M2.T1.S1's deliverable — encroaching breaks the plan boundary).
+//   pkg/stagecoach here (that is P4.M2.T1.S1's deliverable — encroaching breaks the plan boundary).
 
 // G-LOADFLAGS-ALREADY-DONE (CRITICAL): config/load.go loadFlags ALREADY reads --commits/--single/
 //   --no-decompose/--max-commits and the per-role flags via fs.Changed. This task only REGISTERS them.
@@ -447,13 +447,13 @@ internal/cmd/default_action_test.go # +TestShouldDecompose +TestHandleDecomposeE
 //   WorkingTreeDiff inside callPlanner). Calling AddAll would defeat decomposition.
 
 // G-DRY-RUN-FORCES-SINGLE: Decompose is NOT dry-run aware (it commits). To honor FR49 (no-commit preview),
-//   --dry-run must NOT decompose. shouldDecompose returns false when dryRun. So `stagehand --dry-run` on a
+//   --dry-run must NOT decompose. shouldDecompose returns false when dryRun. So `stagecoach --dry-run` on a
 //   dirty tree → single auto-stage→GenerateCommit(dry-run) path. Documented decision (contract is silent).
 
 // G-DOUBLE-PRINT (CRITICAL): The decompose loop (P3.M4.T1.S2) prints FormatRescueMulti (rescue) and
 //   ce.Error() (CAS) to deps.Out (= stderr). handleDecomposeError MUST return a SILENT exitcode.New(code,nil)
 //   for *RescueError/*CASError so main does not re-print. For planner/safety/infra (NOT pre-printed) return
-//   exitcode.New(exitcode.Error, err) so main prints 'stagehand: <msg>'. errors.As(err,&re) matches
+//   exitcode.New(exitcode.Error, err) so main prints 'stagecoach: <msg>'. errors.As(err,&re) matches
 //   *DecomposeRescueError via its Unwrap→*RescueError — no need to import/name DecomposeRescueError.
 
 // G-EXITCODE-FOR-TRAVERSAL: exitcode.For already does errors.Is traversal (ErrTimeout→124, ErrRescue→3,
@@ -498,7 +498,7 @@ func shouldDecompose(cfg *config.Config, dryRun, noAutoStage bool) bool
 
 // runDecompose builds decompose.Deps (ResolveRoles for the four roles) and runs the pipeline. Prints each
 // landed commit's FR42 report to stdout (including partial landings on FR-M12), then maps the error.
-// Calls internal/decompose.Decompose directly (pkg/stagehand.Decompose is P4.M2.T1.S1 — not yet shipped).
+// Calls internal/decompose.Decompose directly (pkg/stagecoach.Decompose is P4.M2.T1.S1 — not yet shipped).
 func runDecompose(ctx context.Context, stdout, stderr io.Writer, u *ui.UI, cfg *config.Config, g git.Git) error
 
 // printDecomposeCommit renders the FR42 success line for one decompose.CommitResult to w (stdout):
@@ -507,7 +507,7 @@ func printDecomposeCommit(w io.Writer, c decompose.CommitResult)
 
 // handleDecomposeError maps a decompose error to the §15.4 outcome WITHOUT double-printing: rescue/CAS are
 // already printed by the loop → silent exitcode.New(exitcode.For(err), nil); planner/safety/infra →
-// exitcode.New(exitcode.Error, err) so main prints 'stagehand: <msg>'.
+// exitcode.New(exitcode.Error, err) so main prints 'stagecoach: <msg>'.
 func handleDecomposeError(err error) error
 ```
 
@@ -532,25 +532,25 @@ Task 1: EDIT internal/cmd/root.go — register 10 persistent flags in init()
       )
   - IN init(), after the existing flag registrations, ADD (Mode-A help strings mirroring PRD §15.2):
       pf.IntVar(&flagCommits, "commits", 0,
-          "Force exactly N commits when nothing is staged (skips the planner's count decision; 0 = auto-decompose). 1 ≡ --single (env/git stagehand.commits)")
+          "Force exactly N commits when nothing is staged (skips the planner's count decision; 0 = auto-decompose). 1 ≡ --single (env/git stagecoach.commits)")
       pf.BoolVar(&flagSingle, "single", false,
           "Bypass decomposition; force the single-commit auto-stage-all behavior (alias: --no-decompose)")
       pf.BoolVar(&flagNoDecompose, "no-decompose", false,
           "Bypass decomposition; force the single-commit auto-stage-all behavior (alias: --single)")
       pf.IntVar(&flagMaxCommits, "max-commits", 12,
-          "Safety cap on auto-decompose commit count (env/git stagehand.max_commits)")
+          "Safety cap on auto-decompose commit count (env/git stagecoach.max_commits)")
       pf.StringVar(&flagPlannerProvider, "planner-provider", "",
-          "Per-role provider override for the decomposition planner (env STAGEHAND_PLANNER_PROVIDER; git stagehand.role.planner)")
+          "Per-role provider override for the decomposition planner (env STAGECOACH_PLANNER_PROVIDER; git stagecoach.role.planner)")
       pf.StringVar(&flagPlannerModel, "planner-model", "",
-          "Per-role model override for the decomposition planner (env STAGEHAND_PLANNER_MODEL; git stagehand.role.planner)")
+          "Per-role model override for the decomposition planner (env STAGECOACH_PLANNER_MODEL; git stagecoach.role.planner)")
       pf.StringVar(&flagStagerProvider, "stager-provider", "",
-          "Per-role provider override for the (tooled) staging agent (env STAGEHAND_STAGER_PROVIDER; git stagehand.role.stager)")
+          "Per-role provider override for the (tooled) staging agent (env STAGECOACH_STAGER_PROVIDER; git stagecoach.role.stager)")
       pf.StringVar(&flagStagerModel, "stager-model", "",
-          "Per-role model override for the (tooled) staging agent (env STAGEHAND_STAGER_MODEL; git stagehand.role.stager)")
+          "Per-role model override for the (tooled) staging agent (env STAGECOACH_STAGER_MODEL; git stagecoach.role.stager)")
       pf.StringVar(&flagArbiterProvider, "arbiter-provider", "",
-          "Per-role provider override for the leftover arbiter (env STAGEHAND_ARBITER_PROVIDER; git stagehand.role.arbiter)")
+          "Per-role provider override for the leftover arbiter (env STAGECOACH_ARBITER_PROVIDER; git stagecoach.role.arbiter)")
       pf.StringVar(&flagArbiterModel, "arbiter-model", "",
-          "Per-role model override for the leftover arbiter (env STAGEHAND_ARBITER_MODEL; git stagehand.role.arbiter)")
+          "Per-role model override for the leftover arbiter (env STAGECOACH_ARBITER_MODEL; git stagecoach.role.arbiter)")
   - DO NOT register --message-provider/--message-model (§15.2 has none; message = global --provider/--model).
   - FOLLOW pattern: the existing pf.StringVar/BoolVar/IntVar/BoolVarP calls in init().
   - PRESERVE: every existing flag, PersistentPreRunE, Execute, Config, shouldSkipConfigLoad unchanged.
@@ -558,7 +558,7 @@ Task 1: EDIT internal/cmd/root.go — register 10 persistent flags in init()
   - PLACEMENT: internal/cmd/root.go init().
 
 Task 2: EDIT internal/cmd/default_action.go — shouldDecompose + routing hook
-  - ADD import "github.com/dustin/stagehand/internal/decompose".
+  - ADD import "github.com/dustin/stagecoach/internal/decompose".
   - ADD func shouldDecompose(cfg *config.Config, dryRun, noAutoStage bool) bool:
         if cfg == nil { return false }
         if cfg.Single || cfg.Commits == 1 { return false }   // --single/--no-decompose/--commits 1 → v1
@@ -616,7 +616,7 @@ Task 3: EDIT internal/cmd/default_action.go — runDecompose + printDecomposeCom
             }
             fmt.Fprintf(w, "%s  %s\n", f.Status, f.Path)
         }
-    (mirrors printCommitReport; reuses shortSHA. Input is decompose.CommitResult, not stagehand.Result.)
+    (mirrors printCommitReport; reuses shortSHA. Input is decompose.CommitResult, not stagecoach.Result.)
   - ADD func handleDecomposeError(err error) error:
         var re *generate.RescueError
         var ce *generate.CASError
@@ -664,8 +664,8 @@ Task 5: EDIT internal/cmd/default_action_test.go — unit + Execute routing test
     saveRootState/restoreRootState + resetFlags; headSHA/runGit/gitOut for assertions.
   - GOTCHA: between Executes, resetFlags(rootCmd.Flags()) + resetFlags(rootCmd.PersistentFlags()) clear
     Changed (else a prior --single persists). The existing restoreRootState does this — use it.
-  - GOTCHA: setupStubRepo COMMITS .stagehand.toml; leave the NEW change un-staged (write the file, do NOT
-    git add). The stub provider returns a canned commit message via STAGEHAND_STUB_OUT.
+  - GOTCHA: setupStubRepo COMMITS .stagecoach.toml; leave the NEW change un-staged (write the file, do NOT
+    git add). The stub provider returns a canned commit message via STAGECOACH_STUB_OUT.
   - COVERAGE: routing predicate (all branches), exit mapping (3/124/1/generic + silent vs printed),
     --single opt-out (1 commit), decompose-entered (unique ResolveRoles error). No full-pipeline test
     (impossible with the bare stub — covered in internal/decompose).
@@ -724,9 +724,9 @@ DECOMPOSE (internal/decompose): CONSUMED — Decompose, ResolveRoles, Deps, Comm
 EXITCODE (internal/exitcode): CONSUMED — For(err) + New(code,nil/err). No changes.
 GENERATE (internal/generate): CONSUMED — RescueError, CASError, FormatRescue, ErrRescue, ErrTimeout.
 SIGNAL (internal/signal): CONSUMED — Install in main.go (unchanged); loop arms Set/Clear. No changes here.
-PUBLIC API (pkg/stagehand): CONSUMED — GenerateCommit (single path). Decompose is P4.M2.T1.S1 (not yet) →
+PUBLIC API (pkg/stagecoach): CONSUMED — GenerateCommit (single path). Decompose is P4.M2.T1.S1 (not yet) →
   the CLI calls internal/decompose.Decompose directly; P4.M2.T1.S1 swaps this call site later.
-MAIN (cmd/stagehand/main.go): UNCHANGED (signal-aware ctx already flows via cmd.Context()).
+MAIN (cmd/stagecoach/main.go): UNCHANGED (signal-aware ctx already flows via cmd.Context()).
 ```
 
 ## Validation Loop
@@ -780,10 +780,10 @@ go test -race ./...
 
 ```bash
 # Build the binary and exercise the real CLI surface (smoke; agents stubbed where needed).
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 
 # Help documents all new flags (Mode A):
-/tmp/stagehand --help 2>&1 | grep -E -- '--commits|--single|--no-decompose|--max-commits|--planner-|--stager-|--arbiter-'
+/tmp/stagecoach --help 2>&1 | grep -E -- '--commits|--single|--no-decompose|--max-commits|--planner-|--stager-|--arbiter-'
 # Expected: all 10 flag lines present with their help strings.
 
 # --single preserves v1 (in a throwaway repo with an un-staged change + a stub/default provider, this makes
@@ -813,7 +813,7 @@ make coverage-gate      # enforces >=85% on internal/{git,provider,generate,conf
 #   *RescueError(ErrTimeout)           → exit 124 (silent)
 #   *CASError                          → exit 1  (silent; loop printed ce.Error())
 #   *DecomposeRescueError(…ErrRescue)  → exit 3  (silent; errors.As traversal)
-#   ErrPlannerFailed-wrapped / safety  → exit 1  (main prints 'stagehand: <msg>')
+#   ErrPlannerFailed-wrapped / safety  → exit 1  (main prints 'stagecoach: <msg>')
 
 # No-double-print invariant: on a decompose rescue, the rescue block appears EXACTLY ONCE on stderr
 # (printed by the loop), and main prints NOTHING (exitcode.New(code,nil) → Error()=="" → guard skips).
@@ -831,14 +831,14 @@ make coverage-gate      # enforces >=85% on internal/{git,provider,generate,conf
 - [ ] `golangci-lint run` clean (Makefile `make lint`) — `unused` does NOT fire on the bound flag vars.
 - [ ] `gofmt -l internal/ pkg/` empty.
 - [ ] `make coverage-gate` PASS (no gated-package regression).
-- [ ] go.mod/go.sum UNCHANGED (config/decompose/git/provider/ui/exitcode/generate/signal/stagehand all imported).
+- [ ] go.mod/go.sum UNCHANGED (config/decompose/git/provider/ui/exitcode/generate/signal/stagecoach all imported).
 
 ### Feature Validation
 
-- [ ] All 10 flags registered with correct type/default/help and visible in `stagehand --help`.
+- [ ] All 10 flags registered with correct type/default/help and visible in `stagecoach --help`.
 - [ ] `TestFlags_RegisteredAndDefaults` extended with the 10 rows (and NO --message-* row) — passes.
 - [ ] `shouldDecompose` returns the FR-M1/M2 truth table exactly (TestShouldDecompose green).
-- [ ] Bare `stagehand` (dirty/un-staged) enters decompose (TestRouting_DecomposeEntered: err names "stager", exit 1).
+- [ ] Bare `stagecoach` (dirty/un-staged) enters decompose (TestRouting_DecomposeEntered: err names "stager", exit 1).
 - [ ] `--single` (dirty/un-staged) takes v1 → 1 commit, err==nil (TestRouting_SingleOptOut green).
 - [ ] Already-staged index runs GenerateCommit unchanged (existing default-action tests green).
 - [ ] `--dry-run` forces the single-commit preview (shouldDecompose false when dryRun).
@@ -859,7 +859,7 @@ make coverage-gate      # enforces >=85% on internal/{git,provider,generate,conf
 - [ ] Mode-A help strings on all 10 flags (mirror PRD §15.2 descriptions; reference env/git-config keys).
 - [ ] Doc comments on shouldDecompose, runDecompose, printDecomposeCommit, handleDecomposeError citing FR-M1/M2, §15.4, §18.3.
 - [ ] A code comment at the decompose call site noting it calls internal/decompose.Decompose directly because
-      pkg/stagehand.Decompose is P4.M2.T1.S1 (not yet shipped) — the coordination point for the later swap.
+      pkg/stagecoach.Decompose is P4.M2.T1.S1 (not yet shipped) — the coordination point for the later swap.
 - [ ] No new environment variables or config keys (all already shipped via loadFlags/Defaults).
 - [ ] The changeset-level README/docs update is P4.M3.T1.S1 (NOT this task — do not edit README.md).
 
@@ -867,8 +867,8 @@ make coverage-gate      # enforces >=85% on internal/{git,provider,generate,conf
 
 ## Anti-Patterns to Avoid
 
-- ❌ Don't call `pkg/stagehand.Decompose` — it doesn't exist yet (P4.M2.T1.S1, not a dependency). Call
-  `internal/decompose.Decompose` directly. Don't add a public `Decompose` to pkg/stagehand (P4.M2.T1.S1's job).
+- ❌ Don't call `pkg/stagecoach.Decompose` — it doesn't exist yet (P4.M2.T1.S1, not a dependency). Call
+  `internal/decompose.Decompose` directly. Don't add a public `Decompose` to pkg/stagecoach (P4.M2.T1.S1's job).
 - ❌ Don't re-implement flag→cfg resolution — `loadFlags` (config/load.go) already reads every new flag via
   `fs.Changed`. This task only REGISTERS the flags. Re-resolving would double-apply / desync with the 7-layer precedence.
 - ❌ Don't register `--message-provider`/`--message-model` — §15.2 has none (message = global, FR-R2).

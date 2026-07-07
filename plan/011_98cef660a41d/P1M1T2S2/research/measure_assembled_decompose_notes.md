@@ -18,7 +18,7 @@
   byte-identical). So wiring a nil closure when `TokenLimit==0` changes nothing.
 
 ### 1.2 S1 (P1.M1.T2.S1, parallel) — the pattern to mirror
-S1 wires the 3 message-role `StagedDiff` sites (generate.go, stagehand.go, exec.go) with:
+S1 wires the 3 message-role `StagedDiff` sites (generate.go, stagecoach.go, exec.go) with:
 ```go
 var measureAssembled func(string) int
 if cfg.TokenLimit != 0 {
@@ -130,7 +130,7 @@ invariant tests).
 
 ## 5. Scope boundaries (do NOT do)
 
-- Do NOT touch the message-role `StagedDiff` sites (generate.go/stagehand.go/exec.go) — that is S1
+- Do NOT touch the message-role `StagedDiff` sites (generate.go/stagecoach.go/exec.go) — that is S1
   (P1.M1.T2.S1, parallel). This task is the 3 decompose `TreeDiff` sites only.
 - Do NOT touch `internal/git/git.go` or `tokengate.go` (T1.S1 field + T1.S2 gate wiring — LANDED).
 - Do NOT add new imports — `git` + `prompt` are already imported at all 3 sites (they call

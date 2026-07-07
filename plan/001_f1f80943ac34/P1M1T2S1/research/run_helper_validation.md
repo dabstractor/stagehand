@@ -14,9 +14,9 @@
 |---|---|---|
 | git binary | `git version 2.54.0` at `/usr/bin/git` | `git --version`, `which git` |
 | Go toolchain | `go1.26.4-X:nodwarf5 linux/amd64` | `go version` |
-| Module | `github.com/dustin/stagehand`, `go 1.22` | existing `go.mod` (landed by S1) |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` | existing `go.mod` (landed by S1) |
 | `internal/git/` dir | EXISTS, EMPTY (created by S1's §14 tree) | `ls -la internal/git/` |
-| Only existing `*.go` | `./cmd/stagehand/main.go` (stub) | `find . -name '*.go'` |
+| Only existing `*.go` | `./cmd/stagecoach/main.go` (stub) | `find . -name '*.go'` |
 
 **Implication:** This subtask creates `internal/git/git.go` (and its `_test.go`) as the FIRST Go
 files in `internal/git/`. No merge conflicts with other packages. The module compiles today.

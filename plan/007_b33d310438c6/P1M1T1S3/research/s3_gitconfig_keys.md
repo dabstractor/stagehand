@@ -1,11 +1,11 @@
-# Research Note — P1.M1.T1.S3 (git-config resolver keys: stagehand.tokenLimit / stagehand.diffContext)
+# Research Note — P1.M1.T1.S3 (git-config resolver keys: stagecoach.tokenLimit / stagecoach.diffContext)
 
 ## What this subtask does
 
 Add two int keys to the git-config resolver `loadGitConfig` in `internal/config/git.go`, mirroring the
-existing `stagehand.maxDiffBytes` block exactly, so that:
-- `git config stagehand.tokenLimit N` → `c.TokenLimit` (plain `int`)
-- `git config stagehand.diffContext N` → `c.DiffContext` (`*int`)
+existing `stagecoach.maxDiffBytes` block exactly, so that:
+- `git config stagecoach.tokenLimit N` → `c.TokenLimit` (plain `int`)
+- `git config stagecoach.diffContext N` → `c.DiffContext` (`*int`)
 
 S3 touches ONLY `internal/config/git.go` (+ its test). No other file.
 
@@ -24,15 +24,15 @@ file.go:226:   if g.DiffContext != nil { c.DiffContext = g.DiffContext }  # mate
 
 So S3 implements against the ACTUAL post-S2 state — `Config.DiffContext` is already `*int`. S3 must set
 `c.DiffContext = intPtr(n)` (non-nil when found, nil when absent). This is the S2 "DOWNSTREAM HOOK":
-"S3 must set `c.DiffContext = intPtr(v)` when stagehand.diffContext is found (nil when absent)."
+"S3 must set `c.DiffContext = intPtr(v)` when stagecoach.diffContext is found (nil when absent)."
 
 ## The exact pattern to mirror (git.go:181-186 — the MaxDiffBytes block)
 
 ```go
-	if v, found, err := gitConfigGet(repoDir, "stagehand.maxDiffBytes"); err != nil { // camelCase!
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.maxDiffBytes"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
-		if err := parseInt(repoDir, "stagehand.maxDiffBytes", v, &c.MaxDiffBytes); err != nil {
+		if err := parseInt(repoDir, "stagecoach.maxDiffBytes", v, &c.MaxDiffBytes); err != nil {
 			return nil, err
 		}
 	}
@@ -51,11 +51,11 @@ But `c.DiffContext` is `*int` (S2), so `&c.DiffContext` is `**int` — NOT assig
 ⇒ DiffContext must parse into a LOCAL `var n int` and then wrap: `c.DiffContext = intPtr(n)`.
 
 ```go
-	if v, found, err := gitConfigGet(repoDir, "stagehand.diffContext"); err != nil { // camelCase!
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.diffContext"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
 		var n int
-		if err := parseInt(repoDir, "stagehand.diffContext", v, &n); err != nil {
+		if err := parseInt(repoDir, "stagecoach.diffContext", v, &n); err != nil {
 			return nil, err
 		}
 		c.DiffContext = intPtr(n) // nil when absent (found=false); non-nil incl. *0 when found
@@ -70,7 +70,7 @@ mirror (plain int → `&c.TokenLimit` works directly).
 
 > Do NOT add a `!= 0` guard that would drop an explicit git-config 0 — use the `found` boolean from
 > gitConfigGet to gate (only write when the key is found), NOT the parsed value. This preserves a user's
-> explicit `git config stagehand.diffContext 0`.
+> explicit `git config stagecoach.diffContext 0`.
 
 Trace showing the design satisfies this:
 | git config value | `found` | block runs? | resulting `c.DiffContext` | overlay behavior |
@@ -81,7 +81,7 @@ Trace showing the design satisfies this:
 | `3` | true | yes, `n=3` | `intPtr(3)` | override *3 ✓ |
 
 The `c.DiffContext = intPtr(n)` is UNCONDITIONAL inside the `found` block — there is NO `if n != 0` value
-guard. That is the contract's explicit requirement, and it is what makes `git config stagehand.diffContext 0`
+guard. That is the contract's explicit requirement, and it is what makes `git config stagecoach.diffContext 0`
 survive (FR3f: 0 = changed-lines-only is a first-class value). A `!= 0` value guard would drop the explicit
 0 (the bug the contract warns against).
 
@@ -102,7 +102,7 @@ PRP recommends the grouped placement.
 t.Setenv("HOME", t.TempDir())   // isolate global git config (FINDING E)
 repo := t.TempDir()
 initRepo(t, repo)               // git init + user.name/user.email
-setGitConfig(t, repo, "stagehand.diffContext", "0")
+setGitConfig(t, repo, "stagecoach.diffContext", "0")
 cfg, err := loadGitConfig(repo) // returns *Config
 ```
 
@@ -117,8 +117,8 @@ Required test rows (contract: "unset, =0, =1, =3"):
 - **diffContext=0** → `cfg.DiffContext != nil && *cfg.DiffContext == 0` (THE load-bearing explicit-0 row).
 - **diffContext=1** → `*cfg.DiffContext == 1`.
 - **diffContext=3** → `*cfg.DiffContext == 3`.
-- **(recommended) parse error**: `stagehand.diffContext=abc` → `loadGitConfig` returns non-nil err; same
-  for `stagehand.tokenLimit=NaN`.
+- **(recommended) parse error**: `stagecoach.diffContext=abc` → `loadGitConfig` returns non-nil err; same
+  for `stagecoach.tokenLimit=NaN`.
 
 ## Scope (explicitly NOT touched)
 
@@ -132,4 +132,4 @@ Required test rows (contract: "unset, =0, =1, =3"):
 - `go build ./...` + `go vet ./...` + `gofmt -l .` clean; `go test -race ./...` green.
 - New test passes incl. the explicit-0 row (`*cfg.DiffContext == 0`) and the unset row (`cfg.DiffContext == nil`).
 - `git diff --stat` → ONLY `internal/config/git.go` + `internal/config/git_test.go`.
-- Grep: `grep -n "stagehand.tokenLimit\|stagehand.diffContext" internal/config/git.go` → 2 keys present.
+- Grep: `grep -n "stagecoach.tokenLimit\|stagecoach.diffContext" internal/config/git.go` → 2 keys present.

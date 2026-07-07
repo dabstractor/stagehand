@@ -21,12 +21,12 @@ Every flag is persistent (inherited by subcommands) EXCEPT the `config init` loc
 
 | Long | Short | Type | Default | Description (verbatim) |
 |---|---|---|---|---|
-| `--provider` | — | string | `""` | `Provider/agent to use (env STAGEHAND_PROVIDER, git stagehand.provider; default auto-detected)` |
-| `--model` | — | string | `""` | `Model override (env STAGEHAND_MODEL, git stagehand.model; default per-manifest default_model)` |
-| `--config` | — | string | `""` | `Path to a config file, overrides discovery (env STAGEHAND_CONFIG)` |
-| `--timeout` | — | string | `""` | `Generation timeout, e.g. "120s" or 120 (env STAGEHAND_TIMEOUT, git stagehand.timeout; default 120s)` |
-| `--verbose` | `-v` | bool | `false` | `Print resolved command, raw output, retries (env STAGEHAND_VERBOSE)` |
-| `--no-color` | — | bool | `false` | `Disable color (env STAGEHAND_NO_COLOR, NO_COLOR; default TTY-aware)` |
+| `--provider` | — | string | `""` | `Provider/agent to use (env STAGECOACH_PROVIDER, git stagecoach.provider; default auto-detected)` |
+| `--model` | — | string | `""` | `Model override (env STAGECOACH_MODEL, git stagecoach.model; default per-manifest default_model)` |
+| `--config` | — | string | `""` | `Path to a config file, overrides discovery (env STAGECOACH_CONFIG)` |
+| `--timeout` | — | string | `""` | `Generation timeout, e.g. "120s" or 120 (env STAGECOACH_TIMEOUT, git stagecoach.timeout; default 120s)` |
+| `--verbose` | `-v` | bool | `false` | `Print resolved command, raw output, retries (env STAGECOACH_VERBOSE)` |
+| `--no-color` | — | bool | `false` | `Disable color (env STAGECOACH_NO_COLOR, NO_COLOR; default TTY-aware)` |
 
 Note: `--timeout` is registered as a pflag **STRING** (not Duration) — `loadFlags` reads it via `fs.GetString("timeout")` then `parseTimeout`. `--config` is NOT a Config field (it feeds `LoadOpts.ConfigPathOverride`).
 
@@ -42,21 +42,21 @@ Note: `--timeout` is registered as a pflag **STRING** (not Duration) — `loadFl
 
 | Long | Short | Type | Default | Description (verbatim) |
 |---|---|---|---|---|
-| `--commits` | — | int | `0` | `Force exactly N commits when nothing is staged (skips the planner's count decision; 0 = auto-decompose). 1 ≡ --single (env/git stagehand.commits)` |
+| `--commits` | — | int | `0` | `Force exactly N commits when nothing is staged (skips the planner's count decision; 0 = auto-decompose). 1 ≡ --single (env/git stagecoach.commits)` |
 | `--single` | — | bool | `false` | `Bypass decomposition; force the single-commit auto-stage-all behavior (alias: --no-decompose)` |
 | `--no-decompose` | — | bool | `false` | `Bypass decomposition; force the single-commit auto-stage-all behavior (alias: --single)` |
-| `--max-commits` | — | int | `12` | `Safety cap on auto-decompose commit count (env/git stagehand.max_commits)` |
-| `--planner-provider` | — | string | `""` | `Per-role provider override for the decomposition planner (env STAGEHAND_PLANNER_PROVIDER; git stagehand.role.planner)` |
-| `--planner-model` | — | string | `""` | `Per-role model override for the decomposition planner (env STAGEHAND_PLANNER_MODEL; git stagehand.role.planner)` |
-| `--stager-provider` | — | string | `""` | `Per-role provider override for the (tooled) staging agent (env STAGEHAND_STAGER_PROVIDER; git stagehand.role.stager)` |
-| `--stager-model` | — | string | `""` | `Per-role model override for the (tooled) staging agent (env STAGEHAND_STAGER_MODEL; git stagehand.role.stager)` |
-| `--arbiter-provider` | — | string | `""` | `Per-role provider override for the leftover arbiter (env STAGEHAND_ARBITER_PROVIDER; git stagehand.role.arbiter)` |
-| `--arbiter-model` | — | string | `""` | `Per-role model override for the leftover arbiter (env STAGEHAND_ARBITER_MODEL; git stagehand.role.arbiter)` |
+| `--max-commits` | — | int | `12` | `Safety cap on auto-decompose commit count (env/git stagecoach.max_commits)` |
+| `--planner-provider` | — | string | `""` | `Per-role provider override for the decomposition planner (env STAGECOACH_PLANNER_PROVIDER; git stagecoach.role.planner)` |
+| `--planner-model` | — | string | `""` | `Per-role model override for the decomposition planner (env STAGECOACH_PLANNER_MODEL; git stagecoach.role.planner)` |
+| `--stager-provider` | — | string | `""` | `Per-role provider override for the (tooled) staging agent (env STAGECOACH_STAGER_PROVIDER; git stagecoach.role.stager)` |
+| `--stager-model` | — | string | `""` | `Per-role model override for the (tooled) staging agent (env STAGECOACH_STAGER_MODEL; git stagecoach.role.stager)` |
+| `--arbiter-provider` | — | string | `""` | `Per-role provider override for the leftover arbiter (env STAGECOACH_ARBITER_PROVIDER; git stagecoach.role.arbiter)` |
+| `--arbiter-model` | — | string | `""` | `Per-role model override for the leftover arbiter (env STAGECOACH_ARBITER_MODEL; git stagecoach.role.arbiter)` |
 
 ### ⚠️ CORRECTIONS to the task brief's flag assumptions
 
 1. **There is NO `--message-provider` / `--message-model` flag.** Verified by `grep -r "message-provider\|message-model\|message_provider\|message_model" *.go` → **no matches**. Only planner/stager/arbiter per-role flags are registered in `root.go:init()`. (`loadFlags` *would* honor a `--message-*` flag if registered, because it loops `roleNames = ["planner","stager","message","arbiter"]` and checks `fs.Changed(role+"-provider")`, but the registration is absent and `Changed==false` → skipped. The root.go comment confirms: *"loop all four so a --message-* flag/env is honored if set (registration in P4.M1.T1 may omit it; Changed==false → skipped)"*.)*
-2. The `--commits` and `--max-commits` description strings reference `(env/git stagehand.commits)` and `(env/git stagehand.max_commits)`, but see §3/§5 below: **there is no `STAGEHAND_MAX_COMMITS` env var and no git `stagehand.commits`/`stagehand.max_commits` key.** The description strings are aspirational/inaccurate relative to the implementation — flag this if docs must match the binary exactly.
+2. The `--commits` and `--max-commits` description strings reference `(env/git stagecoach.commits)` and `(env/git stagecoach.max_commits)`, but see §3/§5 below: **there is no `STAGECOACH_MAX_COMMITS` env var and no git `stagecoach.commits`/`stagecoach.max_commits` key.** The description strings are aspirational/inaccurate relative to the implementation — flag this if docs must match the binary exactly.
 
 Also auto-registered (not in `init()`):
 - `--version` — auto-added by cobra from the `Version` field; NO `-v` shorthand (`-v` is taken by `--verbose`). Prints + exits BEFORE `PersistentPreRunE`, so config does NOT load.
@@ -138,35 +138,35 @@ So: **Decompose runs only when nothing is staged AND `AutoStageAll` is on AND us
 
 ---
 
-## 3. STAGEHAND_* env vars — exact list (read by `loadEnv`, `internal/config/load.go:159-207`)
+## 3. STAGECOACH_* env vars — exact list (read by `loadEnv`, `internal/config/load.go:159-207`)
 
 Presence-semantic: a PRESENT, **non-empty** value overrides; unset/empty is a no-op. Booleans set DIRECTLY (can force false).
 
 | Env var | Field set | Type / parse | Notes |
 |---|---|---|---|
-| `STAGEHAND_PROVIDER` | `cfg.Provider` | string | |
-| `STAGEHAND_MODEL` | `cfg.Model` | string | |
-| `STAGEHAND_TIMEOUT` | `cfg.Timeout` | `parseTimeout` (Go duration OR bare int seconds) | error wrapped `STAGEHAND_TIMEOUT: ...` |
-| `STAGEHAND_VERBOSE` | `cfg.Verbose` | `strconv.ParseBool` (DIRECT) | error wrapped `STAGEHAND_VERBOSE: ...` |
-| `STAGEHAND_NO_COLOR` | `cfg.NoColor` | `strconv.ParseBool` (DIRECT) | error wrapped `STAGEHAND_NO_COLOR: ...` |
-| `STAGEHAND_PLANNER_PROVIDER` | `cfg.Roles["planner"].Provider` | string | via `setRoleProvider` (map-value-copy write-back) |
-| `STAGEHAND_PLANNER_MODEL` | `cfg.Roles["planner"].Model` | string | via `setRoleModel` |
-| `STAGEHAND_STAGER_PROVIDER` | `cfg.Roles["stager"].Provider` | string | |
-| `STAGEHAND_STAGER_MODEL` | `cfg.Roles["stager"].Model` | string | |
-| `STAGEHAND_MESSAGE_PROVIDER` | `cfg.Roles["message"].Provider` | string | **read by loadEnv** (roleNames loop includes "message") |
-| `STAGEHAND_MESSAGE_MODEL` | `cfg.Roles["message"].Model` | string | **read by loadEnv** |
-| `STAGEHAND_ARBITER_PROVIDER` | `cfg.Roles["arbiter"].Provider` | string | |
-| `STAGEHAND_ARBITER_MODEL` | `cfg.Roles["arbiter"].Model` | string | |
-| `STAGEHAND_COMMITS` | `cfg.Commits` | `strconv.Atoi` (int) | error wrapped `STAGEHAND_COMMITS: ...`; `1` normalizes to `Single=true` in `Load()` |
+| `STAGECOACH_PROVIDER` | `cfg.Provider` | string | |
+| `STAGECOACH_MODEL` | `cfg.Model` | string | |
+| `STAGECOACH_TIMEOUT` | `cfg.Timeout` | `parseTimeout` (Go duration OR bare int seconds) | error wrapped `STAGECOACH_TIMEOUT: ...` |
+| `STAGECOACH_VERBOSE` | `cfg.Verbose` | `strconv.ParseBool` (DIRECT) | error wrapped `STAGECOACH_VERBOSE: ...` |
+| `STAGECOACH_NO_COLOR` | `cfg.NoColor` | `strconv.ParseBool` (DIRECT) | error wrapped `STAGECOACH_NO_COLOR: ...` |
+| `STAGECOACH_PLANNER_PROVIDER` | `cfg.Roles["planner"].Provider` | string | via `setRoleProvider` (map-value-copy write-back) |
+| `STAGECOACH_PLANNER_MODEL` | `cfg.Roles["planner"].Model` | string | via `setRoleModel` |
+| `STAGECOACH_STAGER_PROVIDER` | `cfg.Roles["stager"].Provider` | string | |
+| `STAGECOACH_STAGER_MODEL` | `cfg.Roles["stager"].Model` | string | |
+| `STAGECOACH_MESSAGE_PROVIDER` | `cfg.Roles["message"].Provider` | string | **read by loadEnv** (roleNames loop includes "message") |
+| `STAGECOACH_MESSAGE_MODEL` | `cfg.Roles["message"].Model` | string | **read by loadEnv** |
+| `STAGECOACH_ARBITER_PROVIDER` | `cfg.Roles["arbiter"].Provider` | string | |
+| `STAGECOACH_ARBITER_MODEL` | `cfg.Roles["arbiter"].Model` | string | |
+| `STAGECOACH_COMMITS` | `cfg.Commits` | `strconv.Atoi` (int) | error wrapped `STAGECOACH_COMMITS: ...`; `1` normalizes to `Single=true` in `Load()` |
 
-The per-role vars are generated by a loop: `prefix := "STAGEHAND_" + strings.ToUpper(role)` over `roleNames = []string{"planner","stager","message","arbiter"}`, reading `prefix+"_PROVIDER"` and `prefix+"_MODEL"`.
+The per-role vars are generated by a loop: `prefix := "STAGECOACH_" + strings.ToUpper(role)` over `roleNames = []string{"planner","stager","message","arbiter"}`, reading `prefix+"_PROVIDER"` and `prefix+"_MODEL"`.
 
 ### ⚠️ CORRECTIONS to the task brief's env-var assumptions
 
-- **`STAGEHAND_CONFIG` is NOT read by `loadEnv`.** It is read directly in `Load()` (load.go ~lines 72-82) to resolve the global-file PATH (`--config > STAGEHAND_CONFIG > discovery`). The `loadEnv` docstring explicitly states: *"STAGEHAND_CONFIG is NOT handled here (it selects the file path, resolved in Load)."* It does NOT map to a Config field.
-- **`STAGEHAND_SINGLE` does NOT exist.** `grep -r "STAGEHAND_SINGLE"` → no matches. Single is reached only via `--single`/`--no-decompose` flags or `STAGEHAND_COMMITS=1` normalization.
-- **`STAGEHAND_NO_DECOMPOSE` does NOT exist.** No matches.
-- **`STAGEHAND_MAX_COMMITS` does NOT exist.** No matches. `MaxCommits` comes only from the config file (`[generation].max_commits`, default 12) or the `--max-commits` flag. (The `--max-commits` flag description string mentions `env/git stagehand.max_commits`, but neither is implemented.)
+- **`STAGECOACH_CONFIG` is NOT read by `loadEnv`.** It is read directly in `Load()` (load.go ~lines 72-82) to resolve the global-file PATH (`--config > STAGECOACH_CONFIG > discovery`). The `loadEnv` docstring explicitly states: *"STAGECOACH_CONFIG is NOT handled here (it selects the file path, resolved in Load)."* It does NOT map to a Config field.
+- **`STAGECOACH_SINGLE` does NOT exist.** `grep -r "STAGECOACH_SINGLE"` → no matches. Single is reached only via `--single`/`--no-decompose` flags or `STAGECOACH_COMMITS=1` normalization.
+- **`STAGECOACH_NO_DECOMPOSE` does NOT exist.** No matches.
+- **`STAGECOACH_MAX_COMMITS` does NOT exist.** No matches. `MaxCommits` comes only from the config file (`[generation].max_commits`, default 12) or the `--max-commits` flag. (The `--max-commits` flag description string mentions `env/git stagecoach.max_commits`, but neither is implemented.)
 
 ---
 
@@ -174,10 +174,10 @@ The per-role vars are generated by a loop: `prefix := "STAGEHAND_" + strings.ToU
 
 Registered via `init()` in config.go: `rootCmd.AddCommand(configCmd)`, and `configCmd.AddCommand(configInitCmd/configPathCmd/configUpgradeCmd)`. All three leaves are in `shouldSkipConfigLoad` (root's `PersistentPreRunE` returns nil for `cmd.Name()` ∈ {"init","path","upgrade"}), so they work outside a git repo.
 
-### `config` (group, no RunE — bare `stagehand config` prints help)
+### `config` (group, no RunE — bare `stagecoach config` prints help)
 - `Use:` `"config"`
-- `Short:` `"Manage the Stagehand config file"`
-- `Long:` `` `Inspect, bootstrap, or upgrade the Stagehand global config file.` ``
+- `Short:` `"Manage the Stagecoach config file"`
+- `Long:` `` `Inspect, bootstrap, or upgrade the Stagecoach global config file.` ``
 
 ### `config init` (`configInitCmd`)
 - `Use:` `"init"`
@@ -205,13 +205,13 @@ Registered via `init()` in config.go: `rootCmd.AddCommand(configCmd)`, and `conf
 - `Args:` `cobra.NoArgs`
 - **No flags.**
 - `Long:` (verbatim, note the `fmt.Sprintf`-injected current version):
-  > `Rewrite an existing Stagehand config file in place so its config_version matches this binary's current schema version (` + `` `config_version = %d` `` + `).` (where `%d` = `config.CurrentConfigVersion`)
+  > `Rewrite an existing Stagecoach config file in place so its config_version matches this binary's current schema version (` + `` `config_version = %d` `` + `).` (where `%d` = `config.CurrentConfigVersion`)
   >
   > `Only the top-level config_version line is added or updated — every other line (your values, comments, ordering) is preserved byte-for-byte. Running it twice is safe: a file already at the current version is left unchanged ("already up to date").`
   >
-  > `This is the remediation the load-time advisory points at when a config has no config_version or an older one. It targets the GLOBAL config (the path printed by ` + `` `stagehand config path` `` + `).`
+  > `This is the remediation the load-time advisory points at when a config has no config_version or an older one. It targets the GLOBAL config (the path printed by ` + `` `stagecoach config path` `` + `).`
   >
-  > `If no config file exists, run ` + `` `stagehand config init` `` + ` first. If the file is not valid TOML, it is left untouched and an error is printed.`
+  > `If no config file exists, run ` + `` `stagecoach config init` `` + ` first. If the file is not valid TOML, it is left untouched and an error is printed.`
 
 (Behavior: reads global path, validity-gates with `toml.Unmarshal` into `map[string]any`, calls pure `upgradeConfigVersion(content, CurrentConfigVersion)`, writes back only if changed. Idempotent.)
 
@@ -219,7 +219,7 @@ Registered via `init()` in config.go: `rootCmd.AddCommand(configCmd)`, and `conf
 
 ## 5. Cross-layer facts worth flagging for doc accuracy
 
-- **Git-config layer (`internal/config/git.go`) reads NONE of the decompose/role keys.** It reads only: `stagehand.provider`, `stagehand.model`, `stagehand.output`, `stagehand.timeout`, `stagehand.autoStageAll` (camelCase!), `stagehand.verbose`, `stagehand.stripCodeFence` (camelCase), `stagehand.maxDiffBytes`, `stagehand.maxMdLines`, `stagehand.maxDuplicateRetries`, `stagehand.subjectTargetChars` (all camelCase). There is **no** `stagehand.commits`, `stagehand.single`, `stagehand.max_commits`, or `stagehand.role.*` git key. So the `--commits`/`--max-commits` description strings citing `git stagehand.commits` / `git stagehand.max_commits` are NOT backed by implementation.
+- **Git-config layer (`internal/config/git.go`) reads NONE of the decompose/role keys.** It reads only: `stagecoach.provider`, `stagecoach.model`, `stagecoach.output`, `stagecoach.timeout`, `stagecoach.autoStageAll` (camelCase!), `stagecoach.verbose`, `stagecoach.stripCodeFence` (camelCase), `stagecoach.maxDiffBytes`, `stagecoach.maxMdLines`, `stagecoach.maxDuplicateRetries`, `stagecoach.subjectTargetChars` (all camelCase). There is **no** `stagecoach.commits`, `stagecoach.single`, `stagecoach.max_commits`, or `stagecoach.role.*` git key. So the `--commits`/`--max-commits` description strings citing `git stagecoach.commits` / `git stagecoach.max_commits` are NOT backed by implementation.
 - **`Defaults()` (`config.go`):** `Commits: 0`, `Single: false`, `MaxCommits: 12`, `AutoStageAll: true`, `Timeout: 120s`, `Provider/Model: ""`.
 - **`roleNames` (load.go:16):** `[]string{"planner", "stager", "message", "arbiter"}` — the canonical four roles; drives both `loadEnv` and `loadFlags` loops.
 - **`flagMessageProvider`/`flagMessageModel` package vars do NOT exist** in root.go — only planner/stager/arbiter per-role flag vars are declared.

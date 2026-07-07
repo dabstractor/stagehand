@@ -11,7 +11,7 @@ This file is the reasoning behind the PRP. All file/line references are against 
 - The work item lists `globalConfigPath()` as INPUT. The only clean way to consume it cross-package
   is to ADD an exported wrapper in `file.go`:
   ```go
-  // GlobalConfigPath returns the resolved global Stagehand config path (PRD §16.1 layer 2),
+  // GlobalConfigPath returns the resolved global Stagecoach config path (PRD §16.1 layer 2),
   // i.e. the file `config init` writes and `config path` prints.
   func GlobalConfigPath() string { return globalConfigPath() }
   ```
@@ -27,7 +27,7 @@ This file is the reasoning behind the PRP. All file/line references are against 
 ### F2 — `shouldSkipConfigLoad` is ALREADY pre-wired for S4
 - `internal/cmd/root.go`: `func shouldSkipConfigLoad(cmd *cobra.Command) bool { name := cmd.Name();
   return name == "init" || name == "path" }`.
-- S1 shipped this KNOWING S4 would add `config init` / `config path`. For `stagehand config init`,
+- S1 shipped this KNOWING S4 would add `config init` / `config path`. For `stagecoach config init`,
   cobra resolves to the leaf `configInitCmd` whose `.Name()` == `"init"` → skip returns true. Same for
   `config path` → Name `"path"` → true.
 - CONSEQUENCE: PersistentPreRunE returns nil immediately (no `config.Load`, no Layer-4 `git config`
@@ -56,7 +56,7 @@ This file is the reasoning behind the PRP. All file/line references are against 
 ### F5 — Test harness (reused from root_test.go, same package)
 - `internal/cmd/root_test.go` helpers (package `cmd`, directly callable): `saveRootState`,
   `restoreRootState`, `resetFlags`, `loadEnvSetup` (sets `HOME`=`XDG_CONFIG_HOME`=temp dir → so
-  `GlobalConfigPath()` == `<tmp>/stagehand/config.toml`), `initRepo`, `setGitConfig`,
+  `GlobalConfigPath()` == `<tmp>/stagecoach/config.toml`), `initRepo`, `setGitConfig`,
   `writeConfigFile`, `chdir`.
 - IMPORTANT for S4: to prove init/path work WITHOUT a git repo, tests chdir into a plain `t.TempDir()`
   (NO `initRepo`). Because shouldSkipConfigLoad=true, no git shell-out occurs → exit 0.
@@ -64,7 +64,7 @@ This file is the reasoning behind the PRP. All file/line references are against 
 ### F6 — Exit-code + output conventions (mirror S1/S3)
 - `internal/exitcode/exitcode.go`: `New(code, err)`, `For(err)`, `const Error = 1`. RunE funcs RETURN
   `exitcode.New(exitcode.Error, err)` on failure; NEVER `os.Exit`. main does `os.Exit(exitcode.For(err))`
-  and prints `stagehand: <err>` to STDERR when err.Error() != "".
+  and prints `stagecoach: <err>` to STDERR when err.Error() != "".
 - `stdout` = data (the path; the init confirmation). `stderr` = diagnostics (errors via main).
 
 ## DESIGN DECISIONS
@@ -83,12 +83,12 @@ the doc co-located with the command. This const IS the Mode-A user-facing config
 
 ### D4 — `config init` REFUSES to overwrite an existing file → exit 1
 Non-destructive: protects user edits. Returns `exitcode.New(exitcode.Error, fmt.Errorf("config file
-already exists at %s (not overwritten)", path))`. main prints `stagehand: <err>` to stderr, exit 1.
+already exists at %s (not overwritten)", path))`. main prints `stagecoach: <err>` to stderr, exit 1.
 No `--force` flag in scope (1-point task; keep minimal).
 
 ### D5 — `config path` prints ONLY the path to stdout (one line, scriptable)
-`fmt.Fprintln(os.Stdout, config.GlobalConfigPath())`. No label → `$(stagehand config path)` works.
-Uses GlobalConfigPath() (the DISCOVERED global XDG/home path), NOT --config/STAGEHAND_CONFIG (those
+`fmt.Fprintln(os.Stdout, config.GlobalConfigPath())`. No label → `$(stagecoach config path)` works.
+Uses GlobalConfigPath() (the DISCOVERED global XDG/home path), NOT --config/STAGECOACH_CONFIG (those
 select a READ path for Load, which is a different workflow; FR38 targets the global location).
 
 ### D6 — `config init` confirmation → stdout
@@ -104,6 +104,6 @@ Because shouldSkipConfigLoad=true. Verify in tests: chdir into a plain temp dir,
 assert exit 0. No initRepo needed.
 
 ### D9 — The template documents precedence + env vars + git keys (Mode-A DOCS)
-The template's header comments cover: §16.1 precedence (FR34), STAGEHAND_* env vars (FR35), git
-`stagehand.*` keys (FR36/§16.3), and each section's purpose. Every option line is `#`-commented so
+The template's header comments cover: §16.1 precedence (FR34), STAGECOACH_* env vars (FR35), git
+`stagecoach.*` keys (FR36/§16.3), and each section's purpose. Every option line is `#`-commented so
 the written file is INERT (no behavior change) until the user uncomments.

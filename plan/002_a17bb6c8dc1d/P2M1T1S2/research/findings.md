@@ -30,7 +30,7 @@ diff, err := deps.Git.StagedDiff(ctx, git.StagedDiffOptions{
     MaxDiffBytes: cfg.MaxDiffBytes,
     MaxMDLines:   cfg.MaxMdLines,
 })
-// pkg/stagehand/stagehand.go:247  (public Commit) — identical construction
+// pkg/stagecoach/stagecoach.go:247  (public Commit) — identical construction
 ```
 
 `config.Config.BinaryExtensions []string` (config.go:81, default nil) is fully plumbed through config +
@@ -137,7 +137,7 @@ override INDEPENDENTLY of the built-in denylist: use an extension NOT in the 36-
   errcheck-exempt (but keep gosimple/govet/staticcheck/unused clean).
 - `internal/git/binary.go` + `binary_test.go` are S1's (in progress / done) — DO NOT edit them. S2 only
   CONSUMES their exported-to-package symbols.
-- No other in-progress task touches `generate.go` / `stagehand.go` (P2.M2, P3, P4 are all "Planned") ⇒
+- No other in-progress task touches `generate.go` / `stagecoach.go` (P2.M2, P3, P4 are all "Planned") ⇒
   the 2 call-site edits are conflict-free.
 - go.mod/go.sum UNCHANGED (stdlib `sort` only). The `Git` INTERFACE is UNCHANGED (StagedDiff signature
   is unchanged; BinaryExtensions is a new struct field, not a new method).

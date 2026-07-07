@@ -104,7 +104,7 @@ return v
     "BOM behavior is based on source-level knowledge, not an explicit package-doc statement; a quick runtime test would confirm."
   ],
   "noStagedFiles": true,
-  "diffSummary": "No diffs — research-only deliverable written to /home/dustin/projects/stagehand/plan/001_f1f80943ac34/P1M2T6S1/research/go-json-map-types.md",
+  "diffSummary": "No diffs — research-only deliverable written to /home/dustin/projects/stagecoach/plan/001_f1f80943ac34/P1M2T6S1/research/go-json-map-types.md",
   "reviewFindings": [
     "no blockers"
   ],

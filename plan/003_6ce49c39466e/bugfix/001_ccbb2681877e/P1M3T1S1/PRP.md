@@ -2,7 +2,7 @@
 name: "P1.M3.T1.S1 (bugfix Issue 3) — Add ReadTree(treePrime) index-sync to runSingleShortcut (FR-M11 planner-single) + regression test asserting clean git status"
 description: |
 
-  Bugfix for Issue 3 (Bug-Fix PRD §h3.2; stagehand PRD §9.14 FR-M11, §13.6, §20.2, §18.1). The FR-M11
+  Bugfix for Issue 3 (Bug-Fix PRD §h3.2; stagecoach PRD §9.14 FR-M11, §13.6, §20.2, §18.1). The FR-M11
   planner-single shortcut (`runSingleShortcut`, internal/decompose/decompose.go:316) commits the frozen
   `tStart` (as `treePrime`) via `publishCommit` (CommitTree + UpdateRefCAS — touches HEAD only, NOT the
   index) and then goes straight to `buildCommitResult` with NO index sync. The T_start freeze (Decompose
@@ -53,7 +53,7 @@ description: |
 
   ⚠️ **#5 — NO conflict with the parallel work item.** P1.M2.T2.S1 (bugfix Issue 2, message-role provider)
   touches `internal/cmd/default_action.go`, `internal/config/roles.go`, `internal/generate/generate.go`,
-  `internal/stubtest/stubtest.go`, `pkg/stagehand/{stagehand,stagehand_test}.go` — NOT `internal/decompose/*`.
+  `internal/stubtest/stubtest.go`, `pkg/stagecoach/{stagecoach,stagecoach_test}.go` — NOT `internal/decompose/*`.
   This task touches ONLY `internal/decompose/decompose.go` + `internal/decompose/decompose_test.go`. Zero
   file overlap ⇒ independent. (verification §5)
 
@@ -89,11 +89,11 @@ no other file modified; go.mod/go.sum byte-unchanged.
 ## User Persona
 
 **Target User**: The §20.2 loop-index-cleanliness invariant + every decompose user who hits the planner-single
-path (auto mode, multi-file changeset, planner judges one commit). Transitively: the user who runs `stagehand`
-on a dirty tree, the planner says "this is one commit", stagehand commits, and the user then runs `git status`.
+path (auto mode, multi-file changeset, planner judges one commit). Transitively: the user who runs `stagecoach`
+on a dirty tree, the planner says "this is one commit", stagecoach commits, and the user then runs `git status`.
 
-**Use Case**: A user with a born repo and 2+ un-staged files runs `stagehand` (auto-decompose). The planner
-judges one commit and returns a message. Stagehand commits via `runSingleShortcut`. BEFORE the fix,
+**Use Case**: A user with a born repo and 2+ un-staged files runs `stagecoach` (auto-decompose). The planner
+judges one commit and returns a message. Stagecoach commits via `runSingleShortcut`. BEFORE the fix,
 `git status` shows the committed files as `D …/?? …` (looks broken). AFTER the fix, `git status` is clean.
 
 **User Journey**: `Decompose` (auto, 2 files) → freeze T_start (index→baseTree) → planner → `single:true` →
@@ -101,7 +101,7 @@ judges one commit and returns a message. Stagehand commits via `runSingleShortcu
 `buildCommitResult` → clean `git status`.
 
 **Pain Points Addressed**: The post-commit "deleted + untracked" status that made a successful commit look
-like stagehand corrupted the repo (Issue 3). Restores user trust + the documented invariant.
+like stagecoach corrupted the repo (Issue 3). Restores user trust + the documented invariant.
 
 ## Why
 
@@ -191,7 +191,7 @@ ordering (test fails before / passes after). No git-internals reasoning beyond "
 
 # The parallel PRP (scope check — no conflict)
 - file: plan/003_6ce49c39466e/bugfix/001_ccbb2681877e/P1M2T2S1/PRP.md
-  why: confirms P1.M2.T2.S1 (Issue 2) touches default_action.go/generate.go/stagehand(.go/_test.go)/roles.go/
+  why: confirms P1.M2.T2.S1 (Issue 2) touches default_action.go/generate.go/stagecoach(.go/_test.go)/roles.go/
        stubtest.go — NOT internal/decompose/*. This task touches ONLY decompose.go + decompose_test.go ⇒ zero
        file overlap, independent.
 ```
@@ -389,7 +389,7 @@ DOWNSTREAM: none new. The §20.2 invariant is now honored on the planner-single 
 
 FROZEN/LEAVE (do NOT edit):
   - runOneFileShortcut, runSingleEscape, runLoop, callPlanner, publishCommit, buildCommitResult, Decompose routing.
-  - internal/git/*, internal/generate/*, internal/config/*, pkg/stagehand/*, internal/cmd/*.
+  - internal/git/*, internal/generate/*, internal/config/*, pkg/stagecoach/*, internal/cmd/*.
   - All other decompose_test.go tests (especially TestDecompose_SingleShortcut_CleanMessage + the one-file/
     escape/loop/arbiter suites). PRD.md, go.mod, Makefile.
 

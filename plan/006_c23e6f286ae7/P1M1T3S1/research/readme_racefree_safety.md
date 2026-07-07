@@ -13,7 +13,7 @@ feature. It has three legs (item contract 3a/3b/3c):
 - **3a (the ONE real edit):** surface the new race-free / safe-to-double-invoke safety property in
   README.md's safety section.
 - **3b (stale-claim sweep):** grep README.md + docs/ for stale concurrency claims that imply two
-  stagehand processes can safely race without a lock; fix any found.
+  stagecoach processes can safely race without a lock; fix any found.
 - **3c (catch-all verification):** confirm docs/cli.md has the Busy=5 row and docs/how-it-works.md
   has the Per-repo run lock subsection; add either if missing.
 

@@ -11,19 +11,19 @@ generate/parse/dedupe LOOP → **CommitTree** → **UpdateRefCAS** → DiffTree.
 `signal.SetSnapshot` for the §18.3 rescue and returns `*RescueError`/`*CASError`.
 
 **Hook mode must NOT do steps 3/7/8/9** (FR-H4: "No snapshot, no `commit-tree`, no `update-ref`:
-git owns this commit"). So `hook exec` CANNOT call `pkg/stagehand.GenerateCommit` (it always
+git owns this commit"). So `hook exec` CANNOT call `pkg/stagecoach.GenerateCommit` (it always
 snapshots, even on DryRun) nor `generate.CommitStaged`. It reuses the **generation steps only**
 (1, 2, 4, 5) by calling the same EXPORTED primitives, and writes the result to `<msg-file>`.
 
-## 1. The generation loop is in-package-unexported → MIRROR it (precedent: pkg/stagehand)
+## 1. The generation loop is in-package-unexported → MIRROR it (precedent: pkg/stagecoach)
 
 CommitStaged's loop (generate.go ~step 5) is unexported and tangled with the snapshot (it
 references `treeSHA`/`parentSHA` to build `*RescueError`). Extracting a shared helper would force a
 behavior-sensitive refactor of the CORE pipeline and the error semantics differ (CommitStaged needs a
 tree SHA for the rescue recipe; hook needs never-block). **Mirroring is the established pattern:**
-`pkg/stagehand.buildSysPrompt` + `pkg/stagehand.runPipeline` BOTH re-implement generate's internals
+`pkg/stagecoach.buildSysPrompt` + `pkg/stagecoach.runPipeline` BOTH re-implement generate's internals
 with the comment *"This mirrors generate.X (unexported — can't import). It reuses the prompt
-builders; NOT IP duplication."* — see pkg/stagehand/stagehand.go:393 and :415. `internal/hook.Run`
+builders; NOT IP duplication."* — see pkg/stagecoach/stagecoach.go:393 and :415. `internal/hook.Run`
 does the same. The loop is ~35 lines; the reused primitives are all exported.
 
 ### Reusable exported primitives (all already shipped)
@@ -34,7 +34,7 @@ does the same. The loop is ~35 lines; the reused primitives are all exported.
 - finalize: `generate.FinalizeMessage(msg, cfg)` (template seam, finalize.go), `generate.ExtractSubject(msg)`, `generate.IsDuplicate(subject, recent)` (dedupe.go).
 - history (mature-vs-fallback + dedupe set): `git.RevParseHEAD` (isUnborn short-circuits CommitCount/RecentMessages/RecentSubjects), `git.CommitCount`, `git.RecentMessages(20)`, `git.RecentSubjects(50)`. Mirror `generate.buildSystemPrompt`/`recentSubjects` (unexported — copy the ~15-line wrappers).
 
-### buildSystemPrompt mirror (copy from generate.go:unexported, also in pkg/stagehand:393)
+### buildSystemPrompt mirror (copy from generate.go:unexported, also in pkg/stagecoach:393)
 ```go
 func buildSystemPrompt(ctx, g, cfg, isUnborn) (string, error) {
     if isUnborn { return prompt.BuildFallbackPrompt(cfg.SubjectTargetChars, cfg.Format, cfg.Locale), nil }
@@ -65,12 +65,12 @@ single-commit path").
 
 ## 3. Manifest resolution = mirror runDefault/buildDeps (~15 lines, duplicated 3rd time)
 
-runDefault (default_action.go) and buildDeps (pkg/stagehand:325) both inline the same resolution:
+runDefault (default_action.go) and buildDeps (pkg/stagecoach:325) both inline the same resolution:
 `provider.DecodeUserOverrides(cfg.Providers)` → `provider.NewRegistry` → resolve message provider
 (`config.ResolveRoleModel("message", cfg)`; if "" → `reg.DefaultProvider(installed)`) → `reg.Get` →
 `m.Validate()` → `reg.IsInstalled(m)` (pre-flight) → apply `cfg.Output`/`cfg.StripCodeFence` overrides
 → `generate.Deps{Git, Manifest, Verbose, Excludes}`. hookexec.go copies this inline. **Do NOT import
-pkg/stagehand from internal** (internal→pkg is an anti-pattern and would be a needless dependency);
+pkg/stagecoach from internal** (internal→pkg is an anti-pattern and would be a needless dependency);
 the duplication is accepted (already present in runDefault vs buildDeps). Excludes via
 `exclude.ResolveExcludePathspecs(cfg, repoDir, verbose)` (exclude.go:98) — mirror runDecompose.
 
@@ -103,7 +103,7 @@ mutate orig.)
 `hook.Run` returns: **nil** = generated+written; **ErrNoOp** = intended no-op (source gated OR empty
 staged diff) → exit 0 silently; **any other error** = generation failure (timeout, parse/dup
 exhaustion, agent missing, config error) → `<msg-file>` UNCHANGED + one stderr warning line + exit 0.
-`--strict` (baked into the script by S1/S2: `exec stagehand hook exec --strict "$@"`) inverts the
+`--strict` (baked into the script by S1/S2: `exec stagecoach hook exec --strict "$@"`) inverts the
 last case to **non-zero** (exitcode.Error=1) → aborts the commit. The cmd layer owns exit codes; Run
 just returns the error (does NOT call os.Exit). NEVER write the file on a failure path (write only
 after a fully-accepted message). NO snapshot/signal/commit-tree/update-ref/rescue anywhere.
@@ -126,11 +126,11 @@ func init() {
 
 ## 8. e2e scenarios (internal/e2e, `//go:build e2e`) — extend the harness
 
-The hook script (`exec stagehand hook exec "$@"`) resolves `stagehand` from **$PATH** (S1 script is
-not absolute-path). So the e2e must (a) prepend the built stagehand binary's dir to PATH, (b) set
-`STAGEHAND_CONFIG` to a stub config (writeStubConfig) + `STAGEHAND_STUB_*` knobs (stubEnv), (c) set
+The hook script (`exec stagecoach hook exec "$@"`) resolves `stagecoach` from **$PATH** (S1 script is
+not absolute-path). So the e2e must (a) prepend the built stagecoach binary's dir to PATH, (b) set
+`STAGECOACH_CONFIG` to a stub config (writeStubConfig) + `STAGECOACH_STUB_*` knobs (stubEnv), (c) set
 `GIT_EDITOR=true` (or `:`) so git does NOT open a real editor on the hook-filled message, (d) run
-real `git -C repo commit` (NOT runStagehand — git fires the hook). Helper additions to the e2e
+real `git -C repo commit` (NOT runStagecoach — git fires the hook). Helper additions to the e2e
 package. Three scenarios the item names:
 - **happy path**: stub returns "feat: …"; `GIT_EDITOR=true git commit` → HEAD message == stub output (hook filled the file).
 - **failure-injection**: stub exit 1; `GIT_EDITOR='sh -c "echo fallback >$1"' git commit` → HEAD == "fallback" (hook exit-0'd, git continued; never-block proven).

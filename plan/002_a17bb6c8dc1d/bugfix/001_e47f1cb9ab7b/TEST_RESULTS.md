@@ -2,7 +2,7 @@
 
 ## Overview
 
-Creative end-to-end QA was performed against the Stagehand v2.0 PRD. The implementation was
+Creative end-to-end QA was performed against the Stagecoach v2.0 PRD. The implementation was
 built from source (`go build ./...` + `go test ./...` — all green) and driven end-to-end through
 the real CLI binary using the bundled `cmd/stubagent` as a controllable fake agent (with a custom
 shell-script stager that actually runs `git add`, enabling the full planner→stager→message→arbiter
@@ -24,7 +24,7 @@ pipeline to be exercised for real).
 **What does NOT work (bugs found):** four issues, one critical, that defeat core documented
 behavior of the **default provider (pi)**, weaken the stager's advertised safety model, produce
 misleading output after the arbiter runs, and make `config init/upgrade/path` ignore the
-`--config`/`STAGEHAND_CONFIG` override. Details and exact reproductions below.
+`--config`/`STAGECOACH_CONFIG` override. Details and exact reproductions below.
 
 ## Critical Issues (Must Fix)
 
@@ -33,7 +33,7 @@ misleading output after the arbiter runs, and make `config init/upgrade/path` ig
 **Severity**: Critical
 **PRD Reference**: §12.2 (render algorithm: `if m.provider_flag and provider != ""`), §12.3 (pi
 `--provider zai|anthropic|google|...`), §9.8 FR37a (field-merge must preserve `default_provider`
-across layers), §15.5 (documented `git config stagehand.provider pi` setup), §9.16 FR-D2.
+across layers), §15.5 (documented `git config stagecoach.provider pi` setup), §9.16 FR-D2.
 **Expected Behavior**: The `--provider` flag to a multi-provider agent (pi) must carry the
 **sub-provider/backend** (`zai`, `openrouter`, …), resolved from the manifest's `default_provider`
 (or an explicit sub-provider config). When a user sets `default_provider = "openrouter"`, the
@@ -48,9 +48,9 @@ sub-provider, and (b) **overrides and silently ignores** the user's configured `
 This triggers in every common configuration that names pi:
 - The bootstrap config written by `config init` (`[defaults] provider = "pi"` — the default
   out-of-box experience);
-- `stagehand --provider pi`;
-- `git config stagehand.provider pi` (the setup **explicitly recommended in PRD §15.5**);
-- `STAGEHAND_PROVIDER=pi`.
+- `stagecoach --provider pi`;
+- `git config stagecoach.provider pi` (the setup **explicitly recommended in PRD §15.5**);
+- `STAGECOACH_PROVIDER=pi`.
 
 Because the role fallback in `ResolveRoleModel` (`if provider == "" { provider = cfg.Provider }`)
 also pulls in `"pi"`, **all four decompose roles** emit `--provider pi` for the bootstrap config.
@@ -80,15 +80,15 @@ prompt_delivery = "stdin"
 print_flag = "-p"
 output = "raw"
 [provider.pi.env]
-STAGEHAND_STUB_OUT = "feat: repro"
+STAGECOACH_STUB_OUT = "feat: repro"
 TOML
 cd <fresh git repo with one staged change>
-STAGEHAND_CONFIG=/tmp/repro/config.toml stagehand --dry-run --verbose --no-color
+STAGECOACH_CONFIG=/tmp/repro/config.toml stagecoach --dry-run --verbose --no-color
 # Observed:  DEBUG: command: ...stubagent --provider pi --model gpt-5.4-nano --system-prompt …
 # Expected:  ...stubagent --provider openrouter --model gpt-5.4-nano …
 ```
 Reproduced three independent ways (bootstrap-style config, `default_provider="openrouter"`, and
-`git config stagehand.provider pi` + `[provider.pi] default_provider="zai"`); all emitted
+`git config stagecoach.provider pi` + `[provider.pi] default_provider="zai"`); all emitted
 `--provider pi` and ignored the configured sub-provider.
 
 **Suggested Fix**: Separate the two concepts at the call boundary. `cfg.Provider` is the registry
@@ -108,7 +108,7 @@ name) is emitted.
 **Severity**: Major (safety / security claim gap)
 **PRD Reference**: §11.5 ("a git/read/edit allowlist expressed via `tooled_flags`"), §17.6
 ("structurally constrained"), §19 ("Its toolset is scoped … it cannot commit, amend, or push,
-because stagehand owns every ref mutation"), §22.1 risk row ("Scoped git toolset
+because stagecoach owns every ref mutation"), §22.1 risk row ("Scoped git toolset
 (`tooled_flags`)").
 **Expected Behavior**: The tooled stager agent can run only staging-relevant operations
 (`git add`, read, edit) and is structurally unable to commit, amend, push, or move refs.
@@ -116,17 +116,17 @@ because stagehand owns every ref mutation"), §22.1 risk row ("Scoped git toolse
 - **pi** (`internal/provider/builtin.go`, `builtinPi`): `tooled_flags` = bare flags **minus**
   `--no-tools` — i.e. pi's **entire native tool system is enabled with no allowlist**. The inline
   comment admits this: *"pi has no git-scoped allowlist … stager safety is via the stager task
-  prompt + stagehand's ref-mutation monopoly, not flag-scoping."* A pi stager can run arbitrary
+  prompt + stagecoach's ref-mutation monopoly, not flag-scoping."* A pi stager can run arbitrary
   Bash, including `git commit`, `git push`, `git update-ref`, `rm -rf`.
 - **claude** (`builtinClaude`): `tooled_flags = ["--allowed-tools", "Bash(git:*),Read,Edit", …]`.
   `Bash(git:*)` permits **every** git subcommand — `git commit`, `git push --force`,
   `git update-ref HEAD`, `git reset --hard HEAD~5` — so it does NOT prevent commit/amend/push.
 
-"stagehand's ref-mutation monopoly" is only true if the agent cannot mutate refs itself; with these
+"stagecoach's ref-mutation monopoly" is only true if the agent cannot mutate refs itself; with these
 profiles a misbehaving stager can. The structural guarantee the PRD sells (§19) is therefore not
 delivered for either stager-capable provider.
-**Steps to Reproduce / Inspect**: `stagehand providers show pi` (or read `providers/pi.toml`) →
-`tooled_flags` has no tool allowlist; `stagehand providers show claude` → `Bash(git:*)`. Compare to
+**Steps to Reproduce / Inspect**: `stagecoach providers show pi` (or read `providers/pi.toml`) →
+`tooled_flags` has no tool allowlist; `stagecoach providers show claude` → `Bash(git:*)`. Compare to
 §19/§11.5 prose.
 **Suggested Fix**: Either (a) tighten the profiles so commit/push/ref-mutation are genuinely
 unreachable (e.g. claude `Bash(git add:*,git apply:*,git status:*,git diff:*)` instead of
@@ -158,7 +158,7 @@ common decompose outcomes (leftovers reconciled).
 tip; smart arbiter returns the tip SHA):
 ```bash
 # planner: 2 concepts (b,c); arbiter mode=tip (returns HEAD sha); d.txt is leftover
-stagehand   # nothing staged, dirty tree (b.txt, c.txt, d.txt)
+stagecoach   # nothing staged, dirty tree (b.txt, c.txt, d.txt)
 # stdout:  [<sha-A>] … b.txt   [<sha-B>] … c.txt      (sha-B is STALE after amend)
 # git log: …<sha-B'> (amended tip, c.txt + d.txt), <sha-A> …      (sha-B' != sha-B)
 ```
@@ -166,33 +166,33 @@ Reproduced for tip, mid-chain (folded into concept 1; concept 2 rebuilt — logi
 stdout SHAs stale), and null (3rd commit created but not printed).
 **Suggested Fix**: After a successful arbiter phase, re-read git for the final commits (e.g.
 `git log <preRunHEAD>..HEAD`) and print those SHAs/subjects/file-lists, replacing the loop's
-pre-amend entries. This is straightforward given stagehand already owns every ref mutation.
+pre-amend entries. This is straightforward given stagecoach already owns every ref mutation.
 
-### Issue 4: `config init` / `config upgrade` / `config path` ignore `--config` and `STAGEHAND_CONFIG` and always operate on the global config path
+### Issue 4: `config init` / `config upgrade` / `config path` ignore `--config` and `STAGECOACH_CONFIG` and always operate on the global config path
 
 **Severity**: Major
-**PRD Reference**: §15.2 (`--config` / `STAGEHAND_CONFIG` "Path to a config file, overrides
+**PRD Reference**: §15.2 (`--config` / `STAGECOACH_CONFIG` "Path to a config file, overrides
 discovery"), §9.8 FR38 (`config init`/`config path`/`config upgrade`).
-**Expected Behavior**: `stagehand --config X config upgrade` (or `STAGEHAND_CONFIG=X`) upgrades
+**Expected Behavior**: `stagecoach --config X config upgrade` (or `STAGECOACH_CONFIG=X`) upgrades
 file `X`; `config path` reports the resolved (overridden) path.
 **Actual Behavior**: The config subcommands compute their target from `GlobalConfigPath()`
-(`$XDG_CONFIG_HOME` or `$HOME/.config/stagehand/config.toml`) and never consult `flagConfig` /
-`STAGEHAND_CONFIG`:
+(`$XDG_CONFIG_HOME` or `$HOME/.config/stagecoach/config.toml`) and never consult `flagConfig` /
+`STAGECOACH_CONFIG`:
 ```
-$ stagehand --config /tmp/cfg_alt/c.toml config upgrade
-Config at /home/…/.config/stagehand/config.toml is already at version 2 (no changes).
+$ stagecoach --config /tmp/cfg_alt/c.toml config upgrade
+Config at /home/…/.config/stagecoach/config.toml is already at version 2 (no changes).
 # /tmp/cfg_alt/c.toml is NOT touched.
-$ STAGEHAND_CONFIG=/tmp/cfg_alt/c.toml stagehand config path
-/home/…/.config/stagehand/config.toml          # lies — reports global, not the override
+$ STAGECOACH_CONFIG=/tmp/cfg_alt/c.toml stagecoach config path
+/home/…/.config/stagecoach/config.toml          # lies — reports global, not the override
 ```
-Consequence: a user who drives stagehand with a custom/repo config and then runs
+Consequence: a user who drives stagecoach with a custom/repo config and then runs
 `config upgrade` silently mutates (or creates) their **global** config instead of the intended file,
 and `config path` misleads debugging. (`config init`/`upgrade` *do* honor `HOME`/`XDG`; only the
-`--config`/`STAGEHAND_CONFIG` override is dropped.)
-**Steps to Reproduce**: set `STAGEHAND_CONFIG` (or pass `--config`) to a non-default file, then run
+`--config`/`STAGECOACH_CONFIG` override is dropped.)
+**Steps to Reproduce**: set `STAGECOACH_CONFIG` (or pass `--config`) to a non-default file, then run
 `config path` / `config upgrade` and observe they reference the global path.
 **Suggested Fix**: Have the config subcommands resolve their target via the same
-override-aware path resolver used by the default action (honor `flagConfig` → `STAGEHAND_CONFIG` →
+override-aware path resolver used by the default action (honor `flagConfig` → `STAGECOACH_CONFIG` →
 `GlobalConfigPath()`), so `config path`/`init`/`upgrade` operate on the file the user actually
 selected.
 
@@ -204,7 +204,7 @@ selected.
 **PRD Reference**: §9.17 FR-B1 ("writes a populated, **working** config … the tool works
 immediately"), §9.16 FR-D4 / Appendix E #12.
 **Expected Behavior**: After `config init` (which auto-detects pi and writes `gpt-5.4*` per-role
-models), `stagehand` produces a valid pi invocation.
+models), `stagecoach` produces a valid pi invocation.
 **Actual Behavior**: `config init` writes `[defaults] provider = "pi"` and `[role.*] model =
 "gpt-5.4"/"gpt-5.4-mini"/"gpt-5.4-nano"` but **no** `default_provider` (sub-provider). Combined with
 Issue 1 (currently masked because `--provider pi` errors first), once rendering stops emitting the

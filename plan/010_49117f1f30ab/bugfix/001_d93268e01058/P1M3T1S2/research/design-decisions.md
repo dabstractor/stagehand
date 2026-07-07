@@ -8,33 +8,33 @@ Ground truth read before writing this note:
   hooks block (generate.go:436-439: `if strings.TrimSpace(msg) == "" { return Result{}, ErrEmptyMessage }`).
   S1 is the SAME-pattern precedent: same sentinel, same bare propagation (exit 1, NOT rescue), same placement
   (after the hooks block, before CommitTree). git status confirms generate.go + hooks_freeze_test.go modified.
-- **pkg/stagehand/stagehand.go runPipeline** (read L412-706): the hooks block at L651-674
+- **pkg/stagecoach/stagecoach.go runPipeline** (read L412-706): the hooks block at L651-674
   (`if deps.Hooks != nil { ft, fm, herr := RunCommitHooks(..., dryRun, ...); if herr != nil { if dryRun { ...
   warn-and-print ... } else { return herr } } else { treeSHA, msg = ft, fm } }`); the dry-run early return at
   L678 (`if dryRun { ...; return Result{Message: msg}, nil }`); CommitTree at L694. The INSERTION POINT is
   between L674 (the hooks block's closing `}`) and L677 (the dry-run comment / `if dryRun`).
-- **`generate.ErrEmptyMessage`** (finalize.go:45): `var ErrEmptyMessage = errors.New("stagehand: empty commit
-  message — aborted")` — EXPORTED. pkg/stagehand already imports `generate` (L21) + `strings` (L15).
-- **`buildDeps` wires `Hooks: hooks.DefaultRunner{}`** (stagehand.go:387) ⇒ `GenerateCommit(..., DryRun:true)`
+- **`generate.ErrEmptyMessage`** (finalize.go:45): `var ErrEmptyMessage = errors.New("stagecoach: empty commit
+  message — aborted")` — EXPORTED. pkg/stagecoach already imports `generate` (L21) + `strings` (L15).
+- **`buildDeps` wires `Hooks: hooks.DefaultRunner{}`** (stagecoach.go:387) ⇒ `GenerateCommit(..., DryRun:true)`
   exercises hooks in runPipeline (the `if deps.Hooks != nil` branch is live).
-- **Test idiom** (stagehand_test.go L236 TestGenerateCommit_DryRun): `setupTestRepo(t, stubtest.Options{Out:
+- **Test idiom** (stagecoach_test.go L236 TestGenerateCommit_DryRun): `setupTestRepo(t, stubtest.Options{Out:
   ...})` (builds stub + temp repo + chdir + cleanup) → `repoDir, _ := os.Getwd()` → `writeFile`/`stageFile` →
   `headSHA` → `GenerateCommit(ctx, Options{Provider:"stub", DryRun:true})`. Helpers `setupTestRepo`/`writeFile`/
-  `stageFile`/`headSHA` are in stagehand_test.go.
+  `stageFile`/`headSHA` are in stagecoach_test.go.
 - Verified at research time: `go build ./... && go test ./...` GREEN (S1's guard is in place).
 
 ---
 
-## §0 — Scope: runPipeline ONLY (pkg/stagehand/stagehand.go)
+## §0 — Scope: runPipeline ONLY (pkg/stagecoach/stagecoach.go)
 
 **S2 owns:** the empty-message guard in `runPipeline` (the dry-run/SystemExtra path) + its tests in
-`stagehand_test.go`. Issue 4 names THREE call sites with the same gap:
+`stagecoach_test.go`. Issue 4 names THREE call sites with the same gap:
 - `generate.CommitStaged` → **S1 (DONE)**.
-- `pkg/stagehand.runPipeline` → **S2 (this task)**.
+- `pkg/stagecoach.runPipeline` → **S2 (this task)**.
 - `decompose.publishCommit` → **S3 (P1.M3.T1.S3, Planned)**.
 
 **Frozen / do NOT touch:** `internal/generate/generate.go` (S1's guard — already shipped), `internal/decompose/*`
-(S3's scope), `internal/hooks/*`, `internal/cmd/*`. No conflict with S1 (generate.go) — S2 is pkg/stagehand only.
+(S3's scope), `internal/hooks/*`, `internal/cmd/*`. No conflict with S1 (generate.go) — S2 is pkg/stagecoach only.
 
 ---
 
@@ -45,7 +45,7 @@ Ground truth read before writing this note:
 propagation. It fires AFTER the hooks block unconditionally — covering both (a) the hook-exited-0 case (`else`
 branch set `msg = fm = ""`) and (b) the hook-exited-non-zero under dryRun case (warn-and-print set `msg =
 re.Candidate`, which may be ""). HEAD + live index are untouched (the abort returns before CommitTree → no
-update-ref ran). pkg/stagehand already imports `strings` + `generate` ⇒ NO new import.
+update-ref ran). pkg/stagecoach already imports `strings` + `generate` ⇒ NO new import.
 
 ---
 
@@ -83,7 +83,7 @@ matching S1.)
 
 ## §4 — TDD: the dryRun test is the load-bearing one (proves the abort is NOT swallowed)
 
-**Decision:** write the FAILING test FIRST, then the guard. TWO tests in `pkg/stagehand/stagehand_test.go`:
+**Decision:** write the FAILING test FIRST, then the guard. TWO tests in `pkg/stagecoach/stagecoach_test.go`:
 
 1. **TestGenerateCommit_DryRun_HookEmptiesMessage_AbortsExit1** — THE key test. `setupTestRepo` (stub Out a
    NON-empty message) + install a `commit-msg` hook that empties the file (`> "$1"; exit 0`) + `DryRun:true`.
@@ -100,21 +100,21 @@ matching S1.)
 
 Both use the existing `setupTestRepo`/`writeFile`/`stageFile`/`headSHA` helpers. The hook is a REAL shell script
 in `<repoDir>/.git/hooks/commit-msg` (chmod 0755) — `buildDeps` wires `deps.Hooks=DefaultRunner`, so
-RunCommitHooks exec's it. Ensure `filepath` + `errors` are imported in stagehand_test.go (add if missing).
+RunCommitHooks exec's it. Ensure `filepath` + `errors` are imported in stagecoach_test.go (add if missing).
 
 ---
 
-## §5 — No new imports in stagehand.go; go.mod UNCHANGED
+## §5 — No new imports in stagecoach.go; go.mod UNCHANGED
 
-**Decision:** stagehand.go already imports `strings` (L15) + `generate` (L21). The guard adds NO import.
-stagehand_test.go may need `filepath` (for `filepath.Join(repoDir, ".git", "hooks")`) + `errors` (for
+**Decision:** stagecoach.go already imports `strings` (L15) + `generate` (L21). The guard adds NO import.
+stagecoach_test.go may need `filepath` (for `filepath.Join(repoDir, ".git", "hooks")`) + `errors` (for
 `errors.Is`) — add if not already imported. No new external dep; `go mod tidy` is a no-op.
 
 ---
 
 ## §6 — No conflict with S1 (sequential) or S3 (parallel-later)
 
-**Decision:** S1 is DONE (generate.go shipped). S2 edits pkg/stagehand/stagehand.go (a DIFFERENT file) — zero
+**Decision:** S1 is DONE (generate.go shipped). S2 edits pkg/stagecoach/stagecoach.go (a DIFFERENT file) — zero
 overlap with S1's generate.go. S3 (decompose.publishCommit) is a later task; S2 does NOT touch internal/decompose.
 The three guards are independent (one per call site) and can land in any order.
 
@@ -124,10 +124,10 @@ The three guards are independent (one per call site) and can land in any order.
 
 | § | Decision | Source |
 |---|----------|--------|
-| 0 | runPipeline ONLY (pkg/stagehand); CommitStaged=S1(done), publishCommit=S3 | contract |
+| 0 | runPipeline ONLY (pkg/stagecoach); CommitStaged=S1(done), publishCommit=S3 | contract |
 | 1 | `if strings.TrimSpace(msg)=="" { return Result{}, generate.ErrEmptyMessage }` after the hooks block | S1 precedent |
 | 2 | ErrEmptyMessage is BARE (not *RescueError) ⇒ exit 1 under both dryRun + commit (NOT warn-and-print exit 0) | contract |
 | 3 | Placement: after the hooks block (L674), before `if dryRun` (L678) | contract + S1 |
 | 4 | TDD: dryRun test (the key — abort NOT swallowed) + commit-path test (SystemExtra; no commit) | contract |
-| 5 | No new imports (strings+generate present); test may need filepath+errors | stagehand.go imports |
-| 6 | No conflict: S2 is pkg/stagehand only; S1=generate.go (done); S3=decompose (later) | scope |
+| 5 | No new imports (strings+generate present); test may need filepath+errors | stagecoach.go imports |
+| 6 | No conflict: S2 is pkg/stagecoach only; S1=generate.go (done); S3=decompose (later) | scope |

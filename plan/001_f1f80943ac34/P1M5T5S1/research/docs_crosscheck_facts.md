@@ -16,7 +16,7 @@ Every doc snippet must match these facts. Verified 2026-06-29.
 ## 2. PRD location DISCREPANCY (CRITICAL — do NOT act on the contract's assumption)
 
 - The work-item contract says: "The PRD itself lives in docs/PRD.md and is READ-ONLY."
-- REALITY: `PRD.md` lives at the REPO ROOT (`/home/dustin/projects/stagehand/PRD.md`), NOT in docs/.
+- REALITY: `PRD.md` lives at the REPO ROOT (`/home/dustin/projects/stagecoach/PRD.md`), NOT in docs/.
 - DECISION: do NOT move PRD.md into docs/ (it is human-owned, READ-ONLY). Do NOT create a
   `docs/PRD.md` (it would duplicate/contradict the canonical root file). docs/README.md will LINK to
   the root PRD as "the authoritative product & technical specification" and note it is read-only.
@@ -26,9 +26,9 @@ Every doc snippet must match these facts. Verified 2026-06-29.
 README "Full CLI and config reference" section (verbatim):
 ```
 The authoritative, always-available reference lives in the binary itself:
-  stagehand --help          # every flag, subcommand, and option
-  stagehand config init     # writes a fully-commented config file (the canonical config reference)
-  stagehand config path     # shows where the global config lives
+  stagecoach --help          # every flag, subcommand, and option
+  stagecoach config init     # writes a fully-commented config file (the canonical config reference)
+  stagecoach config path     # shows where the global config lives
 See the docs/ for the full reference (growing).
 ```
 → docs/ must provide the FULL, browsable reference (deeper than --help): cli.md, configuration.md,
@@ -37,7 +37,7 @@ providers.md, + an architecture/how-it-works overview. README cites --help/confi
 
 ### README env-var coverage (contract says "verify env-var sections are accurate")
 - The README does NOT have a dedicated env-var section. Env vars appear ONLY inline, in the config
-  precedence line: "CLI flags > STAGEHAND_* env vars > repo git config ...". This is ACCURATE but not
+  precedence line: "CLI flags > STAGECOACH_* env vars > repo git config ...". This is ACCURATE but not
   exhaustive. docs/configuration.md will carry the FULL env-var table (§3.5). No README edit is
   warranted (it is accurate; depth belongs in docs/). Flag this as a "no-change-needed" finding.
 
@@ -57,12 +57,12 @@ providers.md, + an architecture/how-it-works overview. README cites --help/confi
 ### Global flags (root.go init()) — ALL eleven
 | Flag | Type | Default | Notes |
 |------|------|---------|-------|
-| `--provider <name>` | string | "" (auto-detect) | env STAGEHAND_PROVIDER; git stagehand.provider |
-| `--model <name>` | string | "" (manifest default) | env STAGEHAND_MODEL; git stagehand.model |
-| `--config <path>` | string | "" | overrides discovery; env STAGEHAND_CONFIG. NOT a Config field. |
-| `--timeout <dur>` | string | "120s" | "120s" or bare seconds; env STAGEHAND_TIMEOUT; git stagehand.timeout |
-| `--verbose`, `-v` | bool | false | resolved cmd + raw output + retries; env STAGEHAND_VERBOSE |
-| `--no-color` | bool | TTY-aware | env STAGEHAND_NO_COLOR; also honors NO_COLOR |
+| `--provider <name>` | string | "" (auto-detect) | env STAGECOACH_PROVIDER; git stagecoach.provider |
+| `--model <name>` | string | "" (manifest default) | env STAGECOACH_MODEL; git stagecoach.model |
+| `--config <path>` | string | "" | overrides discovery; env STAGECOACH_CONFIG. NOT a Config field. |
+| `--timeout <dur>` | string | "120s" | "120s" or bare seconds; env STAGECOACH_TIMEOUT; git stagecoach.timeout |
+| `--verbose`, `-v` | bool | false | resolved cmd + raw output + retries; env STAGECOACH_VERBOSE |
+| `--no-color` | bool | TTY-aware | env STAGECOACH_NO_COLOR; also honors NO_COLOR |
 | `--all`, `-a` | bool | false | `git add -A` before snapshotting even if something staged |
 | `--no-auto-stage` | bool | false | nothing staged → exit 2 instead of auto-staging |
 | `--dry-run` | bool | false | print message, do not commit (exit 0) |
@@ -70,10 +70,10 @@ providers.md, + an architecture/how-it-works overview. README cites --help/confi
 | `--help`, `-h` | — | — | cobra builtin |
 
 ### Subcommands (§15.3)
-- `stagehand providers list` → table: `NAME  DETECTED  DEFAULT` (✓/✗, `(default)` on resolved pick).
-- `stagehand providers show <name>` → fully-resolved manifest as TOML; exit 1 if unknown.
-- `stagehand config init` → writes commented example to GLOBAL path; REFUSES overwrite (exit 1).
-- `stagehand config path` → prints resolved global config path.
+- `stagecoach providers list` → table: `NAME  DETECTED  DEFAULT` (✓/✗, `(default)` on resolved pick).
+- `stagecoach providers show <name>` → fully-resolved manifest as TOML; exit 1 if unknown.
+- `stagecoach config init` → writes commented example to GLOBAL path; REFUSES overwrite (exit 1).
+- `stagecoach config path` → prints resolved global config path.
 
 ### Exit codes (internal/exitcode/exitcode.go — AUTHORITATIVE, §15.4)
 | Code | Const | Meaning |
@@ -100,19 +100,19 @@ DeadlineExceeded→124; CAS→1; else 1.
 
 ### 7-layer precedence (§16.1), HIGH → LOW (matches exampleConfigTemplate header):
 1. CLI flags
-2. STAGEHAND_* env vars
-3. repo git-config (`stagehand.*`)
-4. repo-local `./.stagehand.toml`
+2. STAGECOACH_* env vars
+3. repo git-config (`stagecoach.*`)
+4. repo-local `./.stagecoach.toml`
 5. GLOBAL config file
 6. provider `default_*` (manifest)
 7. built-in defaults
 
 ### Env vars (FULL list)
-STAGEHAND_PROVIDER, STAGEHAND_MODEL, STAGEHAND_TIMEOUT, STAGEHAND_CONFIG, STAGEHAND_VERBOSE,
-STAGEHAND_NO_COLOR, plus the universal NO_COLOR (honored by --no-color resolution).
+STAGECOACH_PROVIDER, STAGECOACH_MODEL, STAGECOACH_TIMEOUT, STAGECOACH_CONFIG, STAGECOACH_VERBOSE,
+STAGECOACH_NO_COLOR, plus the universal NO_COLOR (honored by --no-color resolution).
 
 ### Git-config keys (§16.3)
-`stagehand.provider`, `stagehand.model`, `stagehand.timeout`, `stagehand.auto_stage_all`.
+`stagecoach.provider`, `stagecoach.model`, `stagecoach.timeout`, `stagecoach.auto_stage_all`.
 
 ### Built-in defaults (config.go Defaults())
 timeout 120s; auto_stage_all true; max_diff_bytes 300000; max_md_lines 100; max_duplicate_retries 3;
@@ -120,8 +120,8 @@ subject_target_chars 50; output "raw"; strip_code_fence true. Provider/Model = "
 manifest default). NoColor is TTY-aware (UI layer, not a file field — `toml:"-"`).
 
 ### Paths
-- GLOBAL file: `$XDG_CONFIG_HOME/stagehand/config.toml` (default `~/.config/stagehand/config.toml`).
-- REPO-LOCAL file: `./.stagehand.toml` (gitignored by default).
+- GLOBAL file: `$XDG_CONFIG_HOME/stagecoach/config.toml` (default `~/.config/stagecoach/config.toml`).
+- REPO-LOCAL file: `./.stagecoach.toml` (gitignored by default).
 - `config init` REFUSES to overwrite an existing file (exit 1); creates parent dirs; writes the
   commented exampleConfigTemplate (which IS the Mode-A config reference — every line `#`-commented).
 
@@ -158,13 +158,13 @@ User-defined [provider.<name>] are NEVER auto-selected.
 ### Command rendering (§12.2) + output parsing (§12.9) — document the algorithm.
 
 ## 8. Install paths (docs/overview + cross-ref README) — §21.3 + .goreleaser.yaml (VERIFIED)
-- Homebrew: `brew install dustin/tap/stagehand` (goreleaser homebrew tap repo dustin/homebrew-tap).
-- Go install: `go install github.com/dustin/stagehand/cmd/stagehand@latest`.
-- curl|sh: `curl -fsSL https://github.com/dustin/stagehand/raw/main/install.sh | bash` (NOTE: install.sh
+- Homebrew: `brew install dustin/tap/stagecoach` (goreleaser homebrew tap repo dustin/homebrew-tap).
+- Go install: `go install github.com/dustin/stagecoach/cmd/stagecoach@latest`.
+- curl|sh: `curl -fsSL https://github.com/dustin/stagecoach/raw/main/install.sh | bash` (NOTE: install.sh
   does NOT exist yet — published at first release; README already carries this note).
-- Scoop: `scoop install dustin/stagehand` (bucket dustin/scoop-bucket).
-- NAMESPACE = dustin/stagehand everywhere (goreleaser owner:dustin WINS over git-remote dabstractor).
-  go.mod module path = github.com/dustin/stagehand.
+- Scoop: `scoop install dustin/stagecoach` (bucket dustin/scoop-bucket).
+- NAMESPACE = dustin/stagecoach everywhere (goreleaser owner:dustin WINS over git-remote dabstractor).
+  go.mod module path = github.com/dustin/stagecoach.
 
 ## 9. How-it-works / architecture facts (docs/how-it-works.md) — §13 + §18 + §17
 

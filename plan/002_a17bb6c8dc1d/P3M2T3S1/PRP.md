@@ -10,7 +10,7 @@ description: |
   any failure (render/exec-non-zero/timeout/cancel). It is the tooled, no-retry, no-parse counterpart of
   callPlanner: NO retry loop (the orchestrator P3.M4.T1.S1 owns the FR-M8 "retry once then treat as
   empty"), NO output parsing (the stager returns free-form text; the index is the truth source), and it
-  mutates the INDEX only (git add / git apply --cached) — NEVER refs (stagehand owns all ref mutations).
+  mutates the INDEX only (git add / git apply --cached) — NEVER refs (stagecoach owns all ref mutations).
   `freezeSnapshot` is the §13.6.3 invariant-1 primitive: a thin, documented `deps.Git.WriteTree` wrapper
   that freezes the current index into an immutable tree SHA, which the orchestrator calls synchronously
   after stageConcept returns and BEFORE the next stageConcept starts. Consumed by the orchestrator
@@ -20,7 +20,7 @@ description: |
     1. RESEARCH NOTE: The stager (§13.6.2, FR-M5) is the ONLY tooled role. It receives a concept's
        title+description as a task (prompt/stager.go from P3.M1.T1.S2), runs with tools ON via
        RenderTooled mode (P1.M1.T2.S1). It stages changes via git add and hunk-staging. It MUST NOT
-       commit/amend/push — stagehand owns all ref mutations. After stager[i] returns, the orchestrator
+       commit/amend/push — stagecoach owns all ref mutations. After stager[i] returns, the orchestrator
        FREEZES tree[i] = write-tree BEFORE stager[i+1] starts (§13.6.3 invariant 1). Stager failure:
        retry once, then treat as empty (FR-M8). The stager mutates the INDEX only (not refs).
     2. INPUT: Deps with Stager manifest (tooled_flags non-empty) from P3.M2.T1.S1, prompt/stager.go
@@ -52,7 +52,7 @@ description: |
     - internal/config/roles.go — CONSUMED: ResolveRoleModel("stager", cfg) → (provider, model).
     - internal/decompose/{message,arbiter,chain,decompose}.go — DO NOT EXIST YET. This task creates
       ONLY stager.go (+ stager_test.go).
-    - cmd/, pkg/stagehand/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires stageConcept/freezeSnapshot).
+    - cmd/, pkg/stagecoach/ — UNCHANGED (the orchestrator P3.M4.T1.S1 wires stageConcept/freezeSnapshot).
 
   DELIVERABLES (2 new files, 0 edits to existing files, 0 breaking changes):
     CREATE internal/decompose/stager.go — package `decompose`; ErrStagerFailed sentinel;
@@ -115,7 +115,7 @@ orchestrator calls synchronously after stageConcept returns and BEFORE the next 
 ## User Persona
 
 **Target User**: the decompose orchestrator (`internal/decompose/decompose.go`, P3.M4.T1.S1) and, by
-extension, the end user running `stagehand` on an un-staged working tree (the default action routes to
+extension, the end user running `stagecoach` on an un-staged working tree (the default action routes to
 decompose per FR-M1, P4.M1.T1.S1). stager.go is internal plumbing — NOT user-facing CLI text. The user
 never invokes the stager directly; the orchestrator calls stageConcept once per concept from the planner's
 partition, then freezeSnapshot, then the message agent, interleaving them.
@@ -428,7 +428,7 @@ internal/decompose/stager_test.go     # NEW — stubtest (tooledStubManifest hel
                                       #   success/non-zero/timeout/render-tooled-error; freezeSnapshot
                                       #   immutability (ls-tree) + merge-conflict error.
 # go.mod/go.sum UNCHANGED. roles.go + planner.go + prompt/* + provider/* + git/* + config/* + cmd/* +
-# pkg/stagehand all UNCHANGED.
+# pkg/stagecoach all UNCHANGED.
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -519,7 +519,7 @@ internal/decompose/stager_test.go     # NEW — stubtest (tooledStubManifest hel
 // cancellation). It is wrapped (%w) around the underlying cause so errors.Is works. The orchestrator
 // (P3.M4.T1.S1) detects stager failures via errors.Is to apply the FR-M8/M12 retry-once-then-empty.
 // Non-rescue: stageConcept mutates the INDEX only (the agent runs git add / git apply --cached); it NEVER
-// commits, amends, or moves refs (stagehand owns all ref mutations — §13.6.2/§19). Its failures are NOT
+// commits, amends, or moves refs (stagecoach owns all ref mutations — §13.6.2/§19). Its failures are NOT
 // generate.RescueError scenarios (no snapshot-then-CAS here; refs move only at P3.M2.T4's UpdateRefCAS).
 var ErrStagerFailed = errors.New("decompose: stager failed")
 
@@ -535,8 +535,8 @@ Task 1: CREATE internal/decompose/stager.go — package doc + imports + ErrStage
     (stageConcept) + the snapshot freeze (freezeSnapshot). Note stageConcept is the tooled, no-retry, no-parse
     counterpart of callPlanner (it mutates the INDEX only; the orchestrator owns the FR-M8 retry). Note
     freezeSnapshot is the §13.6.3 invariant-1 WriteTree wrapper (read-only w.r.t. refs/index).
-  - IMPORTS: "context"; "errors"; "fmt"; "github.com/dustin/stagehand/internal/config";
-    "github.com/dustin/stagehand/internal/prompt"; "github.com/dustin/stagehand/internal/provider".
+  - IMPORTS: "context"; "errors"; "fmt"; "github.com/dustin/stagecoach/internal/config";
+    "github.com/dustin/stagecoach/internal/prompt"; "github.com/dustin/stagecoach/internal/provider".
     (NOTE: "git" is NOT needed by stager.go IF freezeSnapshot calls deps.Git.WriteTree directly — deps.Git is
     the git.Git interface from roles.go's Deps; WriteTree takes no options. So the import set is
     context/errors/fmt/config/prompt/provider. Verify at compile: if freezeSnapshot needs no git-package
@@ -594,9 +594,9 @@ Task 3: CREATE internal/decompose/stager.go — freezeSnapshot (the §13.6.3 inv
 Task 4: CREATE internal/decompose/stager_test.go — package + imports + tooledStubManifest helper
   - PACKAGE: `decompose` (internal test — stageConcept/freezeSnapshot/ErrStagerFailed visible).
   - IMPORTS: "context"; "errors"; "os"; "os/exec"; "path/filepath"; "strings"; "testing"; "time";
-    "github.com/dustin/stagehand/internal/config"; "github.com/dustin/stagehand/internal/git";
-    "github.com/dustin/stagehand/internal/provider"; "github.com/dustin/stagehand/internal/prompt";
-    "github.com/dustin/stagehand/internal/stubtest".
+    "github.com/dustin/stagecoach/internal/config"; "github.com/dustin/stagecoach/internal/git";
+    "github.com/dustin/stagecoach/internal/provider"; "github.com/dustin/stagecoach/internal/prompt";
+    "github.com/dustin/stagecoach/internal/stubtest".
     (NOTE: only import what each test uses; drop unused imports. prompt is needed for prompt.PlannerCommit
     literals; git for git.New + the Deps.Git type; provider for provider.Manifest + RenderTooled.)
   - DEFINE `func tooledStubManifest(t *testing.T, bin string, o stubtest.Options) provider.Manifest`:
@@ -748,10 +748,10 @@ CONSUMER (NOT THIS TASK — P3.M4.T1.S1):
         if err != nil { /* abort the run */ }
         // then start message[i] on TreeDiff(tree[i-1], tree[i]); stager[i+1] may overlap.
   - stageConcept/freezeSnapshot NEVER touch HEAD (refs move only at P3.M2.T4's UpdateRefCAS).
-  - NO caller wiring in this task (do NOT touch cmd/ or pkg/stagehand/ or decompose.go).
+  - NO caller wiring in this task (do NOT touch cmd/ or pkg/stagecoach/ or decompose.go).
 
 NO DATABASE / NO CONFIG-FILE / NO ROUTE / NO ref-mutation changes. go.mod/go.sum UNCHANGED. ZERO edits
-to any shipped file (roles.go, planner.go, prompt/*, provider/*, git/*, config/*, cmd/*, pkg/stagehand all
+to any shipped file (roles.go, planner.go, prompt/*, provider/*, git/*, config/*, cmd/*, pkg/stagecoach all
 CONSUMED read-only).
 ```
 
@@ -919,7 +919,7 @@ rg -n 'func stg(InitRepo|WriteFile|StageFile|CommitRaw|RunGit|GitOut)' internal/
 - ❌ Don't import `git` in `stager.go` if no `git`-package symbol is referenced — `freezeSnapshot` calls
   `deps.Git.WriteTree` via the interface (typed by `roles.go`'s `Deps`), so `stager.go` likely needs NO
   `git` import. An unused import fails `go vet`/`unused`.
-- ❌ Don't wire the orchestrator (cmd/, pkg/stagehand/, decompose.go) — this task ONLY implements
+- ❌ Don't wire the orchestrator (cmd/, pkg/stagecoach/, decompose.go) — this task ONLY implements
   stageConcept/freezeSnapshot; P3.M4.T1.S1 consumes them.
 - ❌ Don't swallow errors (errcheck is on) — check Render, Execute's execErr, WriteTree; wrap stageConcept
   failures with `%w` + `ErrStagerFailed`; propagate freezeSnapshot's WriteTree error verbatim.

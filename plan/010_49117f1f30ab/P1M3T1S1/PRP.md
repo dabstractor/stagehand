@@ -55,8 +55,8 @@ description: |
        `ErrHookSweptConcurrentWork` (NON-rescue freeze hard error). RunCommitHooks returns ("","",err) for
        either; the caller (M3.T2) branches. (research §6)
 
-  ⚠️ **#6 — S2 seam for recursion prevention.** S1 stubs `shouldSkipStagehandPrepareCommitMsg(hooksDir)=false`;
-       S2 (P1.M3.T1.S2) fills it with `hook.Detect(hooksDir)==StatusStagehand`. S1 tests use FOREIGN
+  ⚠️ **#6 — S2 seam for recursion prevention.** S1 stubs `shouldSkipStagecoachPrepareCommitMsg(hooksDir)=false`;
+       S2 (P1.M3.T1.S2) fills it with `hook.Detect(hooksDir)==StatusStagecoach`. S1 tests use FOREIGN
        prepare-commit-msg hooks; the recursion scenario is S2's. (research §8)
 
   ⚠️ **#7 — prepare-commit-msg argv: pass `<msgfile> ""` (PRD FR-V2 default); VERIFY argc via open_questions
@@ -91,7 +91,7 @@ absent-hook skip, and failure→rescue.
 1. **NEW `internal/hooks/runner.go`** — `type HookOpts struct { DryRun bool; Verbose *ui.Verbose }`;
    `func RunCommitHooks(ctx, g git.Git, cfg config.Config, snapshotTree, parentSHA, msg string, opts HookOpts) (finalTree, finalMsg string, err error)`;
    `func RunPostCommit(ctx, g git.Git, cfg config.Config, opts HookOpts) error`; + unexported helpers
-   (`runHook` (the os/exec seam), `hookExecutable` (X_OK skip), `shouldSkipStagehandPrepareCommitMsg` (S2 stub),
+   (`runHook` (the os/exec seam), `hookExecutable` (X_OK skip), `shouldSkipStagecoachPrepareCommitMsg` (S2 stub),
    `writeMsgFile`/`readMsgFileStrippingComments`, `tmpIndexPath`).
 2. **NEW `internal/hooks/runner_test.go`** — temp-repo + real shell-script hooks covering every branch
    (permitted mutation + live-index-untouched; non-zero→RescueError; sweep→ErrHookSweptConcurrentWork;
@@ -109,9 +109,9 @@ in place; no wiring into callers; go.mod/go.sum byte-unchanged.
 **Target User**: The wiring subtasks P1.M3.T2 (CommitStaged + runPipeline) and P1.M3.T3 (decompose
 publishCommit), which call `RunCommitHooks` after generation and before `commit-tree`, and `RunPostCommit`
 after `update-ref`. Transitively: every user whose `pre-commit`/`commit-msg`/`post-commit` (husky, lint-staged,
-conventional-commit lint, notifications) should fire on a `stagehand` commit (US19 / §5 caveat closure).
+conventional-commit lint, notifications) should fire on a `stagecoach` commit (US19 / §5 caveat closure).
 
-**Use Case**: A user with a `pre-commit` formatter and a `commit-msg` conventional-commit lint runs `stagehand`.
+**Use Case**: A user with a `pre-commit` formatter and a `commit-msg` conventional-commit lint runs `stagecoach`.
 The runner executes pre-commit against the snapshot (the formatter's fixes are re-treed into the commit),
 prepare-commit-msg + commit-msg over the generated message (the lint may reject → rescue), and post-commit
 after the commit lands. `--no-verify` bypasses pre-commit + commit-msg for the one-off escape.
@@ -122,13 +122,13 @@ caller calls `RunPostCommit(...)`. On any pre-commit/prepare/commit-msg failure 
 prints FR44, exit 3); on sweep → `ErrHookSweptConcurrentWork` (freeze abort).
 
 **Pain Points Addressed**: The v1–v2.3 plumbing path ran NO hooks — a user's pre-commit/commit-msg/post-commit
-never fired on a stagehand commit. This runner closes that gap while preserving the snapshot/atomicity/stage-
+never fired on a stagecoach commit. This runner closes that gap while preserving the snapshot/atomicity/stage-
 while-generating core.
 
 ## Why
 
 - **Closes the §5 caveat (hooks bypassed on the plumbing path).** The headline v2.4 feature (§9.25, G22):
-  hooks now fire on every `stagehand`-produced commit, without forcing the user to hook mode (§9.20).
+  hooks now fire on every `stagecoach`-produced commit, without forcing the user to hook mode (§9.20).
 - **The runner is the reusable core; wiring is trivial.** All three commit chokepoints (single, dry-run,
   decompose) call the same `RunCommitHooks`/`RunPostCommit` — the runner centralizes the git-hook semantics
   (order, env, --no-verify, timeout, rescue) so M3.T2/M3.T3 wiring is a few lines each.
@@ -155,7 +155,7 @@ config/CLI/docs surface (those landed in P1.M1; the feature docs land in M3.T2.S
 - [ ] Hook non-zero/timeout → `*generate.RescueError{Kind:ErrRescue, TreeSHA:snapshotTree, ParentSHA,
       Candidate:msg, Cause}`. Sweep → `ErrHookSweptConcurrentWork`.
 - [ ] prepare-commit-msg: write msgfile; run `<msgfile> ""` (verify argc); read back, strip #-comments.
-      [S2 seam `shouldSkipStagehandPrepareCommitMsg`=false in place.]
+      [S2 seam `shouldSkipStagecoachPrepareCommitMsg`=false in place.]
 - [ ] RunPostCommit: 0 args; exit code disregarded (log @verbose; no undo; no aborting error).
 - [ ] `go build ./... && go vet ./... && go test ./internal/hooks/...` GREEN; `gofmt -l` clean; go.mod/go.sum
       byte-unchanged; no wiring into callers; no edit to subset.go.
@@ -224,8 +224,8 @@ required beyond the RescueError type.
   why: HookOpts carries *ui.Verbose; log hook progress/warnings (nil-safe — Verbose may be nil).
 
 - file: internal/hook/hook.go   (the EXISTING hook-mode package — for S2's seam, referenced here)
-  section: `Detect(hooksDir) (Status, error)`; `StatusStagehand`/`StatusForeign`/`StatusNone`; `Marker`.
-  why: S2 (P1.M3.T1.S2) fills `shouldSkipStagehandPrepareCommitMsg` with `hook.Detect(hooksDir)==StatusStagehand`.
+  section: `Detect(hooksDir) (Status, error)`; `StatusStagecoach`/`StatusForeign`/`StatusNone`; `Marker`.
+  why: S2 (P1.M3.T1.S2) fills `shouldSkipStagecoachPrepareCommitMsg` with `hook.Detect(hooksDir)==StatusStagecoach`.
        S1 STUBS it (false); S2 implements. (NOTE: `internal/hook` singular ≠ `internal/hooks` plural — this package.)
 
 # The PRD basis (in your context as selected_prd_content)
@@ -293,7 +293,7 @@ internal/hooks/runner_test.go     # NEW — temp-repo + real shell-script hooks 
 // user's hook; FR-V6). (For tests, capture to a buffer to assert.)
 // GOTCHA (prepare-commit-msg "" vs absent): pass `<msgfile> ""` (PRD default); VERIFY argc (open_questions §3).
 // GOTCHA (strip #-comments on read-back): git message files carry commented metadata; drop lines starting with "#".
-// GOTCHA (S2 seam): shouldSkipStagehandPrepareCommitMsg(hooksDir) stubs false; S2 fills with hook.Detect.
+// GOTCHA (S2 seam): shouldSkipStagecoachPrepareCommitMsg(hooksDir) stubs false; S2 fills with hook.Detect.
 // GOTCHA (RunPostCommit exit disregarded): NEVER return an aborting error; log @verbose; never undo.
 // GOTCHA (Verbose may be nil): guard `if opts.Verbose != nil { opts.Verbose.VerboseWarn(...) }`.
 // GOTCHA (worktree cmd.Dir): GIT_DIR ← g.GitDir(ctx); worktree ← confirm/add a Git TopLevel(ctx) accessor
@@ -318,10 +318,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 
 // HookOpts carries the runner's per-call options. DryRun (FR-V8a) gates pre-commit + post-commit (skip);
@@ -421,12 +421,12 @@ func runPreCommitScoped(ctx context.Context, g git.Git, cfg config.Config, opts 
 
 // runPrepareCommitMsg writes msg to a temp file, runs prepare-commit-msg <msgfile> "" (PRD FR-V2; verify
 // argc via open_questions §3), reads back stripped of #-comments. ALWAYS runs (NoVerify/DryRun don't gate it).
-// [SEAM] shouldSkipStagehandPrepareCommitMsg stubs false here; S2 (P1.M3.T1.S2) fills it via hook.Detect.
+// [SEAM] shouldSkipStagecoachPrepareCommitMsg stubs false here; S2 (P1.M3.T1.S2) fills it via hook.Detect.
 func runPrepareCommitMsg(ctx context.Context, g git.Git, cfg config.Config, opts HookOpts,
 	hooksDir, gitDir, workTree, msg string) (string, error) {
 	hookPath := filepath.Join(hooksDir, "prepare-commit-msg")
-	if !hookExecutable(hookPath) || shouldSkipStagehandPrepareCommitMsg(hooksDir) { // §8 seam — S2 fills
-		return msg, nil // absent/non-exec OR stagehand's own hook (recursion) → skip
+	if !hookExecutable(hookPath) || shouldSkipStagecoachPrepareCommitMsg(hooksDir) { // §8 seam — S2 fills
+		return msg, nil // absent/non-exec OR stagecoach's own hook (recursion) → skip
 	}
 	finalMsg, err := runMsgHook(ctx, cfg, opts, hookPath, gitDir, workTree, msg,
 		[]string{""}) // PRD FR-V2: <msgfile> "" (verify argc)
@@ -449,7 +449,7 @@ func runCommitMsg(ctx context.Context, g git.Git, cfg config.Config, opts HookOp
 // runMsgHook writes msg to a temp file, runs <hook> <msgfile> [extra...], reads back. Non-zero/timeout → *RescueError.
 func runMsgHook(ctx context.Context, cfg config.Config, opts HookOpts, hookPath, gitDir, workTree, msg string,
 	extraArgs []string) (string, error) {
-	tmpMsg, err := os.CreateTemp("", "stagehand-msg-*.txt")
+	tmpMsg, err := os.CreateTemp("", "stagecoach-msg-*.txt")
 	if err != nil {
 		return "", err
 	}
@@ -540,10 +540,10 @@ func hookExecutable(path string) bool {
 	return info.Mode().Perm()&0o100 != 0 // owner-executable bit
 }
 
-// shouldSkipStagehandPrepareCommitMsg is the S2 SEAM: skip stagehand's OWN prepare-commit-msg hook (recursion).
-// S1 stubs false (foreign hooks run). S2 (P1.M3.T1.S2) fills: hook.Detect(hooksDir) == hook.StatusStagehand.
-func shouldSkipStagehandPrepareCommitMsg(hooksDir string) bool {
-	// TODO(P1.M3.T1.S2): return hook.Detect(hooksDir) == hook.StatusStagehand
+// shouldSkipStagecoachPrepareCommitMsg is the S2 SEAM: skip stagecoach's OWN prepare-commit-msg hook (recursion).
+// S1 stubs false (foreign hooks run). S2 (P1.M3.T1.S2) fills: hook.Detect(hooksDir) == hook.StatusStagecoach.
+func shouldSkipStagecoachPrepareCommitMsg(hooksDir string) bool {
+	// TODO(P1.M3.T1.S2): return hook.Detect(hooksDir) == hook.StatusStagecoach
 	return false
 }
 
@@ -573,7 +573,7 @@ func stripCommentLines(s string) string {
 }
 
 func tmpIndexPath() (string, error) {
-	f, err := os.CreateTemp("", "stagehand-hook-*.idx")
+	f, err := os.CreateTemp("", "stagecoach-hook-*.idx")
 	if err != nil {
 		return "", err
 	}
@@ -610,7 +610,7 @@ Task 2: CREATE internal/hooks/runner.go (HookOpts + RunCommitHooks + RunPostComm
   - ERROR MAPPING: hook non-zero/timeout → *generate.RescueError{Kind:ErrRescue, TreeSHA:snapshotTree, ParentSHA,
       Candidate:msg, Cause}; sweep → propagate ErrHookSweptConcurrentWork.
   - RunPostCommit: exit code DISREGARDED (log @verbose; never undo; never abort).
-  - S2 SEAM: shouldSkipStagehandPrepareCommitMsg=false stub + TODO comment.
+  - S2 SEAM: shouldSkipStagecoachPrepareCommitMsg=false stub + TODO comment.
   - GOTCHA: thread snapshotTree/parentSHA/msg into rescueErr so the rescue state is byte-identical (FR-V7).
 
 Task 3: CREATE internal/hooks/runner_test.go (temp repo + real shell-script hooks)
@@ -676,12 +676,12 @@ DOWNSTREAM (the consumers — NOT this task):
        after update-ref.
   - P1.M3.T2.S2 (runPipeline dry-run wiring): FR-V8a (commit-msg only).
   - P1.M3.T3 (decompose publishCommit wiring): per-concept scoped.
-  - P1.M3.T1.S2 (sibling): fills shouldSkipStagehandPrepareCommitMsg (hook.Detect) + message-lifecycle refinements.
+  - P1.M3.T1.S2 (sibling): fills shouldSkipStagecoachPrepareCommitMsg (hook.Detect) + message-lifecycle refinements.
 
 FROZEN/LEAVE (do NOT edit):
   - internal/hooks/subset.go (+ its test) — P1.M2.T2.S1.
   - internal/git/* (the Git interface + primitives) — except possibly adding TopLevel (§10, Task 1).
-  - internal/generate/*, internal/config/*, internal/hook/*, internal/cmd/*, pkg/stagehand/*.
+  - internal/generate/*, internal/config/*, internal/hook/*, internal/cmd/*, pkg/stagecoach/*.
   - PRD.md, go.mod, Makefile. NO wiring into any caller.
 
 NO NEW DATABASE / ROUTES / CLI / CONFIG / DOCS (here).
@@ -753,7 +753,7 @@ git diff --exit-code internal/generate internal/config internal/hook internal/cm
 - [ ] Pre-commit scoped (throwaway index); LIVE `.git/index` untouched (asserted); enforceSubset re-tree/sweep.
 - [ ] Hook non-zero/timeout → `*generate.RescueError`; sweep → `ErrHookSweptConcurrentWork`.
 - [ ] Absent/non-executable hook → silent skip; `RunPostCommit` disregards exit code.
-- [ ] S2 seam (`shouldSkipStagehandPrepareCommitMsg=false`) in place.
+- [ ] S2 seam (`shouldSkipStagecoachPrepareCommitMsg=false`) in place.
 
 ### Code Quality Validation
 - [ ] Hook exec via os/exec directly (NOT runWithEnv); env/timeout/stdin/stdout per FR-V6.
@@ -778,7 +778,7 @@ git diff --exit-code internal/generate internal/config internal/hook internal/cm
 - ❌ **Don't re-implement the subset check.** `enforceSubset` (same package) is the FR-V3 backstop. Call it; do
       NOT edit subset.go. (research §5)
 - ❌ **Don't wire into callers or implement recursion prevention.** Wiring is M3.T2/M3.T3; recursion (hook.Detect)
-      is S2 (P1.M3.T1.S2). S1 stubs `shouldSkipStagehandPrepareCommitMsg=false`. Stop at the runner core.
+      is S2 (P1.M3.T1.S2). S1 stubs `shouldSkipStagecoachPrepareCommitMsg=false`. Stop at the runner core.
 - ❌ **Don't let RunPostCommit abort.** Its exit code is DISREGARDED (commit already landed). Log @verbose; never
       undo; return nil. (research §9)
 - ❌ **Don't block on stdin.** Use `/dev/null` (strings.NewReader("")); a TTY stdin would hang the hook.

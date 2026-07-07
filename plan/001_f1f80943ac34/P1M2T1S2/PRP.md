@@ -100,7 +100,7 @@ re-encodes the entry to TOML and unmarshals into a Manifest, then **field-merges
 manifest per PRD §16.1**." This subtask IS that field-merge. Transitively, every user story routed
 through "call an agent" (US) and FR34 (config precedence) + FR36/FR37 (provider management).
 
-**Use Case**: A user drops `[provider.pi]\ndefault_model = "glm-5.2"` into `~/.config/stagehand/config.toml`.
+**Use Case**: A user drops `[provider.pi]\ndefault_model = "glm-5.2"` into `~/.config/stagecoach/config.toml`.
 The registry decodes that partial TOML into a `Manifest` (only `DefaultModel` non-nil), then calls
 `merged := MergeManifest(builtinPi, override)`. The renderer/executor/parser then consume the MERGED
 manifest (with pi's `bare_flags`/`command`/etc. intact and only `default_model` swapped).
@@ -248,7 +248,7 @@ knowledge required.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; require go-toml/v2 v2.4.2 + pflag v1.0.10  (UNCHANGED by S2)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; require go-toml/v2 v2.4.2 + pflag v1.0.10  (UNCHANGED by S2)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 (Config + loaders + Load) — FROZEN, do NOT touch; do NOT import from provider
@@ -260,7 +260,7 @@ internal/
     manifest_test.go            # S1 — decode/marshal/validate/detectcommand/resolve tests  (UNCHANGED by S2)
     merge.go                    # NEW (S2) ← MergeManifest(base, override Manifest) Manifest
     merge_test.go               # NEW (S2) ← ~10 test groups (partial override, explicit-zero, slices, env, no-mutate, ...)
-cmd/stagehand/main.go           # `package main; func main(){}` stub — untouched
+cmd/stagecoach/main.go           # `package main; func main(){}` stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -601,7 +601,7 @@ PACKAGE EDGES (import graph):
 FROZEN FILES (do NOT edit):
   - internal/provider/manifest.go + manifest_test.go (S1): the Manifest type + helpers are a CONTRACT.
         S2 ADDS merge.go/merge_test.go; it does not modify S1's files.
-  - internal/config/* (P1.M1.T4), internal/git/* (P1.M1.T2/T3), cmd/stagehand/main.go, Makefile.
+  - internal/config/* (P1.M1.T4), internal/git/* (P1.M1.T2/T3), cmd/stagecoach/main.go, Makefile.
 
 DOWNSTREAM CONTRACTS (do NOT implement here — just honor the shapes they will consume):
   - P1.M2.T3 (registry): `merged := MergeManifest(builtin, decode(reencode(config.Providers[<name>])))`;
@@ -657,7 +657,7 @@ go test -race ./...
 
 ```bash
 # Build + scope/additive checks:
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"   # main.go stub still links.
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"   # main.go stub still links.
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum unchanged"
 # Confirm S2 did NOT touch anything outside the two new files:
 git diff --exit-code -- internal/config internal/git cmd Makefile internal/provider/manifest.go internal/provider/manifest_test.go && echo "frozen + S1 files UNCHANGED by S2"

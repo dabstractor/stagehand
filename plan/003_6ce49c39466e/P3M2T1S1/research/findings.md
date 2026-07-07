@@ -118,10 +118,10 @@ package decompose — reuse, do NOT redefine).
 
 The contract (point 3) scopes THIS task to the per-concept LOOP (invokeStagerRetry → freezeSnapshot →
 tree[i]) — the EXTERNAL tooled stager, which is the trust boundary FR-M1c names ("the stager is an
-external agent running git against the live tree"). The arbiter is BARE (stagehand owns its git:
+external agent running git against the live tree"). The arbiter is BARE (stagecoach owns its git:
 resolveNewCommit/resolveTipAmend/resolveMidChain in chain.go use AddAll/Add). P3.M1.T1.S2's note
 ("hardened by P3.M2.T1.S1") is AMBIGUOUS, but the operational contract is the loop. DECISION: implement
-the loop check (contract point 3); FLAG the arbiter's stagehand-owned AddAll as a SEPARATE freeze surface
+the loop check (contract point 3); FLAG the arbiter's stagecoach-owned AddAll as a SEPARATE freeze surface
 (concurrent change COULD be swept by AddAll; closing it means staging from T_start, a chain.go change —
 NOT this task). Under the no-concurrent-change invariant (the common case) the arbiter's AddAll already
 yields a T_start subset. This is a conscious scoping decision, documented in the PRP, not an oversight.

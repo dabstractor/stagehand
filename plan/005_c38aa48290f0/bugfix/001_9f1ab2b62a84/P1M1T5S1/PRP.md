@@ -49,7 +49,7 @@ bugfix changeset — who must be able to trust that the prose matches the shippe
 guarantee must not promise a "Generating…" line that T2 removed; etc.).
 
 **Pain Points Addressed**: Documentation/code drift — the silent killer of trust in a CLI whose README
-itself directs users to the binary (`stagehand --help`) as authoritative.
+itself directs users to the binary (`stagecoach --help`) as authoritative.
 
 ## Why
 
@@ -119,7 +119,7 @@ is reproducible from the probes, not asserted._
        (grep-confirmed) → expected drift surface = none.
   pattern: "README's lazygit section is purely the install command + manual YAML block; it makes no claim
             about silent install, foreign-key handling, or TTY detection."
-  gotcha: "README L265 '↳ generating with pi…' is the MAIN stagehand snapshot diagram, NOT hook exec — do
+  gotcha: "README L265 '↳ generating with pi…' is the MAIN stagecoach snapshot diagram, NOT hook exec — do
            NOT confuse it with the T2 'Generating…' line. README L191 loadingText:'Generating commit
            message…' is the lazygit customCommand spinner, also unrelated to T2."
 
@@ -210,7 +210,7 @@ plan/005_c38aa48290f0/bugfix/001_9f1ab2b62a84/P1M1T5S1/VERIFICATION_REPORT.md   
 # The relevant docs (FR-L3 Non-TTY gate, FR-I3c auto-decline) describe EXTERNAL behavior unaffected by
 # whether T4 is merged, so the audit conclusion does not depend on T4 timing.
 
-# GOTCHA (README 'generating' red herrings): README L265 '↳ generating with pi…' is the MAIN stagehand
+# GOTCHA (README 'generating' red herrings): README L265 '↳ generating with pi…' is the MAIN stagecoach
 # snapshot diagram; README L191 loadingText 'Generating commit message…' is the lazygit customCommand
 # spinner. NEITHER is the T2 'hook exec' progress line. Do not flag them as T2 drift.
 
@@ -306,7 +306,7 @@ Task 7 (CONDITIONAL — only if Task 1–5 found a genuine drift): SURGICAL doc 
 
 ```bash
 # === Master drift probe — run once to enumerate every potentially-relevant claim ===
-# Run from the repo root (/home/dustin/projects/stagehand-competitor-feature-parity).
+# Run from the repo root (/home/dustin/projects/stagecoach-competitor-feature-parity).
 grep -rniE "mangle|silent|foreign|duplicate|<c-a>|WARNING" README.md docs/      # Issue 1 surface
 grep -rniE "Generating|no-op|FR-H4|having done nothing"        README.md docs/   # Issue 2 surface
 grep -rniE "exclude|format|locale|template|push|every available option" docs/configuration.md  # Issue 3
@@ -342,7 +342,7 @@ PLAN ARTIFACTS: the verification report lives UNDER plan/ (a work-item artifact)
 ### Level 1: Documentation Lint (only if a doc was edited)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 
 # If (and only if) Task 7 edited a doc, lint the touched file(s). The repo ships .markdownlint.json
 # (default:true; MD013 line-length OFF, MD033 inline-HTML OFF, MD060 OFF — README/docs use raw HTML).
@@ -359,7 +359,7 @@ npx --yes markdownlint-cli2 docs/configuration.md
 ### Level 2: Drift Probes (the core audit — deterministic)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 
 # Issue 1 — lazygit foreign-key WARNING (expected: docs/cli.md L328 already documents it).
 grep -nE "WARNING to stderr|unmarked entry already binds|duplicate .*customCommands" docs/cli.md
@@ -381,10 +381,10 @@ grep -ciE "isatty|/dev/null|char device" README.md docs/   # expected: 0
 ### Level 3: Sanity Build & Test (guard against accidental code edits)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 
 # A docs-only task MUST NOT change build/test results. Run as a guardrail.
-make build          # ./bin/stagehand produced; zero errors
+make build          # ./bin/stagecoach produced; zero errors
 make test           # full suite green with -race (T1–T4 tests included)
 make lint           # golangci-lint clean
 # Expected: all pass and IDENTICAL to a pre-task run (no source changed). If anything newly fails,
@@ -397,7 +397,7 @@ git diff --stat README.md docs/ cmd/ internal/   # expected: README.md + docs/ e
 ### Level 4: Report Consistency (the deliverable self-check)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 
 # The verification report's claims must MATCH the actual git state.
 test -f plan/005_c38aa48290f0/bugfix/001_9f1ab2b62a84/P1M1T5S1/VERIFICATION_REPORT.md && echo "report exists"

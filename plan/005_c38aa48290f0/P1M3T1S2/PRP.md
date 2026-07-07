@@ -4,14 +4,14 @@ description: |
   directory, marker-gated and never-clobber) on top of the S1 primitives (`Marker`, `ScriptMode`,
   `hookScript`, `git.HooksPath`), and wire a cobra `hook` command group (`install [--print] [--strict]`,
   `uninstall`, `status`) in `internal/cmd/hook.go`. Per-repo only. Foreign hooks are refused (exit 1, no
-  --force). Ships the docs (Mode A → docs/cli.md). The installed script invokes `stagehand hook exec "$@"`,
+  --force). Ships the docs (Mode A → docs/cli.md). The installed script invokes `stagecoach hook exec "$@"`,
   whose runtime is P1.M3.T2.S1 — NOT this subtask.
 
 ---
 
 ## Goal
 
-**Feature Goal**: Ship working `stagehand hook install|uninstall|status` — the per-repo `prepare-commit-msg`
+**Feature Goal**: Ship working `stagecoach hook install|uninstall|status` — the per-repo `prepare-commit-msg`
 hook lifecycle from PRD §9.20 (FR-H1/FR-H2/FR-H3/FR-H5): marker-gated idempotent install, never-clobber
 refusal of foreign hooks, `--print` to stdout, `--strict` baked into the script, and a three-state status
 report.
@@ -27,29 +27,29 @@ report.
 3. `docs/cli.md` — a `### hook install|uninstall|status` subcommand block (Mode A doc duty).
 
 **Success Definition**:
-- `stagehand hook install` writes an executable (0755) `prepare-commit-msg` at `HooksPath()` containing the
+- `stagecoach hook install` writes an executable (0755) `prepare-commit-msg` at `HooksPath()` containing the
   S1 script; re-running rewrites in place (idempotent); `--strict` bakes `--strict` into the script body;
   `--print` writes the script to stdout and touches no disk.
 - A pre-existing **foreign** hook is never modified — `install`/`uninstall` refuse with exit 1 and print the
   one-line manual invocation.
-- `stagehand hook uninstall` removes the hook only when the marker is present; `status` prints exactly
-  `none` / `stagehand (v1)` / `foreign`.
+- `stagecoach hook uninstall` removes the hook only when the marker is present; `status` prints exactly
+  `none` / `stagecoach (v1)` / `foreign`.
 - `go build ./...`, `go test ./...`, `go vet ./...`, `golangci-lint run` all green.
 
 ## User Persona
 
 **Target User**: the "plan-holder" (PRD §7.1) who commits from an IDE / lazygit via plain `git commit` and
-wants stagehand to auto-fill the empty message. `hook install` is the one-time setup they run per repo.
+wants stagecoach to auto-fill the empty message. `hook install` is the one-time setup they run per repo.
 
-**Use Case**: `cd repo && stagehand hook install` → thereafter a plain `git commit` (empty message) fires the
-hook, which calls `stagehand hook exec` (P1.M3.T2.S1) to fill the message. `hook status` tells them what's
+**Use Case**: `cd repo && stagecoach hook install` → thereafter a plain `git commit` (empty message) fires the
+hook, which calls `stagecoach hook exec` (P1.M3.T2.S1) to fill the message. `hook status` tells them what's
 installed; `hook uninstall` reverts.
 
 **User Journey**: `hook install` → `HooksPath()` resolves the dir → `internal/hook.Install` detects state →
 missing/ours → write `hookScript(strict)` mode 0755 with the Marker; foreign → refuse + print manual line.
 
 **Pain Points Addressed**: incumbents overwrite whatever `prepare-commit-msg` exists — mangling a user's
-husky/lint-staged hook. Stagehand refuses (FR-H2, the never-clobber invariant) and offers the one-line manual
+husky/lint-staged hook. Stagecoach refuses (FR-H2, the never-clobber invariant) and offers the one-line manual
 path instead.
 
 ## Why
@@ -59,7 +59,7 @@ path instead.
 - **PRD §9.20 FR-H2**: foreign hook → refuse (exit 1) + print the one-line invocation; **no `--force`**;
   `install --print` emits the script to stdout instead of disk.
 - **PRD §9.20 FR-H3**: uninstall removes only when the marker is present; status reports
-  `none` / `stagehand (v1)` / `foreign`.
+  `none` / `stagecoach (v1)` / `foreign`.
 - **PRD §9.20 FR-H5**: `install --strict` bakes `--strict` into the script body (via `hookScript(true)`).
 - **delta_prd R3**: new package `internal/hook/`; foreign-hook refusal has NO `--force` by design.
 - **Scope fence**: this subtask does NOT implement `hook exec` (the runtime — P1.M3.T2.S1) nor re-implement
@@ -71,8 +71,8 @@ Hook-lifecycle logic + a cobra command group + docs. All state decisions key off
 
 ### Success Criteria
 
-- [ ] `internal/hook/hook.go`: `Status` (`StatusNone`/`StatusStagehand`/`StatusForeign`) with
-      `String()` → `none`/`stagehand (v1)`/`foreign`; `Detect`, `Install`, `Uninstall`, `Script`,
+- [ ] `internal/hook/hook.go`: `Status` (`StatusNone`/`StatusStagecoach`/`StatusForeign`) with
+      `String()` → `none`/`stagecoach (v1)`/`foreign`; `Detect`, `Install`, `Uninstall`, `Script`,
       `InvocationLine`; `ErrForeignHook`, `ErrNoHook`.
 - [ ] `Install(dir, strict)` writes 0755 script for missing/ours (idempotent rewrite); returns
       `ErrForeignHook` for foreign **without touching the file**; creates the hooks dir if absent.
@@ -81,7 +81,7 @@ Hook-lifecycle logic + a cobra command group + docs. All state decisions key off
       registered via `init()` on `rootCmd`; group-level no-op `PersistentPreRunE` (no config.Load / no
       first-run bootstrap side effect).
 - [ ] `install --print` writes the script to stdout, no disk write, works outside a repo.
-- [ ] Foreign refusal prints the manual `exec stagehand hook exec "$@"` line to stderr, exit 1.
+- [ ] Foreign refusal prints the manual `exec stagecoach hook exec "$@"` line to stderr, exit 1.
 - [ ] `docs/cli.md` documents the three commands + `--print`/`--strict` + foreign-hook policy.
 - [ ] Full build/test/vet/lint green.
 
@@ -110,7 +110,7 @@ An implementer with no prior codebase knowledge can complete it from this docume
        and git.HooksPath. Assume implemented exactly as specified. This subtask ADDS hook.go to the same
        internal/hook package (so hookScript, unexported, is accessible) and consumes HooksPath.
   section: "Goal + Data models"
-  critical: 'Marker = "# stagehand prepare-commit-msg hook v1"; ScriptMode = 0o755; hookScript unexported;
+  critical: 'Marker = "# stagecoach prepare-commit-msg hook v1"; ScriptMode = 0o755; hookScript unexported;
              HooksPath returns absolute hooks dir. Do NOT re-create any of these.'
 
 - file: internal/cmd/providers.go
@@ -200,7 +200,7 @@ docs/cli.md        # EDIT — add ### hook install|uninstall|status subcommand b
 
 ```go
 // CRITICAL (config side-effect): root.PersistentPreRunE → config.Load → first-run bootstrapWriteConfig
-// (FR-B3, load.go:103-109). A read-only `hook status` must not silently create ~/.config/stagehand/config.toml.
+// (FR-B3, load.go:103-109). A read-only `hook status` must not silently create ~/.config/stagecoach/config.toml.
 // FIX: hookCmd defines its OWN PersistentPreRunE returning nil. Cobra runs only the nearest one, so config
 // never loads for hook install/uninstall/status. This is self-contained in hook.go — do NOT edit root.go's
 // shouldSkipConfigLoad (adding "install"/"uninstall"/"status" names there would collide with future
@@ -254,7 +254,7 @@ import (
 	"strings"
 )
 
-// HookFilename is the git hook stagehand manages (PRD §9.20 — prepare-commit-msg only).
+// HookFilename is the git hook stagecoach manages (PRD §9.20 — prepare-commit-msg only).
 const HookFilename = "prepare-commit-msg"
 
 // Status is the state of a repo's prepare-commit-msg hook (PRD §9.20 FR-H3).
@@ -262,15 +262,15 @@ type Status int
 
 const (
 	StatusNone      Status = iota // no prepare-commit-msg file
-	StatusStagehand               // stagehand-owned (Marker present)
+	StatusStagecoach               // stagecoach-owned (Marker present)
 	StatusForeign                 // a hook file exists WITHOUT our Marker (never touch it)
 )
 
-// String renders the FR-H3 report tokens EXACTLY: "none" / "stagehand (v1)" / "foreign".
+// String renders the FR-H3 report tokens EXACTLY: "none" / "stagecoach (v1)" / "foreign".
 func (s Status) String() string {
 	switch s {
-	case StatusStagehand:
-		return "stagehand (v1)"
+	case StatusStagecoach:
+		return "stagecoach (v1)"
 	case StatusForeign:
 		return "foreign"
 	default:
@@ -281,7 +281,7 @@ func (s Status) String() string {
 // Sentinels for the refusal paths (FR-H2 / FR-H3). Callers use errors.Is.
 var (
 	ErrForeignHook = errors.New("a foreign prepare-commit-msg hook exists")
-	ErrNoHook      = errors.New("no stagehand prepare-commit-msg hook is installed")
+	ErrNoHook      = errors.New("no stagecoach prepare-commit-msg hook is installed")
 )
 ```
 
@@ -291,7 +291,7 @@ var (
 Task 1: CREATE internal/hook/hook.go — Detect
   - IMPLEMENT: Detect(hooksDir string) (Status, error). os.ReadFile(filepath.Join(hooksDir, HookFilename));
     os.ErrNotExist → StatusNone,nil; other read error → StatusNone,err; strings.Contains(data, Marker) →
-    StatusStagehand; else StatusForeign. (Marker is S1's exported const, same package.)
+    StatusStagecoach; else StatusForeign. (Marker is S1's exported const, same package.)
   - PLACEMENT: internal/hook/hook.go, after the type/const/sentinel block above.
 
 Task 2: CREATE internal/hook/hook.go — Install (marker-gated idempotent + never-clobber)
@@ -302,12 +302,12 @@ Task 2: CREATE internal/hook/hook.go — Install (marker-gated idempotent + neve
 
 Task 3: CREATE internal/hook/hook.go — Uninstall
   - IMPLEMENT: Uninstall(hooksDir string) (Status, error). st,err := Detect(...); on err return. switch st:
-    StatusStagehand → os.Remove(path) (return st, removeErr); StatusForeign → st, ErrForeignHook;
+    StatusStagecoach → os.Remove(path) (return st, removeErr); StatusForeign → st, ErrForeignHook;
     default(None) → st, ErrNoHook.
 
 Task 4: CREATE internal/hook/hook.go — Script + InvocationLine accessors
   - IMPLEMENT: Script(strict bool) string { return hookScript(strict) }  // for `install --print`.
-    InvocationLine(strict bool) string → `exec stagehand hook exec "$@"` (+ ` --strict ` before "$@" if strict).
+    InvocationLine(strict bool) string → `exec stagecoach hook exec "$@"` (+ ` --strict ` before "$@" if strict).
   - Keep InvocationLine consistent with hookScript (drift-guard test in Task 8).
 
 Task 5: CREATE internal/cmd/hook.go — the hook command group + leaf vars
@@ -324,12 +324,12 @@ Task 6: CREATE internal/cmd/hook.go — init() registration + RunE bodies + hook
 Task 7: EDIT docs/cli.md — add the hook subcommand block
   - Under "## Subcommands", add ### hook install|uninstall|status documenting install/--print/--strict,
     uninstall, status, and the foreign-hook (never-clobber, no --force) policy. Note the script calls
-    `stagehand hook exec "$@"` (runtime lands with P1.M3.T2.S1).
+    `stagecoach hook exec "$@"` (runtime lands with P1.M3.T2.S1).
 
 Task 8: CREATE internal/hook/hook_test.go — temp-dir unit tests
-  - TestDetect_None/Stagehand/Foreign (write files into t.TempDir()).
+  - TestDetect_None/Stagecoach/Foreign (write files into t.TempDir()).
   - TestInstall_Fresh: prev==StatusNone; file exists; Perm()==0o755; content==hookScript(false).
-  - TestInstall_IdempotentReinstall: install twice; 2nd prev==StatusStagehand; content stable; still 0755.
+  - TestInstall_IdempotentReinstall: install twice; 2nd prev==StatusStagecoach; content stable; still 0755.
   - TestInstall_Strict: content==hookScript(true); contains "--strict".
   - TestInstall_ForeignRefusal: pre-write foreign bytes; Install→errors.Is(ErrForeignHook); file bytes
     UNCHANGED (never-clobber invariant).
@@ -341,7 +341,7 @@ Task 8: CREATE internal/hook/hook_test.go — temp-dir unit tests
 Task 9: CREATE internal/cmd/hook_test.go — cobra-command tests
   - TestHookInstall_Print: run `hook install --print`; stdout==hookScript(false); no repo needed; no file.
   - TestHookInstall_PrintStrict: stdout==hookScript(true).
-  - TestHookInstallStatusUninstall_RoundTrip: t.Chdir(temp git repo); install → status "stagehand (v1)" →
+  - TestHookInstallStatusUninstall_RoundTrip: t.Chdir(temp git repo); install → status "stagecoach (v1)" →
     uninstall → status "none". (Mirror default_action_test.go repo init.)
   - TestHookInstall_ForeignRefused: pre-create a foreign prepare-commit-msg in the repo's hooks dir; run
     install; assert exit code 1 (errors.As *exitcode.ExitError, Code==1) and stderr contains the invocation
@@ -363,7 +363,7 @@ func Detect(hooksDir string) (Status, error) {
 		return StatusNone, err
 	}
 	if strings.Contains(string(data), Marker) { // Marker: S1 exported const, same package
-		return StatusStagehand, nil
+		return StatusStagecoach, nil
 	}
 	return StatusForeign, nil
 }
@@ -395,7 +395,7 @@ func Uninstall(hooksDir string) (Status, error) {
 		return st, err
 	}
 	switch st {
-	case StatusStagehand:
+	case StatusStagecoach:
 		return st, os.Remove(filepath.Join(hooksDir, HookFilename))
 	case StatusForeign:
 		return st, ErrForeignHook
@@ -408,9 +408,9 @@ func Script(strict bool) string { return hookScript(strict) } // for `install --
 
 func InvocationLine(strict bool) string {
 	if strict {
-		return `exec stagehand hook exec --strict "$@"`
+		return `exec stagecoach hook exec --strict "$@"`
 	}
-	return `exec stagehand hook exec "$@"`
+	return `exec stagecoach hook exec "$@"`
 }
 ```
 
@@ -426,9 +426,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/hook"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/hook"
 )
 
 var (
@@ -436,14 +436,14 @@ var (
 	flagHookStrict bool
 )
 
-// hookCmd is the PRD §9.20 hook command group. No RunE → bare `stagehand hook` prints help.
+// hookCmd is the PRD §9.20 hook command group. No RunE → bare `stagecoach hook` prints help.
 // Its no-op PersistentPreRunE OVERRIDES root's (cobra runs only the nearest): install/uninstall/status
 // need only the repo's hooks dir, never the resolved config — and must not trigger config.Load's
 // first-run bootstrap write (FR-B3). P1.M3.T2.S1 adds `hook exec` as a sibling leaf to this group.
 var hookCmd = &cobra.Command{
 	Use:               "hook",
 	Short:             "Manage the per-repo prepare-commit-msg hook",
-	Long:              `Install, remove, or inspect stagehand's per-repo prepare-commit-msg hook (PRD §9.20).`,
+	Long:              `Install, remove, or inspect stagecoach's per-repo prepare-commit-msg hook (PRD §9.20).`,
 	SilenceErrors:     true,
 	SilenceUsage:      true,
 	PersistentPreRunE: func(*cobra.Command, []string) error { return nil },
@@ -460,7 +460,7 @@ var hookInstallCmd = &cobra.Command{
 
 var hookUninstallCmd = &cobra.Command{
 	Use:           "uninstall",
-	Short:         "Remove the stagehand prepare-commit-msg hook",
+	Short:         "Remove the stagecoach prepare-commit-msg hook",
 	Args:          cobra.NoArgs,
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -469,7 +469,7 @@ var hookUninstallCmd = &cobra.Command{
 
 var hookStatusCmd = &cobra.Command{
 	Use:           "status",
-	Short:         "Report the prepare-commit-msg hook state (none|stagehand (v1)|foreign)",
+	Short:         "Report the prepare-commit-msg hook state (none|stagecoach (v1)|foreign)",
 	Args:          cobra.NoArgs,
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -501,57 +501,57 @@ func runHookInstall(cmd *cobra.Command, _ []string) error {
 	}
 	dir, err := hooksDir(cmd.Context())
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	prev, err := hook.Install(dir, flagHookStrict)
 	if errors.Is(err, hook.ErrForeignHook) { // FR-H2 never-clobber refusal
 		fmt.Fprintf(cmd.ErrOrStderr(),
-			"stagehand: a foreign prepare-commit-msg hook already exists; refusing to overwrite it.\n"+
-				"To use stagehand, add this line to your existing hook:\n\n    %s\n",
+			"stagecoach: a foreign prepare-commit-msg hook already exists; refusing to overwrite it.\n"+
+				"To use stagecoach, add this line to your existing hook:\n\n    %s\n",
 			hook.InvocationLine(flagHookStrict))
 		return exitcode.New(exitcode.Error, nil) // silent exit 1 — message already printed
 	}
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: install hook: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: install hook: %w", err))
 	}
 	verb := "Installed"
-	if prev == hook.StatusStagehand {
+	if prev == hook.StatusStagecoach {
 		verb = "Updated"
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "%s stagehand prepare-commit-msg hook.\n", verb)
+	fmt.Fprintf(cmd.OutOrStdout(), "%s stagecoach prepare-commit-msg hook.\n", verb)
 	return nil
 }
 
 func runHookUninstall(cmd *cobra.Command, _ []string) error {
 	dir, err := hooksDir(cmd.Context())
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	switch _, err := hook.Uninstall(dir); {
 	case errors.Is(err, hook.ErrForeignHook):
 		fmt.Fprintln(cmd.ErrOrStderr(),
-			"stagehand: prepare-commit-msg hook is foreign; refusing to remove it.")
+			"stagecoach: prepare-commit-msg hook is foreign; refusing to remove it.")
 		return exitcode.New(exitcode.Error, nil) // exit 1
 	case errors.Is(err, hook.ErrNoHook):
-		fmt.Fprintln(cmd.OutOrStdout(), "No stagehand prepare-commit-msg hook to remove.")
+		fmt.Fprintln(cmd.OutOrStdout(), "No stagecoach prepare-commit-msg hook to remove.")
 		return nil // idempotent — exit 0
 	case err != nil:
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: uninstall hook: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: uninstall hook: %w", err))
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), "Removed stagehand prepare-commit-msg hook.")
+	fmt.Fprintln(cmd.OutOrStdout(), "Removed stagecoach prepare-commit-msg hook.")
 	return nil
 }
 
 func runHookStatus(cmd *cobra.Command, _ []string) error {
 	dir, err := hooksDir(cmd.Context())
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	st, err := hook.Detect(dir)
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: hook status: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: hook status: %w", err))
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), st.String()) // "none" / "stagehand (v1)" / "foreign"
+	fmt.Fprintln(cmd.OutOrStdout(), st.String()) // "none" / "stagecoach (v1)" / "foreign"
 	return nil
 }
 ```
@@ -584,7 +584,7 @@ OUT OF SCOPE (do NOT touch):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/hook/hook.go internal/hook/hook_test.go internal/cmd/hook.go internal/cmd/hook_test.go
 go build ./...        # new internal/hook logic + internal/cmd/hook.go must compile
 go vet ./...
@@ -605,23 +605,23 @@ go test ./internal/cmd/...  -v   # ensure existing providers/config/default_acti
 
 ```bash
 # Build and drive the real binary in a throwaway repo.
-go build -o /tmp/stagehand ./cmd/stagehand 2>/dev/null || go build -o /tmp/stagehand .
+go build -o /tmp/stagecoach ./cmd/stagecoach 2>/dev/null || go build -o /tmp/stagecoach .
 tmp=$(mktemp -d); ( cd "$tmp" && git init -q
-  /tmp/stagehand hook status                 # -> none
-  /tmp/stagehand hook install                # -> Installed ...   (exit 0)
+  /tmp/stagecoach hook status                 # -> none
+  /tmp/stagecoach hook install                # -> Installed ...   (exit 0)
   test -x .git/hooks/prepare-commit-msg && echo "executable OK"
-  grep -q 'stagehand prepare-commit-msg hook v1' .git/hooks/prepare-commit-msg && echo "marker OK"
-  /tmp/stagehand hook install                # -> Updated ...      (idempotent, exit 0)
-  /tmp/stagehand hook status                 # -> stagehand (v1)
-  /tmp/stagehand hook install --print        # -> script to stdout, no change on disk
-  /tmp/stagehand hook install --strict; grep -q -- '--strict' .git/hooks/prepare-commit-msg && echo "strict OK"
-  /tmp/stagehand hook uninstall              # -> Removed ...      (exit 0)
-  /tmp/stagehand hook status                 # -> none
+  grep -q 'stagecoach prepare-commit-msg hook v1' .git/hooks/prepare-commit-msg && echo "marker OK"
+  /tmp/stagecoach hook install                # -> Updated ...      (idempotent, exit 0)
+  /tmp/stagecoach hook status                 # -> stagecoach (v1)
+  /tmp/stagecoach hook install --print        # -> script to stdout, no change on disk
+  /tmp/stagecoach hook install --strict; grep -q -- '--strict' .git/hooks/prepare-commit-msg && echo "strict OK"
+  /tmp/stagecoach hook uninstall              # -> Removed ...      (exit 0)
+  /tmp/stagecoach hook status                 # -> none
   # foreign refusal:
   printf '#!/bin/sh\necho mine\n' > .git/hooks/prepare-commit-msg
-  /tmp/stagehand hook install; echo "exit=$?"  # -> prints manual line, exit 1
+  /tmp/stagecoach hook install; echo "exit=$?"  # -> prints manual line, exit 1
   grep -q 'echo mine' .git/hooks/prepare-commit-msg && echo "foreign UNCHANGED OK"
-  /tmp/stagehand hook uninstall; echo "exit=$?" # -> refuses foreign, exit 1
+  /tmp/stagecoach hook uninstall; echo "exit=$?" # -> refuses foreign, exit 1
 )
 # Expected: statuses/verbs as annotated; foreign file never modified; strict baked in; print to stdout only.
 ```
@@ -633,8 +633,8 @@ go test -race ./...
 golangci-lint run ./...
 # Confirm `hook status` does NOT create a global config (no config.Load side effect):
 tmp=$(mktemp -d); ( cd "$tmp" && git init -q
-  XDG_CONFIG_HOME="$tmp/xdg" /tmp/stagehand hook status
-  test ! -e "$tmp/xdg/stagehand/config.toml" && echo "no bootstrap side effect OK" )
+  XDG_CONFIG_HOME="$tmp/xdg" /tmp/stagecoach hook status
+  test ! -e "$tmp/xdg/stagecoach/config.toml" && echo "no bootstrap side effect OK" )
 ```
 
 ## Final Validation Checklist
@@ -648,7 +648,7 @@ tmp=$(mktemp -d); ( cd "$tmp" && git init -q
       `--strict`; `--print` → stdout only (no disk, works outside a repo).
 - [ ] Foreign hook: install AND uninstall refuse (exit 1), print manual line, leave the file byte-identical.
 - [ ] uninstall removes only when marker present; None → exit 0 idempotent note.
-- [ ] status prints exactly `none` / `stagehand (v1)` / `foreign`.
+- [ ] status prints exactly `none` / `stagecoach (v1)` / `foreign`.
 - [ ] `hook status` creates NO global config file (no bootstrap side effect).
 
 ### Code Quality Validation
@@ -661,7 +661,7 @@ tmp=$(mktemp -d); ( cd "$tmp" && git init -q
 
 ### Documentation & Deployment
 - [ ] docs/cli.md documents install/--print/--strict, uninstall, status, and the foreign-hook (no --force)
-      policy; notes the script calls `stagehand hook exec "$@"` (runtime = P1.M3.T2.S1).
+      policy; notes the script calls `stagecoach hook exec "$@"` (runtime = P1.M3.T2.S1).
 
 ---
 

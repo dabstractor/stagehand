@@ -51,7 +51,7 @@ func ExtractSubject(message string) string
 
 - Both EXPORTED (capitalized). The caller (orchestrator P1.M3.T4) is in the SAME package (`internal/generate`),
   so export is not strictly required for it — but the work-item writes them capitalized, and the public
-  library API (P1.M3.T5 `pkg/stagehand`) may re-export them. Match the contract verbatim.
+  library API (P1.M3.T5 `pkg/stagecoach`) may re-export them. Match the contract verbatim.
 - Neither returns an error — there is NO failure mode (pure transformations over in-memory strings).
   This mirrors `prompt.BuildUserPayload` (string-only, no error) and `prompt.DetectMultiline` (bool-only).
 - `recent []string` (not a `map`/set type) — the caller passes the raw slice from `git.RecentSubjects`.
@@ -213,7 +213,7 @@ DOWNSTREAM (consumers — not yet built, just honor the signature):
 - Orchestrator P1.M3.T4 (`CommitStaged`) — calls `ExtractSubject(msg)` then `IsDuplicate(subject, recent)`
   in its retry loop (§0 sketch). On match it `append`s the subject to `rejected` and calls
   `prompt.BuildUserPayload(diff, rejected)` (P1.M3.T1.S3, parallel) for the next attempt.
-- Public API P1.M3.T5 (`pkg/stagehand`) — may re-export the two functions.
+- Public API P1.M3.T5 (`pkg/stagecoach`) — may re-export the two functions.
 
 => The `IsDuplicate(subject string, recent []string) bool` and `ExtractSubject(message string) string`
 signatures are FROZEN after this subtask.

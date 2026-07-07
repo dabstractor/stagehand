@@ -13,15 +13,15 @@
 2. Three new TDD tests in `internal/cmd/integrate_lazygit_test.go`.
 3. A "Conflicting key behavior" note added to the `lazygit` target section of `docs/cli.md` (Mode A doc update).
 
-**Success Definition**: When a lazygit `config.yml` already contains an unmarked entry bound to `<c-a>`, `stagehand integrate install lazygit --yes` (and the interactive path) prints the exact WARNING line to stderr/out and still writes the marked stagehand entry (resulting in two `<c-a>` entries — a documented duplicate, no longer *silent*). When no conflicting key exists, no WARNING is printed and behavior is identical to today. All existing lazygit tests still pass; `go test -race ./...` is green.
+**Success Definition**: When a lazygit `config.yml` already contains an unmarked entry bound to `<c-a>`, `stagecoach integrate install lazygit --yes` (and the interactive path) prints the exact WARNING line to stderr/out and still writes the marked stagecoach entry (resulting in two `<c-a>` entries — a documented duplicate, no longer *silent*). When no conflicting key exists, no WARNING is printed and behavior is identical to today. All existing lazygit tests still pass; `go test -race ./...` is green.
 
 ---
 
 ## User Persona
 
-**Target User**: A developer who integrates stagehand into lazygit (`stagehand integrate install lazygit`), often non-interactively in scripts/CI (`--yes`).
+**Target User**: A developer who integrates stagecoach into lazygit (`stagecoach integrate install lazygit`), often non-interactively in scripts/CI (`--yes`).
 
-**Use Case**: The user already has a personal `<c-a>` binding in lazygit's `config.yml` (unmarked). They run `stagehand integrate install lazygit --yes`.
+**Use Case**: The user already has a personal `<c-a>` binding in lazygit's `config.yml` (unmarked). They run `stagecoach integrate install lazygit --yes`.
 
 **Pain Points Addressed**: Today this **silently** appends a second `<c-a>` entry, producing a real conflicting binding in lazygit with no warning, no diff call-out, and (with `--yes`) zero indication anything collided. The user is left debugging a broken key binding.
 
@@ -29,8 +29,8 @@
 
 ## Why
 
-- **No-mangle guarantee (§9.21)**: The integrate feature's central promise is that stagehand must be impossible to mangle a config file silently. A silent duplicate is a violation of that promise's *spirit* even though the bytes round-trip cleanly.
-- **FR-I4 parity**: `git-alias` already surfaces foreign conflicts (`WARNING: alias.<name> is currently set to "<value>" (not stagehand) — it will be overwritten.`). lazygit is inconsistent.
+- **No-mangle guarantee (§9.21)**: The integrate feature's central promise is that stagecoach must be impossible to mangle a config file silently. A silent duplicate is a violation of that promise's *spirit* even though the bytes round-trip cleanly.
+- **FR-I4 parity**: `git-alias` already surfaces foreign conflicts (`WARNING: alias.<name> is currently set to "<value>" (not stagecoach) — it will be overwritten.`). lazygit is inconsistent.
 - **`integrate list` already detects this**: it reports `foreign`. `install` must act on the same signal, not ignore it.
 
 ---
@@ -42,7 +42,7 @@ A single best-effort probe in `lazygitEntry.Install()`, placed BEFORE the `integ
 1. Read the config file (`os.ReadFile(e.resolvedPath())`). On read error (missing/unreadable) → **skip** the probe and proceed to Apply (Apply owns the create path). Never return an error from the probe.
 2. Parse on a **throwaway** `lazygitTarget{key: e.key}`. On parse error → **skip** (Apply will refuse with its own parse error). Never return early.
 3. If `probe.findKeyItem(e.key) != nil` (an unmarked item binds the key), print to the resolved output stream:
-   `WARNING: a <key> binding already exists (not managed by stagehand); installing will create a duplicate customCommands entry — use --key to choose a different binding.`
+   `WARNING: a <key> binding already exists (not managed by stagecoach); installing will create a duplicate customCommands entry — use --key to choose a different binding.`
 4. Fall through to the existing `integrate.Apply(ActionUpsert)` call, **unchanged**.
 
 The WARNING appears in BOTH interactive mode (before Apply's diff+confirm prompt) and `--yes` mode (before Apply's immediate write).
@@ -50,7 +50,7 @@ The WARNING appears in BOTH interactive mode (before Apply's diff+confirm prompt
 ### Success Criteria
 
 - [ ] Installing over an unmarked foreign `<c-a>` entry prints the exact WARNING (contains `WARNING` and `duplicate`) to the output stream.
-- [ ] Installing over a foreign entry still appends the marked stagehand entry → config ends with exactly **two** `<c-a>` entries (the foreign + stagehand's marked one).
+- [ ] Installing over a foreign entry still appends the marked stagecoach entry → config ends with exactly **two** `<c-a>` entries (the foreign + stagecoach's marked one).
 - [ ] Installing with no conflicting key prints **no** WARNING (clean golden / empty config).
 - [ ] Interactive install surfaces BOTH the WARNING (on `opts.Out`) AND the diff (in the Confirm func's `diff` arg).
 - [ ] `Install()` signature and return type are unchanged; the actual write still goes through Apply's no-mangle protocol (parse-first, diff, confirm, backup, atomic-write, validate).
@@ -168,7 +168,7 @@ docs/cli.md                              # MODIFY — + 'Conflicting key behavio
 
 // GOTCHA: yaml.v3 Node-API encode preserves mapping key order and emits <c-a> single-quoted
 // (existing TestIntegrateLazygitKeyFlag asserts strings.Contains(data, "key: '<c-s>'")).
-// So both the foreign (`- key: '<c-a>'`) and stagehand (`- key: '<c-a>' # stagehand-integration`)
+// So both the foreign (`- key: '<c-a>'`) and stagecoach (`- key: '<c-a>' # stagecoach-integration`)
 // lines contain the substring `key: '<c-a>'` -> strings.Count == 2 is a valid assertion.
 
 // CRITICAL: lazygit's customCommands is a SEQUENCE — two entries CAN share a key (unlike git config).
@@ -197,10 +197,10 @@ Task 1: ADD three failing tests to internal/cmd/integrate_lazygit_test.go
   - ASSERTIONS (see full bodies in "Implementation Patterns" below):
       (a) foreign: buf contains "WARNING" and "duplicate"; config has exactly TWO <c-a> entries;
           res.Outcome == integrate.OutcomeUpdated  <-- CONTRACT CORRECTION (NOT OutcomeCreated);
-          config contains "stagehand-integration" marker.
+          config contains "stagecoach-integration" marker.
       (b) no-foreign: pre-write golden_input.yml (key 'b'); buf does NOT contain "WARNING".
       (c) interactive: foreign config; Yes:false; Confirm captures diff and returns true;
-          assert buf (opts.Out) contains "WARNING" AND the captured diff contains "stagehand-integration"
+          assert buf (opts.Out) contains "WARNING" AND the captured diff contains "stagecoach-integration"
           (Apply's diff of the appended entry).
   - CONFIRM: after writing these, `go test ./internal/cmd/ -run TestLazygitEntry_Install_ForeignKey -v`
     FAILS (no WARNING printed yet). This is the red phase — expected.
@@ -241,7 +241,7 @@ func (e *lazygitEntry) Install(ctx context.Context, opts integrate.InstallOption
 		probe := &lazygitTarget{key: e.key} // throwaway — separate state from Apply's tgt
 		if perr := probe.Parse(data); perr == nil {
 			if probe.findKeyItem(e.key) != nil {
-				fmt.Fprintf(out, "WARNING: a %s binding already exists (not managed by stagehand); installing will create a duplicate customCommands entry — use --key to choose a different binding.\n", e.key)
+				fmt.Fprintf(out, "WARNING: a %s binding already exists (not managed by stagecoach); installing will create a duplicate customCommands entry — use --key to choose a different binding.\n", e.key)
 			}
 		}
 	}
@@ -298,7 +298,7 @@ func TestLazygitEntry_Install_ForeignKeyWarning(t *testing.T) {
 		t.Errorf("Outcome = %v, want Updated", res.Outcome)
 	}
 
-	// The config must contain exactly TWO <c-a> entries: the foreign (unmarked) + stagehand's marked one.
+	// The config must contain exactly TWO <c-a> entries: the foreign (unmarked) + stagecoach's marked one.
 	data, err := os.ReadFile(e.configPath)
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
@@ -306,8 +306,8 @@ func TestLazygitEntry_Install_ForeignKeyWarning(t *testing.T) {
 	if n := strings.Count(string(data), "key: '<c-a>'"); n != 2 {
 		t.Errorf("want exactly 2 customCommands entries with key '<c-a>', got %d.\nconfig:\n%s", n, data)
 	}
-	if !strings.Contains(string(data), "stagehand-integration") {
-		t.Error("config missing stagehand-integration marker")
+	if !strings.Contains(string(data), "stagecoach-integration") {
+		t.Error("config missing stagecoach-integration marker")
 	}
 }
 
@@ -356,8 +356,8 @@ func TestLazygitEntry_Install_ForeignKeyWarningInteractiveConfirm(t *testing.T) 
 	if !strings.Contains(buf.String(), "WARNING") {
 		t.Errorf("opts.Out missing WARNING; got %q", buf.String())
 	}
-	if !strings.Contains(gotDiff, "stagehand-integration") {
-		t.Errorf("confirm diff missing stagehand entry; got %q", gotDiff)
+	if !strings.Contains(gotDiff, "stagecoach-integration") {
+		t.Errorf("confirm diff missing stagecoach entry; got %q", gotDiff)
 	}
 }
 ```
@@ -413,7 +413,7 @@ go test -race ./internal/cmd/ -v
 
 ```bash
 # Build the binary.
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 
 # Reproduce the conflict scenario (PRD §h2.2 Steps to Reproduce) — now with a WARNING.
 mkdir -p /tmp/lg/.config/lazygit
@@ -428,12 +428,12 @@ EOF
 # Install with --yes. lazygit need not be installed IF you pre-seed the config path;
 # to force the resolved path without lazygit on PATH, point HOME at /tmp/lg and ensure the
 # file is found via the platform-default fallback ($XDG_CONFIG_HOME/lazygit/config.yml):
-HOME=/tmp/lg XDG_CONFIG_HOME=/tmp/lg/.config /tmp/stagehand integrate install lazygit --yes
+HOME=/tmp/lg XDG_CONFIG_HOME=/tmp/lg/.config /tmp/stagecoach integrate install lazygit --yes
 # EXPECTED: a line starting "WARNING: a <c-a> binding already exists ..." is printed.
 
-# Inspect the config: exactly two <c-a> entries now exist (foreign + stagehand), with a WARNING shown.
+# Inspect the config: exactly two <c-a> entries now exist (foreign + stagecoach), with a WARNING shown.
 grep -c "key: '<c-a>'" /tmp/lg/.config/lazygit/config.yml   # -> 2
-grep -c "stagehand-integration" /tmp/lg/.config/lazygit/config.yml  # -> 1
+grep -c "stagecoach-integration" /tmp/lg/.config/lazygit/config.yml  # -> 1
 
 # Clean config: no WARNING.
 rm /tmp/lg/.config/lazygit/config.yml
@@ -441,7 +441,7 @@ cat > /tmp/lg/.config/lazygit/config.yml <<'EOF'
 gui:
   showRandomTip: false
 EOF
-HOME=/tmp/lg XDG_CONFIG_HOME=/tmp/lg/.config /tmp/stagehand integrate install lazygit --yes
+HOME=/tmp/lg XDG_CONFIG_HOME=/tmp/lg/.config /tmp/stagecoach integrate install lazygit --yes
 # EXPECTED: NO "WARNING" line; Outcome Created (new file content appended cleanly).
 ```
 

@@ -43,7 +43,7 @@ Decomposition into two constants (mirrors payload.go's split of static text arou
   model). The hard guardrails clause "Do not commit, do not amend, do not push, do not modify file
   contents — only update the index" is the prompt-level restatement of §13.6.2/§17.6's structural
   guardrails (no commit/amend/push/ref-mutation); it is enforced STRUCTURALLY too (tooled_flags,
-  §12.1; stagehand owns all ref ops).
+  §12.1; stagecoach owns all ref ops).
 
 CRITICAL literal-vs-placeholder distinction: in §17.6, ONLY `<title>` and `<description>` are runtime
 placeholders (interpolated from the planner's `PlannerCommit`). The `<path>` inside
@@ -140,7 +140,7 @@ rule system.go applies to antiReuseProhibition).
 Why the stager is so much simpler:
 - **No system prompt:** §17.6 says the prompt is "delivered as the user payload; system prompt
   minimal/empty." The stager is TOOLED (git access, repo-scoped); its behavioral guardrails live in the
-  TASK prompt + are enforced STRUCTURALLY (tooled_flags §12.1; stagehand owns all ref ops, §17.6's
+  TASK prompt + are enforced STRUCTURALLY (tooled_flags §12.1; stagecoach owns all ref ops, §17.6's
   "enforced structurally"). So there is no defined system-prompt CONSTANT to export. The orchestrator
   (P3.M2.T3.S1) renders the tooled agent with an empty/minimal system prompt arg + this task payload.
   DO NOT invent a `StagerSystemPrompt` constant — §17.6 deliberately omits it.

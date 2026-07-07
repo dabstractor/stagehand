@@ -267,7 +267,7 @@ type (modulo the documented `os.Environ()` side-effect for Env, handled in tests
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; require go-toml/v2 + pflag  (UNCHANGED — Render adds NO dep)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; require go-toml/v2 + pflag  (UNCHANGED — Render adds NO dep)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — untouched; do NOT import (cycle, and unneeded)
@@ -283,7 +283,7 @@ internal/
     registry_test.go            # P1.M2.T3.S1 (parallel) — tests
     render.go                   # NEW (this subtask) ← CmdSpec + (m Manifest) Render  (stdlib: fmt, os)
     render_test.go              # NEW (this subtask) ← ~10 test groups incl. the 6-provider golden table
-cmd/stagehand/main.go           # `package main; func main(){}` stub — untouched
+cmd/stagecoach/main.go           # `package main; func main(){}` stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -735,7 +735,7 @@ FROZEN FILES (do NOT edit):
   - internal/provider/registry.go + registry_test.go (P1.M2.T3.S1, parallel): may or may not be present
         when Render starts — Render does NOT depend on the registry (it takes a Manifest directly). Keep
         both green.
-  - internal/config/*, internal/git/*, cmd/stagehand/main.go, Makefile.
+  - internal/config/*, internal/git/*, cmd/stagecoach/main.go, Makefile.
 
 DOWNSTREAM CONTRACTS (do NOT implement here — just honor the shapes they will consume):
   - P1.M2.T5 (executor): exec.Command(spec.Command, spec.Args...); cmd.Stdin = (spec.Stdin != "") ?

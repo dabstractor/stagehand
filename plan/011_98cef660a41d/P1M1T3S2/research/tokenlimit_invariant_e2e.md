@@ -1,6 +1,6 @@
 # E2e test for assembled-prompt-≤-token_limit invariant — P1.M1.T3.S2 Research
 
-> Verified against the live repo (HEAD = 35ae0ca, module `github.com/dustin/stagehand`). All
+> Verified against the live repo (HEAD = 35ae0ca, module `github.com/dustin/stagecoach`). All
 > signatures/line numbers confirmed by direct read. No files modified — research only.
 
 ## 1. What this task is (the contract, restated)
@@ -65,7 +65,7 @@ generate_test.go:741 "provider.Render prepends the system prompt to the payload 
 
 ```go
 stdinFile := filepath.Join(t.TempDir(), "stdin.txt")
-t.Setenv("STAGEHAND_STUB_STDINFILE", stdinFile)   // stub writes its received stdin here
+t.Setenv("STAGECOACH_STUB_STDINFILE", stdinFile)   // stub writes its received stdin here
 stub := stubtest.Build(t)
 m := stubtest.Manifest(stub, stubtest.Options{Out: "feat: add feature"})
 // ... cfg, deps, CommitStaged ...
@@ -73,16 +73,16 @@ data, err := os.ReadFile(stdinFile)   // the captured assembled prompt
 payload := string(data)
 ```
 
-The stub agent (cmd/stubagent) tees stdin to `STAGEHAND_STUB_STDINFILE` AFTER draining (deadlock guard).
+The stub agent (cmd/stubagent) tees stdin to `STAGECOACH_STUB_STDINFILE` AFTER draining (deadlock guard).
 `stubtest.Manifest` does NOT set `SystemPromptFlag` ⇒ Render prepends sysPrompt+"\n\n"+payload to stdin
 ⇒ the captured file IS the full assembled prompt (+ separator). This is the mechanism for BOTH cases.
 
-**One overwrite caveat (the decompose case):** `STAGEHAND_STUB_STDINFILE` captures only the LAST
+**One overwrite caveat (the decompose case):** `STAGECOACH_STUB_STDINFILE` captures only the LAST
 invocation's stdin (generate_multiturn_test.go:667 documents this). A decompose run invokes the stub
 multiple times (planner → stager → message → arbiter), so a plain `t.Setenv` would be overwritten by
 later invocations. TWO ways to isolate the planner's stdin:
-- **(a) Role-specific Env (PREFERRED — clean):** set `STAGEHAND_STUB_STDINFILE` on ONLY the planner
-  manifest's `Env` map (`plannerM.Env["STAGEHAND_STUB_STDINFILE"] = plannerFile`). The message/stager/
+- **(a) Role-specific Env (PREFERRED — clean):** set `STAGECOACH_STUB_STDINFILE` on ONLY the planner
+  manifest's `Env` map (`plannerM.Env["STAGECOACH_STUB_STDINFILE"] = plannerFile`). The message/stager/
   arbiter manifests do NOT carry it ⇒ their stub invocations see `os.Getenv("")` ⇒ drain to io.Discard
   ⇒ never touch plannerFile. (Render builds `spec.Env = os.Environ() + manifest.Env`; the per-role Env
   is the isolation seam.)
@@ -105,7 +105,7 @@ honored in spirit — same package, same pattern.)
 2. Seed enough content that the untruncated assembled prompt EXCEEDS the tokenLimit: write a file with
    ~1600 runes of changes (`strings.Repeat("change line N\n", 120)` ≈ 1560 runes ⇒ EstimateTokens ≈ 390).
    Stage it.
-3. `stdinFile := filepath.Join(t.TempDir(), "stdin.txt"); t.Setenv("STAGEHAND_STUB_STDINFILE", stdinFile)`.
+3. `stdinFile := filepath.Join(t.TempDir(), "stdin.txt"); t.Setenv("STAGECOACH_STUB_STDINFILE", stdinFile)`.
 4. `cfg := config.Defaults(); cfg.TokenLimit = 200` (≪ 390 ⇒ the gate MUST truncate to fit; forces the
    closed-loop to run). `m := stubtest.Manifest(stub, stubtest.Options{Out: "feat: big change"})`.
 5. `deps := Deps{Git: git.New(repo), Manifest: m}`; `CommitStaged(ctx, deps, cfg)`.
@@ -129,7 +129,7 @@ via role-specific Env (D2).
    tokenLimit.
 2. `plannerStdin := filepath.Join(t.TempDir(), "planner-stdin.txt")`.
 3. Build the planner manifest: `plannerM := dcmPlannerManifest(t, bin, plannerJSON)` THEN
-   `plannerM.Env["STAGEHAND_STUB_STDINFILE"] = plannerStdin` (isolate the planner's stdin — D2). The
+   `plannerM.Env["STAGECOACH_STUB_STDINFILE"] = plannerStdin` (isolate the planner's stdin — D2). The
    stager/message/arbiter manifests do NOT carry STDINFILE ⇒ they drain to io.Discard.
 4. `cfg := config.Defaults(); cfg.TokenLimit = <small>`; `deps := dcmDeps(t, repo, roles)` with the
    planner manifest wired.
@@ -156,7 +156,7 @@ send sysPrompt via the flag and stdin = payload ONLY (missing sysPrompt) — WRO
 - **D1** Assert `EstimateTokens(stdin) ≤ tokenLimit + EstimateTokens("\n\n")` (= tokenLimit + 1). The
   +1 is the Render separator (render.go:158 `sysPrompt + "\n\n" + payload`); FR3j's invariant is on the
   separator-free `sysPrompt + payload` (the closure's measurement). Provable + non-flaky.
-- **D2** Isolate the planner's stdin via role-specific `Env["STAGEHAND_STUB_STDINFILE"]` on ONLY the
+- **D2** Isolate the planner's stdin via role-specific `Env["STAGECOACH_STUB_STDINFILE"]` on ONLY the
   planner manifest (not the tee-wrapper). The per-role Env is the natural seam; later role invocations
   drain to io.Discard.
 - **D3** PRIMARY case in a NEW file `internal/generate/tokenlimit_invariant_test.go` (focused sibling;

@@ -79,7 +79,7 @@ is P1.M2.T1.S1's (not duplicated here); the outcome (no-op or the targeted edit)
 
 ## User Persona
 
-**Target User**: The reader of the stagehand docs (a user configuring `token_limit`/`diff_context`, or
+**Target User**: The reader of the stagecoach docs (a user configuring `token_limit`/`diff_context`, or
 inspecting `--dry-run` truncation output) who must not be misled by a stale description of how truncated
 sections are shaped or how an out-of-range `diff_context` is handled.
 

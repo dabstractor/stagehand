@@ -47,13 +47,13 @@ byte-identical); `go build/vet/gofmt` clean and `go test -race ./...` green.
 
 ## User Persona
 
-**Target User**: Every Stagehand user who runs multi-commit decomposition (`stagehand` with an un-staged
-dirty tree → auto-decompose, or `stagehand --commits N`) with the default provider (pi) configured —
-the bootstrap config (`[defaults] provider = "pi"`), `git config stagehand.provider pi` (PRD §15.5's
-recommended setup), `--provider pi`, or `STAGEHAND_PROVIDER=pi`.
+**Target User**: Every Stagecoach user who runs multi-commit decomposition (`stagecoach` with an un-staged
+dirty tree → auto-decompose, or `stagecoach --commits N`) with the default provider (pi) configured —
+the bootstrap config (`[defaults] provider = "pi"`), `git config stagecoach.provider pi` (PRD §15.5's
+recommended setup), `--provider pi`, or `STAGECOACH_PROVIDER=pi`.
 
 **Use Case**: A user sets `default_provider = "openrouter"` under `[provider.pi]` so pi routes to an
-OpenRouter backend, then runs `stagehand` over a multi-change working tree to produce 2–3 logical commits.
+OpenRouter backend, then runs `stagecoach` over a multi-change working tree to produce 2–3 logical commits.
 
 **Pain Points Addressed**: Today EVERY decompose role emits `pi --provider pi …` (an invalid
 sub-provider) and silently ignores the user's `default_provider` — exactly the bug S1 fixed for the
@@ -181,7 +181,7 @@ E2E test, and supplies executable validation commands. The architecture analysis
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/decompose/
 │   ├── planner.go        # EDIT (L61 _,mdl; L91 Render "" + comment)
 │   ├── stager.go         # EDIT (L60 _,mdl; L66 Render "" + comment)
@@ -202,7 +202,7 @@ stagehand/
 ### Desired Codebase Tree After S2
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/decompose/{planner,stager,message,arbiter}.go       # Render "" + _,mdl + comment (4 files)
     internal/decompose/{planner,stager,message,arbiter}_test.go  # +1 unit test each (4 files)
@@ -328,7 +328,7 @@ Task 4: EDIT internal/decompose/arbiter.go
   - PRESERVE: convertArbiterCommits, targetInRun, the single-shot Execute, "when in doubt null" semantics.
 
 Task 5: ADD TestCallPlanner_ResolvesSubProvider (internal/decompose/planner_test.go)
-  - Add imports if missing: "bytes", "github.com/dustin/stagehand/internal/ui". (config/git/provider/stubtest already imported.)
+  - Add imports if missing: "bytes", "github.com/dustin/stagecoach/internal/ui". (config/git/provider/stubtest already imported.)
   - Reuse plannerDeps(t, repo, m); override Verbose + cfg.Provider on the returned deps.
   - BODY:
         bin := stubtest.Build(t)
@@ -497,7 +497,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S2):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l .                          # Expected: empty (gofmt -w the 4 .go + test files if listed)
 go vet ./internal/decompose/...     # Expected: exit 0
@@ -514,7 +514,7 @@ grep -n "Render(mdl, \"\", \"\", task, provider.RenderTooled)" internal/decompos
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The 4 new per-role sub-provider-resolution tests (synchronous, race-free)
 go test -race -run 'TestCallPlanner_ResolvesSubProvider|TestStageConcept_ResolvesSubProvider|TestGenerateMessage_ResolvesSubProvider|TestRunArbiter_ResolvesSubProvider' ./internal/decompose/ -v
@@ -532,7 +532,7 @@ go test -race ./internal/decompose/ -v
 ### Level 3: Whole-Repository Regression (No Behavior Change Elsewhere)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...                 # Expected: ALL packages pass (including generate, post-S1)
 go vet ./...                        # Expected: exit 0
@@ -548,19 +548,19 @@ git diff --name-only -- internal/provider/render.go internal/provider/merge.go i
 
 ### Level 4: Bug-Reproduction Cross-Check (manual smoke — optional for S2)
 
-> S2 fixes the decompose LIBRARY path. The user-visible CLI end-to-end (`stagehand` over a multi-change
+> S2 fixes the decompose LIBRARY path. The user-visible CLI end-to-end (`stagecoach` over a multi-change
 > tree with `--verbose`) exercises all four roles, but the dedicated CLI-binary E2E test is T2
 > (P1.M1.T2.S1). This smoke confirms the fix holds through the real binary for the decompose path.
 
 ```bash
-cd /home/dustin/projects/stagehand
-go build -o bin/stagehand ./cmd/stagehand && go build -o bin/stubagent ./cmd/stubagent
+cd /home/dustin/projects/stagecoach
+go build -o bin/stagecoach ./cmd/stagecoach && go build -o bin/stubagent ./cmd/stubagent
 
 # Throwaway repo + pi-shaped stub config + a multi-change working tree (auto-decompose triggers)
 cd /tmp && rm -rf repro && mkdir repro && cd repro
 git init -q && git config user.email t@t.com && git config user.name t && git commit -q --allow-empty -m init
 echo a > a.txt; echo b > b.txt   # UNSTAGED multi-change tree (FR-M1 routing → Decompose)
-SH=/home/dustin/projects/stagehand/bin/stagehand; STUB=/home/dustin/projects/stagehand/bin/stubagent
+SH=/home/dustin/projects/stagecoach/bin/stagecoach; STUB=/home/dustin/projects/stagecoach/bin/stubagent
 cat > config.toml <<EOF
 config_version = 2
 [defaults]
@@ -578,11 +578,11 @@ print_flag = "-p"
 output = "raw"
 tooled_flags = ""
 [provider.pi.env]
-STAGEHAND_STUB_OUT = "feat: repro"
+STAGECOACH_STUB_OUT = "feat: repro"
 EOF
-STAGEHAND_CONFIG=config.toml $SH --dry-run --verbose --no-color 2>&1 | grep "DEBUG: command" | grep -c "provider openrouter"
+STAGECOACH_CONFIG=config.toml $SH --dry-run --verbose --no-color 2>&1 | grep "DEBUG: command" | grep -c "provider openrouter"
 # Expected (after fix): ≥1 (every decompose role emits --provider openrouter).
-STAGEHAND_CONFIG=config.toml $SH --dry-run --verbose --no-color 2>&1 | grep "DEBUG: command" | grep -c "provider pi"
+STAGECOACH_CONFIG=config.toml $SH --dry-run --verbose --no-color 2>&1 | grep "DEBUG: command" | grep -c "provider pi"
 # Expected (after fix): 0 (no role emits the manifest name as sub-provider).
 ```
 

@@ -7,7 +7,7 @@ landed**). Cross-check against the live source.
 
 ## 0. Current state — S1 (Issue 6) is ALREADY COMPLETE
 
-Do NOT re-do S1. As of this subtask, in `pkg/stagehand/stagehand.go` `runPipeline`:
+Do NOT re-do S1. As of this subtask, in `pkg/stagecoach/stagecoach.go` `runPipeline`:
 
 - `WriteTree` is **unconditional** (the `if !dryRun` gate is already removed) — `treeSHA` is now
   ALWAYS set when execution reaches the dry-run block.
@@ -82,7 +82,7 @@ paths into one loop with two tails — exactly what D3 item 2/3 and seam_dryrun.
 
 ## 4. The one locked-in test S2 MUST update (not optional — the suite would be RED otherwise)
 
-`pkg/stagehand/stagehand_test.go`, `TestGenerateCommit_Timeout` / subtest `"dryrun"`, currently:
+`pkg/stagecoach/stagecoach_test.go`, `TestGenerateCommit_Timeout` / subtest `"dryrun"`, currently:
 
 ```go
 if !errors.Is(err, ErrTimeout) { ... }            // STILL passes (*RescueError{Kind:ErrTimeout} satisfies Is)
@@ -125,7 +125,7 @@ rescue-print + exit 3; else → plain signal-exit (130/143). So:
 consistent with that. The snapshot is left dangling in dry-run failure too, matching the commit
 path's failure semantics. Out of scope to change.)
 
-## 6. Primitives already imported in stagehand.go (no new import, no new dep)
+## 6. Primitives already imported in stagecoach.go (no new import, no new dep)
 
 `generate.ExtractSubject`, `generate.IsDuplicate`, `generate.RescueError`, `generate.ErrTimeout`,
 `generate.ErrRescue`, `prompt.BuildUserPayload`, `provider.Execute`, `provider.ParseOutput`,

@@ -10,7 +10,7 @@ description: |
 
   S3 is a **VERIFICATION + HARDENING + COMPLETENESS-AUDIT** pass against the P1.M4.T3.S3 contract.
   The implementing agent must NOT recreate, rename, or relocate anything — doing so would regress
-  ~40 call sites (`internal/cmd/{root,default_action,providers,config}.go`), `cmd/stagehand/main.go`,
+  ~40 call sites (`internal/cmd/{root,default_action,providers,config}.go`), `cmd/stagecoach/main.go`,
   and every CLI test.
 
   CONTRACT (P1.M4.T3.S3, verbatim):
@@ -33,7 +33,7 @@ description: |
     - `internal/exitcode/exitcode_test.go`: 12-case table + a nil-Err test — **1 genuine gap**: no test
       for a `*ExitError` recovered via `errors.As` through a `fmt.Errorf("…: %w", …)` chain (the exact
       guarantee the contract names).
-    - Wired: `cmd/stagehand/main.go:25` (`exitcode.For` → `os.Exit`); ~40 `exitcode.New(...)` sites
+    - Wired: `cmd/stagecoach/main.go:25` (`exitcode.For` → `os.Exit`); ~40 `exitcode.New(...)` sites
       across the CLI RunE handlers; tests assert all 5 codes end-to-end.
 
   DELIVERABLE (bounded to `internal/exitcode/` ONLY — 0-1 optional doc edit + 1 mandatory test delta):
@@ -47,11 +47,11 @@ description: |
                                                correct §15.4 code (already PASS — see findings.md §5).
 
   SCOPE BOUNDARY (owned by siblings / frozen — do NOT edit):
-    - `cmd/stagehand/main.go` — trivial `exitcode.For`→`os.Exit`; correct; leave it.
+    - `cmd/stagecoach/main.go` — trivial `exitcode.For`→`os.Exit`; correct; leave it.
     - `internal/cmd/*` — all `exitcode.New(...)` call sites; the `handleGenError` mapping is CORRECT and
       its rescue branch is byte-FROZEN (§18.3). The parallel **P1.M4.T3.S2** (verbose) edits
       `default_action.go` (one line) — zero overlap with S3, but do NOT touch default_action.go.
-    - `internal/generate/*`, `pkg/stagehand/*`, `internal/ui/*` — exitcode CONSUMES the generate error
+    - `internal/generate/*`, `pkg/stagecoach/*`, `internal/ui/*` — exitcode CONSUMES the generate error
       taxonomy (read-only); do not change those packages.
     - Constant NAMES (`Success` not `ExitSuccess`, etc.) — intentional (D1); deployed at ~40 sites.
 
@@ -65,7 +65,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Certify and harden Stagehand's §15.4 exit-code system so it provably satisfies the
+**Feature Goal**: Certify and harden Stagecoach's §15.4 exit-code system so it provably satisfies the
 P1.M4.T3.S3 contract. The system is already built (P1.M4.T1.S1) and wired into `main()` + every
 command `RunE`; this task is the **refinement gate**: verify the constants (0/1/2/3/124), the
 `ExitError{Code,Err}` contract (`Error()`+`Unwrap()`), and the `For(err)` `errors.As`-based extraction
@@ -96,19 +96,19 @@ behavioral change** to the CLI.
 
 ## User Persona
 
-**Target User**: the Stagehand CLI *integrator/scripter* (PRD §7 personas) who pipelines
-`stagehand` in shell (`stagehand --dry-run | git commit -F -`, lazygit keybinds, CI gates) and relies
+**Target User**: the Stagecoach CLI *integrator/scripter* (PRD §7 personas) who pipelines
+`stagecoach` in shell (`stagecoach --dry-run | git commit -F -`, lazygit keybinds, CI gates) and relies
 on **deterministic exit codes** to branch: `2` = "nothing to commit, skip", `3` = "rescue, alert a
 human", `124` = "timeout, retry", `0` = "done". Also the *contributor* adding a new `RunE` who needs
 a single, documented, well-tested helper (`exitcode.New(code, err)`) + a `For()` that "just works" on
 both explicit and domain errors.
 
-**Use Case**: `stagehand && echo OK || echo "rc=$?"; case $? in 2) ;; 3) notify ;; esac` — the exit
+**Use Case**: `stagecoach && echo OK || echo "rc=$?"; case $? in 2) ;; 3) notify ;; esac` — the exit
 code is the machine contract. S3 guarantees the mapping is correct AND tested for the wrap-chain case
 (so a future `RunE` that does `return fmt.Errorf("ctx: %w", exitcode.New(exitcode.Timeout, err))`
 still exits 124).
 
-**User Journey**: script runs `stagehand` → main calls `exitcode.For(err)` → `errors.As` unwraps any
+**User Journey**: script runs `stagecoach` → main calls `exitcode.For(err)` → `errors.As` unwraps any
 nesting to find the `*ExitError` (or falls through to the domain mapping) → `os.Exit(code)` → the
 shell sees 0/1/2/3/124 and branches correctly.
 
@@ -149,7 +149,7 @@ func For(err error) int                           // errors.As + generate-domain
     fmt.Errorf("%w", New(NothingToCommit, errors.New("y"))), NothingToCommit},
 ```
 
-NO changes to `main.go`, `internal/cmd/*`, `internal/generate/*`, `pkg/stagehand/*`, `internal/ui/*`,
+NO changes to `main.go`, `internal/cmd/*`, `internal/generate/*`, `pkg/stagecoach/*`, `internal/ui/*`,
 or any constant identifier.
 
 ### Success Criteria
@@ -211,10 +211,10 @@ explicitly out of scope).
   pattern: new row → `{"wrapped ExitError → Code (errors.As traverses %w)", fmt.Errorf("wrap: %w", New(7, errors.New("x"))), 7}`.
   gotcha: `errors`, `fmt` are already imported in the test. The runner asserts `got := For(tc.err); got != want → Errorf`.
 
-- file: cmd/stagehand/main.go   (P1.M4.T1.S1 — READ only; the consumer of For())
+- file: cmd/stagecoach/main.go   (P1.M4.T1.S1 — READ only; the consumer of For())
   section: `err := cmd.Execute(ctx); code := exitcode.For(err); if err != nil && err.Error() != "" { ... };
        os.Exit(code)`. The `err.Error() != ""` guard is why SILENT exitcodes (New(code,nil)) suppress
-       main's "stagehand: %v" print while still honoring the code.
+       main's "stagecoach: %v" print while still honoring the code.
   why: confirms For() is the single source of truth for the process exit code. No change needed.
 
 - file: internal/cmd/default_action.go   (P1.M4.T1.S2 — READ only; the exit-mapping exemplar + FROZEN)
@@ -245,14 +245,14 @@ explicitly out of scope).
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                              # module github.com/dustin/stagehand ; go 1.22 ; UNCHANGED (no new deps)
+go.mod                              # module github.com/dustin/stagecoach ; go 1.22 ; UNCHANGED (no new deps)
 internal/
   exitcode/exitcode.go              # P1.M4.T1.S1 — consts + ExitError + For() (S3: optional doc enrich ONLY)
   exitcode/exitcode_test.go         # P1.M4.T1.S1 — 12-case table (S3 EDITS: +1 mandatory, +1 optional row)
   cmd/default_action.go             # P1.M4.T1.S2 — handleGenError + ~12 exitcode.New sites (READ; FROZEN; S2 edits 1 line)
   cmd/root.go                       # P1.M4.T1.S1 — 2 exitcode.New(Error,…) sites (READ)
   cmd/providers.go / cmd/config.go  # P1.M4.T1.S3/S4 — exitcode.New(Error,…) sites (READ)
-cmd/stagehand/main.go               # P1.M4.T1.S1 — exitcode.For → os.Exit (READ)
+cmd/stagecoach/main.go               # P1.M4.T1.S1 — exitcode.For → os.Exit (READ)
 internal/generate/generate.go       # P1.M3.T4.S2 — ErrNothingToCommit/ErrTimeout/ErrRescue/ErrCASFailed + RescueError/CASError (READ — the taxonomy For() maps)
 Makefile                            # build/test(-race)/vet/coverage/lint/clean (UNCHANGED)
 ```
@@ -262,7 +262,7 @@ Makefile                            # build/test(-race)/vet/coverage/lint/clean 
 ```bash
 internal/exitcode/exitcode_test.go  # EDIT — ADD the wrapped-ExitError table row (mandatory) + optional precedence row.
 internal/exitcode/exitcode.go       # EDIT (OPTIONAL) — enrich doc comments to name P1.M4.T3.S3 + §15.4 + D1 naming intent. NO logic/name/relocate change.
-# ALL other files UNCHANGED. main.go, internal/cmd/*, internal/generate/*, pkg/stagehand/*, internal/ui/* untouched.
+# ALL other files UNCHANGED. main.go, internal/cmd/*, internal/generate/*, pkg/stagecoach/*, internal/ui/* untouched.
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -297,13 +297,13 @@ internal/exitcode/exitcode.go       # EDIT (OPTIONAL) — enrich doc comments to
 // an explicit New(NothingToCommit, e) (even wrapped) yields 2 via the ExitError branch, NOT via the
 // ErrNothingToCommit Is-check. Both give 2, but the optional precedence test documents which branch fired.
 
-// GOTCHA (parallel S2 may leave pkg/stagehand mid-build): while P1.M4.T3.S2 is in flight, `go build ./...`
-// can report `pkg/stagehand/stagehand.go: undefined: io` (S2 adding Options.Verbose io.Writer). That is
+// GOTCHA (parallel S2 may leave pkg/stagecoach mid-build): while P1.M4.T3.S2 is in flight, `go build ./...`
+// can report `pkg/stagecoach/stagecoach.go: undefined: io` (S2 adding Options.Verbose io.Writer). That is
 // NOT an S3 bug. Validate S3 with `go test ./internal/exitcode/` + `go vet ./internal/exitcode/` (self-
 // contained); run the full `go test -race ./...` gate only after S2 has merged (or note the transient).
 
 // GOTCHA (silent exitcodes): New(code, nil) → ExitError.Error()=="" → main.go's `err.Error() != ""`
-// guard skips the "stagehand: %v" print but os.Exit(code) STILL honors the code. This is how rescue/CAS
+// guard skips the "stagecoach: %v" print but os.Exit(code) STILL honors the code. This is how rescue/CAS
 // print their own detailed message and suppress main's generic line. Do not "fix" the empty-string case.
 ```
 
@@ -320,7 +320,7 @@ package exitcode
 import (
 	"context"
 	"errors"
-	"github.com/dustin/stagehand/internal/generate"
+	"github.com/dustin/stagecoach/internal/generate"
 )
 
 const (
@@ -429,7 +429,7 @@ Task 6: FINAL VALIDATION (the gate)
   - RUN: `gofmt -w internal/exitcode/`; `go vet ./internal/exitcode/`; `go test -race ./internal/exitcode/ -v`.
   - RUN: `go test -race ./internal/cmd/` → green (proves zero behavioral regression — S3 changed nothing
       the CLI depends on). NOTE: if the parallel S2 has NOT merged, `go test -race ./...` may fail to
-      BUILD pkg/stagehand (`undefined: io`) — that is S2's transient, not S3's; scope the regression
+      BUILD pkg/stagecoach (`undefined: io`) — that is S2's transient, not S3's; scope the regression
       check to ./internal/cmd/ + ./internal/exitcode/ and note the S2 dependency in the summary.
   - RUN: `git status` → changes ONLY under internal/exitcode/.
 ```
@@ -468,7 +468,7 @@ PACKAGE LAYOUT (PRD §14):
     slot was implemented as internal/exitcode/ per P1.M4.T1.S1 — S1's PRP notes this). NO relocation.
 
 CONSUMER (unchanged):
-  - cmd/stagehand/main.go:25 — `code := exitcode.For(err)` then `os.Exit(code)`. The single exit-code
+  - cmd/stagecoach/main.go:25 — `code := exitcode.For(err)` then `os.Exit(code)`. The single exit-code
     source of truth. S3 changes nothing here.
 
 CLI RUNE HANDLERS (unchanged, frozen):
@@ -482,8 +482,8 @@ ERROR TAXONOMY (consumed read-only by For()):
 
 PARALLEL COORDINATION (P1.M4.T3.S2 — in flight):
   - S2 edits internal/cmd/default_action.go (1 line: Verbose: stderr) + executor.go/generate.go/
-    stagehand.go. ZERO overlap with S3 (internal/exitcode/ only). While S2 is mid-edit, `go build ./...`
-    may transiently fail on pkg/stagehand (`undefined: io`) — NOT an S3 bug; scope validation to
+    stagecoach.go. ZERO overlap with S3 (internal/exitcode/ only). While S2 is mid-edit, `go build ./...`
+    may transiently fail on pkg/stagecoach (`undefined: io`) — NOT an S3 bug; scope validation to
     ./internal/exitcode/ + ./internal/cmd/.
 ```
 
@@ -522,7 +522,7 @@ go test -race ./internal/cmd/ -v
 # Rescue/Timeout/Error across 5 codes) / providers_test.go / config_test.go all unchanged and passing.
 
 # NOTE on the full gate: while the parallel P1.M4.T3.S2 is in flight, `go test -race ./...` may fail to
-# BUILD pkg/stagehand (`undefined: io`) — that is S2's transient, not S3's. If you see it, scope to
+# BUILD pkg/stagecoach (`undefined: io`) — that is S2's transient, not S3's. If you see it, scope to
 # ./internal/exitcode/ + ./internal/cmd/ and note the S2 dependency. After S2 merges, `go test -race ./...`
 # must be fully green.
 
@@ -541,7 +541,7 @@ make build
 cd /tmp && rm -rf ec-smoke && git init ec-smoke && cd ec-smoke &&
   git config user.email t@t.co && git config user.name t
 # nothing staged, --no-auto-stage → exit 2:
-./path/to/bin/stagehand --no-auto-stage; echo "rc=$?"   # expect rc=2
+./path/to/bin/stagecoach --no-auto-stage; echo "rc=$?"   # expect rc=2
 # a successful dry-run → exit 0 (needs a configured/stub provider); a timeout → 124; a rescue → 3.
 
 # Expected: the shell observes 0/1/2/3/124 per §15.4 (the contract OUTPUT: "Exit-code system for main()
@@ -578,7 +578,7 @@ cd /tmp && rm -rf ec-smoke && git init ec-smoke && cd ec-smoke &&
 
 - [ ] (optional) Doc comments name P1.M4.T3.S3 + §15.4 authority + D1 naming intent.
 - [ ] Implementation summary records: verification result, the added test, the audit result, and the
-      S2-parallel note (transient pkg/stagehand build state, if observed).
+      S2-parallel note (transient pkg/stagecoach build state, if observed).
 
 ---
 
@@ -595,5 +595,5 @@ cd /tmp && rm -rf ec-smoke && git init ec-smoke && cd ec-smoke &&
   is being edited by the parallel S2. S3's only files are under `internal/exitcode/`.
 - ❌ **Don't add the new test as a direct `*ExitError`** — that case already exists. The gap is a
   `*ExitError` reached THROUGH `fmt.Errorf("%w")`; use the wrap form to actually exercise `errors.As`.
-- ❌ **Don't "fix" the transient `pkg/stagehand: undefined: io` build error** if you see it — that's S2's
+- ❌ **Don't "fix" the transient `pkg/stagecoach: undefined: io` build error** if you see it — that's S2's
   in-flight work, not an S3 bug. Scope validation to `./internal/exitcode/` + `./internal/cmd/`.

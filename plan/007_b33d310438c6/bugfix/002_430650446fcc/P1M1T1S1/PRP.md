@@ -46,7 +46,7 @@ AND stages a non-markdown file whose content contains a sample git diff — test
 documentation showing diffs, vendored `.patch`/`.diff` files, the source of git/diff tooling, changelogs
 quoting diffs. Also the contributor implementing the E2E regression (S2).
 
-**Use Case**: `stagehand` (or `--dry-run`) with `token_limit = 2000` on a repo with a large `fixtures.diff`
+**Use Case**: `stagecoach` (or `--dry-run`) with `token_limit = 2000` on a repo with a large `fixtures.diff`
 whose content is 500 documented diff blocks. Today the payload ships ~14543 tokens (7× over, zero
 sentinels); after the fix the single large file is one section, sized, and truncated to fit.
 
@@ -136,7 +136,7 @@ slice must NOT re-prefix (unlike the old `strings.Split`) — is called out expl
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/git/
     ├── truncatediff.go      # EDIT: + diffSectionBoundaryRe; rewrite splitDiffSections; correct godoc
     └── truncatediff_test.go # EDIT: +2 table cases in TestSplitDiffSections
@@ -145,7 +145,7 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/git/truncatediff.go      # +regex; splitDiffSections line-anchored (Shape B); godoc corrected
     internal/git/truncatediff_test.go # +2 content-embedded-literal table cases
@@ -372,7 +372,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/git/truncatediff.go internal/git/truncatediff_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -383,7 +383,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The split-primitive tests (6 existing fixtures + 2 new content-embedded-literal cases)
 go test -race -run TestSplitDiffSections ./internal/git/ -v
@@ -395,7 +395,7 @@ go test -race -run TestSplitDiffSections ./internal/git/ -v
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green (fix is internal to the shared primitive)
 go vet ./...                     # Expected: exit 0
@@ -408,7 +408,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 ### Level 4: The Bug-Is-Gone Check (unit-level, direct)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new case (i) IS the direct bug-repro at the unit level. Cross-check the property directly:
 go test -race -run 'TestSplitDiffSections/content-embedded' ./internal/git/ -v

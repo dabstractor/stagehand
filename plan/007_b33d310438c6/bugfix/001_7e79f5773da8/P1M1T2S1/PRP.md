@@ -36,7 +36,7 @@ green. `go vet ./...` + `gofmt -l .` clean. No file outside `internal/git/diffto
 
 ## User Persona
 
-**Target User**: The Stagehand maintainer guarding the FR3i truncation-format invariant against regressions, and any future contributor who might refactor `truncateByWaterFill` or the gate wiring.
+**Target User**: The Stagecoach maintainer guarding the FR3i truncation-format invariant against regressions, and any future contributor who might refactor `truncateByWaterFill` or the gate wiring.
 
 **Use Case**: CI runs `go test ./internal/git/...`. If anyone reverts the S1 sentinel-newline fix (or breaks the multi-section recomposition), these E2E tests fail loudly — catching a malformed-payload bug that the existing single-section tests cannot detect.
 
@@ -130,7 +130,7 @@ the tests pass today and pin the fixed behavior.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/git/
     ├── difftokenlimit_test.go   # EDIT TARGET — append 3 tests + 1 helper
     ├── git_test.go              # READ-ONLY — initRepo helper
@@ -142,7 +142,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only one existing file modified — no new files)
     internal/git/difftokenlimit_test.go   # +assertMultiSectionTruncationFormat helper + 3 MultiSection tests
 ```
@@ -422,7 +422,7 @@ DOWNSTREAM HOOKS (informational):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/git/difftokenlimit_test.go   # Expected: empty (run gofmt -w if listed)
 go vet ./internal/git/...                        # Expected: exit 0
@@ -434,7 +434,7 @@ go build ./...                                   # Expected: exit 0 (test-only; 
 ### Level 2: The Three New Tests (each must PASS)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Each MultiSection test in isolation (the contract's verification commands):
 go test -run TestStagedDiff_TokenLimitGt0_MultiSection_BothTruncated   ./internal/git/ -v
@@ -448,7 +448,7 @@ go test -run TestWorkingTreeDiff_TokenLimitGt0_MultiSection_BothTruncated ./inte
 ### Level 3: Whole-Package + Whole-Repo Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test ./internal/git/...    # Expected: ALL green — 3 new tests + every existing test (incl. S1's pure
                               # truncatediff_test.go subtests, which these complement).
@@ -462,7 +462,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 ### Level 4: The Bug-Is-Gone Property (direct cross-check)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The 3 new tests directly assert the glued form is absent. Cross-check by running the whole git suite
 # and grepping for the (now impossible) glued shape in any failure output:

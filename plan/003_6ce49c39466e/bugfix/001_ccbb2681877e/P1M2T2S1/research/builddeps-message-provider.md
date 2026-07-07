@@ -12,7 +12,7 @@
 
 ## 1. The fix (one-line, surgical)
 
-`pkg/stagehand/stagehand.go` `buildDeps` (L316). Today the provider-name resolution starts at **L324**:
+`pkg/stagecoach/stagecoach.go` `buildDeps` (L316). Today the provider-name resolution starts at **L324**:
 
 ```go
 func buildDeps(cfg config.Config, repoDir string) (generate.Deps, error) {
@@ -83,7 +83,7 @@ overlapping with the sibling task.
 
 ## 3. buildDeps is the single manifest-selection site for the single-commit path
 
-Grep confirms `buildDeps` is called from EXACTLY ONE place: `GenerateCommit` at stagehand.go:136.
+Grep confirms `buildDeps` is called from EXACTLY ONE place: `GenerateCommit` at stagecoach.go:136.
 `GenerateCommit` then branches:
 - **Common path** (`!DryRun && SystemExtra==""`): `generate.CommitStaged(ctx, deps, cfg)` — uses `deps.Manifest`.
 - **Advanced path** (`DryRun || SystemExtra!=""`): `runPipeline(ctx, deps, cfg, …)` — uses `deps.Manifest`.
@@ -99,15 +99,15 @@ its message role already works via internal/decompose/message.go.)
 
 The sibling task edits:
 - `internal/generate/generate.go` `CommitStaged` — Render uses `ResolveRoleModel("message")` for MODEL/REASONING.
-- `pkg/stagehand/stagehand.go` `runPipeline` — same (the shared `model` local var + Render).
-- A stub `STAGEHAND_STUB_ARGSFILE` knob for test observability.
+- `pkg/stagecoach/stagecoach.go` `runPipeline` — same (the shared `model` local var + Render).
+- A stub `STAGECOACH_STUB_ARGSFILE` knob for test observability.
 
 It explicitly:
 - Uses `_, msgModel, msgReasoning := …` (discards the provider) — "provider→manifest selection stays in
   buildDeps (P1.M2.T2.S1)."
 - Does NOT touch `buildDeps`.
 
-MY task edits `buildDeps` (different function). The two share only the file `pkg/stagehand/stagehand.go`,
+MY task edits `buildDeps` (different function). The two share only the file `pkg/stagecoach/stagecoach.go`,
 in DIFFERENT functions (`buildDeps` L316 vs `runPipeline` L401) → **no textual merge conflict**. Together
 they deliver full FR-R3 on the single path: provider (this task) + model/reasoning (sibling).
 
@@ -115,7 +115,7 @@ they deliver full FR-R3 on the single path: provider (this task) + model/reasoni
 
 ## 5. Test design (white-box buildDeps; stub-backed providers)
 
-`pkg/stagehand/stagehand_test.go` is `package stagehand` (WHITE-BOX) — it can call the unexported
+`pkg/stagecoach/stagecoach_test.go` is `package stagecoach` (WHITE-BOX) — it can call the unexported
 `buildDeps` directly, and already imports `config` + `internal/stubtest`. The existing harness:
 `stubtest.Build(t)` compiles a real stub binary to an absolute temp path; providers are registered with
 `command = "<abs path>"` so `reg.IsInstalled` (exec.LookPath on an absolute path) succeeds.
@@ -149,7 +149,7 @@ Notes:
 - `ResolveRoleModel` reads `cfg.Roles[role]` safely on a nil map (returns zero/false) — so `cfg.Roles=nil`
   in the no-override case is fine.
 - OPTIONAL complement: a public-API `GenerateCommit(…, DryRun:true)` test asserting `Result.Provider`
-  (Result.Provider == manifest name, per existing stagehand_test.go:221-222). The direct `buildDeps` test
+  (Result.Provider == manifest name, per existing stagecoach_test.go:221-222). The direct `buildDeps` test
   is the precise, deterministic proof for THIS task; the public-API test is belt-and-suspenders.
 
 ---
@@ -175,10 +175,10 @@ Notes:
 # Build + vet + fmt (go vet catches a forgotten `_` on the model/reasoning returns → unused-var)
 go build ./...
 go vet ./...
-gofmt -l pkg/stagehand/
+gofmt -l pkg/stagecoach/
 
 # The two new white-box tests (override + no-override regression):
-go test -race ./pkg/stagehand/ -v -run 'BuildDeps|MessageProvider'
+go test -race ./pkg/stagecoach/ -v -run 'BuildDeps|MessageProvider'
 
 # Full suite (the no-override path is byte-identical → no regression in any existing test):
 go test -race ./...

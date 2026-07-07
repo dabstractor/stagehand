@@ -125,7 +125,7 @@ DiffTreeNames has its OWN two branches with prefix "git diff-tree: failed (exit 
 - git.go ALREADY imports: bytes, context, errors, fmt, io, os/exec, sort, strconv, strings.
 - FreezeWorkingTree needs: context (param) — already imported. It calls existing methods (no new import).
 - DiffTreeNames needs: context, sort, strings — ALL already imported. NO new import. NO go.mod change.
-- go.mod: module `github.com/dustin/stagehand`, go 1.22.
+- go.mod: module `github.com/dustin/stagecoach`, go 1.22.
 - Lint (.golangci.yml): errcheck/gosimple/govet/ineffassign/staticcheck/unused. The new methods are USED
   (impls called via the interface; tests call them) so `unused` won't flag them. No errcheck concern
   (every error return is checked; AddAll/WriteTree/ReadTree returns are all handled).

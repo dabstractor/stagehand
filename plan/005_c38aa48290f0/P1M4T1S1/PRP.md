@@ -5,7 +5,7 @@ description: |
   orchestrator that runs, in order — (a) parse-first hard refusal of unparseable files; (b) marker-
   identified idempotent upsert (replace, never duplicate) + Remove-of-missing no-op; (c) unified-diff
   preview via `git diff --no-index` + per-file `y/N` confirm (`--yes` bypass, non-TTY auto-decline);
-  (d) timestamped `<file>.stagehand-backup.<unix-ts>` before modifying; (e) atomic write (temp+rename) +
+  (d) timestamped `<file>.stagecoach-backup.<unix-ts>` before modifying; (e) atomic write (temp+rename) +
   re-Parse validate, auto-restore backup on failure; (f) surgical scope (the Target owns the node edit;
   the protocol owns the no-mangle envelope); (g) create-if-missing (file + parent dirs) through the same
   preview+confirm flow. The engine consumes `internal/ui` (preview writer + `IsTerminal` for the TTY-gated
@@ -19,7 +19,7 @@ description: |
 ## Goal
 
 **Feature Goal**: Ship the reusable, format-agnostic engine that makes it **structurally impossible for
-stagehand to mangle a user-owned config file** (PRD §9.20 FR-I3, §9.21). Every file-editing integration
+stagecoach to mangle a user-owned config file** (PRD §9.20 FR-I3, §9.21). Every file-editing integration
 target (lazygit, git-alias, future) is driven through one `Target` interface by one `protocol.Apply`
 function that enforces parse-first refusal, marker idempotency, a user-confirmed unified diff, a
 timestamped backup, an atomic write, a post-write re-parse with auto-restore, and create-if-missing —
@@ -43,14 +43,14 @@ either caught by the re-parse (→ backup restored) or shown in the diff (→ us
 (a) an unparseable file is never written and its parse error is surfaced; (b) installing twice yields the
 same file (no duplicate entry) and a no-op result the second time; (c) every modification is preceded by a
 readable unified diff and a `y/N` prompt that `--yes` bypasses and a non-TTY stdin auto-declines; (d) a
-`<file>.stagehand-backup.<unix-ts>` is written before every real modification; (e) the write is atomic
+`<file>.stagecoach-backup.<unix-ts>` is written before every real modification; (e) the write is atomic
 (temp+rename) and a post-write parse failure restores the original content; (g) a missing file (and its
 parent dirs) is created through the same flow. `go build ./...`, `go test ./...`, `go vet ./...`,
 `golangci-lint run`, `gofmt` all green; no new third-party dependency in `go.mod`.
 
 ## User Persona
 
-**Target User**: the "plan-holder" (PRD §7.1) running `stagehand integrate install lazygit` — stagehand is
+**Target User**: the "plan-holder" (PRD §7.1) running `stagecoach integrate install lazygit` — stagecoach is
 about to edit a dotfile the user has hand-tuned for years. Their overriding fear is "will this trash my
 config?" The no-mangle protocol is the guarantee it will not.
 
@@ -70,7 +70,7 @@ backup + validate-restore.
 ## Why
 
 - **PRD §9.21 lead-in**: "it edits user-owned dotfiles, so its write protocol is the point: **it must be
-  impossible for stagehand to mangle a config file.**"
+  impossible for stagecoach to mangle a config file.**"
 - **PRD §9.21 FR-I3 (a)–(g)**: the non-negotiable, in-order protocol every file-editing target follows.
 - **architecture/external_deps.md §2 (VERIFIED)**: yaml.v3 re-encodes the whole document (drops blank
   lines, normalizes comment spacing) — so "preserved outside the edited node" (FR-I3f) is delivered by the
@@ -155,7 +155,7 @@ no prior codebase knowledge can build it from this document + codebase access._
 - file: internal/hook/script.go
   why: `Marker` const + `ScriptMode` — the precedent for a package-level identity string + a file-mode const.
        integrate.Target.Marker() is the generalization (a method, since each target has its own marker).
-  pattern: "const Marker = \"# stagehand-…\" identity line; const Mode os.FileMode."
+  pattern: "const Marker = \"# stagecoach-…\" identity line; const Mode os.FileMode."
 
 - file: internal/hook/hook_test.go
   why: THE test style to mirror — t.TempDir() + real files; byte-for-byte 'unchanged' assertions on the
@@ -254,7 +254,7 @@ internal/integrate/
 // → rename becomes copy+unlink (non-atomic). Write bytes → os.Chmod(tmp, 0o644) → os.Rename(tmp, Path).
 
 // CRITICAL (backup is RETAINED): FR-I3d says "write backup before modifying" — it does NOT say delete.
-// Keep the <file>.stagehand-backup.<unix-ts> on BOTH success and validate-failure (it is the user's
+// Keep the <file>.stagecoach-backup.<unix-ts> on BOTH success and validate-failure (it is the user's
 // safety record). On validate-failure, restore the in-memory orig over Path (equivalent to the backup)
 // and leave the backup file in place; surface "<path> restored from backup <backup>".
 
@@ -289,7 +289,7 @@ internal/integrate/
 
 ```go
 // internal/integrate/protocol.go  (NEW — package integrate)
-package integrate // import "github.com/dustin/stagehand/internal/integrate"
+package integrate // import "github.com/dustin/stagecoach/internal/integrate"
 
 import (
 	"bytes"
@@ -302,7 +302,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 
 // Action selects whether Apply installs or removes the marker-identified entry (PRD §9.21 FR-I3b).
@@ -335,8 +335,8 @@ func (o Outcome) String() string { /* Created/Updated/Removed/Declined/NoChange 
 // Stateful contract: Parse populates the target's in-memory state; HasEntry/Upsert/Remove read/mutate
 // it. Validate must NOT depend on prior Parse state (use a local probe) so the post-write gate is clean.
 type Target interface {
-	// Marker is the identity string for stagehand's contribution — a comment or well-known key whose
-	// presence means "stagehand owns this entry" (FR-I3b idempotency, FR-I3f surgical scope).
+	// Marker is the identity string for stagecoach's contribution — a comment or well-known key whose
+	// presence means "stagecoach owns this entry" (FR-I3b idempotency, FR-I3f surgical scope).
 	Marker() string
 
 	// Parse loads existing file content into the target's state. A non-nil error ⇒ unparseable file ⇒
@@ -386,10 +386,10 @@ type ApplyResult struct {
 	Backup  string  // the backup file path written (empty if none was written)
 }
 
-// BackupPath returns the timestamped backup path for a file (FR-I3d): <file>.stagehand-backup.<unix-ts>.
+// BackupPath returns the timestamped backup path for a file (FR-I3d): <file>.stagecoach-backup.<unix-ts>.
 // Exported so S2/tests can predict/locate the backup. unixTs is seconds since epoch.
 func BackupPath(path string, unixTs int64) string {
-	return fmt.Sprintf("%s.stagehand-backup.%d", path, unixTs)
+	return fmt.Sprintf("%s.stagecoach-backup.%d", path, unixTs)
 }
 
 // Apply runs the FR-I3 (a)–(g) no-mangle write protocol over a single file. See the step comments for the
@@ -511,7 +511,7 @@ func DefaultConfirm(out io.Writer, path, diff string) bool {
 		}
 	}
 	if !ui.IsTerminal(os.Stdin) { // non-interactive ⇒ do not block; the user passes --yes to force
-		fmt.Fprintf(out, "stagehand: non-interactive stdin — declining to modify %s (use --yes to apply)\n", path)
+		fmt.Fprintf(out, "stagecoach: non-interactive stdin — declining to modify %s (use --yes to apply)\n", path)
 		return false
 	}
 	fmt.Fprintf(out, "Apply changes to %s? [y/N] ", path)
@@ -533,7 +533,7 @@ func previewDiff(ctx context.Context, path string, oldBytes, newBytes []byte, ol
 		return "", fmt.Errorf("git binary not found in PATH: %w", lerr)
 	}
 	base := filepath.Base(path)
-	tmp, err := os.MkdirTemp("", "stagehand-diff-")
+	tmp, err := os.MkdirTemp("", "stagecoach-diff-")
 	if err != nil {
 		return "", err
 	}
@@ -572,7 +572,7 @@ func previewDiff(ctx context.Context, path string, oldBytes, newBytes []byte, ol
 // os.TempDir(), to avoid a cross-filesystem rename.
 func atomicWrite(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".stagehand-*")
+	tmp, err := os.CreateTemp(dir, ".stagecoach-*")
 	if err != nil {
 		return err
 	}
@@ -635,8 +635,8 @@ Task 4: CREATE internal/integrate/protocol.go — DefaultConfirm (FR-I3c)
     ONLY for IsTerminal.
 
 Task 5: CREATE internal/integrate/protocol_test.go — the blockTarget test vehicle
-  - DEFINE blockTarget (in-package, unexported): Marker="# stagehand-test-marker"; Parse scans lines for a
-    START marker + END marker (`# end-stagehand-test-marker`) — a START with no END ⇒ parse error (corrupt
+  - DEFINE blockTarget (in-package, unexported): Marker="# stagecoach-test-marker"; Parse scans lines for a
+    START marker + END marker (`# end-stagecoach-test-marker`) — a START with no END ⇒ parse error (corrupt
     input); HasEntry = block present; Upsert ensures a fixed block (`<marker>\nmanaged-line\n<endmarker>`)
     is present, replacing any existing block's managed line, preserving all other lines verbatim; Remove
     deletes the block + markers (absent ⇒ original bytes); Validate re-scans for balance. A `badValidate`
@@ -659,7 +659,7 @@ Task 6: CREATE internal/integrate/protocol_test.go — the matrix
   - TestApply_DeclineWritesNothing: Confirm stub returns false → OutcomeDeclined; file UNCHANGED; no backup;
     no parent dir created (MkdirAll runs AFTER confirm).
   - TestApply_BackupWritten: existing file, real Upsert change, Yes=true → res.Backup is
-    <path>.stagehand-backup.<ts>; backup file exists and equals orig bytes; target file equals newBytes.
+    <path>.stagecoach-backup.<ts>; backup file exists and equals orig bytes; target file equals newBytes.
   - TestApply_ValidateFailureRestoresBackup: badValidate=true → error wrapping "validation failed"; target
     file restored to orig bytes (byte-identical); backup file RETAINED; res.Backup non-empty.
   - TestApply_NonTTYAutoDecline: Confirm==nil + stdin not a terminal (test cannot easily fake a TTY, so
@@ -669,7 +669,7 @@ Task 6: CREATE internal/integrate/protocol_test.go — the matrix
     Apply's Confirm==nil path with a Confirm that returns a fixed bool.
   - TestPreviewDiff_NonEmptyIffChanged: previewDiff(orig, new, false) is "" iff bytes.Equal; non-empty and
     contains the +/- managed line when changed; create-if-missing (oldMissing) ⇒ diff shows all-added.
-  - TestBackupPath_Format: BackupPath("/x/y", 1700000000) == "/x/y.stagehand-backup.1700000000".
+  - TestBackupPath_Format: BackupPath("/x/y", 1700000000) == "/x/y.stagecoach-backup.1700000000".
   - TestOutcome_String: the five outcomes render their names.
 
 Task 7: VERIFY build/test/lint (no go.mod change)
@@ -706,8 +706,8 @@ func runGit(ctx context.Context, gitPath, dir string, args ...string) (stdout, s
 // The blockTarget test vehicle — parser-free (strings only), deterministic. This is the SHAPE every real
 // Target (lazygit/git-alias) will take; it proves the engine before any parser exists.
 type blockTarget struct {
-	marker      string // "# stagehand-test-marker"
-	endMarker   string // "# end-stagehand-test-marker"
+	marker      string // "# stagecoach-test-marker"
+	endMarker   string // "# end-stagecoach-test-marker"
 	managedLine string // the line Upsert installs (default "managed-line")
 	badValidate bool   // inject a Validate failure (the backup/restore test)
 	lines       []string // post-Parse state (the file's lines)
@@ -751,7 +751,7 @@ PROVIDES (to P1.M4.T1.S2 and P1.M4.T2.S1/S2 — the consumers):
   - integrate.Outcome           # Created/Updated/Removed/Declined/NoChange (+ String)
   - integrate.ConfirmFunc       # func(out, path, diff) bool
   - integrate.DefaultConfirm    # the y/N prompt S2 gets for free when Confirm==nil
-  - integrate.BackupPath        # <file>.stagehand-backup.<unix-ts>
+  - integrate.BackupPath        # <file>.stagecoach-backup.<unix-ts>
 
 CONSUMES (do NOT re-implement):
   - internal/ui.IsTerminal (DefaultConfirm's non-TTY auto-decline gate).
@@ -770,7 +770,7 @@ OUT OF SCOPE (owned by sibling subtasks — do NOT implement):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/integrate/protocol.go internal/integrate/protocol_test.go
 go build ./...            # the new package must compile against internal/ui + stdlib only
 go vet ./...
@@ -796,7 +796,7 @@ go test -race ./internal/integrate/...
 
 ```bash
 # The engine is library code; "integration" = drive Apply through the real git-diff path (not a stub).
-go build -o /tmp/stagehand ./cmd/stagehand   # confirms the package compiles into the binary (S2 wires it later)
+go build -o /tmp/stagecoach ./cmd/stagecoach   # confirms the package compiles into the binary (S2 wires it later)
 # Manual smoke (a throwaway text file + the blockTarget shape via a tiny Go test, OR wait for S2's command):
 #   - create a file with a balanced marker block → Upsert twice → diff shows the change once, then a no-op.
 #   - create an unbalanced marker → Apply refuses, file untouched.
@@ -832,7 +832,7 @@ go test ./internal/integrate/... -run IdempotentDoubleInstall -v -count=1
 - [ ] (b) Upsert is idempotent: double-install ⇒ second is NoChange, one block (no duplicate), one backup max.
 - [ ] (c) Every real modification is preceded by a non-empty unified diff + y/N; `--yes` bypasses; `Confirm==nil`
       non-TTY auto-declines; Decline ⇒ nothing written, no backup, no parent dir.
-- [ ] (d) `<file>.stagehand-backup.<unix-ts>` written before every real modification of an existing file; retained
+- [ ] (d) `<file>.stagecoach-backup.<unix-ts>` written before every real modification of an existing file; retained
       on success AND validate-failure.
 - [ ] (e) Atomic write (temp+rename in the target's own dir); post-write Validate failure restores orig + retains backup.
 - [ ] (f) Surgical scope: only the marker entry changes; surrounding lines preserved verbatim (golden round-trip).

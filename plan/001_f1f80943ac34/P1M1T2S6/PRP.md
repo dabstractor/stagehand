@@ -321,11 +321,11 @@ the 2 helpers; and the exact validation commands with expected results. No infer
 ### Current Codebase Tree (after S1 + S2 + S3 + S4 have landed; S5 in flight — verified on disk)
 
 ```bash
-stagehand/
+stagecoach/
 ├── PRD.md
-├── go.mod                # module github.com/dustin/stagehand, go 1.22, NO deps
+├── go.mod                # module github.com/dustin/stagecoach, go 1.22, NO deps
 ├── Makefile              # build/test/lint/coverage/install/clean (test = go test -race ./...)
-├── cmd/stagehand/main.go # stub
+├── cmd/stagecoach/main.go # stub
 ├── internal/
 │   └── git/
 │       ├── git.go        # S1: interface+gitRunner+run()+New()+FileChange+stubs; S2: RevParseHEAD real;
@@ -345,7 +345,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     └── git/
         ├── git.go              # MODIFIED — DiffTree stub → real body; +private parseDiffTree. NO import change.
@@ -785,7 +785,7 @@ Task 4: VALIDATE — full gate set + scope discipline
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" → package import path "github.com/dustin/stagehand/internal/git"
+  - module path: "github.com/dustin/stagecoach" → package import path "github.com/dustin/stagecoach/internal/git"
   - go directive: 1.22 → context, errors, fmt, strings, os/exec, testing.T.TempDir/Setenv all available
   - deps: NONE added (fmt/strings already imported; test helpers use only stdlib)
 

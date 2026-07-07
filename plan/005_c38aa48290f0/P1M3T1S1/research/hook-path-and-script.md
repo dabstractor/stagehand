@@ -38,19 +38,19 @@ real error). Branch on `code != 0`, never on `code == 128`.
 Marker (identity line, stable, used by S2's status/uninstall detection and idempotent rewrite):
 
 ```
-# stagehand prepare-commit-msg hook v1
+# stagecoach prepare-commit-msg hook v1
 ```
 
 Full script (`hookScript(false)`), mode 0755, shebang `#!/bin/sh`:
 
 ```sh
 #!/bin/sh
-# stagehand prepare-commit-msg hook v1
-exec stagehand hook exec "$@"
+# stagecoach prepare-commit-msg hook v1
+exec stagecoach hook exec "$@"
 ```
 
 Strict variant (`hookScript(true)`, FR-H5 opt-in — failures abort the commit): the body becomes
-`exec stagehand hook exec --strict "$@"`.
+`exec stagecoach hook exec --strict "$@"`.
 
 POSIX audit: shebang + a `#` comment + a single `exec … "$@"`. `"$@"` is POSIX; `exec` is POSIX; no arrays, no
 `[[`, no `function`, no `local`, no process substitution. Verifiable with `sh -n` (and `dash -n` /

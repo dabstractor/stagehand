@@ -7,27 +7,27 @@ only, and EITHER leave it unchanged (documenting why) OR make a minimal update. 
 
 ---
 
-## §0 — The row already says "stagehand" generically ⇒ the contract's no-change criterion is met
+## §0 — The row already says "stagecoach" generically ⇒ the contract's no-change criterion is met
 
 The verbatim row (README.md:68):
 ```
 | Multi-turn fallback | Lossless multi-turn fallback: when a one-shot generation of a large diff fails,
-  stagehand re-delivers the full diff across session turns so the message still lands — no truncation,
+  stagecoach re-delivers the full diff across session turns so the message still lands — no truncation,
   no extra commits ([how it works](docs/how-it-works.md#multi-turn-generation-fallback) · [knobs](docs/configuration.md#built-in-defaults)). |
 ```
 
 The contract's decision criterion (§3): *"If the existing wording is already generic enough to cover all
-paths (it says 'stagehand' generically, not 'the commit path'), no change may be needed."* Applying it:
+paths (it says 'stagecoach' generically, not 'the commit path'), no change may be needed."* Applying it:
 
 | Phrase | Path-specific? | Verdict |
 |---|---|---|
-| "stagehand re-delivers the full diff" | NO — "stagehand" (the tool), not "the commit path" | generic ✓ |
+| "stagecoach re-delivers the full diff" | NO — "stagecoach" (the tool), not "the commit path" | generic ✓ |
 | "a one-shot generation of a large diff fails" | NO — any generation path (commit / dry-run / hook) | generic ✓ |
 | "across session turns" | NO | generic ✓ |
 | "so the message still lands" | mild commit flavor ("lands") but defensible ("is produced" — dry-run prints it, hook writes it, commit commits it) | generic-ish ✓ |
 | "no extra commits" | commit-FLAVORED wording, but a UNIVERSALLY-TRUE anti-misconception note (multi-turn yields ONE message/commit delivered across turns, NOT N commits) — accurate on dry-run (zero commits) and hook (one via git) too | accurate, not a scoping claim ✓ |
 
-The criterion's literal test — "it says 'stagehand' generically, not 'the commit path'" — is SATISFIED. The
+The criterion's literal test — "it says 'stagecoach' generically, not 'the commit path'" — is SATISFIED. The
 row never says "on the commit path", "when committing", "snapshot", "commit-tree", or "HEAD". "no extra
 commits" is a clarification (defending against the "multi-turn = multiple commits" misconception), not a
 scoping statement. **⇒ No row-text change is required.**
@@ -66,7 +66,7 @@ line, then `## Install`). That gap is the safe, discoverable home.
 
 The comment (exact text, §"Implementation Blueprint"):
 ```markdown
-<!-- Multi-turn fallback (Features row above): intentionally generic — "stagehand" re-delivers, NOT "the
+<!-- Multi-turn fallback (Features row above): intentionally generic — "stagecoach" re-delivers, NOT "the
      commit path". Multi-turn runs on EVERY generation path (snapshot commit, `--dry-run`, hook mode); the
      per-path detail lives in docs/how-it-works.md#multi-turn-generation-fallback (linked from the row), so
      this high-level row deliberately does NOT enumerate paths. "no extra commits" is an anti-misconception
@@ -79,8 +79,8 @@ IF a reviewer disagrees with §0 and reads "so the message still lands — no ex
 commit-path-only, the MAXIMAL acceptable change is a 4-word insertion that signals broad coverage WITHOUT
 enumerating paths (respecting "not a path-by-path reference") and WITHOUT bloat:
 
-- BEFORE: `…stagehand re-delivers the full diff across session turns so the message still lands — no truncation, no extra commits…`
-- AFTER:  `…stagehand re-delivers the full diff across session turns so the message still lands on any generation path — no truncation, no extra commits…`
+- BEFORE: `…stagecoach re-delivers the full diff across session turns so the message still lands — no truncation, no extra commits…`
+- AFTER:  `…stagecoach re-delivers the full diff across session turns so the message still lands on any generation path — no truncation, no extra commits…`
 
 (The insertion is the phrase **" on any generation path"** immediately after "lands".) This is the ceiling
 of acceptable change: do NOT enumerate "commit / --dry-run / hook" in the row (that's how-it-works.md's

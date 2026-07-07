@@ -31,8 +31,8 @@ forms and the `↳` prefix. The progress line goes to STDERR (stdout stays clean
 |------|----------------|----------|
 | `internal/cmd/hookexec.go:133` (hook.Run) | YES (this task) | the one we wire |
 | `internal/decompose/decompose.go:247` (CommitStaged) | NO (nil) | CommitStaged never calls Progress (grep-confirmed: 0 refs in generate.go); default_action.go owns that path's progress |
-| `pkg/stagehand/stagehand.go:386` (buildDeps) | NO (nil) | feeds CommitStaged — same as above |
-| `pkg/stagehand/stagehand.go:328/349/356/359/367` | NO (empty `generate.Deps{}` error cases) | nil Progress is fine |
+| `pkg/stagecoach/stagecoach.go:386` (buildDeps) | NO (nil) | feeds CommitStaged — same as above |
+| `pkg/stagecoach/stagecoach.go:328/349/356/359/367` | NO (empty `generate.Deps{}` error cases) | nil Progress is fine |
 
 **Conclusion**: adding `Progress func()` is a zero-value-nil additive change. No other caller is touched.
 CommitStaged is NOT modified (it has no progress concept — the default action prints progress itself at the CLI layer).

@@ -2,7 +2,7 @@
 
 **Subtask**: generate.CommitStaged wiring + post-commit + staged-during-generation sentinel invariant
 **Files**: `internal/generate/generate.go` (EDIT — interface + Deps field + 2 insert points),
-`internal/hooks/adapter.go` (NEW — DefaultRunner), `pkg/stagehand/stagehand.go` (EDIT — buildDeps wires it),
+`internal/hooks/adapter.go` (NEW — DefaultRunner), `pkg/stagecoach/stagecoach.go` (EDIT — buildDeps wires it),
 `internal/generate/hooks_freeze_test.go` (NEW — package generate_test, the freeze test + the rescue test),
 `docs/how-it-works.md` (EDIT — new subsection).
 **PRD**: §9.25 FR-V1/V2/V3/V7 (the plumbing-path hooks), §13.5/§20.2/§20.5 (the freeze invariant).
@@ -20,7 +20,7 @@ CANNOT import `internal/hooks` — that would close a cycle `generate → hooks 
 **Resolution**: inject the hook runner into `generate.Deps` as an INTERFACE defined in the `generate`
 package, whose method signatures reference ONLY types generate already imports (`git.Git`, `config.Config`,
 `*ui.Verbose`, primitives) — NEVER `hooks.HookOpts` (that would re-introduce the cycle). The CLI
-(`pkg/stagehand.buildDeps`) wires a concrete adapter (`hooks.DefaultRunner`) that delegates to
+(`pkg/stagecoach.buildDeps`) wires a concrete adapter (`hooks.DefaultRunner`) that delegates to
 `hooks.RunCommitHooks`/`RunPostCommit`, translating the inlined params to `HookOpts`. This mirrors how
 `Manifest` is injected (Deps.Manifest is a struct from a package generate imports; here the runner is an
 interface because it has behavior). The item explicitly anticipates this ("inject it, mirroring how Manifest
@@ -118,7 +118,7 @@ package hooks
 // DefaultRunner is the production CommitHookRunner (generate.CommitHookRunner): it delegates to the
 // package-level RunCommitHooks/RunPostCommit, translating the inlined (dryRun, verbose) to HookOpts. It
 // satisfies generate.CommitHookRunner structurally (no generate import). Wired into generate.Deps by
-// pkg/stagehand.buildDeps; also used by the hooks_freeze_test.
+// pkg/stagecoach.buildDeps; also used by the hooks_freeze_test.
 type DefaultRunner struct{}
 
 func (DefaultRunner) RunCommitHooks(ctx context.Context, g git.Git, cfg config.Config,
@@ -135,22 +135,22 @@ lifecycle). adapter.go is a separate file → no merge collision. DefaultRunner 
 adapter) — M3.T2's concern, not S1/S2's runner core. It imports nothing new (runner.go already imports
 config/git/ui); it does NOT import generate (structural satisfaction).
 
-## §5 — Wiring in pkg/stagehand.buildDeps (the single-commit CLI path)
+## §5 — Wiring in pkg/stagecoach.buildDeps (the single-commit CLI path)
 
-`pkg/stagehand/stagehand.go:buildDeps` (returns `generate.Deps{Git:..., Manifest:...}` at L386) — add the
+`pkg/stagecoach/stagecoach.go:buildDeps` (returns `generate.Deps{Git:..., Manifest:...}` at L386) — add the
 Hooks field:
 ```go
 	return generate.Deps{Git: git.New(repoDir), Manifest: m, Hooks: hooks.DefaultRunner{}}, nil
 ```
-+ add `"github.com/dustin/stagehand/internal/hooks"` to stagehand.go imports (NEW edge — pkg/stagehand →
-hooks; NO cycle: hooks → generate, pkg/stagehand → generate + hooks, generate → neither). This covers the
-single-commit CLI path (internal/cmd/default_action → pkg/stagehand → buildDeps → CommitStaged).
++ add `"github.com/dustin/stagecoach/internal/hooks"` to stagecoach.go imports (NEW edge — pkg/stagecoach →
+hooks; NO cycle: hooks → generate, pkg/stagecoach → generate + hooks, generate → neither). This covers the
+single-commit CLI path (internal/cmd/default_action → pkg/stagecoach → buildDeps → CommitStaged).
 
 KNOWN GAPS (NOT this task — flagged):
 - `internal/decompose/decompose.go:294` (runSingleEscape → CommitStaged) constructs Deps WITHOUT Hooks →
   Hooks:nil → hooks SKIPPED there. runSingleEscape is a decompose path; P1.M3.T3 owns decompose hook wiring
   (publishCommit is the decompose chokepoint) and should thread the runner into runSingleEscape's Deps. Flag.
-- `internal/cmd/hookexec.go:131` (`stagehand hook exec`) constructs Deps WITHOUT Hooks → Hooks:nil → SKIPPED.
+- `internal/cmd/hookexec.go:131` (`stagecoach hook exec`) constructs Deps WITHOUT Hooks → Hooks:nil → SKIPPED.
   This is CORRECT: `hook exec` IS the hook itself — running hooks there would recurse. Leave nil.
 
 ## §6 — The freeze test (headline acceptance invariant — §20.2/§20.5, folded here per SOW §3)
@@ -193,7 +193,7 @@ scenario FR-V3 protects against.)
 
 Insert a NEW `## Commit hooks on the plumbing path` subsection in `docs/how-it-works.md` IMMEDIATELY BEFORE
 `## Hook mode vs the snapshot-based flow` (~line 303 — after the multi-turn-fallback section). Content:
-- The plumbing path now runs the repo's commit hooks in git's order around every stagehand commit
+- The plumbing path now runs the repo's commit hooks in git's order around every stagecoach commit
   (pre-commit → prepare-commit-msg → commit-msg before commit-tree; post-commit after).
 - pre-commit is SCOPED to the frozen snapshot (a throwaway index primed from the write-tree) — the
   stage-while-generating freeze HOLDS: files staged during generation are never swept in. A pre-commit that
@@ -213,7 +213,7 @@ will reconcile the now-stale framing.
 
 - generate.go: NO new import (CommitHookRunner uses git.Git/config.Config/*ui.Verbose — already imported).
 - adapter.go (hooks): imports config/git/ui (runner.go already imports them) — NO new, NO generate.
-- pkg/stagehand: += `internal/hooks` import (new edge, no cycle). go.mod UNCHANGED.
+- pkg/stagecoach: += `internal/hooks` import (new edge, no cycle). go.mod UNCHANGED.
 - FROZEN (do NOT edit): internal/hooks/runner.go (S1/S2), internal/hooks/subset.go, internal/hooks/
   runner_test.go, internal/git/* (CommentChar is S2's), internal/cmd/*, internal/decompose/* (T3),
   internal/hook/*, internal/signal/*, internal/lock/*. PRD.md, Makefile, go.mod.

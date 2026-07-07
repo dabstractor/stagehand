@@ -119,7 +119,7 @@ a `// TO CONFIRM (FR-D5)` comment. Defaulting to nil+TODO is the conservative on
 | file:line | v3 call |
 |---|---|
 | internal/generate/generate.go:196 | `deps.Manifest.Render(cfg.Model, sysPrompt, payload, "")` |
-| pkg/stagehand/stagehand.go:461 | `deps.Manifest.Render(cfg.Model, sysPrompt, payload, "")` |
+| pkg/stagecoach/stagecoach.go:461 | `deps.Manifest.Render(cfg.Model, sysPrompt, payload, "")` |
 | internal/decompose/planner.go:98 | `deps.Manifest.Render(mdl, sysPrompt, payload, "", provider.RenderBare)` |
 | internal/decompose/message.go:129 | `deps.Manifest.Render(mdl, sysPrompt, payload, "", provider.RenderBare)` |
 | internal/decompose/arbiter.go:97 | `deps.Manifest.Render(mdl, sysPrompt, payload, "", provider.RenderBare)` |

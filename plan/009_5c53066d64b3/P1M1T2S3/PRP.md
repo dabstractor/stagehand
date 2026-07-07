@@ -218,7 +218,7 @@ each, and states the dependency on S1 (LANDED) + S2 (in progress). No inference 
 ### Current Codebase Tree (relevant slice — S1 LANDED, S2 in progress)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/config/
 │   ├── config.go        # READ-ONLY (S1 LANDED — Config.MultiTurn* + Defaults true/32000)
 │   ├── config_test.go   # READ-ONLY (S1 — TestDefaults already pins case (a))
@@ -231,7 +231,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/config/
 │   └── multiturn_test.go   # NEW — package config; TestMaterializeOverlay_MultiTurn (cases b–e)
 └── docs/
@@ -625,7 +625,7 @@ DOWNSTREAM HOOKS (informational — owned by LATER subtasks):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/config/multiturn_test.go   # Expected: empty (run gofmt -w if listed).
 go vet ./internal/config/...                   # Expected: exit 0.
@@ -638,7 +638,7 @@ go build ./...                                 # Expected: exit 0 (the test file
 ### Level 2: The New Unit Test (the deliverable)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test ./internal/config/ -v -run TestMaterializeOverlay_MultiTurn
 # Expected: ALL subtests PASS:
@@ -662,7 +662,7 @@ go test ./internal/config/...                        # Expected: ok (whole confi
 ### Level 3: Whole-Repository Regression + Scope Discipline
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test ./...    # Expected: ALL packages green (additive test file; docs-only prose).
 go vet ./...     # Expected: exit 0.
@@ -687,14 +687,14 @@ grep -n 'FR-T12\|cannot disable\|session_mode = ""' docs/configuration.md
 ### Level 4: Behavioral Cross-Check (manual repro of the limitation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Reproduce the two resolved outcomes by hand (mirrors what the test asserts), to confirm the box behaves
 # as expected. The authoritative proof is the unit test (Level 2); this is an optional sanity smoke.
 cat > /tmp/sh_mt.go <<'EOF'
 package main
 import ("fmt";"os";"path/filepath";"time"
- "github.com/dustin/stagehand/internal/config")
+ "github.com/dustin/stagecoach/internal/config")
 func main() {
 	// chunk override honored
 	dir, _ := os.MkdirTemp("","mt"); defer os.RemoveAll(dir)

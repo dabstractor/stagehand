@@ -174,7 +174,7 @@ Runs `git -C <workDir> log --format=%x00%B -<n>` via `run()` and translates:
 ### Context Completeness Check
 
 _If someone knew nothing about this codebase, would they have everything needed to implement this
-successfully?_ **Yes.** This PRP gives: the exact module path (`github.com/dustin/stagehand`); the
+successfully?_ **Yes.** This PRP gives: the exact module path (`github.com/dustin/stagecoach`); the
 exact four files to touch (and the exact two lines to remove from `git_test.go`); the exact `run()`
 contract; the exact method bodies (empirically verified against git 2.54.0); the empirically-pinned
 exit codes (unborn=128, non-repo=128, born=0); the interface-signature reconciliation (D1); the NUL-
@@ -281,11 +281,11 @@ test matrices with reused helpers; and the exact validation commands. No inferen
 ### Current Codebase Tree (the assumed on-disk state — S1–S6, T3.S1, T3.S2 landed)
 
 ```bash
-stagehand/
+stagecoach/
 ├── PRD.md
-├── go.mod                # module github.com/dustin/stagehand, go 1.22, NO deps
+├── go.mod                # module github.com/dustin/stagecoach, go 1.22, NO deps
 ├── Makefile              # build/test/lint/coverage/install/clean (test = go test -race ./...)
-├── cmd/stagehand/main.go # stub
+├── cmd/stagecoach/main.go # stub
 ├── internal/
 │   └── git/
 │       ├── git.go        # imports: bytes, context, errors, fmt, io, os/exec, strings (NO strconv yet).
@@ -311,7 +311,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     └── git/
         ├── git.go                 # MODIFIED — add strconv import; add maxRecentMessageLines const;
@@ -735,7 +735,7 @@ func TestRecentMessages_MarkdownHRCollision(t *testing.T) {
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" → package import path "github.com/dustin/stagehand/internal/git"
+  - module path: "github.com/dustin/stagecoach" → package import path "github.com/dustin/stagecoach/internal/git"
   - go directive: 1.22 → context, errors.Is, strconv, strings, t.Setenv (1.17+) all available
   - deps: ONE stdlib import added (strconv); go.mod unchanged (stdlib only)
 
@@ -768,7 +768,7 @@ PARALLEL-EXECUTION NOTE (with P1.M1.T3.S2 — HasStagedChanges, landing concurre
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/git/          # Expected: no output (run `gofmt -w internal/git/` if it lists files)
 go vet ./internal/git/...        # Expected: exit 0, no warnings (e.g. no unused import, no shadowing)
@@ -783,7 +783,7 @@ go build ./...                   # Expected: exit 0 (whole module compiles)
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race -v -run 'TestCommitCount' ./internal/git/      # Expected: 5 tests PASS, exit 0
 go test -race -v -run 'TestRecentMessages' ./internal/git/   # Expected: 9 tests PASS, exit 0
@@ -799,7 +799,7 @@ make test                        # Expected: exit 0 (Makefile target = go test -
 ### Level 3: Security & Structural Invariants (the §19 enforcement + scope discipline)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # PRD §19: NO shell execution in the PRODUCTION git wrapper (inherited; new code adds none).
 git grep -nE '\b(sh|zsh|bash)\s+-c\b|cmd\s*/c\b' internal/git/git.go
@@ -829,7 +829,7 @@ git diff --name-only go.mod go.sum
 ### Level 4: Runtime Smoke Test (prove both methods work against a real repo)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Reproduce the behaviors the tests assert, against the real binary (mirrors the research):
 tmp=$(mktemp -d); git -C "$tmp" init -q

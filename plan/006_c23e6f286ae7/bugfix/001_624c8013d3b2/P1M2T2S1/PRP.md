@@ -73,11 +73,11 @@ go.mod/go.sum unchanged; no file outside `internal/lock/lock.go` + `internal/loc
 ## User Persona
 
 **Target User**: A developer working in a repo reached through a symlink (e.g. `~/code` → `/Volumes/Work/code`
-or `/var → /private/var` on macOS) who hits FR52 contention and needs to confirm "is that other stagehand
+or `/var → /private/var` on macOS) who hits FR52 contention and needs to confirm "is that other stagecoach
 run in MY repo?" Transitively PRD §18.5 "Contents" (the contention message names *who* holds the lock).
 
-**Use Case**: Terminal A runs `stagehand` from a symlinked path; Terminal B (in the same repo via the real
-path) runs `stagehand` and gets the Busy message. The message's `repo=` must show a path B recognizes as
+**Use Case**: Terminal A runs `stagecoach` from a symlinked path; Terminal B (in the same repo via the real
+path) runs `stagecoach` and gets the Busy message. The message's `repo=` must show a path B recognizes as
 the same repo — the canonical real path, not A's symlink.
 
 **User Journey**: `Acquire(os.Getwd())` → `repo:=canonical` written to `<hash>.lock` → contender's
@@ -400,7 +400,7 @@ func TestAcquire_RepoFieldIsCanonical(t *testing.T) {
 GO MODULE (go.mod / go.sum): NONE — no new dep; "path/filepath" + "crypto/sha256" already imported.
       go mod tidy MUST be a no-op.
 
-PACKAGE EDGES: NONE added/removed. internal/lock is a stdlib-only leaf (no stagehand imports).
+PACKAGE EDGES: NONE added/removed. internal/lock is a stdlib-only leaf (no stagecoach imports).
 
 FROZEN / NOT-EDITED:
   - internal/cmd/default_action.go (handleLockContention prints Contents.Repo verbatim → auto-fixes).
@@ -452,7 +452,7 @@ go test -race ./...   # Full suite — NO regressions (no caller changed; defaul
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only the two listed files changed:
 git diff --name-only | grep -Ev 'internal/lock/lock\.go|internal/lock/lock_test\.go' \

@@ -3,7 +3,7 @@ name: "P1.M4.T1.S1 — estimateTokens (chars/4) shared utility (PRD §9.1 FR3d/F
 description: |
 
   Add the single model-agnostic token estimator that the FR3d token-budget overlay and the FR3i water-fill
-  truncation both measure with. Stagehand never loads a tokenizer (it shells out to an arbitrary agent CLI),
+  truncation both measure with. Stagecoach never loads a tokenizer (it shells out to an arbitrary agent CLI),
   so it uses the standard `~4 chars ≈ 1 token` heuristic (PRD §9.1 FR3d; git_diff_semantics.md §5). This
   subtask delivers the ONE shared estimator as a pure, allocation-free Go function; S2 (P1.M4.T1.S2) and
   M4.T2 (P1.M4.T2.S1/S2) both call it, so the budget arithmetic is internally consistent (no second formula).
@@ -21,7 +21,7 @@ description: |
        `binary_test.go`'s `TestIsBinaryByExtension`.
 
   SCOPE NOTE (placement + export, design §0): the item says "internal/git (or a small internal/util)".
-  There is NO `internal/util`; every consumer of S2/M4.T2 (generate, decompose, cmd, pkg/stagehand) ALREADY
+  There is NO `internal/util`; every consumer of S2/M4.T2 (generate, decompose, cmd, pkg/stagecoach) ALREADY
   imports `internal/git`, and `internal/prompt` does NOT (so no neutral-package need). The new file is
   `internal/git/tokens.go`. The item writes the name lowercase as pseudocode, but S2 sets
   `StagedDiffOptions.PromptReserveTokens` from CROSS-PACKAGE call sites (the field exists at git.go:72; "the
@@ -75,7 +75,7 @@ go test ./...` GREEN; `gofmt -l` clean; go.mod/go.sum byte-unchanged; only the 2
 
 **Target User**: The downstream subtasks (S2 = P1.M4.T1.S2 prompt-reserve; M4.T2 = P1.M4.T2.S1/S2 water-fill
 sizing + truncation). Transitively: every user who sets `token_limit` (PRD §9.1 FR3d) so a large diff fits
-their model's context window without stagehand maintaining a per-model tokenizer registry.
+their model's context window without stagecoach maintaining a per-model tokenizer registry.
 
 **Use Case**: S2 calls `EstimateTokens(systemPrompt + styleExamples)` to set
 `StagedDiffOptions.PromptReserveTokens` at each of the 6 diff call sites; M4.T2 calls `EstimateTokens` to
@@ -94,7 +94,7 @@ shared estimator prevents that drift.
 - **It IS the foundation for the FR3d/FR3i token budget.** S2 and M4.T2 both need to measure strings in
   tokens; this is the single function they call. Landing it first (M4.T1.S1, before S2 and M4.T2) means
   both consumers import a stable, tested API.
-- **Honors the model-agnostic design (PRD N2).** Stagehand never loads a tokenizer; `chars/4` is the
+- **Honors the model-agnostic design (PRD N2).** Stagecoach never loads a tokenizer; `chars/4` is the
   standard, documented heuristic when you don't own the tokenizer (git_diff_semantics.md §5). One function,
   one formula — no per-model registry, ever.
 - **Minimal blast radius.** 2 NEW files, pure stdlib, edits nothing. No risk to any existing test or
@@ -145,7 +145,7 @@ required — this is a pure arithmetic utility.
 # MUST READ — the heuristic source + the chars/3 ceiling caveat (the §2 tension)
 - docfile: plan/007_b33d310438c6/architecture/git_diff_semantics.md
   section: "## 5. Token estimation (`~4 chars ≈ 1 token`)".
-  why: documents that chars/4 is the standard model-agnostic estimate (Stagehand never loads a tokenizer),
+  why: documents that chars/4 is the standard model-agnostic estimate (Stagecoach never loads a tokenizer),
        AND that code is ~3 chars/token (the arch doc's chars/3 ceiling recommendation). The contract
        (FR3d) picks chars/4; the FR3d/FR3i `margin` is the safety buffer (M4.T2), not the estimator ratio.
   critical: implement chars/4 (the contract); the arch doc's chars/3 is reconciled by the margin, NOT by
@@ -180,7 +180,7 @@ required — this is a pure arithmetic utility.
 
 # The import graph (proves placement + no cycle — from the research grep)
 - note: "every S2 call-site package already imports internal/git (generate/generate.go, decompose/*,
-         pkg/stagehand, cmd/*); internal/prompt does NOT import internal/git. ⇒ an EXPORTED EstimateTokens
+         pkg/stagecoach, cmd/*); internal/prompt does NOT import internal/git. ⇒ an EXPORTED EstimateTokens
          in internal/git is reachable by all consumers with no new edge and no cycle."
 
 - url: (PRD §9.1 FR3d/FR3i — already in context as selected_prd_content `h3.17`; the "~4 chars ≈ 1 token
@@ -362,7 +362,7 @@ GO.MODULE (go.mod/go.sum): change NONE. tokens.go imports only stdlib `unicode/u
       `testing`. `go mod tidy` is a no-op.
 
 PACKAGE EDGES: NONE added. tokens.go is `package git` (a leaf helper file, like binary.go/numstat.go).
-      internal/git is imported BY generate/decompose/cmd/pkg/stagehand (all S2/M4.T2 consumers); nothing
+      internal/git is imported BY generate/decompose/cmd/pkg/stagecoach (all S2/M4.T2 consumers); nothing
       internal/git imports is affected. No cycle.
 
 UPSTREAM: NONE. Pure utility — takes a string/[]byte, returns an int. No inputs from other packages.

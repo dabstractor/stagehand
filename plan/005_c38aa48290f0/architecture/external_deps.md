@@ -55,7 +55,7 @@ PRD Appendix E open questions **14–17** (lazygit schema, hook portability, git
   existing FR3 code path already relies on this.
 - Wildcards: default pathspec matching is fnmatch WITHOUT FNM_PATHNAME (`*` may cross `/`). For
   gitignore-style semantics (`**`, `*` not crossing `/`) use the `:(glob)` magic — combine as
-  `:(exclude,glob)<pattern>`. `.stagehandignore` patterns are "gitignore-style globs relative to repo root"
+  `:(exclude,glob)<pattern>`. `.stagecoachignore` patterns are "gitignore-style globs relative to repo root"
   (FR-X2) → translate to `:(exclude,glob)` (with a leading-`/` anchor mapping and `dir/` → `dir/**`).
 - **No negation/re-include exists in pathspecs** — confirms FR-X2's rule: `!` lines are skipped with a
   `--verbose` warning, never an error.
@@ -78,9 +78,9 @@ PRD Appendix E open questions **14–17** (lazygit schema, hook portability, git
 
 ## 7. git alias mechanics (gates FR-I4) — VERIFIED (web + local)
 
-- `git config --global alias.stagehand '!stagehand'`: `!` = shell command, executed from repo **toplevel**,
+- `git config --global alias.stagecoach '!stagecoach'`: `!` = shell command, executed from repo **toplevel**,
   `GIT_PREFIX` set to invocation subdir, extra args appended.
-- Read-back: `git config --global --get alias.stagehand` → prints `!stagehand` (the `!` is part of the stored
+- Read-back: `git config --global --get alias.stagecoach` → prints `!stagecoach` (the `!` is part of the stored
   value — strip when comparing "is it ours"); exit 1/empty when unset. Use `--get` (portable), not the 2.46+
   `config get` subcommand form.
 
@@ -89,7 +89,7 @@ PRD Appendix E open questions **14–17** (lazygit schema, hook portability, git
 - Exit code **128**, stderr `fatal: The current branch X has no upstream branch.` + the `--set-upstream` hint.
 - Caveats: with `push.autoSetupRemote=true` (Dustin's global config HAS it) the push silently succeeds —
   tests MUST run with `GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null`. Match stable substrings
-  (`has no upstream branch`, `--set-upstream`), not full text. stagehand streams git's stderr verbatim and
+  (`has no upstream branch`, `--set-upstream`), not full text. stagecoach streams git's stderr verbatim and
   never auto-sets upstream (FR-P2).
 
 ## 9. `list_models_command` availability (gates FR-L1/L2, Appendix E #17) — PARTIAL

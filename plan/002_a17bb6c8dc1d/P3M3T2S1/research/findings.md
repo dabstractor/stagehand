@@ -35,7 +35,7 @@ FR-M10. Consumes `runArbiter`'s decision (P3.M3.T1.S1) + the git plumbing + the 
 - DO NOT EDIT (concurrently / shipped): `internal/decompose/arbiter.go` (P3.M3.T1.S1 owns it — it
   defines runArbiter + CommitInfo + ErrArbiterFailed; editing = merge conflict). `internal/decompose/
   {roles,planner,stager,message}.go` (shipped/in-flight). `internal/prompt/arbiter.go`. `internal/generate/*`.
-  `internal/git/*` EXCEPT the Add addition. cmd/, pkg/stagehand/.
+  `internal/git/*` EXCEPT the Add addition. cmd/, pkg/stagecoach/.
 - DEVIATION (file placement): the contract says "implement resolveArbiter in decompose/arbiter.go",
   BUT arbiter.go is concurrently owned by P3.M3.T1.S1. To be merge-safe, resolveArbiter lives in
   `decompose/chain.go` (this task's file — explicitly deferred to "S2" by the P3.M3.T1.S1 PRP). It is

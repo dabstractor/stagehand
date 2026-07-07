@@ -23,7 +23,7 @@ description: |
 ## Goal
 
 **Feature Goal**: Implement the third real git plumbing method on `*gitRunner` — `CommitTree` — the
-dangling-commit-object primitive at the heart of Stagehand's atomic-commit flow (PRD §13.2 step 2).
+dangling-commit-object primitive at the heart of Stagecoach's atomic-commit flow (PRD §13.2 step 2).
 It takes an immutable `TREE_SHA` (from WriteTree, S3), zero-or-more `parents` (from RevParseHEAD's
 `isUnborn`: empty ⇒ root commit; `[]string{sha}` ⇒ single parent), and a `msg`, and produces a NEW
 commit object **without moving any ref** (the commit is "dangling" until UpdateRefCAS, S5, publishes
@@ -86,7 +86,7 @@ class of message-quoting/injection bugs (a message starting with `-` would be mi
 - **PRD §13.2 (The plumbing alternative):** *"`git commit-tree (-p <parent>) -m <msg> <tree>` —
   creates a commit object with the given tree, parent, and message, and prints its SHA. This also
   does not touch any ref. The commit object exists in the object store but is 'dangling'
-  (unreferenced) until step 3."* (Stagehand uses `-F -` instead of `-m` per FINDING 4; same
+  (unreferenced) until step 3."* (Stagecoach uses `-F -` instead of `-m` per FINDING 4; same
   semantics, safer message delivery.) This subtask IS that primitive.
 - **PRD §9.9 / FR39 (Commit creation):** *"Create the commit object: if `PARENT_SHA` is non-empty,
   `git commit-tree -p <PARENT_SHA> -m <MSG> <TREE_SHA>`; else `git commit-tree -m <MSG> <TREE_SHA>`
@@ -201,7 +201,7 @@ exact validation commands with expected results. No inference required.
         conventions: TrimSpace single-line output; capture separate stdout/stderr; args as []string;
         never sh -c."
   critical: "§2's standalone example sets cmd.Env with hardcoded identity — that is ILLUSTRATIVE,
-             not Stagehand's behavior. Stagehand inherits the parent env (commits AS the configured
+             not Stagecoach's behavior. Stagecoach inherits the parent env (commits AS the configured
              user); tests set repo-local config (see gotcha G6). §2 confirms -F - trims a single
              trailing newline from input (relevant to the message-roundtrip assertion, gotcha G9)."
 
@@ -220,7 +220,7 @@ exact validation commands with expected results. No inference required.
   critical: "Treat as already-landed. run() returns (stdout, stderr, exitCode, err) with err==nil
              for non-zero exits and exitCode==-1 for infrastructural failures. S1 gotcha G2 (non-zero
              exit is not a Go error) is the foundation runWithInput replicates. S1's invariant 'run()
-             is the ONLY place Stagehand shells out' is preserved by keeping runWithInput co-located
+             is the ONLY place Stagecoach shells out' is preserved by keeping runWithInput co-located
              in the same file with the identical structure."
 
 - docfile: plan/001_f1f80943ac34/P1M1T2S2/PRP.md
@@ -289,11 +289,11 @@ exact validation commands with expected results. No inference required.
 ### Current Codebase Tree (after S1 + S2 + S3 have landed — verified on disk)
 
 ```bash
-stagehand/
+stagecoach/
 ├── PRD.md
-├── go.mod                # module github.com/dustin/stagehand, go 1.22, NO deps
+├── go.mod                # module github.com/dustin/stagecoach, go 1.22, NO deps
 ├── Makefile              # build/test/lint/coverage/install/clean (test = go test -race ./...)
-├── cmd/stagehand/main.go # stub
+├── cmd/stagecoach/main.go # stub
 ├── internal/
 │   └── git/
 │       ├── git.go        # S1: interface + gitRunner + run() + New() + stubs; S2: RevParseHEAD real;
@@ -308,7 +308,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     └── git/
         ├── git.go              # MODIFIED — +io import; +runWithInput helper; CommitTree stub → real body
@@ -445,7 +445,7 @@ It is `run()` + `cmd.Stdin = stdin`.
 // runWithInput is run() plus a stdin pipe. It exists because run() cannot set cmd.Stdin (its body
 // leaves stdin as /dev/null), and commit-tree with -F - must read the commit message from stdin
 // (FINDING 4: -F - avoids ALL quoting/special-character/leading-dash issues that -m would suffer).
-// It is the ONLY other place Stagehand shells out to git; it is co-located with run() and shares
+// It is the ONLY other place Stagecoach shells out to git; it is co-located with run() and shares
 // its structure exactly (LookPath → -C repo → separate buffers → errors.As(ExitError) with
 // err==nil for non-zero exits). run() itself is intentionally left unmodified (see research §1).
 //
@@ -755,7 +755,7 @@ Task 4: VALIDATE — full gate set + scope discipline
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" → package import path "github.com/dustin/stagehand/internal/git"
+  - module path: "github.com/dustin/stagecoach" → package import path "github.com/dustin/stagecoach/internal/git"
   - go directive: 1.22 → context, io, strings, regexp, os.WriteFile (1.16+), path/filepath, t.Setenv
     (1.17+), errors.Is, bytes.Contains all available
   - deps: NONE added (io is stdlib)
@@ -791,7 +791,7 @@ PARALLEL-EXECUTION NOTE:
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/git/          # Expected: no output (run `gofmt -w internal/git/` if it lists files)
 go vet ./internal/git/...       # Expected: exit 0, no warnings (e.g. no unused import, no shadowing)
@@ -806,7 +806,7 @@ go build ./...                  # Expected: exit 0 (whole module compiles)
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race -v -run 'TestCommitTree' ./internal/git/   # Expected: 6 tests PASS, exit 0
 # Must see: TestCommitTree_RootCommit, TestCommitTree_ChildCommit, TestCommitTree_MessageViaStdin,
@@ -835,7 +835,7 @@ make test                        # Expected: exit 0 (target = go test -race ./..
 ### Level 3: Security & Structural Invariants (the §19 enforcement + scope discipline)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # PRD §19: NO shell execution anywhere in the git wrapper PRODUCTION code (inherited; new code adds none).
 git grep -nE '\b(sh|zsh|bash)\s+-c\b|cmd\s*/c\b' internal/git/git.go
@@ -880,7 +880,7 @@ git diff --name-only go.mod go.sum
 ### Level 4: Runtime Smoke Test (prove CommitTree works against a real repo)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Reproduce the root/child/bad-tree/stdin behavior the tests assert, against the real binary:
 tmp=$(mktemp -d); git -C "$tmp" init -q
@@ -972,7 +972,7 @@ rm -rf "$tmp"
 - ❌ Don't forget to add `"io"` to the imports — `runWithInput`'s parameter is `io.Reader`. The
   compiler catches it, but state it up front (gotcha G14). CommitTree itself needs no new import
   (`strings.NewReader`, `strings.TrimSpace`, `fmt.Errorf` are already present).
-- ❌ Don't inject identity into `CommitTree`/`runWithInput` via `cmd.Env` in production — Stagehand
+- ❌ Don't inject identity into `CommitTree`/`runWithInput` via `cmd.Env` in production — Stagecoach
   commits AS the configured user (inherits parent env). Identity injection is a TEST-fixture concern
   via `git config user.name/user.email` (gotcha G6, decision D6).
 - ❌ Don't forget to remove the `CommitTree` line from `git_test.go`'s `TestStubsPanic` — once

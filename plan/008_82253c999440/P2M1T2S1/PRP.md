@@ -58,7 +58,7 @@ description: |
     - `internal/decompose/planner_test.go` → callPlanner signature UNCHANGED; tests call callPlanner only
       (NOT the builder) ⇒ ZERO edits, stays green (the safety-cap regression net).
     - `docs/how-it-works.md` → P2.M1.T2.S2 (Mode A doc). Item §5: NO DOCS here.
-    - `internal/config/*`, `cmd/stagehand/*`, `docs/cli.md`, `docs/configuration.md` → no new flags/keys.
+    - `internal/config/*`, `cmd/stagecoach/*`, `docs/cli.md`, `docs/configuration.md` → no new flags/keys.
     - `internal/prompt/reserve.go` → PlannerReserveTokens signature UNCHANGED.
     - `PlannerCommit.Files` + `ParsePlannerOutput` → already COMPLETE (P2.M1.T1.S1); this task only makes the
       JSON-contract const reference `files` to match that field. Do NOT re-add the field or change parse code.
@@ -120,7 +120,7 @@ never an error.
 
 ## User Persona
 
-**Target User**: a developer who runs `stagehand` (default auto-decompose) on a mixed working tree and
+**Target User**: a developer who runs `stagecoach` (default auto-decompose) on a mixed working tree and
 wants the planner to split unrelated changes into coherent commits — but not fan a 3-concept tree out into
 a dozen micro-commits. The soft target (`max_commits/2`) is the counterweight to "lean toward SEVERAL".
 
@@ -567,7 +567,7 @@ TESTS:
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/prompt/planner.go internal/prompt/planner_test.go internal/decompose/planner.go internal/prompt/reserve_test.go
 go vet ./internal/prompt/... ./internal/decompose/...
 # Expected: zero issues. gofmt alignment of the const block + the builder is the only stylistic concern.
@@ -713,7 +713,7 @@ for _, tc := range []struct{ max, half int}{{12,6},{10,5},{20,10},{4,2}} {
 - [ ] `internal/decompose/decompose*.go` UNTOUCHED (P2.M1.T1.S2, parallel).
 - [ ] `internal/decompose/planner_test.go` UNTOUCHED (callPlanner signature unchanged).
 - [ ] `docs/how-it-works.md` UNTOUCHED (P2.M1.T2.S2).
-- [ ] `internal/config/*`, `cmd/stagehand/*`, `docs/cli.md`, `docs/configuration.md` UNTOUCHED.
+- [ ] `internal/config/*`, `cmd/stagecoach/*`, `docs/cli.md`, `docs/configuration.md` UNTOUCHED.
 
 ---
 

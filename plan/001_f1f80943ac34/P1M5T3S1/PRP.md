@@ -50,7 +50,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Give Stagehand a GitHub Actions CI pipeline (PRD §20.4) that, on every push to
+**Feature Goal**: Give Stagecoach a GitHub Actions CI pipeline (PRD §20.4) that, on every push to
 `main` and every pull request, (a) builds and runs the race-enabled test suite across the full
 `os × Go` matrix, (b) runs `golangci-lint`, (c) runs `govulncheck`, and (d) enforces the PRD §20.3
 coverage gate (≥85 % on `internal/git`, `internal/provider`, `internal/generate`, `internal/config`).
@@ -75,7 +75,7 @@ dependency) that parses `go test -coverprofile` output and fails the job on any 
 
 ## User Persona
 
-**Target User**: the Stagehand **contributor / maintainer** (the person whose PR is gated) and the
+**Target User**: the Stagecoach **contributor / maintainer** (the person whose PR is gated) and the
 **release engineer** (who trusts CI green before tagging). Indirectly, every end user who installs a
 build that CI has validated across the matrix.
 
@@ -95,7 +95,7 @@ CAS/atomicity core, PRD §20.2) land silently. This pipeline makes all four visi
 - **Protects the integrity-critical core.** `internal/git` owns `UpdateRefCAS` (PRD §18.1 invariant,
   risk "High — data integrity", §22.1). The coverage gate keeps its coverage (and that of
   provider/generate/config) from silently eroding.
-- **Catches cross-platform breakage early.** Stagehand shells out to `git` and agent CLIs on Linux,
+- **Catches cross-platform breakage early.** Stagecoach shells out to `git` and agent CLIs on Linux,
   macOS, and Windows (PRD §22.2 "POSIX-ish" + Scoop install path §21.3). The OS matrix catches a
   Windows path-separator or a Unix-only syscall before a user hits it.
 - **Shifts quality left (cheap).** lint + vuln + coverage on every PR is far cheaper than a post-
@@ -166,7 +166,7 @@ can be topped to 85 %) are called out as explicit decision points with sanctione
   critical: §2 (config 83.3 % decision tree), §3 (arch mapping), §8 (do NOT add goreleaser/Makefile).
 
 - file: Makefile   (P1.M1.T1.S2 — READ only; CI MIRRORS these targets, does not edit them)
-  section: build (`go build -ldflags … -o bin/stagehand ./cmd/stagehand`), test (`go test -race ./...`),
+  section: build (`go build -ldflags … -o bin/stagecoach ./cmd/stagecoach`), test (`go test -race ./...`),
            coverage (`go test -coverprofile=coverage.out ./...` + `go tool cover -func`), lint
            (`golangci-lint run`).
   why: ci.yml must produce the SAME checks the Makefile defines, so local `make test`/`make lint` and
@@ -178,7 +178,7 @@ can be topped to 85 %) are called out as explicit decision points with sanctione
           assume `make coverage` enforces anything.
 
 - file: go.mod   (READ only)
-  why: module path `github.com/dustin/stagehand` (used verbatim in the coverage-gate package list) and
+  why: module path `github.com/dustin/stagecoach` (used verbatim in the coverage-gate package list) and
        `go 1.22` (the floor; matrix tests 1.22 AND 1.23). Deps are tiny (cobra, pflag, go-toml/v2,
        mousetrap) → govulncheck is very likely green.
 
@@ -221,8 +221,8 @@ can be topped to 85 %) are called out as explicit decision points with sanctione
     ci.yml                   # ← NEW (this task)
 .golangci.yml                # ← NEW (this task)
 Makefile                     # P1.M1.T1.S2 — build/test/coverage/lint targets. UNCHANGED (CI mirrors them).
-go.mod / go.sum              # module github.com/dustin/stagehand; go 1.22. UNCHANGED.
-cmd/stagehand/               # main binary (Makefile MAIN_PKG). UNCHANGED.
+go.mod / go.sum              # module github.com/dustin/stagecoach; go 1.22. UNCHANGED.
+cmd/stagecoach/               # main binary (Makefile MAIN_PKG). UNCHANGED.
 internal/{git,provider,generate,config}/   # ← the 4 PRD §20.3 coverage-gate packages. UNCHANGED.
 PRD.md                       # READ-ONLY.
 .gitignore                   # already ignores /bin/ coverage.out /dist/. UNCHANGED.
@@ -367,7 +367,7 @@ Task 3: CREATE .github/workflows/ci.yml (the pipeline)
 
 Task 4: THE COVERAGE GATE (already inside ci.yml's `coverage` job — verify it behaves)
   - Confirm the awk is statement-weighted (parses coverage.out profile lines, NOT `cover -func` means).
-  - Confirm it targets exactly the 4 module paths: github.com/dustin/stagehand/internal/{git,provider,
+  - Confirm it targets exactly the 4 module paths: github.com/dustin/stagecoach/internal/{git,provider,
     generate,config}.
   - DEMONSTRATE the gate bites: temporarily set `threshold=99`, run the awk locally on coverage.out,
     confirm it prints `::error::… < 99%` and exits non-zero; then REVERT to 85.
@@ -389,7 +389,7 @@ Task 5: VALIDATE (without burning GitHub minutes)
 #### `ci.yml` (copy-pasteable; adjust `threshold` per Task 1)
 
 ```yaml
-# .github/workflows/ci.yml — Stagehand CI (PRD §20.4 build/test matrix + §20.3 coverage gate).
+# .github/workflows/ci.yml — Stagecoach CI (PRD §20.4 build/test matrix + §20.3 coverage gate).
 # Scope NOTE: release-on-tag via goreleaser lives in a SEPARATE workflow owned by P1.M5.T3.S2.
 # This file triggers ONLY on push(main) + pull_request.
 name: CI
@@ -490,10 +490,10 @@ jobs:
             }
             END{
               threshold=85
-              t[1]="github.com/dustin/stagehand/internal/git"
-              t[2]="github.com/dustin/stagehand/internal/provider"
-              t[3]="github.com/dustin/stagehand/internal/generate"
-              t[4]="github.com/dustin/stagehand/internal/config"
+              t[1]="github.com/dustin/stagecoach/internal/git"
+              t[2]="github.com/dustin/stagecoach/internal/provider"
+              t[3]="github.com/dustin/stagecoach/internal/generate"
+              t[4]="github.com/dustin/stagecoach/internal/config"
               fail=0
               for(i=1;i<=4;i++){
                 if(!(t[i] in tot)){ printf("::error::%s — no coverage data\n",t[i]); fail=1; continue }

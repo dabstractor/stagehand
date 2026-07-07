@@ -32,7 +32,7 @@ description: |
   ⚠️ **#1 — FR-H5 never-block holds in EVERY gate outcome (the load-bearing guarantee).** The gate writes the
       msg-file ONLY on full success (`cause==nil && ok2 && !duplicate`). Every other outcome — cause!=nil (a
       turn errored/timed out), ok2==false (final parse empty), OR duplicate subject — falls through to the
-      existing `return fmt.Errorf("stagehand: hook generation failed after %d retries", ...)`, which the cmd
+      existing `return fmt.Errorf("stagecoach: hook generation failed after %d retries", ...)`, which the cmd
       layer's `neverBlock` closure (internal/cmd/hookexec.go:69-72, invoked at L137-138) maps to exit 0 + one
       stderr line + an UNTOUCHED msg-file (or exit 1 if --strict). The msg-file is byte-identical to its
       pre-Run content unless the gate returns from WriteMessageFile. See research §3.
@@ -79,7 +79,7 @@ untouched msg-file.
 
 **Deliverable** (MODIFIED files only):
 1. **MODIFIED `internal/hook/exec.go`** — add `"time"` to the import block; insert the FR-T1 gate between the
-   generate→parse→dedupe loop and the `return fmt.Errorf("stagehand: hook generation failed after %d
+   generate→parse→dedupe loop and the `return fmt.Errorf("stagecoach: hook generation failed after %d
    retries", ...)` line. The gate mirrors `generate.go:300-360` (CommitStaged) with the 4 hook adaptations
    (generate.ChunkCount; generate.Run; nil-guard deps.Verbose; WriteMessageFile-on-success / fall-through-on-
    failure; no signal/rescue).
@@ -95,7 +95,7 @@ byte-unchanged; go.mod/go.sum byte-unchanged.
 
 ## User Persona
 
-**Target User**: A user who runs `git commit` (firing stagehand's installed `prepare-commit-msg` hook) on a
+**Target User**: A user who runs `git commit` (firing stagecoach's installed `prepare-commit-msg` hook) on a
 large diff with an append-mode provider (e.g. pi). Today the hook's one-shot generation exhausts and the
 commit falls through to an empty editor (FR-H5 never-block). After S2, the hook falls back to multi-turn and
 actually delivers a message for the large diff — the same headline benefit CommitStaged already provides.
@@ -105,7 +105,7 @@ FR-T1 gate fires (conditions a–d) → multi-turn session delivers the message 
 the top of git's message file → the commit proceeds with the generated message. On any failure, the msg-file
 is untouched and git opens an empty editor (FR-H5).
 
-**User Journey**: (hook path) `git commit` → `prepare-commit-msg` → `stagehand hook exec <msg-file>` →
+**User Journey**: (hook path) `git commit` → `prepare-commit-msg` → `stagecoach hook exec <msg-file>` →
 `hook.Run` → one-shot loop exhausts → FR-T1 gate (S2) → `generate.Run` (multi-turn) → `WriteMessageFile` →
 git uses the message. On failure: → exhaustion error → cmd `neverBlock` → exit 0 + untouched msg-file → git
 opens an empty editor.
@@ -198,7 +198,7 @@ S2 is a gate insertion that mirrors the reference.
   section: `Run` — the imports (NO `time`); Step F (`resolved` after S1; `msgModel`/`msgReasoning`); Step G
            var block (`rejected`, `parseFail`, hoisted `payload` after S1); the loop (Render/Execute/
            ParseOutput/FinalizeMessage/dedupe/WriteMessageFile); the exhaustion `return fmt.Errorf(
-           "stagehand: hook generation failed after %d retries", cfg.MaxDuplicateRetries)` — the INSERTION
+           "stagecoach: hook generation failed after %d retries", cfg.MaxDuplicateRetries)` — the INSERTION
            POINT (the gate goes immediately before this return).
   why: the EXACT insertion anchor + the imports to amend. Confirms all gate-read variables are in scope.
   critical: insert the gate BEFORE the exhaustion return; do NOT touch the loop body or the never-block
@@ -288,7 +288,7 @@ go.mod / go.sum     # UNCHANGED (stdlib `time` only)
 // GOTCHA (no signal/rescue in the hook): the hook returns the plain exhaustion error (or WriteMessageFile),
 //   NOT a RescueError. Do NOT call signal.SetCandidate (no signal package in the hook). Duplicate → fall
 //   through (one-shot parity; NOT rescue).
-// GOTCHA (insertion anchor): insert the gate immediately BEFORE `return fmt.Errorf("stagehand: hook
+// GOTCHA (insertion anchor): insert the gate immediately BEFORE `return fmt.Errorf("stagecoach: hook
 //   generation failed after %d retries", cfg.MaxDuplicateRetries)` (the post-loop exhaustion return). After
 //   S1's edits the line number shifts ~+2; anchor on the return statement, not a line number.
 // GOTCHA (do NOT edit the loop body or the never-block returns): the timeout/cancel returns
@@ -316,16 +316,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/prompt"
-	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/prompt"
+	"github.com/dustin/stagecoach/internal/provider"
 )
 ```
 
 **Edit B — the gate.** Insert immediately BEFORE the post-loop exhaustion return
-(`return fmt.Errorf("stagehand: hook generation failed after %d retries", cfg.MaxDuplicateRetries)`):
+(`return fmt.Errorf("stagecoach: hook generation failed after %d retries", cfg.MaxDuplicateRetries)`):
 
 ```go
 	// FR-T1 multi-turn fallback (PRD §9.24). The one-shot loop above exhausted; if the provider is
@@ -388,7 +388,7 @@ import (
 		}
 	}
 
-	return fmt.Errorf("stagehand: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
+	return fmt.Errorf("stagecoach: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
 ```
 
 ### §2. EDIT `internal/hook/exec_test.go` — local helper + 4 tests
@@ -526,7 +526,7 @@ func TestRun_MultiTurnSmallPayloadSkip(t *testing.T) {
 ```
 
 > **NOTE — imports for exec_test.go:** the helper + tests use `provider` (for the helper return type) and
-> `stubtest` (already imported) + `strings`/`time` (already imported). Add `"github.com/dustin/stagehand/
+> `stubtest` (already imported) + `strings`/`time` (already imported). Add `"github.com/dustin/stagecoach/
 > internal/provider"` to exec_test.go's imports if not already present (gofmt/build will flag it). Check the
 > existing import block; the file already imports config/generate/git/stubtest/ui — add `provider` only if
 > missing.
@@ -539,7 +539,7 @@ Task 1: EDIT internal/hook/exec.go — add "time" import
   - GOTCHA: the ONLY import change.
 
 Task 2: EDIT internal/hook/exec.go — insert the FR-T1 gate (Blueprint §1 Edit B)
-  - INSERT the gate immediately BEFORE `return fmt.Errorf("stagehand: hook generation failed after %d
+  - INSERT the gate immediately BEFORE `return fmt.Errorf("stagecoach: hook generation failed after %d
       retries", cfg.MaxDuplicateRetries)`.
   - USE generate.ChunkCount (not chunkPayload); generate.Run; nil-guard deps.Verbose; WriteMessageFile on
       success; fall through on any failure. NO signal/rescue.
@@ -606,7 +606,7 @@ DOWNSTREAM (the FR-H5 preservation — NOT this task):
 FROZEN/LEAVE (do NOT edit):
   - internal/generate/* (the canonical reference gate + multiturn.go — MIRRORED, not modified).
   - internal/cmd/hookexec.go (the neverBlock closure — already correct).
-  - internal/provider/*, pkg/stagehand/* (P1.M2.T1.S2's scope), internal/config/*.
+  - internal/provider/*, pkg/stagecoach/* (P1.M2.T1.S2's scope), internal/config/*.
   - The hook loop body (Render/Execute/ParseOutput/FinalizeMessage/dedupe/WriteMessageFile), the timeout/
     cancel never-block returns. PRD.md, go.mod, Makefile.
 

@@ -1,8 +1,8 @@
-# System Context — Stagehand v2.0 QA Bug Fixes
+# System Context — Stagecoach v2.0 QA Bug Fixes
 
 ## Project Overview
 
-Stagehand is a Go-based CLI tool (module `github.com/dustin/stagehand`, Go 1.22) that generates
+Stagecoach is a Go-based CLI tool (module `github.com/dustin/stagecoach`, Go 1.22) that generates
 AI-assisted git commit messages. It has two pipelines:
 
 1. **Single-commit path** (`internal/generate/generate.go` → `CommitStaged`): snapshot the staged
@@ -29,7 +29,7 @@ AI-assisted git commit messages. It has two pipelines:
 | UI | `internal/ui` | Progress display, verbose logging |
 | ExitCode | `internal/exitcode` | Exit-code mapping |
 | Stubtest | `internal/stubtest` | Test-only fake agent binary + Manifest factory |
-| Public API | `pkg/stagehand` | (Not yet shipped — P4.M2) |
+| Public API | `pkg/stagecoach` | (Not yet shipped — P4.M2) |
 
 ## Key Architectural Patterns
 
@@ -55,7 +55,7 @@ The fix for Issue 1: callers should pass `""` so this fallback fires and uses th
 
 ### Config Layer Resolution (`internal/config/load.go`)
 - Layer order: built-in Defaults → global TOML → repo-local TOML → repo git config → env vars → CLI flags
-- `ConfigPathOverride` (--config flag) → `STAGEHAND_CONFIG` env → `globalConfigPath()` discovery
+- `ConfigPathOverride` (--config flag) → `STAGECOACH_CONFIG` env → `globalConfigPath()` discovery
 - FR37a preserves `default_provider` across merge layers into the manifest's `DefaultProvider` field
 
 ### Decompose Arbiter Resolution (`internal/decompose/chain.go`)

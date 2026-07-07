@@ -88,7 +88,7 @@ verification stays the sole content guarantee). Its purpose is planner PRECISION
 
 ## User Persona
 
-**Target User**: a developer running `stagehand --verbose` (or a library consumer threading a `*ui.Verbose`
+**Target User**: a developer running `stagecoach --verbose` (or a library consumer threading a `*ui.Verbose`
 writer) who wants to see, at a glance, whether the planner accounted for every changed path — so an
 unexpected arbiter commit ("why did a leftover get its own commit?") is explainable after the fact.
 
@@ -220,7 +220,7 @@ at line ~2395), the M3b-vs-M1c distinction (§9 — diagnostic, never a hard con
 
 # The PRD basis (in your context as selected_prd_content)
 - file: PRD.md
-  section: §9.14 FR-M3b (h3.30 — "After the planner returns, stagehand unions the files declared across all
+  section: §9.14 FR-M3b (h3.30 — "After the planner returns, stagecoach unions the files declared across all
        concepts and compares against the frozen changed-path set (DiffTreeNames(baseTree, T_start)). Any path
        the planner left unclaimed is logged (verbose) as a likely leftover … This is a diagnostic only: it
        never aborts the run and does not hard-constrain the stager (FR-M1c remains the sole content guarantee)");
@@ -491,7 +491,7 @@ FROZEN/LEAVE (do NOT edit):
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/decompose/decompose.go internal/decompose/decompose_test.go
 go vet ./internal/decompose/
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
@@ -523,7 +523,7 @@ make build
 cd /tmp && rm -rf cov && mkdir cov && cd cov && git init -q . && git config user.email t@t && git config user.name t
 printf 'a\n' > a.txt; printf 'b\n' > b.txt; printf 'c\n' > c.txt; git add . && git commit -qm base
 printf 'a2\n' > a.txt; printf 'b2\n' > b.txt; printf 'c2\n' > c.txt   # 3 modified, nothing staged ⇒ decompose
-# (Run stagehand with a planner that omits c.txt — the verbose line appears pre-loop. The Go test pins this
+# (Run stagecoach with a planner that omits c.txt — the verbose line appears pre-loop. The Go test pins this
 #  deterministically without needing a real agent.)
 cd /; rm -rf /tmp/cov
 ```
@@ -531,7 +531,7 @@ cd /; rm -rf /tmp/cov
 ### Level 4: Regression & Audit
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go build ./...                 # whole module compiles
 go test ./...                  # FULL regression — the check is diagnostic-only ⇒ no behavior change
 git status --short             # Expected: EXACTLY 2 modified files:

@@ -31,7 +31,7 @@ It does NOT:
 
 `FormatRescue` is a **pure string assembler**: 3 string inputs → 1 string output, no I/O, no error.
 Mirrors `prompt.BuildUserPayload` (P1.M3.T1.S3) and `generate.ExtractSubject`/`IsDuplicate`
-(P1.M3.T2.S1) exactly — Stagehand's generation pipeline is built from small exported pure functions
+(P1.M3.T2.S1) exactly — Stagecoach's generation pipeline is built from small exported pure functions
 that the orchestrator composes. Implementing any of the above here would duplicate P1.M3.T4 /
 P1.M4.T1 / P1.M4.T2 / P1.M4.T3 and couple a pure-logic file to os/git/signal. **Don't.**
 
@@ -324,7 +324,7 @@ gates on treeSHA != "" so this won't happen in practice, but the pure function m
 **FROZEN (do NOT edit — touches ONLY rescue.go + rescue_test.go):**
 `internal/generate/dedupe.go` + `dedupe_test.go` (P1.M3.T2.S1, parallel-implementing — assume they
 exist per the parallel_execution_context contract), `internal/prompt/*`, `internal/git/*`,
-`internal/provider/*`, `internal/config/*`, `cmd/stagehand/main.go`, `pkg/*`, `Makefile`, `go.mod`,
+`internal/provider/*`, `internal/config/*`, `cmd/stagecoach/main.go`, `pkg/*`, `Makefile`, `go.mod`,
 `go.sum`.
 
 **UPSTREAM (inputs — consume, don't implement):**
@@ -344,7 +344,7 @@ exist per the parallel_execution_context contract), `internal/prompt/*`, `intern
   error notice) — and sets exit 3.
 - `P1.M4.T3.S3` (exit codes): the `3` (P1.M4.T3.S3's `ExitError`).
 - `P1.M4.T2` (signal handler): produces the "(interrupted)" variant (§5) by its own means.
-- `P1.M3.T5` (public API `pkg/stagehand`): may re-export `FormatRescue`.
+- `P1.M3.T5` (public API `pkg/stagecoach`): may re-export `FormatRescue`.
 
 The `FormatRescue(treeSHA, parentSHA, candidateMsg string) string` signature is **FROZEN** after
 this subtask.

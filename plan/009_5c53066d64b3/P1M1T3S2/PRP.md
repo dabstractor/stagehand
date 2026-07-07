@@ -8,7 +8,7 @@ description: |
   contract): `func Run(ctx, deps Deps, cfg config.Config, manifest provider.Manifest, sysPrompt, payload,
   msgModel, msgReasoning string) (msg string, ok bool, cause error)`. Steps: (1) `chunks :=
   chunkPayload(payload, cfg.MultiTurnChunkTokens)`, `N := len(chunks)` (S1's helper); (2) `sessionID :=
-  newSessionID()` (crypto/rand, 16 bytes → "stagehand-<32hex>"; NO uuid lib exists in the repo; mint
+  newSessionID()` (crypto/rand, 16 bytes → "stagecoach-<32hex>"; NO uuid lib exists in the repo; mint
   per-run, never resumed); (3) priming preamble verbatim with N interpolated; (4) Turn 1:
   `manifest.RenderMultiTurn(msgModel, sysPrompt, preamble+"\n\n"+chunks[0].text, msgReasoning, sessionID,
   1)` (sys prompt via the flag, turn=1); `provider.Execute(ctx, *spec, cfg.Timeout, deps.Verbose)`; ANY
@@ -54,7 +54,7 @@ session id, with the system-prompt flag on turn 1 only, `--session-id` on every 
 dropped (all enforced by `RenderMultiTurn`); a happy-path 2-chunk run returns the final turn's parsed
 message with `cause==nil, ok==true`; any turn Execute error or render error ⇒ `cause != nil`; the final
 turn's parse failure ⇒ `ok==false, cause==nil` (caller decides rescue); the session id is a fresh
-`stagehand-<32hex>` per call.
+`stagecoach-<32hex>` per call.
 
 ## User Persona
 
@@ -89,7 +89,7 @@ a turn timeout as "skip and continue" (FR-T7 mandates abort — `Run` surfaces i
   with `cfg.Timeout` (default 120s) as the per-turn budget. `Execute` shadows ctx with
   `context.WithTimeout` — Run just passes `cfg.Timeout` through.
 - **FR-T7 (failure → rescue):** "On any of — a turn's provider error (non-zero exit that is not a
-  timeout), a turn timeout, or the final turn's output failing to parse/dedupe — stagehand aborts." Run
+  timeout), a turn timeout, or the final turn's output failing to parse/dedupe — stagecoach aborts." Run
   surfaces the first three as `cause`; the parse/dedupe outcome is `(msg, ok)` for the caller.
 - **FR-T2 (lossless):** `Run` sends the captured payload unchanged, only chunked (S1's `chunkPayload`).
   No truncation, no summarization — the model sees the whole diff across the session.
@@ -104,7 +104,7 @@ a turn timeout as "skip and continue" (FR-T7 mandates abort — `Run` surfaces i
 Behaviorally:
 
 1. **Chunk** the payload via S1's `chunkPayload(payload, cfg.MultiTurnChunkTokens)` → `chunks`, `N`.
-2. **Mint** a fresh session id (`newSessionID()` — `crypto/rand`, 16 bytes, `"stagehand-"+hex`).
+2. **Mint** a fresh session id (`newSessionID()` — `crypto/rand`, 16 bytes, `"stagecoach-"+hex`).
 3. **Turn 1:** `RenderMultiTurn(msgModel, sysPrompt, preamble+"\n\n"+chunks[0].text, msgReasoning,
    sessionID, 1)` → `Execute(ctx, *spec, cfg.Timeout, deps.Verbose)`. Discard stdout. ANY error ⇒ `cause`.
 4. **Turns 2..N:** `RenderMultiTurn(msgModel, "", chunks[i-1].text, msgReasoning, sessionID, i)` →
@@ -137,7 +137,7 @@ every turn; `--no-session` is dropped (RenderMultiTurn's session-flags block enf
 - [ ] EVERY turn's Execute error AND every RenderMultiTurn error ⇒ `return "", false, <err>` (FR-T7).
 - [ ] The final turn's stdout is parsed via `provider.ParseOutput(out, manifest)`; Run returns
       `(m, parseOK, nil)` — NO forked ParseOutput, NO dedupe.
-- [ ] `newSessionID()` returns `"stagehand-"+hex(16 random bytes)`; never panics (crypto/rand fallback).
+- [ ] `newSessionID()` returns `"stagecoach-"+hex(16 random bytes)`; never panics (crypto/rand fallback).
 - [ ] `Run` does NOT construct `*RescueError` (returns the raw cause; the caller wraps).
 - [ ] `Run` does NOT check `cfg.MultiTurnFallback` or `session_mode` (S3 owns the gate; RenderMultiTurn's
       own session_mode gate is the defense-in-depth, surfaced as `cause`).
@@ -268,7 +268,7 @@ turn-1-only system prompt — Run need not duplicate those checks. No inference 
         invocation ⇒ responses[0] on call 1, responses[1] on call 2, …). The stub manifest does NOT set
         SessionMode — the test MUST override it to &\"append\"."
   gotcha: "stubtest.NewScript returns provider.Manifest BY VALUE ⇒ `m.SessionMode = &appendMode` mutates
-           the local copy (clean). The stub's STAGEHAND_STUB_EXIT is global (not per-call) ⇒ S2's
+           the local copy (clean). The stub's STAGECOACH_STUB_EXIT is global (not per-call) ⇒ S2's
            turn-error test uses a GLOBAL failure (turn 1); mid-turn isolation is T4's (§6.4)."
 
 # External references
@@ -279,7 +279,7 @@ turn-1-only system prompt — Run need not duplicate those checks. No inference 
              crypto/rand+encoding/hex is the zero-dependency choice (D3)."
 - url: https://pkg.go.dev/encoding/hex#EncodeToString
   why: "hex.EncodeToString(b) returns the lowercase hex string for the 16 random bytes (32 chars). Combined
-        with the 'stagehand-' prefix ⇒ the FR-T6 session id."
+        with the 'stagecoach-' prefix ⇒ the FR-T6 session id."
 - url: https://git-scm.com/docs/git-config#Documentation/git-config.txt-corequotepath
   why: "(context for the stub agent's behavior — not directly used by Run.) Documents that git porcelain
         C-quotes non-ASCII paths; the stub agent is stdlib-only and unaffected."
@@ -288,7 +288,7 @@ turn-1-only system prompt — Run need not duplicate those checks. No inference 
 ### Current Codebase Tree (this task's scope — S1 creates the files; S2 extends)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/generate/
     ├── multiturn.go       # EDIT (file 1): S1 created it (chunkPayload/chunk/advanceRunes/ceilDiv);
     │                      #   S2 ADDS Run + newSessionID + preambleFmt/finalInstruction + imports
@@ -303,7 +303,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/generate/
     ├── multiturn.go       # + Run, + newSessionID, + preambleFmt/finalInstruction constants, + imports
     └── multiturn_test.go  # + TestRun_HappyPath, + TestRun_TurnError, + TestRun_FinalParseEmpty, + TestRun_NonAppendManifest
@@ -358,7 +358,7 @@ stagehand/
 // must override: `appendMode := "append"; m.SessionMode = &appendMode` (NewScript returns a VALUE ⇒ the
 // assignment is a clean local copy). For the non-append test, leave SessionMode unset (⇒ ""). (Research §6.2.)
 
-// GOTCHA (G8 — the stub's STAGEHAND_STUB_EXIT is GLOBAL, not per-call). The exit code is baked into the
+// GOTCHA (G8 — the stub's STAGECOACH_STUB_EXIT is GLOBAL, not per-call). The exit code is baked into the
 // manifest's Env map ⇒ ALL turns get the same exit. So S2's TestRun_TurnError uses a GLOBAL failure
 // (turn 1 fails). Mid-turn isolation (turn 1 ok, turn 2 fails) needs a per-call exit mechanism the stub
 // lacks ⇒ that's T4's exhaustive-matrix territory. Do NOT try to hack per-call exit in S2. (Research §6.4.)
@@ -486,16 +486,16 @@ func Run(ctx context.Context, deps Deps, cfg config.Config, manifest provider.Ma
 }
 
 // newSessionID mints a fresh, one-run-scope session id for a multi-turn run (PRD §9.24 FR-T6). Format:
-// "stagehand-<32 hex>" (16 cryptographically-random bytes). The id is NEVER resumed on a later run —
+// "stagecoach-<32 hex>" (16 cryptographically-random bytes). The id is NEVER resumed on a later run —
 // providers that persist sessions leave it behind (harmless). Uses crypto/rand (no uuid library exists in
 // the repo and none is added); the time-based fallback is defense-in-depth (rand.Read practically never
 // fails on Linux/macOS/Windows).
 func newSessionID() string {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
-		return fmt.Sprintf("stagehand-%d", time.Now().UnixNano())
+		return fmt.Sprintf("stagecoach-%d", time.Now().UnixNano())
 	}
-	return "stagehand-" + hex.EncodeToString(b[:])
+	return "stagecoach-" + hex.EncodeToString(b[:])
 }
 ```
 
@@ -509,8 +509,8 @@ S1's multiturn.go imports `fmt`, `strings`, `unicode/utf8`, and (optionally) `in
 "encoding/hex"
 "time"
 
-"github.com/dustin/stagehand/internal/config"
-"github.com/dustin/stagehand/internal/provider"
+"github.com/dustin/stagecoach/internal/config"
+"github.com/dustin/stagecoach/internal/provider"
 ```
 
 S2 does NOT add `errors` (D1: `execErr != nil` suffices). PRESERVE S1's `internal/git` choice (G11).
@@ -569,7 +569,7 @@ func TestRun_TurnError(t *testing.T) {
 	dir := t.TempDir()
 	scriptFile := dir + "/script.txt"
 	os.WriteFile(scriptFile, []byte(strings.Join(script, "\n")), 0o644)
-	sm.Env = append(sm.Env, "STAGEHAND_STUB_SCRIPT="+scriptFile, "STAGEHAND_STUB_COUNTER="+dir+"/counter")
+	sm.Env = append(sm.Env, "STAGECOACH_STUB_SCRIPT="+scriptFile, "STAGECOACH_STUB_COUNTER="+dir+"/counter")
 	appendMode := "append"
 	sm.SessionMode = &appendMode
 
@@ -621,8 +621,8 @@ func TestRun_NonAppendManifest(t *testing.T) {
 ```
 
 > The test file's imports: S1 imports `strings`, `testing`, `internal/git`. S2 ADDS `context`, `os`,
-> `github.com/dustin/stagehand/internal/config`, `github.com/dustin/stagehand/internal/provider`,
-> `github.com/dustin/stagehand/internal/stubtest`. (S1's stripPartPrefix helper + 7 chunk tests stay.)
+> `github.com/dustin/stagecoach/internal/config`, `github.com/dustin/stagecoach/internal/provider`,
+> `github.com/dustin/stagecoach/internal/stubtest`. (S1's stripPartPrefix helper + 7 chunk tests stay.)
 
 ### Implementation Tasks (ordered by dependencies)
 
@@ -679,7 +679,7 @@ Task 3: VALIDATE — full gate set + scope discipline
 
 // === Why newSessionID uses crypto/rand (no uuid lib) — D3/G4 ===
 // grep confirms ZERO uuid usage in the repo and NO uuid lib in go.mod. crypto/rand.Read(16 bytes) +
-// hex.EncodeToString ⇒ "stagehand-<32hex>". Zero new dependencies. The time fallback handles the
+// hex.EncodeToString ⇒ "stagecoach-<32hex>". Zero new dependencies. The time fallback handles the
 // practically-never case of rand.Read failing.
 
 // === Why Run passes sysPrompt only on turn 1 — G5 ===
@@ -698,7 +698,7 @@ Task 3: VALIDATE — full gate set + scope discipline
 // 2 lines) ⇒ N=2 ⇒ 3 turns. The script is ["ok", "ok", "<message>"].
 
 // === Why TestRun_TurnError uses a global exit — G8 ===
-// The stub's STAGEHAND_STUB_EXIT is one env var baked into the manifest's Env map ⇒ all turns share it.
+// The stub's STAGECOACH_STUB_EXIT is one env var baked into the manifest's Env map ⇒ all turns share it.
 // So the test asserts turn-1 failure (the first Execute sees Exit:1). Mid-turn isolation (turn 1 ok,
 // turn 2 fails) needs a per-call exit mechanism the stub lacks ⇒ T4's territory.
 ```
@@ -745,7 +745,7 @@ NO-TOUCH (explicitly — owned by siblings):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/generate/multiturn.go internal/generate/multiturn_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -761,7 +761,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: The Run Smoke Tests (the deliverable)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./internal/generate/ -v -run 'TestChunkPayload|TestRun'
 # Expected: S1's 7 chunk tests + S2's 4 Run tests ALL PASS, exit 0:
@@ -774,7 +774,7 @@ go test -race ./internal/generate/ -v -run 'TestChunkPayload|TestRun'
 ### Level 3: Whole-Repository Regression + Scope Discipline
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...    # Expected: ALL packages green (only 2 files changed, both additive/extending)
 go vet ./...           # Expected: exit 0
@@ -802,12 +802,12 @@ git diff --stat -- internal/generate/generate.go internal/provider/ internal/stu
 ### Level 4: Behavioral Cross-Check (the stub-agent end-to-end proof)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The 4 Run tests ARE the behavioral proof (they drive Run → RenderMultiTurn → Execute → the real stub
 # binary → ParseOutput, end-to-end against cmd/stubagent with call-indexed scripted stdout). For a manual
 # cross-check of the session-id freshness (FR-T6), confirm two Runs produce DIFFERENT session ids:
-# (Run does not expose the session id, but the stub's STAGEHAND_STUB_ARGSFILE captures the rendered argv,
+# (Run does not expose the session id, but the stub's STAGECOACH_STUB_ARGSFILE captures the rendered argv,
 #  which includes --session-id <id>. A test could assert two Runs' argsfiles differ — that's T4's
 #  integration territory. S2's smoke tests prove the protocol mechanics; T4 proves the end-to-end wiring.)
 echo "S2 smoke tests (Level 2) are the behavioral gate. T4 (P1.M1.T4) owns the end-to-end integration matrix."
@@ -830,7 +830,7 @@ echo "S2 smoke tests (Level 2) are the behavioral gate. T4 (P1.M1.T4) owns the e
 - [ ] Turn N+1 = `RenderMultiTurn(msgModel, "", finalInstruction, …, sessionID, N+1)`.
 - [ ] ANY Execute error or render error ⇒ `return "", false, <err>` (FR-T7; execErr != nil, D1).
 - [ ] Final turn parsed via `provider.ParseOutput`; Run returns `(m, parseOK, nil)` (no forked dedupe).
-- [ ] `newSessionID()` returns `"stagehand-"+hex(16 random bytes)`; never panics.
+- [ ] `newSessionID()` returns `"stagecoach-"+hex(16 random bytes)`; never panics.
 - [ ] Run does NOT construct `*RescueError`, check `cfg.MultiTurnFallback`, or check `session_mode`.
 - [ ] `preambleFmt`/`finalInstruction` are verbatim FR-T4 (not paraphrased).
 

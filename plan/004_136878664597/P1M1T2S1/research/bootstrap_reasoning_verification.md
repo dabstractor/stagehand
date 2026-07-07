@@ -14,7 +14,7 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` (cobra v1.10.2, go-toml/v2 v2.4.2) |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` (cobra v1.10.2, go-toml/v2 v2.4.2) |
 | Go / git | go1.26.4 / git 2.54.0 |
 | Implementing commit | `9d33b9e make reasoning off by default for all roles` (HEAD-region; touches all 3 files) |
 | Working tree (the 3 files) | **CLEAN** — `git status --porcelain` empty for all three (committed, not a stash/WIP) |
@@ -132,7 +132,7 @@ Hence the contract's "starting state" (reasoning absent/commented) does not exis
 These are the gates an implementer runs to CONFIRM completion (no edits should be necessary):
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (1) bootstrap.go: EXACTLY ONE uncommented reasoning line, with the contract's comment text
 grep -c 'reasoning = \\"off\\"   # off|low|medium|high; off by default for every role (FR-R6)' internal/config/bootstrap.go

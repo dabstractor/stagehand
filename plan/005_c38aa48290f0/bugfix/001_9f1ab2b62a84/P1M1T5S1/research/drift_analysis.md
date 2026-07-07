@@ -48,7 +48,7 @@ sources, OR any prose contradicting the "exits 0 having done nothing" no-op guar
   staged." It makes NO claim about a "Generating…" line. After T2, "having done nothing" is
   *literally* true (no noise) — the doc is now MORE accurate.
 - No doc anywhere claims the pre-T2 noisy behavior. README L265 "↳ generating with pi…" is in the
-  main `stagehand` snapshot-workflow ASCII diagram, NOT `hook exec`.
+  main `stagecoach` snapshot-workflow ASCII diagram, NOT `hook exec`.
 
 **Verdict**: no doc describes the pre-T2 noise; the no-op guarantee prose is unchanged and now holds
 exactly.

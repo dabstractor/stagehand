@@ -10,7 +10,7 @@
   --no-verify skip, absent-hook skip, timeout, env, failure→rescue, enforceSubset re-tree) + `RunPostCommit`
   (best-effort, post-update-ref). NEW file `internal/hooks/runner.go` (+ `runner_test.go`). The package
   `internal/hooks` already exists (subset.go from P1.M2.T2.S1).
-- **S2 (P1.M3.T1.S2)** = recursion prevention (skip stagehand's OWN prepare-commit-msg via `hook.Detect`) +
+- **S2 (P1.M3.T1.S2)** = recursion prevention (skip stagecoach's OWN prepare-commit-msg via `hook.Detect`) +
   message-file lifecycle refinements. S1 leaves a clean seam (§8) so S2's edit is surgical.
 - **M3.T2** = wiring `RunCommitHooks` into CommitStaged + runPipeline (the callers). NOT this task.
 - Do NOT wire into any caller here; do NOT implement `hook.Detect`-based recursion (S2); do NOT edit
@@ -55,7 +55,7 @@ executable ⇒ skip, no error). So an absent pre-commit is a no-op (finalTree st
 
 The core stage-while-generating invariant: pre-commit runs against the snapshotted content, NOT the live
 index. The scoped sequence (subset.go doc + external_deps.md §8):
-1. `tmpIndex := <throwaway path>` (e.g. `filepath.Join(os.TempDir(), "stagehand-hook-<rand>.idx")`).
+1. `tmpIndex := <throwaway path>` (e.g. `filepath.Join(os.TempDir(), "stagecoach-hook-<rand>.idx")`).
 2. `g.ReadTreeInto(ctx, snapshotTree, tmpIndex)` — primes the throwaway index from the snapshot (uses
    GIT_INDEX_FILE internally; does NOT touch `.git/index`).
 3. run pre-commit with `GIT_INDEX_FILE=<abs tmpIndex>` (so the hook's `git add` writes to the THROWAWAY).
@@ -90,10 +90,10 @@ commit-msg: `<msgfile>` (1 arg); read back → finalMsg.
 
 ## §8 — S2 seam: prepare-commit-msg recursion check
 
-S2 owns "skip stagehand's OWN prepare-commit-msg via `hook.Detect`" (the existing `internal/hook.Detect`
-returns `StatusStagehand` if the marker is present). S1 leaves a clean seam: an unexported helper
-`shouldSkipStagehandPrepareCommitMsg(hooksDir string) bool` that S1 stubs to `return false` (with a
-`// TODO(P1.M3.T1.S2): hook.Detect(hooksDir) == hook.StatusStagehand` comment). S2 replaces the body. S1's
+S2 owns "skip stagecoach's OWN prepare-commit-msg via `hook.Detect`" (the existing `internal/hook.Detect`
+returns `StatusStagecoach` if the marker is present). S1 leaves a clean seam: an unexported helper
+`shouldSkipStagecoachPrepareCommitMsg(hooksDir string) bool` that S1 stubs to `return false` (with a
+`// TODO(P1.M3.T1.S2): hook.Detect(hooksDir) == hook.StatusStagecoach` comment). S2 replaces the body. S1's
 tests use FOREIGN prepare-commit-msg hooks (so the stub's `false` → run them); the recursion scenario is S2's
 test. This keeps S1 self-contained and S2 surgical (one function body).
 

@@ -39,7 +39,7 @@ git status clean post-resolution) still hold. `go build/vet/gofmt` clean.
 
 ## User Persona
 
-**Target User**: The user running `stagehand` (decompose) while ANOTHER tool (an editor save, a concurrent coding agent) writes to the working tree during the planner/stager calls. Also the contributor implementing the P1.M1.T3 invariant integration tests (which consume the 7-arg `resolveArbiter`).
+**Target User**: The user running `stagecoach` (decompose) while ANOTHER tool (an editor save, a concurrent coding agent) writes to the working tree during the planner/stager calls. Also the contributor implementing the P1.M1.T3 invariant integration tests (which consume the 7-arg `resolveArbiter`).
 
 **Use Case**: A decompose run's stagers cover all of `T_start`; a concurrent process then dirties the working tree. Today the live `StatusPorcelain` gate sees the dirt → the arbiter runs → `AddAll` sweeps the concurrent file into an arbiter commit. After the fix, the frozen `DiffTreeNames(tipTree, T_start)` is empty → the arbiter does NOT run → the concurrent change is left untouched in the working tree.
 
@@ -131,7 +131,7 @@ spec (§2 target state, §4 ReadTree sync, §6 risks). S1's OverlayTreePaths is 
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/decompose/
     ├── decompose.go     # EDIT: gate (~213-227) + runArbiterPhase (~607) signature + resolveArbiter call
     ├── chain.go         # EDIT: resolveArbiter (7-arg) + 3 paths (tree-only-from-T_start) + remove leftoverPaths helper
@@ -142,7 +142,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/decompose/decompose.go    # gate→DiffTreeNames; runArbiterPhase +leftoverPaths
     internal/decompose/chain.go        # resolveArbiter 7-arg; 3 paths tree-only; -leftoverPaths helper
@@ -387,7 +387,7 @@ DOWNSTREAM HOOKS (informational — owned by LATER subtasks):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/decompose/decompose.go internal/decompose/chain.go internal/decompose/chain_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -400,7 +400,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: Unit Tests (the canonical resolveArbiter tests)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./internal/decompose/ -v -run TestResolveArbiter
 
@@ -414,7 +414,7 @@ go test -race ./internal/decompose/ -v -run TestResolveArbiter
 ### Level 3: Whole-Repository Regression + Freeze-Parity Grep (the headline check)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green
 go vet ./...                     # Expected: exit 0
@@ -435,7 +435,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 ### Level 4: Behavioral Smoke (the rebuilt-tip-equals-T_start invariant)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # TestResolveArbiter_MidChainRebuild is the direct proof: after a mid-chain rebuild, the rebuilt tip's tree
 # == T_start (OverlayTreePaths(tree[N-1], T_start, leftoverPaths) overlays every changed path). The test

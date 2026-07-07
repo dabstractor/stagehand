@@ -3,9 +3,9 @@
 ## What this feature is
 
 This delta adds **hook execution on the plumbing commit path** (PRD §9.25, → G22). Until now,
-stagehand created commits via git *plumbing* (`write-tree` → `commit-tree` → `update-ref` CAS),
+stagecoach created commits via git *plumbing* (`write-tree` → `commit-tree` → `update-ref` CAS),
 which runs **no hooks** — so a user's `pre-commit` (husky, lint-staged, a formatter),
-`commit-msg` (conventional-commit lint), and `post-commit` never fired on a `stagehand` commit.
+`commit-msg` (conventional-commit lint), and `post-commit` never fired on a `stagecoach` commit.
 
 The v2.4 feature **threads the repository's standard commit hooks** between generation and
 `commit-tree`/`update-ref`, in git's documented order, **without surrendering the snapshot-based
@@ -35,7 +35,7 @@ There are **three** commit chokepoints across the two commit paths:
 | Chokepoint | File:line | Path | Role |
 |---|---|---|---|
 | `generate.CommitStaged` | `internal/generate/generate.go:389→399→410` | single-commit, COMMIT | EditMessage → [HOOKS] → CommitTree → UpdateRefCAS |
-| `pkg/stagehand.runPipeline` | `pkg/stagehand/stagehand.go:411` (self-contained DryRun/SystemExtra path) | single-commit, DRY-RUN + SystemExtra | mirrors CommitStaged; needs commit-msg only (FR-V8a) |
+| `pkg/stagecoach.runPipeline` | `pkg/stagecoach/stagecoach.go:411` (self-contained DryRun/SystemExtra path) | single-commit, DRY-RUN + SystemExtra | mirrors CommitStaged; needs commit-msg only (FR-V8a) |
 | `decompose.publishCommit` | `internal/decompose/message.go:219` | multi-commit (every per-concept + arbiter new/tip commit) | receives (tree, parentSHA, msg) → CommitTree → UpdateRefCAS |
 
 `generate.CommitStaged` is the canonical pipeline (lines 389 = EditMessage gate, 399 = CommitTree,
@@ -61,7 +61,7 @@ verbatim-reused message would break the §20.2 "mid-chain amend fidelity" invari
   hooks` (verified to honor `core.hooksPath` on git 2.54.0; see `external_deps.md` §4 for the
   historical gotcha). Same resolver as hook-mode install (FR-H1).
 - **`hook.Marker` / `hook.Detect(hooksDir)` / `hook.HookFilename`** (`internal/hook/hook.go:62`,
-  `script.go:15`) — detect stagehand's OWN `prepare-commit-msg` for recursion prevention (FR-V4: skip
+  `script.go:15`) — detect stagecoach's OWN `prepare-commit-msg` for recursion prevention (FR-V4: skip
   it on the plumbing path so the message isn't regenerated/recurse).
 - **`git.ReadTree` / `WriteTree` / `OverlayTreePaths` / `DiffTreeNameStatus` / `DiffTreeNames`**
   (`git.go:1222/492/1643/1813/1582`) — the index/object primitives. `DiffTreeNames` is the subset

@@ -6,7 +6,7 @@ description: |
   models + interactive init) have ALL landed in code AND already carry Mode-A docs in `docs/`. This
   task makes them DISCOVERABLE: rewrite `README.md` (hero/features/quick-start/FAQ) so no v2.1
   capability is missing from the top-level documentation surface, replace the manual lazygit snippet
-  with `stagehand integrate install lazygit` (keeping the YAML as a collapsible alternative), land the
+  with `stagecoach integrate install lazygit` (keeping the YAML as a collapsible alternative), land the
   FR-H7 hook-vs-snapshot trade-off as a README FAQ entry, reference `FUTURE_SPEC.md` wherever
   deferred/rejected ideas appear, and refresh `docs/README.md`'s index for the new/changed sections.
 
@@ -27,10 +27,10 @@ six capabilities present. NO other files are touched (no code, no other docs, no
 **Success Definition**:
 - All six capabilities appear by name in `README.md` (grep-verified), each linked to its existing
   `docs/` Mode-A page (anchors resolve).
-- The manual lazygit snippet is REPLACED by `stagehand integrate install lazygit` as the primary path;
+- The manual lazygit snippet is REPLACED by `stagecoach integrate install lazygit` as the primary path;
   the manual YAML survives as a `<details>` collapsible "manual install" alternative matching the
   shipped `customCommands` shape (incl. `context`, `loadingText`, `output`, `description`, the
-  `# stagehand-integration` marker).
+  `# stagecoach-integration` marker).
 - The README FAQ has an FR-H7 trade-off entry ("Does it run my pre-commit hooks?") discoverable from
   the FAQ section, linking `docs/how-it-works.md#trade-off-inversion-fr-h7`.
 - `FUTURE_SPEC.md` is linked from README wherever a deferred/rejected competitor idea is mentioned
@@ -44,12 +44,12 @@ six capabilities present. NO other files are touched (no code, no other docs, no
 ships, deciding whether to install, and the "multi-agent tinkerer" (§7.3) scanning for a specific v2.1
 capability (hook mode, lazygit keybind, exclusions).
 
-**Use Case**: A husky/lint-staged user wants to know if stagehand will honor their pre-commit hooks.
+**Use Case**: A husky/lint-staged user wants to know if stagecoach will honor their pre-commit hooks.
 They read the README FAQ, find the FR-H7 trade-off entry, follow the link to `docs/how-it-works.md`,
 and learn hook mode is the answer.
 
 **Pain Points Addressed**: Today's README documents only the v1 + v2.0 (decompose) surface — a visitor
-who installed stagehand for `--exclude` or hook mode cannot discover either from the README, and the
+who installed stagecoach for `--exclude` or hook mode cannot discover either from the README, and the
 manual lazygit snippet invites copy-paste of a YAML shape that drifted from the shipped one.
 
 ## Why
@@ -72,7 +72,7 @@ User-visible behavior: a refreshed README whose hero still leads with the core v
 agent, snapshot, decompose), followed by a concise **Features** section that lists all six v2.1
 capabilities with one-line descriptions and links into `docs/`; a **Quick start** that adds one or two
 v2.1 convenience examples; a **lazygit / git alias** subsection whose primary path is
-`stagehand integrate install lazygit` (with the manual YAML kept behind a collapsible); an expanded
+`stagecoach integrate install lazygit` (with the manual YAML kept behind a collapsible); an expanded
 **FAQ** with the FR-H7 trade-off entry and a "what about X?" entry pointing at FUTURE_SPEC.md; and a
 `docs/README.md` index whose row descriptions + a capability-pointer note make every v2.1 section
 reachable in one hop.
@@ -81,9 +81,9 @@ reachable in one hop.
 
 - [ ] `README.md` contains a "Features" (or equivalent) section listing all six capabilities by name.
 - [ ] Each capability entry links to its existing `docs/` page; every link + anchor resolves.
-- [ ] The manual lazygit YAML snippet is replaced by `stagehand integrate install lazygit` (primary);
+- [ ] The manual lazygit YAML snippet is replaced by `stagecoach integrate install lazygit` (primary);
       the manual YAML survives as a `<details>` alternative matching the shipped shape.
-- [ ] `git stagehand` alias (`stagehand integrate install git-alias`) is mentioned alongside lazygit.
+- [ ] `git stagecoach` alias (`stagecoach integrate install git-alias`) is mentioned alongside lazygit.
 - [ ] The FAQ has a pre-commit-hooks / FR-H7 trade-off entry linking
       `docs/how-it-works.md#trade-off-inversion-fr-h7`.
 - [ ] `FUTURE_SPEC.md` is linked from README (deferred/rejected ideas) AND from `docs/README.md`.
@@ -127,7 +127,7 @@ prior codebase knowledge can do this from the document + file access._
 - file: docs/README.md
   why: THE index being refreshed. Structure: hero line → "See the README" pointer → binary-authoritative
        note → "Install" (the 4 planned paths, incl. an install.sh note) → "Documentation index" (a 4-row
-       table: CLI reference, Configuration, Provider manifests, How Stagehand works) → "Product
+       table: CLI reference, Configuration, Provider manifests, How Stagecoach works) → "Product
        specification" (links PRD.md) → "Contributing".
   pattern: 4-row Markdown table `| Page | Description |`. The Product-spec section links `../PRD.md`.
   gotcha: docs/README.md does NOT yet link FUTURE_SPEC.md — add it under "Product specification"
@@ -151,12 +151,12 @@ prior codebase knowledge can do this from the document + file access._
 - file: docs/cli.md (§"integrate install <target>…", "#### lazygit target", "#### git-alias target",
        "### models [<provider>]", "### hook install/uninstall/status/exec", "### config init")
   why: THE shipped command surface the README points at. The lazygit `customCommands` block at ~L287 is
-       the canonical YAML (key/context/command/loadingText/output/description + `# stagehand-integration`
+       the canonical YAML (key/context/command/loadingText/output/description + `# stagecoach-integration`
        marker). `integrate list` shows git-alias + lazygit (gitui blocked upstream → FUTURE_SPEC.md §1.2).
-  pattern: `stagehand integrate install lazygit` (default key <c-a>) / `--key '<c-s>'` / `--yes`;
-           `stagehand integrate install git-alias` / `--alias-name <n>`.
+  pattern: `stagecoach integrate install lazygit` (default key <c-a>) / `--key '<c-s>'` / `--yes`;
+           `stagecoach integrate install git-alias` / `--alias-name <n>`.
   gotcha: the README's CURRENT manual YAML (lazygit binding section) is MISSING `context`, `description`,
-          and the `# stagehand-integration` marker vs the shipped block — the kept alternative MUST be
+          and the `# stagecoach-integration` marker vs the shipped block — the kept alternative MUST be
           updated to match the shipped shape (or just point readers at docs/cli.md's block).
 
 - file: FUTURE_SPEC.md (repo root — READ-ONLY, NEVER modify)
@@ -191,7 +191,7 @@ README.md                     # EDIT — hero/features/quick-start/lazygit/FAQ/F
 docs/
   README.md                   # EDIT — index table descriptions + capability pointer + FUTURE_SPEC link
   cli.md                      # READ-ONLY reference (hook/integrate/models/config-init landings)
-  configuration.md            # READ-ONLY reference (exclusion globs / .stagehandignore / [generation])
+  configuration.md            # READ-ONLY reference (exclusion globs / .stagecoachignore / [generation])
   how-it-works.md             # READ-ONLY reference (FR-H7 trade-off, payload exclusions, format modes)
   providers.md                # READ-ONLY reference (manifests, per-role defaults)
 FUTURE_SPEC.md                # READ-ONLY — link target, never modify
@@ -214,7 +214,7 @@ docs/README.md                # EDIT — enrich index row descriptions; add capa
      docs/README.md, PRD.md, tasks.json, or FUTURE_SPEC.md. -->
 
 <!-- CRITICAL (judge wording against SHIPPED behavior, not this plan): every command, flag default,
-     and trade-off in the README must match what `stagehand --help` / the docs/ pages say. When in
+     and trade-off in the README must match what `stagecoach --help` / the docs/ pages say. When in
      doubt, quote docs/cli.md and docs/how-it-works.md verbatim rather than paraphrasing. -->
 
 <!-- CRITICAL (anchors resolve, or the discovery goal fails): GitHub's anchor algorithm lowercases the
@@ -224,7 +224,7 @@ docs/README.md                # EDIT — enrich index row descriptions; add capa
      VERIFY each anchor with the Level-2 gate before declaring done — a broken anchor is a silent failure. -->
 
 <!-- CRITICAL (the manual lazygit YAML drifted): README's current snippet is MISSING context/description/
-     the # stagehand-integration marker vs docs/cli.md's canonical block. When keeping the YAML as a
+     the # stagecoach-integration marker vs docs/cli.md's canonical block. When keeping the YAML as a
      collapsible alternative, either (a) update it to match docs/cli.md's shape, or (b) keep it minimal
      and point readers at docs/cli.md#lazygit-target for the full block. Don't ship a third YAML variant. -->
 
@@ -268,20 +268,20 @@ Task 1: EDIT README.md — add a "## Features" section (the primary v2.1 discove
     <details> "Which coding plans gate…") and BEFORE "## Install". Features sits between the
     positioning argument and the install instructions — visitors who skim learn the capability set
     before they decide to install.
-  - IMPLEMENT: a short lead sentence ("Stagehand does one thing — commit messages — and a few things
+  - IMPLEMENT: a short lead sentence ("Stagecoach does one thing — commit messages — and a few things
     around them.") then a table OR a bulleted list of the six capabilities, each row = capability name
     + one-line description + link into docs/. Order M1→M6:
-       1. Payload exclusions — `.stagehandignore` / `--exclude` hide a file's diff from the model
+       1. Payload exclusions — `.stagecoachignore` / `--exclude` hide a file's diff from the model
           (never from the commit). → docs/configuration.md#exclusion-globs-generationexclude
        2. Message shaping — `--format` (auto|conventional|gitmoji|plain), `--locale`, `--context`,
           `--template '$msg'`. → docs/how-it-works.md#format-modes-and-locale
-       3. Git hook mode — `stagehand hook install` fills the message on `git commit` (pre-commit
+       3. Git hook mode — `stagecoach hook install` fills the message on `git commit` (pre-commit
           hooks honored; never blocks). → docs/how-it-works.md#trade-off-inversion-fr-h7
-       4. Tool integrations — `stagehand integrate install git-alias lazygit` wires `git stagehand`
+       4. Tool integrations — `stagecoach integrate install git-alias lazygit` wires `git stagecoach`
           and a lazygit keybind via a no-mangle write protocol. → docs/cli.md#integrate-install-target
        5. `--edit` / `--push` — review in `$EDITOR` before the atomic commit; push after a clean run.
           → docs/cli.md (global flags)
-       6. Discovery — `stagehand models [<provider>]` and `config init --interactive` (guided setup).
+       6. Discovery — `stagecoach models [<provider>]` and `config init --interactive` (guided setup).
           → docs/cli.md#models-provider
   - FOLLOW pattern: the existing README comparison table (pipe syntax) and the "Adding a new agent"
     section's link style ([text](docs/file.md#anchor)).
@@ -294,13 +294,13 @@ Task 2: EDIT README.md — rewrite the "### lazygit binding" subsection → "###
     customCommands block missing context/description/marker).
   - REPLACE primary path with the install command:
         ```bash
-        stagehand integrate install lazygit      # default key <c-a>; --key '<c-s>' to customize
-        stagehand integrate install git-alias     # enables `git stagehand` everywhere
-        stagehand integrate list                  # see what's installed / detected
+        stagecoach integrate install lazygit      # default key <c-a>; --key '<c-s>' to customize
+        stagecoach integrate install git-alias     # enables `git stagecoach` everywhere
+        stagecoach integrate list                  # see what's installed / detected
         ```
-  - KEEP the manual YAML as a <details> collapsible "Manual install (no stagehand integrate)" — and
+  - KEEP the manual YAML as a <details> collapsible "Manual install (no stagecoach integrate)" — and
     UPDATE it to match the SHIPPED shape from docs/cli.md (add `context: 'files'`, `description:
-    'stagehand: AI commit'`, and the `# stagehand-integration` marker comment), OR keep it minimal
+    'stagecoach: AI commit'`, and the `# stagecoach-integration` marker comment), OR keep it minimal
     and link to docs/cli.md#lazygit-target for the canonical block. Pick ONE; do not ship a third.
   - NOTE gitui is blocked upstream → one line "(gitui isn't supported — see FUTURE_SPEC.md)".
   - FOLLOW pattern: README's existing <details> (the "Which coding plans gate…" block) for the
@@ -310,14 +310,14 @@ Task 2: EDIT README.md — rewrite the "### lazygit binding" subsection → "###
   - GOTCHA: heading rename — ensure "### lazygit & git alias" is unique (no MD024 duplicate).
 
 Task 3: EDIT README.md — Quick start: add 1–2 v2.1 convenience examples
-  - FIND: the "## Quick start" block (currently stages, runs `stagehand`, `-a`, `--dry-run`) +
+  - FIND: the "## Quick start" block (currently stages, runs `stagecoach`, `-a`, `--dry-run`) +
     the "Multi-commit decomposition" subsection.
   - ADD (after the existing examples, before or within a new "### More options" mini-block) a SMALL
     set showing the v2.1 surface without overwhelming the quick start — e.g.:
-        stagehand --push                 # commit + push after a clean run
-        stagehand --edit                 # review in $EDITOR before the atomic commit
-        stagehand --format conventional  # force conventional-commit style
-        stagehand --exclude '*.snap'     # hide snapshot diffs from the model (still committed)
+        stagecoach --push                 # commit + push after a clean run
+        stagecoach --edit                 # review in $EDITOR before the atomic commit
+        stagecoach --format conventional  # force conventional-commit style
+        stagecoach --exclude '*.snap'     # hide snapshot diffs from the model (still committed)
   - LINK: "See Features above and the CLI reference for the rest."
   - GOTCHA: keep it to ~4 lines — quick start must stay quick. Do NOT duplicate the Features table.
 
@@ -325,15 +325,15 @@ Task 4: EDIT README.md — FAQ: add the FR-H7 trade-off entry + a "what about X?
   - FIND: the "## FAQ" section (existing questions: "not for you if…", corrupt?, send code anywhere?,
     multiple commits?, match style?, which agents?, see what command?).
   - ADD question 1 (FR-H7 — pre-commit hooks), e.g. "### Does it run my pre-commit hooks?":
-       Answer mirrors docs/how-it-works.md#trade-off-inversion-fr-h7: the default `stagehand` command
+       Answer mirrors docs/how-it-works.md#trade-off-inversion-fr-h7: the default `stagecoach` command
        builds the commit via git PLUMBING (write-tree/commit-tree/update-ref) for atomicity +
        stage-while-generating — so pre-commit hooks (husky, lint-staged, .pre-commit-config.yaml) do
        NOT run on it. For day-to-day commits where pre-commit hooks MUST run, install hook mode
-       (`stagehand hook install`) and use plain `git commit` — generation fills the message and never
+       (`stagecoach hook install`) and use plain `git commit` — generation fills the message and never
        blocks the commit. The two modes compose. Link → docs/how-it-works.md#trade-off-inversion-fr-h7.
   - ADD question 2 (deferred/rejected), e.g. "### What about PR generation / editor extensions / a
        GitHub Action / API-key providers?":
-       Answer: "Stagehand writes commit messages — nothing else (PRD §6.3). Ideas we considered but
+       Answer: "Stagecoach writes commit messages — nothing else (PRD §6.3). Ideas we considered but
        deferred or rejected — VS Code/neovim extensions, a GitHub Action, gitui integration, API-key
        HTTP providers, generate-N-and-pick, diff chunking, self-update, and more — each with its
        reason — live in FUTURE_SPEC.md." Link → FUTURE_SPEC.md.
@@ -345,7 +345,7 @@ Task 4: EDIT README.md — FAQ: add the FR-H7 trade-off entry + a "what about X?
      isn't a near-duplicate of existing text. Keep the FR-H7 wording faithful to docs/how-it-works.md.
 
 Task 5: EDIT README.md — hero/intro: light-touch v2.1 discoverability (DO NOT bloat)
-  - FIND: the hero block-quote (the "> **Stagehand writes your commit messages…**" pitch + the
+  - FIND: the hero block-quote (the "> **Stagecoach writes your commit messages…**" pitch + the
     "A snapshot-based AI commit message generator…" line).
   - EDIT: append ONE sentence (max) to the prose line noting the v2.1 additions exist, e.g.
     "v2.1 adds payload exclusions, message shaping, git hook mode, git/lazygit integrations,
@@ -359,9 +359,9 @@ Task 6: EDIT docs/README.md — refresh the index for v2.1 sections + link FUTUR
        • CLI reference — add: hook (install/uninstall/status/exec), integrate (git-alias/lazygit +
          no-mangle protocol), models, and the v2.1 global flags (--exclude, --format, --locale,
          --context, --template, --edit, --push).
-       • Configuration — add: exclusion globs + .stagehandignore, [generation] shaping keys (format/
-         locale/template), STAGEHAND_PUSH, and config init --interactive (per P1.M6.T2.S1).
-       • How Stagehand works — add: payload exclusions, format modes & locale, the hook-vs-snapshot
+       • Configuration — add: exclusion globs + .stagecoachignore, [generation] shaping keys (format/
+         locale/template), STAGECOACH_PUSH, and config init --interactive (per P1.M6.T2.S1).
+       • How Stagecoach works — add: payload exclusions, format modes & locale, the hook-vs-snapshot
          trade-off (FR-H7), and stage-while-editing (--edit).
        • Provider manifests — unchanged description (per-role default models FR-D4, list_models_command).
   - ADD a short "Capability index" note (a compact list or a second small table) mapping each of the
@@ -389,20 +389,20 @@ Task 7: VALIDATE — markdown lint + link/anchor integrity + capability coverage
 <!-- === The shipped lazygit customCommands (the manual-YAML alternative must match THIS — from
      docs/cli.md ~L287). Keep this exact shape if you retain a manual block: === -->
 customCommands:
-  - key: '<c-a>'                       # stagehand-integration
+  - key: '<c-a>'                       # stagecoach-integration
     context: 'files'
-    command: 'stagehand'
+    command: 'stagecoach'
     loadingText: 'Generating commit message…'
     output: 'none'
-    description: 'stagehand: AI commit'
+    description: 'stagecoach: AI commit'
 
 <!-- === The FR-H7 FAQ entry must mirror this trade-off (docs/how-it-works.md §228-250) === -->
-<!-- Snapshot flow (default `stagehand`):
+<!-- Snapshot flow (default `stagecoach`):
      - atomic (write-tree/commit-tree/update-ref; repo byte-for-byte unchanged on failure)
      - stage-while-generating (snapshot decouples staged content from generation time)
      - rescue protocol (frozen tree SHA printed on failure)
      - BUT bypasses pre-commit hooks (husky/lint-staged/.pre-commit-config.yaml) — built via plumbing.
-     Hook mode (`stagehand hook install` + `git commit`):
+     Hook mode (`stagecoach hook install` + `git commit`):
      - pre-commit hooks honored (flows through real `git commit`)
      - never-block contract (failure → message untouched, exit 0, empty editor)
      - BUT no snapshot/atomicity, latency inside the commit.
@@ -417,10 +417,10 @@ customCommands:
 > Short, accurate callout text.
 
 <details>
-<summary><em>Manual install (no <code>stagehand integrate</code>)</em></summary>
+<summary><em>Manual install (no <code>stagecoach integrate</code>)</em></summary>
 ```yaml
 customCommands:
-  - key: '<c-a>'                       # stagehand-integration
+  - key: '<c-a>'                       # stagecoach-integration
     ...
 ```
 </details>
@@ -464,7 +464,7 @@ npx --yes markdownlint-cli2 README.md docs/README.md
 ### Level 2: Link / Anchor Integrity + Capability Coverage (the PRIMARY gates)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 
 # (A) Every relative-link TARGET FILE exists in README.md and docs/README.md.
 echo "=== broken file-link targets (should be empty) ==="
@@ -511,7 +511,7 @@ echo "(end anchor check)"
 
 # (C) Capability coverage audit — all six keywords present in README.md.
 echo "=== capability coverage in README.md (each MUST print >=1) ==="
-for kw in 'exclude' 'stagehandignore' '--format' 'gitmoji' 'hook install' 'integrate install' 'lazygit' 'git-alias' '--edit' '--push' 'stagehand models' 'interactive'; do
+for kw in 'exclude' 'stagecoachignore' '--format' 'gitmoji' 'hook install' 'integrate install' 'lazygit' 'git-alias' '--edit' '--push' 'stagecoach models' 'interactive'; do
   n=$(grep -ci "$kw" README.md)
   printf '%-24s %s\n' "$kw" "$n"
 done
@@ -585,7 +585,7 @@ grep -n 'supports config_version = 2' internal/cmd/config.go >/dev/null && echo 
 ### Feature Validation
 
 - [ ] README "## Features" section lists all six capabilities (M1→M6), each linked to its docs page.
-- [ ] README "### lazygit & git alias" — primary path is `stagehand integrate install lazygit`; manual
+- [ ] README "### lazygit & git alias" — primary path is `stagecoach integrate install lazygit`; manual
       YAML kept as a collapsible alternative matching the shipped `customCommands` shape; git-alias
       mentioned; gitui noted as blocked (FUTURE_SPEC.md).
 - [ ] README FAQ has the FR-H7 pre-commit-hooks trade-off entry (snapshot bypasses / hook honors /
@@ -604,7 +604,7 @@ grep -n 'supports config_version = 2' internal/cmd/config.go >/dev/null && echo 
 
 ### Documentation & Deployment
 
-- [ ] README's "binary authoritative" framing preserved (`stagehand --help` is the source of truth).
+- [ ] README's "binary authoritative" framing preserved (`stagecoach --help` is the source of truth).
 - [ ] docs/README.md "binary is authoritative" note + "See the README" pointer preserved.
 - [ ] No false promises (install section still marks package-managed channels as "Coming soon").
 
@@ -620,5 +620,5 @@ grep -n 'supports config_version = 2' internal/cmd/config.go >/dev/null && echo 
 - ❌ Don't invent a third commit mode or misstate the FR-H7 trade-off (snapshot BYPASSES pre-commit
   hooks; hook mode HONORS them — never claim the reverse).
 - ❌ Don't add bare URLs or duplicate headings (markdownlint MD024/MD034 will catch them — fix, don't disable).
-- ❌ Don't paraphrase command syntax from memory — quote `stagehand --help` / docs/cli.md verbatim.
+- ❌ Don't paraphrase command syntax from memory — quote `stagecoach --help` / docs/cli.md verbatim.
 - ❌ Don't link an anchor without verifying it resolves (a broken `#anchor` is a silent discovery failure).

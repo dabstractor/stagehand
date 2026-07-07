@@ -130,7 +130,7 @@ VERIFIED-comment wording) is quoted. The "only pi, nowhere else" scope is reinfo
 # MUST READ — the FR-T9 verification (the SOLE authority for the "append" value + the comment wording)
 - docfile: plan/009_5c53066d64b3/architecture/fr-t9-verification.md
   why: "Records the 2026-07-05 LIVE pi run proving append-turn recall: turn 1 `pi ... --session-id
-        stagehand-frt9-probe -p \"remember the word BANANA\"` → \"Got it — BANANA\"; turn 2 (SAME session id)
+        stagecoach-frt9-probe -p \"remember the word BANANA\"` → \"Got it — BANANA\"; turn 2 (SAME session id)
         `-p \"What word...?\"` → \"BANANA\". Verdict: re-invoking the same --session-id appends a recallable
         turn. Gives the EXACT shipped lines (builtin.go SessionMode comment + pi.toml `# VERIFIED 2026-07-05;
         FR-T9.`) and the verified flag transformation RenderMultiTurn (S3) encodes."
@@ -252,7 +252,7 @@ VERIFIED-comment wording) is quoted. The "only pi, nowhere else" scope is reinfo
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/provider/
 │   ├── builtin.go             # EDIT: builtinPi() +SessionMode: strPtr("append") (pi ONLY)
 │   ├── builtin_test.go        # EDIT: piTOML const +session_mode="append" (MANDATORY sync); +PiFields assert (recommended)
@@ -267,7 +267,7 @@ stagehand/
 ### Desired Codebase Tree After S4
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/provider/builtin.go        # builtinPi() +SessionMode (pi ONLY)
     internal/provider/builtin_test.go   # piTOML const +session_mode="append"; +PiFields assert (recommended)
@@ -530,7 +530,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S4):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/provider/builtin.go internal/provider/builtin_test.go   # realigns the Go struct
 gofmt -l .                       # Expected: empty after the -w (providers/pi.toml is not Go — unaffected)
@@ -541,7 +541,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: Unit Tests — the TWO parity guards are the green gate
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # THE green gate for this task — the two reflect.DeepEqual decode-parity guards:
 go test -race -run 'TestBuiltinManifests_DecodeParity|TestProviderReferenceFiles_DecodeParity' ./internal/provider/ -v
@@ -559,7 +559,7 @@ go test -race ./internal/provider/ -v
 ### Level 3: Whole-Repository Regression + the contract's grep verification
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green
 go vet ./...                     # Expected: exit 0
@@ -588,7 +588,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/ providers/
 ### Level 4: Behavioral Smoke (the gate S4's value opens — via S3's renderer, if S3 has landed)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # S4's value is observable ONLY through the capability gate S3 (parallel) added to RenderMultiTurn.
 # If S3 has landed, this proves S4's value reaches the gate and passes it for pi (and only pi):

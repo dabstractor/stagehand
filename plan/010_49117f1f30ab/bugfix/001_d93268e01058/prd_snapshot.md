@@ -4,14 +4,14 @@
 
 End-to-end validation of the **Hook execution on the commit path** feature (v2.4, FR-V1–V8, → G22).
 The feature was tested against PRD §9.25 and git's actual hook semantics, using a real compiled
-`stagehand` binary with a stub agent, exercising the single-commit path (`generate.CommitStaged`),
-the dry-run path (`pkg/stagehand.runPipeline`), the decompose path (`decompose.publishCommit` /
+`stagecoach` binary with a stub agent, exercising the single-commit path (`generate.CommitStaged`),
+the dry-run path (`pkg/stagecoach.runPipeline`), the decompose path (`decompose.publishCommit` /
 arbiter resolution), and direct git-parity comparisons against `git commit`.
 
 **Overall assessment:** the core mechanism works well — hooks fire in git's documented order,
 `--no-verify` skips the right subset, the FR-V3 freeze backstop catches swept paths, the FR-V7
 rescue path fires on hook failure (exit 3), post-commit is best-effort, and FR-V4 recursion
-prevention correctly skips stagehand's own `prepare-commit-msg`. **However, four real bugs were
+prevention correctly skips stagecoach's own `prepare-commit-msg`. **However, four real bugs were
 found**, all divergences from documented git parity. Three corrupt commit content or state; one
 makes a documented configuration layer non-functional. All four reproduce deterministically.
 
@@ -34,7 +34,7 @@ implementer to verify and match git's argv)
 **Expected Behavior**: For a plain commit (no `-m`/merge/squash/amend), git invokes
 `prepare-commit-msg <msgfile>` with **one** argument — the `source` parameter is ABSENT (not the
 empty string `""`). `$#` is 1 and `$2` is unset.
-**Actual Behavior**: stagehand invokes `prepare-commit-msg <msgfile> ""` with **two** arguments
+**Actual Behavior**: stagecoach invokes `prepare-commit-msg <msgfile> ""` with **two** arguments
 (`$#`=2, `$2` set to the empty string `""`). The runner source comment at
 `internal/hooks/runner.go:52` and `:178` claims **"VERIFIED argc=2 for a plain commit"** — this
 verification never actually happened (or was done incorrectly); direct testing of git 2.54.0 shows
@@ -47,8 +47,8 @@ verification never actually happened (or was done incorrectly); direct testing o
    echo "ARGC=$#" > /tmp/args.txt
    ```
 3. `git commit` (plain, via `GIT_EDITOR=true git commit`) → result file shows `ARGC=1`.
-4. `stagehand --provider stub` (stub outputs any message) → result file shows `ARGC=2`.
-**Impact**: Hooks that branch on `$#` (e.g. `[ "$#" -eq 1 ] && …`) misbehave under stagehand.
+4. `stagecoach --provider stub` (stub outputs any message) → result file shows `ARGC=2`.
+**Impact**: Hooks that branch on `$#` (e.g. `[ "$#" -eq 1 ] && …`) misbehave under stagecoach.
 Most common hooks (husky, commitlint) use `[ -z "$2" ]` which works either way, so the practical
 blast radius is narrow — but it is a documented git-parity guarantee that is violated, and the
 in-source verification claim is false (a signal that the divergence is unintentional).
@@ -61,12 +61,12 @@ in-source verification claim is false (a signal that the divergence is unintenti
 
 **Severity**: Major
 **PRD Reference**: §9.25 FR-V2 ("faithfully emulating `git commit`'s hook ordering"); FR-V4
-("stagehand writes its generated … message to the message file, then runs `prepare-commit-msg`")
+("stagecoach writes its generated … message to the message file, then runs `prepare-commit-msg`")
 **Expected Behavior**: git writes the commit message to the message file FOLLOWED BY A TRAILING
 NEWLINE (verified: `git commit -m "feat: change"` writes `feat: change\n` to COMMIT_EDITMSG). A
 `prepare-commit-msg` hook that appends a line (e.g. a `Signed-off-by` trailer, a branch-name
 annotation, a ticket ref) produces a clean multi-line message.
-**Actual Behavior**: stagehand writes the message with `msgFile.WriteString(finalMsg)` and NO
+**Actual Behavior**: stagecoach writes the message with `msgFile.WriteString(finalMsg)` and NO
 trailing newline (`internal/hooks/runner.go:103`). When a hook appends via `echo "…" >> "$1"`, the
 appended content is concatenated directly onto the subject line, corrupting it. The
 comment-stripping (which splits on `\n`) cannot recover the line boundary, so the corruption lands
@@ -84,11 +84,11 @@ chmod +x .git/hooks/prepare-commit-msg
 git commit -m "feat: change"
 git log -1 --format=%B   # → "feat: change\nSigned-off-by: Dev <dev@example.com>\n"  (CORRECT)
 
-# stagehand (stub outputs "feat: change"):
-stagehand --provider stub
+# stagecoach (stub outputs "feat: change"):
+stagecoach --provider stub
 git log -1 --format=%B   # → "feat: changeSigned-off-by: Dev <dev@example.com>"  (CORRUPTED)
 ```
-Hex dump confirms: git's file is `feat: change\n` (`0a` trailer); stagehand's is `feat: change`
+Hex dump confirms: git's file is `feat: change\n` (`0a` trailer); stagecoach's is `feat: change`
 (no trailer), so the `>>` append merges into one line.
 **Impact**: The `Signed-off-by` trailer pattern (Linux kernel, corporate contribution agreements,
 `git commit -s` parity), branch-name hooks, and ticket-ref-injecting hooks ALL corrupt the subject
@@ -105,42 +105,42 @@ fix that restores git parity for append-style hooks.
 ### Issue 3: The `no_verify` git-config layer is entirely missing (no reader) AND the documented key name is invalid for git
 
 **Severity**: Major
-**PRD Reference**: §9.25 FR-V5 ("Surfaced as CLI `--no-verify`, env `STAGEHAND_NO_VERIFY`, git
-config `stagehand.no_verify`"); §15.2 flag table (`git config` column = `stagehand.no_verify`);
+**PRD Reference**: §9.25 FR-V5 ("Surfaced as CLI `--no-verify`, env `STAGECOACH_NO_VERIFY`, git
+config `stagecoach.no_verify`"); §15.2 flag table (`git config` column = `stagecoach.no_verify`);
 §9.8 FR34 (precedence: … per-repo git config …)
 **Expected Behavior**: `no_verify` resolves through the full 5-layer precedence documented in
-`config.go:130` ("`--no-verify` / `STAGEHAND_NO_VERIFY` / `stagehand.no_verify` /
+`config.go:130` ("`--no-verify` / `STAGECOACH_NO_VERIFY` / `stagecoach.no_verify` /
 `[generation].no_verify`"), mirroring the established `push` key (which IS read at
-`internal/config/git.go:174` via `gitConfigBool(repoDir, "stagehand.push")` and IS settable via
-`git config stagehand.push true`).
+`internal/config/git.go:174` via `gitConfigBool(repoDir, "stagecoach.push")` and IS settable via
+`git config stagecoach.push true`).
 **Actual Behavior**: Two distinct defects in the same layer:
 1. **The git-config reader is missing.** `internal/config/git.go` `loadGitConfig` never queries
-   `stagehand.no_verify` (grep for `no_verify`/`noVerify` in git.go returns 0 matches). The
+   `stagecoach.no_verify` (grep for `no_verify`/`noVerify` in git.go returns 0 matches). The
    field is read from flag (`load.go:447`), env (`load.go:315`), and file (`file.go:291`), but
    NOT from git config. So the precedence is only 4 layers, contradicting the doc comment and
    the PRD.
-2. **The documented key name is invalid for git.** `git config stagehand.no_verify true` fails
-   with `error: invalid key: stagehand.no_verify` — git config variable names (the final segment
+2. **The documented key name is invalid for git.** `git config stagecoach.no_verify true` fails
+   with `error: invalid key: stagecoach.no_verify` — git config variable names (the final segment
    after the last dot) cannot contain underscores. So even if the reader existed, the standard
-   way to set the key does not work. (All other stagehand git-config keys avoid underscores by
-   using camelCase — e.g. `stagehand.autoStageAll`, `stagehand.maxDiffBytes` — so this is a
+   way to set the key does not work. (All other stagecoach git-config keys avoid underscores by
+   using camelCase — e.g. `stagecoach.autoStageAll`, `stagecoach.maxDiffBytes` — so this is a
    pattern break introduced by this feature.)
 **Steps to Reproduce**:
 ```sh
-git config stagehand.push true      # → works (no underscore)
-git config stagehand.no_verify true # → "error: invalid key: stagehand.no_verify"
+git config stagecoach.push true      # → works (no underscore)
+git config stagecoach.no_verify true # → "error: invalid key: stagecoach.no_verify"
 ```
 And in code: `grep -c "no_verify" internal/config/git.go` → `0` (the reader is absent).
 **Impact**: A user who follows the docs (`docs/cli.md:44`, `docs/configuration.md:155`) and runs
-`git config stagehand.no_verify true` to persistently bypass hooks for a repo gets an error. Even
-manually editing `.git/config` to add the key has no effect — stagehand never reads it. The
-`--no-verify` flag and `STAGEHAND_NO_VERIFY` env DO work (verified), so this is a
+`git config stagecoach.no_verify true` to persistently bypass hooks for a repo gets an error. Even
+manually editing `.git/config` to add the key has no effect — stagecoach never reads it. The
+`--no-verify` flag and `STAGECOACH_NO_VERIFY` env DO work (verified), so this is a
 documented-surface gap, not a total failure. The feature was explicitly scoped to "mirror Push"
 (see `codebase_reality.md §2` and the task context) but the git-config reader was never added.
 **Suggested Fix**: (a) Add a git-config reader for `no_verify` in `loadGitConfig` mirroring the
-`push` reader at `git.go:174` (`gitConfigBool(repoDir, "stagehand.<valid-name>")`). (b) Use a
-git-valid key name — either match the existing camelCase convention (`stagehand.noVerify`) or a
-dash form (`stagehand.no-verify`). (c) Update `config.go:130`, `docs/cli.md:44`, and
+`push` reader at `git.go:174` (`gitConfigBool(repoDir, "stagecoach.<valid-name>")`). (b) Use a
+git-valid key name — either match the existing camelCase convention (`stagecoach.noVerify`) or a
+dash form (`stagecoach.no-verify`). (c) Update `config.go:130`, `docs/cli.md:44`, and
 `docs/configuration.md:155` to the corrected, settable key name. If the TOML file key
 (`[generation].no_verify`) must stay snake_case, that is fine (TOML allows underscores) — only
 the git-config key needs the fix.
@@ -152,7 +152,7 @@ the git-config key needs the fix.
 (the atomic-commit core must not land a bad commit)
 **Expected Behavior**: If `prepare-commit-msg` or `commit-msg` empties the message file (a common
 rejection / force-re-edit pattern), git aborts: `Aborting commit due to empty commit message.`
-(exit 1, no commit created). Stagehand should do the same — an empty message after hooks must not
+(exit 1, no commit created). Stagecoach should do the same — an empty message after hooks must not
 become a commit.
 **Actual Behavior**: After `RunCommitHooks` returns, `generate.CommitStaged` reassigns
 `msg = fm` (the hook-adjusted message) and passes it directly to `CommitTree` with NO empty-message
@@ -172,7 +172,7 @@ EOF
 chmod +x .git/hooks/commit-msg
 
 git commit -m "feat: change"        # → "Aborting commit due to empty commit message." exit 1, NO commit
-stagehand --provider stub           # → "[abc1234] " (empty subject), exit 0, COMMIT CREATED
+stagecoach --provider stub           # → "[abc1234] " (empty subject), exit 0, COMMIT CREATED
 git log -1 --format=%B | xxd        # → 0a  (a lone newline = empty message)
 ```
 The same outcome occurs when `prepare-commit-msg` (instead of `commit-msg`) empties the file.

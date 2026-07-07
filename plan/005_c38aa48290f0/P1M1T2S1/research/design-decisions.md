@@ -1,7 +1,7 @@
 # P1.M1.T2.S1 — Design decisions & research notes
 
 Surveyed 2026-07-02 on `competitor-feature-parity`. The `internal/exclude` package (P1.M1.T1.S2) is
-ALREADY LANDED (`ResolveExcludePathspecs`, `TranslatePattern`, `LoadStagehandIgnore` all present and
+ALREADY LANDED (`ResolveExcludePathspecs`, `TranslatePattern`, `LoadStagecoachIgnore` all present and
 matching the S2 PRP contract). This task consumes it.
 
 ## 1. The three diff methods are near-identical ports (the template)
@@ -12,7 +12,7 @@ They differ ONLY in the `git diff` domain args:
 
 | Method           | diffArgs (the variadic passed to detectBinaryFiles/fileStatuses) | call sites                                            |
 |------------------|------------------------------------------------------------------|-------------------------------------------------------|
-| `StagedDiff`     | `"--cached"`                                                     | pkg/stagehand/stagehand.go:414 (runPipeline); internal/generate/generate.go:143 (CommitStaged) |
+| `StagedDiff`     | `"--cached"`                                                     | pkg/stagecoach/stagecoach.go:414 (runPipeline); internal/generate/generate.go:143 (CommitStaged) |
 | `WorkingTreeDiff`| *(none)*                                                          | *(not called in current flow — freeze replaced it; still honor excludes for FR-X3 parity)* |
 | `TreeDiff`       | `treeA, treeB`                                                    | internal/decompose/planner.go:69; message.go:71; decompose.go:595 |
 
@@ -67,7 +67,7 @@ approach is a git-native SET DIFFERENCE (handles ANY pathspec spelling — `:!` 
 
 This mirrors detectBinaryFiles (one extra `git diff` call) and avoids fragile `:(exclude,glob)`→`:(glob)`
 string conversion. Empty `opts.Excludes` ⇒ skip the call entirely (returns nil,nil) — ZERO overhead in
-the common case (no .stagehandignore, no cfg.Exclude).
+the common case (no .stagecoachignore, no cfg.Exclude).
 
 Placeholder PRECEDENCE: a file that is BOTH binary AND user-excluded gets `[binary]` only (more
 informative; binary filtering runs first). Skip paths already in the binary set when emitting
@@ -75,27 +75,27 @@ informative; binary filtering runs first). Skip paths already in the binary set 
 
 ## 5. DECISION: threading — `Excludes []string` on both Deps structs; resolve where repoDir is known
 
-`ResolveExcludePathspecs(cfg, repoRoot, v)` needs repoRoot (to read `.stagehandignore`). repoDir is
+`ResolveExcludePathspecs(cfg, repoRoot, v)` needs repoRoot (to read `.stagecoachignore`). repoDir is
 NOT on generate.Deps/decompose.Deps (they carry `git.Git`, which hides workDir). It IS available at:
-- `pkg/stagehand.GenerateCommit`/`Decompose` — `resolveConfig` returns `(cfg, repoDir, err)` via os.Getwd().
+- `pkg/stagecoach.GenerateCommit`/`Decompose` — `resolveConfig` returns `(cfg, repoDir, err)` via os.Getwd().
 - CLI `runDefault` — has `repoDir` from os.Getwd().
 
 Threading:
 - `generate.Deps` += `Excludes []string`; `decompose.Deps` (roles.go:55) += `Excludes []string`.
-- pkg/stagehand: after `resolveConfig` + creating `deps.Verbose`, resolve once → `deps.Excludes`
+- pkg/stagecoach: after `resolveConfig` + creating `deps.Verbose`, resolve once → `deps.Excludes`
   (covers BOTH GenerateCommit and Decompose public paths — standalone library users get exclusions free).
-- CLI `runDecompose` (calls internal/decompose DIRECTLY, not pkg/stagehand.Decompose — per architecture
+- CLI `runDecompose` (calls internal/decompose DIRECTLY, not pkg/stagecoach.Decompose — per architecture
   note): pass `repoDir` into runDecompose, resolve there → `deps.Excludes`.
 - The 5 StagedDiffOptions literals: add `Excludes: deps.Excludes`.
-- NO new pkg/stagehand.Options field needed (resolution is internal). No import cycle
-  (internal/exclude imports only config+ui; pkg/stagehand already imports those).
+- NO new pkg/stagecoach.Options field needed (resolution is internal). No import cycle
+  (internal/exclude imports only config+ui; pkg/stagecoach already imports those).
 
 ## 6. Stub-agent payload capture needs a new env knob
 
 cmd/stubagent/main.go DRAINS stdin to io.Discard (deadlock guard). It captures argv via
-`STAGEHAND_STUB_ARGSFILE` but NOT the stdin payload. The work item requires a payload-capture test, so
-add `STAGEHAND_STUB_STDINFILE`: when set, tee stdin to that file instead of Discard (still drain fully —
-the deadlock guard must hold). Minimal, test-binary-only, follows the existing STAGEHAND_STUB_* pattern.
+`STAGECOACH_STUB_ARGSFILE` but NOT the stdin payload. The work item requires a payload-capture test, so
+add `STAGECOACH_STUB_STDINFILE`: when set, tee stdin to that file instead of Discard (still drain fully —
+the deadlock guard must hold). Minimal, test-binary-only, follows the existing STAGECOACH_STUB_* pattern.
 This lets an integration test assert the agent RECEIVES the placeholder + NOT the excluded body.
 
 ## 7. Scope fence
@@ -104,5 +104,5 @@ This lets an integration test assert the agent RECEIVES the placeholder + NOT th
 - THIS TASK: git.go (3 methods UNION+placeholder) + binary.go (2 helpers) + Deps threading (2 structs,
   5 call sites, 2 resolution sites) + stubagent STDINFILE + tests + e2e + docs/how-it-works.md.
 - NOT THIS TASK: hook exec wiring (P1.M3.T2.S1 inherits via StagedDiff for free — do NOT touch hook);
-  config `exclude` key (S1); `.stagehandignore` parsing/translation (S2); `[binary]` placeholder logic
+  config `exclude` key (S1); `.stagecoachignore` parsing/translation (S2); `[binary]` placeholder logic
   itself (already shipped — we only ADD the parallel `[excluded]` path).

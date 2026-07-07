@@ -42,8 +42,8 @@ paths and the arbiter reconciles them; `git diff --stat -- docs/` shows ONLY `do
 
 ## User Persona
 
-**Target User**: The reader of `docs/how-it-works.md` — a stagehand user (or contributor) trying to
-understand the decompose pipeline's *planning* step. They run `stagehand` (default auto-decompose) on a
+**Target User**: The reader of `docs/how-it-works.md` — a stagecoach user (or contributor) trying to
+understand the decompose pipeline's *planning* step. They run `stagecoach` (default auto-decompose) on a
 mixed working tree and want to know: how does the planner decide how many commits, what stops it from
 fanning a 3-concept tree into a dozen micro-commits, how does each stager know which files to touch,
 and what happens to a file the planner didn't assign to any concept.
@@ -215,7 +215,7 @@ changes. No inference required.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── docs/
     ├── how-it-works.md   # EDIT TARGET — 2 edits in the decompose section (line 59 table cell; new paragraph after line 115)
     ├── cli.md            # READ-ONLY (do NOT touch — contract)
@@ -227,7 +227,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only one existing file modified — no new files)
     docs/how-it-works.md   # planner output cell shows files; new "Mode-conditional planner rules" paragraph (FR-M3/M3b/M4)
 ```
@@ -435,7 +435,7 @@ DOWNSTREAM HOOKS (informational):
 ### Level 1: Markdown Sanity (no broken structure)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The edits are one table-cell swap + one new bold-led paragraph. Confirm no accidental heading/structure
 # breakage and the four-roles table still has 4 data rows:
@@ -450,7 +450,7 @@ sed -n '57,61p' docs/how-it-works.md       # the four-roles table — eyeball 4 
 ### Level 2: Content Assertions (the new contract + the three behaviors are present)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # THE headline check 1: the old output-cell shorthand is GONE.
 grep -n 'commits:\[\.\.\.\]' docs/how-it-works.md
@@ -474,7 +474,7 @@ grep -n 'only the hard cap' docs/how-it-works.md                # Expected: exac
 ### Level 3: Scope Discipline (only the one doc changed)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # ONLY docs/how-it-works.md changed.
 git diff --stat -- docs/
@@ -497,7 +497,7 @@ git diff -- docs/how-it-works.md
 ### Level 4: Cross-Reference Consistency (the section tells one story)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Read the decompose section end-to-end and confirm the planner→stager→arbiter story is consistent:
 sed -n '55,120p' docs/how-it-works.md

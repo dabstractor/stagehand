@@ -3,7 +3,7 @@ description: |
   Add the `--push` workflow convenience (PRD §9.22 FR-P1/P2/P3, → G19): a config-surface (full 5-layer
   precedence) `push` knob (default false) that, AFTER THE ENTIRE RUN PUBLISHES CLEANLY, runs plain
   `git push` (NO arguments) STREAMING its stdout/stderr verbatim to the user's terminal. Never prompts
-  (FR-P1). On push failure the COMMITS STAND (FR-P2): stagehand does NOT auto-`--set-upstream`
+  (FR-P1). On push failure the COMMITS STAND (FR-P2): stagecoach does NOT auto-`--set-upstream`
   (publishing a new branch is the user's call); it shows git's stderr verbatim, prints the closing
   note "commits created; push failed" to stderr, and EXITS 1. Push is SKIPPED ENTIRELY (FR-P3) on
   `--dry-run`, on the zero-commits exit-2 path, and on any rescue/CAS abort — push happens ONLY after a
@@ -25,7 +25,7 @@ description: |
       construction. The closing note "commits created; push failed" is printed to stderr BEFORE the
       error is returned (so it always lands); a plain `fmt.Errorf("git push failed: %w", err)` flows
       to `exitcode.For()` → exit 1 (the default tail — NO new sentinel, NO new mapping).
-  (3) Full config precedence for `push` (FR-P1: `--push` / `STAGEHAND_PUSH` / `stagehand.push` /
+  (3) Full config precedence for `push` (FR-P1: `--push` / `STAGECOACH_PUSH` / `stagecoach.push` /
       `[generation].push`, default false) — mirrors `Template` (P1.M2.T2.S2), NOT the flag-only `Context`.
   (4) Docs: docs/cli.md `--push` row (incl. the no-auto-`--set-upstream` stance + failure semantics),
       docs/configuration.md `push` key.
@@ -34,7 +34,7 @@ description: |
   `git push` exits 128 with stderr containing `has no upstream branch` + the `--set-upstream` hint.
   `push.autoSetupRemote=true` (present in the developer's real global config) MASKS this — tests MUST
   run git with `GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null` and assert on stable SUBSTRINGS
-  (`has no upstream branch`, `--set-upstream`), not full text. stagehand streams git's stderr verbatim
+  (`has no upstream branch`, `--set-upstream`), not full text. stagecoach streams git's stderr verbatim
   and never auto-sets upstream (FR-P2).
 
   CONSUMES: the existing `git.Git` boundary (adds ONE read-ish method that runs a network-mutating git
@@ -49,10 +49,10 @@ description: |
 
 ## Goal
 
-**Feature Goal**: `stagehand --push` (or `STAGEHAND_PUSH=1`, or `stagehand.push=true`, or
+**Feature Goal**: `stagecoach --push` (or `STAGECOACH_PUSH=1`, or `stagecoach.push=true`, or
 `[generation].push = true`) runs plain `git push` (no arguments) after a fully-successful run, streaming
 its stdout/stderr verbatim to the user's terminal. Push failure does NOT roll back the commits (FR-P2):
-stagehand shows git's stderr verbatim (including the no-upstream hint — stagehand does NOT auto-
+stagecoach shows git's stderr verbatim (including the no-upstream hint — stagecoach does NOT auto-
 `--set-upstream`), prints the closing note "commits created; push failed", and exits 1. Push is skipped
 on `--dry-run`, the zero-commits exit-2 path, and any rescue/CAS abort (FR-P3). Never prompts (FR-P1).
 
@@ -62,9 +62,9 @@ on `--dry-run`, the zero-commits exit-2 path, and any rescue/CAS abort (FR-P3). 
    directly to the passed writers, never adds `--set-upstream`, returns a wrapped error on non-zero exit).
 2. `internal/config/config.go` (EDIT) — `Push bool \`toml:"push"\`` under `[generation]` (a config-file
    key, NOT flag-only) + `Defaults()` `Push: false`.
-3. `internal/config/load.go` (EDIT) — `loadEnv` reads `STAGEHAND_PUSH` (bool, presence-semantic);
+3. `internal/config/load.go` (EDIT) — `loadEnv` reads `STAGECOACH_PUSH` (bool, presence-semantic);
    `loadFlags` reads `--push` (DIRECT set).
-4. `internal/config/git.go` (EDIT) — `loadGitConfig` reads `stagehand.push` (bool via `gitConfigBool`).
+4. `internal/config/git.go` (EDIT) — `loadGitConfig` reads `stagecoach.push` (bool via `gitConfigBool`).
 5. `internal/cmd/root.go` (EDIT) — `flagPush bool` + `pf.BoolVar(&flagPush, "push", false, "...")`
    (global persistent).
 6. `internal/cmd/default_action.go` (EDIT) — `runPush(ctx, stderr, g, cfg) error` helper + invocation at
@@ -79,38 +79,38 @@ on `--dry-run`, the zero-commits exit-2 path, and any rescue/CAS abort (FR-P3). 
 **Success Definition**:
 - `--push` unset (and no env/config/git-config source) → every commit path byte-identical to today
   (`runPush` is a `cfg.Push`-gated no-op; all existing tests pass unchanged — the regression guard).
-- `stagehand --push` on a single-commit run with a configured upstream → `git push` runs, its output
+- `stagecoach --push` on a single-commit run with a configured upstream → `git push` runs, its output
   streams verbatim to the terminal, exit 0.
-- `stagehand --push` on a decompose run → push runs ONCE after ALL commits + arbiter resolution land.
-- A no-upstream `git push` → stagehand prints git's stderr verbatim (incl. `has no upstream branch` +
+- `stagecoach --push` on a decompose run → push runs ONCE after ALL commits + arbiter resolution land.
+- A no-upstream `git push` → stagecoach prints git's stderr verbatim (incl. `has no upstream branch` +
   `--set-upstream`), then "commits created; push failed" to stderr, exits 1; the commits STAND (HEAD
   unchanged by the push failure — verify `git rev-parse HEAD` is the post-commit SHA).
-- `stagehand --dry-run --push` → NO push runs (the dry-run early-return fires before the push site),
+- `stagecoach --dry-run --push` → NO push runs (the dry-run early-return fires before the push site),
   exit 0.
-- `stagehand --push` on a clean-tree exit-2 run → NO push runs (the NothingToCommit return fires before
+- `stagecoach --push` on a clean-tree exit-2 run → NO push runs (the NothingToCommit return fires before
   the push site), exit 2.
-- `stagehand --push` on a rescue/CAS-aborted run → NO push runs (the error return fires before the push
+- `stagecoach --push` on a rescue/CAS-aborted run → NO push runs (the error return fires before the push
   site), exit 3 / 1 / 124 as appropriate.
-- `STAGEHAND_PUSH=1`, `stagehand.push=true`, and `[generation].push = true` each enable push without the
+- `STAGECOACH_PUSH=1`, `stagecoach.push=true`, and `[generation].push = true` each enable push without the
   flag (full precedence: flag > env > git-config > file > default false).
 - `go build ./...`, `go test ./...`, `go vet ./...`, `golangci-lint run`, `gofmt -l` all green.
 
 ## User Persona
 
 **Target User**: the "plan-holder" (PRD §7.1) whose final step after a commit is always `git push`.
-Today they run `stagehand && git push` as two commands (or an alias). `--push` collapses it to one —
+Today they run `stagecoach && git push` as two commands (or an alias). `--push` collapses it to one —
 the same convenience opencommit offers, but WITHOUT opencommit's interactive prompt (which contradicts
-stagehand's non-interactive design, FR-P1). Their fear: "I committed but forgot to push, and now my
+stagecoach's non-interactive design, FR-P1). Their fear: "I committed but forgot to push, and now my
 branch is behind." `--push` makes push the run's tail step, opt-in.
 
-**Use Case**: `stagehand --push` (or `git stagehand --push`, or the lazygit keybind with `--push` baked
-in, or `STAGEHAND_PUSH=1` in their shell rc for an always-push workflow) → generation → commit(s) land →
+**Use Case**: `stagecoach --push` (or `git stagecoach --push`, or the lazygit keybind with `--push` baked
+in, or `STAGECOACH_PUSH=1` in their shell rc for an always-push workflow) → generation → commit(s) land →
 `git push` streams to the terminal → done. If push fails (no upstream, network, rejected non-fast-
-forward), the commits are still there; stagehand says so and exits 1 so a script catches it.
+forward), the commits are still there; stagecoach says so and exits 1 so a script catches it.
 
-**User Journey**: `stagehand --push` → generation → `[<sha>] <subject>` (the FR42 report) → `git push`
+**User Journey**: `stagecoach --push` → generation → `[<sha>] <subject>` (the FR42 report) → `git push`
 output streams verbatim → exit 0. On no-upstream: `git push` stderr streams verbatim → "commits created;
-push failed" → exit 1 (the user runs `git push -u origin HEAD` themselves — stagehand never auto-sets
+push failed" → exit 1 (the user runs `git push -u origin HEAD` themselves — stagecoach never auto-sets
 upstream, FR-P2).
 
 **Pain Points Addressed**: incumbents (opencommit) prompt on push (interactive — bad for scripts/CI);
@@ -123,7 +123,7 @@ upstream (the user's call — FR-P2).
 - **FR-P1 (PRD §9.22)**: `--push` config surface (full precedence), runs plain `git push` (no args)
   streaming output, after the ENTIRE run publishes, never prompts.
 - **FR-P2**: push failure is NOT commit failure — the commits stand; git's stderr is shown verbatim
-  (incl. the no-upstream hint — stagehand does NOT auto-`--set-upstream`); closing note "commits created;
+  (incl. the no-upstream hint — stagecoach does NOT auto-`--set-upstream`); closing note "commits created;
   push failed"; exit 1.
 - **FR-P3**: skip conditions — no push on `--dry-run`, on the zero-commits exit-2 path, or on any run
   failure (rescue/CAS abort); push happens ONLY after a fully-clean run.
@@ -148,11 +148,11 @@ helper is placed at the two success returns, which makes FR-P3's skip conditions
       with NO args + `-C <repo>`; never `--set-upstream`; wrapped error on non-zero exit; ctx-aware).
 - [ ] `internal/config/config.go`: `Push bool \`toml:"push"\`` under `[generation]` + `Defaults()`
       `Push: false`.
-- [ ] `internal/config/load.go`: `loadEnv` `STAGEHAND_PUSH` (bool, presence-semantic, DIRECT set — can
+- [ ] `internal/config/load.go`: `loadEnv` `STAGECOACH_PUSH` (bool, presence-semantic, DIRECT set — can
       be false); `loadFlags` `--push` (`fs.Changed("push")` → DIRECT set).
-- [ ] `internal/config/git.go`: `loadGitConfig` reads `stagehand.push` via `gitConfigBool` (camelCase
-      key convention — `stagehand.push` is already lowercase, no camelCase needed; mirrors the bool
-      block near `stagehand.verbose`).
+- [ ] `internal/config/git.go`: `loadGitConfig` reads `stagecoach.push` via `gitConfigBool` (camelCase
+      key convention — `stagecoach.push` is already lowercase, no camelCase needed; mirrors the bool
+      block near `stagecoach.verbose`).
 - [ ] `internal/cmd/root.go`: `flagPush bool` + `pf.BoolVar(&flagPush, "push", false, "...")`.
 - [ ] `internal/cmd/default_action.go`: `runPush(ctx, stderr, g, cfg) error` + invocation at BOTH
       success returns (single post-`printCommitReport`; decompose post-commit-print-loop). Gated by
@@ -202,7 +202,7 @@ build it from this document + codebase access._
   why: §8 (`git push` no-upstream failure, VERIFIED empirically on git 2.54.0) — exit 128, stderr
        contains `has no upstream branch` + `--set-upstream`; `push.autoSetupRemote=true` (in the dev's
        real global config) MASKS this → tests MUST run git with `GIT_CONFIG_GLOBAL=/dev/null
-       GIT_CONFIG_SYSTEM=/dev/null` and assert on stable SUBSTRINGS, not full text. stagehand streams
+       GIT_CONFIG_SYSTEM=/dev/null` and assert on stable SUBSTRINGS, not full text. stagecoach streams
        git's stderr verbatim and never auto-sets upstream (FR-P2).
   section: "## 8. `git push` no-upstream failure (gates FR-P2) — VERIFIED (empirical, git 2.54.0)"
   critical: |
@@ -261,7 +261,7 @@ build it from this document + codebase access._
     }
   gotcha: |
     Add Push to the Git INTERFACE (the type, near HooksPath's doc ~L58) AND to *gitRunner (impl). EVERY
-    existing test double of Git (search `git.Git` in *_test.go — stubtest, fakeGit, decompose/stagehand
+    existing test double of Git (search `git.Git` in *_test.go — stubtest, fakeGit, decompose/stagecoach
     test doubles, etc.) must gain a no-op/stub Push impl or the package won't compile. Run
     `go build ./...` immediately after the interface edit to enumerate them all. Push is the ONLY method
     that takes io.Writer params — stubs can ignore them (`func (f *fakeGit) Push(ctx context.Context, _, _ io.Writer) error { return nil }`).
@@ -324,7 +324,7 @@ build it from this document + codebase access._
        (full precedence, FR-P1), NOT flag-only. Add to Defaults(): `Push: false`.
   pattern: |
     // Push is the §9.22 FR-P1 --push workflow convenience (full 5-layer precedence: --push /
-    // STAGEHAND_PUSH / stagehand.push / [generation].push, default false). When true, a plain `git push`
+    // STAGECOACH_PUSH / stagecoach.push / [generation].push, default false). When true, a plain `git push`
     // (no args, streaming) runs AFTER a fully-clean run. Push failure does NOT roll back commits (FR-P2):
     // git's stderr is streamed verbatim, "commits created; push failed" prints, exit 1. Skipped on
     // --dry-run, the exit-2 path, and any rescue/CAS abort (FR-P3). See cmd.runPush + git.Git.Push.
@@ -333,16 +333,16 @@ build it from this document + codebase access._
   gotcha: "Mirror Template (full precedence, toml:\"push\") — NOT Context (flag-only, toml:\"-\"). FR-P1
            names all four sources explicitly."
 
-- file: internal/config/load.go   (EDIT — loadEnv STAGEHAND_PUSH + loadFlags --push)
-  why: loadEnv (L~184) reads STAGEHAND_* bool vars (VERBOSE/NO_COLOR block L~201). Add STAGEHAND_PUSH
+- file: internal/config/load.go   (EDIT — loadEnv STAGECOACH_PUSH + loadFlags --push)
+  why: loadEnv (L~184) reads STAGECOACH_* bool vars (VERBOSE/NO_COLOR block L~201). Add STAGECOACH_PUSH
        (presence-semantic, strconv.ParseBool, DIRECT set — can be false). loadFlags (L~259) reads
        Config-backed flags; add a `--push` block (fs.Changed("push") → DIRECT set, like --verbose).
   pattern: |
-    // in loadEnv, after the STAGEHAND_NO_COLOR block:
-    if v, ok := os.LookupEnv("STAGEHAND_PUSH"); ok && v != "" {
+    // in loadEnv, after the STAGECOACH_NO_COLOR block:
+    if v, ok := os.LookupEnv("STAGECOACH_PUSH"); ok && v != "" {
         b, err := strconv.ParseBool(v)
         if err != nil {
-            return fmt.Errorf("STAGEHAND_PUSH: %w", err)
+            return fmt.Errorf("STAGECOACH_PUSH: %w", err)
         }
         cfg.Push = b // DIRECT set — can be false (escape hatch)
     }
@@ -354,23 +354,23 @@ build it from this document + codebase access._
         }
     }
   gotcha: "ParseBool accepts 1/0/true/false/TRUE/etc. Presence-semantic (empty string ⇒ not set ⇒ fall
-           through), mirroring STAGEHAND_VERBOSE. DIRECT set (not overlay) so --push=false / STAGEHAND_PUSH=0
+           through), mirroring STAGECOACH_VERBOSE. DIRECT set (not overlay) so --push=false / STAGECOACH_PUSH=0
            work as escape hatches."
 
-- file: internal/config/git.go   (EDIT — loadGitConfig reads stagehand.push)
-  why: loadGitConfig (L~110) reads `stagehand.*` keys. The bool block (L~156, near stagehand.verbose)
-       uses `gitConfigBool(repoDir, "stagehand.<key>")`. Add `stagehand.push` there. NOTE: unlike
-       `stagehand.autoStageAll`/`maxDiffBytes` (which this codebase stores in camelCase), `push` is a
-       single word — the key is literally `stagehand.push` (no camelCase transformation).
+- file: internal/config/git.go   (EDIT — loadGitConfig reads stagecoach.push)
+  why: loadGitConfig (L~110) reads `stagecoach.*` keys. The bool block (L~156, near stagecoach.verbose)
+       uses `gitConfigBool(repoDir, "stagecoach.<key>")`. Add `stagecoach.push` there. NOTE: unlike
+       `stagecoach.autoStageAll`/`maxDiffBytes` (which this codebase stores in camelCase), `push` is a
+       single word — the key is literally `stagecoach.push` (no camelCase transformation).
   pattern: |
-    // in the booleans block (after stagehand.verbose):
-    if v, found, err := gitConfigBool(repoDir, "stagehand.push"); err != nil {
+    // in the booleans block (after stagecoach.verbose):
+    if v, found, err := gitConfigBool(repoDir, "stagecoach.push"); err != nil {
         return nil, err
     } else if found {
         c.Push = v
     }
   gotcha: "gitConfigBool uses `--bool` (canonicalizes to true/false — FINDING C in this file). The key
-           is `stagehand.push` (lowercase, single word — do NOT write `stagehand.Push`)."
+           is `stagecoach.push` (lowercase, single word — do NOT write `stagecoach.Push`)."
 
 - file: internal/cmd/root.go   (EDIT — register --push global persistent flag)
   why: flagFormat/flagTemplate/flagContext are at L~74-81; their BoolVar/StringVar registrations follow
@@ -382,8 +382,8 @@ build it from this document + codebase access._
     pf.BoolVar(&flagPush, "push", false,
         "Run plain `git push` (streaming) after a fully-successful run. Never prompts; never auto-sets "+
             "upstream. On push failure the commits stand — git's stderr is shown verbatim, "+
-            "\"commits created; push failed\" prints, and stagehand exits 1. Skipped on --dry-run, the "+
-            "nothing-to-commit exit, and any rescue/CAS abort. (env STAGEHAND_PUSH, git stagehand.push, "+
+            "\"commits created; push failed\" prints, and stagecoach exits 1. Skipped on --dry-run, the "+
+            "nothing-to-commit exit, and any rescue/CAS abort. (env STAGECOACH_PUSH, git stagecoach.push, "+
             "config [generation].push; default false.) (§9.22 FR-P1)")
   gotcha: "GLOBAL persistent flag — inherited by subcommands. hook exec should IGNORE it silently (push "+
             "is meaningless in hook mode — git owns the commit; a push belongs in the user's post-commit "+
@@ -394,7 +394,7 @@ build it from this document + codebase access._
 - file: internal/git/git_test.go   (REF + EXTEND — the git test harness + Push tests)
   why: initRepo(t, dir) (L~14) is the test-repo bootstrap (git init + user.name/email). EXTEND with Push
        tests. The clean-push E2E needs a temp BARE remote (`git init --bare <bare>`), `git remote add
-       origin <bare>`, an initial `git push -u origin HEAD` (TEST SETUP — not stagehand's job), then a
+       origin <bare>`, an initial `git push -u origin HEAD` (TEST SETUP — not stagecoach's job), then a
        new commit, then `g.Push(ctx, os.Stdout, os.Stderr)` → assert exit nil + the remote advanced. The
        no-upstream test MUST set `GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null` on the push
        subprocess (or via t.Setenv) and assert on substrings.
@@ -437,15 +437,15 @@ build it from this document + codebase access._
     WITHOUT t.Setenv("GIT_CONFIG_GLOBAL","/dev/null"), the no-upstream test PASSES (push silently
     succeeds due to the dev's autoSetupRemote) — a FALSE GREEN. This is the #1 test pitfall
     (external_deps.md §8). Assert on SUBSTRINGS, never full stderr. The `git push -u origin HEAD` in the
-    clean-push test is TEST SETUP (establishing upstream) — stagehand NEVER does this (FR-P2). For
+    clean-push test is TEST SETUP (establishing upstream) — stagecoach NEVER does this (FR-P2). For
     stub/fake Git impls: Push(ctx, _, _ io.Writer) error { return nil } (no-op stub).
 
 - file: internal/cmd/default_action_test.go   (EXTEND — CLI skip + FR-P2 exit-1 + note)
-  why: The CLI-level tests. (1) skip-on-dry-run: `stagehand --dry-run --push` with staged changes →
+  why: The CLI-level tests. (1) skip-on-dry-run: `stagecoach --dry-run --push` with staged changes →
        message printed, "(no commit created)", NO push (assert the bare remote is unchanged / a spy Git
        captures no Push call), exit 0. (2) FR-P2 exit-1 + note: a no-upstream repo + `--push` → "commits
        created; push failed" on stderr + exit 1 + the commit landed (HEAD advanced). Use a temp bare
-       remote + GIT_CONFIG_GLOBAL=/dev/null for the no-upstream case. (3) byte-identity: `stagehand`
+       remote + GIT_CONFIG_GLOBAL=/dev/null for the no-upstream case. (3) byte-identity: `stagecoach`
        WITHOUT --push → no Push call (a spy Git asserts Push was never called).
   pattern: "Use a spy/fake Git that records Push calls for the skip + byte-identity assertions; use a real
             git.New on a temp repo + bare remote for the FR-P2 integration assertion. Mirror the existing
@@ -458,10 +458,10 @@ build it from this document + codebase access._
        no-auto-`--set-upstream` stance, the failure semantics (commits stand, exit 1), and the skip
        conditions.
   critical: |
-    | `--push` | bool | false | `STAGEHAND_PUSH` | `stagehand.push` | Run plain `git push` (no arguments,
+    | `--push` | bool | false | `STAGECOACH_PUSH` | `stagecoach.push` | Run plain `git push` (no arguments,
       streaming its output) after a fully-successful run. Never prompts. On push failure the commits
-      stand — git's stderr is shown verbatim (including the no-upstream hint; stagehand does NOT auto-
-      `--set-upstream`), "commits created; push failed" prints, and stagehand exits 1. Skipped on
+      stand — git's stderr is shown verbatim (including the no-upstream hint; stagecoach does NOT auto-
+      `--set-upstream`), "commits created; push failed" prints, and stagecoach exits 1. Skipped on
       `--dry-run`, the nothing-to-commit exit, and any rescue/CAS abort. Also `[generation].push`. (§9.22
       FR-P1) |
 
@@ -478,8 +478,8 @@ internal/git/
   git_test.go      # EXTEND — Push clean-push-to-bare-remote + no-upstream-fails-128 (GIT_CONFIG_GLOBAL=/dev/null)
 internal/config/
   config.go        # EDIT — Config.Push field ([generation], toml:"push") + Defaults()
-  load.go          # EDIT — loadEnv STAGEHAND_PUSH + loadFlags --push
-  git.go           # EDIT — loadGitConfig reads stagehand.push (gitConfigBool)
+  load.go          # EDIT — loadEnv STAGECOACH_PUSH + loadFlags --push
+  git.go           # EDIT — loadGitConfig reads stagecoach.push (gitConfigBool)
   load_test.go / git_test.go / file_test.go  # EXTEND — push precedence across flag/env/git/file
 internal/cmd/
   root.go          # EDIT — flagPush + --push BoolVar (global persistent)
@@ -514,7 +514,7 @@ precedence). Every change is additive + guarded by `cfg.Push`.
 // slow/large push would be invisible). Streaming is the FR-P1 contract ("streaming its output").
 
 // CRITICAL (the Git interface edit ripples to ALL test doubles): adding Push to git.Git means EVERY
-// fake/stub Git in the repo (search `git.Git` in *_test.go: stubtest, internal/git fakes, decompose/stagehand
+// fake/stub Git in the repo (search `git.Git` in *_test.go: stubtest, internal/git fakes, decompose/stagecoach
 // test doubles) must gain a Push impl or the package won't compile. Push is the ONLY io.Writer-taking
 // method — stubs: `func (f *fakeGit) Push(ctx context.Context, _, _ io.Writer) error { return nil }`.
 // Run `go build ./...` immediately after the interface edit to enumerate them all.
@@ -539,7 +539,7 @@ precedence). Every change is additive + guarded by `cfg.Push`.
 // moves the REMOTE; local HEAD is untouched by a push failure).
 
 // CRITICAL (NEVER auto---set-upstream — FR-P2): Push runs `git push` with NO args after `push`. Do NOT
-// add `--set-upstream`, `-u`, or any arg. Publishing a new branch is the user's call (FR-P2: "stagehand
+// add `--set-upstream`, `-u`, or any arg. Publishing a new branch is the user's call (FR-P2: "stagecoach
 // does not auto---set-upstream; publishing a new branch is the user's call"). The no-upstream failure
 // surfaces git's own hint verbatim (the user runs `git push -u origin HEAD` themselves).
 
@@ -550,13 +550,13 @@ precedence). Every change is additive + guarded by `cfg.Push`.
 // (already printed before runPush) is unaffected — push runs AFTER printCommitReport.
 
 // GOTCHA (push is full-precedence, NOT flag-only — mirror Template, not Context): Config.Push has
-// toml:"push" (a config-file key under [generation]); STAGEHAND_PUSH env; stagehand.push git-config; --push
+// toml:"push" (a config-file key under [generation]); STAGECOACH_PUSH env; stagecoach.push git-config; --push
 // flag. All four sources, default false. This is the SAME shape as Template (P1.M2.T2.S2), NOT Context
 // (flag-only, toml:"-"). FR-P1 names all four sources explicitly.
 
-// GOTCHA (the git-config key is stagehand.push — lowercase, single word): unlike stagehand.autoStageAll
+// GOTCHA (the git-config key is stagecoach.push — lowercase, single word): unlike stagecoach.autoStageAll
 // / maxDiffBytes (which this codebase stores in camelCase because the prose names are multi-word),
-// `push` is one word — the key is literally `stagehand.push`. Do NOT write `stagehand.Push`.
+// `push` is one word — the key is literally `stagecoach.push`. Do NOT write `stagecoach.Push`.
 
 // GOTCHA (hook exec silently ignores --push — no hookexec.go edit): --push is a GLOBAL persistent flag,
 // inherited by hook exec. But cfg.Push is only CHECKED at the default-action success return (runPush),
@@ -571,7 +571,7 @@ precedence). Every change is additive + guarded by `cfg.Push`.
 
 // GOTCHA (--edit and --push are independent — they compose): --edit (P1.M5.T1.S1) gates EACH commit's
 // message PRE-publish (inside the orchestrator); --push runs ONCE POST-publish (in the CLI). Neither
-// touches the other's code. `stagehand --edit --push` edits each message, publishes all, then pushes.
+// touches the other's code. `stagecoach --edit --push` edits each message, publishes all, then pushes.
 // Both are cfg.<Flag>-gated no-ops when off → byte-identity when both unset.
 ```
 
@@ -585,7 +585,7 @@ precedence). Every change is additive + guarded by `cfg.Push`.
 	// Push runs plain `git push` (NO arguments — §9.22 FR-P1) streaming its stdout/stderr VERBATIM to the
 	// passed writers (the CLI passes os.Stdout/os.Stderr so the user sees git's real output: progress,
 	// the no-upstream hint, rejected non-fast-forwards, etc.). It NEVER adds `--set-upstream` (FR-P2:
-	// publishing a new branch is the user's call — stagehand surfaces git's own hint verbatim instead).
+	// publishing a new branch is the user's call — stagecoach surfaces git's own hint verbatim instead).
 	// On a non-zero exit (128 = no upstream / rejected; 1 = network) it returns a wrapped error carrying
 	// git's exit code; the COMMITS STAND (push failure does not roll back local commits — push moves the
 	// REMOTE, not local HEAD; the caller prints "commits created; push failed" and exits 1). ctx-aware
@@ -618,7 +618,7 @@ func (g *gitRunner) Push(ctx context.Context, stdout, stderr io.Writer) error {
 
 // === internal/config/config.go (EDIT — Config.Push field, near Template L~93) ===
 	// Push is the §9.22 FR-P1 --push workflow convenience (full 5-layer precedence: --push /
-	// STAGEHAND_PUSH / stagehand.push / [generation].push, default false). When true, a plain `git push`
+	// STAGECOACH_PUSH / stagecoach.push / [generation].push, default false). When true, a plain `git push`
 	// (no args, streaming) runs AFTER a fully-clean run. Push failure does NOT roll back commits (FR-P2):
 	// git's stderr is streamed verbatim, "commits created; push failed" prints, exit 1. Skipped on
 	// --dry-run, the exit-2 path, and any rescue/CAS abort (FR-P3). See cmd.runPush + git.Git.Push.
@@ -626,11 +626,11 @@ func (g *gitRunner) Push(ctx context.Context, stdout, stderr io.Writer) error {
 // ...in Defaults(): Push: false,
 
 // === internal/config/load.go (EDIT — loadEnv + loadFlags) ===
-// in loadEnv, after the STAGEHAND_NO_COLOR block:
-	if v, ok := os.LookupEnv("STAGEHAND_PUSH"); ok && v != "" {
+// in loadEnv, after the STAGECOACH_NO_COLOR block:
+	if v, ok := os.LookupEnv("STAGECOACH_PUSH"); ok && v != "" {
 		b, err := strconv.ParseBool(v)
 		if err != nil {
-			return fmt.Errorf("STAGEHAND_PUSH: %w", err)
+			return fmt.Errorf("STAGECOACH_PUSH: %w", err)
 		}
 		cfg.Push = b // DIRECT set — can be false (escape hatch)
 	}
@@ -641,8 +641,8 @@ func (g *gitRunner) Push(ctx context.Context, stdout, stderr io.Writer) error {
 		}
 	}
 
-// === internal/config/git.go (EDIT — loadGitConfig, bool block near stagehand.verbose) ===
-	if v, found, err := gitConfigBool(repoDir, "stagehand.push"); err != nil {
+// === internal/config/git.go (EDIT — loadGitConfig, bool block near stagecoach.verbose) ===
+	if v, found, err := gitConfigBool(repoDir, "stagecoach.push"); err != nil {
 		return nil, err
 	} else if found {
 		c.Push = v
@@ -654,9 +654,9 @@ func (g *gitRunner) Push(ctx context.Context, stdout, stderr io.Writer) error {
 	pf.BoolVar(&flagPush, "push", false,
 		"Run plain `git push` (streaming) after a fully-successful run. Never prompts; never auto-sets "+
 			"upstream. On push failure the commits stand — git's stderr is shown verbatim (including the "+
-			"no-upstream hint), \"commits created; push failed\" prints, and stagehand exits 1. Skipped "+
-			"on --dry-run, the nothing-to-commit exit, and any rescue/CAS abort. (env STAGEHAND_PUSH, "+
-			"git stagehand.push, config [generation].push; default false.) (§9.22 FR-P1)")
+			"no-upstream hint), \"commits created; push failed\" prints, and stagecoach exits 1. Skipped "+
+			"on --dry-run, the nothing-to-commit exit, and any rescue/CAS abort. (env STAGECOACH_PUSH, "+
+			"git stagecoach.push, config [generation].push; default false.) (§9.22 FR-P1)")
 
 // === internal/cmd/default_action.go (EDIT — runPush helper + BOTH success-return invocations) ===
 // runPush runs `git push` (plain, streaming) after a fully-clean run, iff cfg.Push (§9.22 FR-P1). No-op
@@ -699,13 +699,13 @@ Task 1: ADD git.Git.Push (interface + *gitRunner impl + ALL test doubles)
     wrapped error on non-zero exit; ctx-aware via ctx.Err()).
   - RUN `go build ./...` immediately to enumerate EVERY fake/stub git.Git in the repo; add no-op/stub
     Push impls (`func (...) Push(_ context.Context, _, _ io.Writer) error { return nil }`) to each
-    (search: `git.Git` in *_test.go — stubtest, internal/git fakes, decompose/stagehand test doubles).
+    (search: `git.Git` in *_test.go — stubtest, internal/git fakes, decompose/stagecoach test doubles).
 
 Task 2: ADD Config.Push + loadEnv + loadFlags + loadGitConfig + root.go --push flag
   - EDIT internal/config/config.go: `Push bool \`toml:"push"\`` near Template (L~93) + Defaults() Push: false.
-  - EDIT internal/config/load.go: loadEnv STAGEHAND_PUSH block (presence-semantic, ParseBool, DIRECT set)
+  - EDIT internal/config/load.go: loadEnv STAGECOACH_PUSH block (presence-semantic, ParseBool, DIRECT set)
     + loadFlags --push block (fs.Changed("push") → DIRECT set).
-  - EDIT internal/config/git.go: loadGitConfig bool block — `stagehand.push` via gitConfigBool.
+  - EDIT internal/config/git.go: loadGitConfig bool block — `stagecoach.push` via gitConfigBool.
   - EDIT internal/cmd/root.go: flagPush var + pf.BoolVar(&flagPush, "push", false, "...").
 
 Task 3: ADD runPush helper + the TWO success-return invocations
@@ -721,8 +721,8 @@ Task 4: TESTS — Git.Push (clean + no-upstream) + config precedence + CLI skip/
     (t.Setenv GIT_CONFIG_GLOBAL+SYSTEM=/dev/null, NO upstream setup, g.Push → err; assert stderr contains
     `has no upstream branch` + `--set-upstream`; HEAD unchanged by the push failure).
   - internal/config (load_test.go / git_test.go / file_test.go): push precedence across --push /
-    STAGEHAND_PUSH / stagehand.push / [generation].push; default false; DIRECT-set escape hatch
-    (--push=false / STAGEHAND_PUSH=0).
+    STAGECOACH_PUSH / stagecoach.push / [generation].push; default false; DIRECT-set escape hatch
+    (--push=false / STAGECOACH_PUSH=0).
   - internal/cmd/default_action_test.go: skip-on-dry-run (--dry-run --push → no push, exit 0; assert via
     spy Git or unchanged remote); FR-P2 exit-1 + "commits created; push failed" note (no-upstream repo +
     --push → exit 1, note on stderr, commit landed); byte-identity (no --push → Push never called).
@@ -791,8 +791,8 @@ CLI (the push site — BOTH success returns):
 
 CONFIG (full 5-layer precedence — mirrors Template, NOT Context):
   - Config.Push `toml:"push"` ([generation] key) + Defaults() Push: false.
-  - loadEnv: STAGEHAND_PUSH (bool, presence-semantic, DIRECT set).
-  - loadGitConfig: stagehand.push (gitConfigBool; lowercase single-word key).
+  - loadEnv: STAGECOACH_PUSH (bool, presence-semantic, DIRECT set).
+  - loadGitConfig: stagecoach.push (gitConfigBool; lowercase single-word key).
   - loadFlags: --push (fs.Changed → DIRECT set). root.go: pf.BoolVar.
 
 EXIT MAPPING:
@@ -814,7 +814,7 @@ OUT OF SCOPE:
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/git/git.go internal/config/config.go internal/config/load.go \
         internal/config/git.go internal/cmd/root.go internal/cmd/default_action.go
 go build ./...   # the interface edit must compile across ALL fake/stub git.Git impls
@@ -836,20 +836,20 @@ go test ./internal/cmd/... -v        # runPush no-op + skip-on-dry-run + FR-P2 e
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 # Flag exists + help:
-/tmp/stagehand --help 2>&1 | grep -A2 -- '--push'
+/tmp/stagecoach --help 2>&1 | grep -A2 -- '--push'
 # Clean push to a temp bare remote (manual smoke):
 rm -rf /tmp/pushe2e && mkdir -p /tmp/pushe2e && cd /tmp/pushe2e
 git init && git config user.email t@t && git config user.name t
 git remote add origin /tmp/pushe2e-bare.git && git init --bare /tmp/pushe2e-bare.git
 echo a > a.txt && git add a.txt && git commit -m init && git push -u origin HEAD  # upstream SETUP
-echo b > b.txt && /tmp/stagehand --push   # → commit + `git push` streams → exit 0
+echo b > b.txt && /tmp/stagecoach --push   # → commit + `git push` streams → exit 0
 # No-upstream failure (manual smoke — isolate the dev's autoSetupRemote):
-GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null /tmp/stagehand --push
+GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null /tmp/stagecoach --push
 #   → "commits created; push failed" + git's no-upstream stderr → exit 1; commits stand
 # Skip-on-dry-run:
-/tmp/stagehand --dry-run --push   # → message + "(no commit created)"; NO push; exit 0
+/tmp/stagecoach --dry-run --push   # → message + "(no commit created)"; NO push; exit 0
 ```
 
 ### Level 4: Regression & Cross-cutting
@@ -880,15 +880,15 @@ golangci-lint run ./...
 - [ ] `--dry-run --push` → NO push (dry-run early-returns before the site), exit 0.
 - [ ] Exit-2 (nothing to commit) + `--push` → NO push (exit-2 returns before the site), exit 2.
 - [ ] Rescue/CAS abort + `--push` → NO push (error returns before the site), exit 3/1/124.
-- [ ] `STAGEHAND_PUSH=1` / `stagehand.push=true` / `[generation].push = true` each enable push (precedence).
-- [ ] stagehand NEVER auto-sets upstream (FR-P2) — `git push` runs with NO args after `push`.
+- [ ] `STAGECOACH_PUSH=1` / `stagecoach.push=true` / `[generation].push = true` each enable push (precedence).
+- [ ] stagecoach NEVER auto-sets upstream (FR-P2) — `git push` runs with NO args after `push`.
 
 ### Code Quality Validation
 - [ ] Push is the net-new streaming method (cmd.Stdout/cmd.Stderr wired to io.Writers, NOT bytes.Buffer).
 - [ ] runPush prints the closing note BEFORE returning the error (FR-P2).
 - [ ] Push failure → exit 1 via exitcode.For's DEFAULT TAIL (no new sentinel/mapping).
 - [ ] cfg.Push is full-precedence (toml:"push" + env + git-config + flag; mirrors Template, NOT Context).
-- [ ] The git-config key is `stagehand.push` (lowercase single word, not camelCase).
+- [ ] The git-config key is `stagecoach.push` (lowercase single word, not camelCase).
 - [ ] FR-P3 skip conditions hold STRUCTURALLY (push site is at the success return).
 - [ ] hook exec silently ignores --push (no hookexec.go edit; cfg.Push only checked at the default-action site).
 
@@ -904,7 +904,7 @@ golangci-lint run ./...
 - ❌ Don't reuse `run()`/`runWithInput()` for push — they CAPTURE stdout/stderr into bytes.Buffer; push
   must STREAM verbatim (FR-P1). Push is a net-new method wiring cmd.Stdout/cmd.Stderr to io.Writers.
 - ❌ Don't add `--set-upstream` / `-u` / any arg to `git push` — FR-P2 explicitly forbids auto-setting
-  upstream; stagehand surfaces git's own hint verbatim instead.
+  upstream; stagecoach surfaces git's own hint verbatim instead.
 - ❌ Don't write the no-upstream test WITHOUT `GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null` —
   the dev's `push.autoSetupRemote=true` makes the push silently SUCCEED → a FALSE GREEN (external_deps.md §8).
 - ❌ Don't assert on full stderr text in the no-upstream test — git wording varies; assert on the stable
@@ -915,8 +915,8 @@ golangci-lint run ./...
   user-facing contract (FR-P2); print it to stderr first, THEN return the wrapped error.
 - ❌ Don't give `push` flag-only precedence (toml:"-") — FR-P1 names all four sources (flag/env/git-config/
   file); mirror Template, NOT Context.
-- ❌ Don't write the git-config key as `stagehand.Push` (camelCase) — `push` is a single word; the key is
-  literally `stagehand.push`.
+- ❌ Don't write the git-config key as `stagecoach.Push` (camelCase) — `push` is a single word; the key is
+  literally `stagecoach.push`.
 - ❌ Don't add explicit skip guards for dry-run/exit-2/rescue-CAS inside runPush beyond `cfg.Push` —
   FR-P3's skip conditions hold STRUCTURALLY (those paths return before the success site). A `flagDryRun`
   short-circuit is harmless belt-and-suspenders but NOT required.

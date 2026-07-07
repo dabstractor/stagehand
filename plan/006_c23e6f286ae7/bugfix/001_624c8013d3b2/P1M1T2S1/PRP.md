@@ -18,7 +18,7 @@ description: |
 
 **Feature Goal**: Pin Issue 1's documented behavior with an automated e2e regression so it can never
 silently flip again: on the **decompose path** (nothing staged, dirty working tree), an accidental
-double-run of stagehand exits **5 (Busy)** — never the no-op fast path's 0 — because the holder publishes
+double-run of stagecoach exits **5 (Busy)** — never the no-op fast path's 0 — because the holder publishes
 a working-tree snapshot (`T_start`) that a lock-free contender cannot reproduce from the index.
 
 **Deliverable**: ONE new `t.Run("F_DecomposeAccidentalDoubleRun_Busy", …)` subtest appended to
@@ -29,11 +29,11 @@ and the scenario-B two-process skeleton. No production code, no docs, no new bin
 
 ## User Persona
 
-**Target User**: The Stagehand maintainer/reviewer guarding the FR52 run-lock behavior against regressions, and any future contributor who might (well-meaningly) try to make the no-op fast path fire on the decompose path.
+**Target User**: The Stagecoach maintainer/reviewer guarding the FR52 run-lock behavior against regressions, and any future contributor who might (well-meaningly) try to make the no-op fast path fire on the decompose path.
 
 **Use Case**: CI (or a local contributor) runs `go test -tags e2e ./internal/e2e/...` before/after changes to the lock, decompose, or contention-handler code. Scenario F fails loudly if anyone changes the decompose path to exit 0 on an accidental double-run (which the architecture has deliberately decided NOT to do — Option 1 of issue_analysis.md qualified the docs instead).
 
-**User Journey**: a user double-taps a keybind bound to `stagehand` on a dirty, un-staged tree → the second invocation exits 5 (Busy) with a clear "already in progress" message → the user re-runs after the first finishes. Scenario F automates the regression check for exactly this.
+**User Journey**: a user double-taps a keybind bound to `stagecoach` on a dirty, un-staged tree → the second invocation exits 5 (Busy) with a clear "already in progress" message → the user re-runs after the first finishes. Scenario F automates the regression check for exactly this.
 
 **Pain Points Addressed**: Closes the exact coverage gap that let Issue 1 survive validation — the e2e suite covered the no-op fast path ONLY on the single-commit (staged) path (scenario B); there was NO decompose-path contention scenario. Scenario F is that scenario.
 
@@ -48,9 +48,9 @@ and the scenario-B two-process skeleton. No production code, no docs, no new bin
 
 A single `t.Run` subtest added inside `TestE2ELockContention` (after scenario E), following the scenario-B
 two-process skeleton. Setup: `newRepo` + `seedCommit('readme.md','init')` + `writeFile('feature.txt','new work')`
-(one untracked, unstaged file). Holder: stub env with `STAGEHAND_STUB_OUT='feat: add feature'`,
-`STAGEHAND_STUB_MARKER=readiness`, `STAGEHAND_STUB_SLEEP_MS='4000'`, launched in a goroutine;
-`waitForMarker(readiness, 10s)`. Contender: same repo, `STAGEHAND_STUB_OUT='feat: add feature'`, run
+(one untracked, unstaged file). Holder: stub env with `STAGECOACH_STUB_OUT='feat: add feature'`,
+`STAGECOACH_STUB_MARKER=readiness`, `STAGECOACH_STUB_SLEEP_MS='4000'`, launched in a goroutine;
+`waitForMarker(readiness, 10s)`. Contender: same repo, `STAGECOACH_STUB_OUT='feat: add feature'`, run
 synchronously. Assert contender `ExitCode==5`, stderr contains "already in progress", stderr does NOT
 contain "nothing to do". Drain holder via `<-resCh`, assert `ExitCode==0`. No production code, docs, or
 binary change.
@@ -60,7 +60,7 @@ binary change.
 - [ ] `TestE2ELockContention` has a new `F_DecomposeAccidentalDoubleRun_Busy` subtest (after E).
 - [ ] Setup uses EXACTLY ONE untracked, UNSTAGED file (`writeFile`, NOT `stageFile`) → decompose activates.
 - [ ] Holder uses the scenario-B skeleton (goroutine + `waitForMarker` + buffered channel), with
-      `STAGEHAND_STUB_OUT`, `STAGEHAND_STUB_MARKER`, `STAGEHAND_STUB_SLEEP_MS='4000'`.
+      `STAGECOACH_STUB_OUT`, `STAGECOACH_STUB_MARKER`, `STAGECOACH_STUB_SLEEP_MS='4000'`.
 - [ ] Contender runs synchronously against the same repo; asserts `ExitCode == 5`.
 - [ ] Contender stderr contains `"already in progress"`.
 - [ ] Contender stderr does NOT contain `"nothing to do"`.
@@ -101,12 +101,12 @@ contract's risk notes (no extras needed). The e2e package compiles clean today; 
 
 - file: internal/e2e/lock_scenarios_test.go
   why: "THE edit target. Contains TestE2ELockContention (the outer func that builds bin/stub/cfg at the top) + scenarios A–E as t.Run subtests. Scenario B (B_NoOpFastPath_AccidentalDoubleRun) is the canonical two-process skeleton to mirror — F is its decompose-path counterpart (untracked-not-staged file → assert Busy instead of 0)."
-  pattern: "Each subtest: newRepo → seedCommit → writeFile[/stageFile] → readiness marker path → holder stubEnv (OUT+MARKER+SLEEP_MS) → goroutine + waitForMarker → contender runStagehand → assert ExitCode + stderr substrings → <-resCh drain + assert holder. F mirrors this exactly; the ONLY deltas are: writeFile NOT stageFile (decompose), and the Busy assertions."
-  gotcha: "Use the OUTER-SCOPE bin/stub/cfg (declared at the top of TestE2ELockContention: `bin := buildStagehand(t); stub := buildStub(t); cfg := writeStubConfig(t, stub, \"\")`). Do NOT redeclare cfg inside F. The file's line-1 build tag (`//go:build e2e`) and package decl are already correct — append only the subtest."
+  pattern: "Each subtest: newRepo → seedCommit → writeFile[/stageFile] → readiness marker path → holder stubEnv (OUT+MARKER+SLEEP_MS) → goroutine + waitForMarker → contender runStagecoach → assert ExitCode + stderr substrings → <-resCh drain + assert holder. F mirrors this exactly; the ONLY deltas are: writeFile NOT stageFile (decompose), and the Busy assertions."
+  gotcha: "Use the OUTER-SCOPE bin/stub/cfg (declared at the top of TestE2ELockContention: `bin := buildStagecoach(t); stub := buildStub(t); cfg := writeStubConfig(t, stub, \"\")`). Do NOT redeclare cfg inside F. The file's line-1 build tag (`//go:build e2e`) and package decl are already correct — append only the subtest."
 
 - file: internal/e2e/harness_test.go
-  why: "READ-ONLY ref. Every helper F reuses lives here: buildStagehand/buildStub (cached sync.Once builds), newRepo (git init + identity), seedCommit (write+add+commit), writeFile (working-tree write, does NOT stage), stageFile (git add), writeStubConfig (base [provider.stub] TOML + extras), stubEnv (os.Environ + KNOBS), runStagehand (subprocess, 60s timeout, --config/--no-color), waitForMarker (20ms poll), commitCount/runGit."
-  pattern: "writeStubConfig(t, stubBin, extras) writes config_version=3 + [provider.stub] (command, prompt_delivery=stdin, output=raw, strip_code_fence, default_model=stub, tooled_flags). stubEnv(map) returns os.Environ()+the STAGEHAND_STUB_* knobs. runStagehand returns e2eResult{Stdout,Stderr,ExitCode}."
+  why: "READ-ONLY ref. Every helper F reuses lives here: buildStagecoach/buildStub (cached sync.Once builds), newRepo (git init + identity), seedCommit (write+add+commit), writeFile (working-tree write, does NOT stage), stageFile (git add), writeStubConfig (base [provider.stub] TOML + extras), stubEnv (os.Environ + KNOBS), runStagecoach (subprocess, 60s timeout, --config/--no-color), waitForMarker (20ms poll), commitCount/runGit."
+  pattern: "writeStubConfig(t, stubBin, extras) writes config_version=3 + [provider.stub] (command, prompt_delivery=stdin, output=raw, strip_code_fence, default_model=stub, tooled_flags). stubEnv(map) returns os.Environ()+the STAGECOACH_STUB_* knobs. runStagecoach returns e2eResult{Stdout,Stderr,ExitCode}."
 
 - file: internal/cmd/default_action.go
   why: "READ-ONLY ref (the code under test). handleLockContention (lines 241-256): `if snap := heldErr.Contents.Snapshot; snap != \"\" { contenderTree = WriteTree(); if match → exit 0 (\"nothing to do\") }` else `→ Busy(5)` with the \"already in progress\" message. shouldDecompose (:329, called :90) returns true with defaults when nothing is staged + dirty tree."
@@ -118,8 +118,8 @@ contract's risk notes (no extras needed). The e2e package compiles clean today; 
   gotcha: "Do NOT edit. F relies on this exact ordering (SetSnapshot before the message call) for the contention window to be deterministic."
 
 - file: cmd/stubagent/main.go
-  why: "READ-ONLY ref (the stub's ordering contract). main() order: drain stdin → write marker (STAGEHAND_STUB_MARKER) → sleep (STAGEHAND_STUB_SLEEP_MS) → stderr → stdout (STAGEHAND_STUB_OUT) → exit. So waitForMarker returning ⇒ holder drained stdin (message gen in flight) + is sleeping with the lock held."
-  gotcha: "The marker is written BEFORE the sleep — this is the deterministic-race primitive (G-MARKER-IS-DETERMINISTIC). The stub is a single-response fake agent; STAGEHAND_STUB_OUT satisfies the one-file shortcut's MESSAGE role."
+  why: "READ-ONLY ref (the stub's ordering contract). main() order: drain stdin → write marker (STAGECOACH_STUB_MARKER) → sleep (STAGECOACH_STUB_SLEEP_MS) → stderr → stdout (STAGECOACH_STUB_OUT) → exit. So waitForMarker returning ⇒ holder drained stdin (message gen in flight) + is sleeping with the lock held."
+  gotcha: "The marker is written BEFORE the sleep — this is the deterministic-race primitive (G-MARKER-IS-DETERMINISTIC). The stub is a single-response fake agent; STAGECOACH_STUB_OUT satisfies the one-file shortcut's MESSAGE role."
 
 - docfile: plan/006_c23e6f286ae7/bugfix/001_624c8013d3b2/P1M1T1S3/PRP.md
   why: "The parallel sibling (doc-only: docs/how-it-works.md:155). Confirms NO .go/test file overlap — S3 touches only a docs file, F touches only a test file. No conflict."
@@ -133,9 +133,9 @@ contract's risk notes (no extras needed). The e2e package compiles clean today; 
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/e2e/
-    ├── harness_test.go            # READ-ONLY — helpers (buildStagehand/newRepo/writeStubConfig/runStagehand/waitForMarker/…)
+    ├── harness_test.go            # READ-ONLY — helpers (buildStagecoach/newRepo/writeStubConfig/runStagecoach/waitForMarker/…)
     ├── lock_scenarios_test.go     # EDIT TARGET — append the F subtest to TestE2ELockContention
     ├── scenarios_test.go          # READ-ONLY — the S1–S7 decompose scenarios (real-agent gated)
     └── hook_scenarios_test.go     # READ-ONLY — hook-mode scenarios
@@ -145,7 +145,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only one existing file modified — no new files)
     internal/e2e/lock_scenarios_test.go   # +F_DecomposeAccidentalDoubleRun_Busy subtest (after E)
 ```
@@ -172,7 +172,7 @@ stagehand/
 // single-commit path (scenario B's territory) and F would assert the wrong exit code.
 
 // CRITICAL (G3 — reuse the outer-scope bin/stub/cfg): TestE2ELockContention declares
-// `bin := buildStagehand(t); stub := buildStub(t); cfg := writeStubConfig(t, stub, "")` at the top.
+// `bin := buildStagecoach(t); stub := buildStub(t); cfg := writeStubConfig(t, stub, "")` at the top.
 // Scenarios A–E reference these directly. F must too — do NOT redeclare cfg inside F (the architecture
 // skeleton's local `cfg :=` line would shadow pointlessly). cfg is shared and correct (defaults enable
 // decompose; no extras needed).
@@ -194,7 +194,7 @@ stagehand/
 
 // GOTCHA (G7 — holder SLEEP_MS=4000, contender no sleep): the holder sleeps 4000ms so the lock is held
 // while the contender runs. The contender hits Busy immediately (fails Acquire → handleLockContention →
-// exits 5) long before the holder wakes. runStagehand's 60s timeout covers the holder's `<-resCh` drain.
+// exits 5) long before the holder wakes. runStagecoach's 60s timeout covers the holder's `<-resCh` drain.
 // Do NOT reduce SLEEP_MS below ~2000ms (risk of the contender running before the holder acquires/publishes).
 
 // GOTCHA (G8 — stub marker timing is the deterministic gate): waitForMarker(readiness, 10s) returns ONLY
@@ -231,19 +231,19 @@ Task 1: APPEND the F subtest to TestE2ELockContention in internal/e2e/lock_scena
 
             readiness := t.TempDir() + "/ready.marker"
             holderEnv := stubEnv(map[string]string{
-                "STAGEHAND_STUB_OUT":      "feat: add feature",
-                "STAGEHAND_STUB_MARKER":   readiness,
-                "STAGEHAND_STUB_SLEEP_MS": "4000",
+                "STAGECOACH_STUB_OUT":      "feat: add feature",
+                "STAGECOACH_STUB_MARKER":   readiness,
+                "STAGECOACH_STUB_SLEEP_MS": "4000",
             })
 
             resCh := make(chan e2eResult, 1)
-            go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+            go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
             waitForMarker(t, readiness, 10*time.Second) // holder: lock held, T_start published, message-gen sleep
 
             // Contender: same dirty tree, still nothing staged → handleLockContention:
             //   WriteTree() = baseTree ≠ snap(T_start) → Busy(5). "nothing to do" must NOT appear.
-            contenderEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: add feature"})
-            res2 := runStagehand(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
+            contenderEnv := stubEnv(map[string]string{"STAGECOACH_STUB_OUT": "feat: add feature"})
+            res2 := runStagecoach(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
             if res2.ExitCode != 5 {
                 t.Fatalf("contender exit = %d, want 5 (Busy) — decompose no-op fast path is structurally impossible; stderr:\n%s", res2.ExitCode, res2.Stderr)
             }
@@ -262,7 +262,7 @@ Task 1: APPEND the F subtest to TestE2ELockContention in internal/e2e/lock_scena
   - NAMING: the subtest name is exactly `F_DecomposeAccidentalDoubleRun_Busy` (matches the run-filter in
     the contract's verification command). Place it AFTER the E subtest (letter order A–F).
   - DEPENDENCIES: uses only the outer-scope bin/stub/cfg + the harness helpers (newRepo/seedCommit/
-    writeFile/stubEnv/runStagehand/waitForMarker) + the stdlib (strings, time — already imported).
+    writeFile/stubEnv/runStagecoach/waitForMarker) + the stdlib (strings, time — already imported).
   - DO NOT: redeclare bin/stub/cfg; do NOT stage the file; do NOT add config extras; do NOT edit any
     production file or other test.
   - VERIFY compile: go vet -tags e2e ./internal/e2e/...
@@ -342,7 +342,7 @@ DOWNSTREAM HOOKS (informational):
 ### Level 1: Compile & Vet (under the e2e build tag)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go vet -tags e2e ./internal/e2e/...    # Expected: clean (the new subtest compiles; helpers resolve)
 go build -tags e2e ./...               # Expected: exit 0 (full e2e-tagged build)
@@ -354,7 +354,7 @@ go build -tags e2e ./...               # Expected: exit 0 (full e2e-tagged build
 ### Level 2: The Targeted Subtest (the contract's verification command)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -tags e2e -run 'TestE2ELockContention/F_DecomposeAccidentalDoubleRun_Busy' ./internal/e2e/... -v
 
@@ -363,13 +363,13 @@ go test -tags e2e -run 'TestE2ELockContention/F_DecomposeAccidentalDoubleRun_Bus
 #   - contender stderr contains "already in progress"
 #   - contender stderr does NOT contain "nothing to do"
 #   - holder drains to ExitCode==0
-# (Builds the stagehand + stubagent binaries once via sync.Once; ~10-15s wall clock incl. the 4s holder sleep.)
+# (Builds the stagecoach + stubagent binaries once via sync.Once; ~10-15s wall clock incl. the 4s holder sleep.)
 ```
 
 ### Level 3: Full Contention Suite (A–E stay green; F is the 6th)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -tags e2e -run TestE2ELockContention ./internal/e2e/... -v
 # Expected: 6/6 PASS (A_BusyRefusal_GenuineSecondBatch, B_NoOpFastPath_AccidentalDoubleRun,
@@ -384,10 +384,10 @@ go test ./...
 ### Level 4: Behavioral Cross-Check (manual reproduction of Issue 1, if F is flaky)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # If F ever fails, reproduce Issue 1 manually to diagnose. Build the binaries:
-go build -o /tmp/stagehand ./cmd/stagehand && go build -o /tmp/stubagent ./cmd/stubagent
+go build -o /tmp/stagecoach ./cmd/stagecoach && go build -o /tmp/stubagent ./cmd/stubagent
 
 # In a temp repo with ONE untracked (unstaged) file:
 TMP=$(mktemp -d); cd "$TMP"; git init -q; git config user.name t; git config user.email t@t
@@ -404,11 +404,11 @@ default_model = "stub"
 EOF
 
 # Holder (terminal 1): sleeps 6s holding the lock, publishes snapshot=T_start:
-STAGEHAND_STUB_OUT="feat: add feature" STAGEHAND_STUB_SLEEP_MS=6000 /tmp/stagehand --config /tmp/cfg.toml --provider stub
+STAGECOACH_STUB_OUT="feat: add feature" STAGECOACH_STUB_SLEEP_MS=6000 /tmp/stagecoach --config /tmp/cfg.toml --provider stub
 
 # Contender (terminal 2, during the 6s sleep): same repo, same dirty tree, nothing staged:
-STAGEHAND_STUB_OUT="feat: add feature" /tmp/stagehand --config /tmp/cfg.toml --provider stub; echo "EXIT=$?"
-# Expected: EXIT=5 and stderr "stagehand: another stagehand run is already in progress on …".
+STAGECOACH_STUB_OUT="feat: add feature" /tmp/stagecoach --config /tmp/cfg.toml --provider stub; echo "EXIT=$?"
+# Expected: EXIT=5 and stderr "stagecoach: another stagecoach run is already in progress on …".
 # This is exactly what F asserts. (Issue 1's doc said exit 0; the corrected docs + F say exit 5.)
 ```
 
@@ -462,7 +462,7 @@ STAGEHAND_STUB_OUT="feat: add feature" /tmp/stagehand --config /tmp/cfg.toml --p
 - ❌ Don't add config extras (`auto_stage_all`, `[role.planner]`) prophylactically — the defaults enable
   decompose and the one-file shortcut uses only the message role. Add them ONLY if a real run shows the
   holder errors before sleeping (gotcha G6; per verified paths it will not).
-- ❌ Don't reduce `STAGEHAND_STUB_SLEEP_MS` below ~2000ms — the contender must run while the holder holds
+- ❌ Don't reduce `STAGECOACH_STUB_SLEEP_MS` below ~2000ms — the contender must run while the holder holds
   the lock + has published T_start (gotcha G7).
 - ❌ Don't add extra sleeps/gates beyond `waitForMarker` — the stub's drain→marker→sleep ordering IS the
   deterministic gate, and SetSnapshot runs before the message call (gotcha G8).

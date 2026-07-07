@@ -6,7 +6,7 @@ the things a mechanical "call RunCommitHooks" reading would get wrong.
 
 ---
 
-## §0 — Scope: TWO inserts in `runPipeline` (pkg/stagehand/stagehand.go) + tests. Nothing else.
+## §0 — Scope: TWO inserts in `runPipeline` (pkg/stagecoach/stagecoach.go) + tests. Nothing else.
 
 The runner (`internal/hooks/runner.go`) is COMPLETE (S1) + the message lifecycle (S2) — FROZEN; this task
 CONSUMES its API, does not touch it. `buildDeps` wiring (`Hooks: hooks.DefaultRunner{}` + the
@@ -155,16 +155,16 @@ user SEES the lint result, and the runner already passes the hook's own stderr t
 of Verbose.
 
 **Test implication:** to assert "the lint result surfaced," capture `os.Stderr` during the GenerateCommit
-call (os.Pipe) and assert it contains the hook's distinctive stderr message. SAFE because the stagehand_test
+call (os.Pipe) and assert it contains the hook's distinctive stderr message. SAFE because the stagecoach_test
 suite has ZERO `t.Parallel()` calls (verified) — a global os.Stderr swap does not race. Restore os.Stderr in
 a t.Cleanup. (Do NOT add t.Parallel() to these tests.)
 
 ---
 
-## §7 — Coordination with S1 (parallel): DISJOINT regions of stagehand.go; no merge conflict.
+## §7 — Coordination with S1 (parallel): DISJOINT regions of stagecoach.go; no merge conflict.
 
-S1 (P1.M3.T2.S1) edits stagehand.go's `buildDeps` (~L325-386: adds the `internal/hooks` import + `Hooks:
-hooks.DefaultRunner{}`) AND generate.go. THIS task edits stagehand.go's `runPipeline` (~L411-700: the two
+S1 (P1.M3.T2.S1) edits stagecoach.go's `buildDeps` (~L325-386: adds the `internal/hooks` import + `Hooks:
+hooks.DefaultRunner{}`) AND generate.go. THIS task edits stagecoach.go's `runPipeline` (~L411-700: the two
 inserts). Different line ranges, different functions — no textual overlap. `deps.Hooks` is ALREADY wired
 into the Deps that runPipeline receives (S1's buildDeps), so runPipeline finds `deps.Hooks != nil` at
 runtime with no buildDeps change here. If S1 has not landed yet, `deps.Hooks` is nil → both inserts are
@@ -176,16 +176,16 @@ present (they go through GenerateCommit → buildDeps, which S1 wires).
 
 ## §8 — No new imports; go.mod/go.sum unchanged.
 
-stagehand.go ALREADY imports `errors`, `fmt`, `os`, and `generate` (verified). INSERT A uses `errors.As`,
+stagecoach.go ALREADY imports `errors`, `fmt`, `os`, and `generate` (verified). INSERT A uses `errors.As`,
 `fmt.Fprintf`, `os.Stderr`, and `*generate.RescueError` — all already imported. INSERT B uses nothing new.
-`internal/hooks` is NOT imported by stagehand.go (it's imported by S1's buildDeps edit, and the adapter is
+`internal/hooks` is NOT imported by stagecoach.go (it's imported by S1's buildDeps edit, and the adapter is
 referenced as `hooks.DefaultRunner{}` only in buildDeps — runPipeline accesses hooks only via the
 `deps.Hooks CommitHookRunner` interface, which is in `generate`). So runPipeline adds NO import.
 `go mod tidy` is a no-op.
 
 ---
 
-## §9 — Test strategy (package stagehand, white-box via the exported GenerateCommit; mirror TestGenerateCommit_DryRun).
+## §9 — Test strategy (package stagecoach, white-box via the exported GenerateCommit; mirror TestGenerateCommit_DryRun).
 
 Route through the EXPORTED `GenerateCommit(ctx, Options{Provider: "stub", DryRun: true})` (the existing
 dry-run test pattern) — it calls buildDeps (S1 wires DefaultRunner) → runPipeline. Install the hook in
@@ -209,5 +209,5 @@ Required cases:
    commit path) maps a hook abort to the rescue (FR-V7), mirroring S1's CommitStaged. (Covers the shared
    insert's non-dry-run side, which no other task tests.)
 
-Mirror setupTestRepo (stub provider via repo-local .stagehand.toml) + initRepo + chdir + a staged file.
+Mirror setupTestRepo (stub provider via repo-local .stagecoach.toml) + initRepo + chdir + a staged file.
 The stub message must be UNIQUE (not duplicating the seed subject) so the dedupe loop accepts it on attempt 0.

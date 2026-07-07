@@ -1,4 +1,4 @@
-# Architectural Decisions — Stagehand v1.0 Bugfix Pass
+# Architectural Decisions — Stagecoach v1.0 Bugfix Pass
 
 Each decision is the binding choice for downstream PRP agents. Rationale cites the recon reports
 and PRD. Do not re-litigate without a blocking technical reason.
@@ -7,7 +7,7 @@ and PRD. Do not re-litigate without a blocking technical reason.
 
 ## D1 — Fix Issues 1 & 5 by passing the *resolved* config into `GenerateCommit` (PRD "Option a")
 
-**Choice:** Add an additive field to `pkg/stagehand.Options` that carries a pre-resolved
+**Choice:** Add an additive field to `pkg/stagecoach.Options` that carries a pre-resolved
 `*config.Config`. When non-nil, `GenerateCommit`/`resolveConfig` **skips `config.Load` entirely**
 (still applies the existing `Options` Provider/Model/Timeout/Verbose overrides on top, to preserve
 the standalone-library contract). `runDefault` passes the CLI's already-loaded `cfg` (`Config()`).
@@ -21,7 +21,7 @@ the standalone-library contract). `runDefault` passes the CLI's already-loaded `
   `buildDeps`.
 
 **API-stability note:** `Options` is documented "Stable as of v1.0 / ADDITIVE-ONLY for future
-versions" (`pkg/stagehand/stagehand.go`). Adding a field is explicitly permitted. `pkg/stagehand`
+versions" (`pkg/stagecoach/stagecoach.go`). Adding a field is explicitly permitted. `pkg/stagecoach`
 **already imports `internal/config`**, so accepting `*config.Config` introduces no new import edge.
 External (out-of-module) callers cannot reference the unexported `internal/config.Config` type, but
 that is fine: the field is nil-optional and exists for the in-module CLI; standalone callers leave it
@@ -43,7 +43,7 @@ On `false`, return a **plain** (non-`*RescueError`) error:
 > `provider %q: command %q not found. Is the agent installed?`
 
 `exitcode.For` maps a plain error to **exit 1**, and `handleGenError`'s generic branch prints
-`stagehand: <msg>` — exactly the §18.2 / §13.5 contract.
+`stagecoach: <msg>` — exactly the §18.2 / §13.5 contract.
 
 **Why `buildDeps` (not `CommitStaged`, not `Execute`, not the CLI):**
 - Single chokepoint → covers **both** the `CommitStaged` and `runPipeline` paths with one edit.
@@ -71,7 +71,7 @@ tree). The pre-flight is strictly better.
    — i.e. skip ONLY `CommitTree` + `UpdateRefCAS`. FR49 satisfied: full pipeline, no commit/move-HEAD.
 4. Dry-run timeout/exhaustion now returns a `*RescueError` (with the real `TreeSHA`) instead of the
    bare `ErrTimeout` sentinel. **This changes one locked-in test**
-   (`stagehand_test.go:224-250`, `TestGenerateCommit_Timeout/dryrun` asserts `errors.As(err, &re)` is
+   (`stagecoach_test.go:224-250`, `TestGenerateCommit_Timeout/dryrun` asserts `errors.As(err, &re)` is
    **false**) — that assertion must be updated to expect a `*RescueError` with a non-empty `TreeSHA`,
    mirroring the commit-path subtest.
 
@@ -101,7 +101,7 @@ m.StripCodeFence = &scf
 (copy into locals to avoid aliasing the cfg value's address; mirror the `o := cfg.Output` pattern).
 
 **Rationale:** This is the user-least-surprising choice and the **smaller** change (~5 lines in one
-function). Users who set `output = "json"` / `git config stagehand.output json` reasonably expect it
+function). Users who set `output = "json"` / `git config stagecoach.output json` reasonably expect it
 honored, and `docs/configuration.md` + the `config init` template advertise these knobs. The
 per-manifest `[provider.X] output` override still works (it is merged before `buildDeps` applies the
 `[generation]` layer, so the `[generation]` value wins as the broader setting — consistent with
@@ -114,7 +114,7 @@ contradicts the `config init` template that ships as the "canonical config refer
 
 **Note on the `materialize` quirk:** `file.go:153` has a "v1 limitation: cannot set false via file"
 comment for `StripCodeFence`. That quirk is out of scope for this fix; the git-config loader
-(`stagehand.stripCodeFence`) *can* set false, and applying `cfg.StripCodeFence` (always resolved via
+(`stagecoach.stripCodeFence`) *can* set false, and applying `cfg.StripCodeFence` (always resolved via
 `Defaults()`→true) works regardless. Do not attempt to fix the file-loader false-set quirk here.
 
 **Depends on M1:** only meaningful once `buildDeps` receives the correctly-resolved `cfg` (so

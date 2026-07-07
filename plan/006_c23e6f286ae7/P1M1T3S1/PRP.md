@@ -7,7 +7,7 @@ description: |
   README:326–328), appending a short paragraph that names the per-repo run lock, the two contention
   outcomes (exit 0 "nothing to do" / exit 5 Busy), and the per-host caveat (the CAS, not the lock,
   covers cross-host shared-FS); (3b) a stale-claim sweep over README.md + docs/ for language implying
-  two stagehand processes can safely race without a lock — empirically a NO-OP (zero grep matches at
+  two stagecoach processes can safely race without a lock — empirically a NO-OP (zero grep matches at
   HEAD; the existing "can never corrupt your repo" hero is CAS-defended and accurate, NOT stale); (3c)
   a catch-all verification that docs/cli.md has the Busy=5 row and docs/how-it-works.md has the
   Per-repo run lock subsection — also a NO-OP at HEAD (cli.md:374/379 from P1.M1.T2.S1;
@@ -48,12 +48,12 @@ appended paragraph); no sibling doc, no source, no PRD/tasks/snapshot/gitignore 
 
 ## User Persona
 
-**Target User**: A Stagehand user reading the README to decide whether the tool is safe —
-specifically the power user / scripter who runs `stagehand` from two terminals, a shell loop, or a
+**Target User**: A Stagecoach user reading the README to decide whether the tool is safe —
+specifically the power user / scripter who runs `stagecoach` from two terminals, a shell loop, or a
 lazygit keybind mashed twice, and wants to know "what happens if I double-invoke?" before trusting it
 in automation.
 
-**Use Case**: The user accidentally hits the stagehand keybind twice (or a shell loop fires two runs
+**Use Case**: The user accidentally hits the stagecoach keybind twice (or a shell loop fires two runs
 before the first finishes). They want the README to tell them, up front, that this is safe: the
 second run either no-ops (nothing new staged) or refuses with a clear "busy, retry" — it never races
 on HEAD or produces a duplicate/corrupt commit. They also want to know the limit: on a shared
@@ -100,7 +100,7 @@ to do") if nothing new is staged or `5` (Busy) if genuinely new work is staged (
 re-run); and on a shared filesystem across hosts the lock can't help — the atomic `update-ref` CAS is
 the never-clobber-HEAD guarantee there.
 
-The stale-claim sweep greps README.md + docs/ for language implying two stagehand processes can
+The stale-claim sweep greps README.md + docs/ for language implying two stagecoach processes can
 safely race without a lock ("no lock", "safe without", "safely race", "CAS is the only/sole defense",
 etc.). At HEAD this returns ZERO matches — the README simply doesn't discuss concurrency today, and
 how-it-works.md already carries the correct two-stage (lock + CAS) defense. No edit.
@@ -178,7 +178,7 @@ the per-host caveat. No inference required.
 # The edit site (EDIT — the one append)
 - file: README.md
   why: "The FAQ '### Will it corrupt my repo?' answer (L326–328) is the safety section the contract
-        names ('alongside Never corrupt your repo'). Current text: 'No. Stagehand uses `git write-tree`
+        names ('alongside Never corrupt your repo'). Current text: 'No. Stagecoach uses `git write-tree`
         + `git commit-tree` + `git update-ref` (atomic snapshot commits). A failed generation leaves
         the repo byte-for-byte unchanged — it never touches the live index during generation.' Append
         the 'Safe to run twice' paragraph after it."
@@ -192,7 +192,7 @@ the per-host caveat. No inference required.
 
 # The verify-only sibling docs (NO-TOUCH — confirm present, do not edit)
 - file: docs/cli.md
-  why: "Catch-all 3c target #1. The Busy=5 exit-code row (L374: '| 5 | Busy — another stagehand run
+  why: "Catch-all 3c target #1. The Busy=5 exit-code row (L374: '| 5 | Busy — another stagecoach run
         holds the per-repo lock; retry after it finishes. |') and the contention prose (L379: no-op
         exit 0 vs Busy exit 5) are ALREADY PRESENT (landed by P1.M1.T2.S1)."
   pattern: "Exit-code table L370–376 (0/1/2/3/5/124); the Busy=5 row + the two-behavior prose block."
@@ -211,7 +211,7 @@ the per-host caveat. No inference required.
 
 - file: docs/configuration.md
   why: "Informational. The '## Lock file location' section (L233–239) documents the XDG resolution
-        (XDG_RUNTIME_DIR → XDG_CACHE_HOME → ~/.cache/stagehand/locks; sha256 hash; never in repo).
+        (XDG_RUNTIME_DIR → XDG_CACHE_HOME → ~/.cache/stagecoach/locks; sha256 hash; never in repo).
         Already present and correct."
   gotcha: "NO-TOUCH. The README paragraph does NOT need to duplicate the lock-location detail (the
            README links to docs/ for depth). Keep the README paragraph about the PROPERTY (safe to
@@ -229,7 +229,7 @@ the per-host caveat. No inference required.
 ### Current Codebase Tree (this task's scope)
 
 ```bash
-stagehand/
+stagecoach/
 ├── README.md                # EDIT — append the "Safe to run twice" paragraph to the FAQ safety answer
 └── docs/
     ├── cli.md               # VERIFY-ONLY — Busy=5 row (L374) + contention prose (L379) present
@@ -242,7 +242,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── README.md                # one appended paragraph in the FAQ "Will it corrupt my repo?" answer
     (all docs/ files unchanged; sibling-owned docs verified-present, not edited)
 ```
@@ -327,7 +327,7 @@ my repo?" answer (README:326–328), separated by a blank line:
 ```markdown
 ### Will it corrupt my repo?
 
-No. Stagehand uses `git write-tree` + `git commit-tree` + `git update-ref` (atomic snapshot commits). A failed generation leaves the repo byte-for-byte unchanged — it never touches the live index during generation.
+No. Stagecoach uses `git write-tree` + `git commit-tree` + `git update-ref` (atomic snapshot commits). A failed generation leaves the repo byte-for-byte unchanged — it never touches the live index during generation.
 
 **Safe to run twice.** A per-repo run lock prevents two concurrent commit-producing runs from racing on HEAD, so an accidental double-invoke degrades gracefully: if nothing new is staged it exits `0` (*nothing to do — an in-progress run already covers your staged changes*); if genuinely new work is staged it exits `5` (Busy) and leaves your changes staged to re-run. (On a shared filesystem across hosts the lock can't help — the atomic `update-ref` CAS is the never-clobber-HEAD guarantee there.)
 ```
@@ -344,7 +344,7 @@ No. Stagehand uses `git write-tree` + `git commit-tree` + `git update-ref` (atom
 ```yaml
 Task 1: EDIT README.md — append the race-free paragraph (the 3a deliverable)
   - OPEN README.md; locate the FAQ answer '### Will it corrupt my repo?' (L326).
-  - FIND the existing atomicity sentence (L328): "No. Stagehand uses `git write-tree` + `git
+  - FIND the existing atomicity sentence (L328): "No. Stagecoach uses `git write-tree` + `git
     commit-tree` + `git update-ref` (atomic snapshot commits). A failed generation leaves the repo
     byte-for-byte unchanged — it never touches the live index during generation."
   - APPEND (after a blank line) the "Safe to run twice" paragraph from §"The README edit" above.
@@ -361,7 +361,7 @@ Task 2: VERIFY the stale-claim sweep (3b) — expected NO-OP
 
 Task 3: VERIFY the catch-all (3c) — expected NO-OP (sibling docs present)
   - RUN: grep -n '^| `5` | Busy' docs/cli.md
-    EXPECT: one match at L374 ('| `5` | Busy — another stagehand run holds the per-repo lock; retry after it finishes. |').
+    EXPECT: one match at L374 ('| `5` | Busy — another stagecoach run holds the per-repo lock; retry after it finishes. |').
   - RUN: grep -n 'nothing to do.*in-progress run already covers' docs/cli.md
     EXPECT: one match at L379 (the no-op-vs-Busy contention prose).
   - RUN: grep -n '^### Per-repo run lock (FR52)' docs/how-it-works.md
@@ -395,7 +395,7 @@ Task 4: GATES + scope-check
 
 <!-- === Why the per-host caveat is the load-bearing honesty clause === -->
 <!-- The lock is a per-process advisory flock — local to one host. On a shared/network FS mounted by two
-     machines, two stagehand processes on different hosts CAN both acquire (their flocks are local) —
+     machines, two stagecoach processes on different hosts CAN both acquire (their flocks are local) —
      the §13.5 CAS catches that race (the loser's update-ref aborts). The README MUST say this so it
      does not overclaim the lock as a shared-FS guarantee. The hero's "can never corrupt your repo"
      stays accurate because it is CAS-defended (universal), not lock-defended (per-host). (system_context §5.) -->
@@ -438,7 +438,7 @@ NO-TOUCH (explicitly):
 ### Level 1: The Edit + Sweep Gates
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (1) The README edit landed (exactly one "Safe to run twice" paragraph).
 grep -n 'Safe to run twice' README.md
@@ -458,11 +458,11 @@ grep -rniE 'no lock|safe without|safely race|without a lock|don.t need a lock|no
 ### Level 2: The Catch-All Verification (3c — sibling docs present)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # docs/cli.md: Busy=5 row + contention prose (P1.M1.T2.S1).
 grep -n '^| `5` | Busy' docs/cli.md
-# Expected: 374:| `5` | Busy — another stagehand run holds the per-repo lock; retry after it finishes. |
+# Expected: 374:| `5` | Busy — another stagecoach run holds the per-repo lock; retry after it finishes. |
 grep -n 'nothing to do.*in-progress run already covers' docs/cli.md
 # Expected: 379 (the no-op-vs-Busy prose).
 
@@ -480,7 +480,7 @@ grep -n '^## Lock file location' docs/configuration.md
 ### Level 3: Scope Boundary + Build Backstop
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (A) Scope: ONLY README.md changed (one appended paragraph).
 git diff --stat -- README.md
@@ -500,7 +500,7 @@ go test -race ./...      # Expected: all packages green (unchanged from HEAD)
 ### Level 4: Cross-Doc Consistency (the README matches the landed docs)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The README paragraph's exit codes / fragments must match docs/cli.md + docs/how-it-works.md.
 # Exit codes 0 and 5 (Busy):

@@ -429,7 +429,7 @@ FROZEN/LEAVE (do NOT edit):
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/prompt/planner.go internal/prompt/planner_test.go
 go vet ./internal/prompt/
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
@@ -467,7 +467,7 @@ go vet ./...   # vet would surface any remaining == on the struct if missed
 ### Level 4: Regression & Audit
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go test ./...                 # FULL regression — only the 2 parse tests change behavior
 git status --short            # Expected: EXACTLY 2 files:
                               #   M internal/prompt/planner.go

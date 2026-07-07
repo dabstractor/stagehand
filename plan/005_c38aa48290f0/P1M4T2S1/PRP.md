@@ -1,13 +1,13 @@
 name: "P1.M4.T2.S1 — git-alias integration target"
 description: |
   Implement the FIRST concrete `integrate.Entry` target — **`git-alias`** (PRD §9.21 FR-I4, FR-I6, §15.3).
-  Registers the `git stagehand` alias in git's GLOBAL config so `git stagehand` runs stagehand. The edit is
-  delegated to git itself (`git config --global alias.<name> '!stagehand'` / `--unset`), so the FR-I3
+  Registers the `git stagecoach` alias in git's GLOBAL config so `git stagecoach` runs stagecoach. The edit is
+  delegated to git itself (`git config --global alias.<name> '!stagecoach'` / `--unset`), so the FR-I3
   no-mangle FILE machinery (parse/backup/atomic/validate) is unnecessary — but FR-I3c (preview + confirm)
   still applies: install shows the exact command + resulting usage, a `y/N` prompt (`--yes` skips), and
   surfaces an existing `alias.<name>` with a DIFFERENT value before overwriting; remove only unsets when the
-  current value is ours (sans-`!` == `stagehand`), refusing (NoChange + note) a foreign alias (FR-I6).
-  `--alias-name <n>` overrides the default name `stagehand` (applies to install AND remove). Detection needs
+  current value is ours (sans-`!` == `stagecoach`), refusing (NoChange + note) a foreign alias (FR-I6).
+  `--alias-name <n>` overrides the default name `stagecoach` (applies to install AND remove). Detection needs
   only git (FR-I2). Adds the three repo-independent global-config methods (`ConfigGlobalGet/Set/Unset`) to
   the existing `Git` interface — the "existing internal/git exec seam" the work item names. Ships its own
   preview+confirm (does NOT call `protocol.Apply`) via S1's shared `ConfirmFunc`/`DefaultConfirm`.
@@ -19,11 +19,11 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Ship the `git-alias` integration target end-to-end so that `stagehand integrate install
-git-alias` makes `git stagehand` work, and `stagehand integrate remove git-alias` cleanly undoes it — with
+**Feature Goal**: Ship the `git-alias` integration target end-to-end so that `stagecoach integrate install
+git-alias` makes `git stagecoach` work, and `stagecoach integrate remove git-alias` cleanly undoes it — with
 the same idempotent, never-clobber, preview-and-confirm discipline as the rest of `integrate`, but
 implemented by delegating the actual `.gitconfig` write to git itself. A conflicting `alias.<name>` set to
-something other than stagehand's is always surfaced before it is overwritten (install) and never silently
+something other than stagecoach's is always surfaced before it is overwritten (install) and never silently
 removed (remove). The target is fully isolated in tests (a temp `GIT_CONFIG_GLOBAL` file — the real global
 config is never touched) and is the first concrete `Entry` to light up S2's otherwise-empty registry.
 
@@ -46,25 +46,25 @@ config is never touched) and is the first concrete `Entry` to light up S2's othe
 
 **Success Definition**: `integrate list` shows `git-alias` DETECTED ✓, STATUS not-installed/installed/foreign,
 CONFIG = the global gitconfig path. `integrate install git-alias` → (preview: `git config --global
-alias.stagehand '!stagehand'` + `git stagehand`) → confirm y → `git stagehand` works; re-run → "already
-installed" (NoChange). A foreign `alias.stagehand` is surfaced before overwrite (Updated after confirm). A
+alias.stagecoach '!stagecoach'` + `git stagecoach`) → confirm y → `git stagecoach` works; re-run → "already
+installed" (NoChange). A foreign `alias.stagecoach` is surfaced before overwrite (Updated after confirm). A
 foreign alias on `remove` is refused (NoChange + note; never removed). `--alias-name foo` manages
 `alias.foo` instead. Tests never touch the real global config. `go build ./...`, `go test ./...`,
 `go vet ./...`, `golangci-lint run`, `gofmt -l` all green; `go.mod` UNCHANGED.
 
 ## User Persona
 
-**Target User**: the "plan-holder" (PRD §7.1) who types `git <thing>` all day and wants `git stagehand` as a
+**Target User**: the "plan-holder" (PRD §7.1) who types `git <thing>` all day and wants `git stagecoach` as a
 first-class git subcommand (the originating `commit-pi` habit, PRD §2.1/§16.3). They run
-`stagehand integrate install git-alias` once; thereafter `git stagehand` is in their muscle memory next to
-`git commit`. Their one fear: "did stagehand clobber an alias I already defined?" — the conflicting-alias
+`stagecoach integrate install git-alias` once; thereafter `git stagecoach` is in their muscle memory next to
+`git commit`. Their one fear: "did stagecoach clobber an alias I already defined?" — the conflicting-alias
 surfacing + never-remove-foreign contract is the answer.
 
-**Use Case**: `stagehand integrate install git-alias` → confirm → `git stagehand` runs stagehand. Later
-`stagehand integrate remove git-alias` restores the global config to its pre-stagehand state for that alias.
+**Use Case**: `stagecoach integrate install git-alias` → confirm → `git stagecoach` runs stagecoach. Later
+`stagecoach integrate remove git-alias` restores the global config to its pre-stagecoach state for that alias.
 
 **User Journey**: `integrate list` (see git-alias, DETECTED ✓, not installed) → `integrate install
-git-alias` (see command + usage → `y`) → use `git stagehand` → later `integrate remove git-alias` (confirm →
+git-alias` (see command + usage → `y`) → use `git stagecoach` → later `integrate remove git-alias` (confirm →
 gone). `--yes` for scripts; `--alias-name ci` to install as `git ci`.
 
 **Pain Points Addressed**: no hand-editing of `.gitconfig` (git itself writes it, idempotently); a foreign
@@ -72,7 +72,7 @@ alias is never silently destroyed; the alias name is overridable without editing
 
 ## Why
 
-- **PRD §9.21 FR-I4**: `git-alias` delegates to `git config --global alias.<name> '!stagehand'`; git does
+- **PRD §9.21 FR-I4**: `git-alias` delegates to `git config --global alias.<name> '!stagecoach'`; git does
   the `.gitconfig` edit so the FR-I3 file machinery is unnecessary, but the command + resulting alias are
   shown and confirmed, and a conflicting `alias.<name>` is surfaced before overwriting.
 - **PRD §9.21 FR-I6**: uninstall symmetry — `git config --global --unset alias.<name>` only when its value
@@ -105,7 +105,7 @@ goes through three new repo-independent methods on the existing `Git` interface.
       `t.Setenv("GIT_CONFIG_GLOBAL", <tmpfile>)` (real global config untouched); mirrors hookspath_test.go.
 - [ ] `internal/cmd/integrate_gitalias.go`: `gitAliasEntry` implements all six `Entry` methods (see Blueprint);
       `--alias-name` flag (local on `integrateInstallCmd` AND `integrateRemoveCmd`, shared `flagAliasName`,
-      default `""`→`"stagehand"`); registered in `init()`. install/remove own their preview+confirm
+      default `""`→`"stagecoach"`); registered in `init()`. install/remove own their preview+confirm
       (build a command+usage+optional-conflict preview string; call the shared ConfirmFunc; honor `Yes`).
       Returns `Outcome` per the mapping table; `Backup` always `""`.
 - [ ] `internal/cmd/integrate.go` (S2's): `defaultEntries` returns `[]integrate.Entry{ &gitAliasEntry{...} }`.
@@ -124,7 +124,7 @@ goes through three new repo-independent methods on the existing `Git` interface.
 ### Context Completeness Check
 
 _This PRP names the EXACT three `Git.ConfigGlobal*` signatures + their git exit-code semantics (verified:
-`--get` exit 1, `--unset` exit 5), the EXACT alias "ours" test (strip leading `!`, compare to `stagehand`),
+`--get` exit 1, `--unset` exit 5), the EXACT alias "ours" test (strip leading `!`, compare to `stagecoach`),
 the EXACT Outcome mapping per (action × current-state), the EXACT Entry method set from S2 + the
 InstallOptions/Result shapes from S1, the env-passthrough test-isolation fact (`run()` inherits parent env
 so `t.Setenv("GIT_CONFIG_GLOBAL",…)` isolates), the `defaultEntries`/`resetIntegrateFlags` single-line edits
@@ -145,7 +145,7 @@ An implementer with no prior codebase knowledge can build it from this document 
     git-alias delegates the .gitconfig WRITE to `git config --global` — it does NOT use protocol.Apply (FR-I4).
     But FR-I3c preview+confirm still applies: build a preview string (command + usage + optional conflict),
     call the shared ConfirmFunc (nil ⇒ DefaultConfirm, TTY-gated; --yes bypassed by the caller). "Ours" =
-    TrimPrefix(storedValue, "!") == "stagehand". Tests isolate via t.Setenv("GIT_CONFIG_GLOBAL", tmpfile)
+    TrimPrefix(storedValue, "!") == "stagecoach". Tests isolate via t.Setenv("GIT_CONFIG_GLOBAL", tmpfile)
     (run() inherits parent env; GIT_CONFIG_GLOBAL REPLACES ~/.gitconfig → full isolation).
 
 - docfile: plan/005_c38aa48290f0/P1M4T1S2/PRP.md
@@ -175,12 +175,12 @@ An implementer with no prior codebase knowledge can build it from this document 
 
 - docfile: plan/005_c38aa48290f0/architecture/external_deps.md
   why: §7 (VERIFIED) — the git alias mechanics this subtask implements: `git config --global alias.<name>
-       '!stagehand'`; read-back via `--get` prints `!stagehand` (strip `!` when comparing ours); exit 1 = unset;
+       '!stagecoach'`; read-back via `--get` prints `!stagecoach` (strip `!` when comparing ours); exit 1 = unset;
        `--unset` exit 5 = not set. §8 — the test-isolation precedent (GIT_CONFIG_GLOBAL / GIT_CONFIG_SYSTEM).
   section: "## 7. git alias mechanics (gates FR-I4)"
   critical: |
-    The stored value INCLUDES the leading `!`. To test "is it ours": value == "!stagehand" OR equivalently
-    strings.TrimPrefix(value,"!") == "stagehand". `--get` uses exit code 1 (NOT stdout emptiness) as the
+    The stored value INCLUDES the leading `!`. To test "is it ours": value == "!stagecoach" OR equivalently
+    strings.TrimPrefix(value,"!") == "stagecoach". `--get` uses exit code 1 (NOT stdout emptiness) as the
     "missing" signal; `--unset` uses exit code 5. Use `--get` (portable), NOT the 2.46+ `config get` subcommand.
 
 - docfile: plan/005_c38aa48290f0/prd_snapshot.md  (and PRD.md §9.21 / §15.3)
@@ -321,9 +321,9 @@ docs/
 // command-delegate asymmetry S2's Entry interface was designed to accommodate.
 
 // CRITICAL (the "ours" test strips the leading `!`): `git config --global --get alias.<name>` prints the
-// stored value INCLUDING the `!` (e.g. "!stagehand"). An alias is OURS iff strings.TrimPrefix(value, "!") ==
-// "stagehand". Compare the COMMAND part, not the alias NAME (the name can be overridden via --alias-name but
-// the command is always "stagehand"). external_deps.md §7 (VERIFIED).
+// stored value INCLUDING the `!` (e.g. "!stagecoach"). An alias is OURS iff strings.TrimPrefix(value, "!") ==
+// "stagecoach". Compare the COMMAND part, not the alias NAME (the name can be overridden via --alias-name but
+// the command is always "stagecoach"). external_deps.md §7 (VERIFIED).
 
 // CRITICAL (--get exit 1 = unset, --unset exit 5 = not-set — NOT errors): ConfigGlobalGet returns found=false
 // on exit 1 (nil err); ConfigGlobalUnset returns found=false on exit 5 (nil err). Branch on the exit CODE,
@@ -344,7 +344,7 @@ docs/
 // GOTCHA (--alias-name on install AND remove): hook's --strict is install-only; git-alias's --alias-name must
 // apply to BOTH (you remove the alias by name). Register it as a LOCAL flag on integrateInstallCmd AND
 // integrateRemoveCmd sharing ONE var (flagAliasName), in integrate_gitalias.go's init(). Default "" → resolved
-// to "stagehand" inside the entry (so `list`/`status` report the resolved name, not "").
+// to "stagecoach" inside the entry (so `list`/`status` report the resolved name, not "").
 
 // GOTCHA (defaultEntries is called per-command, after flag parse): runIntegrateList/Install/Remove call
 // defaultEntries() fresh each time (S2's design), so flagAliasName is populated when gitAliasEntry is built.
@@ -386,23 +386,23 @@ docs/
 // incl. stderr. Repo-independent: the `-C workDir` from run() is a harmless no-op for `--global` scope
 // (git config --global targets ~/.gitconfig / $GIT_CONFIG_GLOBAL regardless of cwd). Used by integrate
 // git-alias to read back alias.<name> — the stored value INCLUDES the leading `!` for shell aliases, so
-// callers strip it when comparing whether the alias is stagehand's (external_deps.md §7).
+// callers strip it when comparing whether the alias is stagecoach's (external_deps.md §7).
 ConfigGlobalGet(ctx context.Context, key string) (value string, found bool, err error)
 
 // ConfigGlobalSet writes a key/value to git's GLOBAL config via `git config --global <key> <value>`
 // (PRD §9.21 FR-I4). git performs the .gitconfig edit itself (so the FR-I3 file machinery is unnecessary).
-// value is passed as a SINGLE argv element (NEVER sh -c — PRD §19), so a value like "!stagehand" is stored
+// value is passed as a SINGLE argv element (NEVER sh -c — PRD §19), so a value like "!stagecoach" is stored
 // verbatim with its `!`. Non-zero exit ⇒ wrapped error incl. stderr.
 ConfigGlobalSet(ctx context.Context, key, value string) error
 
 // ConfigGlobalUnset removes a key from git's GLOBAL config via `git config --global --unset <key>`
 // (PRD §9.21 FR-I6). Returns found=false when the key was not present (git exit 5 — NOT an error);
 // found=true + nil when removed. The caller (git-alias) MUST first verify the value is ours before
-// calling this (FR-I6: only unset when the current value is stagehand's).
+// calling this (FR-I6: only unset when the current value is stagecoach's).
 ConfigGlobalUnset(ctx context.Context, key string) (found bool, err error)
 
 // === internal/cmd/integrate_gitalias.go — the gitAliasEntry Entry impl ===
-package cmd // import "github.com/dustin/stagehand/internal/cmd"
+package cmd // import "github.com/dustin/stagecoach/internal/cmd"
 
 import (
 	"context"
@@ -413,33 +413,33 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/integrate"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/integrate"
 )
 
 const (
 	gitAliasTarget      = "git-alias"   // Entry.Name()
-	defaultAliasName    = "stagehand"   // default alias name → `git stagehand`
-	stagehandAliasValue = "!stagehand"  // the stored value (incl. `!`); command part is "stagehand"
+	defaultAliasName    = "stagecoach"   // default alias name → `git stagecoach`
+	stagecoachAliasValue = "!stagecoach"  // the stored value (incl. `!`); command part is "stagecoach"
 )
 
 var flagAliasName string // --alias-name (local on integrateInstallCmd AND integrateRemoveCmd)
 
 func init() {
 	// Register --alias-name on BOTH leaves (you remove the alias by name). Shared var. Default "" →
-	// resolved to "stagehand" inside the entry. hook.go's --strict is the local-flag precedent.
+	// resolved to "stagecoach" inside the entry. hook.go's --strict is the local-flag precedent.
 	integrateInstallCmd.Flags().StringVar(&flagAliasName, "alias-name", "",
-		"Override the git alias name (default: stagehand → `git stagehand`)")
+		"Override the git alias name (default: stagecoach → `git stagecoach`)")
 	integrateRemoveCmd.Flags().StringVar(&flagAliasName, "alias-name", "",
-		"Override the git alias name to remove (default: stagehand)")
+		"Override the git alias name to remove (default: stagecoach)")
 }
 
 // gitAliasEntry implements integrate.Entry for the git-alias target (PRD §9.21 FR-I4/I6). It delegates the
 // .gitconfig WRITE to `git config --global` (so it does NOT use protocol.Apply) but owns its preview+confirm
-// via the shared ConfirmFunc. aliasName is the resolved name (default "stagehand").
+// via the shared ConfirmFunc. aliasName is the resolved name (default "stagecoach").
 type gitAliasEntry struct {
 	git       git.Git   // repo-independent for --global; cwd from os.Getwd() (no-op for global scope)
-	aliasName string    // resolved (never "" — defaultEntries resolves "" → "stagehand")
+	aliasName string    // resolved (never "" — defaultEntries resolves "" → "stagecoach")
 }
 
 // newGitAliasEntry builds the entry for the current invocation (reads the resolved --alias-name).
@@ -460,7 +460,7 @@ func (e *gitAliasEntry) Name() string { return gitAliasTarget }
 // aliasKey returns "alias.<name>".
 func (e *gitAliasEntry) aliasKey() string { return "alias." + e.aliasName }
 
-// isOurs reports whether a stored alias value (incl. its leading `!`) is stagehand's command.
+// isOurs reports whether a stored alias value (incl. its leading `!`) is stagecoach's command.
 func isOurs(storedValue string) bool { return strings.TrimPrefix(storedValue, "!") == defaultAliasName }
 
 // Detect — FR-I2: git-alias needs only git. exec.LookPath("git"); nil if present.
@@ -501,7 +501,7 @@ func (e *gitAliasEntry) Status(ctx context.Context) (integrate.Status, error) {
 	return integrate.StatusForeign, nil
 }
 
-// Install — FR-I4: show command+usage (+ conflict if foreign), confirm, then `git config --global alias.<name> '!stagehand'`.
+// Install — FR-I4: show command+usage (+ conflict if foreign), confirm, then `git config --global alias.<name> '!stagecoach'`.
 func (e *gitAliasEntry) Install(ctx context.Context, opts integrate.InstallOptions) (integrate.InstallResult, error) {
 	out := opts.Out
 	if out == nil {
@@ -520,10 +520,10 @@ func (e *gitAliasEntry) Install(ctx context.Context, opts integrate.InstallOptio
 	}
 
 	// Build the preview (command + usage + conflict warning if foreign).
-	preview := fmt.Sprintf("Command:  git config --global %s '%s'\nResult:   git %s  →  stagehand\n",
-		e.aliasKey(), stagehandAliasValue, e.aliasName)
+	preview := fmt.Sprintf("Command:  git config --global %s '%s'\nResult:   git %s  →  stagecoach\n",
+		e.aliasKey(), stagecoachAliasValue, e.aliasName)
 	if found { // foreign (not ours) — surface before overwriting (FR-I4)
-		preview += fmt.Sprintf("\nWARNING: %s is currently set to %q (not stagehand) — it will be overwritten.\n",
+		preview += fmt.Sprintf("\nWARNING: %s is currently set to %q (not stagecoach) — it will be overwritten.\n",
 			e.aliasKey(), cur)
 	}
 
@@ -538,7 +538,7 @@ func (e *gitAliasEntry) Install(ctx context.Context, opts integrate.InstallOptio
 		}
 	}
 
-	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), stagehandAliasValue); err != nil {
+	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), stagecoachAliasValue); err != nil {
 		return res, fmt.Errorf("set alias %s: %w", e.aliasName, err)
 	}
 	if found {
@@ -567,7 +567,7 @@ func (e *gitAliasEntry) Remove(ctx context.Context, opts integrate.RemoveOptions
 	}
 	if !isOurs(cur) {
 		// FR-I6: NEVER remove a foreign alias. Inform + NoChange.
-		fmt.Fprintf(out, "stagehand: %s is set to %q (not stagehand); leaving it unchanged.\n", e.aliasKey(), cur)
+		fmt.Fprintf(out, "stagecoach: %s is set to %q (not stagecoach); leaving it unchanged.\n", e.aliasKey(), cur)
 		return res, nil
 	}
 
@@ -627,14 +627,14 @@ Task 1: ADD internal/git/git.go — ConfigGlobalGet/Set/Unset interface methods 
     0 ok/else error; Unset → 0 removed(found=true)/5 missing(found=false)/else error. Trim stderr; fmt.Errorf %w.
   - FOLLOW pattern: internal/git/git.go HooksPath impl + internal/config/git.go gitConfigGet exit-code branching.
   - GOTCHA: run() inherits parent env → tests isolate via t.Setenv("GIT_CONFIG_GLOBAL",…). -C workDir is a
-    no-op for --global. value passed as a SINGLE argv element (not sh -c) → "!stagehand" stored verbatim.
+    no-op for --global. value passed as a SINGLE argv element (not sh -c) → "!stagecoach" stored verbatim.
   - NAMING: ConfigGlobalGet/Set/Unset (Global = the user-global gitconfig scope; distinct from repo-local).
 
 Task 2: CREATE internal/git/configglobal_test.go — the methods' tests (hookspath_test.go style)
   - TESTS (construct g := New(t.TempDir()); isolate via t.Setenv("GIT_CONFIG_GLOBAL", tmpfile)):
-    * TestConfigGlobalGet_FoundAndMissing: set alias.x '!stagehand' via g.ConfigGlobalSet → Get returns
-      ("!stagehand", true, nil); Get a missing key → ("", false, nil).
-    * TestConfigGlobalSet_WritesValue: Set alias.y '!stagehand' → read back via Get == "!stagehand" (the `!`
+    * TestConfigGlobalGet_FoundAndMissing: set alias.x '!stagecoach' via g.ConfigGlobalSet → Get returns
+      ("!stagecoach", true, nil); Get a missing key → ("", false, nil).
+    * TestConfigGlobalSet_WritesValue: Set alias.y '!stagecoach' → read back via Get == "!stagecoach" (the `!`
       is preserved — proves single-argv, not sh -c).
     * TestConfigGlobalUnset_PresentAndMissing: Set then Unset → (true, nil); Get now missing; Unset again →
       (false, nil) (exit 5 ⇒ not an error).
@@ -674,16 +674,16 @@ Task 6: CREATE internal/cmd/integrate_gitalias_test.go — the matrix + wiring
     entry + a fixed-bool Confirm (for the confirm-flow tests).
   - ENTRY-LEVEL TESTS (call methods directly; real git via the isolated Git instance):
     * TestGitAlias_Status_States: unset → NotInstalled; install (Yes) → Installed; foreign (set alias.x to
-      '!other' via ConfigGlobalSet) → Foreign; ours (set '!stagehand') → Installed.
-    * TestGitAlias_Install_Creates: unset → Install(Yes) → OutcomeCreated; read-back alias.name == "!stagehand".
-    * TestGitAlias_Install_IdempotentAlreadyOurs: pre-set '!stagehand' → Install(Yes) → OutcomeNoChange; no
+      '!other' via ConfigGlobalSet) → Foreign; ours (set '!stagecoach') → Installed.
+    * TestGitAlias_Install_Creates: unset → Install(Yes) → OutcomeCreated; read-back alias.name == "!stagecoach".
+    * TestGitAlias_Install_IdempotentAlreadyOurs: pre-set '!stagecoach' → Install(Yes) → OutcomeNoChange; no
       write (value unchanged).
     * TestGitAlias_Install_ForeignOverwritesAfterConfirm: pre-set '!other' → Install(Yes) → OutcomeUpdated;
-      read-back == "!stagehand" (overwrote); preview string CONTAINS the conflict warning + the current value.
+      read-back == "!stagecoach" (overwrote); preview string CONTAINS the conflict warning + the current value.
     * TestGitAlias_Install_DeclineWritesNothing: Confirm stub returns false → OutcomeDeclined; alias UNCHANGED
       (still '!other' or unset).
     * TestGitAlias_Install_ConfirmReceivesPreview: capture the `diff` arg the Confirm stub receives → contains
-      "git config --global alias.X '!stagehand'" + "git X" + (foreign) the overwrite warning.
+      "git config --global alias.X '!stagecoach'" + "git X" + (foreign) the overwrite warning.
     * TestGitAlias_Remove_Ours: install then Remove(Yes) → OutcomeRemoved; read-back missing.
     * TestGitAlias_Remove_ForeignRefuses: pre-set '!other' → Remove(Yes) → OutcomeNoChange; alias UNCHANGED
       (still '!other'); a note was written to opts.Out.
@@ -697,9 +697,9 @@ Task 6: CREATE internal/cmd/integrate_gitalias_test.go — the matrix + wiring
   - WIRING TESTS (saveRootState/restoreRootState + resetIntegrateFlags + SetArgs + Execute, defaultEntries
     swapped to newGitAliasEntry with an isolated GIT_CONFIG_GLOBAL):
     * TestIntegrateInstall_GitAlias_Execute: `integrate install git-alias --yes` → exit 0; stdout status line;
-      alias.stagehand == "!stagehand" in the isolated global config.
+      alias.stagecoach == "!stagecoach" in the isolated global config.
     * TestIntegrateAliasNameFlag: `integrate install git-alias --yes --alias-name ci` → alias.ci set (not
-      alias.stagehand).
+      alias.stagecoach).
     * TestIntegrateRemove_GitAlias_Execute: install then `integrate remove git-alias --yes` → exit 0; alias gone.
   - FOLLOW pattern: internal/git/hookspath_test.go (t.TempDir + assert style); providers_test.go
     (saveRootState/SetArgs/Execute + substring asserts); resetIntegrateFlags between Execute tests.
@@ -708,7 +708,7 @@ Task 6: CREATE internal/cmd/integrate_gitalias_test.go — the matrix + wiring
 
 Task 7: EDIT docs/cli.md — git-alias target section (Mode A, EXTENDS S2's integrate group section)
   - ADD a `### \`git-alias\` target` subsection within/after S2's `integrate` group section: what it does
-    (registers `git stagehand` via `git config --global alias.stagehand '!stagehand'` — git itself writes the
+    (registers `git stagecoach` via `git config --global alias.stagecoach '!stagecoach'` — git itself writes the
     .gitconfig); the `--alias-name <n>` override; the conflicting-alias behavior (install surfaces a foreign
     `alias.<name>` before overwriting after confirm; remove never removes a foreign alias — FR-I6); what
     `integrate list` shows (DETECTED ✓ — needs only git; STATUS not-installed/installed/foreign; CONFIG =
@@ -726,8 +726,8 @@ Task 8: VERIFY build/test/lint (no go.mod change)
 ### Implementation Patterns & Key Details
 
 ```go
-// isOurs — the "is this alias stagehand's" test (external_deps.md §7). The stored value INCLUDES the `!`,
-// so strip it and compare the COMMAND part (always "stagehand"); the alias NAME may be overridden.
+// isOurs — the "is this alias stagecoach's" test (external_deps.md §7). The stored value INCLUDES the `!`,
+// so strip it and compare the COMMAND part (always "stagecoach"); the alias NAME may be overridden.
 func isOurs(storedValue string) bool { return strings.TrimPrefix(storedValue, "!") == defaultAliasName }
 
 // The ConfigGlobal* impls branch on run()'s exit code (NOT stdout emptiness), mirroring config/git.go:
@@ -799,7 +799,7 @@ OUT OF SCOPE (owned by sibling subtasks — do NOT implement):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/git/git.go internal/git/configglobal_test.go \
   internal/cmd/integrate_gitalias.go internal/cmd/integrate_gitalias_test.go
 go build ./...            # the 3 new Git methods + gitAliasEntry compile against internal/integrate + internal/git
@@ -833,37 +833,37 @@ go test ./...     # full suite — confirm no regression (config/providers/hook/
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 
 # list now shows the git-alias row (DETECTED ✓, STATUS not installed, CONFIG = global gitconfig path)
-/tmp/stagehand integrate list
+/tmp/stagecoach integrate list
 
 # Real install against a THROWAWAY global config (never your real ~/.gitconfig in this manual check):
-export GIT_CONFIG_GLOBAL=/tmp/stagehand-test.gitconfig
+export GIT_CONFIG_GLOBAL=/tmp/stagecoach-test.gitconfig
 rm -f "$GIT_CONFIG_GLOBAL"
-/tmp/stagehand integrate install git-alias --yes
-git config --global --get alias.stagehand        # → "!stagehand"  (the `!` proves single-argv)
-GIT_CONFIG_GLOBAL=/dev/null git config --global --get alias.stagehand 2>&1 | grep -q . && \
+/tmp/stagecoach integrate install git-alias --yes
+git config --global --get alias.stagecoach        # → "!stagecoach"  (the `!` proves single-argv)
+GIT_CONFIG_GLOBAL=/dev/null git config --global --get alias.stagecoach 2>&1 | grep -q . && \
   echo "ERROR: real global config was touched" || echo "OK: real ~/.gitconfig untouched"
-# Expected: alias.stagehand == "!stagehand" in /tmp/stagehand-test.gitconfig ONLY.
+# Expected: alias.stagecoach == "!stagecoach" in /tmp/stagecoach-test.gitconfig ONLY.
 
 # conflicting-alias behavior: seed a foreign value, install surfaces it then overwrites
-echo '[alias]' > "$GIT_CONFIG_GLOBAL"; git config --global alias.stagehand '!my-thing'
-/tmp/stagehand integrate install git-alias       # (no --yes) → preview shows the conflict, asks y/N
+echo '[alias]' > "$GIT_CONFIG_GLOBAL"; git config --global alias.stagecoach '!my-thing'
+/tmp/stagecoach integrate install git-alias       # (no --yes) → preview shows the conflict, asks y/N
 # Type y → overwrites; type N → Declined (alias unchanged).
-git config --global --get alias.stagehand        # after y → "!stagehand"
+git config --global --get alias.stagecoach        # after y → "!stagecoach"
 
 # remove refuses a foreign alias (FR-I6)
-git config --global alias.stagehand '!someone-elses'
-/tmp/stagehand integrate remove git-alias --yes  # → NoChange + "leaving it unchanged"; alias NOT removed
-git config --global --get alias.stagehand        # still "!someone-elses"
+git config --global alias.stagecoach '!someone-elses'
+/tmp/stagecoach integrate remove git-alias --yes  # → NoChange + "leaving it unchanged"; alias NOT removed
+git config --global --get alias.stagecoach        # still "!someone-elses"
 
 # --alias-name override
-/tmp/stagehand integrate install git-alias --yes --alias-name ci
-git config --global --get alias.ci               # → "!stagehand"  (alias.ci, usage `git ci`)
+/tmp/stagecoach integrate install git-alias --yes --alias-name ci
+git config --global --get alias.ci               # → "!stagecoach"  (alias.ci, usage `git ci`)
 
 # works OUTSIDE a git repo (integrate skips config.Load)
-cd /tmp && /tmp/stagehand integrate install git-alias --yes; echo "exit=$?"
+cd /tmp && /tmp/stagecoach integrate install git-alias --yes; echo "exit=$?"
 # Expected: exit 0 (global config doesn't need a repo).
 unset GIT_CONFIG_GLOBAL
 ```
@@ -873,17 +873,17 @@ unset GIT_CONFIG_GLOBAL
 ```bash
 # Idempotency stress (the "run it 10 times" check) — re-install is a NoChange, no duplicate, no drift:
 export GIT_CONFIG_GLOBAL=/tmp/sh-idem.gitconfig; rm -f "$GIT_CONFIG_GLOBAL"
-for i in $(seq 1 10); do /tmp/stagehand integrate install git-alias --yes >/dev/null; done
-test "$(git config --global --get alias.stagehand)" = "!stagehand" && echo "OK: stable across 10 installs"
-# Expected: exactly one alias.stagehand == "!stagehand" after 10 runs (NoChange after the first).
+for i in $(seq 1 10); do /tmp/stagecoach integrate install git-alias --yes >/dev/null; done
+test "$(git config --global --get alias.stagecoach)" = "!stagecoach" && echo "OK: stable across 10 installs"
+# Expected: exactly one alias.stagecoach == "!stagecoach" after 10 runs (NoChange after the first).
 unset GIT_CONFIG_GLOBAL
 
 # Never-clobber guarantee under foreign-on-remove (FR-I6) — re-run with -count=1 to defeat the cache:
 go test ./internal/cmd/... -run 'GitAlias_Remove_ForeignRefuses' -v -count=1
 # Isolation audit — confirm no test wrote the real global config (run the suite, then check a sentinel):
-SENTINEL_BEFORE="$(git config --global --get stagehand.t2s1.isolation-audit 2>/dev/null)"
+SENTINEL_BEFORE="$(git config --global --get stagecoach.t2s1.isolation-audit 2>/dev/null)"
 go test ./internal/cmd/... -run GitAlias -count=1
-SENTINEL_AFTER="$(git config --global --get stagehand.t2s1.isolation-audit 2>/dev/null)"
+SENTINEL_AFTER="$(git config --global --get stagecoach.t2s1.isolation-audit 2>/dev/null)"
 [ "$SENTINEL_BEFORE" = "$SENTINEL_AFTER" ] && echo "OK: real global config untouched by tests"
 ```
 
@@ -898,13 +898,13 @@ SENTINEL_AFTER="$(git config --global --get stagehand.t2s1.isolation-audit 2>/de
 
 ### Feature Validation
 - [ ] `integrate list` shows `git-alias` (DETECTED ✓, STATUS not-installed/installed/foreign, CONFIG = global gitconfig path).
-- [ ] `integrate install git-alias` previews `git config --global alias.stagehand '!stagehand'` + `git stagehand`,
+- [ ] `integrate install git-alias` previews `git config --global alias.stagecoach '!stagecoach'` + `git stagecoach`,
       confirms (y/N; `--yes` skips), then sets; re-run is NoChange (idempotent).
 - [ ] A foreign `alias.<name>` is surfaced in the preview before overwrite (install → Updated after confirm).
 - [ ] `integrate remove git-alias` unsets ONLY when the value is ours (Removed); a foreign alias is refused
       (NoChange + note; FR-I6); an unset alias is NoChange.
 - [ ] `--alias-name <n>` overrides the name on install AND remove.
-- [ ] `git stagehand` (or `git <name>`) runs stagehand after install.
+- [ ] `git stagecoach` (or `git <name>`) runs stagecoach after install.
 - [ ] Decline (user N / non-TTY no --yes) writes nothing; Outcome=Declined.
 - [ ] Works outside a git repo (integrate skips config.Load; global config needs no repo).
 
@@ -929,7 +929,7 @@ SENTINEL_AFTER="$(git config --global --get stagehand.t2s1.isolation-audit 2>/de
 ## Anti-Patterns to Avoid
 
 - ❌ Don't use `protocol.Apply` for git-alias — FR-I4 delegates the `.gitconfig` edit to `git config`; git owns the file. git-alias has its OWN preview+confirm (the preview is a command+usage string, not a unified diff; Backup is always "").
-- ❌ Don't compare the raw stored value (with `!`) to `"stagehand"` — strip the leading `!` first (external_deps.md §7): `TrimPrefix(value,"!") == "stagehand"`. The `!` is part of the stored value.
+- ❌ Don't compare the raw stored value (with `!`) to `"stagecoach"` — strip the leading `!` first (external_deps.md §7): `TrimPrefix(value,"!") == "stagecoach"`. The `!` is part of the stored value.
 - ❌ Don't treat `--get` exit 1 or `--unset` exit 5 as errors — those are the "key not present" signals (found=false, nil err). Branch on the exit code, never on stdout emptiness.
 - ❌ Don't write a NEW self-contained exec helper for git config — add `ConfigGlobalGet/Set/Unset` to the existing `Git` interface (delta_prd "existing git exec wrapper"; HooksPath precedent). config/git.go's separate gitExec exists ONLY to avoid an import cycle that integrate does not have.
 - ❌ Don't use `minGitEnv` for the ConfigGlobal* tests — it strips `GIT_CONFIG_GLOBAL`. Rely on inherited env via `t.Setenv` (run() doesn't set cmd.Env). Every test that touches the global config MUST `t.Setenv("GIT_CONFIG_GLOBAL", <tmpfile>)` first — the real ~/.gitconfig must never be touched.
@@ -947,7 +947,7 @@ SENTINEL_AFTER="$(git config --global --get stagehand.t2s1.isolation-audit 2>/de
 
 **9/10** — one-pass success likelihood is high. The contract is precisely specified: the EXACT three
 `ConfigGlobal*` signatures + verified git exit-code semantics (`--get` exit 1, `--unset` exit 5 —
-external_deps.md §7), the EXACT "ours" test (strip `!`, compare to `stagehand`), the EXACT Entry method set +
+external_deps.md §7), the EXACT "ours" test (strip `!`, compare to `stagecoach`), the EXACT Entry method set +
 Options/Result shapes (S2's PRP) + Outcome/ConfirmFunc/DefaultConfirm (S1's PRP), the env-passthrough
 isolation fact (run() inherits parent env ⇒ `t.Setenv("GIT_CONFIG_GLOBAL",…)` fully isolates), the exact
 Outcome mapping per (action × current-state), the `defaultEntries`/`resetIntegrateFlags` single-line edits to

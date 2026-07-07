@@ -216,7 +216,7 @@ helpers + the `piTOML`/`claudeTOML` constants. S2 EXTENDS that file:
 - **TOUCH (2):** `internal/provider/builtin.go` (add 2 constructors + extend map + update doc comment),
   `internal/provider/builtin_test.go` (add 2 TOML consts + 4 tests + update 2 tests).
 - **FROZEN (do NOT edit):** `manifest.go` + `manifest_test.go` (S1 Manifest type — the CONTRACT),
-  `merge.go` + `merge_test.go` (S2 merge), `internal/config/*`, `internal/git/*`, `cmd/stagehand/main.go`,
+  `merge.go` + `merge_test.go` (S2 merge), `internal/config/*`, `internal/git/*`, `cmd/stagecoach/main.go`,
   `Makefile`, `go.mod`, `go.sum`.
 - **IMPORTS:** `builtin.go` stays ZERO-import (literal `strPtr`/`boolPtr` + slice literals only — same as
   S1). `builtin_test.go` already imports `testing`+`reflect`+`go-toml/v2`; S2 adds NOTHING new.

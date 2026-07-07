@@ -4,7 +4,7 @@ description: |
   Bugfix Issue 1 (pi half). `builtinPi()` ships `ReasoningLevels: nil`, so the FR-R6 reasoning feature
   (the shipped `planner=high` default, `--reasoning high`, every `--<role>-reasoning` flag) is inert for
   pi. Populate it with the VERIFIED `pi --help` tokens: `--thinking <level>` (low|medium|high; pi also
-  accepts minimal/xhigh but stagehand's level set is off|low|medium|high — map only the overlap). The
+  accepts minimal/xhigh but stagecoach's level set is off|low|medium|high — map only the overlap). The
   Render guard (render.go:124-126) is ALREADY correct — only the manifest DATA is missing. CRITICAL: the
   data change ripples to TWO `reflect.DeepEqual` parity fixtures (the `piTOML` const + the shipped
   `providers/pi.toml`) that MUST also carry the matching `[reasoning_levels]` table or the provider test
@@ -37,11 +37,11 @@ tests (DecodeParity + ReferenceFiles_DecodeParity) stay green. `go build/vet/gof
 
 ## User Persona
 
-**Target User**: The Stagehand user who runs the planner (or any role) on `pi` and expects the documented
+**Target User**: The Stagecoach user who runs the planner (or any role) on `pi` and expects the documented
 `--reasoning high` (or the shipped `planner=high` default) to actually engage deeper reasoning — and the
 contributor wiring real per-role reasoning values (P1.M2).
 
-**Use Case**: `stagehand --reasoning high` (or a decompose run whose planner resolves to pi with
+**Use Case**: `stagecoach --reasoning high` (or a decompose run whose planner resolves to pi with
 `planner=high`) should invoke `pi --provider <backend> --model <m> --thinking high …`.
 
 **Pain Points Addressed**: Today the reasoning feature is completely inert for pi — `ReasoningLevels` is
@@ -57,7 +57,7 @@ default do nothing. The fix makes pi honor them.
   is correct; only the manifest data is absent. So this is a minimal data change, not a logic change.
 - **Verified, not guessed.** external_deps.md §pi confirms `pi --help` exposes `--thinking <level>`
   (off|minimal|low|medium|high|xhigh). The contract's map (high/medium/low → `--thinking <level>`) is
-  exactly the verified overlap with stagehand's off|low|medium|high level set.
+  exactly the verified overlap with stagecoach's off|low|medium|high level set.
 - **Honest no-op elsewhere.** Providers without a verified reasoning control (gemini/agy/qwen-code/
   opencode/codex/cursor) stay nil — the FR-R6 graceful no-op then applies honestly rather than
   advertising an inert feature.
@@ -65,7 +65,7 @@ default do nothing. The fix makes pi honor them.
 ## What
 
 A data-only manifest change for `pi` (no logic), propagated to its two `reflect.DeepEqual` parity
-fixtures, plus a focused render test and one doc line. `off` deliberately has no map entry (stagehand's
+fixtures, plus a focused render test and one doc line. `off` deliberately has no map entry (stagecoach's
 `off` means "no reasoning control"; the level resolves to a no-op) → stays a no-op.
 
 ### Success Criteria
@@ -97,7 +97,7 @@ stale-`default_provider`-line gotcha (harmless, ignored) is called out so the im
 ```yaml
 # MUST READ — the verified-token source (authoritative; do NOT guess)
 - docfile: plan/003_6ce49c39466e/bugfix/001_ccbb2681877e/architecture/external_deps.md
-  why: "§pi (lines 6-21) is the authoritative token source: `pi --help` exposes `--thinking <level>` (off|minimal|low|medium|high|xhigh). Gives the exact map: high/medium/low → [\"--thinking\", <level>]; off → no tokens. Confirms the overlap with stagehand's off|low|medium|high set (minimal/xhigh not mapped)."
+  why: "§pi (lines 6-21) is the authoritative token source: `pi --help` exposes `--thinking <level>` (off|minimal|low|medium|high|xhigh). Gives the exact map: high/medium/low → [\"--thinking\", <level>]; off → no tokens. Confirms the overlap with stagecoach's off|low|medium|high set (minimal/xhigh not mapped)."
   critical: "§claude (lines 27-35) is S1 (claude --effort), NOT this subtask. S2 is pi ONLY. §'Providers with NO known reasoning control' lists the 6 that stay nil (graceful no-op)."
 
 - docfile: plan/003_6ce49c39466e/bugfix/001_ccbb2681877e/P1M1T1S1/PRP.md
@@ -141,7 +141,7 @@ stale-`default_provider`-line gotcha (harmless, ignored) is called out so the im
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/provider/
 │   ├── builtin.go            # EDIT (builtinPi +ReasoningLevels; remove TODO; doc comment)
 │   ├── builtin_test.go       # EDIT (piTOML const +table; PiFields +assertion)
@@ -156,7 +156,7 @@ stagehand/
 ### Desired Codebase Tree After S2
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/provider/builtin.go          # builtinPi +ReasoningLevels +remove TODO +doc fix
     internal/provider/builtin_test.go     # piTOML +table; PiFields +assertion
@@ -187,10 +187,10 @@ piTOML/providers/pi.toml (harmless, ignored), Issue 2 (message-role routing = P1
 // [reasoning_levels] table. Forgetting EITHER fixture is the #1 one-pass failure mode.
 
 // CRITICAL — use the VERIFIED flag. pi --help exposes `--thinking <level>` (off|minimal|low|medium|high|xhigh).
-// Map ONLY the overlap with stagehand's off|low|medium|high set: high/medium/low → ["--thinking", <level>].
-// minimal/xhigh have no stagehand level — NOT mapped. Source: external_deps.md §pi.
+// Map ONLY the overlap with stagecoach's off|low|medium|high set: high/medium/low → ["--thinking", <level>].
+// minimal/xhigh have no stagecoach level — NOT mapped. Source: external_deps.md §pi.
 
-// CRITICAL — NO `off` key in the map. stagehand's `off` means "no reasoning control" and is the natural
+// CRITICAL — NO `off` key in the map. stagecoach's `off` means "no reasoning control" and is the natural
 // zero no-op (absent key → nil slice → len 0 → Render appends nothing). Do NOT add "off": {"--thinking", "off"}.
 
 // CRITICAL (docs coordination) — S1 (claude) edits the SAME docs/providers.md line 35 row for claude --effort.
@@ -244,7 +244,7 @@ Task 1: builtin.go — add ReasoningLevels to builtinPi()
     by the `// TOOLED MODE (v2 §11.5 …)` comment block.
   - INSERT between BareFlags close and the TooledFlags comment:
         // REASONING LEVELS (v3; §12.1, FR-R6). pi exposes `--thinking off|minimal|low|medium|high|xhigh`
-        // (verified `pi --help`, external_deps.md §pi). off ⇒ no entry (natural zero no-op); stagehand's
+        // (verified `pi --help`, external_deps.md §pi). off ⇒ no entry (natural zero no-op); stagecoach's
         // level set is off|low|medium|high, so minimal/xhigh are not mapped. Tokens append after the model flag.
         ReasoningLevels: map[string][]string{
             "high":   {"--thinking", "high"},
@@ -258,7 +258,7 @@ Task 1: builtin.go — add ReasoningLevels to builtinPi()
   - UPDATE the function doc comment (lines 37-40): replace the "NOTE: ReasoningLevels is nil (absent) in
     the shipped default. FR-D5 requires verification before populating — …" block with:
     "NOTE: ReasoningLevels is populated — pi `--thinking` high/medium/low (verified `pi --help`,
-    external_deps.md §pi); off ⇒ no-op (no entry). minimal/xhigh have no stagehand level."
+    external_deps.md §pi); off ⇒ no-op (no entry). minimal/xhigh have no stagecoach level."
   - DO NOT: touch builtinClaude (S1) or any other builtin; touch render.go/manifest.go/merge.go.
 
 Task 2: builtin_test.go — piTOML const + PiFields assertion (PARITY)
@@ -285,7 +285,7 @@ Task 3: providers/pi.toml — matching [reasoning_levels] table (PARITY)
   - APPEND at the END of the file (after the trailing 'absent fields' comment block), a comment + table:
         # --- reasoning levels (v3; §12.1, FR-R6) ---
         # pi exposes `--thinking off|minimal|low|medium|high|xhigh` (verified `pi --help`, external_deps.md §pi).
-        # off has no entry ⇒ graceful no-op (FR-R6); minimal/xhigh have no stagehand level. Tokens append
+        # off has no entry ⇒ graceful no-op (FR-R6); minimal/xhigh have no stagecoach level. Tokens append
         # after the model flag at render.
         [reasoning_levels]
         high = ["--thinking", "high"]
@@ -354,7 +354,7 @@ Task 6: VALIDATE
 			"--no-prompt-templates", "--no-context-files", "--no-session",
 		},
 		// REASONING LEVELS (v3; §12.1, FR-R6). pi exposes `--thinking off|minimal|low|medium|high|xhigh`
-		// (verified `pi --help`, external_deps.md §pi). off ⇒ no entry (natural zero no-op); stagehand's
+		// (verified `pi --help`, external_deps.md §pi). off ⇒ no entry (natural zero no-op); stagecoach's
 		// level set is off|low|medium|high, so minimal/xhigh are not mapped. Tokens append after the model flag.
 		ReasoningLevels: map[string][]string{
 			"high":   {"--thinking", "high"},
@@ -385,7 +385,7 @@ low = ["--thinking", "low"]
 ```yaml
 MANIFEST DATA (internal/provider/builtin.go builtinPi):
   - added: 'ReasoningLevels: map[string][]string{"high":{"--thinking","high"},"medium":...,"low":...}'
-  - no "off" key (off ⇒ no-op); minimal/xhigh not mapped (no stagehand level)
+  - no "off" key (off ⇒ no-op); minimal/xhigh not mapped (no stagecoach level)
 
 PARITY FIXTURES (must match builtinPi EXACTLY — reflect.DeepEqual):
   - internal/provider/builtin_test.go : piTOML const + [reasoning_levels] table
@@ -416,7 +416,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S2):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l .                       # Expected: empty (run gofmt -w on any listed file)
 go vet ./internal/provider/...   # Expected: exit 0
@@ -426,7 +426,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new real-built-in render test
 go test -race -run 'TestRender_PiReasoningThinkingTokens' ./internal/provider/ -v
@@ -444,7 +444,7 @@ go test -race ./internal/provider/ -v
 ### Level 3: Whole-Repository Regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages pass
 go vet ./...                     # Expected: exit 0
@@ -457,7 +457,7 @@ git diff --stat -- internal/ providers/ docs/
 ### Level 4: Behavior Smoke (the contract's probe — optional)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Inline probe via a throwaway in-package test (delete after) — proves the data + guard end-to-end:
 cat > internal/provider/zz_smoke_test.go <<'EOF'
@@ -514,12 +514,12 @@ go test -run TestZZ_PiThinkingSmoke -v ./internal/provider/ ; rm -f internal/pro
 
 ## Anti-Patterns to Avoid
 
-- ❌ Don't map `minimal`/`xhigh` — they have no stagehand level (off|low|medium|high). Map ONLY
+- ❌ Don't map `minimal`/`xhigh` — they have no stagecoach level (off|low|medium|high). Map ONLY
   high/medium/low → `["--thinking", <level>]`.
 - ❌ Don't forget the parity fixtures. Adding `ReasoningLevels` to `builtinPi()` breaks
   `TestBuiltinManifests_DecodeParity` (piTOML const) AND `TestProviderReferenceFiles_DecodeParity`
   (providers/pi.toml) unless BOTH carry the matching `[reasoning_levels]` table. #1 trap.
-- ❌ Don't add an `"off"` key. stagehand's `off` is the natural zero no-op; `off` must be absent (→ nil
+- ❌ Don't add an `"off"` key. stagecoach's `off` is the natural zero no-op; `off` must be absent (→ nil
   slice → len 0 → Render appends nothing).
 - ❌ Don't put the `[reasoning_levels]` table before the top-level keys in the TOML — `bare_flags`/
   `tooled_flags` are array VALUES (top-level keys), and once a `[table]` header appears later keys belong
@@ -547,7 +547,7 @@ go test -run TestZZ_PiThinkingSmoke -v ./internal/provider/ ; rm -f internal/pro
 **9/10** for one-pass implementation success.
 
 Rationale: This is a data-only manifest change with the verified tokens sourced from external_deps.md
-(`--thinking`, exactly the high/medium/low overlap with stagehand's level set), the Render guard already
+(`--thinking`, exactly the high/medium/low overlap with stagecoach's level set), the Render guard already
 correct, and the complete test + TOML blocks specified verbatim. It is the exact structural mirror of S1
 (claude), which validates the approach. The one non-obvious trap — the THREE parity surfaces (builtin.go +
 piTOML const + providers/pi.toml) enforced by TWO `reflect.DeepEqual` tests — is called out as the #1

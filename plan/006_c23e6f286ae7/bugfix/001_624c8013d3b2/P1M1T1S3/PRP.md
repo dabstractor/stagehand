@@ -40,13 +40,13 @@ markdown is valid; no code/test/other-doc files are touched; `go test ./...` is 
 
 ## User Persona
 
-**Target User**: The Stagehand user (or contributor) reading `docs/how-it-works.md`'s
+**Target User**: The Stagecoach user (or contributor) reading `docs/how-it-works.md`'s
 "### Per-repo run lock (FR52)" architecture section to understand the no-op fast path — especially
-someone binding `stagehand` to a keybind (lazygit/double-tap) who needs to know what an accidental
+someone binding `stagecoach` to a keybind (lazygit/double-tap) who needs to know what an accidental
 double-run does on each commit path, and a reviewer auditing the architecture docs for accuracy against
 the implemented FR52 behavior.
 
-**Use Case**: A user double-invokes `stagehand` on a dirty, un-staged working tree (the decompose
+**Use Case**: A user double-invokes `stagecoach` on a dirty, un-staged working tree (the decompose
 trigger) and consults `docs/how-it-works.md` to learn the exit code. The current prose implies exit 0 is
 reachable on that path; the fixed prose tells them it exits Busy (5) and why.
 
@@ -144,7 +144,7 @@ stated so the implementer understands the *why* behind the wording, not just the
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── docs/how-it-works.md    # EDIT line 155 (the '**No-op fast path.**' paragraph)
 └── .markdownlint.json      # MD013 disabled → single-line paragraphs allowed
 ```
@@ -152,7 +152,7 @@ stagehand/
 ### Desired Codebase Tree After S3
 
 ```bash
-stagehand/
+stagecoach/
 └── docs/how-it-works.md    # line 155 rewritten (path-scoped exit-0 + decompose→Busy); rest unchanged
 ```
 
@@ -297,7 +297,7 @@ DOWNSTREAM HOOKS (informational — sibling/later subtasks):
 ### Level 1: Doc Lint & Sanity (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (markdownlint is configured — .markdownlint.json at root; MD013 line-length disabled)
 markdownlint docs/how-it-works.md 2>/dev/null || npx -y markdownlint-cli2 docs/how-it-works.md 2>/dev/null || echo "markdownlint not runnable; visual check only"
@@ -311,7 +311,7 @@ git diff --stat
 ### Level 2: Build/Test Sanity (no code changed → must stay green)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go build ./...     # Expected: exit 0 (doc change; confirms no accidental source clobber)
 go test ./...      # Expected: all green (doc change; confirms nothing else touched)
@@ -320,7 +320,7 @@ go test ./...      # Expected: all green (doc change; confirms nothing else touc
 ### Level 3: Prose Accuracy Check (the real validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Render the "### Per-repo run lock (FR52)" section and verify each claim against the implemented behavior:
 sed -n '144,177p' docs/how-it-works.md
@@ -341,7 +341,7 @@ sed -n '144,177p' docs/how-it-works.md
 ### Level 4: Cross-Doc Coherence (light — full sweep is P1.M3.T1)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Confirm the per-path semantics are consistent in spirit with the sibling docs (S1/S2 fully align;
 # here just flag gross contradictions). All three surfaces should scope exit-0 to the single-commit

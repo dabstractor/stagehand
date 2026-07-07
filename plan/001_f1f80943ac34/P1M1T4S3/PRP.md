@@ -1,10 +1,10 @@
 ---
-name: "P1.M1.T4.S3 — Git-config reader (stagehand.* keys)"
+name: "P1.M1.T4.S3 — Git-config reader (stagecoach.* keys)"
 description: |
-  The THIRD subtask of the Configuration System (P1.M1.T4): read Stagehand's per-repo **git config**
+  The THIRD subtask of the Configuration System (P1.M1.T4): read Stagecoach's per-repo **git config**
   layer (PRD §16.3, FR36) and yield a partial `*Config` for the precedence overlay. Implement
   `internal/config/git.go` with `loadGitConfig(repoDir string) (*Config, error)` (package `config`),
-  which runs `git -C <repoDir> config --get stagehand.<key>` for each known scalar key and a
+  which runs `git -C <repoDir> config --get stagecoach.<key>` for each known scalar key and a
   `gitConfigGet`/`gitConfigBool` exec helper, and `internal/config/git_test.go` (white-box, REAL git
   in a temp repo). INPUT = `Config` struct + `Defaults()` from P1.M1.T4.S1 (and the `Providers` field
   S2 adds). OUTPUT = a partial `*Config` (only set fields non-zero) consumed by S4's `Load()`
@@ -13,11 +13,11 @@ description: |
 
   ⚠️ **THE central design call — git-config keys are CAMELCASE, NOT snake_case.** Empirically (research
   §git_config_behavior.md FINDING A), `git config` REJECTS underscores in key names: `git config
-  stagehand.auto_stage_all on` → `error: invalid key: stagehand.auto_stage_all` (exit 1, on BOTH read
+  stagecoach.auto_stage_all on` → `error: invalid key: stagecoach.auto_stage_all` (exit 1, on BOTH read
   and write). Git's key grammar allows only alphanumeric + `-` in section/name. Therefore FR36's and
   the contract's literal snake_case names (`auto_stage_all`, `max_diff_bytes`, …) are **unusable**.
   The authoritative working form is the **PRD §16.3 example**, which uses **camelCase** (`autoStageAll
-  = true`). S3 reads camelCase for every multi-word key: `stagehand.autoStageAll`, `maxDiffBytes`,
+  = true`). S3 reads camelCase for every multi-word key: `stagecoach.autoStageAll`, `maxDiffBytes`,
   `maxMdLines`, `maxDuplicateRetries`, `subjectTargetChars`, `stripCodeFence`. Single-word keys
   (`provider`, `model`, `timeout`, `verbose`, `output`) are valid as-is. This is a **discovered
   correction** of the contract/FR36 naming (documented, not a contradiction to surface to humans — the
@@ -50,10 +50,10 @@ description: |
   here (it would accept "90s" and reject "90", the opposite of what §16.3 shows).
 
   ⚠️ **THE fifth design call — scalar keys only; NO provider manifests from git config.** §16.3 and
-  FR36 list only scalar keys. `stagehand.provider` here is the DEFAULT provider **name** (string →
+  FR36 list only scalar keys. `stagecoach.provider` here is the DEFAULT provider **name** (string →
   `Config.Provider`), NOT a manifest section. `Config.Providers` (the raw map S2 added) is NOT
   populated by S3 — provider manifests come ONLY from the TOML file (S2). Keeps S3 simple and avoids
-  the messy `stagehand.provider.X.Y` parsing that arch §2.5 sketches but the contract excludes.
+  the messy `stagecoach.provider.X.Y` parsing that arch §2.5 sketches but the contract excludes.
 
   ⚠️ **THE sixth design call — non-zero overlay limitation is inherited (bool `false` can't be
   forced).** Because `Config` is plain-typed (S1 froze it) and S2's `overlay` copies only NON-ZERO
@@ -79,8 +79,8 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Give Stagehand the ability to read its per-repo **git config** layer (PRD §16.3,
-FR36, layer 4 of §16.1) — the `stagehand.*` keys a user sets via `git config stagehand.provider pi`
+**Feature Goal**: Give Stagecoach the ability to read its per-repo **git config** layer (PRD §16.3,
+FR36, layer 4 of §16.1) — the `stagecoach.*` keys a user sets via `git config stagecoach.provider pi`
 etc. — and turn them into a partial `*Config` carrying ONLY the keys that were actually set, so the
 precedence overlay (S2's `overlay`) can apply them with "higher layer wins" (FR34). Missing keys are
 the normal "no override" condition and never an error.
@@ -88,7 +88,7 @@ the normal "no override" condition and never an error.
 **Deliverable**:
 1. **CREATE** `internal/config/git.go` (`package config`) — the functions:
    (a) `func loadGitConfig(repoDir string) (*Config, error)` — for each known scalar key, read it via
-       `git -C <repoDir> config --get stagehand.<key>` (booleans with `--bool`); populate a fresh
+       `git -C <repoDir> config --get stagecoach.<key>` (booleans with `--bool`); populate a fresh
        `*Config` with ONLY the keys found (exit 0); ignore missing keys (exit 1); return a wrapped
        error on any other failure (bad value, missing git binary). Returns a non-nil `*Config` on
        success (possibly all-zero if nothing was set).
@@ -115,19 +115,19 @@ type (P1.M2.T1). No `Config` struct change. No `go.mod`/`go.sum` change (stdlib 
 
 **Success Definition**: `go build ./...`, `go vet ./...`, `gofmt -l internal/config/` clean;
 `go test -race ./internal/config/` passes (S1's + S2's tests stay GREEN); `go test -race ./...` green;
-`loadGitConfig` reads camelCase `stagehand.*` keys (provider/model/timeout/booleans/ints/strings),
+`loadGitConfig` reads camelCase `stagecoach.*` keys (provider/model/timeout/booleans/ints/strings),
 ignores missing keys, parses `timeout` as integer seconds → `time.Duration`, normalizes booleans via
 `--bool`, returns a zero `*Config` (no error) when nothing is set, and a wrapped error on a bad value
 or missing git binary; `git diff --exit-code go.mod go.sum` is empty.
 
 ## User Persona
 
-**Target User**: Downstream Stagehand subtask **S4** (`Load()` orchestrator, which calls
+**Target User**: Downstream Stagecoach subtask **S4** (`Load()` orchestrator, which calls
 `overlay(&cfg, loadGitConfig(repoDir))` as layer 4 of §16.1). Transitively US8 (configuration &
-precedence, FR34/FR36) and every user who configures Stagehand via `git config stagehand.*`.
+precedence, FR34/FR36) and every user who configures Stagecoach via `git config stagecoach.*`.
 
-**Use Case**: A user sets per-repo or global git config keys (`git config stagehand.provider pi`,
-`git config stagehand.autoStageAll true`, `git config --global stagehand.timeout 90`). S3 turns the
+**Use Case**: A user sets per-repo or global git config keys (`git config stagecoach.provider pi`,
+`git config stagecoach.autoStageAll true`, `git config --global stagecoach.timeout 90`). S3 turns the
 set keys into a partial `*Config`; S4's `overlay` applies them above the file layers (§16.1).
 
 **User Journey**: (internal API, no end-user surface yet) S4: `cfg := Defaults()` →
@@ -147,14 +147,14 @@ cycle", and "how does the git layer compose with the TOML overlay" ambiguity for
   produces a `*Config` DIRECTLY (no intermediate decode struct needed — git values are already
   scalars); S3's job is type coercion (`Atoi`, `--bool`, seconds→`Duration`) and the found/missing
   distinction via exit codes.
-- **Corrects the FR36 naming before it ships broken.** FR36's snake_case `stagehand.auto_stage_all`
+- **Corrects the FR36 naming before it ships broken.** FR36's snake_case `stagecoach.auto_stage_all`
   is rejected by git; S3 ships the working camelCase form (§16.3) and locks it with a regression test.
 - **No user-facing surface change** (PRD "DOCS: none") — public git-config documentation ships with
   `config init` (P1.M4.T1.S4) and the README (P1.M5.T4.S1).
 
 ## What
 
-A compiled `internal/config` package that can read the 11 known `stagehand.*` scalar keys from a
+A compiled `internal/config` package that can read the 11 known `stagecoach.*` scalar keys from a
 repo's git config (local + global + system merged by git itself), coerce each to the right Go type
 (string / `time.Duration` from integer seconds / `bool` via `--bool` / `int` via `Atoi`), and yield a
 partial `*Config` (only-set-fields non-zero) suitable for S2's non-zero `overlay`. Missing keys are
@@ -165,7 +165,7 @@ not errors. No orchestrator, no other layers, no `Config` change, no provider ma
 - [ ] `internal/config/git.go` exists, `package config`, imports only stdlib (`bytes`, `context`,
       `errors`, `fmt`, `os/exec`, `strconv`, `strings`, `time`). No third-party imports.
 - [ ] `loadGitConfig(repoDir)` returns a non-nil `*Config` on success (all-zero if nothing set, no
-      error); reads camelCase keys (`stagehand.provider`, `.model`, `.timeout`, `.autoStageAll`,
+      error); reads camelCase keys (`stagecoach.provider`, `.model`, `.timeout`, `.autoStageAll`,
       `.verbose`, `.maxDiffBytes`, `.maxMdLines`, `.maxDuplicateRetries`, `.subjectTargetChars`,
       `.output`, `.stripCodeFence`); booleans via `--bool`; `timeout` via `strconv.Atoi` → seconds.
 - [ ] A missing key (git exit 1) leaves that field at its zero value and is NOT an error.
@@ -230,7 +230,7 @@ and the function specs. No provider/TOML/generation-pipeline knowledge required 
   pattern: `t.Helper()`; `exec.Command("git","-C",dir,"init")`; `cmd.Env = append(os.Environ(),
        "GIT_AUTHOR_NAME=…", "GIT_AUTHOR_EMAIL=…", …)`; `cmd.CombinedOutput()` + `t.Fatalf` on error.
   gotcha: S3 tests additionally `t.Setenv("HOME", t.TempDir())` to isolate global git config so a
-       developer's personal `~/.gitconfig` stagehand.* keys can't leak into the test.
+       developer's personal `~/.gitconfig` stagecoach.* keys can't leak into the test.
 
 - url: https://git-scm.com/docs/git-config#_configuration_file
   why: confirms (a) key grammar = alphanumeric + `-` only in section/name (hence FINDING A — no `_`),
@@ -250,7 +250,7 @@ and the function specs. No provider/TOML/generation-pipeline knowledge required 
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; require go-toml/v2 v2.4.2
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; require go-toml/v2 v2.4.2
 go.sum
 internal/
   config/
@@ -261,7 +261,7 @@ internal/
     git.go                      # NEW (S3) ← loadGitConfig + gitConfigGet/gitConfigBool/gitExec
     git_test.go                 # NEW (S3) ← TestLoadGitConfig_*/TestGitConfigGet_*
   git/                          # T2/T3 (Git interface + gitRunner.run) — untouched by S3
-cmd/stagehand/main.go           # `package main; func main(){}` stub — untouched
+cmd/stagecoach/main.go           # `package main; func main(){}` stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -279,7 +279,7 @@ internal/
 ### Known Gotchas of our codebase & Library Quirks
 
 ```go
-// CRITICAL: git config keys CANNOT contain underscores (FINDING A). `git config stagehand.auto_stage_all`
+// CRITICAL: git config keys CANNOT contain underscores (FINDING A). `git config stagecoach.auto_stage_all`
 // => "error: invalid key". Git's key grammar: section/name = alphanumeric + '-' ONLY. Multi-word keys
 // MUST be camelCase per PRD §16.3 (autoStageAll, maxDiffBytes, maxMdLines, maxDuplicateRetries,
 // subjectTargetChars, stripCodeFence). Single-word keys (provider, model, timeout, verbose, output)
@@ -290,7 +290,7 @@ internal/
 // wrapped error. Reading OUTSIDE a repo exits 1 (not 128) — git reads system+global config even with
 // no local repo, so loadGitConfig never errors for "non-repo"; it just finds nothing local.
 
-// CRITICAL: booleans MUST be read with `--bool` (FINDING C). `git config --bool --get stagehand.X`
+// CRITICAL: booleans MUST be read with `--bool` (FINDING C). `git config --bool --get stagecoach.X`
 // returns canonical "true"/"false" for inputs on/off/yes/no/1/0. Plain `--get` would return the raw
 // "on"/"1" and need manual parsing. strconv.ParseBool on the `--bool` output never fails.
 
@@ -301,7 +301,7 @@ internal/
 
 // CRITICAL: plain `git config --get` reads local+global+system MERGED (FINDING E). Do NOT add --local
 // (contract: plain `git config --get`). PRD §16.3 intends this ("composes with --local vs --global"):
-// a --global stagehand.* key applies everywhere, a --local one per-repo.
+// a --global stagecoach.* key applies everywhere, a --local one per-repo.
 
 // CRITICAL: placement is internal/config/git.go with a SELF-CONTAINED os/exec helper (FINDING F). Do
 // NOT import internal/git (its run() is unexported; its Git interface has no config method; importing
@@ -317,7 +317,7 @@ internal/
 // overlay, not a fully-defaulted Config. If S3 pre-filled defaults, overlay would copy ALL of them,
 // clobbering lower layers incorrectly. The zero-value start is what makes "only set fields" work.)
 
-// GOTCHA: NO provider manifests from git config (design call #5). stagehand.provider = default provider
+// GOTCHA: NO provider manifests from git config (design call #5). stagecoach.provider = default provider
 // NAME (string -> Config.Provider). Config.Providers is populated ONLY by the TOML loader (S2).
 
 // GOTCHA: NoColor is NOT read (CLI/UI only, toml:"-"). Verbose IS read (it's a [defaults] field).
@@ -329,7 +329,7 @@ internal/
 
 // GOTCHA (test): _test.go helpers are NOT importable across packages. internal/config/git_test.go must
 // define its OWN initRepo/setGitConfig helpers (copy the bodies from internal/git/git_test.go). Use
-// t.Setenv("HOME", t.TempDir()) so a developer's global ~/.gitconfig stagehand.* keys don't leak in.
+// t.Setenv("HOME", t.TempDir()) so a developer's global ~/.gitconfig stagecoach.* keys don't leak in.
 ```
 
 ## Implementation Blueprint
@@ -343,18 +343,18 @@ internal/
 package config
 
 type Config struct {
-	Provider            string        // <- stagehand.provider   (string, --get)
-	Model               string        // <- stagehand.model      (string, --get)
-	Timeout             time.Duration // <- stagehand.timeout    (int seconds -> Atoi -> *time.Second)
-	AutoStageAll        bool          // <- stagehand.autoStageAll   (--bool)
-	Verbose             bool          // <- stagehand.verbose        (--bool)
+	Provider            string        // <- stagecoach.provider   (string, --get)
+	Model               string        // <- stagecoach.model      (string, --get)
+	Timeout             time.Duration // <- stagecoach.timeout    (int seconds -> Atoi -> *time.Second)
+	AutoStageAll        bool          // <- stagecoach.autoStageAll   (--bool)
+	Verbose             bool          // <- stagecoach.verbose        (--bool)
 	NoColor             bool          //  NOT read from git config (CLI/UI only, toml:"-")
-	MaxDiffBytes        int           // <- stagehand.maxDiffBytes   (int, --get -> Atoi)
-	MaxMdLines          int           // <- stagehand.maxMdLines     (int, --get -> Atoi)
-	MaxDuplicateRetries int           // <- stagehand.maxDuplicateRetries (int, --get -> Atoi)
-	SubjectTargetChars  int           // <- stagehand.subjectTargetChars  (int, --get -> Atoi)
-	Output              string        // <- stagehand.output         (string, --get)
-	StripCodeFence      bool          // <- stagehand.stripCodeFence (--bool)
+	MaxDiffBytes        int           // <- stagecoach.maxDiffBytes   (int, --get -> Atoi)
+	MaxMdLines          int           // <- stagecoach.maxMdLines     (int, --get -> Atoi)
+	MaxDuplicateRetries int           // <- stagecoach.maxDuplicateRetries (int, --get -> Atoi)
+	SubjectTargetChars  int           // <- stagecoach.subjectTargetChars  (int, --get -> Atoi)
+	Output              string        // <- stagecoach.output         (string, --get)
+	StripCodeFence      bool          // <- stagecoach.stripCodeFence (--bool)
 	Providers           map[string]map[string]any // NOT read from git config (S2's TOML domain)
 }
 ```
@@ -451,7 +451,7 @@ func gitConfigBool(repo, key string) (value bool, found bool, err error) {
 	}
 }
 
-// loadGitConfig reads Stagehand's per-repo git-config layer (PRD §16.3, FR36, §16.1 layer 4) from the
+// loadGitConfig reads Stagecoach's per-repo git-config layer (PRD §16.3, FR36, §16.1 layer 4) from the
 // repo at repoDir and returns a PARTIAL *Config carrying ONLY the keys that were found set (all others
 // remain at their zero value). Missing keys are NOT errors (git config --get exits 1 for a missing
 // key, FINDING B). A non-integer timeout, a missing git binary, or any unexpected git exit yields a
@@ -468,84 +468,84 @@ func loadGitConfig(repoDir string) (*Config, error) {
 	c := &Config{} // ALL fields zero; only found keys are set below.
 
 	// --- strings (plain --get) ---
-	if v, found, err := gitConfigGet(repoDir, "stagehand.provider"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.provider"); err != nil {
 		return nil, err
 	} else if found {
 		c.Provider = v
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.model"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.model"); err != nil {
 		return nil, err
 	} else if found {
 		c.Model = v
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.output"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.output"); err != nil {
 		return nil, err
 	} else if found {
 		c.Output = v
 	}
 
 	// --- timeout: integer SECONDS -> time.Duration (FINDING D). NOT time.ParseDuration. ---
-	if v, found, err := gitConfigGet(repoDir, "stagehand.timeout"); err != nil {
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.timeout"); err != nil {
 		return nil, err
 	} else if found {
 		n, perr := strconv.Atoi(v) // §16.3 "90" -> 90; "90s" FAILS (surfaced as a wrapped load error)
 		if perr != nil {
-			return nil, fmt.Errorf("git config stagehand.timeout: invalid integer %q: %w", v, perr)
+			return nil, fmt.Errorf("git config stagecoach.timeout: invalid integer %q: %w", v, perr)
 		}
 		c.Timeout = time.Duration(n) * time.Second
 	}
 
 	// --- booleans (--bool canonicalizes; FINDING C) ---
-	if v, found, err := gitConfigBool(repoDir, "stagehand.autoStageAll"); err != nil { // camelCase!
+	if v, found, err := gitConfigBool(repoDir, "stagecoach.autoStageAll"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
 		c.AutoStageAll = v
 	}
-	if v, found, err := gitConfigBool(repoDir, "stagehand.verbose"); err != nil {
+	if v, found, err := gitConfigBool(repoDir, "stagecoach.verbose"); err != nil {
 		return nil, err
 	} else if found {
 		c.Verbose = v
 	}
-	if v, found, err := gitConfigBool(repoDir, "stagehand.stripCodeFence"); err != nil { // camelCase!
+	if v, found, err := gitConfigBool(repoDir, "stagecoach.stripCodeFence"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
 		c.StripCodeFence = v
 	}
 
 	// --- ints (plain --get -> Atoi) ---
-	if v, found, err := gitConfigGet(repoDir, "stagehand.maxDiffBytes"); err != nil { // camelCase!
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.maxDiffBytes"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
 		n, perr := strconv.Atoi(v)
 		if perr != nil {
-			return nil, fmt.Errorf("git config stagehand.maxDiffBytes: invalid integer %q: %w", v, perr)
+			return nil, fmt.Errorf("git config stagecoach.maxDiffBytes: invalid integer %q: %w", v, perr)
 		}
 		c.MaxDiffBytes = n
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.maxMdLines"); err != nil { // camelCase!
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.maxMdLines"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
 		n, perr := strconv.Atoi(v)
 		if perr != nil {
-			return nil, fmt.Errorf("git config stagehand.maxMdLines: invalid integer %q: %w", v, perr)
+			return nil, fmt.Errorf("git config stagecoach.maxMdLines: invalid integer %q: %w", v, perr)
 		}
 		c.MaxMdLines = n
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.maxDuplicateRetries"); err != nil { // camelCase!
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.maxDuplicateRetries"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
 		n, perr := strconv.Atoi(v)
 		if perr != nil {
-			return nil, fmt.Errorf("git config stagehand.maxDuplicateRetries: invalid integer %q: %w", v, perr)
+			return nil, fmt.Errorf("git config stagecoach.maxDuplicateRetries: invalid integer %q: %w", v, perr)
 		}
 		c.MaxDuplicateRetries = n
 	}
-	if v, found, err := gitConfigGet(repoDir, "stagehand.subjectTargetChars"); err != nil { // camelCase!
+	if v, found, err := gitConfigGet(repoDir, "stagecoach.subjectTargetChars"); err != nil { // camelCase!
 		return nil, err
 	} else if found {
 		n, perr := strconv.Atoi(v)
 		if perr != nil {
-			return nil, fmt.Errorf("git config stagehand.subjectTargetChars: invalid integer %q: %w", v, perr)
+			return nil, fmt.Errorf("git config stagecoach.subjectTargetChars: invalid integer %q: %w", v, perr)
 		}
 		c.SubjectTargetChars = n
 	}
@@ -586,10 +586,10 @@ Task 3: ADD loadGitConfig to internal/config/git.go
     verbose/stripCodeFence bools via --bool; maxDiffBytes/maxMdLines/maxDuplicateRetries/
     subjectTargetChars ints via Atoi). On any helper error, return (nil, err) immediately. On found,
     set the field; on not-found, leave it zero.
-  - KEY LIST (EXACT — camelCase, FINDING A): stagehand.provider, stagehand.model, stagehand.timeout,
-    stagehand.autoStageAll, stagehand.verbose, stagehand.maxDiffBytes, stagehand.maxMdLines,
-    stagehand.maxDuplicateRetries, stagehand.subjectTargetChars, stagehand.output,
-    stagehand.stripCodeFence. (NO noColor; NO provider manifests.)
+  - KEY LIST (EXACT — camelCase, FINDING A): stagecoach.provider, stagecoach.model, stagecoach.timeout,
+    stagecoach.autoStageAll, stagecoach.verbose, stagecoach.maxDiffBytes, stagecoach.maxMdLines,
+    stagecoach.maxDuplicateRetries, stagecoach.subjectTargetChars, stagecoach.output,
+    stagecoach.stripCodeFence. (NO noColor; NO provider manifests.)
   - GOTCHA: timeout uses strconv.Atoi + time.Duration(n)*time.Second — NOT time.ParseDuration (FINDING D).
   - GOTCHA: a found-but-false bool sets the zero value (overlay won't apply it — FINDING G, documented).
   - RETURN: the non-nil *Config (possibly all-zero).
@@ -603,7 +603,7 @@ Task 4: CREATE internal/config/git_test.go — helpers + the core cases
       setGitConfig(t, dir, key, value): `git -C dir config <key> <value>` (writes repo-local .git/config
       by default); t.Helper(); t.Fatalf on error.
   - ISOLATION: at the top of each repo-based test, `t.Setenv("HOME", t.TempDir())` so a developer's
-    global ~/.gitconfig stagehand.* keys can't leak into the read (plain `git config --get` merges
+    global ~/.gitconfig stagecoach.* keys can't leak into the read (plain `git config --get` merges
     global+local, FINDING E). (initRepo's env already pins identity; HOME isolation is the extra step.)
   - TEST A TestLoadGitConfig_ReadsValues (CONTRACT main case): initRepo(repo); setGitConfig for a
     representative mix — provider=pi, model=glm-5.2, timeout=90, autoStageAll=true (use "on"),
@@ -614,24 +614,24 @@ Task 4: CREATE internal/config/git_test.go — helpers + the core cases
     cfg.SubjectTargetChars==60, cfg.Output=="json", cfg.StripCodeFence==true. (Proves --bool
     normalization of on/yes/1 AND int/timeout coercion in one shot.)
   - TEST B TestLoadGitConfig_MissingKeysIgnored (CONTRACT "ignores missing"): initRepo(repo); do NOT
-    set any stagehand.* key. loadGitConfig(repo) -> err==nil, cfg!=nil, and EVERY field is its zero
+    set any stagecoach.* key. loadGitConfig(repo) -> err==nil, cfg!=nil, and EVERY field is its zero
     value (Provider=="", Timeout==0, AutoStageAll==false, MaxDiffBytes==0, Output=="", etc.). Proves
     exit-1-is-not-error and the zero-value start.
   - TEST C TestLoadGitConfig_BoolNormalization: set autoStageAll=off and stripCodeFence=no; assert
     cfg.AutoStageAll==false && cfg.StripCodeFence==false (proves --bool parses falsy spellings).
     (NOTE per FINDING G: this only proves the READ; overlay would not apply false — covered in TEST H.)
   - TEST D TestLoadGitConfig_BadTimeout: set timeout=notanumber; loadGitConfig -> non-nil err whose
-    message contains "stagehand.timeout" and "invalid integer". (Proves fail-at-load.)
+    message contains "stagecoach.timeout" and "invalid integer". (Proves fail-at-load.)
   - TEST E TestLoadGitConfig_GitBinaryMissing: t.Setenv("PATH",""); loadGitConfig(t.TempDir()) ->
     non-nil err containing "git binary not found". (LookPath miss path.)
   - TEST F TestGitConfigGet_FoundMissing: in a repo, setGitConfig(provider,pi);
-    gitConfigGet(repo,"stagehand.provider") -> (value=="pi", found==true, nil);
-    gitConfigGet(repo,"stagehand.does.not.exist") -> ("", false, nil). (Unit-tests the helper directly.)
+    gitConfigGet(repo,"stagecoach.provider") -> (value=="pi", found==true, nil);
+    gitConfigGet(repo,"stagecoach.does.not.exist") -> ("", false, nil). (Unit-tests the helper directly.)
 
 Task 5: ADD the regression + composition tests to internal/config/git_test.go
-  - TEST G TestLoadGitConfig_CamelCaseKeysOnly (LOCKS FINDING A): setGitConfig(repo,"stagehand.autoStageAll","true");
+  - TEST G TestLoadGitConfig_CamelCaseKeysOnly (LOCKS FINDING A): setGitConfig(repo,"stagecoach.autoStageAll","true");
     assert loadGitConfig reads cfg.AutoStageAll==true (camelCase works). THEN setGitConfig(repo,
-    "stagehand.max_diff_bytes","9") — expect exec to FAIL with "invalid key" — so use exec.Command
+    "stagecoach.max_diff_bytes","9") — expect exec to FAIL with "invalid key" — so use exec.Command
     directly in the test (or `setGitConfigMustFail`) to assert the WRITE is rejected, and assert
     loadGitConfig(repo).MaxDiffBytes==0 (the underscore key is unreadable). This locks the camelCase
     decision as a regression test against anyone "fixing" it to snake_case.
@@ -679,12 +679,12 @@ func gitExec(repo string, args ...string) (stdout string, exitCode int, err erro
 // Collapsing case 1 into default is the #1 way to get this wrong. Keep them separate.
 
 // loadGitConfig field-set idiom (repeat per key; factor into apply* helpers if you prefer DRY):
-if v, found, err := gitConfigGet(repoDir, "stagehand.maxDiffBytes"); err != nil {
+if v, found, err := gitConfigGet(repoDir, "stagecoach.maxDiffBytes"); err != nil {
 	return nil, err
 } else if found {
 	n, perr := strconv.Atoi(v)
 	if perr != nil {
-		return nil, fmt.Errorf("git config stagehand.maxDiffBytes: invalid integer %q: %w", v, perr)
+		return nil, fmt.Errorf("git config stagecoach.maxDiffBytes: invalid integer %q: %w", v, perr)
 	}
 	c.MaxDiffBytes = n // ONLY set when found; zero otherwise (overlay copies non-zero only)
 }
@@ -697,14 +697,14 @@ func TestLoadGitConfig_ReadsValues(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // isolate global git config (FINDING E)
 	repo := t.TempDir()
 	initRepo(t, repo)
-	setGitConfig(t, repo, "stagehand.provider", "pi")
-	setGitConfig(t, repo, "stagehand.model", "glm-5.2")
-	setGitConfig(t, repo, "stagehand.timeout", "90")
-	setGitConfig(t, repo, "stagehand.autoStageAll", "on")   // --bool normalizes "on" -> true
-	setGitConfig(t, repo, "stagehand.verbose", "yes")       // "yes" -> true
-	setGitConfig(t, repo, "stagehand.maxDiffBytes", "12345")
-	setGitConfig(t, repo, "stagehand.stripCodeFence", "1")  // "1" -> true
-	setGitConfig(t, repo, "stagehand.output", "json")
+	setGitConfig(t, repo, "stagecoach.provider", "pi")
+	setGitConfig(t, repo, "stagecoach.model", "glm-5.2")
+	setGitConfig(t, repo, "stagecoach.timeout", "90")
+	setGitConfig(t, repo, "stagecoach.autoStageAll", "on")   // --bool normalizes "on" -> true
+	setGitConfig(t, repo, "stagecoach.verbose", "yes")       // "yes" -> true
+	setGitConfig(t, repo, "stagecoach.maxDiffBytes", "12345")
+	setGitConfig(t, repo, "stagecoach.stripCodeFence", "1")  // "1" -> true
+	setGitConfig(t, repo, "stagecoach.output", "json")
 
 	cfg, err := loadGitConfig(repo)
 	if err != nil || cfg == nil {
@@ -723,7 +723,7 @@ func TestLoadGitConfig_ReadsValues(t *testing.T) {
 func TestLoadGitConfig_MissingKeysIgnored(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	repo := t.TempDir()
-	initRepo(t, repo) // no stagehand.* keys set
+	initRepo(t, repo) // no stagecoach.* keys set
 	cfg, err := loadGitConfig(repo)
 	if err != nil { t.Fatalf("loadGitConfig err=%v, want nil (missing keys are not errors)", err) }
 	if cfg == nil { t.Fatal("cfg=nil, want non-nil") }
@@ -745,9 +745,9 @@ func TestLoadGitConfig_OverlaysWithDefaults(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	repo := t.TempDir()
 	initRepo(t, repo)
-	setGitConfig(t, repo, "stagehand.provider", "pi")
-	setGitConfig(t, repo, "stagehand.timeout", "45")
-	setGitConfig(t, repo, "stagehand.maxMdLines", "7")
+	setGitConfig(t, repo, "stagecoach.provider", "pi")
+	setGitConfig(t, repo, "stagecoach.timeout", "45")
+	setGitConfig(t, repo, "stagecoach.maxMdLines", "7")
 
 	cfg := Defaults()
 	gc, err := loadGitConfig(repo)
@@ -817,7 +817,7 @@ go test -race ./...
 
 ```bash
 # No CLI/runtime wiring yet (no Load(), no command wiring). Validate build + deps + additive scope:
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"   # main.go stub still links.
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"   # main.go stub still links.
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED by S3"   # MUST be empty.
 # Confirm S3 is purely additive (no edits to existing files):
 git diff --exit-code internal/config/config.go internal/config/config_test.go internal/config/file.go internal/config/file_test.go \
@@ -831,9 +831,9 @@ grep -n 'func loadGitConfig' internal/config/git.go   # prints the definition li
 ```bash
 # Smoke the reader by hand against a real temp repo (sanity for the S4 author):
 TMP=$(mktemp -d); git -C "$TMP" init -q
-git -C "$TMP" config stagehand.provider pi
-git -C "$TMP" config stagehand.timeout 90
-git -C "$TMP" config stagehand.autoStageAll true   # camelCase (underscore would be "invalid key")
+git -C "$TMP" config stagecoach.provider pi
+git -C "$TMP" config stagecoach.timeout 90
+git -C "$TMP" config stagecoach.autoStageAll true   # camelCase (underscore would be "invalid key")
 # (Optional) a tiny throwaway Go snippet in /tmp that calls config.loadGitConfig("$TMP") and prints
 # cfg.Provider / cfg.Timeout / cfg.AutoStageAll — OR rely on TestLoadGitConfig_ReadsValues which
 # already asserts these end-to-end with REAL git.
@@ -841,7 +841,7 @@ go test ./internal/config/ -run 'TestLoadGitConfig_|TestGitConfigGet_' -v
 # Inspect: provider==pi, timeout==90s, autoStageAll==true; missing keys ignored (zero fields).
 
 # Confirm the underscore rejection empirically (documents FINDING A for future maintainers):
-git -C "$TMP" config stagehand.max_diff_bytes 9 2>&1 | grep -q "invalid key" && echo "underscore rejected (expected)"
+git -C "$TMP" config stagecoach.max_diff_bytes 9 2>&1 | grep -q "invalid key" && echo "underscore rejected (expected)"
 
 # (Optional) lint:
 golangci-lint run ./internal/config/ 2>/dev/null || echo "golangci-lint not installed (Makefile lint is project-wide; run `make lint` in CI)."
@@ -896,8 +896,8 @@ rm -rf "$TMP"
 
 ## Anti-Patterns to Avoid
 
-- ❌ Don't use snake_case git keys (`stagehand.auto_stage_all`) — git rejects underscores ("invalid
-  key"). Use the §16.3 camelCase form (`stagehand.autoStageAll`). (FINDING A.)
+- ❌ Don't use snake_case git keys (`stagecoach.auto_stage_all`) — git rejects underscores ("invalid
+  key"). Use the §16.3 camelCase form (`stagecoach.autoStageAll`). (FINDING A.)
 - ❌ Don't read booleans with plain `--get` — use `--bool` for canonical `true`/`false`. (FINDING C.)
 - ❌ Don't parse `timeout` with `time.ParseDuration` — git-config uses integer seconds; use
   `strconv.Atoi` → `time.Duration(n)*time.Second`. (FINDING D.)

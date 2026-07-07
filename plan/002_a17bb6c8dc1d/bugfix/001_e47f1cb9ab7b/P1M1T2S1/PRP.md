@@ -12,7 +12,7 @@ bundled `cmd/stubagent` as a stand-in for pi so no real model calls are made.
 
 **Deliverable**: One new test (two `t.Run` subtests) added to
 `internal/cmd/default_action_test.go`, package `cmd`. It drives `rootCmd.SetArgs(...)` +
-`Execute(ctx)` against a temp git repo + a pi-shaped `STAGEHAND_CONFIG` TOML whose
+`Execute(ctx)` against a temp git repo + a pi-shaped `STAGECOACH_CONFIG` TOML whose
 `[provider.pi]` points `command` at the compiled stub binary, then asserts on the captured
 **stderr** `DEBUG: command:` line.
 
@@ -24,8 +24,8 @@ conflation (PRD Issue 1) from being reintroduced.
 ## Why
 
 - **Business value**: PRD Issue 1 is Critical — every common pi configuration (the
-  `config init` bootstrap, `--provider pi`, `git config stagehand.provider pi`,
-  `STAGEHAND_PROVIDER=pi`) emitted `--provider <manifest-name>`, which is not a valid pi
+  `config init` bootstrap, `--provider pi`, `git config stagecoach.provider pi`,
+  `STAGECOACH_PROVIDER=pi`) emitted `--provider <manifest-name>`, which is not a valid pi
   sub-provider and silently overrode the user's `default_provider`. The unit tests missed
   it because they invoked `Render` *directly* with the sub-provider string, bypassing the
   caller conflation. This E2E test closes that detection gap at the CLI seam.
@@ -42,9 +42,9 @@ A Go test in `internal/cmd/default_action_test.go` that, for each of two paths:
 
 1. Builds the stub binary via `stubtest.Build(t)`.
 2. Creates a temp git repo (real git — no mocks), with an initial commit.
-3. Writes a pi-shaped config TOML to a temp path **outside** the repo (no `.stagehand.toml`
-   in the repo) and points `STAGEHAND_CONFIG` at it.
-4. Sets `STAGEHAND_PROVIDER=pi` and the path-appropriate `STAGEHAND_STUB_OUT` via
+3. Writes a pi-shaped config TOML to a temp path **outside** the repo (no `.stagecoach.toml`
+   in the repo) and points `STAGECOACH_CONFIG` at it.
+4. Sets `STAGECOACH_PROVIDER=pi` and the path-appropriate `STAGECOACH_STUB_OUT` via
    `t.Setenv`; isolates `HOME`/`XDG_CONFIG_HOME`.
 5. Drives `rootCmd.SetArgs(...)` + `Execute(ctx)`, capturing stdout into one buffer and
    **stderr into another**.
@@ -150,13 +150,13 @@ TOML, the exact stub outputs, the stream to assert on, and the four non-obvious 
   gotcha: returns an ABSOLUTE temp path; reg.IsInstalled treats it as installed.
 
 - file: cmd/stubagent/main.go
-  why: the stub reads STAGEHAND_STUB_OUT from its env and prints it verbatim to stdout
+  why: the stub reads STAGECOACH_STUB_OUT from its env and prints it verbatim to stdout
        (ParseOutput trims). This is the seam the test controls.
   gotcha: (G2) the stub's env = os.Environ() + manifest Env; manifest Env WINS. So control
-          STAGEHAND_STUB_OUT via t.Setenv and OMIT it from [provider.pi.env].
+          STAGECOACH_STUB_OUT via t.Setenv and OMIT it from [provider.pi.env].
 
-- file: internal/config/load.go   # ConfigPathOverride / STAGEHAND_CONFIG
-  why: STAGEHAND_CONFIG (or --config) → ConfigPathOverride → used as the global file path
+- file: internal/config/load.go   # ConfigPathOverride / STAGECOACH_CONFIG
+  why: STAGECOACH_CONFIG (or --config) → ConfigPathOverride → used as the global file path
        (explicit=true skips globalConfigPath() discovery). Still merge built-ins; isolate
        HOME/XDG (G6).
 ```
@@ -199,8 +199,8 @@ No other files change. No new packages.
 
 // G2 (CRITICAL): provider.Render builds cmd.Env = os.Environ() + manifest.Env (manifest
 // appended LAST → exec last-wins → manifest OVERRIDES). So a value in [provider.pi.env]
-// beats t.Setenv. Because the two subtests need DIFFERENT STAGEHAND_STUB_OUT values, set it
-// via t.Setenv and DO NOT put STAGEHAND_STUB_OUT in [provider.pi.env]. (Mirror setupStubRepo.)
+// beats t.Setenv. Because the two subtests need DIFFERENT STAGECOACH_STUB_OUT values, set it
+// via t.Setenv and DO NOT put STAGECOACH_STUB_OUT in [provider.pi.env]. (Mirror setupStubRepo.)
 
 // G3 (CRITICAL, decompose only): ResolveRoles resolves the stager role and ERRORS if the
 // provider has empty tooled_flags (FR-D4 fallback finds no stager-capable provider). That
@@ -215,16 +215,16 @@ No other files change. No new packages.
 // decompose subtest must NOT (it commits for real).
 
 // G6: isolate HOME + XDG_CONFIG_HOME to a temp dir and keep the repo free of
-// .stagehand.toml so the provider resolves ONLY from the STAGEHAND_CONFIG file.
+// .stagecoach.toml so the provider resolves ONLY from the STAGECOACH_CONFIG file.
 ```
 
 ## Implementation Blueprint
 
 ### The config TOML (pi-shaped stub; shared by both subtests)
 
-Write this to a temp path via `os.WriteFile`; point `t.Setenv("STAGEHAND_CONFIG", path)` at
+Write this to a temp path via `os.WriteFile`; point `t.Setenv("STAGECOACH_CONFIG", path)` at
 it. `bin` = `stubtest.Build(t)`. Note `tooled_flags` (G3) and the ABSENCE of
-`STAGEHAND_STUB_OUT` in the env block (G2 — set per-subtest via `t.Setenv`).
+`STAGECOACH_STUB_OUT` in the env block (G2 — set per-subtest via `t.Setenv`).
 
 ```toml
 config_version = 2
@@ -245,7 +245,7 @@ print_flag          = "-p"
 output              = "raw"
 tooled_flags        = ["--yes"]    # G3: REQUIRED so ResolveRoles can resolve the stager role
 
-# NOTE: do NOT put STAGEHAND_STUB_OUT here (G2 — it would override t.Setenv and you need
+# NOTE: do NOT put STAGECOACH_STUB_OUT here (G2 — it would override t.Setenv and you need
 # different values per subtest). Set it via t.Setenv in each subtest.
 ```
 
@@ -276,8 +276,8 @@ Task 2: ADD subtest "single_commit" (the v1 path via generate.CommitStaged)
   - SETUP: saveRootState(t) + defer restoreRootState(...).
   - REPO: t.TempDir(); initRepo(t, repo); chdir(t, repo); commitRaw(t, repo, "initial").
   - ISOLATE (G6): t.Setenv("HOME", t.TempDir()); t.Setenv("XDG_CONFIG_HOME", <same>).
-  - CONFIG: cfgPath := writePiStubConfig(t, bin); t.Setenv("STAGEHAND_CONFIG", cfgPath).
-  - ENV: t.Setenv("STAGEHAND_PROVIDER", "pi"); t.Setenv("STAGEHAND_STUB_OUT", singleStubOut).
+  - CONFIG: cfgPath := writePiStubConfig(t, bin); t.Setenv("STAGECOACH_CONFIG", cfgPath).
+  - ENV: t.Setenv("STAGECOACH_PROVIDER", "pi"); t.Setenv("STAGECOACH_STUB_OUT", singleStubOut).
   - STAGE A CHANGE: writeFile(t, repo, "new.txt", "content"); stageFile(t, repo, "new.txt").
   - DRIVE: var outBuf, errBuf bytes.Buffer; rootCmd.SetOut(&outBuf); rootCmd.SetErr(&errBuf);
            rootCmd.SetArgs([]string{"--dry-run", "--verbose", "--no-color"}); Execute(ctx).
@@ -291,9 +291,9 @@ Task 3: ADD subtest "decompose" (the planner role via decompose.Decompose)
            because subtests share the package-level rootCmd).
   - REPO: t.TempDir(); initRepo(t, repo); chdir(t, repo); commitRaw(t, repo, "initial").
   - ISOLATE (G6): t.Setenv("HOME", ...); t.Setenv("XDG_CONFIG_HOME", ...).
-  - CONFIG: same writePiStubConfig(t, bin); t.Setenv("STAGEHAND_CONFIG", cfgPath).
-  - ENV: t.Setenv("STAGEHAND_PROVIDER", "pi");
-         t.Setenv("STAGEHAND_STUB_OUT", decomposeStubOut).
+  - CONFIG: same writePiStubConfig(t, bin); t.Setenv("STAGECOACH_CONFIG", cfgPath).
+  - ENV: t.Setenv("STAGECOACH_PROVIDER", "pi");
+         t.Setenv("STAGECOACH_STUB_OUT", decomposeStubOut).
   - DIRTY TREE (G4): writeFile(t, repo, "dirty.txt", "content"); DO NOT stage it
            (un-staged → shouldDecompose routes to decompose; StatusPorcelain != "").
   - DRIVE: var outBuf, errBuf bytes.Buffer; rootCmd.SetOut(&outBuf); rootCmd.SetErr(&errBuf);
@@ -350,8 +350,8 @@ tooled_flags = ["--yes"]
         t.Setenv("HOME", home)
         t.Setenv("XDG_CONFIG_HOME", home)
         cfgPath := writePiStubConfig(t)
-        t.Setenv("STAGEHAND_CONFIG", cfgPath)
-        t.Setenv("STAGEHAND_PROVIDER", "pi")
+        t.Setenv("STAGECOACH_CONFIG", cfgPath)
+        t.Setenv("STAGECOACH_PROVIDER", "pi")
 
         repo := t.TempDir()
         initRepo(t, repo)
@@ -360,7 +360,7 @@ tooled_flags = ["--yes"]
         writeFile(t, repo, "new.txt", "content")
         stageFile(t, repo, "new.txt")
 
-        t.Setenv("STAGEHAND_STUB_OUT", "feat: single path provider render")
+        t.Setenv("STAGECOACH_STUB_OUT", "feat: single path provider render")
 
         var outBuf, errBuf bytes.Buffer
         rootCmd.SetOut(&outBuf)
@@ -388,8 +388,8 @@ tooled_flags = ["--yes"]
         t.Setenv("HOME", home)
         t.Setenv("XDG_CONFIG_HOME", home)
         cfgPath := writePiStubConfig(t)
-        t.Setenv("STAGEHAND_CONFIG", cfgPath)
-        t.Setenv("STAGEHAND_PROVIDER", "pi")
+        t.Setenv("STAGECOACH_CONFIG", cfgPath)
+        t.Setenv("STAGECOACH_PROVIDER", "pi")
 
         repo := t.TempDir()
         initRepo(t, repo)
@@ -397,7 +397,7 @@ tooled_flags = ["--yes"]
         commitRaw(t, repo, "initial")
         writeFile(t, repo, "dirty.txt", "content") // UN-staged → triggers decompose routing
 
-        t.Setenv("STAGEHAND_STUB_OUT",
+        t.Setenv("STAGECOACH_STUB_OUT",
             `{"count":1,"single":true,"commits":[{"title":"add dirty","description":"dirty.txt"}],"message":"feat: decompose path provider render"}`)
 
         var outBuf, errBuf bytes.Buffer
@@ -429,7 +429,7 @@ TEST FILE:
   - add to: internal/cmd/default_action_test.go
   - pattern: append after TestRunDefault_VerboseFlag; reuse root_test.go helpers.
   - imports already present: bytes, context, fmt, os, path/filepath, strings, testing,
-    github.com/dustin/stagehand/internal/stubtest (all already imported in this file).
+    github.com/dustin/stagecoach/internal/stubtest (all already imported in this file).
 
 NO SOURCE/CONFIG CHANGES:
   - This task edits ONLY the test file. generate.go and the four decompose role files are
@@ -458,7 +458,7 @@ go test ./internal/cmd/ -run 'TestRunDefault_ProviderSubProviderRendering_Issue1
 # Expected: both subtests PASS. If "decompose" fails with a ResolveRoles/stager error → you
 # forgot tooled_flags (G3). If a subtest fails finding "DEBUG: command:" / "--provider
 # openrouter" → you asserted on stdout instead of stderr (G1), or verbose is off. If the
-# stub got the wrong output → you left STAGEHAND_STUB_OUT in [provider.pi.env] (G2).
+# stub got the wrong output → you left STAGECOACH_STUB_OUT in [provider.pi.env] (G2).
 
 # Temporarily prove the test GUARDS the bug: revert ONE fix (e.g. generate.go L192 back to
 # cfg.Provider), rerun, confirm the single_commit subtest FAILS with "--provider pi". Then
@@ -484,8 +484,8 @@ go test ./...
 go build ./cmd/stubagent
 
 # (Optional) Reproduce the original bug path manually to document the before/after:
-#   - Build a stagehand binary, set STAGEHAND_CONFIG to the pi config above on a repo with a
-#     staged change, run `stagehand --dry-run --verbose --no-color`, and observe the
+#   - Build a stagecoach binary, set STAGECOACH_CONFIG to the pi config above on a repo with a
+#     staged change, run `stagecoach --dry-run --verbose --no-color`, and observe the
 #     `DEBUG: command:` line shows `--provider openrouter` (post-fix). Not required for CI.
 ```
 
@@ -505,7 +505,7 @@ go build ./cmd/stubagent
 - [ ] Decompose subtest: stderr contains `--provider openrouter`, not `--provider pi`; one
       commit is created.
 - [ ] Both paths assert on the STDERR buffer (G1), not stdout.
-- [ ] The decompose subtest config includes `tooled_flags` (G3) and omits `STAGEHAND_STUB_OUT`
+- [ ] The decompose subtest config includes `tooled_flags` (G3) and omits `STAGECOACH_STUB_OUT`
       from `[provider.pi.env]` (G2).
 - [ ] (Recommended) Temporarily reverting the S1/S2 fix makes at least one subtest FAIL —
       proving the guard actually catches the regression.
@@ -522,13 +522,13 @@ go build ./cmd/stubagent
 ## Anti-Patterns to Avoid
 
 - ❌ Don't assert the rendered command on **stdout** — verbose goes to **stderr** (G1).
-- ❌ Don't put `STAGEHAND_STUB_OUT` in `[provider.pi.env]` and also try to vary it with
+- ❌ Don't put `STAGECOACH_STUB_OUT` in `[provider.pi.env]` and also try to vary it with
   `t.Setenv` — manifest env wins (G2).
 - ❌ Don't omit `tooled_flags` from the pi config for the decompose subtest — ResolveRoles
   errors before the planner renders (G3).
 - ❌ Don't run the decompose subtest with `--dry-run` — decompose is skipped when dry-run
   is set (G5).
-- ❌ Don't write a `.stagehand.toml` inside the repo while also using `STAGEHAND_CONFIG` —
+- ❌ Don't write a `.stagecoach.toml` inside the repo while also using `STAGECOACH_CONFIG` —
   double-merge; isolate HOME/XDG and keep the repo config-free (G6).
 - ❌ Don't drive the full stager→message→arbiter loop through one stub binary; use the
   planner single-shortcut (G4).

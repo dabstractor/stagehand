@@ -9,9 +9,9 @@ immediately (they verify already-working behavior); if one fails, it surfaces an
 
 - `git log --oneline -3`: `f8db87e replace dry-run single-pass with full dedupe/retry loop` (S2),
   `fb73011 unconditionally take write-tree snapshot in dry-run path` (S1), `0b38ce6 …Issue3 tests`.
-- Baseline GREEN: `go test -race -run 'TestGenerateCommit_Timeout|TestGenerateCommit_DryRun' ./pkg/stagehand/`
+- Baseline GREEN: `go test -race -run 'TestGenerateCommit_Timeout|TestGenerateCommit_DryRun' ./pkg/stagecoach/`
   → PASS (incl. `TestGenerateCommit_Timeout/dryrun` and `…/commit_path`).
-- `pkg/stagehand/stagehand.go runPipeline` already has: unconditional `WriteTree` + `signal.SetSnapshot`
+- `pkg/stagecoach/stagecoach.go runPipeline` already has: unconditional `WriteTree` + `signal.SetSnapshot`
   (S1); ONE shared generate→parse→dedupe loop serving BOTH dryRun and !dryRun; dry-run success
   early-return (`if dryRun { signal.ClearSnapshot(); return Result{CommitSHA:""} }`) after `if !success`;
   dry-run timeout/exhaustion returns `&generate.RescueError{Kind, TreeSHA, …}` (real TreeSHA from S1).
@@ -36,24 +36,24 @@ already pins `RescueError{Kind:ErrTimeout} → 124`.
 
 ## 2. Parts (b)/(c)/(d) — net-new tests (NONE exist today)
 
-Existing tests in stagehand_test.go: Success, DryRun (happy-path), NothingStaged, ProviderOverride,
+Existing tests in stagecoach_test.go: Success, DryRun (happy-path), NothingStaged, ProviderOverride,
 Timeout{dryrun,commit_path}, SystemExtra, MissingProviderCommand_Issue3, ResolveConfig_InjectedConfig.
 NO dry-run dup-retry / parse-retry / snapshot test. These are S3's deliverables.
 
 ## 3. The harness gap — setupTestRepo does NOT support stub SCRIPT mode
 
-- `setupTestRepo(t, stubtest.Options)` only emits `STAGEHAND_STUB_OUT` and `STAGEHAND_STUB_SLEEP_MS`
+- `setupTestRepo(t, stubtest.Options)` only emits `STAGECOACH_STUB_OUT` and `STAGECOACH_STUB_SLEEP_MS`
   into `[provider.stub.env]`. It has NO path for call-varying (script) mode.
 - dup-retry (b) and parse-retry (c) REQUIRE script mode (call 1 ≠ call 2).
 - Resolution: add a sibling helper `setupScriptedRepo(t, headSubject, responses)` that writes a
-  script file + counter file in `t.TempDir()` and emits `STAGEHAND_STUB_SCRIPT`/`STAGEHAND_STUB_COUNTER`
+  script file + counter file in `t.TempDir()` and emits `STAGECOACH_STUB_SCRIPT`/`STAGECOACH_STUB_COUNTER`
   into the `[provider.stub.env]` block. Mirrors `setupTestRepo`'s chdir/cleanup/TOML pattern and the
   inline-TOML precedent in `TestGenerateCommit_MissingProviderCommand_Issue3`. No `filepath` import
-  needed (use `dir+"/script.txt"` like setupTestRepo's `repo+"/.stagehand.toml"`).
+  needed (use `dir+"/script.txt"` like setupTestRepo's `repo+"/.stagecoach.toml"`).
 
 ## 4. stub script semantics (cmd/stubagent/main.go selectScripted)
 
-- `STAGEHAND_STUB_SCRIPT` = path to a file; `lines = split(content, "\n")`; `STAGEHAND_STUB_COUNTER`
+- `STAGECOACH_STUB_SCRIPT` = path to a file; `lines = split(content, "\n")`; `STAGECOACH_STUB_COUNTER`
   = path to a counter file (ABSENT ⇒ reads 0). Each stub process: `index=readCounter()`,
   returns `lines[index]` (clamped to last when exhausted), writes `index+1`. Blank line ⇒ empty stdout
   ⇒ `provider.ParseOutput(out, m)` returns `ok==false` ⇒ loop treats it as a parse failure (FR29 retry).
@@ -75,7 +75,7 @@ NO dry-run dup-retry / parse-retry / snapshot test. These are S3's deliverables.
 ## 6. Loop budget — ample for the retry tests
 
 - `config.Defaults().MaxDuplicateRetries == 3` (config.go:62) ⇒ loop runs up to 4 attempts.
-- pkg/stagehand tests load config via `.stagehand.toml` + defaults (GenerateCommit → resolveConfig) ⇒
+- pkg/stagecoach tests load config via `.stagecoach.toml` + defaults (GenerateCommit → resolveConfig) ⇒
   MaxDuplicateRetries = 3 (not overridden). dup-retry needs 2 attempts; parse-retry needs 2. ✓.
 
 ## 7. Snapshot detection (Issue 6) — prove a tree object was created in dry-run
@@ -96,12 +96,12 @@ NO dry-run dup-retry / parse-retry / snapshot test. These are S3's deliverables.
   (checked before generic rescue→3, via `errors.Is(err, generate.ErrTimeout)`).
 - `internal/generate/generate.go:76` `type RescueError struct { Kind error; TreeSHA, ParentSHA,
   Candidate string; Cause error }`; `Unwrap() error { return e.Kind }` (enables errors.Is).
-- Sentinels: `ErrTimeout` (generate.go:54), `ErrRescue` (generate.go:59). pkg/stagehand re-exports
+- Sentinels: `ErrTimeout` (generate.go:54), `ErrRescue` (generate.go:59). pkg/stagecoach re-exports
   them as type aliases (`ErrTimeout`, `RescueError`).
 
 ## 9. Test naming + placement
 
-All edits in `pkg/stagehand/stagehand_test.go` (the ONLY file S3 touches). Co-locate helpers next to
+All edits in `pkg/stagecoach/stagecoach_test.go` (the ONLY file S3 touches). Co-locate helpers next to
 existing fixture helpers (after `objectCountLine`, ~line 161). New tests after the existing
 `TestGenerateCommit_Timeout` (mirror the commit-path subtests they parallel):
 - (a) UPDATE `TestGenerateCommit_Timeout`/`"dryrun"` (refine assertions + comment).
@@ -111,7 +111,7 @@ existing fixture helpers (after `objectCountLine`, ~line 161). New tests after t
 
 ## 10. Anti-patterns / scope guards
 
-- ❌ Do NOT edit `pkg/stagehand/stagehand.go` or any internal/* — S1/S2 shipped; S3 is test-only.
+- ❌ Do NOT edit `pkg/stagecoach/stagecoach.go` or any internal/* — S1/S2 shipped; S3 is test-only.
 - ❌ Do NOT edit docs (contract: DOCS none). ❌ Do NOT change go.mod/go.sum.
 - ❌ Do NOT use a `MaxDuplicateRetries=0` trick for the parse/dup RETRY tests (that's for RESCUE tests,
   e.g. `TestCommitStaged_ParseFailRescue`); the retry tests need the DEFAULT budget so the loop can

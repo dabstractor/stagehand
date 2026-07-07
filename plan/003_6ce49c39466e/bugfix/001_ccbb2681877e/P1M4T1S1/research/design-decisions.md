@@ -8,30 +8,30 @@
 
 `bootstrapHeader` (internal/config/bootstrap.go, the raw-string const consumed by `buildBootstrapConfig`
 via `b.WriteString(bootstrapHeader)`) has an env-var block. The per-role `_PROVIDER / _MODEL` lines are
-followed directly by `STAGEHAND_COMMITS`. The fix inserts 2 lines **between**
-`#   STAGEHAND_ARBITER_PROVIDER / _MODEL   …` and `#   STAGEHAND_COMMITS   …`:
+followed directly by `STAGECOACH_COMMITS`. The fix inserts 2 lines **between**
+`#   STAGECOACH_ARBITER_PROVIDER / _MODEL   …` and `#   STAGECOACH_COMMITS   …`:
 
 ```
-#   STAGEHAND_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)
-#   STAGEHAND_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)
+#   STAGECOACH_REASONING                  global reasoning effort: off|low|medium|high (PRD §9.8 FR35, §16.2)
+#   STAGECOACH_<ROLE>_REASONING           per-role reasoning override (role = planner|stager|message|arbiter)
 ```
 
 Use these strings VERBATIM (the task LOGIC gives them exactly). The `<ROLE>` literal is intentional — see §2.
 
-## 1. CRITICAL CORRECTION — do NOT add `STAGEHAND_MAX_COMMITS`
+## 1. CRITICAL CORRECTION — do NOT add `STAGECOACH_MAX_COMMITS`
 
 Issue 4's prose ("Suggested Fix: Add the reasoning (and max-commits) env-var lines") mentions max-commits,
-but the item_description §1 explicitly corrects this: **`STAGEHAND_MAX_COMMITS` is NOT an env var.**
+but the item_description §1 explicitly corrects this: **`STAGECOACH_MAX_COMMITS` is NOT an env var.**
 Verified: `internal/config/load.go:301` reads `max-commits` only via `fs.Changed("max-commits")` +
 `fs.GetInt` (a CLI FLAG), with NO `os.LookupEnv`. `docs/cli.md:36,157` show `—` in the env column for
-`--max-commits`. So adding a `STAGEHAND_MAX_COMMITS` line would be FALSE documentation. Add ONLY the 2
+`--max-commits`. So adding a `STAGECOACH_MAX_COMMITS` line would be FALSE documentation. Add ONLY the 2
 reasoning lines. (The `--max-commits` FLAG is already documented in the header's CLI-flags section — no
 env line is warranted.)
 
 ## 2. The `<ROLE>` shorthand is consistent with the CLI-flags section (not a style break)
 
 The env-var block documents per-role provider/model as 4 EXPLICIT lines (PLANNER/STAGER/MESSAGE/ARBITER).
-At first glance a single `STAGEHAND_<ROLE>_REASONING` line looks inconsistent — but the header's CLI-flags
+At first glance a single `STAGECOACH_<ROLE>_REASONING` line looks inconsistent — but the header's CLI-flags
 section ALREADY uses the `<role>` compact shorthand: `# --<role>-provider / --<role>-model  (role =
 planner|stager|message|arbiter)`. So the `<ROLE>` reasoning line matches that established shorthand, and
 its "(role = planner|stager|message|arbiter)" enumeration matches verbatim. The task's 2-line choice is
@@ -39,15 +39,15 @@ well-founded and faithful to the header's existing patterns. Use it as given.
 
 ## 3. The 5 reasoning env vars are REAL (verified against load.go)
 
-- Global: `STAGEHAND_REASONING` → `load.go:181` (`os.LookupEnv("STAGEHAND_REASONING")` → `cfg.Reasoning`).
-- Per-role: `STAGEHAND_<ROLE>_REASONING` → `load.go:215` (loop over `roleNames={planner,stager,message,
+- Global: `STAGECOACH_REASONING` → `load.go:181` (`os.LookupEnv("STAGECOACH_REASONING")` → `cfg.Reasoning`).
+- Per-role: `STAGECOACH_<ROLE>_REASONING` → `load.go:215` (loop over `roleNames={planner,stager,message,
   arbiter}` → `cfg.setRoleReasoning(role, v)`).
 Documented at `docs/cli.md:43-49` + `docs/configuration.md:152-156`. These are exactly what the new header
 lines surface. The header was simply never updated when FR-R6 reasoning shipped — pure docs drift.
 
 ## 4. No existing test pins exact header content → adding lines is safe
 
-Grepped every test referencing the header env-var block. The only `STAGEHAND_*` mentions in
+Grepped every test referencing the header env-var block. The only `STAGECOACH_*` mentions in
 `internal/config/*_test.go` are in `load_test.go` and are `t.Setenv(...)` calls (exercising loadEnv), NOT
 assertions on header text. `bootstrap_test.go` validates `buildBootstrapConfig` output with
 `strings.Contains` (specific substrings) + a TOML-validity check (`TestBuildBootstrapConfig_ValidTOML`
@@ -58,10 +58,10 @@ exact-matches the header. So the insertion breaks nothing; the new test is the o
 
 `bootstrap_test.go` has a helper `assertContains(t, content, substrs...)` and uses `strings.Contains`
 throughout. Add `TestBuildBootstrapConfig_HeaderDocumentsReasoningEnvVars`:
-`buildBootstrapConfig("pi", nil)` → `assertContains(t, content, "STAGEHAND_REASONING",
-"STAGEHAND_<ROLE>_REASONING")`. It FAILS pre-fix (neither string is in the header today) and PASSES
-post-fix → a real regression guard. Both assertions are independent (`STAGEHAND_REASONING` is NOT a
-substring of `STAGEHAND_<ROLE>_REASONING` because of `<ROLE>_` in between), so both are needed.
+`buildBootstrapConfig("pi", nil)` → `assertContains(t, content, "STAGECOACH_REASONING",
+"STAGECOACH_<ROLE>_REASONING")`. It FAILS pre-fix (neither string is in the header today) and PASSES
+post-fix → a real regression guard. Both assertions are independent (`STAGECOACH_REASONING` is NOT a
+substring of `STAGECOACH_<ROLE>_REASONING` because of `<ROLE>_` in between), so both are needed.
 
 ## 6. No conflict with the parallel/future work
 

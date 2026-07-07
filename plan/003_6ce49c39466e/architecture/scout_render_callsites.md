@@ -14,7 +14,7 @@ func (m Manifest) Render(model, provider, sysPrompt, userPayload string, mode ..
 | # | file:line | model | provider | sysPrompt | userPayload | mode |
 |---|-----------|-------|----------|-----------|-------------|------|
 | 1 | `internal/generate/generate.go:196` | `cfg.Model` (`config.Config.Model`, string; may be `""` → fallback to `*resolved.DefaultModel` via `Resolve()` at generate.go:187/`resolved`) | `""` (literal; FR37a — Render resolves sub-provider from manifest `DefaultProvider`) | `sysPrompt` (built once by `buildSystemPrompt(...)`, generate.go:171) | `payload` (`prompt.BuildUserPayload(diff, rejected)` mutated each loop attempt; `parseFail` prepends `retryInstr+"\n\n"`) | omitted (variadic → `RenderBare`) |
-| 2 | `pkg/stagehand/stagehand.go:461` | `cfg.Model` | `""` (literal) | `sysPrompt` (built via `runPipeline`-local `buildSystemPrompt`) | `payload` (same builder + retryInstruction prepend) | omitted (→ `RenderBare`) |
+| 2 | `pkg/stagecoach/stagecoach.go:461` | `cfg.Model` | `""` (literal) | `sysPrompt` (built via `runPipeline`-local `buildSystemPrompt`) | `payload` (same builder + retryInstruction prepend) | omitted (→ `RenderBare`) |
 | 3 | `internal/decompose/planner.go:98` | `mdl` (`config.ResolveRoleModel("planner", deps.Config)` → model, planner.go:62) | `""` (literal) | `sysPrompt` (`prompt.BuildPlannerSystemPrompt(examples)`, planner.go:95) | `payload` (`basePayload` = `prompt.BuildPlannerUserPayload(diff, forcedCount)`; retry prepends `prompt.PlannerRetryInstruction`) | `provider.RenderBare` |
 | 4 | `internal/decompose/message.go:129` | `mdl` (`config.ResolveRoleModel("message", deps.Config)` → model, message.go:103) | `""` (literal) | `sysPrompt` (`messageSystemPrompt(...)`, message.go:91) | `payload` (`prompt.BuildUserPayload(diff, rejected)` + retryInstruction prepend) | `provider.RenderBare` |
 | 5 | `internal/decompose/arbiter.go:97` | `mdl` (`config.ResolveRoleModel("arbiter", deps.Config)` → model, arbiter.go:82) | `""` (literal) | `sysPrompt` (`prompt.BuildArbiterSystemPrompt()`, arbiter.go:88) | `payload` (`prompt.BuildArbiterUserPayload(arbiterCommits, leftoverDiff)`, arbiter.go:89) | `provider.RenderBare` |
@@ -37,7 +37,7 @@ Returns `(provider, model)`; the `provider` return is intentionally DISCARDED (`
 
 Consumers of `Execute(ctx, *spec, <timeout>, <verbose>)`:
 - `internal/generate/generate.go:201` — timeout `cfg.Timeout`, verbose `deps.Verbose`
-- `pkg/stagehand/stagehand.go:466` — timeout `cfg.Timeout`, verbose `deps.Verbose`
+- `pkg/stagecoach/stagecoach.go:466` — timeout `cfg.Timeout`, verbose `deps.Verbose`
 - `internal/decompose/planner.go:103` — timeout `deps.Config.Timeout`, verbose `deps.Verbose`
 - `internal/decompose/message.go:134` — timeout `deps.Config.Timeout`, verbose `deps.Verbose`
 - `internal/decompose/arbiter.go:103` — timeout `deps.Config.Timeout`, verbose `deps.Verbose`
@@ -56,7 +56,7 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 - `Deps` (generate.go:26): `{ Git git.Git; Manifest provider.Manifest; Verbose *ui.Verbose }`
 - Calls Render once per loop iteration inside the generation+dedupe loop (generate.go:188–203), passing `(cfg.Model, "", sysPrompt, payload)` with NO mode (→ `RenderBare`). `cfg.Model` may be `""`; Render falls back to `*resolved.DefaultModel`. `resolved := deps.Manifest.Resolve()` at generate.go:187.
 - After success, the model reported in `Result.Model` (generate.go:290–292) re-applies the same `cfg.Model`/`DefaultModel` fallback.
-- Delegated to by `pkg/stagehand.GenerateCommit` (stagehand.go:141) for the common (non-dry-run, non-SystemExtra) path.
+- Delegated to by `pkg/stagecoach.GenerateCommit` (stagecoach.go:141) for the common (non-dry-run, non-SystemExtra) path.
 
 ---
 
@@ -78,7 +78,7 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 - `internal/provider/manifest.go` (Resolve) — nil → `strPtr("")` default
 - `internal/provider/render.go:104-107` — `modelToUse = *r.DefaultModel` when model param == `""`
 - `internal/generate/generate.go:290-291` — `model = *resolved.DefaultModel` when `cfg.Model == ""` (for `Result.Model`)
-- `pkg/stagehand/stagehand.go:443` — same fallback in `runPipeline` (`model = *resolved.DefaultModel`); NOTE: this local `model` var is used later but the Render call at :461 still passes raw `cfg.Model` (a minor inconsistency worth noting — Render re-derives from DefaultModel internally, so behavior is identical)
+- `pkg/stagecoach/stagecoach.go:443` — same fallback in `runPipeline` (`model = *resolved.DefaultModel`); NOTE: this local `model` var is used later but the Render call at :461 still passes raw `cfg.Model` (a minor inconsistency worth noting — Render re-derives from DefaultModel internally, so behavior is identical)
 
 ### `ProviderFlag` field usage (non-test)
 - `internal/provider/manifest.go:60` — field declaration `ProviderFlag *string`
@@ -91,7 +91,7 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 ### Method-level `Registry.DefaultProvider(installed)` (DIFFERENT — a registry auto-detect, NOT the field)
 - `internal/provider/registry.go:102-118` — `func (r *Registry) DefaultProvider(installed []string) string`
 - `internal/provider/registry.go:13` (doc)
-- Callers (non-test): `pkg/stagehand/stagehand.go:326`, `internal/config/bootstrap.go:25`, `internal/cmd/providers.go:142`, `internal/decompose/roles.go:99`, `internal/config/roles.go:20` (doc)
+- Callers (non-test): `pkg/stagecoach/stagecoach.go:326`, `internal/config/bootstrap.go:25`, `internal/cmd/providers.go:142`, `internal/decompose/roles.go:99`, `internal/config/roles.go:20` (doc)
 
 ---
 

@@ -46,9 +46,9 @@ description: |
       ErrRescue. DO NOT EDIT.
     - internal/signal/signal.go — CONSUMED (read-only): SetSnapshot, ClearSnapshot (nil-safe no-ops
       without Install). DO NOT call RestoreDefault (ONE-SHOT/PERMANENT — §5 gotcha). signal imports NO
-      stagehand packages → decompose→signal is NOT an import cycle.
+      stagecoach packages → decompose→signal is NOT an import cycle.
     - internal/git/git.go — CONSUMED (read-only). internal/exitcode — CONSUMED (For mapping).
-    - internal/cmd/*, pkg/stagehand/ — UNCHANGED. CLI decompose routing (the double-print suppression
+    - internal/cmd/*, pkg/stagecoach/ — UNCHANGED. CLI decompose routing (the double-print suppression
       + partial-commit success reporting) is P4 (P4.M1.T1.S1). S2 is INTERNAL error handling.
 
   DELIVERABLES (5 file EDITS — no new files):
@@ -134,18 +134,18 @@ the §18.3 rescue with the correct `tree[i]` + `newSHA[i-1]` parent).
 
 ## User Persona
 
-**Target User**: the CLI default-action router (P4.M1.T1.S1) and the public `pkg/stagehand` API
-(P4.M2.T1.S1), and through them the end user running `stagehand` on an un-staged dirty tree. S2 is
+**Target User**: the CLI default-action router (P4.M1.T1.S1) and the public `pkg/stagecoach` API
+(P4.M2.T1.S1), and through them the end user running `stagecoach` on an un-staged dirty tree. S2 is
 internal error handling — the user-visible artifacts are the §18.3 multi-commit rescue message and the
 §13.5 CAS message on stderr, plus the partial commits that landed.
 
-**Use Case**: the user runs `stagehand` on a messy working tree; the planner partitions it into N
+**Use Case**: the user runs `stagecoach` on a messy working tree; the planner partitions it into N
 concepts; the stager/message pipeline runs. If the message agent times out on concept i (or HEAD moves
 during commit i), the user is NOT left with a broken half-run: the commits that DID land (0..i-1) are
 final, the remaining staged work is preserved in the index, and an actionable `git commit-tree … |
 xargs git update-ref HEAD` recipe is printed for the failed concept.
 
-**User Journey**: (1) user runs `stagehand`; (2) concepts 0..i-1 commit cleanly; (3) concept i's
+**User Journey**: (1) user runs `stagecoach`; (2) concepts 0..i-1 commit cleanly; (3) concept i's
 message gen fails → stderr shows "❌ Commit generation failed for concept i+1 of N: <title>…" + the
 recipe + "Concepts already published are final…"; (4) user inspects `git log` (0..i-1 landed) +
 `git status` (concept i+1's files staged); (5) user commits concept i manually with the printed recipe.
@@ -174,12 +174,12 @@ rescue that assumes a single snapshot.
 
 ## What
 
-**User-visible behavior**: on a multi-commit run, if concept i's message generation fails, stagehand
+**User-visible behavior**: on a multi-commit run, if concept i's message generation fails, stagecoach
 prints a concept-scoped rescue to stderr ("concept i+1 of N", its frozen tree, its parent
 `newSHA[i-1]`, the `commit-tree | update-ref` recipe, and the "already-published commits stand /
 remaining staged work is safe" note) and exits 3 (or 124 on timeout). The commits that landed (0..i-1)
 are in `git log`; concept i+1's staged files are in `git status`. If commit i's CAS fails (HEAD moved
-externally), stagehand prints the §13.5 "HEAD moved" message (with the tree[i] recovery command) and
+externally), stagecoach prints the §13.5 "HEAD moved" message (with the tree[i] recovery command) and
 exits 1; prior commits stand. If a stager fails twice, that concept is silently skipped (logged) and
 the run continues — no empty commit. The arbiter never runs after a mid-loop rescue/abort (§18.3).
 
@@ -282,7 +282,7 @@ RestoreDefault — are explained, not just named.
   gotcha: "msgOut{conceptIdx, treeA, treeB, msg, err} is UNEXPORTED + local to runLoop (S1). The
         publish closure captures `concepts`, `commits`, `prevSHA` — so FormatRescueMulti can index
         concepts[res.conceptIdx].Title. Keep publish a closure (do not extract it without passing all
-        captures). S2 ADDS `import \"github.com/dustin/stagehand/internal/signal\"` + \"errors\" (if not present)."
+        captures). S2 ADDS `import \"github.com/dustin/stagecoach/internal/signal\"` + \"errors\" (if not present)."
 
 - file: internal/decompose/message.go   # CONSUMED (read-only)
   why: "generateMessage returns *generate.RescueError DIRECTLY (gen failure) — its ParentSHA field =
@@ -406,7 +406,7 @@ internal/
   signal/signal.go   # CONSUMED (read-only) — SetSnapshot, ClearSnapshot (NOT RestoreDefault)
   exitcode/exitcode.go # CONSUMED (read-only) — For(err) mapping
   git/git.go         # CONSUMED (read-only)
-pkg/stagehand/       # UNCHANGED (P4.M2.T1.S1 adds the public Decompose API)
+pkg/stagecoach/       # UNCHANGED (P4.M2.T1.S1 adds the public Decompose API)
 ```
 
 ### Desired Codebase tree (files S2 EDITS — no new files)
@@ -576,7 +576,7 @@ Task 3: EDIT internal/decompose/roles.go — add Out io.Writer to Deps
 
 Task 4: EDIT internal/decompose/decompose.go — DecomposeRescueError + FR-M12 isolation + signal arming
   - ADD: DecomposeRescueError type (+ Error + Unwrap) — see Data models.
-  - ADD import "github.com/dustin/stagehand/internal/signal" (signal imports no stagehand pkgs → no cycle)
+  - ADD import "github.com/dustin/stagecoach/internal/signal" (signal imports no stagecoach pkgs → no cycle)
     + ensure "errors" is imported.
   - MODIFY runLoop (S1's version): wrap the invokeStager call with retry-once-then-empty; rewrite the
     publish() closure to catch *RescueError/*CASError; return PARTIAL commits on those errors; arm/
@@ -841,7 +841,7 @@ golangci-lint run                    # the repo's linter (Makefile `make lint`)
 go build ./internal/decompose/... ./internal/generate/... && go vet ./internal/decompose/... ./internal/generate/...
 
 # Expected: zero errors. Verify the new internal/signal import in decompose.go compiles (no import cycle —
-# signal imports no stagehand packages). Verify roles.go's new "io" import is USED (Deps.Out io.Writer).
+# signal imports no stagecoach packages). Verify roles.go's new "io" import is USED (Deps.Out io.Writer).
 ```
 
 ### Level 2: Unit & Integration Tests (Component Validation)

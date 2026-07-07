@@ -11,7 +11,7 @@ Ground truth read before writing this note:
   (chunks of ~%d tokens), ~%dm total\n"`) and the Issue 4 fix (`mtPayload := prompt.BuildUserPayload(diff,
   cfg.Context, rejected)` — from `diff`, NOT the one-shot `payload`).
 - **internal/hook/exec.go** (read in FULL): `Run` — the loop (L157-205) + the exhaustion return
-  (`return fmt.Errorf("stagehand: hook generation failed after %d retries", cfg.MaxDuplicateRetries)` — the
+  (`return fmt.Errorf("stagecoach: hook generation failed after %d retries", cfg.MaxDuplicateRetries)` — the
   INSERTION POINT). Imports: context/errors/fmt/os/strings + config/generate/git/prompt/provider. **NO `time`**
   (confirmed).
 - **internal/generate/multiturn.go**: `ChunkCount(payload, chunkTokens) int` = `len(chunkPayload(...))` (L96,
@@ -35,8 +35,8 @@ exhaustion return; (c) 4 new tests in exec_test.go (+ a local `appendScriptManif
 
 **Frozen / do NOT touch:** `internal/generate/*` (the canonical reference gate — S2 MIRRORS it, doesn't
 edit it), `internal/cmd/hookexec.go` (the neverBlock closure — already maps the exhaustion error correctly),
-`internal/provider/*`, `pkg/stagehand/*`, the existing hook loop body + never-block returns. No conflict with
-the parallel P1.M2.T1.S2 (pkg/stagehand only) or S1 (exec.go refactor, which S2 builds on).
+`internal/provider/*`, `pkg/stagecoach/*`, the existing hook loop body + never-block returns. No conflict with
+the parallel P1.M2.T1.S2 (pkg/stagecoach only) or S1 (exec.go refactor, which S2 builds on).
 
 ---
 
@@ -65,7 +65,7 @@ copied verbatim. See §2 for the full code.
 ## §2 — The gate code (copy-ready; inserted before the exhaustion return)
 
 ```go
-// (after the loop, BEFORE `return fmt.Errorf("stagehand: hook generation failed after %d retries", ...)`
+// (after the loop, BEFORE `return fmt.Errorf("stagecoach: hook generation failed after %d retries", ...)`
 
 // FR-T1 multi-turn fallback (PRD §9.24). The one-shot loop above exhausted; if the provider is
 // multi-turn-capable (append session mode) and the untruncated payload exceeds one chunk, retry as a
@@ -121,7 +121,7 @@ if cfg.MultiTurnFallback &&
 		// cause != nil (turn error/timeout) OR ok2==false (final parse empty) OR duplicate → fall through.
 	}
 }
-return fmt.Errorf("stagehand: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
+return fmt.Errorf("stagecoach: hook generation failed after %d retries", cfg.MaxDuplicateRetries)
 ```
 
 ---

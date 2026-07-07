@@ -1,9 +1,9 @@
 ---
-name: "P1.M3.T2.S2 — pkg/stagehand.runPipeline dry-run hook wiring (FR-V8a: commit-msg-only under --dry-run, + the SystemExtra-commit path's full sequence): thread S1's CommitHookRunner into runPipeline so --dry-run runs prepare-commit-msg + commit-msg on the would-be message (skipping pre/post-commit) and surfaces a commit-msg rejection as warn-and-print (NOT a rescue) — PRD §9.25 FR-V8a / §9.12 FR49"
+name: "P1.M3.T2.S2 — pkg/stagecoach.runPipeline dry-run hook wiring (FR-V8a: commit-msg-only under --dry-run, + the SystemExtra-commit path's full sequence): thread S1's CommitHookRunner into runPipeline so --dry-run runs prepare-commit-msg + commit-msg on the would-be message (skipping pre/post-commit) and surfaces a commit-msg rejection as warn-and-print (NOT a rescue) — PRD §9.25 FR-V8a / §9.12 FR49"
 description: |
 
   Land the SECOND subtask of the commit-hooks WIRING (P1.M3.T2): thread S1's `CommitHookRunner`
-  (generate.Deps.Hooks → hooks.DefaultRunner, wired in buildDeps by S1) into `pkg/stagehand.runPipeline`
+  (generate.Deps.Hooks → hooks.DefaultRunner, wired in buildDeps by S1) into `pkg/stagecoach.runPipeline`
   — the self-contained path for `opts.DryRun || opts.SystemExtra != ""`. S1 wired generate.CommitStaged
   (the common `!DryRun && SystemExtra==""` path); THIS task wires runPipeline (the dry-run + SystemExtra
   path), which S1 does NOT touch and which no other task owns (T3 is decompose). The runner
@@ -14,7 +14,7 @@ description: |
   failure (the runner intentionally returns the same *RescueError shape under dry-run as on the commit
   path; only the caller knows it is a preview).
 
-  TWO EDITS to runPipeline (pkg/stagehand/stagehand.go) + NEW tests. NO other file:
+  TWO EDITS to runPipeline (pkg/stagecoach/stagecoach.go) + NEW tests. NO other file:
     1. INSERT A (RunCommitHooks) — AFTER generate.EditMessage, BEFORE the `if dryRun {…}` block. Shared
        by the dry-run and SystemExtra-commit paths; passes `dryRun` through. Under dryRun a commit-msg
        *RescueError is caught → warn-and-print (the would-be message + a stderr notice) and the run
@@ -48,7 +48,7 @@ description: |
 
   ⚠️ **#4 — deps.Hooks is wired by S1's buildDeps (DONE); runPipeline does NOT import internal/hooks.**
       runPipeline accesses hooks only via `deps.Hooks CommitHookRunner` (the generate-package interface).
-      `errors`/`fmt`/`os`/`generate` are ALREADY imported in stagehand.go — INSERT A/B add NO imports.
+      `errors`/`fmt`/`os`/`generate` are ALREADY imported in stagecoach.go — INSERT A/B add NO imports.
       If S1 has not landed, deps.Hooks is nil → both inserts no-op → byte-identical to today (safe to
       land before/after S1; the dry-run behavior tests require S1's buildDeps wiring via GenerateCommit).
       (design-decisions §7/§8)
@@ -57,12 +57,12 @@ description: |
       printDryRunMessage); the "⚠ rejected" notice + the hook's own stderr (runner verbatim passthrough)
       → stderr. The warning is ALWAYS printed (not Verbose-gated) — FR-V8a's whole point. (§6)
 
-  ⚠️ **#6 — Coordination with S1: DISJOINT regions of stagehand.go.** S1 edits buildDeps (~L325-386) +
+  ⚠️ **#6 — Coordination with S1: DISJOINT regions of stagecoach.go.** S1 edits buildDeps (~L325-386) +
       generate.go; THIS task edits runPipeline (~L411-700). Different functions, no overlap. Do NOT touch
       buildDeps/generate.go/runner.go/adapter.go/cmd — all S1/S2-owned or out of scope. (§7)
 
-  Deliverable: MODIFIED pkg/stagehand/stagehand.go (runPipeline: INSERT A + INSERT B) + MODIFIED
-  pkg/stagehand/stagehand_test.go (4 hook tests via GenerateCommit). OUTPUT: --dry-run runs commit-msg
+  Deliverable: MODIFIED pkg/stagecoach/stagecoach.go (runPipeline: INSERT A + INSERT B) + MODIFIED
+  pkg/stagecoach/stagecoach_test.go (4 hook tests via GenerateCommit). OUTPUT: --dry-run runs commit-msg
   (and prepare-commit-msg) on the would-be message but skips pre/post-commit; a commit-msg rejection is
   warn-and-print (message + notice, exit 0); a non-zero pre-commit under dry-run is skipped (no abort);
   the SystemExtra-commit path runs the full hook sequence (mirror of S1). `go build/vet/test ./...` green.
@@ -71,7 +71,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Thread S1's `CommitHookRunner` into `pkg/stagehand.runPipeline` so the dry-run +
+**Feature Goal**: Thread S1's `CommitHookRunner` into `pkg/stagecoach.runPipeline` so the dry-run +
 SystemExtra path honors PRD §9.25 FR-V8a: under `--dry-run`, `pre-commit` and `post-commit` are skipped
 (nothing is committed), but `prepare-commit-msg` and `commit-msg` RUN on the would-be message so the user
 sees lint results — and a `commit-msg` REJECTION under dry-run is surfaced as warn-and-print (the would-be
@@ -81,11 +81,11 @@ best-effort — mirroring S1's CommitStaged wiring, since runPipeline's commit t
 for SystemExtra and no other task wires it.
 
 **Deliverable**:
-1. **MODIFIED `pkg/stagehand/stagehand.go`** — `runPipeline`: INSERT A (nil-guarded `RunCommitHooks` after
+1. **MODIFIED `pkg/stagecoach/stagecoach.go`** — `runPipeline`: INSERT A (nil-guarded `RunCommitHooks` after
    `EditMessage`, before `if dryRun`, passing `dryRun`; dry-run commit-msg *RescueError → warn-and-print;
    !dryRun error → rescue; success → `treeSHA,msg = ft,fm`) + INSERT B (nil-guarded `RunPostCommit` in the
    commit tail after `UpdateRefCAS`, before `ClearSnapshot`; return discarded).
-2. **MODIFIED `pkg/stagehand/stagehand_test.go`** — 4 tests via the exported `GenerateCommit`: dry-run
+2. **MODIFIED `pkg/stagecoach/stagecoach_test.go`** — 4 tests via the exported `GenerateCommit`: dry-run
    commit-msg reject (warn-and-print + lint surfaced), dry-run pre-commit skipped, dry-run commit-msg
    accepts, and SystemExtra pre-commit abort → *RescueError.
 
@@ -99,7 +99,7 @@ no-op) stays GREEN; go.mod/go.sum + buildDeps/runner.go/generate.go byte-unchang
 
 ## User Persona
 
-**Target User**: A user who runs `stagehand --dry-run` (FR49: preview the message without committing) in a
+**Target User**: A user who runs `stagecoach --dry-run` (FR49: preview the message without committing) in a
 repo with a `commit-msg` hook (conventional-commit lint). Before this task, `--dry-run` showed the
 generated message but NEVER ran `commit-msg` — so the preview could show a message the linter would
 reject, giving a false "looks good" signal. After this task, `--dry-run` runs `commit-msg` (and
@@ -108,13 +108,13 @@ if it rejects, the preview still shows the message AND surfaces the lint result 
 user knows to fix the message before committing for real. Transitively: P1.M3.T3 (decompose, which reuses
 the same runner) and P1.M4.T1 (the docs Mode B rewrite that will document the dry-run hook composition).
 
-**Use Case**: A user with a conventional-commit `commit-msg` hook runs `stagehand --dry-run`. The agent
+**Use Case**: A user with a conventional-commit `commit-msg` hook runs `stagecoach --dry-run`. The agent
 generates "updated the files" (non-conventional). `commit-msg` rejects it (exit 1, stderr "subject must be
 conventional"). The dry-run prints the would-be message ("updated the files") to stdout AND the lint
 rejection to stderr — so the user sees BOTH what would be committed AND that it would fail the linter, and
 re-runs with a better prompt or fixes the hook. Exit 0 (it's a preview).
 
-**User Journey**: `stagehand --dry-run` → `pkg/stagehand.GenerateCommit(DryRun:true)` → `buildDeps` (S1
+**User Journey**: `stagecoach --dry-run` → `pkg/stagecoach.GenerateCommit(DryRun:true)` → `buildDeps` (S1
 wires `Hooks: DefaultRunner{}`) → `runPipeline(dryRun=true)` → …WriteTree… → generate/dedupe loop →
 EditMessage → **INSERT A: RunCommitHooks(dryRun=true)** [pre-commit skipped; prepare-commit-msg + commit-msg
 run on the would-be message; a *RescueError (commit-msg reject) → warn-and-print] → `if dryRun` Result
@@ -146,7 +146,7 @@ hooks; runPipeline's commit tail was un-wired.
 
 ## What
 
-Two nil-guarded inserts in `runPipeline` (pkg/stagehand/stagehand.go) + four tests in stagehand_test.go. No
+Two nil-guarded inserts in `runPipeline` (pkg/stagecoach/stagecoach.go) + four tests in stagecoach_test.go. No
 imports, no buildDeps change (S1 did it), no runner/generate/cmd changes, no docs change (M3.T2.S2's how-
 it-works subsection is owned by S1 per the item contract point 5).
 
@@ -163,14 +163,14 @@ it-works subsection is owned by S1 per the item contract point 5).
 - [ ] `runPipeline` has INSERT B: nil-guarded `deps.Hooks.RunPostCommit(ctx, deps.Git, cfg, dryRun,
       deps.Verbose)` (return discarded) in the commit tail, after the `UpdateRefCAS` `if err != nil {…}`
       block, before `signal.ClearSnapshot()`.
-- [ ] `stagehand_test.go` adds: `TestGenerateCommit_DryRun_CommitMsgReject_PrintsMessage` (commit-msg
+- [ ] `stagecoach_test.go` adds: `TestGenerateCommit_DryRun_CommitMsgReject_PrintsMessage` (commit-msg
       exit 1 + stderr line; DryRun; err nil + Message non-empty + CommitSHA "" + HEAD unchanged + captured
       stderr contains the lint line); `..._DryRun_SkipsPreCommit` (pre-commit exit 1; DryRun; err nil +
       Message non-empty → pre-commit skipped); `..._DryRun_CommitMsgAccept` (commit-msg exit 0; DryRun;
       err nil + Message non-empty); `..._SystemExtra_PreCommitAbort_Rescue` (pre-commit exit 1;
       SystemExtra set, DryRun false; *RescueError + HEAD unchanged).
 - [ ] `go build ./... && go vet ./... && go test ./...` GREEN; `gofmt -l` clean on the edited files.
-- [ ] go.mod/go.sum byte-unchanged; buildDeps/imports in stagehand.go byte-unchanged (S1 owns them);
+- [ ] go.mod/go.sum byte-unchanged; buildDeps/imports in stagecoach.go byte-unchanged (S1 owns them);
       runner.go/generate.go/cmd/decompose byte-unchanged; the existing `TestGenerateCommit_DryRun` GREEN.
 
 ## All Needed Context
@@ -203,7 +203,7 @@ stderr-capture). No decompose/prompt/provider knowledge required.
 # MUST READ — the parallel sibling CONTRACT (S1 wires the seam this task consumes)
 - docfile: plan/010_49117f1f30ab/P1M3T2S1/PRP.md
   why: S1 defines generate.CommitHookRunner (the interface on Deps.Hooks) + hooks.DefaultRunner (adapter.go)
-       + wires buildDeps (`Hooks: hooks.DefaultRunner{}`, stagehand.go ~L386). THIS task CONSUMES
+       + wires buildDeps (`Hooks: hooks.DefaultRunner{}`, stagecoach.go ~L386). THIS task CONSUMES
        deps.Hooks in runPipeline. S1's INSERT A/B in CommitStaged are the TEMPLATE this task mirrors in
        runPipeline (same nil-guard, same reassign treeSHA/msg, same discarded post-commit return). The
        runner's signatures: RunCommitHooks(ctx, g, cfg, snapshotTree, parentSHA, msg, dryRun, verbose) →
@@ -231,7 +231,7 @@ stderr-capture). No decompose/prompt/provider knowledge required.
        on rejection).
 
 # THE FILE BEING MODIFIED — READ runPipeline fully before editing (the two insert points)
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   section: `func runPipeline(ctx, deps generate.Deps, cfg, systemExtra string, dryRun bool) (Result, error)`
            (~L415). The flow: … WriteTree → signal.SetSnapshot → generate/dedupe loop → FR-T1 multi-turn →
            the EditMessage block (`msg, err = generate.EditMessage(ctx, msg, cfg, generate.EditContext{…})`,
@@ -250,9 +250,9 @@ stderr-capture). No decompose/prompt/provider knowledge required.
        `signal.ClearSnapshot()`. Do NOT move signal.ClearSnapshot / RestoreDefault.
 
 # THE TEST FILE BEING MODIFIED — mirror the existing dry-run test pattern
-- file: pkg/stagehand/stagehand_test.go
+- file: pkg/stagecoach/stagecoach_test.go
   section: `setupTestRepo(t, stubtest.Options{Out: "feat: preview"})` (L123 — temp repo + repo-local
-           .stagehand.toml stub provider + initRepo + commitRaw("initial") + chdir); `TestGenerateCommit_DryRun`
+           .stagecoach.toml stub provider + initRepo + commitRaw("initial") + chdir); `TestGenerateCommit_DryRun`
            (L233 — `GenerateCommit(ctx, Options{Provider:"stub", DryRun:true})`; asserts Message/Subject +
            CommitSHA=="" + HEAD unchanged); `initRepo` (L25 — `git init` + identity); `writeFile`/`stageFile`/
            `headSHA`/`gitOut` helpers.
@@ -266,7 +266,7 @@ stderr-capture). No decompose/prompt/provider knowledge required.
 
 # The chokepoint map (confirms runPipeline is THE dry-run hook site)
 - docfile: plan/010_49117f1f30ab/architecture/codebase_reality.md
-  section: "## 5. The commit chokepoints" — runPipeline (stagehand.go:411) is the dry-run/SystemExtra path;
+  section: "## 5. The commit chokepoints" — runPipeline (stagecoach.go:411) is the dry-run/SystemExtra path;
            CommitStaged is the common commit path (S1); decompose.publishCommit is T3. The note: "the
            implementing agent must wire commit-msg into runPipeline's dry-run branch (or confirm the
            cmd-layer dry-run handling covers it)" — CONFIRMED: cmd's printDryRunMessage (default_action.go:
@@ -288,9 +288,9 @@ stderr-capture). No decompose/prompt/provider knowledge required.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-pkg/stagehand/
-  stagehand.go        # EDIT — runPipeline: INSERT A (RunCommitHooks) + INSERT B (RunPostCommit). buildDeps UNCHANGED (S1 owns it).
-  stagehand_test.go   # EDIT — +4 hook tests (GenerateCommit → buildDeps → runPipeline). Existing tests UNCHANGED + GREEN.
+pkg/stagecoach/
+  stagecoach.go        # EDIT — runPipeline: INSERT A (RunCommitHooks) + INSERT B (RunPostCommit). buildDeps UNCHANGED (S1 owns it).
+  stagecoach_test.go   # EDIT — +4 hook tests (GenerateCommit → buildDeps → runPipeline). Existing tests UNCHANGED + GREEN.
 internal/hooks/
   runner.go           # S1/S2 COMPLETE (RunCommitHooks/RunPostCommit/HookOpts; honors DryRun). UNCHANGED.
   adapter.go          # S1 NEW (DefaultRunner → CommitHookRunner). UNCHANGED.
@@ -298,13 +298,13 @@ internal/generate/
   generate.go         # S1 EDIT (CommitHookRunner interface + Deps.Hooks + CommitStaged inserts). UNCHANGED here.
 internal/cmd/
   default_action.go   # printDryRunMessage(stdout, res.Message) — runs NO hooks (confirms runPipeline is the site). UNCHANGED.
-go.mod / go.sum       # UNCHANGED (no new imports in stagehand.go: errors/fmt/os/generate already imported).
+go.mod / go.sum       # UNCHANGED (no new imports in stagecoach.go: errors/fmt/os/generate already imported).
 ```
 
 ### Desired Codebase tree with files to be added
 
 ```bash
-# NO new files. All edits are in-place: runPipeline (2 inserts) in pkg/stagehand/stagehand.go + 4 tests in stagehand_test.go.
+# NO new files. All edits are in-place: runPipeline (2 inserts) in pkg/stagecoach/stagecoach.go + 4 tests in stagecoach_test.go.
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -330,7 +330,7 @@ go.mod / go.sum       # UNCHANGED (no new imports in stagehand.go: errors/fmt/os
 
 // CRITICAL (#4 — deps.Hooks is wired by S1's buildDeps; do NOT import internal/hooks or re-wire here):
 //   runPipeline accesses hooks only via deps.Hooks (the generate.CommitHookRunner interface). errors/fmt/os/
-//   generate are ALREADY imported in stagehand.go — INSERT A/B add NO imports. If S1 hasn't landed, deps.Hooks
+//   generate are ALREADY imported in stagecoach.go — INSERT A/B add NO imports. If S1 hasn't landed, deps.Hooks
 //   is nil → both inserts no-op → byte-identical to today. (design-decisions §7/§8)
 
 // GOTCHA (the runner honors DryRun INTERNALLY — do NOT re-gate in the caller): HookOpts.DryRun skips
@@ -341,7 +341,7 @@ go.mod / go.sum       # UNCHANGED (no new imports in stagehand.go: errors/fmt/os
 //   "⚠ rejected" notice + the hook's own stderr (runner verbatim passthrough via cmd.Stderr=os.Stderr) →
 //   stderr. The warning is ALWAYS printed (not Verbose-gated) — FR-V8a's whole point. (design-decisions §6)
 
-// GOTCHA (the test stderr-capture is safe — no t.Parallel): the stagehand_test suite has ZERO t.Parallel()
+// GOTCHA (the test stderr-capture is safe — no t.Parallel): the stagecoach_test suite has ZERO t.Parallel()
 //   (verified), so a global os.Stderr swap (os.Pipe) during the GenerateCommit call does not race. Restore
 //   os.Stderr in t.Cleanup. Never add t.Parallel to these tests. (design-decisions §6/§9)
 
@@ -365,7 +365,7 @@ go.mod / go.sum       # UNCHANGED (no new imports in stagehand.go: errors/fmt/os
 ### Data models and structure
 
 ```go
-// pkg/stagehand/stagehand.go — NO new types, NO new imports. Two nil-guarded inserts in runPipeline.
+// pkg/stagecoach/stagecoach.go — NO new types, NO new imports. Two nil-guarded inserts in runPipeline.
 // (generate.CommitHookRunner + Deps.Hooks are defined by S1 in generate.go; hooks.DefaultRunner by S1's
 //  adapter.go; buildDeps wires Hooks by S1. This task only USES deps.Hooks in runPipeline.)
 ```
@@ -373,7 +373,7 @@ go.mod / go.sum       # UNCHANGED (no new imports in stagehand.go: errors/fmt/os
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: EDIT pkg/stagehand/stagehand.go — INSERT A (RunCommitHooks) in runPipeline
+Task 1: EDIT pkg/stagecoach/stagecoach.go — INSERT A (RunCommitHooks) in runPipeline
   - INSERT (nil-guarded) BETWEEN the EditMessage `if err != nil { return Result{}, err }` block and the
     `// ---- Dry-run success: skip commit-tree/update-ref. ----` comment:
       `ft, fm, herr := deps.Hooks.RunCommitHooks(ctx, deps.Git, cfg, treeSHA, parentSHA, msg, dryRun, deps.Verbose)`
@@ -384,12 +384,12 @@ Task 1: EDIT pkg/stagehand/stagehand.go — INSERT A (RunCommitHooks) in runPipe
       THROUGH to the existing `if dryRun` Result (which prints msg) — do not duplicate the Result construction.
   - GOTCHA: the discriminator is errors.As(herr, &*generate.RescueError) — only hook rejections warn-and-print.
 
-Task 2: EDIT pkg/stagehand/stagehand.go — INSERT B (RunPostCommit) in runPipeline's commit tail
+Task 2: EDIT pkg/stagecoach/stagecoach.go — INSERT B (RunPostCommit) in runPipeline's commit tail
   - INSERT (nil-guarded) BETWEEN the UpdateRefCAS `if err != nil {…}` block's close and `signal.ClearSnapshot()`:
       `_ = deps.Hooks.RunPostCommit(ctx, deps.Git, cfg, dryRun, deps.Verbose)` (+ best-effort comment).
   - GOTCHA: reached ONLY when !dryRun (the `if dryRun` block returns above). Return discarded (FR-V7).
 
-Task 3: EDIT pkg/stagehand/stagehand_test.go — +4 hook tests (Blueprint below)
+Task 3: EDIT pkg/stagecoach/stagecoach_test.go — +4 hook tests (Blueprint below)
   - ADD a stderr-capture helper (os.Pipe + t.Cleanup restore) — used by the reject test.
   - ADD TestGenerateCommit_DryRun_CommitMsgReject_PrintsMessage (commit-msg exit 1 + stderr "reject: …";
     DryRun:true; assert err nil + Message non-empty + CommitSHA "" + HEAD unchanged + stderr contains the
@@ -451,10 +451,10 @@ Task 4: VERIFY
 ```
 
 ```go
-// === pkg/stagehand/stagehand_test.go — the stderr-capture helper + the 4 hook tests ===
+// === pkg/stagecoach/stagecoach_test.go — the stderr-capture helper + the 4 hook tests ===
 
 // captureStderr runs fn with os.Stderr swapped to a pipe and returns whatever was written. SAFE only when
-// the test is NOT t.Parallel() (the stagehand_test suite has none). Restores os.Stderr in t.Cleanup.
+// the test is NOT t.Parallel() (the stagecoach_test suite has none). Restores os.Stderr in t.Cleanup.
 func captureStderr(t *testing.T, fn func()) string {
 	t.Helper()
 	r, w, _ := os.Pipe()
@@ -590,14 +590,14 @@ func TestGenerateCommit_SystemExtra_PreCommitAbort_Rescue(t *testing.T) {
 ### Integration Points
 
 ```yaml
-GO MODULE (go.mod/go.sum): change NONE. stagehand.go already imports errors/fmt/os/generate; INSERT A/B add
+GO MODULE (go.mod/go.sum): change NONE. stagecoach.go already imports errors/fmt/os/generate; INSERT A/B add
       NO imports (errors.As, fmt.Fprintf, os.Stderr, *generate.RescueError all already available).
-      stagehand_test.go adds io/filepath (already imported for os/io + filepath elsewhere — verify; if not,
+      stagecoach_test.go adds io/filepath (already imported for os/io + filepath elsewhere — verify; if not,
       add). `go mod tidy` is a no-op.
 
 PACKAGE EDGES: NONE added. runPipeline accesses hooks only via deps.Hooks (generate.CommitHookRunner). It does
       NOT import internal/hooks (S1's buildDeps does, and the adapter DefaultRunner satisfies the interface
-      structurally). pkg/stagehand → generate (EXISTING) → CommitHookRunner; no new edge.
+      structurally). pkg/stagecoach → generate (EXISTING) → CommitHookRunner; no new edge.
 
 UPSTREAM CONTRACT (consume, do NOT edit):
   - S1's generate.CommitHookRunner (generate.go) + Deps.Hooks (nil-safe) + hooks.DefaultRunner (adapter.go):
@@ -616,7 +616,7 @@ FROZEN/LEAVE (do NOT edit):
   - internal/hooks/runner.go (+_test.go), adapter.go, subset.go (+_test.go) — S1/S2 + P1.M2.T2.S1.
   - internal/generate/generate.go (+hooks_freeze_test.go) — S1. internal/git/*, internal/cmd/* (printDryRunMessage
         runs NO hooks — confirmed), internal/decompose/* (T3), internal/hook/*, internal/signal/*, internal/lock/*.
-  - pkg/stagehand/stagehand.go's buildDeps + import block (S1's territory).
+  - pkg/stagecoach/stagecoach.go's buildDeps + import block (S1's territory).
   - PRD.md, go.mod, Makefile. The existing TestGenerateCommit_DryRun (no hook → runner no-ops → GREEN).
 
 NO NEW DATABASE / ROUTES / CLI COMMANDS.
@@ -627,30 +627,30 @@ NO NEW DATABASE / ROUTES / CLI COMMANDS.
 ### Level 1: Syntax & Style
 
 ```bash
-gofmt -w pkg/stagehand/stagehand.go pkg/stagehand/stagehand_test.go
-go vet ./pkg/stagehand/
+gofmt -w pkg/stagecoach/stagecoach.go pkg/stagecoach/stagecoach_test.go
+go vet ./pkg/stagecoach/
 go build ./...
-# Confirm the two inserts present + NO new import in stagehand.go (errors/fmt/os/generate already there):
-grep -n 'deps.Hooks.RunCommitHooks\|deps.Hooks.RunPostCommit\|rejected the would-be message' pkg/stagehand/stagehand.go
-grep -n 'func captureStderr\|func installHook\|TestGenerateCommit_DryRun_CommitMsgReject_PrintsMessage' pkg/stagehand/stagehand_test.go
+# Confirm the two inserts present + NO new import in stagecoach.go (errors/fmt/os/generate already there):
+grep -n 'deps.Hooks.RunCommitHooks\|deps.Hooks.RunPostCommit\|rejected the would-be message' pkg/stagecoach/stagecoach.go
+grep -n 'func captureStderr\|func installHook\|TestGenerateCommit_DryRun_CommitMsgReject_PrintsMessage' pkg/stagecoach/stagecoach_test.go
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
 # Confirm buildDeps + the import block are byte-unchanged (S1's territory; this task only edits runPipeline + tests):
-git diff pkg/stagehand/stagehand.go | grep -E '^\+' | grep -i 'import\|buildDeps\|DefaultRunner' && echo "WARN: buildDeps/import touched (S1 owns it — re-check)" || echo "buildDeps/import UNCHANGED (expected)"
+git diff pkg/stagecoach/stagecoach.go | grep -E '^\+' | grep -i 'import\|buildDeps\|DefaultRunner' && echo "WARN: buildDeps/import touched (S1 owns it — re-check)" || echo "buildDeps/import UNCHANGED (expected)"
 # Expected: go vet clean; build clean; both inserts + the warn-and-print notice present; go.mod/go.sum + buildDeps byte-unchanged.
 ```
 
 ### Level 2: The 4 hook tests + the existing dry-run test + the repo suite
 
 ```bash
-go test ./pkg/stagehand/ -v -run 'TestGenerateCommit_DryRun_CommitMsgReject|TestGenerateCommit_DryRun_SkipsPreCommit|TestGenerateCommit_DryRun_CommitMsgAccept|TestGenerateCommit_SystemExtra_PreCommitAbort'
+go test ./pkg/stagecoach/ -v -run 'TestGenerateCommit_DryRun_CommitMsgReject|TestGenerateCommit_DryRun_SkipsPreCommit|TestGenerateCommit_DryRun_CommitMsgAccept|TestGenerateCommit_SystemExtra_PreCommitAbort'
 # Expected PASS — verify:
 #   ...DryRun_CommitMsgReject_PrintsMessage ... err nil + Message carries "would-be preview" + CommitSHA "" + HEAD unchanged + stderr has the lint line + the notice (FR-V8a warn-and-print ✓)
 #   ...DryRun_SkipsPreCommit .................. err nil + Message non-empty (pre-commit exit 1 did NOT abort ⇒ skipped under dry-run ✓)
 #   ...DryRun_CommitMsgAccept ................. err nil + Message non-empty (commit-msg ran + accepted under dry-run ✓)
 #   ...SystemExtra_PreCommitAbort_Rescue ...... *generate.RescueError + HEAD unchanged (shared insert's !dryRun branch = FR-V7 ✓)
 # The existing dry-run test (no hook installed → runner no-ops) MUST stay GREEN:
-go test ./pkg/stagehand/ -v -run 'TestGenerateCommit_DryRun$|TestGenerateCommit_DryRun_DedupeRetry|TestGenerateCommit_Success'
-go test ./pkg/stagehand/...   # the full stagehand suite
+go test ./pkg/stagecoach/ -v -run 'TestGenerateCommit_DryRun$|TestGenerateCommit_DryRun_DedupeRetry|TestGenerateCommit_Success'
+go test ./pkg/stagecoach/...   # the full stagecoach suite
 # If CommitMsgReject_PrintsMessage fails with "err != nil", the warn-and-print branch isn't catching the
 # *RescueError (check errors.As + the dryRun guard + that INSERT A is BEFORE `if dryRun`).
 # If SkipsPreCommit fails (err != nil), pre-commit ran under dry-run (the runner's DryRun skip is broken OR
@@ -662,16 +662,16 @@ go test ./pkg/stagehand/...   # the full stagehand suite
 
 ```bash
 go build ./...   # Expect clean.
-go test ./...    # Expect all PASS (stagehand + generate + hooks + repo-wide). S1/S2's runner + freeze tests green.
+go test ./...    # Expect all PASS (stagecoach + generate + hooks + repo-wide). S1/S2's runner + freeze tests green.
 # Confirm ONLY the two target files changed:
-git diff --name-only | grep -E 'pkg/stagehand/stagehand\.go|pkg/stagehand/stagehand_test\.go' && echo "(expected files)"
+git diff --name-only | grep -E 'pkg/stagecoach/stagecoach\.go|pkg/stagecoach/stagecoach_test\.go' && echo "(expected files)"
 # Confirm the frozen files are byte-unchanged:
 git diff --exit-code internal/hooks internal/generate/generate.go internal/generate/hooks_freeze_test.go \
   internal/git internal/cmd internal/decompose internal/hook internal/signal internal/lock \
   PRD.md go.mod Makefile && echo "frozen files UNCHANGED (expected)"
 # Confirm runPipeline's buildDeps + import block are byte-unchanged (S1 owns them):
-git diff pkg/stagehand/stagehand.go | grep -E '^[+-].*(import|hooks\.DefaultRunner|Hooks:)' && echo "WARN: buildDeps/import changed" || echo "buildDeps/import UNCHANGED (expected — S1 owns)"
-# Expected: only stagehand.go + stagehand_test.go modified; everything else byte-unchanged.
+git diff pkg/stagecoach/stagecoach.go | grep -E '^[+-].*(import|hooks\.DefaultRunner|Hooks:)' && echo "WARN: buildDeps/import changed" || echo "buildDeps/import UNCHANGED (expected — S1 owns)"
+# Expected: only stagecoach.go + stagecoach_test.go modified; everything else byte-unchanged.
 ```
 
 ### Level 4: FR-V8a + the warn-and-print semantic correctness reasoning
@@ -701,7 +701,7 @@ git diff pkg/stagehand/stagehand.go | grep -E '^[+-].*(import|hooks\.DefaultRunn
 - [ ] `go build ./...` clean; `go vet ./...` clean; `gofmt -l` clean on the edited files.
 - [ ] `go test ./...` GREEN (the 4 new hook tests + the existing dry-run/success tests + S1/S2's runner/freeze
       tests + repo-wide).
-- [ ] go.mod/go.sum byte-unchanged; stagehand.go's buildDeps + import block byte-unchanged (S1 owns them).
+- [ ] go.mod/go.sum byte-unchanged; stagecoach.go's buildDeps + import block byte-unchanged (S1 owns them).
 
 ### Feature Validation
 - [ ] INSERT A (nil-guarded RunCommitHooks) is AFTER EditMessage, BEFORE `if dryRun`; passes `dryRun`.

@@ -3,7 +3,7 @@ name: "P1.M3.T4.S2 — CommitStaged orchestrator: full pipeline (snapshot → ge
 description: |
 
   Implement `generate.CommitStaged` — the synchronous, atomic, snapshot-based commit orchestrator that
-  is Stagehand's core IP (PRD §13). It wires together every upstream layer built so far — git plumbing
+  is Stagecoach's core IP (PRD §13). It wires together every upstream layer built so far — git plumbing
   (P1.M1.T2/T3), the provider pipeline (P1.M2.T1–T6), prompt construction (P1.M3.T1), dedupe
   (P1.M3.T2), and rescue formatting (P1.M3.T3) — into ONE function that NEVER calls `git add` (PRD
   §11.3), builds the commit from a FROZEN `TREE_SHA` via plumbing (`write-tree` → `commit-tree` →
@@ -142,7 +142,7 @@ recovery context. (5) v2 composability — solved by the §11.3 staging/commit d
 ## Why
 
 - **It IS the core IP (PRD §13).** Everything else is scaffolding around this one function. The
-  snapshot-then-CAS flow is "the thing Stagehand does that no incumbent does" (§13).
+  snapshot-then-CAS flow is "the thing Stagecoach does that no incumbent does" (§13).
 - **Unblocks the CLI + public API + property tests.** P1.M4.T1.S2, P1.M3.T5, and P1.M5.T1 all wait on
   `CommitStaged`. It is the last vertical slice before the UX layer.
 - **Faithful to commit-pi's proven model.** commit-pi (zsh, Appendix C) did write-tree→commit-tree→
@@ -163,7 +163,7 @@ returns a typed `Result` or a typed error; it never prints, never exits, never i
 ### Success Criteria
 
 - [ ] `internal/generate/generate.go` exists, `package generate`, imports `context`/`errors`/`fmt` +
-      `github.com/dustin/stagehand/internal/{config,git,prompt,provider}` ONLY (NO new third-party).
+      `github.com/dustin/stagecoach/internal/{config,git,prompt,provider}` ONLY (NO new third-party).
       Exports `Deps`, `Result`, `ErrNothingToCommit`, `ErrTimeout`, `ErrRescue`, `ErrCASFailed`,
       `RescueError`, `CASError`, `CommitStaged`. Has an updated `// Package generate …` doc.
 - [ ] `CommitStaged(ctx, deps, cfg)` runs the 10-step pipeline (design-decisions §7) and: returns
@@ -329,7 +329,7 @@ the orchestrator is signal-agnostic and CLI-agnostic.
        []string{"<dup>","<fresh>"})`. Parse-fail → `stubtest.NewScript(t, bin, []string{"","<good>"})` OR
        `Options{Out:""}`. CAS race → `Options{Out:"x", SleepMS:400}` (gives the test a window to move HEAD).
   gotcha: stubtest.Manifest returns a provider.Manifest with PromptDelivery="stdin" — Render yields a
-          CmdSpec whose Stdin is the payload and Env carries the STAGEHAND_STUB_* knobs. The stub is
+          CmdSpec whose Stdin is the payload and Env carries the STAGECOACH_STUB_* knobs. The stub is
           invoked through the REAL provider.Execute (so the test exercises the full pipeline). A blank
           NewScript line ⇒ empty stdout ⇒ ParseOutput ok=false ⇒ parse-fail path.
 
@@ -360,10 +360,10 @@ the orchestrator is signal-agnostic and CLI-agnostic.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED)
 go.sum                          # unchanged
 cmd/
-  stagehand/main.go             # stub (P1.M1.T1) — UNCHANGED
+  stagecoach/main.go             # stub (P1.M1.T1) — UNCHANGED
   stubagent/main.go             # P1.M3.T4.S1 (stub binary) — UNCHANGED (may not exist yet if S1 in-flight; it WILL)
 internal/
   config/config.go              # P1.M1.T4 — Config struct (read-only ref)
@@ -493,15 +493,15 @@ type Result struct {
 
 // ErrNothingToCommit: the staged diff is empty (nothing meaningful for the model). CLI → exit 2.
 // Returned as a bare sentinel (no context needed). Reached BEFORE the snapshot (step 2) — no TREE_SHA.
-var ErrNothingToCommit = errors.New("stagehand: nothing staged to commit")
+var ErrNothingToCommit = errors.New("stagecoach: nothing staged to commit")
 
 // ErrTimeout: generation exceeded cfg.Timeout (the agent was killed). CLI → exit 124 + FormatRescue.
 // Returned wrapped in *RescueError{Kind: ErrTimeout}. Reached AFTER the snapshot — TREE_SHA is set.
-var ErrTimeout = errors.New("stagehand: generation timed out")
+var ErrTimeout = errors.New("stagecoach: generation timed out")
 
 // ErrRescue: generation failed after exhausting retries (parse-fail / duplicate / non-zero exit / ctx
 // cancel). CLI → exit 3 + FormatRescue. Returned wrapped in *RescueError{Kind: ErrRescue}.
-var ErrRescue = errors.New("stagehand: commit generation failed after retries")
+var ErrRescue = errors.New("stagecoach: commit generation failed after retries")
 
 // ErrCASFailed is git.ErrCASFailed re-exported so the CLI imports a single package. Returned wrapped in
 // *CASError. Detected via errors.Is(err, generate.ErrCASFailed) (== errors.Is(err, git.ErrCASFailed)).
@@ -543,7 +543,7 @@ Task 1: CREATE internal/generate/generate.go — types (Deps, Result, errors, Re
       `// Package generate …` doc comment (currently in dedupe.go) — OR add a package-level doc here that
       supersedes it (Go allows ONE package doc; if dedupe.go has `// Package generate`, REMOVE that line
       from dedupe.go's top and put the canonical package doc in generate.go: `// Package generate implements
-      Stagehand's commit-generation pipeline (PRD §13). CommitStaged is the atomic, snapshot-based
+      Stagecoach's commit-generation pipeline (PRD §13). CommitStaged is the atomic, snapshot-based
       orchestrator: it captures the parent + a frozen write-tree snapshot, runs a bounded generate→parse→
       dedupe retry loop, builds the commit from the frozen tree via git plumbing, and advances HEAD via a
       single compare-and-swap update-ref (never git commit, never git add).`). NOTE: removing the doc
@@ -552,9 +552,9 @@ Task 1: CREATE internal/generate/generate.go — types (Deps, Result, errors, Re
       edits to existing files, instead generate.go's doc comment uses `// Package generate …` and you
       delete the one in dedupe.go. PREFER: move the package doc to generate.go (the orchestrator is the
       package's raison d'être).
-  - IMPORT: `context`, `errors`, `fmt`, `github.com/dustin/stagehand/internal/config`,
-      `github.com/dustin/stagehand/internal/git`, `github.com/dustin/stagehand/internal/prompt`,
-      `github.com/dustin/stagehand/internal/provider`. NO third-party, NO new internal.
+  - IMPORT: `context`, `errors`, `fmt`, `github.com/dustin/stagecoach/internal/config`,
+      `github.com/dustin/stagecoach/internal/git`, `github.com/dustin/stagecoach/internal/prompt`,
+      `github.com/dustin/stagecoach/internal/provider`. NO third-party, NO new internal.
   - DEFINE the types in "Data models" above (Deps, Result, the 4 sentinels, RescueError, CASError) with
       doc comments citing PRD §/FR. ErrCASFailed = git.ErrCASFailed (re-export).
   - IMPLEMENT RescueError.Error() (names Kind + reason) + Unwrap() (returns Kind). IMPLEMENT
@@ -667,8 +667,8 @@ Task 3: CREATE internal/generate/generate_test.go — integration tests (stub + 
   - FILE: NEW internal/generate/generate_test.go. PACKAGE: `package generate` (white-box — can call
       unexported helpers if any; CommitStaged is exported anyway). IMPORT: `context`, `errors`, `os`,
       `os/exec`, `path/filepath`, `regexp`, `strings`, `testing`, `time`,
-      `github.com/dustin/stagehand/internal/config`, `github.com/dustin/stagehand/internal/git`,
-      `github.com/dustin/stagehand/internal/stubtest`.
+      `github.com/dustin/stagecoach/internal/config`, `github.com/dustin/stagecoach/internal/git`,
+      `github.com/dustin/stagecoach/internal/stubtest`.
   - FIXTURE HELPERS (copy the ~10-line pattern from internal/git/*_test.go — they're unimportable):
       func initRepo(t *testing.T, dir string)       // git init + repo-local user.name/email config
       func writeFile(t *testing.T, dir, name, body) // os.WriteFile
@@ -868,9 +868,9 @@ func (e *CASError) Error() string {
 func (e *RescueError) Error() string {
 	switch e.Kind {
 	case ErrTimeout:
-		return "stagehand: generation timed out after the snapshot was taken"
+		return "stagecoach: generation timed out after the snapshot was taken"
 	default:
-		return "stagehand: commit generation failed after retries"
+		return "stagecoach: commit generation failed after retries"
 	}
 }
 ```
@@ -935,7 +935,7 @@ golangci-lint run ./internal/generate/ 2>/dev/null || echo "(golangci-lint not a
 grep -nE 'AddAll|StagedFileCount|"add"' internal/generate/generate.go && echo "FAIL: orchestrator stages!" || echo "OK: never stages"
 
 # Confirm generate.go imports only stdlib + the 4 internal packages (no third-party, no new internal)
-go list -deps ./internal/generate | grep 'dustin/stagehand' | sort -u
+go list -deps ./internal/generate | grep 'dustin/stagecoach' | sort -u
 # Expected: .../internal/config, .../internal/git, .../internal/generate, .../internal/prompt, .../internal/provider
 
 # Confirm exactly one `// Package generate` doc exists in the package (no duplicate-package-doc vet error)

@@ -21,8 +21,8 @@ is the post-resolution enum validation of `Format`.
 | Field type | `[]string` (list) | `string` (scalar) |
 | Merge in `overlay()` | **UNION** (append) — the one exception | **REPLACE** (non-zero wins) — the rule |
 | File source | `[generation].exclude` | `[generation].format` / `[generation].locale` |
-| Git-config key | **NONE** (deliberate) | `stagehand.format` / `stagehand.locale` |
-| Env var | **NONE** (deliberate) | `STAGEHAND_FORMAT` / `STAGEHAND_LOCALE` |
+| Git-config key | **NONE** (deliberate) | `stagecoach.format` / `stagecoach.locale` |
+| Env var | **NONE** (deliberate) | `STAGECOACH_FORMAT` / `STAGECOACH_LOCALE` |
 | Flag | `--exclude`/`-x` (repeatable StringArray) | `--format` / `--locale` (single String) |
 | Precedence sources | 2 (file + flag) | **4** (file + git + env + flag) |
 | Validation | none (raw globs) | **format**: enum hard-error; **locale**: none (verbatim) |
@@ -58,7 +58,7 @@ and `cfg.Format` keeps the `"auto"` from `Defaults()`. This mirrors `Provider`/`
 **Decision**: `validateFormat(cfg.Format)` runs ONCE at the tail of `Load()`, after every
 layer resolves and after the v3 in-memory migration, immediately before `return &cfg, nil`.
 
-**Why not per-layer**: a bad value set at a LOW layer (e.g. `stagehand.format = "emoji"` in
+**Why not per-layer**: a bad value set at a LOW layer (e.g. `stagecoach.format = "emoji"` in
 git-config) that is overridden by a HIGHER layer (`--format conventional`) is NOT an error —
 the flag wins and the bad git-config value is moot. Per-layer validation would false-positive.
 The contract is "validate the value that will actually be USED", which is the resolved value.
@@ -95,13 +95,13 @@ future task wants the list for dynamic help, export then — YAGNI now.
 
 ## 5. Git-config keys are single-word → no camelCase trap
 
-`loadGitConfig` (git.go) uses CAMELCASE for multi-word keys (`stagehand.maxDiffBytes`)
+`loadGitConfig` (git.go) uses CAMELCASE for multi-word keys (`stagecoach.maxDiffBytes`)
 because `git config` rejects underscores (`invalid key`). `format` and `locale` are
-single-word keys, identical in shape to the existing `stagehand.provider` / `stagehand.model` /
-`stagehand.output` (plain `gitConfigGet`, no `parseInt`/`gitConfigBool`). Copy the
-`stagehand.output` block exactly:
+single-word keys, identical in shape to the existing `stagecoach.provider` / `stagecoach.model` /
+`stagecoach.output` (plain `gitConfigGet`, no `parseInt`/`gitConfigBool`). Copy the
+`stagecoach.output` block exactly:
 ```go
-if v, found, err := gitConfigGet(repoDir, "stagehand.format"); err != nil {
+if v, found, err := gitConfigGet(repoDir, "stagecoach.format"); err != nil {
     return nil, err
 } else if found {
     c.Format = v
@@ -122,7 +122,7 @@ ONLY via `fs.Changed`/`fs.GetString` in `loadFlags` — never directly (same dis
 ## 7. Placement is disjoint from the in-flight P1.M1.T2.S1 and the landed P1.M1.T1.S1
 
 - **P1.M1.T2.S1** (implementing NOW, in parallel) touches `internal/git/*` (diff methods),
-  `generate.Deps`/`decompose.Deps`, `pkg/stagehand`, `cmd/stubagent`, `docs/how-it-works.md`.
+  `generate.Deps`/`decompose.Deps`, `pkg/stagecoach`, `cmd/stubagent`, `docs/how-it-works.md`.
   **THIS task touches NONE of those files** → zero merge conflict with the in-flight item.
 - **P1.M1.T1.S1** (landed) touched the SAME files as this task (`config.go`, `file.go`,
   `load.go`, `root.go`, `load_test.go`, `docs/cli.md`, `docs/configuration.md`) but DIFFERENT
@@ -137,7 +137,7 @@ ONLY via `fs.Changed`/`fs.GetString` in `loadFlags` — never directly (same dis
 - **S2 (P1.M2.T1.S2)**: the compiled-in gitmoji reference table. Do NOT add it.
 - **S3 (P1.M2.T1.S3)**: the format-mode prompt scaffolds (conventional/gitmoji/plain), the
   locale one-line append, and applying them at every message-production site. Do NOT touch
-  `internal/prompt/*`, `generate.go`, `decompose/message.go`, `pkg/stagehand` prompt calls.
+  `internal/prompt/*`, `generate.go`, `decompose/message.go`, `pkg/stagecoach` prompt calls.
 - **bootstrap.go / `config init`**: the task contract is OUTPUT = `cfg.Format`/`cfg.Locale`
   plumbing + DOCS only. FR-B1 does not list format/locale in the bootstrap. Do NOT modify
   `GenerateBootstrapConfig` or `exampleConfigTemplate` (the stale "= 2" prose is P1.M7's job).
@@ -150,8 +150,8 @@ ONLY via `fs.Changed`/`fs.GetString` in `loadFlags` — never directly (same dis
 - **docs/configuration.md**: (a) `[generation].format` / `[generation].locale` in the File
   format `[generation]` area + the commented example block; (b) two rows in **Built-in
   defaults** (`format`→`auto`, `locale`→`""`); (c) two rows in **Environment variables**
-  (`STAGEHAND_FORMAT` / `STAGEHAND_LOCALE`); (d) two rows in **Git-config keys**
-  (`stagehand.format` / `state.locale`). State the hard-error-on-unknown-format rule and the
+  (`STAGECOACH_FORMAT` / `STAGECOACH_LOCALE`); (d) two rows in **Git-config keys**
+  (`stagecoach.format` / `state.locale`). State the hard-error-on-unknown-format rule and the
   locale free-form/no-validation rule verbatim (FR-F1 / FR-F6).
 
 ## 10. Why no external-research subagent was spawned

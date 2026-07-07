@@ -47,7 +47,7 @@ So the multi-turn row should use the same `[how it works](…) · [knobs](…)` 
 
 ## Wording
 Contract suggested wording (verbatim): "Lossless multi-turn fallback: when a
-one-shot generation of a large diff fails, stagehand re-delivers the full diff
+one-shot generation of a large diff fails, stagecoach re-delivers the full diff
 across session turns so a single message still lands (no truncation, no extra
 commits)."
 
@@ -56,7 +56,7 @@ em-dash instead of parens for the trailing clause to match other rows, and the
 contract's parenthetical folded in):
 
 ```
-| Multi-turn fallback | Lossless multi-turn fallback: when a one-shot generation of a large diff fails, stagehand re-delivers the full diff across session turns so the message still lands — no truncation, no extra commits ([how it works](docs/how-it-works.md#multi-turn-generation-fallback) · [knobs](docs/configuration.md#built-in-defaults)). |
+| Multi-turn fallback | Lossless multi-turn fallback: when a one-shot generation of a large diff fails, stagecoach re-delivers the full diff across session turns so the message still lands — no truncation, no extra commits ([how it works](docs/how-it-works.md#multi-turn-generation-fallback) · [knobs](docs/configuration.md#built-in-defaults)). |
 ```
 
 This stays to ONE sentence, names zero CLI flags, and names zero config keys in

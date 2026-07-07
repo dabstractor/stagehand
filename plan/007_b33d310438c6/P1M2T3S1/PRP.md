@@ -85,7 +85,7 @@ unchanged; only `internal/git/git.go` + `internal/git/stagediff_test.go` touched
 (blob OIDs + mode) that the model cannot use. Transitively PRD §9.1 FR3h (P0 diff-capture quality).
 Also the NEXT subtasks (M3 numstat skeleton, M4 water-fill) which measure/truncate a now-index-free body.
 
-**Use Case**: A user stages changes across N files and runs stagehand. Each file's diff section currently
+**Use Case**: A user stages changes across N files and runs stagecoach. Each file's diff section currently
 includes a useless `index 600d48a..62b056e 100644` line; after FR3h those lines are gone, the payload is
 smaller and cleaner, and the byte/line cap budget goes further (the ~30 bytes/file are reclaimed).
 
@@ -588,13 +588,13 @@ go test -race ./...   # Full suite — generate/decompose/hook consume an index-
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only internal/git/ changed:
 git diff --name-only | grep -Ev '^internal/git/' && echo "UNEXPECTED file changed" || echo "only internal/git/ changed (good)"
 # Confirm buildDiffArgs/binary.go/config byte-unchanged:
 git diff --exit-code internal/git/binary.go && echo "binary.go UNCHANGED"
-# Smoke (optional): in a temp repo, stage a one-line edit; stagehand --dry-run; confirm the captured payload
+# Smoke (optional): in a temp repo, stage a one-line edit; stagecoach --dry-run; confirm the captured payload
 # has no `index <oid>..<oid> <mode>` line (FR3h end-to-end through generate).
 ```
 

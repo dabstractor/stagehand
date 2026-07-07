@@ -1,7 +1,7 @@
 # PRP — P1.M3.T1.S1: Take the `write-tree` snapshot unconditionally in dry-run (Issue 6)
 
 > **Scope discipline.** This subtask is the **surgical gate-removal** for PRD Issue 6: in
-> `pkg/stagehand.runPipeline`, `git write-tree` (`deps.Git.WriteTree`) and the
+> `pkg/stagecoach.runPipeline`, `git write-tree` (`deps.Git.WriteTree`) and the
 > `signal.SetSnapshot(treeSHA, parentSHA, "")` rescue-arming call are currently wrapped in
 > `if !dryRun { … }`, so a dry-run writes **no** snapshot object and never arms rescue. FR49 requires the
 > full `diff→snapshot→generate→…` pipeline. **S1 removes the gate** so both run for the dry-run path too
@@ -29,7 +29,7 @@ P1.M4.T4.S1 contract ("the snapshot is still taken (write-tree runs) but commit-
 skipped").
 
 **Deliverable**:
-1. One source edit in `pkg/stagehand/stagehand.go` (`runPipeline`, lines ~244-252): remove the
+1. One source edit in `pkg/stagecoach/stagecoach.go` (`runPipeline`, lines ~244-252): remove the
    `if !dryRun { … }` wrapper so `deps.Git.WriteTree(ctx)` + `signal.SetSnapshot(treeSHA, parentSHA, "")`
    run unconditionally; update the now-misleading "commit path only … DryRun skips it" comment.
 2. A docs **verification** (Mode A): confirm via `grep` that no doc under `docs/` or `README.md` claims
@@ -52,14 +52,14 @@ skipped").
 - **PRD §9.12 FR49** (verbatim): *"`--dry-run` — run the full diff→**snapshot**→generate→parse→
   duplicate-check pipeline, print the resulting message, but **do not** create the commit or move HEAD.
   Exit 0."* The "do not create the commit / move HEAD" clause is honored today; the "**snapshot**" clause
-  is not — `WriteTree` is gated behind `if !dryRun` (`stagehand.go:246`).
+  is not — `WriteTree` is gated behind `if !dryRun` (`stagecoach.go:246`).
 - **P1.M4.T4.S1 work-item contract** (referenced by the bug report): *"the snapshot is still taken
   (write-tree runs) but commit-tree/update-ref are skipped."*
 - **Decision D3** (binding, `architecture/decisions.md`): item 1 — *"Take the `WriteTree` snapshot
   unconditionally (remove the `if !dryRun` gate) and call `signal.SetSnapshot` for both paths."* (Items
   2-4 are explicitly deferred to S2/S3.)
 - **Root cause** (full trace: `architecture/seam_dryrun.md` §2(a)): in `runPipeline`, the snapshot block
-  at `stagehand.go:244-252` is the only thing that differs structurally between the two paths at the
+  at `stagecoach.go:244-252` is the only thing that differs structurally between the two paths at the
   snapshot step. Removing the gate makes dry-run create the same immutable tree object the commit path
   does, and arms the same §18.4 rescue machinery — so a Ctrl-C during a *dry-run* generation now produces
   the correct rescue guidance (tree SHA + manual recovery) instead of a bare exit 130/143.
@@ -71,7 +71,7 @@ skipped").
 
 ## What
 
-In `pkg/stagehand/stagehand.go`, function `runPipeline`, replace the gated snapshot block (lines
+In `pkg/stagecoach/stagecoach.go`, function `runPipeline`, replace the gated snapshot block (lines
 **244-252**) with an unconditional one. Concretely, today:
 
 ```go
@@ -109,7 +109,7 @@ That is the **entire** source change. Notes for the implementer:
   it is **not** an unused-variable compile error because `treeSHA` is read in the commit-path branch of
   the same function.
 - `signal.SetSnapshot` is **nil-safe** (`internal/signal/signal.go`: a no-op when no handler is installed
-  via `signal.Install`). The `pkg/stagehand` tests never install a handler, so the new call is
+  via `signal.Install`). The `pkg/stagecoach` tests never install a handler, so the new call is
   unobservable there. In the CLI it is the *intended* FR49 behavior (rescue arms for dry-run too).
 
 ### Docs (Mode A) — verify-and-skip
@@ -167,11 +167,11 @@ unaffected), the binding decision, and the verify-and-skip docs gate are all bel
 
 - file: plan/001_f1f80943ac34/bugfix/001_e92bab8b63e3/architecture/seam_dryrun.md
   why: §2(a) quotes the exact gated block; the "Start Here" / Acceptance sections name the edit site
-       (stagehand.go:244-252) and the residual risk that signal side-effects now fire in dry-run.
+       (stagecoach.go:244-252) and the residual risk that signal side-effects now fire in dry-run.
   section: "2. The DryRun code path (runPipeline) → (a) if !dryRun gates WriteTree (Issue 6)"
 
 # The edit site + the surrounding pipeline
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: runPipeline (the DryRun/SystemExtra entrypoint). The snapshot block is lines 244-252 (Step 3).
        The dry-run single-pass branch it arms into starts at ~line 277 ("---- DryRun: single pass").
   pattern: Step 3 sits between Step 2 (StagedDiff → ErrNothingToCommit) and Step 4 (buildSysPrompt).
@@ -183,7 +183,7 @@ unaffected), the binding decision, and the verify-and-skip docs gate are all bel
 # Why signal.SetSnapshot is safe to call in dry-run
 - file: internal/signal/signal.go
   why: SetSnapshot (and every package wrapper) is nil-safe — `if h := active.Load(); h != nil { … }`. No
-       handler installed (library/CLI-without-Install) ⇒ no-op. The pkg/stagehand tests never Install.
+       handler installed (library/CLI-without-Install) ⇒ no-op. The pkg/stagecoach tests never Install.
   section: "SetSnapshot arms the rescue path" + package doc comment "nil-safe no-ops when no handler"
 
 # Why WriteTree is safe/idempotent in dry-run (it just makes a dangling tree)
@@ -194,7 +194,7 @@ unaffected), the binding decision, and the verify-and-skip docs gate are all bel
   section: WriteTree doc comment (~line 209)
 
 # Regression-proof anchor: the only object-count guards are missing-provider tests (fail pre-WriteTree)
-- file: pkg/stagehand/stagehand_test.go
+- file: pkg/stagecoach/stagecoach_test.go
   why: TestGenerateCommit_MissingProviderCommand_Issue3 (+ its dryrun subtest, ~350-421) assert object
        count unchanged, BUT use a non-existent command → buildDeps pre-flight errors before runPipeline →
        WriteTree never runs → unaffected by S1. TestGenerateCommit_DryRun (~169) checks HEAD/message only
@@ -216,10 +216,10 @@ unaffected), the binding decision, and the verify-and-skip docs gate are all bel
 ### Current Codebase tree (relevant slice)
 
 ```bash
-pkg/stagehand/stagehand.go          # runPipeline — THE EDIT SITE (snapshot block L244-252)
+pkg/stagecoach/stagecoach.go          # runPipeline — THE EDIT SITE (snapshot block L244-252)
 internal/signal/signal.go           # SetSnapshot — nil-safe; called unconditionally is safe
 internal/git/git.go                 # Git.WriteTree (L209) — read-only-w.r.t.-refs; dangling tree ok
-pkg/stagehand/stagehand_test.go     # DryRun/Timeout/MissingProvider tests — regression anchors
+pkg/stagecoach/stagecoach_test.go     # DryRun/Timeout/MissingProvider tests — regression anchors
 docs/cli.md                         # --dry-run row/examples — verify-only (no skip-snapshot claim)
 docs/how-it-works.md                # no dry-run section — verify-only (no edit)
 ```
@@ -227,7 +227,7 @@ docs/how-it-works.md                # no dry-run section — verify-only (no edi
 ### Desired Codebase tree with files changed
 
 ```bash
-pkg/stagehand/stagehand.go   # MODIFIED — runPipeline Step 3: un-gate WriteTree + signal.SetSnapshot
+pkg/stagecoach/stagecoach.go   # MODIFIED — runPipeline Step 3: un-gate WriteTree + signal.SetSnapshot
 # (no new files; no other source files touched; no new tests in S1)
 ```
 
@@ -241,7 +241,7 @@ pkg/stagehand/stagehand.go   # MODIFIED — runPipeline Step 3: un-gate WriteTre
 
 // CRITICAL: signal.SetSnapshot is nil-safe, but it IS observable in the CLI (signal.Install runs in
 //   main.go). After S1, a Ctrl-C during a dry-run generation will print the §18.3 rescue block (tree SHA +
-//   manual recovery) and exit 3 — this is the INTENDED FR49 behavior, not a regression. The pkg/stagehand
+//   manual recovery) and exit 3 — this is the INTENDED FR49 behavior, not a regression. The pkg/stagecoach
 //   unit tests never Install, so they cannot observe it.
 
 // CRITICAL: A SUCCESSFUL dry-run now writes a dangling tree object. Do NOT add (or assume) any test that
@@ -259,14 +259,14 @@ pkg/stagehand/stagehand.go   # MODIFIED — runPipeline Step 3: un-gate WriteTre
 
 ### The exact edit (Task 1)
 
-In `pkg/stagehand/stagehand.go`, `runPipeline`, **replace lines 244-252** (the `// Step 3 (commit path
+In `pkg/stagecoach/stagecoach.go`, `runPipeline`, **replace lines 244-252** (the `// Step 3 (commit path
 only) …` comment + `var treeSHA string` + the `if !dryRun { … }` block) with the unconditional version
 shown in the "What" section above. No other line in the function (or file) changes.
 
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: MODIFY pkg/stagehand/stagehand.go :: runPipeline, Step 3 (snapshot)
+Task 1: MODIFY pkg/stagecoach/stagecoach.go :: runPipeline, Step 3 (snapshot)
   - REPLACE: the gated block at lines 244-252 (`var treeSHA string` + `if !dryRun { WriteTree; SetSnapshot }`)
              with the unconditional version (WriteTree + signal.SetSnapshot always run).
   - UPDATE COMMENT: the old "Step 3 (commit path only): snapshot. DryRun skips it …" is now FALSE —
@@ -306,7 +306,7 @@ Task 2: VERIFY docs (Mode A — gate, not an edit task)
 ### Integration Points
 
 ```yaml
-CODE: one block in pkg/stagehand/stagehand.go::runPipeline (no new imports, exports, or API change).
+CODE: one block in pkg/stagecoach/stagecoach.go::runPipeline (no new imports, exports, or API change).
 DATABASE/OBJECT STORE: dry-run now writes one dangling tree object (git object store) — intentional.
 CONFIG: none.
 ROUTES: none.
@@ -321,9 +321,9 @@ SIGNALS: signal.SetSnapshot now arms rescue in dry-run too (nil-safe; intended F
 
 ```bash
 go build ./...
-go vet ./pkg/stagehand/...
-gofmt -l pkg/stagehand/stagehand.go     # expect: no output
-# If gofmt lists the file, run: gofmt -w pkg/stagehand/stagehand.go
+go vet ./pkg/stagecoach/...
+gofmt -l pkg/stagecoach/stagecoach.go     # expect: no output
+# If gofmt lists the file, run: gofmt -w pkg/stagecoach/stagecoach.go
 ```
 
 ### Level 2: Existing tests (regression guard — S1 writes NO new tests)
@@ -333,13 +333,13 @@ gofmt -l pkg/stagehand/stagehand.go     # expect: no output
 go test -race ./...
 
 # Fast targeted re-run of the dry-run-relevant package:
-go test -race ./pkg/stagehand/...
+go test -race ./pkg/stagecoach/...
 # Expected: all PASS. Reasoning (why each dry-run-touching test stays green):
 #   * TestGenerateCommit_DryRun        — checks CommitSHA==""/Message/HEAD, NOT object count.
 #   * TestGenerateCommit_Timeout/dryrun — still returns bare ErrTimeout (dry-run branch unchanged).
 #   * TestGenerateCommit_MissingProviderCommand_Issue3 (+dryrun subtest) — buildDeps errors before
 #     runPipeline, so WriteTree never runs → object-count-unchanged guard still holds.
-#   * No pkg/stagehand test installs a signal handler → signal.SetSnapshot is an unobservable no-op.
+#   * No pkg/stagecoach test installs a signal handler → signal.SetSnapshot is an unobservable no-op.
 ```
 
 > **If a previously-green test now fails**: it is almost certainly an object-count assertion firing on a
@@ -351,7 +351,7 @@ go test -race ./pkg/stagehand/...
 ### Level 3: Manual / end-to-end (proves the snapshot is now taken in dry-run)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 
 TMP=$(mktemp -d) && cd "$TMP"
 git init -q && git config user.email t@e.com && git config user.name t
@@ -359,7 +359,7 @@ git commit -q --allow-empty -m init
 echo hi > a.txt && git add a.txt
 
 before=$(git count-objects -v | awk '/^count:/{print $2}')
-/tmp/stagehand --provider <an-installed-stub-or-builtin> --dry-run; echo "EXIT=$?"
+/tmp/stagecoach --provider <an-installed-stub-or-builtin> --dry-run; echo "EXIT=$?"
 after=$(git count-objects -v | awk '/^count:/{print $2}')
 
 # EXPECT: EXIT=0, a preview message printed, HEAD UNCHANGED, and `after` == `before + 1`
@@ -371,7 +371,7 @@ git rev-parse HEAD >/dev/null && echo "HEAD intact"
 
 (If you don't have a stub/built-in handy, the same proof runs at the library level against
 `GenerateCommit(ctx, Options{Provider:"stub", DryRun:true})` — assert `git count-objects` count increments
-by exactly 1 and HEAD is unchanged. See `TestGenerateCommit_DryRun` in `pkg/stagehand/stagehand_test.go`
+by exactly 1 and HEAD is unchanged. See `TestGenerateCommit_DryRun` in `pkg/stagecoach/stagecoach_test.go`
 for the repo/stub setup helpers: `setupTestRepo`, `writeFile`, `stageFile`, `headSHA`.)
 
 ### Level 4: Docs gate (verify-and-skip)
@@ -388,8 +388,8 @@ grep -rn -i "dry.run" docs/ README.md | grep -i "snapshot\|write.tree\|skip\|no.
 
 ### Technical Validation
 - [ ] `go build ./...` clean.
-- [ ] `go vet ./pkg/stagehand/...` clean (or `go vet ./...`).
-- [ ] `gofmt -l pkg/stagehand/stagehand.go` reports nothing.
+- [ ] `go vet ./pkg/stagecoach/...` clean (or `go vet ./...`).
+- [ ] `gofmt -l pkg/stagecoach/stagecoach.go` reports nothing.
 - [ ] `go test -race ./...` — all previously-green tests still PASS (no new tests added in S1).
 - [ ] Manual repro (Level 3): successful dry-run → exit 0, preview message, HEAD unchanged, and
       `git count-objects` count increases by **exactly 1** (the dangling snapshot tree).

@@ -44,7 +44,7 @@ green. Consumed unchanged by the arbiter rewrite (P1.M1.T2.S1).
 foundation primitive; no end-user-visible surface.
 
 **Use Case**: After a decompose run, the arbiter decides leftovers belong to an *earlier* commit `i`.
-Stagehand rebuilds the chain `i..N-1`: for each `j`, `tree′[j] = OverlayTreePaths(tree[j], T_start,
+Stagecoach rebuilds the chain `i..N-1`: for each `j`, `tree′[j] = OverlayTreePaths(tree[j], T_start,
 leftoverPaths)`, then `commit-tree tree′[j] -p rebuiltParent` reusing `msg[j]`. The rebuilt tip == `T_start`.
 
 **Pain Points Addressed**: Provides the one tree-folding operation that makes mid-chain arbiter resolution
@@ -123,7 +123,7 @@ error, NO 128 special-case; err != nil UNWRAPPED) — is stated with the sibling
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/git/
     ├── git.go                       # EDIT: + interface decl (after DiffTreeNames); + gitRunner.OverlayTreePaths + parseLsTree (near FreezeWorkingTree)
     └── overlaytree_test.go          # NEW: comprehensive unit tests
@@ -132,7 +132,7 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/git/
     ├── git.go                       # +OverlayTreePaths (interface + gitRunner) + parseLsTree
     └── overlaytree_test.go          # NEW (6 named cases + 4-case negative set + DoesNotTouchWorkingTree)
@@ -385,7 +385,7 @@ DOWNSTREAM HOOKS (informational — owned by LATER subtasks):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/git/git.go internal/git/overlaytree_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -396,7 +396,7 @@ go build ./...                   # Expected: exit 0 (new interface method satisf
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new primitive's comprehensive tests (real git, temp repos)
 go test -race ./internal/git/ -v -run TestOverlayTreePaths
@@ -409,7 +409,7 @@ go test -race ./internal/git/ -v -run TestOverlayTreePaths
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green (S1 adds a primitive; no caller change)
 go vet ./...                     # Expected: exit 0
@@ -423,7 +423,7 @@ git status --porcelain -- internal/
 ### Level 4: Behavioral Smoke (the freeze-safety property, direct)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # TestOverlayTreePaths_DoesNotTouchWorkingTree is the direct assertion. Cross-check the core fold property:
 # OverlayTreePaths(tree1, tStart, DiffTreeNames(tree1,tStart)) must yield a tree whose content == tStart.

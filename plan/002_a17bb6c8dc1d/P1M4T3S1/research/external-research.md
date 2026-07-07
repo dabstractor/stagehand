@@ -1,6 +1,6 @@
 # P1.M4.T3.S1 — External Research (config upgrade: TOML preservation)
 
-Stagehand uses `github.com/pelletier/go-toml/v2` (already in go.mod). The central design question for
+Stagecoach uses `github.com/pelletier/go-toml/v2` (already in go.mod). The central design question for
 `config upgrade` is whether to **round-trip through TOML** (unmarshal → mutate → marshal) or do
 **minimal textual edits**. The contract (FR-B5) decides it.
 

@@ -38,7 +38,7 @@ exhausts on a parse failure and multi-turn activates, the model should receive a
 stale retryInstr preamble from the failed one-shot attempt) so the multi-turn priming protocol works as
 designed (FR-T4). Also the contributor copying this corrected gate into runPipeline/hook (P1.M2/P1.M3).
 
-**Use Case**: A user with a large diff (TokenLimit unset) runs `stagehand`; the one-shot attempt fails to
+**Use Case**: A user with a large diff (TokenLimit unset) runs `stagecoach`; the one-shot attempt fails to
 parse (empty output); multi-turn fires. Before the fix, the multi-turn payload carried the retryInstr
 preamble ("Output ONLY the commit message. No preamble, no markdown, no quotes.") prepended to the diff,
 which conflicts with the multi-turn priming preamble ("reply with exactly: ok"). After the fix, the
@@ -119,7 +119,7 @@ substring, and the architecture doc references. The one-line fix is copy-paste-r
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/generate/
     ├── generate.go         # EDIT: line 311 (mtPayload rebuild) + comment ~L307
     └── multiturn_test.go   # EDIT: +1 test (TokenLimit==0 + parseFail mirror)
@@ -128,7 +128,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/generate/generate.go         # L311: mtPayload := prompt.BuildUserPayload(diff, ...) + comment
     internal/generate/multiturn_test.go   # +TestMultiTurnGate_TokenLimitZero_ParseFail_NoRetryInstr
@@ -140,7 +140,7 @@ stagehand/
 | `internal/generate/multiturn_test.go` | MODIFY (append 1 test) | Add a test mirroring `TestMultiTurnGate_TokenLimitTruncated_Recaptures` for TokenLimit==0 + parseFail, asserting mtPayload lacks retryInstr + multi-turn succeeds. |
 
 **Explicitly NOT touched**: `internal/generate/multiturn.go` (S1's ChunkCount — parallel),
-`internal/generate/rescue.go`/`dedupe.go` (unaffected), `pkg/stagehand/stagehand.go` (P1.M2 — runPipeline),
+`internal/generate/rescue.go`/`dedupe.go` (unaffected), `pkg/stagecoach/stagecoach.go` (P1.M2 — runPipeline),
 `internal/hook/exec.go` (P1.M3 — hook), `docs/*` (P1.M4), any other package, `PRD.md`, `tasks.json`,
 `prd_snapshot.md`, `plan/*`.
 
@@ -169,7 +169,7 @@ stagehand/
 
 // GOTCHA (G5 — observing mtPayload content in the integration test): mtPayload is a local variable inside
 // CommitStaged — not directly inspectable from tests. The test observes the multi-turn payload's content
-// via `STAGEHAND_STUB_STDINFILE` (the stub writes received stdin to that file) or via the verbose turn-
+// via `STAGECOACH_STUB_STDINFILE` (the stub writes received stdin to that file) or via the verbose turn-
 // count (the retryInstr would inflate the payload → more chunks → more turns). The implementing agent
 // should verify the observation path works; the key property is: with the fix, no multi-turn chunk
 // contains "No preamble, no markdown, no quotes."
@@ -250,7 +250,7 @@ Task 3: ADD the test to multiturn_test.go
       - ASSERT: err == nil (commit landed — multi-turn succeeded).
       - ASSERT: the mtPayload delivered to the multi-turn protocol does NOT contain the retryInstr preamble.
         Use the retryInstr-specific substring "No preamble, no markdown, no quotes." (G3 — NOT the ambiguous
-        "Output ONLY"). Observe via STAGEHAND_STUB_STDINFILE (the env var on the stub's Env map that captures
+        "Output ONLY"). Observe via STAGECOACH_STUB_STDINFILE (the env var on the stub's Env map that captures
         received stdin) or the verbose turn-count. (G5 — verify the observation path works.)
   - DO NOT: change the existing TestMultiTurnGate_* tests; use testify; change the stub binary.
 
@@ -307,7 +307,7 @@ GATE: go test -race ./internal/generate/ → GREEN
 NO-TOUCH (explicitly):
   - internal/generate/multiturn.go (S1 ChunkCount — parallel)
   - internal/generate/{rescue,dedupe}.go (unaffected)
-  - pkg/stagehand/stagehand.go (P1.M2 — runPipeline), internal/hook/exec.go (P1.M3 — hook)
+  - pkg/stagecoach/stagecoach.go (P1.M2 — runPipeline), internal/hook/exec.go (P1.M3 — hook)
   - docs/* (P1.M4); PRD.md, tasks.json, prd_snapshot.md, plan/*
 
 DOWNSTREAM HOOKS (informational):
@@ -320,7 +320,7 @@ DOWNSTREAM HOOKS (informational):
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/generate/   # Expected: empty
 go vet ./internal/generate/... # Expected: exit 0
@@ -332,7 +332,7 @@ go build ./...                 # Expected: exit 0 (one-line replacement; no sign
 ### Level 2: Unit Tests (the new + existing multi-turn gate tests)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./internal/generate/ -v -run TestMultiTurnGate
 
@@ -344,7 +344,7 @@ go test -race ./internal/generate/ -v -run TestMultiTurnGate
 ### Level 3: Whole-Repository Regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...    # Expected: ALL packages green
 go vet ./...           # Expected: exit 0
@@ -357,7 +357,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 ### Level 4: The Bug-Is-Gone Check
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # L311 is the fix (NOT `mtPayload := payload`):
 sed -n '311p' internal/generate/generate.go
@@ -388,7 +388,7 @@ go test -race ./internal/generate/ -v -run 'TestMultiTurnGate_TokenLimitZero_Par
 ### Scope Discipline Validation
 
 - [ ] ONLY `internal/generate/generate.go` + `internal/generate/multiturn_test.go` modified.
-- [ ] Did NOT edit `multiturn.go` (S1), `pkg/stagehand/` (P1.M2), `internal/hook/` (P1.M3), docs (P1.M4).
+- [ ] Did NOT edit `multiturn.go` (S1), `pkg/stagecoach/` (P1.M2), `internal/hook/` (P1.M3), docs (P1.M4).
 - [ ] Did NOT modify `PRD.md`, `tasks.json`, `prd_snapshot.md`, or anything under `plan/`.
 
 ---
@@ -407,7 +407,7 @@ go test -race ./internal/generate/ -v -run 'TestMultiTurnGate_TokenLimitZero_Par
   mtPayload, making the bug invisible. Use cfg.TokenLimit=0 to exercise the L311 path. (G6)
 - ❌ Don't forget to force parseFail (stub call 1 returns "") — without it, `payload` has no retryInstr and
   the test doesn't exercise the bug. (G7)
-- ❌ Don't edit `multiturn.go` (S1), `pkg/stagehand/` (P1.M2), `internal/hook/` (P1.M3), or docs (P1.M4).
+- ❌ Don't edit `multiturn.go` (S1), `pkg/stagecoach/` (P1.M2), `internal/hook/` (P1.M3), or docs (P1.M4).
 - ❌ Don't modify `PRD.md`, `tasks.json`, `prd_snapshot.md`, or anything under `plan/`.
 
 ---

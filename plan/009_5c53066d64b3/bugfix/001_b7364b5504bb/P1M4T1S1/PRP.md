@@ -34,7 +34,7 @@ description: |
     estimate" framing is slightly imprecise — the code shows it to everyone.)
 
   SCOPE NOTE (the "three paths" is real, design §4): all three generation loops now carry the FR-T1 gate —
-    `internal/generate/generate.go:304` (CommitStaged), `pkg/stagehand/stagehand.go:555` (runPipeline /
+    `internal/generate/generate.go:304` (CommitStaged), `pkg/stagecoach/stagecoach.go:555` (runPipeline /
     `--dry-run`), `internal/hook/exec.go:215` (hook.Run). Edit (a) covers the hook path; a one-sentence
     "runs on every generation path" note in the multi-turn intro makes the coverage explicit and
     cross-links to the hook section.
@@ -86,7 +86,7 @@ docs/how-it-works.md; `go build ./... && go test ./...` green and unchanged (no 
 
 **Target User**: The reader of `docs/how-it-works.md` (PRD §7.1 "the plan-holder", and integrators) who
 needs to know whether multi-turn helps them on THEIR path — a `git commit` via the installed hook, a
-`stagehand --dry-run`, or the snapshot `stagehand` command. Today the hook-mode section implies multi-turn
+`stagecoach --dry-run`, or the snapshot `stagecoach` command. Today the hook-mode section implies multi-turn
 is unimplemented there; after this sync the docs match the code.
 
 **Use Case**: A user with a large diff + pi configured runs `git commit` (firing the hook) and wants to
@@ -208,7 +208,7 @@ git/Go/multi-turn-internals knowledge required — the edits are self-contained 
   critical: do NOT edit generate.go. Read L340 to confirm the always-on behavior before wording edit (c).
 
 # Confirms the "three paths" claim (grounds edit (d))
-- note: "the FR-T1 gate lives at internal/generate/generate.go:304 (CommitStaged), pkg/stagehand/stagehand.go:555
+- note: "the FR-T1 gate lives at internal/generate/generate.go:304 (CommitStaged), pkg/stagecoach/stagecoach.go:555
          (runPipeline / --dry-run), and internal/hook/exec.go:215 (hook.Run). All three paths have it ⇒ edit
          (d)'s 'runs on every generation path' is accurate."
 
@@ -355,7 +355,7 @@ Task 5: VERIFY (Mode B validation)
   - Hook failure = exit 0 + untouched msg-file (FR-H5 never-block). NOT a rescue. (edit a)
   - The chunk budget is in the ALWAYS-ON progress line (generate.go:340 unconditional Fprintf), not
     verbose-only. --verbose adds per-turn detail. (edit c)
-  - "Three paths" = CommitStaged (generate.go:304) + runPipeline/dry-run (stagehand.go:555) + hook.Run
+  - "Three paths" = CommitStaged (generate.go:304) + runPipeline/dry-run (stagecoach.go:555) + hook.Run
     (exec.go:215). All three confirmed. (edit d)
 
 <!-- THE anchor slugs (GitHub markdown):
@@ -377,7 +377,7 @@ DOCS.LEFT-UNCHANGED (do NOT edit — task forbids / other-scope):
 CODE.LEFT-UNCHANGED: NO .go / test / config / go.mod / Makefile / PRD.md changes (Mode B — docs only).
 
 UPSTREAM (the changeset this docs task reflects — already built, do NOT re-do):
-  - P1.M2.T1.S2 (dry-run runPipeline gate at stagehand.go:555) + P1.M3.T1.S2 (hook gate at exec.go:215).
+  - P1.M2.T1.S2 (dry-run runPipeline gate at stagecoach.go:555) + P1.M3.T1.S2 (hook gate at exec.go:215).
   - P1.M1.T3.S1 (Issue 3: per-chunk budget in the progress line, generate.go:340).
   - P1.M1.T2.S1 (Issue 4: mtPayload rebuilt from diff ⇒ FR-T12 paragraph already accurate).
 
@@ -429,7 +429,7 @@ grep -n "WriteMessageFile\|neverBlock" internal/hook/exec.go internal/cmd/hookex
 #   2. edit (c): the progress line is UNCONDITIONAL + includes the chunk budget.
 grep -n 'falling back to multi-turn' internal/generate/generate.go   # → the unconditional Fprintf at ~L340
 #   3. edit (d): all three paths have the gate.
-grep -rn "MultiTurnFallback && " internal/generate/generate.go pkg/stagehand/stagehand.go internal/hook/exec.go
+grep -rn "MultiTurnFallback && " internal/generate/generate.go pkg/stagecoach/stagecoach.go internal/hook/exec.go
 #   4. edit (b): the FR-T12 paragraph is accurate (mtPayload from diff — Issue 4 already landed).
 grep -n "mtPayload := prompt.BuildUserPayload" internal/generate/generate.go
 # Expected: each grep confirms the code behavior the docs now describe. (No edits to code — read-only proof.)

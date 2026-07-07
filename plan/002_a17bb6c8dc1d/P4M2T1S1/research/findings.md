@@ -2,7 +2,7 @@
 
 ## Task
 Add `DecomposeOptions`, `DecomposeResult`, `RoleModel` types + `Decompose()` function to
-`pkg/stagehand/stagehand.go`. The public wrapper delegates to `internal/decompose.Decompose`.
+`pkg/stagecoach/stagecoach.go`. The public wrapper delegates to `internal/decompose.Decompose`.
 
 ## Key findings
 
@@ -26,8 +26,8 @@ Add `DecomposeOptions`, `DecomposeResult`, `RoleModel` types + `Decompose()` fun
   + `*generate.CASError` propagate DIRECTLY (errors.As-able); `*DecomposeRescueError` wraps a `*RescueError`
   field + Unwraps to it. Partial results returned with the error (FR-M12).
 
-### 2. The existing public surface to extend (`pkg/stagehand/stagehand.go`)
-- `package stagehand`, "Stable as of v1.0". Existing exports: `Options`, `Result`, `GenerateCommit`.
+### 2. The existing public surface to extend (`pkg/stagecoach/stagecoach.go`)
+- `package stagecoach`, "Stable as of v1.0". Existing exports: `Options`, `Result`, `GenerateCommit`.
 - `Options` struct has MORE fields than the PRD §14.1 original (additive-only): `Provider, Model,
   SystemExtra, DryRun, Timeout, Verbose io.Writer, VerboseOn bool, Config *config.Config`.
 - `Result{ CommitSHA, Subject, Message, Provider, Model string }`.
@@ -50,7 +50,7 @@ Add `DecomposeOptions`, `DecomposeResult`, `RoleModel` types + `Decompose()` fun
 
 ### 4. Import-cycle safety (verified)
 - `internal/decompose` imports: internal/{generate,git,prompt,signal,config,provider,ui}. It does NOT
-  import `pkg/stagehand` or `internal/cmd`. So `pkg/stagehand` → `internal/decompose` is cycle-free.
+  import `pkg/stagecoach` or `internal/cmd`. So `pkg/stagecoach` → `internal/decompose` is cycle-free.
 
 ### 5. Signal handling
 - The internal loop arms `signal.SetSnapshot`/`ClearSnapshot` per-concept (P3.M4.T1.S2) — these are
@@ -74,9 +74,9 @@ Add `DecomposeOptions`, `DecomposeResult`, `RoleModel` types + `Decompose()` fun
 
 ### 7. Coordination with parallel P4.M1.T1.S1 (CRITICAL SCOPE BOUNDARY)
 - P4.M1.T1.S1 (running in parallel) EDITS `internal/cmd/default_action.go` to call
-  `internal/decompose.Decompose` DIRECTLY (it cannot call `pkg/stagehand.Decompose` — no dependency).
+  `internal/decompose.Decompose` DIRECTLY (it cannot call `pkg/stagecoach.Decompose` — no dependency).
 - To AVOID a parallel-edit conflict, THIS task MUST NOT touch `internal/cmd/`. It adds the public API
-  to `pkg/stagehand/stagehand.go` ONLY. The CLI swap (internal/decompose.Decompose → pkg/stagehand.Decompose)
+  to `pkg/stagecoach/stagecoach.go` ONLY. The CLI swap (internal/decompose.Decompose → pkg/stagecoach.Decompose)
   is a LATER follow-up, NOT this task. The P4.M1.T1.S1 PRP explicitly acknowledges this coordination point.
 
 ### 8. deps.Out sink decision
@@ -89,5 +89,5 @@ Add `DecomposeOptions`, `DecomposeResult`, `RoleModel` types + `Decompose()` fun
 - `go build ./... && go vet ./... && go test -race ./...`
 - `golangci-lint run` (includes `unused`)
 - `gofmt -l internal/ pkg/` (must be empty)
-- `make coverage-gate` (>=85% on internal/{git,provider,generate,config}; pkg/stagehand NOT gated)
-- go.mod/go.sum UNCHANGED (no new deps — all imports already in stagehand.go except internal/decompose, already vendored).
+- `make coverage-gate` (>=85% on internal/{git,provider,generate,config}; pkg/stagecoach NOT gated)
+- go.mod/go.sum UNCHANGED (no new deps — all imports already in stagecoach.go except internal/decompose, already vendored).

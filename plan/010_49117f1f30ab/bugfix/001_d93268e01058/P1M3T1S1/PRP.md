@@ -2,7 +2,7 @@
 name: "P1.M3.T1.S1 — Add empty-message guard in generate.CommitStaged after RunCommitHooks (Issue 4: a hook that empties the message file must abort, not create an empty-message commit)"
 description: |
 
-  Bugfix for Issue 4 (Bug-Fix PRD §h2.2/h3.3; stagehand PRD §9.25 FR-V2 git parity + §9.8/§13.2 atomic-commit
+  Bugfix for Issue 4 (Bug-Fix PRD §h2.2/h3.3; stagecoach PRD §9.25 FR-V2 git parity + §9.8/§13.2 atomic-commit
   core). After `RunCommitHooks` returns, `generate.CommitStaged` reassigns `msg = fm` (the hook-adjusted
   message) and passes it straight to `CommitTree` with NO empty-message check (generate.go:426-439). A
   `prepare-commit-msg` or `commit-msg` hook that empties the message file (a common rejection / force-re-edit
@@ -43,7 +43,7 @@ description: |
 
   ⚠️ **#4 — CommitStaged ONLY (scope boundary).** Issue 4 names three call sites with the same gap:
        CommitStaged (this task), runPipeline (S2/P1.M3.T1.S2), publishCommit (S3/P1.M3.T1.S3). Fix ONLY
-       CommitStaged here; do NOT touch pkg/stagehand or internal/decompose. (verification §6)
+       CommitStaged here; do NOT touch pkg/stagecoach or internal/decompose. (verification §6)
 
   ⚠️ **#5 — No conflict with the parallel work item.** P1.M2.T1.S1 (Issue 3, no_verify git-config) touches
        docs/*, internal/cmd/root.go, internal/config/*, internal/hooks/runner.go — NOT generate.go or
@@ -82,11 +82,11 @@ byte-unchanged.
 commit (a conventional-commit lint that rejects, a "force re-edit" hook, or a buggy hook that truncates).
 Transitively: git-parity (the commit path must behave like `git commit`).
 
-**Use Case**: A `commit-msg` hook runs `> "$1"; exit 0` to reject the message. Under the bug, stagehand
-creates a commit with an empty message (invalid git state). After the fix, stagehand aborts with "empty
+**Use Case**: A `commit-msg` hook runs `> "$1"; exit 0` to reject the message. Under the bug, stagecoach
+creates a commit with an empty message (invalid git state). After the fix, stagecoach aborts with "empty
 commit message — aborted" (exit 1, no commit) — exactly what `git commit` does.
 
-**User Journey**: `stagehand` → generation produces a message → hooks run → commit-msg empties the file →
+**User Journey**: `stagecoach` → generation produces a message → hooks run → commit-msg empties the file →
 **the guard fires** → `ErrEmptyMessage` → exit 1, no commit, HEAD + index untouched.
 
 **Pain Points Addressed**: A hook that empties the message silently creates an invalid empty-message commit
@@ -96,7 +96,7 @@ explicit and git-parity.
 ## Why
 
 - **Fixes a documented Major git-parity bug (Issue 4).** The atomic-commit core must not land a bad commit
-  (§9.8/§13.2); `git commit` aborts on an empty message; stagehand diverged.
+  (§9.8/§13.2); `git commit` aborts on an empty message; stagecoach diverged.
 - **Mirrors the existing `--edit` path.** `EditMessage` already returns `ErrEmptyMessage` for an empty edited
   message; the hooks path (which runs AFTER the editor) lacked the same guard. This makes the two paths
   consistent.
@@ -136,7 +136,7 @@ ordering. No hook-runner/generate-internals knowledge required — this is a one
 
 # The bug spec (in your context as selected_prd_content)
 - file: plan/010_…/bugfix/001_d93268e01058/prd_snapshot.md (Bug-Fix PRD)
-  section: "Issue 4" (h3.3) — the exact reproduction (commit-msg `> "$1"`; git aborts exit 1; stagehand
+  section: "Issue 4" (h3.3) — the exact reproduction (commit-msg `> "$1"`; git aborts exit 1; stagecoach
            creates an empty-message commit) + the suggested fix (guard after RunCommitHooks, return ErrEmptyMessage).
   critical: the fix returns the BARE ErrEmptyMessage (exit 1), mirroring EditMessage — NOT a rescue.
 
@@ -202,7 +202,7 @@ go.mod / go.sum           # UNCHANGED (no new dep — strings + errors already i
 // CRITICAL (placement: after the hooks block, before CommitTree): the guard sits between `if deps.Hooks != nil
 // { ... }`'s closing `}` and the `parents`/`CommitTree` block. It guards the FINAL msg unconditionally. (verification §3)
 
-// GOTCHA (CommitStaged ONLY — scope): the same gap exists in runPipeline (pkg/stagehand) and publishCommit
+// GOTCHA (CommitStaged ONLY — scope): the same gap exists in runPipeline (pkg/stagecoach) and publishCommit
 // (decompose) — those are S2 (P1.M3.T1.S2) and S3 (P1.M3.T1.S3). Do NOT touch them here.
 // GOTCHA (external test package): hooks_freeze_test.go is `package generate_test` (NOT `package generate`) so it
 // can import internal/hooks. Reference the sentinel as `generate.ErrEmptyMessage`.
@@ -249,7 +249,7 @@ No new types. The guard + the test:
 
 // TestCommitStaged_CommitMsgEmptiesMessage_IsEmptyMessageAbort is the Issue-4 git-parity guard: a commit-msg
 // (or prepare-commit-msg) hook that empties the message file must NOT produce a commit. git aborts "Aborting
-// commit due to empty commit message." (exit 1); stagehand returns the BARE generate.ErrEmptyMessage (exit 1,
+// commit due to empty commit message." (exit 1); stagecoach returns the BARE generate.ErrEmptyMessage (exit 1,
 // NOT a rescue) and creates NO commit (HEAD unchanged). (PRD §9.25 FR-V2 git parity.)
 func TestCommitStaged_CommitMsgEmptiesMessage_IsEmptyMessageAbort(t *testing.T) {
 	repo := initTempRepo(t)
@@ -347,8 +347,8 @@ DOWNSTREAM: the caller (runGenerate / CLI) propagates the bare ErrEmptyMessage �
 
 FROZEN/LEAVE (do NOT edit):
   - The hooks block internals (RunCommitHooks call), CommitTree, UpdateRefCAS, signal handling.
-  - internal/hooks/*, internal/decompose/*, pkg/stagehand/*, internal/cmd/*, internal/config/*.
-  - runPipeline (pkg/stagehand) + publishCommit (decompose) — those are S2 (P1.M3.T1.S2) + S3 (P1.M3.T1.S3).
+  - internal/hooks/*, internal/decompose/*, pkg/stagecoach/*, internal/cmd/*, internal/config/*.
+  - runPipeline (pkg/stagecoach) + publishCommit (decompose) — those are S2 (P1.M3.T1.S2) + S3 (P1.M3.T1.S3).
   - PRD.md, go.mod, Makefile.
 
 NO NEW DATABASE / ROUTES / CLI / FILES / CONFIG / DOCS.

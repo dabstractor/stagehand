@@ -7,7 +7,7 @@ description: |
   terminal Ctrl-C does NOT reach it; the parent MUST forward via `syscall.Kill(-pgid, sig)`), runs the
   §18.3 rescue path if the snapshot was taken, and restores the default signal disposition right before
   the final `update-ref` (matching commit-pi's `trap - INT TERM`). The module is wired into the generate
-  flow (`generate.CommitStaged` + `pkg/stagehand.runPipeline`) and the CLI (`cmd/stagehand/main.go`).
+  flow (`generate.CommitStaged` + `pkg/stagecoach.runPipeline`) and the CLI (`cmd/stagecoach/main.go`).
 
   CONTRACT (PRD §18.4 / §18.2 / §9.10 FR45, FINDING 8):
     On SIGINT/SIGTERM:
@@ -47,8 +47,8 @@ description: |
                                               signal.ClearChild(). (+ import internal/signal.)
     EDIT internal/generate/generate.go       — SetSnapshot after WriteTree; SetCandidate in loop;
                                               RestoreDefault before UpdateRefCAS; ClearSnapshot after.
-    EDIT pkg/stagehand/stagehand.go          — identical wiring in runPipeline (commit path only).
-    EDIT cmd/stagehand/main.go               — Install handler (RescueFormat=generate.FormatRescue,
+    EDIT pkg/stagecoach/stagecoach.go          — identical wiring in runPipeline (commit path only).
+    EDIT cmd/stagecoach/main.go               — Install handler (RescueFormat=generate.FormatRescue,
                                               Out=os.Stderr); pass signal-aware ctx to cmd.Execute.
 
   SCOPE BOUNDARY (owned by siblings — do NOT implement or edit):
@@ -63,8 +63,8 @@ description: |
     - double-Ctrl-C force-exit polish (go_ecosystem_patterns §4.4) — OPTIONAL future; v1 exits on 1st signal.
 
   DEPENDENCY GRAPH (CYCLE-FREE — see research/design-decisions.md F3):
-    signal → (stdlib only). provider → signal. generate → signal. pkg/stagehand → signal + generate.
-    cmd/stagehand → signal + generate + cmd. The rescue message reaches the handler via a CALLBACK
+    signal → (stdlib only). provider → signal. generate → signal. pkg/stagecoach → signal + generate.
+    cmd/stagecoach → signal + generate + cmd. The rescue message reaches the handler via a CALLBACK
     (Options.RescueFormat, wired in main.go), so signal never imports generate (no signal↔generate cycle).
 
   Deliverable: 5 NEW files + 4 EDITS. `make build` → a real Ctrl-C during generation (post-snapshot)
@@ -72,13 +72,13 @@ description: |
   unchanged. A Ctrl-C before the snapshot exits 130. A Ctrl-C during `update-ref` (after RestoreDefault)
   uses the default disposition (NOT rescue). `go test -race ./internal/signal/ -v` green; `go test -race
   ./...` no regression; `go vet ./...` clean; `gofmt -l internal/signal/ internal/provider/
-  internal/generate/ pkg/stagehand/ cmd/stagehand/` empty.
+  internal/generate/ pkg/stagecoach/ cmd/stagecoach/` empty.
 
 ---
 
 ## Goal
 
-**Feature Goal**: Ship Stagehand's SIGINT/SIGTERM safety net (PRD §18.4 / §9.10 FR45 / FINDING 8): a
+**Feature Goal**: Ship Stagecoach's SIGINT/SIGTERM safety net (PRD §18.4 / §9.10 FR45 / FINDING 8): a
 signal-handling module that intercepts Ctrl-C / SIGTERM, forwards the signal to the running child
 agent's whole process group (so no orphaned grandchildren survive), runs the §18.3 rescue protocol if
 the snapshot was taken (print TREE_SHA + manual recovery command, exit 3), or exits cleanly (130)
@@ -100,13 +100,13 @@ pre-snapshot, and restores the default signal disposition immediately before the
    real binary, hang a stub agent, send SIGINT, assert exit 3 + rescue printed + child killed + HEAD
    unchanged.
 6. EDIT `internal/provider/executor.go` — after `cmd.Start`: `signal.RegisterChild(cmd.Process.Pid)`;
-   `defer signal.ClearChild()`. (+ `import "github.com/dustin/stagehand/internal/signal"`.)
+   `defer signal.ClearChild()`. (+ `import "github.com/dustin/stagecoach/internal/signal"`.)
 7. EDIT `internal/generate/generate.go` — after `WriteTree`: `signal.SetSnapshot(treeSHA, parentSHA, "")`;
    in the generate loop after each parsed `m`: `signal.SetCandidate(m)`; right before `UpdateRefCAS`:
    `signal.RestoreDefault()`; after success (before return): `signal.ClearSnapshot()`.
-8. EDIT `pkg/stagehand/stagehand.go` — identical wiring in `runPipeline` (the commit path, i.e. the
+8. EDIT `pkg/stagecoach/stagecoach.go` — identical wiring in `runPipeline` (the commit path, i.e. the
    `!dryRun` branch that does `WriteTree`); the DryRun branch is UNCHANGED (no snapshot).
-9. EDIT `cmd/stagehand/main.go` — replace `context.Background()` with `signal.Install(ctx, …)`,
+9. EDIT `cmd/stagecoach/main.go` — replace `context.Background()` with `signal.Install(ctx, …)`,
    `Options{RescueFormat: generate.FormatRescue, Out: os.Stderr}`; pass the returned ctx to
    `cmd.Execute`.
 
@@ -121,15 +121,15 @@ Ctrl-C BEFORE the snapshot exits 130 and prints no rescue. Pressing Ctrl-C durin
 
 ## User Persona
 
-**Target User**: The Stagehand CLI user (PRD §7 "the plan-holder") who kicks off a generation that may
+**Target User**: The Stagecoach CLI user (PRD §7 "the plan-holder") who kicks off a generation that may
 take tens of seconds and legitimately needs to abort it (wrong provider, wrong staged files, changed
 their mind) WITHOUT losing their staged work or leaving an orphaned agent process running in the
 background.
 
-**Use Case**: `git add -A && stagehand` → realize mid-generation you staged the wrong thing → press
+**Use Case**: `git add -A && stagecoach` → realize mid-generation you staged the wrong thing → press
 Ctrl-C → get a clean rescue message + the exact manual-recovery command, exit 3, repo untouched.
 
-**User Journey**: user runs stagehand → generation starts (agent subprocess) → user presses Ctrl-C →
+**User Journey**: user runs stagecoach → generation starts (agent subprocess) → user presses Ctrl-C →
 agent is killed (no lingering process) → user sees the §18.3 rescue block with their `TREE_SHA` → user
 re-stages correctly and re-runs (or uses the printed `git commit-tree` command to commit the snapshot
 manually).
@@ -152,7 +152,7 @@ at the very last instant looking like a failure — solved by `RestoreDefault` b
 - **Reuses frozen upstream (zero new domain logic).** `FormatRescue` (P1.M3.T3.S1) assembles the exact
   message; the executor's `cmd.Cancel`/`WaitDelay` (P1.M2.T5.S2) already kill the group on ctx-cancel.
   This task wires them together + adds the intercept/forward/restore glue.
-- **Library-safe (D4).** `signal` is opt-in (`Install`). A `pkg/stagehand` consumer who never installs
+- **Library-safe (D4).** `signal` is opt-in (`Install`). A `pkg/stagecoach` consumer who never installs
   it gets baseline behavior (their own ctx/signals; `cmd.Cancel` still kills the group). No behavior
   change for library use.
 
@@ -167,12 +167,12 @@ A new `internal/signal` package exposing:
 - `KillProcessGroup(pid int, sig os.Signal) error` + `exitCodeForSignal(sig os.Signal) int` — build-tag files (Unix `syscall.Kill(-pid, sig)` / Windows `GenerateConsoleCtrlEvent`).
 
 Wiring (4 edits): `provider.Execute` registers/clears the child PID; `generate.CommitStaged` and
-`pkg/stagehand.runPipeline` register/update/clear the snapshot + `RestoreDefault` before `update-ref`;
+`pkg/stagecoach.runPipeline` register/update/clear the snapshot + `RestoreDefault` before `update-ref`;
 `main.go` installs the handler and passes the signal-aware ctx.
 
 ### Success Criteria
 
-- [ ] `internal/signal/signal.go` exists, `package signal`, stdlib-only imports (+ no stagehand imports).
+- [ ] `internal/signal/signal.go` exists, `package signal`, stdlib-only imports (+ no stagecoach imports).
 - [ ] `Install` returns a ctx that is cancelled when SIGINT/SIGTERM is delivered; `Active()` returns the
       handler; the package wrappers are nil-safe when no handler is installed.
 - [ ] The handler goroutine, on signal, forwards to the registered child PID's group (via the injectable
@@ -185,7 +185,7 @@ Wiring (4 edits): `provider.Execute` registers/clears the child PID; `generate.C
 - [ ] `generate.CommitStaged` calls `signal.SetSnapshot` after `WriteTree`, `signal.SetCandidate` after
       each parsed message, `signal.RestoreDefault` immediately before `UpdateRefCAS`, `signal.ClearSnapshot`
       before returning success. (Rescue/CAS/error return paths UNCHANGED.)
-- [ ] `pkg/stagehand.runPipeline` gets the identical wiring on its commit (`!dryRun`) branch; DryRun
+- [ ] `pkg/stagecoach.runPipeline` gets the identical wiring on its commit (`!dryRun`) branch; DryRun
       branch UNCHANGED.
 - [ ] `main.go` installs the handler with `RescueFormat: generate.FormatRescue`, `Out: os.Stderr`, and
       passes the signal-aware ctx to `cmd.Execute`. main.go's version plumbing + error-print/exit logic
@@ -315,7 +315,7 @@ and the test conventions to mirror (`stubtest.Build`, `generate_test.go`'s `init
        skips WriteTree). do NOT change the RescueError/CASError construction. RestoreDefault must be BEFORE
        UpdateRefCAS, not after (the §18.4 "before commit" semantics).
 
-- file: pkg/stagehand/stagehand.go   (P1.M3.T5.S1 — runPipeline; S1 EDITS this additively)
+- file: pkg/stagecoach/stagecoach.go   (P1.M3.T5.S1 — runPipeline; S1 EDITS this additively)
   section: `func runPipeline(ctx, deps, cfg, systemExtra string, dryRun bool) (Result, error)` — mirrors
        CommitStaged for DryRun/SystemExtra. The commit path (`!dryRun`) does WriteTree + the loop +
        CommitTree + UpdateRefCAS. Apply the SAME 4 edit points as CommitStaged (SetSnapshot after WriteTree;
@@ -326,7 +326,7 @@ and the test conventions to mirror (`stubtest.Build`, `generate_test.go`'s `init
   gotcha: runPipeline's loop already updates `candidate` — add `signal.SetCandidate(m)` next to where
        `candidate = m` is set. Do NOT wire the DryRun early-return branch.
 
-- file: cmd/stagehand/main.go   (P1.M4.T1.S1 — main; S1 EDITS this)
+- file: cmd/stagecoach/main.go   (P1.M4.T1.S1 — main; S1 EDITS this)
   section: `func main()` — currently `err := cmd.Execute(context.Background())`. The comment on `var
        version`/context says "P1.M4.T2 will replace context.Background() with a signal-aware context."
   why: THIS is the install point. Replace with:
@@ -347,7 +347,7 @@ and the test conventions to mirror (`stubtest.Build`, `generate_test.go`'s `init
        stage a file) via git CLI calls on a t.TempDir(), and uses `stubtest.Build(t)` for the hanging stub
        (SleepMS: 30000). Read this file to copy the exact setup recipe + the timeout test's assertions.
   pattern: for the integration test, replicate initRepo/commitRaw/writeFile/stageFile as local helpers
-       using `exec.Command("git", "-C", repo, …)`; build stagehand via `sync.Once` like stubtest.Build.
+       using `exec.Command("git", "-C", repo, …)`; build stagecoach via `sync.Once` like stubtest.Build.
 
 - url: https://pkg.go.dev/os/signal   (stdlib — signal.Notify, signal.Stop, signal.Reset)
   section: "Notify", "Stop", "NotifyContext". os.Interrupt == SIGINT (cross-platform). syscall.SIGTERM is
@@ -364,8 +364,8 @@ and the test conventions to mirror (`stubtest.Build`, `generate_test.go`'s `init
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                              # module github.com/dustin/stagehand ; go 1.22 (atomic.Pointer ✓) ; UNCHANGED
-cmd/stagehand/main.go               # P1.M4.T1.S1 — os.Exit(exitcode.For(cmd.Execute(context.Background())))  (S1 EDITS: Install + signal-aware ctx)
+go.mod                              # module github.com/dustin/stagecoach ; go 1.22 (atomic.Pointer ✓) ; UNCHANGED
+cmd/stagecoach/main.go               # P1.M4.T1.S1 — os.Exit(exitcode.For(cmd.Execute(context.Background())))  (S1 EDITS: Install + signal-aware ctx)
 internal/
   provider/executor.go              # P1.M2.T5.S1 — Execute (cmd.Start/Wait)  (S1 EDITS: +RegisterChild/ClearChild)
   provider/procgroup_unix.go        # P1.M2.T5.S2 — setupProcessGroup (Setpgid+cmd.Cancel+WaitDelay)  (UNCHANGED — frozen)
@@ -376,7 +376,7 @@ internal/
   stubtest/stubtest.go              # P1.M3.T4.S1 — Build(t) stubagent + Manifest(Options{SleepMS})  (READ; reuse)
   cmd/{root,config,providers,default_action}.go  # P1.M4.T1 siblings  (UNCHANGED — parallel; do NOT touch)
   exitcode/exitcode.go              # P1.M4.T1.S1 — For/New/ExitError  (UNCHANGED — handler bypasses it via os.Exit)
-pkg/stagehand/stagehand.go          # P1.M3.T5.S1 — GenerateCommit + runPipeline  (S1 EDITS: runPipeline commit-path wiring)
+pkg/stagecoach/stagecoach.go          # P1.M3.T5.S1 — GenerateCommit + runPipeline  (S1 EDITS: runPipeline commit-path wiring)
 Makefile                            # build/test(-race)/coverage/lint/clean  (UNCHANGED)
 ```
 
@@ -390,8 +390,8 @@ internal/signal/signal_test.go             # NEW — in-process unit tests (inje
 internal/signal/signal_integration_test.go # NEW — //go:build !windows: subprocess SIGINT→rescue→exit 3.
 internal/provider/executor.go              # EDIT — +signal.RegisterChild(pid) / defer signal.ClearChild() (+ import).
 internal/generate/generate.go              # EDIT — +SetSnapshot/SetCandidate/RestoreDefault/ClearSnapshot in CommitStaged.
-pkg/stagehand/stagehand.go                 # EDIT — identical wiring in runPipeline (commit path only).
-cmd/stagehand/main.go                      # EDIT — Install handler + signal-aware ctx (+ imports).
+pkg/stagecoach/stagecoach.go                 # EDIT — identical wiring in runPipeline (commit path only).
+cmd/stagecoach/main.go                      # EDIT — Install handler + signal-aware ctx (+ imports).
 # All other files UNCHANGED. root.go/config.go/providers.go/default_action.go UNCHANGED.
 # procgroup_*.go / rescue.go / exitcode.go UNCHANGED (frozen / consumed-only).
 ```
@@ -402,11 +402,11 @@ cmd/stagehand/main.go                      # EDIT — Install handler + signal-a
 // CRITICAL (the signal↔generate cycle, F3): signal MUST NOT import internal/generate. FormatRescue lives
 // in generate, but generate calls signal.SetSnapshot (generate→signal). If signal also imported generate
 // (for FormatRescue) that's a cycle. FIX: pass FormatRescue to the handler as Options.RescueFormat — a
-// func value — wired in main.go (which imports both). signal stays stdlib-only (no stagehand imports).
+// func value — wired in main.go (which imports both). signal stays stdlib-only (no stagecoach imports).
 
 // CRITICAL (the child does NOT receive terminal Ctrl-C, FINDING 8 / go_ecosystem_patterns §3.5): because
 // the executor sets SysProcAttr.Setpgid=true, the child is in its OWN process group. The terminal sends
-// SIGINT to STAGEHAND's process group only — the child never sees it. Stagehand MUST forward via
+// SIGINT to STAGECOACH's process group only — the child never sees it. Stagecoach MUST forward via
 // syscall.Kill(-pid, sig) (Unix) / GenerateConsoleCtrlEvent (Windows). Cancelling the ctx ALSO works (the
 // executor's cmd.Cancel does exactly this Kill), but we forward directly too for immediacy + contract.
 
@@ -441,7 +441,7 @@ cmd/stagehand/main.go                      # EDIT — Install handler + signal-a
 
 // GOTCHA (singleton + atomic.Pointer): `var active atomic.Pointer[Handler]` (Go 1.19+; we're 1.22). Load/
 // Store are atomic. The nil-safe wrappers do `if h := active.Load(); h != nil { h.method(...) }`. When no
-// handler is installed (library use of pkg/stagehand), every wrapper is a no-op — Execute/CommitStaged call
+// handler is installed (library use of pkg/stagecoach), every wrapper is a no-op — Execute/CommitStaged call
 // them unconditionally with no call-site nil-check.
 
 // GOTCHA (do NOT change the executor's error contract): Execute returns ctx.Err() FIRST on Wait failure
@@ -455,7 +455,7 @@ cmd/stagehand/main.go                      # EDIT — Install handler + signal-a
 // Windows — only SIGINT (Ctrl-C) does. This is expected; do NOT add build tags to the Notify line.
 
 // GOTCHA (provider→signal import is one-way and fine): Execute importing internal/signal for
-// RegisterChild/ClearChild does NOT create a cycle (signal imports no stagehand package). procgroup_*.go is
+// RegisterChild/ClearChild does NOT create a cycle (signal imports no stagecoach package). procgroup_*.go is
 // NOT changed (its cmd.Cancel stays inline syscall.Kill — frozen). The kill one-liner is intentionally
 // duplicated across the ctx-cancel path (executor) and the signal-forward path (handler); both idempotent.
 ```
@@ -515,7 +515,7 @@ type Handler struct {
 }
 
 // active is the process-global singleton (signals are process-global — see F4). nil when no handler is
-// installed (library use of pkg/stagehand); all package wrappers are nil-safe then.
+// installed (library use of pkg/stagecoach); all package wrappers are nil-safe then.
 var active atomic.Pointer[Handler]
 
 // Install sets up SIGINT/SIGTERM interception and returns a context cancelled on signal. Stores the
@@ -716,7 +716,7 @@ func exitCodeForSignal(sig os.Signal) int {
 ```go
 // internal/provider/executor.go   (EDIT — additive; the ONLY change to Execute)
 // … existing imports …
-import "github.com/dustin/stagehand/internal/signal"
+import "github.com/dustin/stagecoach/internal/signal"
 // …
 
 func Execute(ctx context.Context, spec CmdSpec, timeout time.Duration) (stdout string, stderr string, err error) {
@@ -733,7 +733,7 @@ func Execute(ctx context.Context, spec CmdSpec, timeout time.Duration) (stdout s
 ```go
 // internal/generate/generate.go   (EDIT — 4 additive call sites in CommitStaged)
 // … existing imports …
-import "github.com/dustin/stagehand/internal/signal"
+import "github.com/dustin/stagecoach/internal/signal"
 // …
 func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, error) {
 	// … steps 1–2 …
@@ -766,16 +766,16 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 ```
 
 ```go
-// cmd/stagehand/main.go   (EDIT — install the handler)
+// cmd/stagecoach/main.go   (EDIT — install the handler)
 import (
 	"context"
 	"fmt"
 	"os"
 
-	"github.com/dustin/stagehand/internal/cmd"
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/generate"
-	"github.com/dustin/stagehand/internal/signal"
+	"github.com/dustin/stagecoach/internal/cmd"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dustin/stagecoach/internal/signal"
 )
 
 func main() {
@@ -787,7 +787,7 @@ func main() {
 	err := cmd.Execute(ctx)
 	code := exitcode.For(err)
 	if err != nil && err.Error() != "" {
-		fmt.Fprintf(os.Stderr, "stagehand: %v\n", err)
+		fmt.Fprintf(os.Stderr, "stagecoach: %v\n", err)
 	}
 	os.Exit(code)
 }
@@ -798,12 +798,12 @@ func main() {
 ```yaml
 Task 1: CREATE internal/signal/signal.go (Handler + Install/Active + wrappers + goroutine)
   - FILE: NEW internal/signal/signal.go. PACKAGE: `package signal`. Follow "Data models" skeleton.
-  - IMPORTS (stdlib ONLY — no stagehand): context, fmt, io, os, os/signal, sync, sync/atomic, syscall.
+  - IMPORTS (stdlib ONLY — no stagecoach): context, fmt, io, os, os/signal, sync, sync/atomic, syscall.
   - DEFINE: type Options (RescueFormat/Out/Kill/Exit); type Handler (opts/ch/cancel/childPID atomic.Int64/
       mu+snap fields/stopped atomic.Bool); var active atomic.Pointer[Handler]; func Install(parent, opts)
       (ctx, *Handler); func Active() *Handler; func (h *Handler) run(); the nil-safe wrappers
       RegisterChild/ClearChild/SetSnapshot/SetCandidate/ClearSnapshot/RestoreDefault.
-  - GOTCHA: signal imports NO stagehand package (F3). RescueFormat is a callback. Kill defaults to
+  - GOTCHA: signal imports NO stagecoach package (F3). RescueFormat is a callback. Kill defaults to
       KillProcessGroup (defined in the build-tag files Task 2/3 — same package, always compiled).
   - GOTCHA: signal.Notify(h.ch, os.Interrupt, syscall.SIGTERM) — NO build tag (compiles on Windows; the
       SIGTERM branch just never fires there). Buffered channel (size 1).
@@ -863,10 +863,10 @@ Task 4: CREATE internal/signal/signal_test.go (in-process unit tests)
 Task 5: CREATE internal/signal/signal_integration_test.go (//go:build !windows — real subprocess)
   - FILE: NEW. PACKAGE signal. BUILD TAG: `//go:build !windows`. Skips short: `if testing.Short()
       { t.Skip(…) }`.
-  - GOAL: drive the REAL stagehand binary as a subprocess, send SIGINT mid-generation, assert exit 3 +
+  - GOAL: drive the REAL stagecoach binary as a subprocess, send SIGINT mid-generation, assert exit 3 +
       rescue printed + child killed + HEAD unchanged. (The os.Exit path can ONLY be tested this way — F5.)
-  - BUILD: cache the stagehand binary via sync.Once (mirror stubtest.Build): `exec.Command("go","build",
-      "-o", bin, "./cmd/stagehand")`. Build the stub via stubtest.Build(t).
+  - BUILD: cache the stagecoach binary via sync.Once (mirror stubtest.Build): `exec.Command("go","build",
+      "-o", bin, "./cmd/stagecoach")`. Build the stub via stubtest.Build(t).
   - SETUP (replicate generate_test.go's initRepo recipe via git CLI on t.TempDir()):
       git init; git config user.email/name; commit an initial file; write+`git add` a second file (so
       WriteTree produces a non-empty treeSHA). Write a config TOML to a temp path:
@@ -876,9 +876,9 @@ Task 5: CREATE internal/signal/signal_integration_test.go (//go:build !windows �
         command = "<stubpath>"   # the stubagent binary from stubtest.Build
         prompt_delivery = "stdin"
         output = "raw"
-  - ENV for the stagehand subprocess: os.Environ() + "STAGEHAND_STUB_SLEEP_MS=30000" (stub hangs after
+  - ENV for the stagecoach subprocess: os.Environ() + "STAGECOACH_STUB_SLEEP_MS=30000" (stub hangs after
       draining stdin) + HOME/XDG isolated to a temp dir (so no real global config interferes) +
-      "GIT_CONFIG_NOSYSTEM=1". (The stub inherits STAGEHAND_STUB_SLEEP_MS because the manifest has no Env
+      "GIT_CONFIG_NOSYSTEM=1". (The stub inherits STAGECOACH_STUB_SLEEP_MS because the manifest has no Env
       override → cmd.Env is nil → child inherits parent env. Verify by reading executor.go.)
   - RUN: cmd := exec.Command(bin, "--config", cfgPath); cmd.Dir = repo; cmd.Env = …; capture
       stdout/stderr via pipes (or CombinedOutput). cmd.Start().
@@ -897,7 +897,7 @@ Task 5: CREATE internal/signal/signal_integration_test.go (//go:build !windows �
       sleep or add child-PID detection.
 
 Task 6: EDIT internal/provider/executor.go (register/clear child PID)
-  - FILE: internal/provider/executor.go. ADD import "github.com/dustin/stagehand/internal/signal".
+  - FILE: internal/provider/executor.go. ADD import "github.com/dustin/stagecoach/internal/signal".
   - INSERT (2 lines) immediately after the `if err := cmd.Start(); err != nil { … }` block, before
       `if werr := cmd.Wait(); werr != nil`:
         signal.RegisterChild(cmd.Process.Pid)
@@ -908,7 +908,7 @@ Task 6: EDIT internal/provider/executor.go (register/clear child PID)
       lines + import.
 
 Task 7: EDIT internal/generate/generate.go (CommitStaged wiring — 4 call sites)
-  - FILE: internal/generate/generate.go. ADD import "github.com/dustin/stagehand/internal/signal".
+  - FILE: internal/generate/generate.go. ADD import "github.com/dustin/stagecoach/internal/signal".
   - 4 ADDITIVE call sites in CommitStaged (see skeleton): (a) signal.SetSnapshot(treeSHA, parentSHA, "")
       right after WriteTree succeeds; (b) signal.SetCandidate(m) after a successful ParseOutput (before
       ExtractSubject); (c) signal.RestoreDefault() on its own line immediately before UpdateRefCAS; (d)
@@ -916,16 +916,16 @@ Task 7: EDIT internal/generate/generate.go (CommitStaged wiring — 4 call sites
   - GOTCHA: RestoreDefault BEFORE UpdateRefCAS (not after). Do NOT wire DryRun (CommitStaged has none).
       Do NOT change RescueError/CASError construction. `git diff` shows ONLY the 4 lines + import.
 
-Task 8: EDIT pkg/stagehand/stagehand.go (runPipeline wiring — commit path only)
-  - FILE: pkg/stagehand/stagehand.go. ADD import "github.com/dustin/stagehand/internal/signal".
+Task 8: EDIT pkg/stagecoach/stagecoach.go (runPipeline wiring — commit path only)
+  - FILE: pkg/stagecoach/stagecoach.go. ADD import "github.com/dustin/stagecoach/internal/signal".
   - Apply the SAME 4 call sites in runPipeline's commit path (the `!dryRun` branch that does WriteTree +
       loop + CommitTree + UpdateRefCAS): SetSnapshot after WriteTree; SetCandidate in the loop (next to
       `candidate = m`); RestoreDefault before UpdateRefCAS; ClearSnapshot before success return.
   - GOTCHA: the DryRun early-return branch is UNCHANGED (no WriteTree → no snapshot). runPipeline mirrors
       CommitStaged — the wiring is identical. `git diff` shows ONLY the 4 lines + import.
 
-Task 9: EDIT cmd/stagehand/main.go (install handler + signal-aware ctx)
-  - FILE: cmd/stagehand/main.go. ADD imports internal/signal + internal/generate.
+Task 9: EDIT cmd/stagecoach/main.go (install handler + signal-aware ctx)
+  - FILE: cmd/stagecoach/main.go. ADD imports internal/signal + internal/generate.
   - REPLACE `err := cmd.Execute(context.Background())` with:
         ctx, _ := signal.Install(context.Background(), signal.Options{
             RescueFormat: generate.FormatRescue,
@@ -937,15 +937,15 @@ Task 9: EDIT cmd/stagehand/main.go (install handler + signal-aware ctx)
       wrappers are all that's needed). `git diff` shows ONLY the Install block + imports.
 
 Task 10: VALIDATE (run all gates; fix before declaring done)
-  - `make build` → ./bin/stagehand exists.
+  - `make build` → ./bin/stagecoach exists.
   - `go test -race ./internal/signal/ -v` → green (unit + integration). The integration test exits 3 from
       the subprocess (expected); the test asserts it.
   - `go test -race ./...` → green (NO regression — provider/generate/pkg tests unaffected by the additive
       signal calls; they don't Install a handler so the wrappers are no-ops).
   - `GOOS=windows go vet ./internal/signal/` → clean (verifies the Windows build file compiles).
-  - `go vet ./...` clean; `gofmt -l internal/signal/ internal/provider/ internal/generate/ pkg/stagehand/
-      cmd/stagehand/` empty.
-  - `git status` shows: 5 new internal/signal/* + modified executor.go/generate.go/stagehand.go/main.go.
+  - `go vet ./...` clean; `gofmt -l internal/signal/ internal/provider/ internal/generate/ pkg/stagecoach/
+      cmd/stagecoach/` empty.
+  - `git status` shows: 5 new internal/signal/* + modified executor.go/generate.go/stagecoach.go/main.go.
       Verify UNCHANGED: `git diff internal/cmd/root.go internal/cmd/config.go internal/cmd/providers.go
       internal/cmd/default_action.go internal/provider/procgroup_unix.go internal/provider/procgroup_windows.go
       internal/generate/rescue.go internal/exitcode/exitcode.go` = ALL empty.
@@ -991,7 +991,7 @@ Task 10: VALIDATE (run all gates; fix before declaring done)
 CONTEXT (main.go → root.go → Execute → CommitStaged → Execute — ALREADY flows, no new plumbing):
   - flow: "main.go calls signal.Install(parentCtx) → returns signalAwareCtx → cmd.Execute(ctx) →
     rootCmd.SetContext(ctx) (root.go line 112, UNCHANGED) → PersistentPreRunE/cmd.Context() →
-    default_action.runDefault reads cmd.Context() → stagehand.GenerateCommit(ctx,…) → CommitStaged(ctx,…)
+    default_action.runDefault reads cmd.Context() → stagecoach.GenerateCommit(ctx,…) → CommitStaged(ctx,…)
     → provider.Execute(ctx,…). The handler's cancel() cancels THIS ctx everywhere. No new ctx plumbing."
 
 CHILD.PID (provider.Execute → signal.RegisterChild):
@@ -1029,8 +1029,8 @@ EXIT.CODES (handler bypasses exitcode.For):
 
 ```bash
 # After each file — fix before proceeding
-gofmt -w internal/signal/ internal/provider/executor.go internal/generate/generate.go pkg/stagehand/stagehand.go cmd/stagehand/main.go
-go vet ./internal/signal/ ./internal/provider/ ./internal/generate/ ./pkg/stagehand/ ./cmd/stagehand/
+gofmt -w internal/signal/ internal/provider/executor.go internal/generate/generate.go pkg/stagecoach/stagecoach.go cmd/stagecoach/main.go
+go vet ./internal/signal/ ./internal/provider/ ./internal/generate/ ./pkg/stagecoach/ ./cmd/stagecoach/
 
 # Cross-platform compile check (no Windows host needed)
 GOOS=windows go vet ./internal/signal/      # verifies signal_windows.go + the !windows-tagged parts exclude correctly
@@ -1060,7 +1060,7 @@ go test -race ./internal/signal/ -v
 # so the wrappers are no-ops — these must stay green unchanged)
 go test -race ./internal/provider/ -v
 go test -race ./internal/generate/ -v
-go test -race ./pkg/stagehand/ -v
+go test -race ./pkg/stagecoach/ -v
 go test -race ./internal/cmd/ -v
 
 # Expected: All green. If a dependent-package test regressed, the signal calls were placed wrong
@@ -1086,10 +1086,10 @@ cat > /usr/local/bin/fakeagent 2>/dev/null <<'EOF'   # or any dir on $PATH; or u
 cat > /dev/null   # drain the prompt (the executor pipes stdin)
 sleep 3600        # hang — simulates a slow/stuck agent
 EOF
-# (better: use cmd/stubagent with STAGEHAND_STUB_SLEEP_MS=3600000)
+# (better: use cmd/stubagent with STAGECOACH_STUB_SLEEP_MS=3600000)
 
-# Configure stagehand to use it, then run in the FOREGROUND and press Ctrl-C mid-generation:
-cat > .stagehand.toml <<EOF
+# Configure stagecoach to use it, then run in the FOREGROUND and press Ctrl-C mid-generation:
+cat > .stagecoach.toml <<EOF
 [defaults]
 provider = "stub"
 [provider.stub]
@@ -1097,7 +1097,7 @@ command = "$(command -v stubagent || echo /path/to/stubagent)"
 prompt_delivery = "stdin"
 output = "raw"
 EOF
-STAGEHAND_STUB_SLEEP_MS=3600000 ./bin/stagehand --config .stagehand.toml &
+STAGECOACH_STUB_SLEEP_MS=3600000 ./bin/stagecoach --config .stagecoach.toml &
 SP=$!
 sleep 1              # let the snapshot be taken + the agent start
 kill -INT $SP        # ← simulate Ctrl-C
@@ -1132,14 +1132,14 @@ pgrep -P $SP stubagent && echo "ORPHAN SURVIVED (BUG)" || echo "no orphans (corr
 # Race-detector confidence (the handler goroutine + main goroutine share childPID/snap via atomics+mutex)
 go test -race -count=3 ./internal/signal/    # run 3× to shake out goroutine races
 
-# Library-use regression (pkg/stagehand with NO handler installed — wrappers must be no-ops)
-go test -race ./pkg/stagehand/ -v            # existing tests must pass UNCHANGED (no Install in them)
+# Library-use regression (pkg/stagecoach with NO handler installed — wrappers must be no-ops)
+go test -race ./pkg/stagecoach/ -v            # existing tests must pass UNCHANGED (no Install in them)
 
 # Windows compile + vet (no Windows host needed — cross-vet)
 GOOS=windows GOARCH=amd64 go vet ./...
 GOOS=windows GOARCH=arm64 go vet ./...
 
-# Expected: no orphans; -race clean across 3 runs; pkg/stagehand green unchanged; Windows vet clean.
+# Expected: no orphans; -race clean across 3 runs; pkg/stagecoach green unchanged; Windows vet clean.
 ```
 
 ## Final Validation Checklist
@@ -1150,7 +1150,7 @@ GOOS=windows GOARCH=arm64 go vet ./...
 - [ ] `go test -race ./internal/signal/ -v` green (unit + integration).
 - [ ] `go test -race ./...` green (NO regression in provider/generate/pkg/cmd).
 - [ ] `go vet ./...` clean; `GOOS=windows go vet ./internal/signal/` clean.
-- [ ] `gofmt -l internal/signal/ internal/provider/ internal/generate/ pkg/stagehand/ cmd/stagehand/` empty.
+- [ ] `gofmt -l internal/signal/ internal/provider/ internal/generate/ pkg/stagecoach/ cmd/stagecoach/` empty.
 - [ ] Only the 9 listed files changed (`git status`); root.go/config.go/providers.go/default_action.go/
       procgroup_*.go/rescue.go/exitcode.go UNCHANGED (`git diff` empty for each).
 
@@ -1162,13 +1162,13 @@ GOOS=windows GOARCH=arm64 go vet ./...
 - [ ] Ctrl-C during/after `update-ref` (post-RestoreDefault) uses the default disposition (no rescue).
 - [ ] The rescue message's Tree ID is a real git tree object (`git cat-file -t` → "tree").
 - [ ] The candidate note appears in the rescue when a message was parsed before the signal (SetCandidate).
-- [ ] Library use of `pkg/stagehand` WITHOUT `signal.Install` is unchanged (wrappers are no-ops;
-      `go test ./pkg/stagehand/` green).
+- [ ] Library use of `pkg/stagecoach` WITHOUT `signal.Install` is unchanged (wrappers are no-ops;
+      `go test ./pkg/stagecoach/` green).
 - [ ] Windows builds + vets clean (KillProcessGroup via GenerateConsoleCtrlEvent).
 
 ### Code Quality Validation
 
-- [ ] `internal/signal` imports NO stagehand package (stdlib-only + the build-tag syscall files).
+- [ ] `internal/signal` imports NO stagecoach package (stdlib-only + the build-tag syscall files).
 - [ ] The rescue reaches the handler via the `Options.RescueFormat` callback (no signal→generate import).
 - [ ] Injectable seams (`Kill`/`Exit`/`Out`/`RescueFormat`) enable in-process unit tests (no real os.Exit).
 - [ ] The singleton (`atomic.Pointer[Handler]`) is reset in test t.Cleanup (no -race poisoning).

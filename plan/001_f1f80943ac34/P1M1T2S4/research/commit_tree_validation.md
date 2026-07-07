@@ -167,10 +167,10 @@ silently produce a garbage commit. This is exactly why FINDING 4 mandates `-F -`
 ### Production (the `CommitTree` method)
 
 `runWithInput` sets `cmd.Env = nil` (inherits the parent process environment), exactly like `run()`.
-Stagehand commits **AS the configured user** — git resolves `user.name`/`user.email` from the
+Stagecoach commits **AS the configured user** — git resolves `user.name`/`user.email` from the
 user's global/repo git config and any `GIT_AUTHOR_*`/`GIT_COMMITTER_*` env vars they exported.
 CommitTree does NOT inject identity. (The architecture reference §2's `cmd.Env = append(...,
-"GIT_AUTHOR_NAME="+...)` is an illustrative standalone example, NOT Stagehand's behavior.)
+"GIT_AUTHOR_NAME="+...)` is an illustrative standalone example, NOT Stagecoach's behavior.)
 
 ### Tests (the fixtures)
 

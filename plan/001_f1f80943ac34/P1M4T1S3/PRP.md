@@ -2,9 +2,9 @@
 name: "P1.M4.T1.S3 — providers list/show subcommands — PRD §9.11 (FR46/FR47/FR48) / §15.3 / §12.8"
 description: |
 
-  Add a `providers` command group with two leaf subcommands (PRD §15.3): `stagehand providers list`
+  Add a `providers` command group with two leaf subcommands (PRD §15.3): `stagecoach providers list`
   (FR46 — list built-in + user-defined providers, mark each detected-on-$PATH with ✓/✗, and mark the
-  resolved default) and `stagehand providers show <name>` (FR47 — print the fully-resolved manifest
+  resolved default) and `stagecoach providers show <name>` (FR47 — print the fully-resolved manifest
   for a provider, built-in merged with user overrides, as TOML). Both are thin READ-only views over the
   `provider.Registry` shipped in P1.M2.T3.S1 (`List`, `IsInstalled`, `DefaultProvider`, `MarshalTOML`,
   + `DecodeUserOverrides`/`NewRegistry` to bridge config). The command group is registered via an
@@ -16,7 +16,7 @@ description: |
   unchanged — S3 only DISPLAYS them.
 
   DELIVERABLES (2 NEW files; NOTHING under internal/{config,generate,git,prompt,provider},
-  pkg/stagehand, exitcode, or cmd/root.go is touched — all frozen READ-ONLY contracts):
+  pkg/stagecoach, exitcode, or cmd/root.go is touched — all frozen READ-ONLY contracts):
     1. CREATE `internal/cmd/providers.go`      — `package cmd`. `providersCmd` (group) +
        `providersListCmd`/`providersShowCmd` (leaves) + `init()` registering them on `rootCmd` +
        `runProvidersList`/`runProvidersShow` RunE + helpers `newRegistry`, `installedNames`,
@@ -31,7 +31,7 @@ description: |
       `Registry.List()` (sorted ascending by Name). DETECTED = ✓ iff `Registry.IsInstalled(m)`.
       DEFAULT = `(default)` on the row whose Name == the RESOLVED default. Header row included.
     - "resolved default" (FR46 "show the resolved default") = `cfg.Provider` if non-empty, else
-      `Registry.DefaultProvider(installed)` (mirrors pkg/stagehand.buildDeps). `installed` =
+      `Registry.DefaultProvider(installed)` (mirrors pkg/stagecoach.buildDeps). `installed` =
       `installedNames(reg)` (List+IsInstalled, mirrors buildDeps).
     - `providers show <name>` → `Registry.MarshalTOML(name)` printed to stdout AS-IS (it already
       ends in `\n`). Unknown name → exit 1.
@@ -71,23 +71,23 @@ description: |
      (S4 owns that). User overrides (FR46/FR47) require `cfg.Providers`. Consequence: list/show run
      where `config.Load` succeeds (any git repo; outside a repo Layer-4 git-config hard-fails → exit 1).
   ⚠️ "resolved default" (design §4) = cfg.Provider if set, ELSE DefaultProvider(installed) — the
-     SAME resolution pkg/stagehand.buildDeps uses. Honors an explicit cfg.Provider (incl. a §12.8 name).
+     SAME resolution pkg/stagecoach.buildDeps uses. Honors an explicit cfg.Provider (incl. a §12.8 name).
   ⚠️ MarshalTOML output already ends in `\n` (verified empirically) → use `fmt.Fprint`, NOT `Fprintln`
      (design §6). nil pointers are omitted (free omitempty); `subcommand=[]` for empty slices;
      explicit-empty `*""` marshals as `''`.
   ⚠️ Do NOT add a PersistentPreRunE to providers/list/show — it would SHADOW root's and skip config
      load (design §3). Root's is inherited; leave it that way.
 
-  Deliverable: 2 NEW files. `make build` → `./bin/stagehand providers list` (inside a repo) prints the
-  NAME/DETECTED/DEFAULT table; `./bin/stagehand providers show pi` prints the merged pi manifest as
-  TOML; `./bin/stagehand providers show ghost` exits 1. `go test -race ./internal/cmd/` green; no
+  Deliverable: 2 NEW files. `make build` → `./bin/stagecoach providers list` (inside a repo) prints the
+  NAME/DETECTED/DEFAULT table; `./bin/stagecoach providers show pi` prints the merged pi manifest as
+  TOML; `./bin/stagecoach providers show ghost` exits 1. `go test -race ./internal/cmd/` green; no
   regression in `go test -race ./...`.
 
 ---
 
 ## Goal
 
-**Feature Goal**: Ship Stagehand's provider-inspection CLI surface (PRD §9.11 / §15.3) — a `providers`
+**Feature Goal**: Ship Stagecoach's provider-inspection CLI surface (PRD §9.11 / §15.3) — a `providers`
 command group whose `list` subcommand renders a NAME/DETECTED/DEFAULT table over the merged registry
 (FR46, including the resolved default) and whose `show <name>` subcommand prints a provider's
 fully-resolved manifest as TOML (FR47), both as thin read-only views over the P1.M2.T3.S1 Registry,
@@ -103,32 +103,32 @@ with user overrides from config reflected (FR48), Mode-A help-text documentation
    help text on all three commands.
 2. `internal/cmd/providers_test.go` — `package cmd`. Integration tests driving the FULL CLI
    (`rootCmd`/`Execute`) reusing root_test.go helpers: built-in listing, ✓/✗ detection (via
-   installed `go` vs a bogus binary), default marker (STAGEHAND_PROVIDER + auto-detect), user-override
+   installed `go` vs a bogus binary), default marker (STAGECOACH_PROVIDER + auto-detect), user-override
    appearance + merge, show TOML round-trip, unknown→exit 1, arg-count validation.
 
-**Success Definition**: `make build` → `./bin/stagehand providers list` (inside a git repo) prints a
+**Success Definition**: `make build` → `./bin/stagecoach providers list` (inside a git repo) prints a
 table whose rows are the 6 built-ins (claude, codex, cursor, gemini, opencode, pi) sorted ascending,
 each with ✓ or ✗ in DETECTED, and `(default)` on the resolved-default row (pi when pi is installed and
-no provider is configured); `./bin/stagehand providers show pi` prints `name = 'pi'`, `command = 'pi'`,
+no provider is configured); `./bin/stagecoach providers show pi` prints `name = 'pi'`, `command = 'pi'`,
 `default_model = 'glm-5-turbo'`, etc. (the merged manifest) to stdout, exit 0; a user `[provider.pi]
 default_model="glm-5.2"` override is reflected in BOTH `list` (pi still listed) and `show pi`
-(`default_model = 'glm-5.2'`); `./bin/stagehand providers show ghost` exits 1 with
-`stagehand: unknown provider "ghost"`; `./bin/stagehand providers` (no subcommand) prints help.
+(`default_model = 'glm-5.2'`); `./bin/stagecoach providers show ghost` exits 1 with
+`stagecoach: unknown provider "ghost"`; `./bin/stagecoach providers` (no subcommand) prints help.
 `go test -race ./internal/cmd/` green; `go test -race ./...` shows NO regression; `go vet ./...` clean;
 `gofmt -l internal/cmd/` empty; only the 2 listed files added (root.go UNCHANGED).
 
 ## User Persona
 
-**Target User**: The Stagehand CLI user (PRD §7 "the plan-holder" / "the multi-agent tinkerer") who
-wants to know WHICH agents Stagehand can drive, whether each is installed on this machine, and which
+**Target User**: The Stagecoach CLI user (PRD §7 "the plan-holder" / "the multi-agent tinkerer") who
+wants to know WHICH agents Stagecoach can drive, whether each is installed on this machine, and which
 one will be used by default — plus the "API-key refusenik" (§7.2) defining a custom `[provider.X]` who
 needs to confirm their override merged correctly.
 
-**Use Case**: `stagehand providers list` (what's available + what's detected + what's the default);
-`stagehand providers show pi` (see the exact command Stagehand will run for pi, after my overrides);
-`stagehand providers show myagent` (confirm my custom provider manifest is well-formed).
+**Use Case**: `stagecoach providers list` (what's available + what's detected + what's the default);
+`stagecoach providers show pi` (see the exact command Stagecoach will run for pi, after my overrides);
+`stagecoach providers show myagent` (confirm my custom provider manifest is well-formed).
 
-**User Journey**: user runs `stagehand providers list` → sees the table → runs `stagehand providers
+**User Journey**: user runs `stagecoach providers list` → sees the table → runs `stagecoach providers
 show <name>` to inspect a manifest → adjusts their config → re-runs `show` to confirm the merge.
 
 **Pain Points Addressed**: (1) discoverability — the 6 built-ins aren't obvious without docs (FR46);
@@ -161,13 +161,13 @@ A `providers` cobra command group (parent shows help) with two leaves:
 
 Both RunE funcs read `Config()` (S1's PersistentPreRunE loaded it — list/show are NOT in
 `shouldSkipConfigLoad`), build the registry via `newRegistry()` (DecodeUserOverrides + NewRegistry,
-mirroring `pkg/stagehand.buildDeps`), and return `nil` on success / an `*exitcode.ExitError` on
+mirroring `pkg/stagecoach.buildDeps`), and return `nil` on success / an `*exitcode.ExitError` on
 failure. Neither calls `os.Exit`.
 
 ### Success Criteria
 
 - [ ] `internal/cmd/providers.go` exists, `package cmd`, imports `fmt`+`io`+`os`+`text/tabwriter`+
-      `github.com/spf13/cobra` + `github.com/dustin/stagehand/internal/{config,exitcode,provider}`.
+      `github.com/spf13/cobra` + `github.com/dustin/stagecoach/internal/{config,exitcode,provider}`.
 - [ ] `providersCmd` (Use "providers"), `providersListCmd` (Use "list", Args NoArgs), `providersShowCmd`
       (Use "show <name>", Args ExactArgs(1)) are defined; each has a `Short` and a `Long`.
 - [ ] `func init()` does `providersCmd.AddCommand(providersListCmd, providersShowCmd)` then
@@ -224,7 +224,7 @@ copy-ready skeletons in the Implementation Blueprint, and the test conventions t
        deliverables S3 consumes. root_test.go's helpers are package-private to `cmd` → S3's test
        (same package) REUSES them directly (no re-copy).
   pattern: rootCmd is a package-level singleton; PersistentPreRunE loads config for any command not in
-       the skip-list; main calls os.Exit(exitcode.For(err)) once and prints `stagehand: <err>` only
+       the skip-list; main calls os.Exit(exitcode.For(err)) once and prints `stagecoach: <err>` only
        when err.Error() != "". S3 returns errors that interplay with BOTH (non-empty err → main prints).
   gotcha: do NOT add list/show to shouldSkipConfigLoad (they NEED config). do NOT edit root.go at all.
 
@@ -282,7 +282,7 @@ copy-ready skeletons in the Implementation Blueprint, and the test conventions t
        type lives in a later package (config must not import provider). DecodeUserOverrides is the
        bridge — do NOT try to decode Providers yourself.
 
-- file: pkg/stagehand/stagehand.go   (P1.M3.T5.S1 — buildDeps; READ the pattern, do NOT edit)
+- file: pkg/stagecoach/stagecoach.go   (P1.M3.T5.S1 — buildDeps; READ the pattern, do NOT edit)
   section: `buildDeps(cfg, repoDir)` lines ~136-150: `overrides,err := provider.DecodeUserOverrides
        (cfg.Providers)` → `reg := provider.NewRegistry(overrides)` → `name := cfg.Provider; if name==""
        { for _,m := range reg.List() { if reg.IsInstalled(m) { installed=append(installed,m.Name) } };
@@ -295,14 +295,14 @@ copy-ready skeletons in the Implementation Blueprint, and the test conventions t
        S3 is a pure VIEW; it does not enforce "default must be valid".
 
 - file: internal/cmd/root.go   (P1.M4.T1.S1 — S3 calls rootCmd.AddCommand via init(); do NOT edit)
-  section: `var rootCmd = &cobra.Command{Use:"stagehand", SilenceErrors:true, SilenceUsage:true, …,
+  section: `var rootCmd = &cobra.Command{Use:"stagecoach", SilenceErrors:true, SilenceUsage:true, …,
        PersistentPreRunE: <loads config>, RunE: <S1 stub, replaced by S2>}` + `func Config()
        *config.Config` + `func Execute(ctx context.Context) error` + `func shouldSkipConfigLoad(cmd)
        bool` (returns true ONLY for name=="init"||name=="path").
   why: S3's `init()` calls `rootCmd.AddCommand(providersCmd)`. The three RunE funcs read `Config()`
        (PersistentPreRunE set it — list/show aren't skipped). cobra inherits root's PersistentPreRunE
        to the new subcommands (none of them define their own). main maps the returned error via
-       exitcode.For and prints `stagehand: <err>` when non-empty.
+       exitcode.For and prints `stagecoach: <err>` when non-empty.
   gotcha: do NOT edit root.go. do NOT add list/show to shouldSkipConfigLoad. do NOT give
        providers/list/show their own PersistentPreRunE (it would shadow root's → config wouldn't load).
 
@@ -313,7 +313,7 @@ copy-ready skeletons in the Implementation Blueprint, and the test conventions t
        All `package cmd` (same package as S3's test) → directly callable.
   why: providers_test.go drives the FULL CLI in a temp repo: it needs a git repo (initRepo — config.Load
        Layer-4 needs one), CWD/HOME/XDG isolation (chdir + loadEnvSetup), and config files
-       (writeConfigFile for .stagehand.toml overrides). Reuse these — do NOT re-copy (same package).
+       (writeConfigFile for .stagecoach.toml overrides). Reuse these — do NOT re-copy (same package).
   gotcha: rootCmd is a package-level singleton — each test MUST restore state in t.Cleanup via
        restoreRootState (SetArgs(nil), Out/Err, loadedCfg=nil, resetFlags) or tests poison each other
        (and trip -race). loadEnvSetup sets HOME+XDG to a temp dir (global config isolation).
@@ -325,7 +325,7 @@ copy-ready skeletons in the Implementation Blueprint, and the test conventions t
        A cobra arg-validation error (show with ≠1 args) is a plain error → For's default → 1. No
        NothingToCommit/Rescue/Timeout outcomes exist for providers list/show.
   gotcha: ExitError.Error()=="" when Err==nil → main skips printing. S3 always passes a NON-nil err
-       (descriptive messages) so main prints `stagehand: <msg>` — there's no detailed pre-print to
+       (descriptive messages) so main prints `stagecoach: <msg>` — there's no detailed pre-print to
        de-duplicate, so the silent pattern (S2 §4) is NOT needed here.
 
 - url: (PRD §9.11 FR46/FR47/FR48, §15.3, §12.8 — in context as selected_prd_content `h3.27`/`h3.54`/
@@ -341,8 +341,8 @@ copy-ready skeletons in the Implementation Blueprint, and the test conventions t
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                              # module github.com/dustin/stagehand ; go 1.22 ; cobra+pflag+go-toml/v2 (UNCHANGED)
-cmd/stagehand/main.go               # P1.M4.T1.S1 — os.Exit(exitcode.For(err)) (UNCHANGED by S3)
+go.mod                              # module github.com/dustin/stagecoach ; go 1.22 ; cobra+pflag+go-toml/v2 (UNCHANGED)
+cmd/stagecoach/main.go               # P1.M4.T1.S1 — os.Exit(exitcode.For(err)) (UNCHANGED by S3)
 internal/
   cmd/root.go                       # P1.M4.T1.S1 — rootCmd + PersistentPreRunE + Config() + Execute + shouldSkipConfigLoad + STUB RunE  (S3 does NOT edit; init() in providers.go calls rootCmd.AddCommand)
   cmd/root_test.go                  # P1.M4.T1.S1 — helpers: saveRootState/restoreRootState/resetFlags/loadEnvSetup/initRepo/setGitConfig/writeConfigFile/chdir (REUSED by S3)
@@ -350,7 +350,7 @@ internal/
   config/{config,file,git,load}.go  # P1.M1.T4 — Config.Providers + Load (read-only ref)
   provider/{registry,manifest,builtin,…}.go  # P1.M2 — Registry + Manifest + built-ins (read-only ref; S3's PRIMARY input)
   {generate,git,prompt,stubtest}/   # untouched by S3 (no generation/commit in scope)
-pkg/stagehand/stagehand.go          # P1.M3.T5.S1 — buildDeps pattern to MIRROR (read-only ref)
+pkg/stagecoach/stagecoach.go          # P1.M3.T5.S1 — buildDeps pattern to MIRROR (read-only ref)
 Makefile                            # build/test(-race)/coverage/lint/clean (UNCHANGED)
 ```
 
@@ -366,7 +366,7 @@ internal/cmd/providers_test.go   # NEW — package cmd. Integration tests via ro
                                   #        root_test.go helpers: built-in list, ✓/✗ detection, default
                                   #        marker, override appears+merges, show TOML round-trip,
                                   #        unknown→exit 1, arg-count validation.
-# All other files UNCHANGED. root.go, internal/{config,generate,git,prompt,provider}, pkg/stagehand,
+# All other files UNCHANGED. root.go, internal/{config,generate,git,prompt,provider}, pkg/stagecoach,
 # exitcode UNCHANGED. (S3 is parallel-safe with S2: disjoint files, same package.)
 ```
 
@@ -383,14 +383,14 @@ internal/cmd/providers_test.go   # NEW — package cmd. Integration tests via ro
 // PersistentPreRunE runs and loads config (cfg.Providers = user overrides). SKIPPING config would
 // show only built-ins — violating FR46/FR47. CONSEQUENCE: list/show run where config.Load succeeds.
 // config.Load Layer-4 (loadGitConfig) shells `git -C <cwd> config --get <key>` per key: exit 1 =
-// "missing key" (NOT an error, fine inside any repo even with zero stagehand.* keys); exit 128 (not a
+// "missing key" (NOT an error, fine inside any repo even with zero stagecoach.* keys); exit 128 (not a
 // repo) = hard error → config.Load fails → PersistentPreRunE returns exitcode.Error → subcommand
 // never runs (exit 1). So run `providers list/show` INSIDE a git repo. This matches the rest of the
 // CLI and the feature's need for user overrides. Do NOT add list/show to the skip-list to "fix" this.
 
 // CRITICAL (resolved default formula, design §4): "show the resolved default" (FR46) = the provider
-// stagehand would USE with no --provider = cfg.Provider if non-empty, ELSE reg.DefaultProvider(
-// installed). This is EXACTLY pkg/stagehand.buildDeps's resolution. Do NOT show only
+// stagecoach would USE with no --provider = cfg.Provider if non-empty, ELSE reg.DefaultProvider(
+// installed). This is EXACTLY pkg/stagecoach.buildDeps's resolution. Do NOT show only
 // DefaultProvider (ignores an explicit cfg.Provider). installed = installedNames(reg) (List+IsInstalled).
 
 // CRITICAL (MarshalTOML ends in \n, design §6 — VERIFIED empirically): provider.Registry.MarshalTOML
@@ -406,7 +406,7 @@ internal/cmd/providers_test.go   # NEW — package cmd. Integration tests via ro
 // GOTCHA (cobra arg validation runs before RunE): show uses cobra.ExactArgs(1). With ≠1 args, cobra
 // returns an arg error BEFORE RunE (and before PersistentPreRunE for the leaf). exitcode.For on a
 // plain cobra error → default 1. SilenceErrors+SilenceUsage → cobra prints nothing; main prints
-// `stagehand: <msg>`. list uses cobra.NoArgs (it takes none).
+// `stagecoach: <msg>`. list uses cobra.NoArgs (it takes none).
 
 // GOTCHA (IsInstalled probes DetectCommand, not Name): cursor's Detect="agent" (≠ Name "cursor") →
 // cursor shows ✓ iff `agent` is on PATH. IsInstalled("") (a manifest with neither Detect nor Command)
@@ -417,7 +417,7 @@ internal/cmd/providers_test.go   # NEW — package cmd. Integration tests via ro
 // loadedCfg=nil, resetFlags — or tests poison each other (and trip -race). Mirror root_test.go hygiene.
 
 // GOTCHA (stdout=data, stderr=diagnostics, design §10): list table + show TOML → STDOUT (scriptable:
-// `stagehand providers show pi > pi.toml`). Errors reach the user via main's `stagehand: <err>` to
+// `stagecoach providers show pi > pi.toml`). Errors reach the user via main's `stagecoach: <err>` to
 // STDERR (returned err is non-empty). Nothing on stdout on failure.
 
 // GOTCHA (DecodeUserOverrides(nil) is safe): nil/empty cfg.Providers → DecodeUserOverrides returns
@@ -446,18 +446,18 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/exitcode"
-	"github.com/dustin/stagehand/internal/provider"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dustin/stagecoach/internal/provider"
 )
 
-// providersCmd is the PRD §15.3 "providers" command group. It has NO RunE → bare `stagehand providers`
+// providersCmd is the PRD §15.3 "providers" command group. It has NO RunE → bare `stagecoach providers`
 // prints help (cobra default). list/show are its leaves (registered in init()). Root's PersistentPreRunE
 // is INHERITED (none of the three define their own) so config loads for both (FR46/FR47 need cfg.Providers).
 var providersCmd = &cobra.Command{
 	Use:   "providers",
 	Short: "Manage AI provider manifests",
-	Long: `Inspect the built-in and user-defined provider manifests Stagehand uses to generate commits.
+	Long: `Inspect the built-in and user-defined provider manifests Stagecoach uses to generate commits.
 
 User-defined providers (from the global or repo-local config file) override built-ins of the same
 name; new names add new providers (PRD §12.8).
@@ -506,14 +506,14 @@ func init() {
 	rootCmd.AddCommand(providersCmd) // register on S1's root — NO edit to root.go (design §0)
 }
 
-// runProvidersList implements `stagehand providers list` (FR46). It builds the merged registry from
+// runProvidersList implements `stagecoach providers list` (FR46). It builds the merged registry from
 // config, computes which providers are installed and which is the resolved default, and prints a
 // NAME/DETECTED/DEFAULT table to stdout. Returns nil on success; exitcode.New(Error, …) on a registry-
 // build failure (main maps to exit 1). Never calls os.Exit.
 func runProvidersList(cmd *cobra.Command, args []string) error {
 	reg, err := newRegistry()
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	installed := installedNames(reg)
 	defaultName := resolvedDefault(Config(), reg, installed)
@@ -521,14 +521,14 @@ func runProvidersList(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runProvidersShow implements `stagehand providers show <name>` (FR47). It builds the merged registry
+// runProvidersShow implements `stagecoach providers show <name>` (FR47). It builds the merged registry
 // and prints the TOML for <name> (built-in ⊕ overrides) to stdout. Unknown name → exitcode.New(Error,
 // …) (exit 1). cobra.ExactArgs(1) guarantees args[0] exists. Never calls os.Exit.
 func runProvidersShow(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	reg, err := newRegistry()
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	s, err := reg.MarshalTOML(name)
 	if err != nil {
@@ -538,7 +538,7 @@ func runProvidersShow(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// newRegistry builds the merged provider.Registry from config the SAME way pkg/stagehand.buildDeps
+// newRegistry builds the merged provider.Registry from config the SAME way pkg/stagecoach.buildDeps
 // does (design §2): DecodeUserOverrides(cfg.Providers) → NewRegistry. This guarantees list/show
 // reflect EXACTLY what GenerateCommit would use. A decode error (malformed [provider.X]) is returned
 // (caller maps to exit 1). If Config() is nil (defensive; PersistentPreRunE guarantees non-nil for
@@ -556,7 +556,7 @@ func newRegistry() (*provider.Registry, error) {
 }
 
 // installedNames returns the Names of providers whose command is on $PATH (FR46 detection). Mirrors
-// pkg/stagehand.buildDeps verbatim. reg.List() is sorted ascending, so the result is too.
+// pkg/stagecoach.buildDeps verbatim. reg.List() is sorted ascending, so the result is too.
 func installedNames(reg *provider.Registry) []string {
 	var installed []string
 	for _, m := range reg.List() {
@@ -567,9 +567,9 @@ func installedNames(reg *provider.Registry) []string {
 	return installed
 }
 
-// resolvedDefault returns the provider stagehand would use with no --provider (FR46 "show the resolved
+// resolvedDefault returns the provider stagecoach would use with no --provider (FR46 "show the resolved
 // default"): cfg.Provider if explicitly configured (Layer 1-7), else reg.DefaultProvider(installed)
-// (first preferred built-in on PATH). Mirrors pkg/stagehand.buildDeps. A nil cfg (defensive) → auto.
+// (first preferred built-in on PATH). Mirrors pkg/stagecoach.buildDeps. A nil cfg (defensive) → auto.
 func resolvedDefault(cfg *config.Config, reg *provider.Registry, installed []string) string {
 	if cfg != nil && cfg.Provider != "" {
 		return cfg.Provider
@@ -611,9 +611,9 @@ Task 1: CREATE internal/cmd/providers.go (the command group + RunE + helpers)
       []string; resolvedDefault(*config.Config, *provider.Registry, []string) string;
       printProvidersList(io.Writer, *provider.Registry, string).
   - IMPORTS: fmt, io, os, text/tabwriter, github.com/spf13/cobra,
-      github.com/dustin/stagehand/internal/config (ONLY for the resolvedDefault param type — or use
-      *config.Config), github.com/dustin/stagehand/internal/exitcode,
-      github.com/dustin/stagehand/internal/provider. (Confirm module path github.com/dustin/stagehand.)
+      github.com/dustin/stagecoach/internal/config (ONLY for the resolvedDefault param type — or use
+      *config.Config), github.com/dustin/stagecoach/internal/exitcode,
+      github.com/dustin/stagecoach/internal/provider. (Confirm module path github.com/dustin/stagecoach.)
   - NAMING: providersCmd/providersListCmd/providersShowCmd/runProvidersList/runProvidersShow/newRegistry/
       installedNames/resolvedDefault/printProvidersList (unexported, package-level). PLACEMENT: all in
       internal/cmd/providers.go.
@@ -636,39 +636,39 @@ Task 2: CREATE internal/cmd/providers_test.go (integration tests through the FUL
   - COMMON SETUP helper (local to this file): `setupRepo(t) string` → loadEnvSetup(t) for HOME/XDG
       isolation, chdir(t, repo) into a fresh git repo (config.Load Layer-4 needs a repo). Returns repo
       dir. (Built-in list/show need NO config file; override tests use writeConfigFile(t, repo,
-      ".stagehand.toml", body).)
+      ".stagecoach.toml", body).)
   - CASES (drive rootCmd via SetArgs + Execute(context.Background()); assert exitcode.For(err),
       captured stdout, and key substrings):
       * TestProvidersList_Builtins: setupRepo; SetArgs(["providers","list"]); Execute. Assert exit 0;
         stdout contains the header "NAME" + all 6 names (claude,codex,cursor,gemini,opencode,pi), each
         once; names appear in ascending order (index(claude)<index(codex)<…<index(pi)).
-      * TestProvidersList_DetectedGlyphs: setupRepo; write .stagehand.toml with TWO user providers:
+      * TestProvidersList_DetectedGlyphs: setupRepo; write .stagecoach.toml with TWO user providers:
         [provider.realbin] command="go" (installed in go test env) + [provider.fakebin]
         command="no-such-binary-xyz" ; SetArgs(["providers","list"]); Execute. Assert exit 0; the
         realbin row contains "✓" and the fakebin row contains "✗". (Avoids depending on whether
         pi/claude/etc. are installed on the host.)
-      * TestProvidersList_DefaultMarker_Explicit: setupRepo; t.Setenv("STAGEHAND_PROVIDER","pi");
+      * TestProvidersList_DefaultMarker_Explicit: setupRepo; t.Setenv("STAGECOACH_PROVIDER","pi");
         SetArgs(["providers","list"]); Execute. Assert exit 0; the pi row contains "(default)" and it
         is the ONLY row with "(default)". (resolvedDefault honors cfg.Provider — design §4.)
-      * TestProvidersList_DefaultMarker_Auto: setupRepo; write .stagehand.toml [provider.detectedpi]
-        command="pi" is NOT reliable (pi may be absent). Instead: assert that when STAGEHAND_PROVIDER
+      * TestProvidersList_DefaultMarker_Auto: setupRepo; write .stagecoach.toml [provider.detectedpi]
+        command="pi" is NOT reliable (pi may be absent). Instead: assert that when STAGECOACH_PROVIDER
         is unset and NO preferred built-in is installed, NO row has "(default)" (DefaultProvider
         returns "" — design §4 edge case). SetArgs(["providers","list"]); Execute; assert exit 0 and
         stdout does NOT contain "(default)". (Deterministic on any host: if no built-in is on PATH,
         there's no auto-default. If the host DOES have a built-in, this assertion may flake — so
         instead assert: at most ONE "(default)" appears. Prefer the explicit-marker test above for
         determinism; keep this one lenient.)
-      * TestProvidersList_OverrideAppears: setupRepo; write .stagehand.toml [provider.myagent]
+      * TestProvidersList_OverrideAppears: setupRepo; write .stagecoach.toml [provider.myagent]
         command="/opt/agent"; SetArgs(["providers","list"]); Execute. Assert exit 0; stdout contains
         "myagent" (a brand-new §12.8 provider appears, sorted among the built-ins).
       * TestProvidersShow_BuiltInTOML: setupRepo; SetArgs(["providers","show","pi"]); Execute. Assert
         exit 0; stdout contains `name = 'pi'`, `command = 'pi'`, `default_model = 'glm-5-turbo'`,
         `output = 'raw'`, `strip_code_fence = true`. (The verified §6 shape.)
-      * TestProvidersShow_OverrideMerged: setupRepo; write .stagehand.toml `[provider.pi]\ndefault_model
+      * TestProvidersShow_OverrideMerged: setupRepo; write .stagecoach.toml `[provider.pi]\ndefault_model
         = "glm-5.2"`; SetArgs(["providers","show","pi"]); Execute. Assert exit 0; stdout contains
         `default_model = 'glm-5.2'` (FR47 — the override is reflected in the MERGED manifest); still
         contains `command = 'pi'` (untouched built-in field survives the merge).
-      * TestProvidersShow_NewProviderTOML: setupRepo; write .stagehand.toml `[provider.myagent]\ncommand
+      * TestProvidersShow_NewProviderTOML: setupRepo; write .stagecoach.toml `[provider.myagent]\ncommand
         = "/opt/agent"\nprompt_delivery = "stdin"`; SetArgs(["providers","show","myagent"]); Execute.
         Assert exit 0; stdout contains `name = 'myagent'` and `command = '/opt/agent'`.
       * TestProvidersShow_UnknownExits1: setupRepo; SetArgs(["providers","show","ghost"]); Execute.
@@ -685,13 +685,13 @@ Task 2: CREATE internal/cmd/providers_test.go (integration tests through the FUL
       (robust to tabwriter spacing). No stubtest/agent dependency (pure registry + LookPath).
 
 Task 3: VALIDATE (run all gates; fix before declaring done)
-  - `make build` → ./bin/stagehand exists; `./bin/stagehand providers list` (inside a git repo) prints
-      the table; `./bin/stagehand providers show pi` prints the pi TOML; `./bin/stagehand providers
-      show ghost` exits 1; `./bin/stagehand providers` prints help.
+  - `make build` → ./bin/stagecoach exists; `./bin/stagecoach providers list` (inside a git repo) prints
+      the table; `./bin/stagecoach providers show pi` prints the pi TOML; `./bin/stagecoach providers
+      show ghost` exits 1; `./bin/stagecoach providers` prints help.
   - `go test -race ./internal/cmd/ -v` → green (root_test.go + default_action_test.go [if S2 merged]
       + providers_test.go).
   - `go test -race ./...` → green (NO regression — internal/{config,generate,git,provider,prompt},
-      pkg/stagehand, exitcode untouched).
+      pkg/stagecoach, exitcode untouched).
   - `go vet ./...` clean; `gofmt -l internal/cmd/` empty.
   - `git status` shows ONLY: new internal/cmd/providers.go, new internal/cmd/providers_test.go.
       (root.go UNCHANGED — verify with `git diff internal/cmd/root.go` = empty.)
@@ -713,7 +713,7 @@ func newRegistry() (*provider.Registry, error) {
     return provider.NewRegistry(overrides), nil // built-ins ⊕ overrides
 }
 
-// PATTERN: resolved default = what stagehand would use (design §4 — mirror buildDeps).
+// PATTERN: resolved default = what stagecoach would use (design §4 — mirror buildDeps).
 func resolvedDefault(cfg *config.Config, reg *provider.Registry, installed []string) string {
     if cfg != nil && cfg.Provider != "" {
         return cfg.Provider // explicit (Layer 1-7) wins
@@ -727,7 +727,7 @@ func runProvidersShow(cmd *cobra.Command, args []string) error {
     name := args[0]
     reg, err := newRegistry()
     if err != nil {
-        return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err)) // exit 1; main prints
+        return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err)) // exit 1; main prints
     }
     s, err := reg.MarshalTOML(name)
     if err != nil {
@@ -771,7 +771,7 @@ REGISTRY (P1.M2.T3.S1 → S3 consumes, READ-ONLY):
 
 EXIT.CODE (S1 → S3 returns errors it maps):
   - exitcode.New/Error/For: "S3 returns exitcode.New(exitcode.Error, err) on failure; main calls
-    os.Exit(exitcode.For(err)) and prints `stagehand: <err>`. S3 never calls os.Exit. Only 0/1 occur."
+    os.Exit(exitcode.For(err)) and prints `stagecoach: <err>`. S3 never calls os.Exit. Only 0/1 occur."
 
 CLI.HELP (Mode-A docs, S3 owns):
   - Short/Long: "providers/providers list/providers show each have Short (shown in parent --help) +
@@ -789,7 +789,7 @@ UI (forward — P1.M4.T3):
 
 ```bash
 # Run after creating providers.go - fix before proceeding
-go build ./internal/cmd/ ./cmd/stagehand/
+go build ./internal/cmd/ ./cmd/stagecoach/
 gofmt -w internal/cmd/providers.go
 go vet ./internal/cmd/
 
@@ -820,27 +820,27 @@ make build
 
 # Inside a git repo (config.Load Layer-4 needs one):
 cd /tmp/scratchrepo && git init -q && git config user.name t && git config user.email t@e && \
-  /home/dustin/projects/stagehand/bin/stagehand providers list
+  /home/dustin/projects/stagecoach/bin/stagecoach providers list
 # Expected: a NAME/DETECTED/DEFAULT table with the 6 built-ins (claude,codex,cursor,gemini,opencode,pi)
 # sorted ascending, each ✓ or ✗, and "(default)" on the resolved-default row (pi if pi is on PATH and
 # no provider configured). Exit 0.
 
 # show a built-in manifest as TOML
-/home/dustin/projects/stagehand/bin/stagehand providers show pi
+/home/dustin/projects/stagecoach/bin/stagecoach providers show pi
 # Expected: TOML on stdout: `name = 'pi'`, `command = 'pi'`, `default_model = 'glm-5-turbo'`, …,
 # ending in a newline. Exit 0.
 
 # unknown provider → exit 1
-/home/dustin/projects/stagehand/bin/stagehand providers show ghost; echo "exit=$?"
-# Expected: stderr `stagehand: unknown provider "ghost"`, exit=1.
+/home/dustin/projects/stagecoach/bin/stagecoach providers show ghost; echo "exit=$?"
+# Expected: stderr `stagecoach: unknown provider "ghost"`, exit=1.
 
 # bare `providers` → help (lists list/show)
-/home/dustin/projects/stagehand/bin/stagehand providers
+/home/dustin/projects/stagecoach/bin/stagecoach providers
 # Expected: help text naming the list and show subcommands. Exit 0.
 
 # override is reflected (FR47/FR48): write a repo-local override and re-show
-printf '[provider.pi]\ndefault_model = "glm-5.2"\n' > /tmp/scratchrepo/.stagehand.toml
-/home/dustin/projects/stagehand/bin/stagehand providers show pi | grep default_model
+printf '[provider.pi]\ndefault_model = "glm-5.2"\n' > /tmp/scratchrepo/.stagecoach.toml
+/home/dustin/projects/stagecoach/bin/stagecoach providers show pi | grep default_model
 # Expected: `default_model = 'glm-5.2'` (the override merged onto the built-in).
 
 # (Outside a git repo, list/show exit 1 — config.Load Layer-4 hard-fails. Expected per design §3.)
@@ -850,18 +850,18 @@ printf '[provider.pi]\ndefault_model = "glm-5.2"\n' > /tmp/scratchrepo/.stagehan
 
 ```bash
 # Pipe-ability: show output is valid TOML (round-trips through a TOML parser).
-/home/dustin/projects/stagehand/bin/stagehand providers show pi > /tmp/pi.toml && \
+/home/dustin/projects/stagecoach/bin/stagecoach providers show pi > /tmp/pi.toml && \
   go run -mod=mod github.com/pelletier/go-toml/v2/cmd/tomljson@latest /tmp/pi.toml >/dev/null && \
   echo "valid TOML"
 # (Or assert with a tiny Go snippet using toml.Unmarshal — the providers_test.go show tests already do
 # substring checks; this is a human sanity check that the doc is machine-parseable.)
 
 # list is grep-able by name (NAME column is first):
-/home/dustin/projects/stagehand/bin/stagehand providers list | grep '^pi'
+/home/dustin/projects/stagecoach/bin/stagecoach providers list | grep '^pi'
 # Expected: the pi row (NAME in column 1; the leading-name design makes `^name` work despite the header).
 
 # Default precedence: an explicit provider changes the marker.
-STAGEHAND_PROVIDER=claude /home/dustin/projects/stagehand/bin/stagehand providers list | grep claude
+STAGECOACH_PROVIDER=claude /home/dustin/projects/stagecoach/bin/stagecoach providers list | grep claude
 # Expected: the claude row now carries "(default)" (resolvedDefault honors cfg.Provider).
 ```
 
@@ -878,12 +878,12 @@ STAGEHAND_PROVIDER=claude /home/dustin/projects/stagehand/bin/stagehand provider
 ### Feature Validation
 
 - [ ] All success criteria from "What" section met
-- [ ] `stagehand providers list` prints the NAME/DETECTED/DEFAULT table (header + 6 built-ins sorted)
-- [ ] `stagehand providers show pi` prints the merged pi manifest as TOML (ends in newline)
+- [ ] `stagecoach providers list` prints the NAME/DETECTED/DEFAULT table (header + 6 built-ins sorted)
+- [ ] `stagecoach providers show pi` prints the merged pi manifest as TOML (ends in newline)
 - [ ] ✓/✗ reflect exec.LookPath detection; cursor probes `agent` (Detect≠Name)
 - [ ] `(default)` marks the resolved default (cfg.Provider if set, else auto-detect)
 - [ ] User `[provider.X]` overrides appear in list and are reflected in show (FR48 merge)
-- [ ] Unknown provider name exits 1 with `stagehand: unknown provider "<name>"`
+- [ ] Unknown provider name exits 1 with `stagecoach: unknown provider "<name>"`
 - [ ] `show` with ≠1 args exits 1 (cobra ExactArgs); bare `providers` prints help
 - [ ] Mode-A help text documents the output format on each command's --help
 
@@ -910,7 +910,7 @@ STAGEHAND_PROVIDER=claude /home/dustin/projects/stagehand/bin/stagehand provider
   parallel-merge hazard with S2).
 - ❌ Don't add `list`/`show` to `shouldSkipConfigLoad` — they NEED config (user overrides, FR46/FR47).
 - ❌ Don't add a `PersistentPreRunE` to providers/list/show — it shadows root's and skips config load.
-- ❌ Don't invent a new registry-build or default-resolution sequence — mirror `pkg/stagehand.buildDeps`
+- ❌ Don't invent a new registry-build or default-resolution sequence — mirror `pkg/stagecoach.buildDeps`
   verbatim (DecodeUserOverrides+NewRegistry; cfg.Provider else DefaultProvider(installed)).
 - ❌ Don't call `os.Exit` in a RunE — return an error; main maps it via `exitcode.For`.
 - ❌ Don't use `fmt.Fprintln` for the show output — MarshalTOML already ends in `\n` (double newline).

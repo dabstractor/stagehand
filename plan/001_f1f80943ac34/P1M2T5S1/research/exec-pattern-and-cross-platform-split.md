@@ -199,7 +199,7 @@ executor.go wiring (matches render.go's doc comment contract for the executor):
 - `cmd.Env = spec.Env` — guarded by `if len(spec.Env) > 0` so a nil Env (hand-built test spec)
   inherits the parent env instead of getting an empty env. Render always populates Env, so the guard
   is harmless in production but protects tests.
-- **No `cmd.Dir`** — the agent runs in the user's CWD (where they invoked stagehand). Git operations
+- **No `cmd.Dir`** — the agent runs in the user's CWD (where they invoked stagecoach). Git operations
   use `-C repo`; the agent does not.
 
 ---

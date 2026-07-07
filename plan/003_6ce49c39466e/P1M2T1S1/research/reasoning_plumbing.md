@@ -28,7 +28,7 @@ S1 does NOT touch those Render args (no behavior change, no overlap with S2's Ro
 ## Single-commit Render call sites that S1 wires to cfg.Reasoning
 
 - `internal/generate/generate.go:196` — `deps.Manifest.Render(cfg.Model, sysPrompt, payload, "")` → `…, cfg.Reasoning)`
-- `pkg/stagehand/stagehand.go:461` — `deps.Manifest.Render(cfg.Model, sysPrompt, payload, "")` → `…, cfg.Reasoning)`
+- `pkg/stagecoach/stagecoach.go:461` — `deps.Manifest.Render(cfg.Model, sysPrompt, payload, "")` → `…, cfg.Reasoning)`
 
 Both read `cfg.Model` directly (NOT ResolveRoleModel) — so reasoning is read the same way: `cfg.Reasoning`
 (the global). For the message role this equals ResolveRoleModel("message").reasoning because message's

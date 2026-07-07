@@ -17,7 +17,7 @@ against gitglossary) and PRD §9.18 FR-X1..FR-X5, §16.1.
 
 ## Translation rules (the contract for `TranslatePattern`)
 
-A `.stagehandignore` / `[generation].exclude` / `--exclude` entry is a **gitignore-style glob relative
+A `.stagecoachignore` / `[generation].exclude` / `--exclude` entry is a **gitignore-style glob relative
 to the repo root** (FR-X2). Map it to a single `:(exclude,glob)<core>` pathspec:
 
 Given the raw pattern `p` (loader already trimmed it and dropped blank/`#`/`!` lines):
@@ -64,10 +64,10 @@ table encodes the string mapping; the git integration test encodes the *semantic
 ## No-negation rule (FR-X2)
 
 `!`-prefixed lines are **skipped** in the loader (never translated), each producing one
-`--verbose`-visible warning (`ui.Verbose`). Never an error, never abort. Missing `.stagehandignore` =
+`--verbose`-visible warning (`ui.Verbose`). Never an error, never abort. Missing `.stagecoachignore` =
 no-op (nil, nil).
 
 ## Payload-only guarantee (FR-X5) — docs duty
 
 Exclusion affects ONLY the agent payload, never the commit: "excluded from what the agent sees, still
-committed." `docs/configuration.md` must state this in the new `.stagehandignore` section.
+committed." `docs/configuration.md` must state this in the new `.stagecoachignore` section.

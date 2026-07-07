@@ -35,7 +35,7 @@ true.
 
 ## User Persona (if applicable)
 
-**Target User**: A developer bootstrapping Stagehand who runs `config init --template` to learn the available
+**Target User**: A developer bootstrapping Stagecoach who runs `config init --template` to learn the available
 `[generation]` knobs without changing defaults (Mode-A documentation).
 
 **Use Case**: "I want to see every `[generation]` option I could set, commented out, so I can copy/uncomment the
@@ -338,7 +338,7 @@ DOCS: Mode-A — the template IS the documentation. docs/configuration.md is ALR
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/cmd/config.go internal/cmd/config_test.go
 git diff --stat internal/cmd/config.go internal/cmd/config_test.go   # confirm ONLY these 2 files changed
 go build ./...
@@ -366,8 +366,8 @@ go test ./...   # full suite green — no behavioral change anywhere
 ### Level 3: Integration (manual repro from the issue)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
-/tmp/stagehand config init --template --config /tmp/ref.toml
+go build -o /tmp/stagecoach ./cmd/stagecoach
+/tmp/stagecoach config init --template --config /tmp/ref.toml
 echo "exit=$?"
 # The [generation] section must now show all 13 keys. Grep the 5 new ones:
 grep -nE '^# (exclude|format|locale|template|push) ' /tmp/ref.toml

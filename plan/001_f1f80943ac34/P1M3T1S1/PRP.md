@@ -77,7 +77,7 @@ description: |
 contains multi-line (subject+body) commits (FR12), and (b) assemble the canonical system prompt — role,
 raw-output contract, essence instruction, `---`-separated style examples, the verbatim anti-reuse
 prohibition, the multi-line-rule selected by the detection, and the subject-length target (FR13). This is
-the "style learning" half of stagehand's core IP (PRD §13): the model is shown up to 20 real recent
+the "style learning" half of stagecoach's core IP (PRD §13): the model is shown up to 20 real recent
 commits so its output matches the repo's conventions, while an explicit prohibition forbids copying the
 example text verbatim.
 
@@ -259,7 +259,7 @@ functions + their constants + their tests.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — S1 adds NO dep: stdlib fmt+strings)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — S1 adds NO dep: stdlib fmt+strings)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — untouched (Config.SubjectTargetChars read-only ref)
@@ -270,7 +270,7 @@ internal/
     system_test.go              # NEW (this subtask) ← TestBuildSystemPrompt + TestDetectMultiline + ...
   provider/                     # P1.M2 (T1–T6) — untouched
   ui/                           # P1.M4 (empty stub) — untouched
-cmd/stagehand/main.go           # stub — untouched
+cmd/stagecoach/main.go           # stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -444,7 +444,7 @@ func countNonEmptyLines(s string) int {
 
 // BuildSystemPrompt implements PRD §9.3 FR13 / §17.1: assemble the mature-repo system prompt from the
 // canonical constants + the repo's recent-commit examples + the detected multi-line flag + the subject
-// target. It is the style-learning half of stagehand's core IP (PRD §13): the model is shown up to 20
+// target. It is the style-learning half of stagecoach's core IP (PRD §13): the model is shown up to 20
 // real recent commits so its output matches the repo's conventions, while the verbatim anti-reuse
 // prohibition forbids copying the example text.
 //
@@ -891,7 +891,7 @@ SIBLING SUBTASKS (same package — do NOT implement, just leave room):
         optional rejection block). Will add payload.go to this package. Do NOT create it here.
 
 FROZEN FILES (do NOT edit):
-  - internal/provider/*, internal/config/*, internal/git/*, cmd/stagehand/main.go, pkg/*, Makefile,
+  - internal/provider/*, internal/config/*, internal/git/*, cmd/stagecoach/main.go, pkg/*, Makefile,
         go.mod, go.sum.
 ```
 

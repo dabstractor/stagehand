@@ -83,7 +83,7 @@ This one paragraph covers all three required points (item §3 LOGIC):
 - **`files` is per-concept.** FR-M3: "Each commit's `files` lists every path that commit touches, and
   `description` says — per file — WHICH change belongs to that commit ... a single file split across
   two concepts can be disambiguated by naming it in both and saying which part belongs where."
-- **Coverage check is deterministic + non-fatal.** FR-M3b: "stagehand unions the `files` declared
+- **Coverage check is deterministic + non-fatal.** FR-M3b: "stagecoach unions the `files` declared
   across all concepts and compares against the frozen changed-path set (`DiffTreeNames(baseTree,
   T_start)`). Any path the planner left unclaimed is logged (verbose) ... the arbiter (FR-M9)
   reconciles it after the loop. This is a diagnostic only: it never aborts the run."

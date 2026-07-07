@@ -6,7 +6,7 @@ description: |
   which empties the file BEFORE refilling it. A contender that loses the `flock` race does a SEPARATE
   `os.ReadFile(path)` (open/read/close on a different fd) in `Acquire` on `EWOULDBLOCK`; if its read lands
   in the empty-file window, `parseContents` yields all-empty fields and the Busy (exit 5) message renders
-  as `"another stagehand run is already in progress on  (pid  on )."` — ugly and uninformative. Functionally
+  as `"another stagecoach run is already in progress on  (pid  on )."` — ugly and uninformative. Functionally
   conservative (empty snapshot → no-op fast path skipped → Busy is the safe outcome), but the diagnostic is
   broken. Fix: rewrite IN PLACE on the held fd as `Seek(0,0) → Write(fullBuffer) → Truncate(len) → Sync`
   with **Write BEFORE Truncate**, so the file is NEVER empty during the rewrite (always the old content, a
@@ -90,7 +90,7 @@ touched.
 
 ## User Persona
 
-**Target User**: A developer who accidentally double-runs `stagehand` (or runs it in two terminals on the
+**Target User**: A developer who accidentally double-runs `stagecoach` (or runs it in two terminals on the
 same repo) and gets the Busy (exit 5) message. Transitively PRD §18.5 "Mechanism" / "Contention behavior"
 (the contender reads the holder's `snapshot=` + `pid`/`hostname`/`repo` for the message).
 
@@ -504,7 +504,7 @@ func (l *Locker) writeContents(snapshot string) {
 ```yaml
 GO MODULE (go.mod / go.sum): NONE — stdlib only; fmt already imported in lock.go. go mod tidy is a no-op.
 
-PACKAGE EDGES: NONE added/removed. internal/lock is a stdlib-only leaf (no stagehand imports).
+PACKAGE EDGES: NONE added/removed. internal/lock is a stdlib-only leaf (no stagecoach imports).
 
 FROZEN / NOT-EDITED:
   - internal/lock/lock.go Acquire (it already calls l.writeContents("") — transparently uses the new
@@ -558,7 +558,7 @@ go test -race ./...   # Full suite — NO regressions (no caller changed; defaul
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only the two listed files changed:
 git diff --name-only | grep -Ev 'internal/lock/lock\.go|internal/lock/lock_test\.go' \

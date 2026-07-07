@@ -70,7 +70,7 @@ decomposition`).
 
 Replace the single sentence "A start-of-run freeze (T_start) ... when it started." with a version that
 (a) makes the freeze arbiter-inclusive and (b) adds a concise per-file + soft-target clause. Keep the
-surrounding sentences (the four-role-pipeline opener; the stager-constraint sentence; "Stagehand owns
+surrounding sentences (the four-role-pipeline opener; the stager-constraint sentence; "Stagecoach owns
 every commit via git plumbing") byte-unchanged — they are accurate and out of the v2.2 scope. Keep it
 concise (net +1 short sentence).
 

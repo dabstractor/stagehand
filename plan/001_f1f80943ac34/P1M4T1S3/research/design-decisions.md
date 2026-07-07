@@ -1,11 +1,11 @@
 # P1.M4.T1.S3 — providers list/show: Design Decisions
 
 Work item: add a `providers` command group with `list` and `show <name>` subcommands to the
-Stagehand CLI. INPUT = the `provider.Registry` built in P1.M2.T3.S1. OUTPUT = working
-`stagehand providers list` and `stagehand providers show <name>`.
+Stagecoach CLI. INPUT = the `provider.Registry` built in P1.M2.T3.S1. OUTPUT = working
+`stagecoach providers list` and `stagecoach providers show <name>`.
 
 This file records the 12 decisions that govern the PRP. Each is justified against the on-disk
-contracts (registry.go, root.go, manifest.go, config.go, exitcode.go, pkg/stagehand.buildDeps).
+contracts (registry.go, root.go, manifest.go, config.go, exitcode.go, pkg/stagecoach.buildDeps).
 
 ---
 
@@ -38,13 +38,13 @@ providersShowCmd = &cobra.Command{Use:"show <name>", Short:"Show a provider mani
 `init()` does `providersCmd.AddCommand(providersListCmd, providersShowCmd); rootCmd.AddCommand(providersCmd)`.
 
 **Why.** Matches PRD §15.3's two subcommands exactly. A parent with no `RunE` prints help on bare
-`stagehand providers` (cobra default) — conventional and consistent with the upcoming `config`
+`stagecoach providers` (cobra default) — conventional and consistent with the upcoming `config`
 group (S4, init/path). `show` uses `cobra.ExactArgs(1)` so a missing/extra arg is a cobra arg-error
 (→ exit 1, see §7) rather than a silent nil-deref. `list` uses `cobra.NoArgs` (it takes no args).
 
 ---
 
-## §2 — Registry construction mirrors pkg/stagehand.buildDeps EXACTLY
+## §2 — Registry construction mirrors pkg/stagecoach.buildDeps EXACTLY
 
 **Decision.** Build the registry from config the same way the public API does:
 ```go
@@ -56,7 +56,7 @@ Encapsulate in a `newRegistry()` helper returning `(*provider.Registry, error)`.
 
 **Why.** This is the ONE proven bridge from `config.Config.Providers` (raw
 `map[string]map[string]any`) to the typed Registry, already battle-tested by
-`pkg/stagehand.buildDeps` (pkg/stagehand/stagehand.go:137-142). Copying it guarantees `providers
+`pkg/stagecoach.buildDeps` (pkg/stagecoach/stagecoach.go:137-142). Copying it guarantees `providers
 show` displays the SAME merged manifest the generate pipeline consumes — FR47's "built-in merged
 with user overrides" is the SAME object `GenerateCommit` would use. No divergence risk.
 
@@ -74,11 +74,11 @@ show ONLY built-ins — directly violating both FRs. The `shouldSkipConfigLoad` 
 for S4's `config init/path` (which manipulate the config PATH and must work outside a git repo).
 
 **Consequence (documented gotcha).** `config.Load`'s Layer 4 (`loadGitConfig`) shells out to
-`git -C <cwd> config --get` per key. Inside ANY git repo (even one with zero `stagehand.*` keys)
+`git -C <cwd> config --get` per key. Inside ANY git repo (even one with zero `stagecoach.*` keys)
 that exits 1 = "missing key", which `gitConfigGet` treats as NOT-an-error → Load succeeds. OUTSIDE a
 git repo it exits 128 → `loadGitConfig` returns an error → `config.Load` fails →
 `PersistentPreRunE` returns `exitcode.Error` → the subcommand never runs (exit 1). Therefore
-`stagehand providers list/show` must run where `config.Load` succeeds (a git repo, or a cwd whose
+`stagecoach providers list/show` must run where `config.Load` succeeds (a git repo, or a cwd whose
 git-config layer doesn't hard-fail). This is consistent with the rest of the CLI and with the
 feature's need for user overrides. It is NOT a bug to fix here.
 
@@ -103,8 +103,8 @@ if cfg := Config(); cfg != nil && cfg.Provider != "" {
 ```
 The row whose `Name == defaultName` gets the `(default)` marker.
 
-**Why.** "The resolved default" (PRD §15.3 / FR46) means the provider `stagehand` would actually use
-with no `--provider` flag. That resolution is EXACTLY what `pkg/stagehand.buildDeps` does:
+**Why.** "The resolved default" (PRD §15.3 / FR46) means the provider `stagecoach` would actually use
+with no `--provider` flag. That resolution is EXACTLY what `pkg/stagecoach.buildDeps` does:
 `name := cfg.Provider; if name == "" { name = reg.DefaultProvider(installed) }`. Showing anything
 else would mislead the user. This decision uses `DefaultProvider` (the contract's named INPUT) for
 the auto-detect branch AND honors an explicitly-configured `cfg.Provider` (correctness). An
@@ -149,7 +149,7 @@ free: `Registry.List()` already sorts ascending by Name (registry.go). (5) User-
 providers appear inline, sorted alphabetically with the built-ins — no separate section (FR48
 "new names add new providers").
 
-**stdout/stderr discipline.** The table goes to STDOUT (scriptable: `stagehand providers list |
+**stdout/stderr discipline.** The table goes to STDOUT (scriptable: `stagecoach providers list |
 grep pi`). Errors/diagnostics go to STDERR via main's print (§7). Mirror S2's §5: stdout = data,
 stderr = diagnostics.
 
@@ -208,31 +208,31 @@ they are robust to exact whitespace.
 (exit 1)").
 
 **Why.** This is S1's centralized exit-code contract (`internal/exitcode/exitcode.go`): RunE returns
-an error; `main` calls `os.Exit(exitcode.For(err))` and prints `stagehand: <err>` when
+an error; `main` calls `os.Exit(exitcode.For(err))` and prints `stagecoach: <err>` when
 `err.Error() != ""`. There is no NothingToCommit/Rescue/Timeout outcome for providers list/show —
 the only exit codes are 0 (success) and 1 (config-load failure, decode error, unknown provider, cobra
 arg-validation error). All of those route through `exitcode.For`'s default → 1.
 
 **main double-print guard (same as S2 §4).** The errors we return carry a NON-empty `.Error()` (e.g.
-`unknown provider "foo"`) so main prints `stagehand: unknown provider "foo"`. That is the desired,
+`unknown provider "foo"`) so main prints `stagecoach: unknown provider "foo"`. That is the desired,
 single, clear message — there is no separate detailed print to de-duplicate, so NO silent-ExitError
 pattern is needed here (unlike S2's rescue/CAS paths). Keep it simple: return a descriptive error.
 
 **cobra arg-validation errors.** `show` with ≠1 args → cobra returns an arg error (e.g. `accepts 1
 arg(s), received 0`). `exitcode.For` on a plain cobra error → default 1. With `SilenceUsage`+
-`SilenceErrors` on, cobra prints nothing; main prints `stagehand: <cobra msg>`. Correct.
+`SilenceErrors` on, cobra prints nothing; main prints `stagecoach: <cobra msg>`. Correct.
 
 ---
 
 ## §8 — Mode A docs: Short/Long help text documents output format
 
-**Decision.** Each command gets a `Short` (one line, shown in `stagehand --help` / `stagehand
+**Decision.** Each command gets a `Short` (one line, shown in `stagecoach --help` / `stagecoach
 providers --help`) and a `Long` (multi-line, shown on the command's own `--help`). The `list` Long
 explains the three columns and the default resolution; the `show` Long states TOML output + exit-1-on-
 unknown. This IS the "user-facing command documentation" deliverable (Mode A).
 
 **providers Short:** `Manage AI provider manifests`
-**providers Long:** `Inspect the built-in and user-defined provider manifests Stagehand uses to
+**providers Long:** `Inspect the built-in and user-defined provider manifests Stagecoach uses to
 generate commits.`
 
 **list Short:** `List providers`
@@ -259,9 +259,9 @@ overrides). Unknown names exit 1.`
   `[provider.realbin]` whose command is `go` (installed) → its row shows ✓; and a `[provider.fakebin]`
   whose command is `no-such-binary-xyz` → ✗. (Avoids depending on whether pi/claude/etc. are
   installed on the CI host.)
-- `TestProvidersList_DefaultMarker`: t.Setenv STAGEHAND_PROVIDER=pi → pi row has `(default)`. Also:
-  no STAGEHAND_PROVIDER + a synthetic registry where one built-in is installed → that name marked.
-- `TestProvidersList_OverrideAppears`: `.stagehand.toml` with `[provider.myagent]` → "myagent" in list.
+- `TestProvidersList_DefaultMarker`: t.Setenv STAGECOACH_PROVIDER=pi → pi row has `(default)`. Also:
+  no STAGECOACH_PROVIDER + a synthetic registry where one built-in is installed → that name marked.
+- `TestProvidersList_OverrideAppears`: `.stagecoach.toml` with `[provider.myagent]` → "myagent" in list.
 - `TestProvidersShow_BuiltInTOML`: `providers show pi` → stdout contains `command = 'pi'` and
   `default_model = 'glm-5-turbo'`; exit 0.
 - `TestProvidersShow_OverrideMerged`: `[provider.pi] default_model="glm-5.2"` → `providers show pi`
@@ -285,10 +285,10 @@ only touch the in-process Registry + exec.LookPath. So no `stubtest.Build` depen
 ## §10 — stdout = data, stderr = diagnostics (scriptability)
 
 **Decision.** `list` table → stdout; `show` TOML → stdout. All error messages reach the user via
-main's `stagehand: <err>` print to stderr (because the returned error is non-empty). Nothing is
+main's `stagecoach: <err>` print to stderr (because the returned error is non-empty). Nothing is
 printed to stdout on failure.
 
-**Why.** A user can pipe `stagehand providers show pi > pi.toml` or `stagehand providers list | grep
+**Why.** A user can pipe `stagecoach providers show pi > pi.toml` or `stagecoach providers list | grep
 pi`. Errors never pollute the captured stdout. Consistent with S2 §5 and PRD §15.5's pipe ethos.
 
 ---
@@ -313,7 +313,7 @@ fragility is out of scope — S3 simply doesn't use the mechanism.
 **Why this is safe in parallel.** (1) Different files → no edit conflict. (2) Both `package cmd` →
 both compile into one binary; `root.go`'s `init()` (flags) + `providers.go`'s `init()` (AddCommand)
 both run at startup, order-independent. (3) S2's `runDefault` is the ROOT RunE; S3's commands are
-SUBCOMMANDS — cobra dispatches `stagehand` (→ runDefault) vs `stagehand providers list` (→
+SUBCOMMANDS — cobra dispatches `stagecoach` (→ runDefault) vs `stagecoach providers list` (→
 runProvidersList). No overlap. (4) Neither references the other's symbols. If S2 is NOT yet merged,
-S3 still compiles and `stagehand providers list/show` work (the root just prints help on bare
-`stagehand` until S2 lands — S1's stub). If S2 IS merged, both coexist.
+S3 still compiles and `stagecoach providers list/show` work (the root just prints help on bare
+`stagecoach` until S2 lands — S1's stub). If S2 IS merged, both coexist.

@@ -2,7 +2,7 @@
 
 ## Overview
 
-End-to-end QA / bug-hunting pass against the Stagehand v1.0 implementation vs. `PRD.md`. The
+End-to-end QA / bug-hunting pass against the Stagecoach v1.0 implementation vs. `PRD.md`. The
 implementation is in strong shape overall: it builds and vets cleanly, the **entire test suite
 passes with `-race`**, and the product's most important property — the **snapshot-based atomic
 commit / "stage-while-generating" invariant (PRD §13.4 / §18.1)** — was verified end-to-end with a
@@ -15,13 +15,13 @@ The issues below are **not** data-integrity or crash bugs. They are **spec/contr
 silent no-ops** found by driving the actual binary through the documented user journeys
 (`--config`, `--dry-run`, a misconfigured provider, config-file `[generation]` tuning, repo-local
 config). They center on one architectural seam: **the CLI default action delegates to
-`pkg/stagehand.GenerateCommit`, which re-loads configuration from scratch instead of receiving the
+`pkg/stagecoach.GenerateCommit`, which re-loads configuration from scratch instead of receiving the
 already-loaded config**, and the dry-run code path is a *separate, simplified* implementation rather
 than the real pipeline.
 
 - **Build:** `go build ./...` clean; `go vet ./...` clean.
 - **Tests:** `go test -race ./...` — all packages pass.
-- **Binaries used:** `bin/stagehand` (rev `dev`) + `bin/stubagent`.
+- **Binaries used:** `bin/stagecoach` (rev `dev`) + `bin/stubagent`.
 
 ## Critical Issues (Must Fix)
 
@@ -35,35 +35,35 @@ timeout, CAS-style atomicity, and root-commit paths all work correctly.
 **Severity**: Major
 **PRD Reference**: §15.2 (`--config <path>` — "Path to a config file (overrides discovery)"), §16.1
 layer resolution, §9.8 FR34, §12.8 (user-defined providers via config files).
-**Expected Behavior**: `stagehand --config <file>` should read `<file>` as the global config layer
+**Expected Behavior**: `stagecoach --config <file>` should read `<file>` as the global config layer
 for **every** command, including the default commit action. In particular, a user-defined provider
 declared in `[provider.<name>]` inside `<file>` must be usable with `--provider <name>`.
 **Actual Behavior**: The `--config` flag works only for the `providers list` / `providers show`
 subcommands. For the **default commit action**, a provider defined only in the `--config` file is
 reported as `unknown provider` — *after* the CLI has already validated the provider and printed
 `↳ Generating with <provider>…`. Root cause: `runDefault` (internal/cmd/default_action.go) calls
-`pkg/stagehand.GenerateCommit`, whose `resolveConfig` re-runs `config.Load` with
+`pkg/stagecoach.GenerateCommit`, whose `resolveConfig` re-runs `config.Load` with
 `LoadOpts{ConfigPathOverride: ""}` (no `--config` override) and `Flags: nil`. The CLI-loaded
 `cfg.Providers` map (which *did* honor `--config`) is discarded and never passed through. The
-`STAGEHAND_CONFIG` *env var* does work, because `config.Load` reads it directly via `os.Getenv` on
+`STAGECOACH_CONFIG` *env var* does work, because `config.Load` reads it directly via `os.Getenv` on
 every call — only the `--config` *flag* (held in the CLI-only `flagConfig`) is lost.
 **Steps to Reproduce**:
 ```bash
 # config.toml defines a [provider.stub] pointing at any command
 echo "b" > b.txt && git add b.txt
 # Subcommand path: WORKS — stub is detected and shown
-stagehand --config config.toml providers list      # stub  ✓
-stagehand --config config.toml providers show stub # full manifest printed
+stagecoach --config config.toml providers list      # stub  ✓
+stagecoach --config config.toml providers show stub # full manifest printed
 # Default action path: FAILS
-stagehand --config config.toml --provider stub
+stagecoach --config config.toml --provider stub
 # ↳ Generating with stub…
-# stagehand: unknown provider "stub"        (exit 1)
+# stagecoach: unknown provider "stub"        (exit 1)
 # Same thing via the env var WORKS:
-STAGEHAND_CONFIG=config.toml stagehand --provider stub --dry-run   # (exit 0)
+STAGECOACH_CONFIG=config.toml stagecoach --provider stub --dry-run   # (exit 0)
 ```
 **Suggested Fix**: Either (a) pass the already-resolved `*config.Config` (and the resolved manifest
 `generate.Deps`) from the CLI into `GenerateCommit` instead of re-loading (eliminates the double
-load entirely), or (b) add a `ConfigPath` / `Providers` field to `pkg/stagehand.Options` and forward
+load entirely), or (b) add a `ConfigPath` / `Providers` field to `pkg/stagecoach.Options` and forward
 `flagConfig` through `runDefault` so `resolveConfig` honors it. Option (a) also fixes Issues 5 and
 the duplicated side-effects of the double load.
 
@@ -75,7 +75,7 @@ pipeline, print the resulting message, but do not create the commit"); US9 (dry-
 "judge quality before trusting it" preview). Also P1.M4.T4.S1 contract.
 **Expected Behavior**: `--dry-run` should preview the **exact** message a real commit would produce,
 including the duplicate-rejection retry loop (FR30–FR33) and the parse-retry (FR29).
-**Actual Behavior**: The dry-run path (`pkg/stagehand.runPipeline` with `dryRun=true`) performs a
+**Actual Behavior**: The dry-run path (`pkg/stagecoach.runPipeline` with `dryRun=true`) performs a
 **single generation attempt with no duplicate check and no retry**. Consequently `--dry-run` and a
 real commit can return **different messages**: when the model's first attempt duplicates a recent
 subject, dry-run shows the duplicate (which a real run would reject and retry past).
@@ -83,8 +83,8 @@ subject, dry-run shows the duplicate (which a real run would reject and retry pa
 ```bash
 git commit -q -m "feat: init"           # repo history
 # stub script:  line0="feat: init"  line1="feat: unique after retry"
-stagehand --provider stub --dry-run      # prints:  feat: init          (the DUPLICATE)
-stagehand --provider stub                # commits: feat: unique after retry
+stagecoach --provider stub --dry-run      # prints:  feat: init          (the DUPLICATE)
+stagecoach --provider stub                # commits: feat: unique after retry
 ```
 A new user evaluating quality via `--dry-run` judges a message that would never actually be
 committed.
@@ -99,7 +99,7 @@ should still take the `write-tree` snapshot per FR49's "full … pipeline".)
 and §13.5 ("on direct use, fail fast with 'provider 'X' not found: is <command> installed?' …
 exit non-zero").
 **Expected Behavior**: When the resolved provider's `command` is not on `$PATH` / does not exist,
-Stagehand should fail fast **before** the snapshot with exit code **1** and a message naming the
+Stagecoach should fail fast **before** the snapshot with exit code **1** and a message naming the
 missing command.
 **Actual Behavior**: `CommitStaged` takes the `write-tree` snapshot (step 3) **before** attempting
 generation (step 5). The first `Execute` call fails at `cmd.Start` (command not found). That error
@@ -113,7 +113,7 @@ Additionally, a dangling tree object is left in the object store for each such r
 ```bash
 # [provider.missing] command = "/nonexistent/path/agent"
 echo "b" > b.txt && git add b.txt
-stagehand --provider missing
+stagecoach --provider missing
 # ❌ Commit generation failed.   ...   Tree ID: <sha>   ...   (exit 3)
 ```
 **Suggested Fix**: Add a pre-snapshot existence check (`exec.LookPath` on the resolved manifest's
@@ -133,13 +133,13 @@ defaults "output raw, strip_code_fence true"), §16.3 git-config keys, §12.9 (p
 **manifest's** `output`/`strip_code_fence`). The `config init` template (internal/cmd/config.go)
 also documents these as usable options.
 **Expected Behavior**: A user setting `output = "json"` / `strip_code_fence = false` (or
-`git config stagehand.output json` / `stagehand.stripCodeFence false`) reasonably expects the
+`git config stagecoach.output json` / `stagecoach.stripCodeFence false`) reasonably expects the
 parsing pipeline to honor it.
 **Actual Behavior**: `config.Config.Output` / `.StripCodeFence` are populated by every loader
 (file, git-config) and asserted on in `config/*_test.go`, but **no code path consumes them** —
 `provider.ParseOutput` reads only `deps.Manifest.Output` / `.StripCodeFence`. Verified: with
 `[generation] output = "json"` set and the manifest at `output = "raw"`, a non-JSON raw blob is
-accepted verbatim (no JSON parse attempted). Same for `git config stagehand.output json`.
+accepted verbatim (no JSON parse attempted). Same for `git config stagecoach.output json`.
 **Suggested Fix**: Either (a) apply `cfg.Output`/`cfg.StripCodeFence` onto the resolved manifest
 before parsing (override the manifest's values), or (b) remove these fields from the documented
 config schema / `config init` template and the git-config loader, documenting that
@@ -153,7 +153,7 @@ silent no-op.
 **Expected Behavior**: The notice appears once.
 **Actual Behavior**: Because config is loaded twice (CLI `PersistentPreRunE`, then again inside
 `GenerateCommit.resolveConfig`), `loadRepoLocalConfig` runs twice and writes the notice to stderr
-both times whenever `.stagehand.toml` sets `provider`. Verified: `grep -c "repo-local config"` on
+both times whenever `.stagecoach.toml` sets `provider`. Verified: `grep -c "repo-local config"` on
 the run output returns `2`.
 **Suggested Fix**: Resolved for free by Issue 1's fix (pass the already-loaded config through
 instead of re-loading). Alternatively, make the notice idempotent / emit it from only one layer.
@@ -188,8 +188,8 @@ to the exit-2 "Nothing to commit." message).
 - **Total distinct scenarios exercised**: ~20 (happy path, root commit/unborn repo, dry-run,
   nothing-staged `--no-auto-stage`, clean-tree auto-stage, auto-stage-all with staged + unstaged,
   duplicate→rescue, duplicate→retry→success, parse-fail→rescue, timeout→rescue, code-fence
-  stripping, JSON output mode, missing-provider-command, `--config` vs `STAGEHAND_CONFIG`,
-  repo-local `.stagehand.toml`, `[generation]` output/strip_code_fence, git-config output,
+  stripping, JSON output mode, missing-provider-command, `--config` vs `STAGECOACH_CONFIG`,
+  repo-local `.stagecoach.toml`, `[generation]` output/strip_code_fence, git-config output,
   stage-while-generating overlap invariant, `--model`/`--timeout`/`--verbose`, `--version`,
   `config path`, `providers list/show`, unknown subcommand).
 - **Passing**: all happy-path, data-integrity, rescue, timeout, root-commit, parsing, and
@@ -198,7 +198,7 @@ to the exit-2 "Nothing to commit." message).
 - **Areas with good coverage**: snapshot/atomic-commit core (§13), git plumbing exit-code semantics,
   rescue/timeout/CAS error mapping, prompt assembly, provider render + parse, config precedence
   resolution, signal/process-group handling.
-- **Areas needing more attention**: the **CLI ↔ `pkg/stagehand` config-handoff seam** (root cause of
+- **Areas needing more attention**: the **CLI ↔ `pkg/stagecoach` config-handoff seam** (root cause of
   Issues 1 and 5), the **dry-run code path** being a divergent single-pass implementation (Issues 2
   and 6), the **agent-missing pre-flight check** (Issue 3), and the **dead `[generation]`
   output/strip_code_fence config** (Issue 4).

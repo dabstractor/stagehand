@@ -41,8 +41,8 @@ has *no env var, no git-config key* (config.go:95-99). Context is even simpler (
 `Config` itself is **never decoded from a TOML file** — a separate `fileConfig` carries file values
 (config.go:105-107 comment: *"Config is never decoded from §16.2; fileConfig is"*). So a `Context` field on
 `Config` can never be populated from a file regardless. We add `toml:"-"` anyway for intent-clarity and to be
-defensive. No `[generation].context` key is added to `fileConfig`, no `STAGEHAND_CONTEXT` env read in
-`loadEnv`, no `stagehand.context` git read — only a `fs.Changed("context")` block in `loadFlags`.
+defensive. No `[generation].context` key is added to `fileConfig`, no `STAGECOACH_CONTEXT` env read in
+`loadEnv`, no `stagecoach.context` git read — only a `fs.Changed("context")` block in `loadFlags`.
 
 ## 4. Planner injection (FR-F7: message AND planner roles)
 
@@ -67,7 +67,7 @@ There is no rejection block in the planner payload, so context is the only optio
 `grep -rn 'BuildUserPayload\|BuildPlannerUserPayload' --include='*.go' | grep -v '_test.go'`:
 - `internal/generate/generate.go:194` — `prompt.BuildUserPayload(diff, rejected)` (cfg = `cfg`)
 - `internal/decompose/message.go:119` — `prompt.BuildUserPayload(diff, rejected)` (cfg = `deps.Config`)
-- `pkg/stagehand/stagehand.go:481` — `prompt.BuildUserPayload(diff, rejected)` (cfg = `cfg`)
+- `pkg/stagecoach/stagecoach.go:481` — `prompt.BuildUserPayload(diff, rejected)` (cfg = `cfg`)
 - `internal/decompose/planner.go:85` — `prompt.BuildPlannerUserPayload(diff, forcedCount)` (cfg = `deps.Config`)
 
 The message builder is called INSIDE the retry loop each attempt (rejection list grows across attempts);

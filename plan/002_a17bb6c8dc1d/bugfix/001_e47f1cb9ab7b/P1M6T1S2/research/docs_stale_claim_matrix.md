@@ -23,7 +23,7 @@ All five fixes are CONFIRMED APPLIED in code; `go build ./...` and `go test ./..
   (not just the `providers`/`config` subcommands)." → Issue 4. WRONG: after fix, `config
   init/upgrade/path` DO honor `--config`. Replace with README wording: "...including the
   default commit action **and the `config init`, `config path`, and `config upgrade`
-  subcommands** (e.g. `stagehand --config X config upgrade` upgrades file `X`, and
+  subcommands** (e.g. `stagecoach --config X config upgrade` upgrades file `X`, and
   `config path` prints the resolved path)."
 - **L76** (`config init`): "Bootstrap a populated, working config to the **global config path**
   ... that provider's per-role model defaults UNCOMMENTED so the tool works immediately." →
@@ -34,7 +34,7 @@ All five fixes are CONFIRMED APPLIED in code; `go build ./...` and `go test ./..
   prints the override-aware path (`ResolveConfigPath`).
 
 ### docs/configuration.md
-- **L31**: "Use `stagehand config path` to print the resolved **global** path." → Issue 4.
+- **L31**: "Use `stagecoach config path` to print the resolved **global** path." → Issue 4.
 - **L38** (Bootstrap step 2): "Writes ... that provider's per-role model defaults UNCOMMENTED
   (from the FR-D4 table)." → Issue 5 (pi models blanked).
 - **L67** (NOTE): "honored by every command — including the default commit action" → Issue 4

@@ -3,7 +3,7 @@ name: "P1.M2.T2.S1 (bugfix Issue 2) — Use the message role's provider in build
 description: |
   Bugfix for Issue 2 (PRD §9.15 FR-R3), PROVIDER half. Per-role `message` overrides are silently ignored
   on the single-commit path: `--message-provider X` / `[role.message] provider = "X"` / the message role's
-  resolved provider never reaches manifest selection because `buildDeps` (pkg/stagehand/stagehand.go:316)
+  resolved provider never reaches manifest selection because `buildDeps` (pkg/stagecoach/stagecoach.go:316)
   reads the GLOBAL `cfg.Provider` (L324) instead of resolving the `message` role. Fix: replace
   `name := cfg.Provider` with `msgProvider, _, _ := config.ResolveRoleModel("message", cfg); name := msgProvider`.
   The existing `if name == ""` auto-detect block (L325) stays — it still fires when both the message
@@ -27,17 +27,17 @@ description: |
   built-ins.** buildDeps has an `IsInstalled` pre-flight (exec.LookPath) that rejects any provider whose
   command is not on $PATH; "pi"/"claude" binaries are absent in CI. Register two providers ("alpha"/
   "beta") via `cfg.Providers` (the raw map DecodeUserOverrides reads), both with `command = <stub binary
-  abs path>` (stubtest.Build) so IsInstalled passes. The test is WHITE-BOX (`package stagehand`) —
-  stagehand_test.go already is — so it can call the unexported `buildDeps` directly and assert
+  abs path>` (stubtest.Build) so IsInstalled passes. The test is WHITE-BOX (`package stagecoach`) —
+  stagecoach_test.go already is — so it can call the unexported `buildDeps` directly and assert
   `deps.Manifest.Name`.
 
-  ⚠️ **NON-overlap with the parallel task P1.M2.T1.S1.** That task edits `runPipeline` (stagehand.go:401)
+  ⚠️ **NON-overlap with the parallel task P1.M2.T1.S1.** That task edits `runPipeline` (stagecoach.go:401)
   + `generate.go CommitStaged` for model/reasoning and EXPLICITLY leaves buildDeps to this task ("provider
-  →manifest selection stays in buildDeps (P1.M2.T2.S1)"). The two share only the file stagehand.go, in
+  →manifest selection stays in buildDeps (P1.M2.T2.S1)"). The two share only the file stagecoach.go, in
   DIFFERENT functions (buildDeps L316 vs runPipeline L401) → no textual merge conflict. Together they
   deliver full FR-R3 on the single path: provider (this task) + model/reasoning (sibling).
 
-  Deliverable: ONE code edit (buildDeps L324) + TWO white-box tests in pkg/stagehand/stagehand_test.go
+  Deliverable: ONE code edit (buildDeps L324) + TWO white-box tests in pkg/stagecoach/stagecoach_test.go
   (message-provider override selects the override manifest; no-override regression selects the global).
   NO new files, NO new types, NO new imports (`config` already imported), NO go.mod change, NO docs.
   OUTPUT: `--message-provider` / `[role.message] provider` now selects the correct manifest on BOTH the
@@ -54,12 +54,12 @@ single-commit path — with zero behavior change when no message override is set
 to `cfg.Provider`, byte-identical to today).
 
 **Deliverable** (edits to existing files; no new files):
-1. **`pkg/stagehand/stagehand.go`** `buildDeps` (L324): replace `name := cfg.Provider` with
+1. **`pkg/stagecoach/stagecoach.go`** `buildDeps` (L324): replace `name := cfg.Provider` with
    `msgProvider, _, _ := config.ResolveRoleModel("message", cfg); name := msgProvider` (+ an FR-R3/back-
    compat comment). The `if name == ""` auto-detect block, `reg.Get`, `Validate`, the `IsInstalled`
    pre-flight, and the Output/StripCodeFence bridge are UNCHANGED (they now operate on the message-
    resolved name).
-2. **`pkg/stagehand/stagehand_test.go`** (white-box `package stagehand`): two tests —
+2. **`pkg/stagecoach/stagecoach_test.go`** (white-box `package stagecoach`): two tests —
    `TestBuildDeps_MessageProviderOverride` (global "alpha" + `Roles["message"]={Provider:"beta"}` →
    `deps.Manifest.Name == "beta"`) and `TestBuildDeps_NoMessageOverride_InheritsGlobal` (`Roles` nil →
    `deps.Manifest.Name == "alpha"`). Both use `stubtest.Build(t)`-backed providers via `cfg.Providers` so
@@ -74,11 +74,11 @@ go.mod/go.sum unchanged; `config` is already imported (no new import).
 ## User Persona
 
 **Target User**: Any user who sets the message role's provider on the single-commit (default) path —
-`stagehand --message-provider claude`, `[role.message] provider = "claude"` in config, or the
-`STAGEHAND_MESSAGE_PROVIDER` env var. Transitively PRD §9.15 FR-R3 ("every role exposes all three flags,
+`stagecoach --message-provider claude`, `[role.message] provider = "claude"` in config, or the
+`STAGECOACH_MESSAGE_PROVIDER` env var. Transitively PRD §9.15 FR-R3 ("every role exposes all three flags,
 including message").
 
-**Use Case**: `stagehand --message-provider claude` (with something staged) must generate the commit
+**Use Case**: `stagecoach --message-provider claude` (with something staged) must generate the commit
 using the CLAUDE manifest. Today it silently uses the global/manifest-default provider.
 
 **User Journey**: flag/env/file → `Load()` writes `cfg.Roles["message"]` → `GenerateCommit` → `buildDeps`
@@ -146,10 +146,10 @@ provider ⇒ reg.Get(name) selects the manifest."
        concrete code sketch (§5), scope fences (§6), validation commands (§7).
   critical: §5 — the test MUST use stub-backed providers (cfg.Providers with command=<stub binary abs
        path>), NOT literal "pi"/"claude" (IsInstalled rejects absent binaries). And it is WHITE-BOX
-       (package stagehand) so it can call unexported buildDeps.
+       (package stagecoach) so it can call unexported buildDeps.
 
 # The function being fixed
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   section: buildDeps (L316; the `name := cfg.Provider` line is L324; auto-detect block L325).
   why: the single edit site. buildDeps selects the manifest; everything after `name := …` (reg.Get,
        Validate, IsInstalled pre-flight, Output/StripCodeFence bridge) operates on `name` unchanged.
@@ -169,14 +169,14 @@ provider ⇒ reg.Get(name) selects the manifest."
 # The contract — what the parallel sibling task does (NON-overlapping)
 - file: plan/003_6ce49c39466e/bugfix/001_ccbb2681877e/P1M2T1S1/PRP.md
   why: the sibling P1.M2.T1.S1 fixes the MODEL+REASONING half at the Render call sites (generate.go
-       CommitStaged + stagehand.go runPipeline). It uses `_, msgModel, msgReasoning := …` (discards
+       CommitStaged + stagecoach.go runPipeline). It uses `_, msgModel, msgReasoning := …` (discards
        provider) and EXPLICITLY leaves manifest selection to buildDeps (this task).
   critical: do NOT duplicate the sibling's Render-site edits. This task edits ONLY buildDeps. The two
-       share stagehand.go in DIFFERENT functions (buildDeps vs runPipeline) → no merge conflict.
+       share stagecoach.go in DIFFERENT functions (buildDeps vs runPipeline) → no merge conflict.
 
 # The test harness + white-box test pattern
-- file: pkg/stagehand/stagehand_test.go
-  section: `package stagehand` (WHITE-BOX, L1) + setupTestRepo/stubtest.Build usage (L78-137) + the
+- file: pkg/stagecoach/stagecoach_test.go
+  section: `package stagecoach` (WHITE-BOX, L1) + setupTestRepo/stubtest.Build usage (L78-137) + the
        cfg.Providers-in-memory pattern (L788, L841) + Result.Provider == manifest-name (L221-222).
   why: confirms (a) the test file IS white-box (can call unexported buildDeps), (b) stubtest.Build(t)
        yields a real binary whose abs path passes IsInstalled, (c) cfg.Providers is the raw
@@ -196,8 +196,8 @@ provider ⇒ reg.Get(name) selects the manifest."
 ### Current Codebase tree (relevant slice)
 
 ```bash
-pkg/stagehand/stagehand.go          # buildDeps (L316; `name :=` at L324) — EDIT (one line + comment)
-pkg/stagehand/stagehand_test.go     # package stagehand (WHITE-BOX) — EDIT (add 2 buildDeps tests)
+pkg/stagecoach/stagecoach.go          # buildDeps (L316; `name :=` at L324) — EDIT (one line + comment)
+pkg/stagecoach/stagecoach_test.go     # package stagecoach (WHITE-BOX) — EDIT (add 2 buildDeps tests)
 internal/config/roles.go            # ResolveRoleModel (3-return) — INPUT, NO edit
 internal/stubtest/stubtest.go       # stubtest.Build (real binary) — INPUT, NO edit
 internal/generate/generate.go       # CommitStaged (Render) — sibling task, NOT this task
@@ -208,7 +208,7 @@ go.mod / go.sum                     # unchanged (config already imported; no new
 ### Desired Codebase tree with files to be added
 
 ```bash
-# NO new files. One code edit (stagehand.go buildDeps) + two tests added to stagehand_test.go.
+# NO new files. One code edit (stagecoach.go buildDeps) + two tests added to stagecoach_test.go.
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -228,7 +228,7 @@ go.mod / go.sum                     # unchanged (config already imported; no new
 // errors. Register STUB-BACKED providers ("alpha"/"beta") via cfg.Providers with command=<stubtest.Build
 // abs path> so IsInstalled passes. (exec.LookPath on an absolute path to a real executable succeeds.)
 
-// CRITICAL (test): the test is WHITE-BOX. stagehand_test.go is `package stagehand` (not _test), so it can
+// CRITICAL (test): the test is WHITE-BOX. stagecoach_test.go is `package stagecoach` (not _test), so it can
 // call the unexported buildDeps directly and read deps.Manifest.Name. Add the tests there.
 
 // GOTCHA: buildDeps does NOT run any git command (it only constructs generate.Deps{Git: git.New(repoDir)});
@@ -242,7 +242,7 @@ go.mod / go.sum                     # unchanged (config already imported; no new
 // GOTCHA: do NOT wire model/reasoning into buildDeps (that overlaps the sibling task's Render edits).
 // buildDeps selects the manifest; Render (on that manifest) gets model/reasoning. Keep it split.
 
-// GOTCHA: `config` is ALREADY imported in stagehand.go (resolveConfig uses config.Load/config.Config).
+// GOTCHA: `config` is ALREADY imported in stagecoach.go (resolveConfig uses config.Load/config.Config).
 // Do NOT add an import. (Adding an unused one fails `go vet`.)
 ```
 
@@ -256,7 +256,7 @@ No new types. The change is one initializer line + its comment. `config.ResolveR
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: EDIT pkg/stagehand/stagehand.go buildDeps — resolve the message provider
+Task 1: EDIT pkg/stagecoach/stagecoach.go buildDeps — resolve the message provider
   - AT L324, REPLACE:
         name := cfg.Provider
     WITH:
@@ -271,7 +271,7 @@ Task 1: EDIT pkg/stagehand/stagehand.go buildDeps — resolve the message provid
     pre-flight, or the Output/StripCodeFence bridge — they now operate on the message-resolved `name`.
   - GOTCHA: use `_` for model+reasoning. Do NOT add an import (config already imported).
 
-Task 2: ADD two white-box tests to pkg/stagehand/stagehand_test.go
+Task 2: ADD two white-box tests to pkg/stagecoach/stagecoach_test.go
   - Both use stubtest.Build(t) (real binary) + cfg.Providers (raw map) with two stub-backed providers.
   - TEST TestBuildDeps_MessageProviderOverride:
         bin := stubtest.Build(t)
@@ -293,9 +293,9 @@ Task 2: ADD two white-box tests to pkg/stagehand/stagehand_test.go
         if deps.Manifest.Name != "alpha" {
             t.Errorf("no-override regression: deps.Manifest.Name = %q, want %q (global)", deps.Manifest.Name, "alpha")
         }
-  - WHY WHITE-BOX: buildDeps is unexported; stagehand_test.go is `package stagehand` (can call it).
+  - WHY WHITE-BOX: buildDeps is unexported; stagecoach_test.go is `package stagecoach` (can call it).
   - WHY STUB-BACKED: buildDeps's IsInstalled pre-flight rejects non-PATH commands; the stub binary's abs
-    path passes. (Mirrors the existing setupTestRepo/stubtest.Build harness at stagehand_test.go:84-137.)
+    path passes. (Mirrors the existing setupTestRepo/stubtest.Build harness at stagecoach_test.go:84-137.)
   - GOTCHA: repoDir = t.TempDir() (no git ops inside buildDeps). Validate-passing provider maps (Name from
     the key + Command=bin + valid enums).
 
@@ -324,7 +324,7 @@ name := msgProvider                                            // (was: name := 
 ```
 
 ```go
-// stagehand_test.go — the override test (the precise TDD proof for THIS task):
+// stagecoach_test.go — the override test (the precise TDD proof for THIS task):
 func TestBuildDeps_MessageProviderOverride(t *testing.T) {
 	bin := stubtest.Build(t) // real stub binary; abs path ⇒ IsInstalled passes
 	cfg := config.Defaults()
@@ -355,7 +355,7 @@ FROZEN / NOT-EDITED:
   - internal/config/* (loaders/flags already populate cfg.Roles["message"] correctly — the bug is NOT
     there; ResolveRoleModel is consumed, not edited).
   - internal/provider/{registry,manifest,render}.go (consumed unchanged).
-  - internal/generate/generate.go + pkg/stagehand/stagehand.go runPipeline (the sibling P1.M2.T1.S1 —
+  - internal/generate/generate.go + pkg/stagecoach/stagecoach.go runPipeline (the sibling P1.M2.T1.S1 —
     model/reasoning at Render sites; NON-overlapping with buildDeps).
   - internal/decompose/* (multi-commit path uses ResolveRoles, not buildDeps; unaffected).
   - internal/cmd/default_action.go, README.md, docs/cli.md (the flag is already documented/wired).
@@ -374,38 +374,38 @@ NO NEW DATABASE / ROUTES / CLI COMMANDS / FILES / DOCS.
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-gofmt -w pkg/stagehand/stagehand.go pkg/stagehand/stagehand_test.go
-test -z "$(gofmt -l pkg/stagehand/)" && echo "gofmt clean" || echo "GOFMT DIRTY"
+gofmt -w pkg/stagecoach/stagecoach.go pkg/stagecoach/stagecoach_test.go
+test -z "$(gofmt -l pkg/stagecoach/)" && echo "gofmt clean" || echo "GOFMT DIRTY"
 go vet ./...        # Catches a forgotten `_` on model/reasoning returns (unused-var) or a stray import.
 go build ./...      # Whole module compiles.
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
 # Confirm `config` is already imported (no new import line added by this task):
-grep -n '"github.com/dustin/stagehand/internal/config"' pkg/stagehand/stagehand.go
+grep -n '"github.com/dustin/stagecoach/internal/config"' pkg/stagecoach/stagecoach.go
 ```
 
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
 # The two new white-box tests (override + no-override regression):
-go test -race ./pkg/stagehand/ -v -run 'BuildDeps|MessageProvider'
+go test -race ./pkg/stagecoach/ -v -run 'BuildDeps|MessageProvider'
 # Expected: PASS — TestBuildDeps_MessageProviderOverride (Manifest.Name=="beta"),
 #   TestBuildDeps_NoMessageOverride_InheritsGlobal (Manifest.Name=="alpha").
 
 # Full suite (the no-override path is byte-identical → no regression anywhere):
 go test -race ./...
-# Expected: all PASS. If a non-stagehand package breaks, it is unrelated (this task edits only buildDeps).
+# Expected: all PASS. If a non-stagecoach package breaks, it is unrelated (this task edits only buildDeps).
 ```
 
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only the listed files changed:
-git diff --name-only | grep -Ev 'pkg/stagehand/stagehand\.go|pkg/stagehand/stagehand_test\.go' \
+git diff --name-only | grep -Ev 'pkg/stagecoach/stagecoach\.go|pkg/stagecoach/stagecoach_test\.go' \
   && echo "UNEXPECTED file changed" || echo "only listed files changed (good)"
 # Confirm the edit is exactly the one initializer (no auto-detect block removed):
-grep -n 'ResolveRoleModel("message", cfg)\|name := msgProvider\|if name == ""' pkg/stagehand/stagehand.go
+grep -n 'ResolveRoleModel("message", cfg)\|name := msgProvider\|if name == ""' pkg/stagecoach/stagecoach.go
 ```
 
 ### Level 4: Creative & Domain-Specific Validation
@@ -414,7 +414,7 @@ grep -n 'ResolveRoleModel("message", cfg)\|name := msgProvider\|if name == ""' p
 # OPTIONAL public-API complement (proves the end-to-end routing through GenerateCommit): a DryRun test
 # asserting Result.Provider == the message-override provider. Reuse setupTestRepo to register the stub,
 # inject a second provider via cfg.Providers, set Options message-provider, GenerateCommit(DryRun:true),
-# assert Result.Provider. (Result.Provider == manifest name — see stagehand_test.go:221-222.) The direct
+# assert Result.Provider. (Result.Provider == manifest name — see stagecoach_test.go:221-222.) The direct
 # buildDeps test in Task 2 is the precise proof; this is belt-and-suspenders. golangci-lint: `make lint`.
 ```
 
@@ -422,10 +422,10 @@ grep -n 'ResolveRoleModel("message", cfg)\|name := msgProvider\|if name == ""' p
 
 ### Technical Validation
 
-- [ ] Level 1 clean: `go build ./...`, `go vet ./...`, `gofmt -l pkg/stagehand/`, `go mod tidy` no-op;
+- [ ] Level 1 clean: `go build ./...`, `go vet ./...`, `gofmt -l pkg/stagecoach/`, `go mod tidy` no-op;
       no new import (config already imported); go.mod/go.sum byte-unchanged.
 - [ ] Level 2 green: `go test -race ./...` (two new tests + no regressions).
-- [ ] Level 3: binary builds; go.mod/go.sum unchanged; only stagehand.go + stagehand_test.go changed.
+- [ ] Level 3: binary builds; go.mod/go.sum unchanged; only stagecoach.go + stagecoach_test.go changed.
 
 ### Feature Validation
 
@@ -466,9 +466,9 @@ grep -n 'ResolveRoleModel("message", cfg)\|name := msgProvider\|if name == ""' p
   (exec.LookPath) rejects providers not on $PATH; those binaries are absent in CI. Register stub-backed
   providers via `cfg.Providers` with `command = <stubtest.Build abs path>`.
 - ❌ Don't edit runPipeline / generate.go CommitStaged — that is the sibling P1.M2.T1.S1 (model/reasoning
-  at Render). This task edits ONLY buildDeps. (The two share stagehand.go in different functions → no
+  at Render). This task edits ONLY buildDeps. (The two share stagecoach.go in different functions → no
   conflict, but stay in your lane.)
-- ❌ Don't add an import — `config` is already imported in stagehand.go. An unused import fails `go vet`.
+- ❌ Don't add an import — `config` is already imported in stagecoach.go. An unused import fails `go vet`.
 - ❌ Don't change go.mod/go.sum. This is a one-line in-place bugfix + tests; no new dependency.
 - ❌ Don't wire buildDeps into the decompose path or touch ResolveRoles. buildDeps is single-commit-only;
   the multi-commit path resolves roles separately (and already works).

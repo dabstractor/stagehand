@@ -36,7 +36,7 @@ and adds Mode-A reference sections to `exampleConfigTemplate` in `internal/cmd/c
 
 **Frozen (do NOT touch):**
 - `config.go` — S1 SHIPPED the `Config` fields/types/const/Defaults. S2 only WRITES INTO them.
-- `load.go` — P1.M3.T2 owns env/flags (`STAGEHAND_<ROLE>_*`, `--commits`/`--single`/`--<role>-*`) +
+- `load.go` — P1.M3.T2 owns env/flags (`STAGECOACH_<ROLE>_*`, `--commits`/`--single`/`--<role>-*`) +
   `ResolveRoleModel`. S2 does not touch the resolver; it only makes the FILE layer populate the fields.
 - `git.go`, provider/*, prompt/*, generate/*, ui/*, pkg/*, root.go.
 

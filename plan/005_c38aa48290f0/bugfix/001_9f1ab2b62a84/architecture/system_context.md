@@ -1,9 +1,9 @@
 # System Context — Bugfix Delta (v2.1 Validation Fixes)
 
 ## Project Identity
-- **Module**: `github.com/dustin/stagehand`
+- **Module**: `github.com/dustin/stagecoach`
 - **Language**: Go 1.22 (toolchain go1.26.4)
-- **Binary**: `cmd/stagehand` (CLI tool for AI-assisted git commit messages)
+- **Binary**: `cmd/stagecoach` (CLI tool for AI-assisted git commit messages)
 - **Dependencies**: DELIBERATELY MINIMAL — `cobra`, `pflag`, `go-toml/v2`, `yaml.v3`. **NO** `golang.org/x/term`, `golang.org/x/sys`, or `mattn/go-isatty`. The project is intentionally dep-free for TTY detection ("project stays dep-free; see procgroup_windows.go").
 - **Supported platforms**: linux, darwin, windows (all × amd64/arm64) per `.goreleaser.yaml`.
 
@@ -52,5 +52,5 @@ These use **stdlib-only** syscall (no `golang.org/x/sys` dependency).
 ## Key Design Constraints
 1. **Dep-free**: No new dependencies. Platform-specific code uses stdlib `syscall`.
 2. **TDD**: Every code change pairs with tests. Tests use `*bytes.Buffer` for output capture, temp dirs, stub binaries.
-3. **No-mangle protocol**: The integrate feature's core guarantee — it must be impossible for stagehand to mangle a config file.
+3. **No-mangle protocol**: The integrate feature's core guarantee — it must be impossible for stagecoach to mangle a config file.
 4. **Idempotency**: Install operations must be idempotent (marker-based identity).

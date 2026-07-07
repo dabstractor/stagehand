@@ -1,6 +1,6 @@
 # Providers & Config — Exact Source Facts (for docs)
 
-Working dir: `/home/dustin/projects/stagehand`. All identifiers quoted verbatim from source.
+Working dir: `/home/dustin/projects/stagecoach`. All identifiers quoted verbatim from source.
 
 > **File-layout note for the writer:** the task prompt referred to "each builtin: builtinPi/Claude/Gemini/Opencode/Codex/Cursor/Agy" as if they were separate files. They are NOT — all seven `builtinX()` constructors live in a single file `internal/provider/builtin.go`. `BuiltinManifests()` (same file) is the map keyed by name. There is no per-provider file.
 
@@ -80,7 +80,7 @@ Comment: "v2 = per-role models + multi-commit decomposition + binary filtering."
 
 ### What populated `config init` writes (`buildBootstrapConfig`)
 Order/sections written (deterministic, pure):
-1. **`bootstrapHeader`** — a large commented block (precedence, env vars `STAGEHAND_*`, git config keys, CLI flags). Quoted constant, see source.
+1. **`bootstrapHeader`** — a large commented block (precedence, env vars `STAGECOACH_*`, git config keys, CLI flags). Quoted constant, see source.
 2. **`config_version = 2`** — **UNCOMMENTED** (F6). `fmt.Fprintf(&b, "config_version = %d\n", CurrentConfigVersion)`.
 3. **`[defaults]` block** — `provider = "<target>"` UNCOMMENTED (with an inline comment `# no built-in agent detected on $PATH; defaulted to "pi" …` only when target not installed); the rest commented: `# model = ""`, `# timeout = "120s"`, `# auto_stage_all = true`, `# verbose = false`.
 4. **Four `[role.*]` blocks for the target** — UNCOMMENTED, canonical order **planner, stager, message, arbiter**, models from `DefaultModelsForProvider(target)`:
@@ -120,7 +120,7 @@ Order/sections written (deterministic, pure):
 ### `runConfigUpgrade` stdout/exit behavior
 
 - **No config file** (`os.IsNotExist`): returns `exitcode.New(exitcode.Error, …)` → prints (to stderr):
-  `no config file at <path> (run 'stagehand config init' first)` — exit 1.
+  `no config file at <path> (run 'stagecoach config init' first)` — exit 1.
 - **Not valid TOML**: `config <path> is not valid TOML: <err>` — exit 1, file untouched.
 - **Already current** (`changed == false`): prints to **stdout** (exit 0):
   `Config at <path> is already at version 2 (no changes).` — file byte-identical.
@@ -138,9 +138,9 @@ It scans ONLY the top-level region (stops at the first `[table]` header via `isT
 
 ### Load-time advisory (`configVersionNotice`, `internal/config/load.go`) — for cross-reference
 Emitted to `noticeOut` (stderr) after all overlays, happy path only, `fileLoaded && version != CurrentConfigVersion`:
-- `version == 0`: `stagehand: config file has no config_version; current is 2. Run 'stagehand config upgrade' or 'stagehand config init --force'.`
-- `version < 2`: `stagehand: config file uses schema version <v>; current is 2. Run 'stagehand config upgrade' or 'stagehand config init --force'.`
-- `version > 2`: `stagehand: config file uses schema version <v>; this binary supports up to 2. Upgrade stagehand, or run 'stagehand config init --force' to regenerate.`
+- `version == 0`: `stagecoach: config file has no config_version; current is 2. Run 'stagecoach config upgrade' or 'stagecoach config init --force'.`
+- `version < 2`: `stagecoach: config file uses schema version <v>; current is 2. Run 'stagecoach config upgrade' or 'stagecoach config init --force'.`
+- `version > 2`: `stagecoach: config file uses schema version <v>; this binary supports up to 2. Upgrade stagecoach, or run 'stagecoach config init --force' to regenerate.`
 - `!fileLoaded` or current → `""` (silent).
 
 ---
@@ -175,7 +175,7 @@ Confirmed pipeline (PRD §13.6 / §11.4 / §9.14):
 
 `RoleManifests` = `{Planner, Stager (tooled), Message, Arbiter}` (all bare except Stager which carries the post-fallback tooled manifest). `RoleModels` = four `config.RoleConfig{Provider, Model}`.
 
-### Public `Decompose()` signature — `pkg/stagehand/stagehand.go`
+### Public `Decompose()` signature — `pkg/stagecoach/stagecoach.go`
 ```go
 // Stable as of v2.0.
 func Decompose(ctx context.Context, opts DecomposeOptions) (DecomposeResult, error)
@@ -205,4 +205,4 @@ PRECONDITION (FR-M1, owned by the CLI router): the caller must ensure NOTHING is
 - `roleNames` — `internal/config/load.go`.
 - `decompose.Decompose` / `DecomposeResult` / `CommitResult` / `DecomposeRescueError` / `Deps` — `internal/decompose/decompose.go`.
 - `decompose.ResolveRoles` / `RoleManifests` / `RoleModels` — `internal/decompose/roles.go`.
-- `stagehand.Decompose` / `DecomposeOptions` / `DecomposeResult` / `GenerateCommit` / `Options` / `Result` / `RoleModel` — `pkg/stagehand/stagehand.go`.
+- `stagecoach.Decompose` / `DecomposeOptions` / `DecomposeResult` / `GenerateCommit` / `Options` / `Result` / `RoleModel` — `pkg/stagecoach/stagecoach.go`.

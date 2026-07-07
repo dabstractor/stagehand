@@ -6,17 +6,17 @@
 ## 0. Task contract (verbatim from item_description)
 
 Mode B changeset-level docs sync. The 4 hook git-parity bug fixes are COMPLETE (P1.M1.T1 argc=1,
-P1.M1.T2 trailing newline, P1.M2.T1 stagehand.noVerify, P1.M3.T1 empty-message guard). The per-file docs
+P1.M1.T2 trailing newline, P1.M2.T1 stagecoach.noVerify, P1.M3.T1 empty-message guard). The per-file docs
 (docs/cli.md:44, docs/configuration.md:155) + config.go comment were ALREADY fixed in P1.M2.T1.S1 (Mode A).
 THIS task sweeps ONLY the overview/README-level docs:
 
-- README.md:71 (feature-table row "Commit hooks on every `stagehand` commit")
+- README.md:71 (feature-table row "Commit hooks on every `stagecoach` commit")
 - README.md:367-369 (FAQ "Does it run my pre-commit hooks?")
 - docs/how-it-works.md:310-324 ("Commit hooks on the plumbing path" section)
 - docs/how-it-works.md:337 (snapshot-based flow feature-list bullet "Honors pre-commit hooks")
 
 The 4 accuracy checks:
-- (a) stale key `stagehand.no_verify` (should be `stagehand.noVerify`) — **CHECK**
+- (a) stale key `stagecoach.no_verify` (should be `stagecoach.noVerify`) — **CHECK**
 - (b) claims prepare-commit-msg runs with 2 args (should be 1) — **CHECK**
 - (c) implies message files have no trailing newline (git always adds one) — **CHECK**
 - (d) omits the empty-message abort behavior (should mention it, like the `--edit` abort) — **CHECK**
@@ -28,10 +28,10 @@ document that the docs were reviewed and no changes were needed."
 
 ## 1. VERDICT per location (all 4 read in full)
 
-### Check (a) — stale `stagehand.no_verify` key name: **NOT PRESENT in either overview doc.**
+### Check (a) — stale `stagecoach.no_verify` key name: **NOT PRESENT in either overview doc.**
 `grep -cE 'no_verify|noVerify|argc|two arg|2 arg' README.md` → **0**; same for `docs/how-it-works.md` → **0**.
-Both docs mention ONLY the `--no-verify` FLAG (correct, unchanged). The stale `stagehand.no_verify` KEY lived
-in docs/cli.md:44 + docs/configuration.md:155 + config.go:130 — **all already corrected to `stagehand.noVerify`
+Both docs mention ONLY the `--no-verify` FLAG (correct, unchanged). The stale `stagecoach.no_verify` KEY lived
+in docs/cli.md:44 + docs/configuration.md:155 + config.go:130 — **all already corrected to `stagecoach.noVerify`
 in P1.M2.T1.S1 (Mode A, Complete)**. → **NO CHANGE for (a).**
 
 ### Check (b) — 2-args / argc claim: **NOT PRESENT.**
@@ -103,7 +103,7 @@ This is accurate to the Issue 4 fix (P1.M3.T1.S1, Complete): the empty-message g
 The empty-message abort IS shipped behavior (P1.M3.T1.S1 — Complete). The guard sits after `RunCommitHooks`
 in all 3 commit paths:
 - `internal/generate/generate.go` (`CommitStaged`, after the hooks block)
-- `pkg/stagehand/stagehand.go` (`runPipeline`, after the hooks block)
+- `pkg/stagecoach/stagecoach.go` (`runPipeline`, after the hooks block)
 - `internal/decompose/message.go` (`publishCommit`, after `RunCommitHooks`)
 
 → the docs edit describes EXISTING shipped behavior, not a future promise. (If a reviewer questions the
@@ -113,7 +113,7 @@ behavior, the implementation is already in the tree.)
 
 ## 4. Scope boundary (do NOT edit — owned elsewhere / already done)
 
-- **docs/cli.md:44 + docs/configuration.md:155 + config.go:130** — the `stagehand.noVerify` key-name fix is
+- **docs/cli.md:44 + docs/configuration.md:155 + config.go:130** — the `stagecoach.noVerify` key-name fix is
   ALREADY DONE (P1.M2.T1.S1, Mode A, Complete). Do NOT re-touch them.
 - **docs/how-it-works.md** other sections (snapshot flow, decompose, prompt engineering, hook-mode
   trade-off, multi-turn fallback) — NOT in scope.

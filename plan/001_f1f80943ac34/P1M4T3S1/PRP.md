@@ -5,7 +5,7 @@ description: |
   Create the `internal/ui` output package (`internal/ui/output.go` + tests) that owns ALL CLI
   rendering: (1) TTY detection on `os.Stdout` (stdlib `ModeCharDevice` heuristic — NO new dep, matching
   `procgroup_windows.go`'s stdlib-only philosophy); (2) a pure color-gate `ResolveColor(noColor, isTTY)`
-  that folds `cfg.NoColor` (already resolved from `--no-color`/`STAGEHAND_NO_COLOR` by config.Load) +
+  that folds `cfg.NoColor` (already resolved from `--no-color`/`STAGECOACH_NO_COLOR` by config.Load) +
   the bare `NO_COLOR` env var (https://no-color.org — NOT yet handled anywhere in the codebase) + the
   TTY check; (3) ANSI color helpers `Green/Red/Yellow` that no-op when color is off; (4) `Progress(msg)`
   writing the Appendix-B `↳ ` (U+21B3) prefix to STDERR (FR51: stdout stays clean for piping);
@@ -16,7 +16,7 @@ description: |
   CONTRACT (PRD §9.13 FR50/FR51, §15.2, Appendix B; work-item spec):
     - FR51: "Color output when stdout is a TTY; disable with `--no-color` or `NO_COLOR`. Progress
       messages go to stderr so stdout stays clean for piping."
-    - §15.2 `--no-color`: default "TTY-aware"; env `STAGEHAND_NO_COLOR`; "Respects `NO_COLOR`."
+    - §15.2 `--no-color`: default "TTY-aware"; env `STAGECOACH_NO_COLOR`; "Respects `NO_COLOR`."
     - Appendix B: every progress line is prefixed `↳ ` (U+21B3), e.g. `↳ Generating with pi (glm-5.2)…`.
     - Work item: "Implement color helpers (green, red, yellow) that no-op when !TTY or NoColor.
       Implement `Progress(msg)` writing to os.Stderr with the ↳ prefix. Implement `Success(msg)` and
@@ -25,7 +25,7 @@ description: |
 
   INPUT (upstream — all EXIST, READ/CONSUME only, do NOT modify their behavior):
     - `config.Config.NoColor bool` (`toml:"-"`) — P1.M1.T4.S1. ALREADY resolved by `config.Load`:
-      Layer 5 `STAGEHAND_NO_COLOR` (load.go:112) + Layer 7 `--no-color` (loadFlags:151). Its own
+      Layer 5 `STAGECOACH_NO_COLOR` (load.go:112) + Layer 7 `--no-color` (loadFlags:151). Its own
       comment says "set by UI layer (P1.M4.T3.S1)" — THIS task is the designated owner of the final
       TTY/NO_COLOR resolution. We ADD the bare `NO_COLOR` env + the `os.Stdout` TTY check on top.
     - `cmd.OutOrStdout()` / `cmd.ErrOrStderr()` — cobra writers (P1.M4.T1.S1). Used as the UI's
@@ -41,13 +41,13 @@ description: |
     NEW internal/ui/output_test.go   — unit tests for color on/off logic + stream/prefix assertions
                                        (no real TTY required — D2 decouples the env/flag logic).
     EDIT internal/cmd/default_action.go — construct the UI from cfg + streams; emit the `↳ Generating…`
-                                       Progress line before `stagehand.GenerateCommit`; route the FR18
+                                       Progress line before `stagecoach.GenerateCommit`; route the FR18
                                        auto-stage notice + generic error through the color helpers.
                                        stdout DATA (`printCommitReport`/`printDryRunMessage`) UNCHANGED.
 
   SCOPE BOUNDARY (owned by siblings — do NOT implement or edit):
     - `main.go`, `internal/provider/executor.go`, `internal/generate/generate.go`,
-      `pkg/stagehand/stagehand.go` — being edited IN PARALLEL by P1.M4.T2.S1 (signal handler). DO NOT
+      `pkg/stagecoach/stagecoach.go` — being edited IN PARALLEL by P1.M4.T2.S1 (signal handler). DO NOT
       touch them (its PRP lists default_action.go as a do-not-touch sibling; the reverse holds too).
     - Verbose output (resolved command / raw output / retry details) — P1.M4.T3.S2.
     - Exit codes / ExitError — already shipped P1.M4.T1.S1 (`internal/exitcode`); S3 refine-only.
@@ -59,7 +59,7 @@ description: |
       the pre-call generic Progress line is the v1 surface.
 
   DEPENDENCY GRAPH (CYCLE-FREE): `internal/ui` → stdlib ONLY (fmt, io, os). `internal/cmd` →
-  `internal/ui` (one-way). No other stagehand package is imported by `ui`, so any package may import it.
+  `internal/ui` (one-way). No other stagecoach package is imported by `ui`, so any package may import it.
 
   Deliverable: 2 NEW files + 1 EDIT. `go build ./...` green; `go test -race ./internal/ui/ -v` green;
   `go test -race ./...` NO regression (default_action_test.go stream assertions still pass — Progress
@@ -69,9 +69,9 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Ship Stagehand's CLI rendering layer (PRD §9.13 FR51, §15.2, Appendix B): a
+**Feature Goal**: Ship Stagecoach's CLI rendering layer (PRD §9.13 FR51, §15.2, Appendix B): a
 stdlib-only `internal/ui` package that detects whether `os.Stdout` is a terminal, resolves whether to
-emit ANSI color from that + `--no-color`/`STAGEHAND_NO_COLOR` (via `cfg.NoColor`) + the bare `NO_COLOR`
+emit ANSI color from that + `--no-color`/`STAGECOACH_NO_COLOR` (via `cfg.NoColor`) + the bare `NO_COLOR`
 env var (https://no-color.org), and provides color-aware helpers (`Green/Red/Yellow`,
 `Progress`/`Success`/`Error`) where **progress goes to STDERR** so **stdout stays byte-clean for
 piping** (FR51). Then wire it into the default action so the `↳ Generating…` progress line actually
@@ -88,32 +88,32 @@ appears and stderr notices pick up color.
    - `func (u *UI) Error(msg string)` — writes `Red(msg)` to STDERR.
 2. NEW `internal/ui/output_test.go` — unit tests for the color on/off logic + stream/prefix bytes.
 3. EDIT `internal/cmd/default_action.go` — construct the UI; emit `Progress("Generating…")` before
-   `stagehand.GenerateCommit`; route the FR18 notice + generic-error line through the color helpers.
+   `stagecoach.GenerateCommit`; route the FR18 notice + generic-error line through the color helpers.
 
 **Success Definition**: `go test -race ./internal/ui/ -v` green (color-gate matrix + NO_COLOR env +
 ANSI-wrap/no-op + Progress prefix/stream + IsTerminal-on-a-pipe); `go test -race ./...` green with
 **zero** change to `default_action_test.go`'s stream assertions (dry-run `stdout == "feat: dry run"`
 exact-equality still holds because Progress goes to stderr; commit `Contains(stdout,"] feat: add login")`
-holds because stdout stays plain). `make build` then `./bin/stagehand --dry-run` in a real repo prints
+holds because stdout stays plain). `make build` then `./bin/stagecoach --dry-run` in a real repo prints
 `↳ Generating…` to stderr (colored on a TTY, plain under `NO_COLOR=1` or a pipe) and the bare message to
 stdout. `go vet ./...` clean; `gofmt -l` empty for the touched trees.
 
 ## User Persona
 
-**Target User**: The Stagehand CLI user (PRD §7 "the plan-holder") running `stagehand` interactively in
+**Target User**: The Stagecoach CLI user (PRD §7 "the plan-holder") running `stagecoach` interactively in
 a terminal — they want live progress feedback (`↳ Generating…`) and color-coded success/error — AND the
-same user piping output (`stagehand --dry-run --no-color | tee /tmp/msg.txt`, §15.5) who needs stdout
+same user piping output (`stagecoach --dry-run --no-color | tee /tmp/msg.txt`, §15.5) who needs stdout
 clean. The single design must serve both; FR51 is the rule that reconciles them.
 
-**Use Case**: `git add -A && stagehand` → see `↳ Generating…` (colored on a TTY) → see the FR42 report.
-Then `stagehand --dry-run | git commit -F -` → stdout is the message only, no ANSI, no progress noise.
+**Use Case**: `git add -A && stagecoach` → see `↳ Generating…` (colored on a TTY) → see the FR42 report.
+Then `stagecoach --dry-run | git commit -F -` → stdout is the message only, no ANSI, no progress noise.
 
-**User Journey**: user runs stagehand → `↳ Generating…` appears on stderr → generation completes → the
+**User Journey**: user runs stagecoach → `↳ Generating…` appears on stderr → generation completes → the
 commit report appears on stdout (plain, pipeable) → on error, a red notice on stderr. When the user
 redirects/pipes, `NO_COLOR`/non-TTY auto-disables color so downstream tools never see ANSI.
 
 **Pain Points Addressed**: (1) no progress feedback during the (slow) generation → the `↳ ` progress
-line; (2) ANSI codes leaking into piped output (`git commit -F <(stagehand --dry-run)`) → stdout never
+line; (2) ANSI codes leaking into piped output (`git commit -F <(stagecoach --dry-run)`) → stdout never
 carries color; (3) respecting the universal `NO_COLOR` convention → implemented.
 
 ## Why
@@ -122,7 +122,7 @@ carries color; (3) respecting the universal `NO_COLOR` convention → implemente
   (no TTY/NO_COLOR logic exists) and progress would have to go to stdout (breaking the §15.5 pipe use
   case). This task is the explicit owner (the `Config.NoColor` comment names "P1.M4.T3.S1").
 - **The bare `NO_COLOR` env is NOT yet handled** (`grep -rn "NO_COLOR\b" internal/` finds only
-  `STAGEHAND_NO_COLOR`). The UI layer adds the convention so Stagehand behaves like every other
+  `STAGECOACH_NO_COLOR`). The UI layer adds the convention so Stagecoach behaves like every other
   well-mannered CLI.
 - **Stdlib-only, zero new deps.** `IsTerminal` uses `os.FileStat` + `ModeCharDevice`; color is plain ANSI
   SGR constants. Matches `procgroup_windows.go`'s no-`golang.org/x/sys` philosophy (project invariant).
@@ -153,7 +153,7 @@ the FR18 stderr notice + generic-error stderr line through the color helpers. Th
 ### Success Criteria
 
 - [ ] `internal/ui/output.go` exists, `package ui`, **stdlib-only** imports (`fmt`, `io`, `os`). No
-      stagehand imports (F6) and no new `go.mod` dependencies.
+      stagecoach imports (F6) and no new `go.mod` dependencies.
 - [ ] `IsTerminal(*os.File) bool` returns true for a char device, false for a pipe/file (stat-error→false).
 - [ ] `ResolveColor(noColor, isTTY)` returns true iff `!noColor && !noColorEnvSet() && isTTY`;
       `noColorEnvSet()` reads `NO_COLOR` via `os.LookupEnv` with `ok && v != ""` (matches `config/load.go:112`).
@@ -162,7 +162,7 @@ the FR18 stderr notice + generic-error stderr line through the color helpers. Th
 - [ ] `Progress` writes exactly `"↳ " + msg + "\n"` to the **stderr** writer; `Success` writes
       `Green("↳ "+msg)+"\n"` to stderr; `Error` writes `Red(msg)+"\n"` to stderr. (`↳` = U+21B3; `…` = U+2026.)
 - [ ] `default_action.go` constructs `ui.New(stdout, stderr, ui.ResolveColor(cfg.NoColor, ui.IsTerminal(os.Stdout)))`
-      and emits `u.Progress(<generating-label>)` immediately before `stagehand.GenerateCommit(...)`; the
+      and emits `u.Progress(<generating-label>)` immediately before `stagecoach.GenerateCommit(...)`; the
       FR18 notice + generic-error line use the UI's color helpers. `printCommitReport`/`printDryRunMessage`
       are UNCHANGED (stdout plain).
 - [ ] `go test -race ./internal/ui/ -v` green; `go test -race ./...` green (NO `default_action_test.go`
@@ -203,19 +203,19 @@ verbose/exit-code knowledge required (all explicitly out of scope — D10).
 
 - docfile: plan/001_f1f80943ac34/P1M4T2S1/PRP.md
   why: the PARALLEL sibling. Its "SCOPE BOUNDARY" lists default_action.go as do-not-touch (so our edit
-       there cannot conflict) and it edits ONLY main.go/executor.go/generate.go/stagehand.go (which we
+       there cannot conflict) and it edits ONLY main.go/executor.go/generate.go/stagecoach.go (which we
        do NOT touch). Its signal handler writes the §18.3 rescue PLAIN to os.Stderr ("P1.M4.T3 may
        colorize later" — we deliberately do NOT, to keep the frozen message byte-for-byte).
-  critical: do NOT edit main.go/generate.go/executor.go/stagehand.go (T2.S1 owns them this cycle).
+  critical: do NOT edit main.go/generate.go/executor.go/stagecoach.go (T2.S1 owns them this cycle).
 
 - file: internal/cmd/default_action.go   (P1.M4.T1.S2 — runDefault + isolated print helpers; S1 EDITS this)
   section: `func runDefault(cmd, args) error` — the lines `stdout := cmd.OutOrStdout()`,
-       `stderr := cmd.ErrOrStderr()`, `cfg := Config()` (the UI's inputs), the `stagehand.GenerateCommit(...)`
+       `stderr := cmd.ErrOrStderr()`, `cfg := Config()` (the UI's inputs), the `stagecoach.GenerateCommit(...)`
        call (the Progress insert point — right BEFORE it), the FR18 `fmt.Fprintf(stderr, "Nothing staged —
        staging all changes (%d files).\n", n)` (color-route target), and `handleGenError`'s generic
        `return exitcode.New(exitcode.Error, err)` tail (the Error insert point).
   why: S1 adds (a) the UI construction 1-liner after `cfg := Config()`; (b) `u.Progress(<label>)` right
-       before `stagehand.GenerateCommit`; (c) color-wraps the FR18 notice string; (d) routes the generic
+       before `stagecoach.GenerateCommit`; (c) color-wraps the FR18 notice string; (d) routes the generic
        error through `u.Error`. `printCommitReport`/`printDryRunMessage` are UNCHANGED (stdout plain).
   pattern: see "Integration Points" + Implementation Blueprint for the exact edits (oldText→newText).
   gotcha: TTY check uses `os.Stdout` (the real file), NOT the `stdout` writer (which is a `*bytes.Buffer`
@@ -236,17 +236,17 @@ verbose/exit-code knowledge required (all explicitly out of scope — D10).
 - file: internal/config/config.go   (P1.M1.T4.S1 — Config.NoColor; READ, do NOT edit)
   section: `NoColor bool \`toml:"-"\`` (line 24) + its comment "TTY-aware at runtime; set by UI layer
        (P1.M4.T3.S1)". And `Defaults()` sets `NoColor: false`.
-  why: THIS is the field `ResolveColor` consumes. It's already resolved (Layer 5 STAGEHAND_NO_COLOR +
+  why: THIS is the field `ResolveColor` consumes. It's already resolved (Layer 5 STAGECOACH_NO_COLOR +
        Layer 7 --no-color). The UI layer is the "P1.M4.T3.S1" the comment names — we add TTY + NO_COLOR.
   gotcha: do NOT move the NO_COLOR logic into config (config is the resolved snapshot; the bare NO_COLOR
        env + TTY are runtime/IO concerns that belong in `internal/ui`). Keep `config.NoColor` as-is.
 
 - file: internal/config/load.go   (P1.M1.T4.S4 — the env/flag idiom to COPY; READ, do NOT edit)
-  section: line 112 `if v, ok := os.LookupEnv("STAGEHAND_NO_COLOR"); ok && v != "" {` — the EXACT idiom
+  section: line 112 `if v, ok := os.LookupEnv("STAGECOACH_NO_COLOR"); ok && v != "" {` — the EXACT idiom
        `internal/ui/noColorEnvSet()` must mirror for the bare `NO_COLOR` var.
-  why: consistency — `NO_COLOR` and `STAGEHAND_NO_COLOR` use the same `ok && v != ""` rule, so a user's
+  why: consistency — `NO_COLOR` and `STAGECOACH_NO_COLOR` use the same `ok && v != ""` rule, so a user's
        mental model transfers. Copy the idiom verbatim (just change the var name).
-  gotcha: NO_COLOR is a SEPARATE var from STAGEHAND_NO_COLOR. config handles STAGEHAND_+--; ui handles
+  gotcha: NO_COLOR is a SEPARATE var from STAGECOACH_NO_COLOR. config handles STAGECOACH_+--; ui handles
        the bare NO_COLOR. Both OR into "disable color".
 
 - file: internal/cmd/root_test.go   (P1.M4.T1.S1 — READ; mirror its test conventions)
@@ -270,17 +270,17 @@ verbose/exit-code knowledge required (all explicitly out of scope — D10).
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                              # module github.com/dustin/stagehand ; go 1.22 ; UNCHANGED (no new deps)
+go.mod                              # module github.com/dustin/stagecoach ; go 1.22 ; UNCHANGED (no new deps)
 internal/
   cmd/default_action.go             # P1.M4.T1.S2 — runDefault + printCommitReport/printDryRunMessage/handleGenError  (S1 EDITS: +UI construct, +Progress, color notices)
   cmd/default_action_test.go        # P1.M4.T1.S2 — stream-contract assertions (READ; do NOT edit)
   cmd/root.go                       # P1.M4.T1.S1 — flags incl. --no-color (flagNoColor)  (UNCHANGED)
   config/config.go                  # P1.M1.T4.S1 — Config.NoColor (toml:"-")  (UNCHANGED — consumed)
-  config/load.go                    # P1.M1.T4.S4 — STAGEHAND_NO_COLOR + --no-color idiom  (UNCHANGED — READ to copy)
+  config/load.go                    # P1.M1.T4.S4 — STAGECOACH_NO_COLOR + --no-color idiom  (UNCHANGED — READ to copy)
   generate/rescue.go                # P1.M3.T3.S1 — FormatRescue (frozen §18.3)  (UNCHANGED — do NOT colorize)
   exitcode/exitcode.go              # P1.M4.T1.S1 — For/ExitError  (UNCHANGED)
   ui/                               # ← DOES NOT EXIST YET (S1 creates it)
-cmd/stagehand/main.go               # P1.M4.T1.S1 — main  (UNCHANGED — T2.S1 owns main.go this cycle)
+cmd/stagecoach/main.go               # P1.M4.T1.S1 — main  (UNCHANGED — T2.S1 owns main.go this cycle)
 Makefile                            # build/test(-race)/coverage/lint/clean  (UNCHANGED)
 ```
 
@@ -291,7 +291,7 @@ internal/ui/output.go               # NEW — package ui: IsTerminal, ResolveCol
 internal/ui/output_test.go          # NEW — unit tests (color matrix + NO_COLOR env + ANSI wrap/no-op + Progress prefix/stream + IsTerminal-on-pipe).
 internal/cmd/default_action.go      # EDIT — construct UI; emit Progress before GenerateCommit; color-route FR18 notice + generic error. stdout DATA unchanged.
 # All other files UNCHANGED. root.go/config*.go/rescue.go/exitcode.go/main.go UNCHANGED.
-# generate.go/executor.go/stagehand.go UNCHANGED (parallel T2.S1 owns them).
+# generate.go/executor.go/stagecoach.go UNCHANGED (parallel T2.S1 owns them).
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -303,7 +303,7 @@ internal/cmd/default_action.go      # EDIT — construct UI; emit Progress befor
 // stray "↳ Generating" on stdout breaks it. ALL color + ALL "↳ " progress → STDERR only.
 
 // CRITICAL (the bare NO_COLOR env is the UI layer's job): grep confirms config handles only
-// STAGEHAND_NO_COLOR. The Config.NoColor comment explicitly delegates the final TTY/NO_COLOR resolution
+// STAGECOACH_NO_COLOR. The Config.NoColor comment explicitly delegates the final TTY/NO_COLOR resolution
 // to "P1.M4.T3.S1". Implement noColorEnvSet() in internal/ui (do NOT edit config).
 
 // CRITICAL (TTY check on os.Stdout, not the cobra writer): in tests rootCmd.SetOut(&buf) makes the
@@ -313,7 +313,7 @@ internal/cmd/default_action.go      # EDIT — construct UI; emit Progress befor
 
 // GOTCHA (NO_COLOR empty-string semantics): use `v, ok := os.LookupEnv("NO_COLOR"); ok && v != ""`.
 // NO_COLOR="" (set without a value) does NOT disable color. This is the current no-color.org spec AND
-// matches config/load.go:112's STAGEHAND_NO_COLOR idiom — copy it verbatim.
+// matches config/load.go:112's STAGECOACH_NO_COLOR idiom — copy it verbatim.
 
 // GOTCHA (IsTerminal is a heuristic, not a true isatty): ModeCharDevice != ioctl TCGETS. A rare
 // non-terminal char device could enable color. Accepted (--no-color/NO_COLOR remain authoritative) to
@@ -333,7 +333,7 @@ internal/cmd/default_action.go      # EDIT — construct UI; emit Progress befor
 // message is FROZEN (§18.3, byte-for-byte; the ❌ is U+274C). Do NOT wrap it in Red(). It is intentionally
 // plain. (The parallel T2.S1 signal handler also writes it plain.) Colorizing would corrupt the frozen text.
 
-// GOTCHA (do NOT edit generate.go / executor.go / main.go / stagehand.go): P1.M4.T2.S1 is editing those
+// GOTCHA (do NOT edit generate.go / executor.go / main.go / stagecoach.go): P1.M4.T2.S1 is editing those
 // files IN PARALLEL this cycle. default_action.go is the ONLY file both this task edits AND that is safe
 // (T2.S1's scope boundary lists it as a do-not-touch sibling). Keep your diff to internal/ui/* + default_action.go.
 
@@ -382,7 +382,7 @@ func IsTerminal(f *os.File) bool {
 }
 
 // noColorEnvSet reports whether the NO_COLOR convention (https://no-color.org) disables color: the var
-// is present AND not an empty string. Byte-identical idiom to config/load.go's STAGEHAND_NO_COLOR
+// is present AND not an empty string. Byte-identical idiom to config/load.go's STAGECOACH_NO_COLOR
 // handling (line 112) — kept consistent so a user's mental model transfers between the two vars.
 func noColorEnvSet() bool {
 	v, ok := os.LookupEnv("NO_COLOR")
@@ -390,7 +390,7 @@ func noColorEnvSet() bool {
 }
 
 // ResolveColor decides whether ANSI color should be emitted (PRD §9.13 FR51, §15.2). Color is ON iff:
-// cfg.NoColor is false (--no-color / STAGEHAND_NO_COLOR, already resolved by config.Load) AND the bare
+// cfg.NoColor is false (--no-color / STAGECOACH_NO_COLOR, already resolved by config.Load) AND the bare
 // NO_COLOR env var is unset/empty (https://no-color.org) AND stdout is a terminal. The TTY check is
 // PASSED IN (isTTY) so the untestable IO is decoupled from the testable flag/env logic (work item:
 // "can't easily test TTY in unit tests; test the flag/env logic"). Callers pass isTTY = IsTerminal(os.Stdout).
@@ -404,7 +404,7 @@ func ResolveColor(noColor bool, isTTY bool) bool {
 	return isTTY
 }
 
-// UI renders Stagehand's CLI output with optional ANSI color (PRD §9.13, Appendix B). Progress/Success/
+// UI renders Stagecoach's CLI output with optional ANSI color (PRD §9.13, Appendix B). Progress/Success/
 // Error go to STDERR (FR51: stdout stays clean for piping); the actual RESULT data (commit report,
 // dry-run message) stays PLAIN on stdout via the caller's own print path — never thread it through here.
 // Writers are injectable (cobra's cmd.OutOrStdout/ErrOrStderr in prod, *bytes.Buffer in tests); color is
@@ -432,7 +432,7 @@ func New(stdout, stderr io.Writer, color bool) *UI {
 func (u *UI) Color() bool { return u.color }
 
 // Green/Red/Yellow wrap s in the ANSI color iff color is enabled; otherwise return s unchanged (zero
-// ANSI bytes — keeps `git commit -F <(stagehand --dry-run)` and `| tee` clean).
+// ANSI bytes — keeps `git commit -F <(stagecoach --dry-run)` and `| tee` clean).
 func (u *UI) Green(s string) string  { return u.colorize(ansiGreen, s) }
 func (u *UI) Red(s string) string    { return u.colorize(ansiRed, s) }
 func (u *UI) Yellow(s string) string { return u.colorize(ansiYellow, s) }
@@ -469,7 +469,7 @@ func (u *UI) Error(msg string) {
 ```yaml
 Task 1: CREATE internal/ui/output.go (package ui, stdlib-only)
   - FILE: NEW internal/ui/output.go. PACKAGE: `package ui`. Copy the "Data models" skeleton VERBATIM.
-  - IMPORTS (stdlib ONLY): fmt, io, os. NO stagehand imports (F6) — guarantees no import cycle.
+  - IMPORTS (stdlib ONLY): fmt, io, os. NO stagecoach imports (F6) — guarantees no import cycle.
   - DEFINE: the 4 ANSI consts + progressPrefix ("↳ ", U+21B3); IsTerminal(*os.File); noColorEnvSet();
       ResolveColor(noColor, isTTY bool) bool; type UI{stdout,stderr io.Writer; color bool}; New();
       Color(); Green/Red/Yellow(); colorize(); Progress/Success/Error().
@@ -485,7 +485,7 @@ Task 2: CREATE internal/ui/output_test.go (pure unit tests; no real TTY needed)
   - TESTS:
       • TestResolveColor_Logic: matrix (noColor,isTTY) → {(T,*)->F, (F,T)->T, (F,F)->F}. NO_COLOR unset.
       • TestResolveColor_NoColorEnv: t.Setenv("NO_COLOR","1")→F; t.Setenv("NO_COLOR","")→ isTTY-gated
-        (env empty does NOT disable); unset → isTTY-gated. Assert independence from STAGEHAND_NO_COLOR.
+        (env empty does NOT disable); unset → isTTY-gated. Assert independence from STAGECOACH_NO_COLOR.
       • TestColorHelpers_NoOpWhenColorOff: New(&out,&err,false) → Green("x")=="x"; Progress("m") writes
         "↳ m\n" PLAIN to err (not out); Success/Error plain.
       • TestColorHelpers_WrapWhenColorOn: New(&out,&err,true) → Green("x")=="\x1b[32mx\x1b[0m";
@@ -498,12 +498,12 @@ Task 2: CREATE internal/ui/output_test.go (pure unit tests; no real TTY needed)
   - COVERAGE: every exported symbol + noColorEnvSet. Assert BOTH the colored AND plain byte sequences.
 
 Task 3: EDIT internal/cmd/default_action.go (wire the UI — 4 small changes)
-  - FILE: EDIT internal/cmd/default_action.go. ADD import "github.com/dustin/stagehand/internal/ui".
+  - FILE: EDIT internal/cmd/default_action.go. ADD import "github.com/dustin/stagecoach/internal/ui".
   - CHANGE A (construct): right after `cfg := Config() { … }` (the block that returns on cfg==nil),
       add:
         u := ui.New(stdout, stderr, ui.ResolveColor(cfg.NoColor, ui.IsTerminal(os.Stdout)))
       (stdout/stderr are already `cmd.OutOrStdout()`/`cmd.ErrOrStderr()` from the top of runDefault.)
-  - CHANGE B (Progress before generation): immediately before `res, err := stagehand.GenerateCommit(...)`,
+  - CHANGE B (Progress before generation): immediately before `res, err := stagecoach.GenerateCommit(...)`,
       add a defensive label + Progress call:
         label := "Generating"
         if cfg.Provider != "" {
@@ -521,7 +521,7 @@ Task 3: EDIT internal/cmd/default_action.go (wire the UI — 4 small changes)
       write u.Yellow(fmt.Sprintf(...))). Keep the text BYTE-IDENTICAL (em-dash —, "(%d files).").
       SAFE: Contains(stderr, "Nothing staged — staging all changes (2 files).") survives ANSI wrapping.
   - CHANGE D (route generic error): in handleGenError's final `return exitcode.New(exitcode.Error, err)`,
-      the err.Error() is currently printed by main as "stagehand: <msg>". Option: leave main's printing
+      the err.Error() is currently printed by main as "stagecoach: <msg>". Option: leave main's printing
       as-is (simplest, no main.go edit) OR, for a colored notice, this is OPTIONAL — main.go is owned by
       T2.S1 this cycle, so DO NOT edit main.go. Instead, if you want the generic error colored, print it
       from handleGenError via `u.Error(err.Error())` and return a SILENT exitcode.New(exitcode.Error, nil)
@@ -540,7 +540,7 @@ Task 3: EDIT internal/cmd/default_action.go (wire the UI — 4 small changes)
 ```go
 // The color gate is the heart of this task. Keep it PURE (testable):
 func ResolveColor(noColor bool, isTTY bool) bool {
-	if noColor {        // --no-color / STAGEHAND_NO_COLOR (cfg.NoColor, already resolved by config.Load)
+	if noColor {        // --no-color / STAGECOACH_NO_COLOR (cfg.NoColor, already resolved by config.Load)
 		return false
 	}
 	if noColorEnvSet() { // bare NO_COLOR env (https://no-color.org) — THIS task adds it
@@ -575,20 +575,20 @@ PACKAGE LAYOUT (PRD §14):
   - note: the §14 "internal/ui/exitcode.go" slot was implemented as internal/exitcode/ (P1.M4.T1.S1) — NOT duplicated here.
 
 CONFIG (consumed, NOT modified):
-  - field: config.Config.NoColor (toml:"-") — already resolved by config.Load (Layer 5 STAGEHAND_NO_COLOR
+  - field: config.Config.NoColor (toml:"-") — already resolved by config.Load (Layer 5 STAGECOACH_NO_COLOR
     + Layer 7 --no-color). ResolveColor reads it; do NOT move NO_COLOR logic into config.
 
 CLI (wired):
   - file: internal/cmd/default_action.go
-  - point: after `cfg := Config()` → construct UI; before `stagehand.GenerateCommit` → u.Progress(label);
+  - point: after `cfg := Config()` → construct UI; before `stagecoach.GenerateCommit` → u.Progress(label);
     FR18 notice → u.Yellow(...); (optional) generic error → u.Error(...)+silent exitcode.
   - preserve: printCommitReport / printDryRunMessage (stdout plain); handleGenError rescue/CAS (frozen).
 
 ENV VARS (handled by internal/ui, NEW):
-  - NO_COLOR: present-and-non-empty → disable color (https://no-color.org). Separate from STAGEHAND_NO_COLOR.
+  - NO_COLOR: present-and-non-empty → disable color (https://no-color.org). Separate from STAGECOACH_NO_COLOR.
 
 PARALLEL COORDINATION (P1.M4.T2.S1 — do NOT touch its files):
-  - main.go / internal/provider/executor.go / internal/generate/generate.go / pkg/stagehand/stagehand.go
+  - main.go / internal/provider/executor.go / internal/generate/generate.go / pkg/stagecoach/stagecoach.go
     are being edited by the signal-handler sibling THIS cycle. default_action.go is the shared-safe file
     (T2.S1's scope boundary lists it as do-not-touch; it does not edit CLI output).
 ```
@@ -637,7 +637,7 @@ make build
 cd /tmp && rm -rf ui-smoke && git init ui-smoke && cd ui-smoke &&
   git config user.email t@t.co && git config user.name t &&
   echo hi > a.txt && git add a.txt &&
-  NO_COLOR=1 ./path/to/bin/stagehand --dry-run --no-color 2>err.txt 1>out.txt
+  NO_COLOR=1 ./path/to/bin/stagecoach --dry-run --no-color 2>err.txt 1>out.txt
 
 # Assertions:
 #   - out.txt == the generated message ONLY (no "↳", no ANSI, no "(no commit created)").  [FR51 / §15.5]
@@ -646,10 +646,10 @@ cd /tmp && rm -rf ui-smoke && git init ui-smoke && cd ui-smoke &&
 #   - Run WITHOUT NO_COLOR on a real TTY → err.txt (via a pty) shows ANSI escapes; piped → plain.
 
 # TTY/color toggle sanity (interactive terminal):
-#   stagehand --dry-run            # color ON (TTY), "↳ Generating…" on stderr (green/yellow)
-#   stagehand --dry-run --no-color # color OFF, plain text
-#   NO_COLOR=1 stagehand --dry-run # color OFF (the convention)
-#   stagehand --dry-run | cat      # color OFF (stdout is a pipe → !isTTY), message clean on stdout
+#   stagecoach --dry-run            # color ON (TTY), "↳ Generating…" on stderr (green/yellow)
+#   stagecoach --dry-run --no-color # color OFF, plain text
+#   NO_COLOR=1 stagecoach --dry-run # color OFF (the convention)
+#   stagecoach --dry-run | cat      # color OFF (stdout is a pipe → !isTTY), message clean on stdout
 
 # Expected: stdout ALWAYS clean; stderr colored only on a real TTY with no disable signal.
 ```
@@ -658,12 +658,12 @@ cd /tmp && rm -rf ui-smoke && git init ui-smoke && cd ui-smoke &&
 
 ```bash
 # Pipe-safety proof (the FR51 motivating use case — §15.5):
-./path/to/bin/stagehand --dry-run --no-color 2>/dev/null | tee /tmp/msg.txt
+./path/to/bin/stagecoach --dry-run --no-color 2>/dev/null | tee /tmp/msg.txt
 # /tmp/msg.txt must be the bare message with ZERO ANSI bytes:
 grep -P '\x1b' /tmp/msg.txt && echo "FAIL: ANSI leaked into stdout" || echo "PASS: stdout is clean"
 
 # git-commit-from-stdin proof:
-#   git commit -F <(./path/to/bin/stagehand --dry-run --no-color 2>/dev/null)
+#   git commit -F <(./path/to/bin/stagecoach --dry-run --no-color 2>/dev/null)
 # (commit succeeds — the message has no control codes.)
 
 # Race + full regression (the gate):
@@ -672,7 +672,7 @@ go vet ./...
 gofmt -l internal/ pkg/ cmd/
 
 # Expected: all green; only internal/ui/output.go, internal/ui/output_test.go, internal/cmd/default_action.go
-# changed (git status). generate.go/executor.go/main.go/stagehand.go UNCHANGED (parallel T2.S1 owns them).
+# changed (git status). generate.go/executor.go/main.go/stagecoach.go UNCHANGED (parallel T2.S1 owns them).
 ```
 
 ## Final Validation Checklist
@@ -688,16 +688,16 @@ gofmt -l internal/ pkg/ cmd/
 ### Feature Validation
 
 - [ ] `IsTerminal` detects char-device vs pipe; `ResolveColor` folds cfg.NoColor + NO_COLOR + TTY.
-- [ ] `NO_COLOR` env (present + non-empty) disables color; `--no-color`/`STAGEHAND_NO_COLOR` disable color.
+- [ ] `NO_COLOR` env (present + non-empty) disables color; `--no-color`/`STAGECOACH_NO_COLOR` disable color.
 - [ ] `Green/Red/Yellow` emit ANSI iff color on; return plain iff off (zero ANSI bytes when off).
 - [ ] `Progress` writes `"↳ " + msg + "\n"` (↳ U+21B3) to STDERR; `Success`/`Error` to STDERR (green/red).
 - [ ] `default_action.go` emits `↳ Generating…` before generation; FR18 notice optionally colored; stdout
       DATA (commit report / dry-run message) stays PLAIN.
-- [ ] Pipe-safety: `stagehand --dry-run --no-color | tee` yields a clean message with zero ANSI bytes.
+- [ ] Pipe-safety: `stagecoach --dry-run --no-color | tee` yields a clean message with zero ANSI bytes.
 
 ### Code Quality Validation
 
-- [ ] `internal/ui` imports only stdlib (no stagehand package — F6; no import-cycle risk).
+- [ ] `internal/ui` imports only stdlib (no stagecoach package — F6; no import-cycle risk).
 - [ ] Follows existing patterns: `config/load.go:112` NO_COLOR idiom; `root_test.go` buffer/t.Setenv style.
 - [ ] File placement matches the desired tree (`internal/ui/output.go` per PRD §14).
 - [ ] Anti-patterns avoided (see below): no stdout color, no new dep, no rescue colorization, no main.go edit.
@@ -711,18 +711,18 @@ gofmt -l internal/ pkg/ cmd/
 
 ## Anti-Patterns to Avoid
 
-- ❌ Don't colorize stdout — it breaks `stagehand --dry-run | tee` / `git commit -F <(stagehand --dry-run)`
+- ❌ Don't colorize stdout — it breaks `stagecoach --dry-run | tee` / `git commit -F <(stagecoach --dry-run)`
   (§15.5) AND `default_action_test.go`'s exact `stdout == "feat: dry run"` equality. Color → STDERR only.
 - ❌ Don't add `golang.org/x/term` (or any dep) for TTY detection — the project is stdlib-only
   (`procgroup_windows.go` sets the precedent). Use `os.FileStat` + `ModeCharDevice`.
 - ❌ Don't colorize the §18.3 rescue block (`generate.FormatRescue`) — it's FROZEN byte-for-byte; the ❌
   is intentional. Leave `handleGenError`'s rescue path plain.
-- ❌ Don't edit `main.go` / `generate.go` / `executor.go` / `stagehand.go` — P1.M4.T2.S1 owns them this
+- ❌ Don't edit `main.go` / `generate.go` / `executor.go` / `stagecoach.go` — P1.M4.T2.S1 owns them this
   cycle (parallel). `default_action.go` is the only shared-safe edit.
 - ❌ Don't move the bare `NO_COLOR` handling into `config` — config is the resolved snapshot; the bare
   NO_COLOR env + the TTY check are runtime/IO concerns that belong in `internal/ui` (per the
   `Config.NoColor` comment delegating to "P1.M4.T3.S1").
-- ❌ Don't conflate `NO_COLOR` with `STAGEHAND_NO_COLOR` — they're separate vars that OR together to
+- ❌ Don't conflate `NO_COLOR` with `STAGECOACH_NO_COLOR` — they're separate vars that OR together to
   disable; both use the `ok && v != ""` idiom but live in different packages.
 - ❌ Don't make `ResolveColor` do IO directly that defeats testing — keep the TTY check as a PASSED-IN
   bool (`isTTY`) so the flag/env logic is unit-testable without a pty (the work item's explicit ask).

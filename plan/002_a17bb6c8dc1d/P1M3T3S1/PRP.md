@@ -128,16 +128,16 @@ writes `[role.planner]`, `[role.stager]`, `[role.message]`, `[role.arbiter]` blo
 uncommented for the detected provider; commented for other installed providers, step 4). It interprets
 `stager==""` as "this provider cannot be the stager" and applies the FR-D4 fallback (writes the stager
 block for the next TooledFlags-capable provider, annotated). Transitively the end user is "the
-multi-agent tinkerer" (PRD §7.3) who runs `stagehand config init` and immediately gets a working
+multi-agent tinkerer" (PRD §7.3) who runs `stagecoach config init` and immediately gets a working
 per-role config sized to each role's job (planner on the flagship, message on the cheap-fast tier).
 
-**Use Case**: A user installs stagehand; `config init` detects `pi` on `$PATH` (FR-D1), calls
+**Use Case**: A user installs stagecoach; `config init` detects `pi` on `$PATH` (FR-D1), calls
 `DefaultModelsForProvider("pi")` → `{planner:gpt-5.4, stager:gpt-5.4-mini, message:gpt-5.4-nano,
 arbiter:gpt-5.4-mini}`, and writes those four `[role.*]` blocks uncommented so the tool works
 immediately on both the single-commit path (message role) and the multi-commit path (all four roles).
 
 **User Journey**: (internal) `config init` → `Registry.DefaultProvider(installed)` (FR-D1) →
-`config.DefaultModelsForProvider(detected)` → write `[role.*]` blocks → user runs stagehand →
+`config.DefaultModelsForProvider(detected)` → write `[role.*]` blocks → user runs stagecoach →
 `ResolveRoleModel(role, cfg)` (P1.M3.T2.S2) resolves each role's (provider,model) from the populated
 config → registry renders the command → agent runs.
 
@@ -618,7 +618,7 @@ DOWNSTREAM CONTRACTS (the consumers — do NOT implement here, just honor the ac
         providers; calls config.DefaultModelsForProvider(detectedName); writes [role.*] blocks
         (uncommented for the detected provider, commented for others); interprets stager=="" as
         "cannot be stager" and applies the FR-D4 fallback.
-  - pkg/stagehand (P4.M2): may expose DefaultModelsForProvider.
+  - pkg/stagecoach (P4.M2): may expose DefaultModelsForProvider.
   => The RoleModelDefaults type + DefaultModelsForProvider(name string) map[string]string signatures
      are FROZEN after this subtask.
 

@@ -11,7 +11,7 @@ place the manifest system requires for parity: the merge layer (`MergeManifest`,
 registry's TOML marshal surface (`providers show`), all 8 compiled-in built-ins (`builtin.go`, populated
 **only** for providers whose CLI exposes a verified listing — 4 of 8), the 8 reference TOMLs
 (`providers/*.toml`), and the docs field reference (`docs/providers.md`). This is the **schema-change
-root** of milestone P1.M6: it adds the field and the data, NOT the `stagehand models` consumer (that is
+root** of milestone P1.M6: it adds the field and the data, NOT the `stagecoach models` consumer (that is
 P1.M6.T1.S2). Empty-by-default semantics mean the field is backward-compatible and the existing
 `DecodeUserOverrides` path already lets user-defined `[provider.<name>]` blocks set it for free.
 
@@ -40,9 +40,9 @@ P1.M6.T1.S2). Empty-by-default semantics mean the field is backward-compatible a
 **Success Definition**:
 - `go build ./...`, `go test ./internal/provider/... -v`, `go vet ./...`, `golangci-lint run`, `gofmt -l`
   all green.
-- `stagehand providers show opencode` prints a TOML block containing `list_models_command =
+- `stagecoach providers show opencode` prints a TOML block containing `list_models_command =
   ['opencode', 'models']` (or `["opencode", "models"]`).
-- `stagehand providers show claude` does NOT emit `list_models_command` (the field is nil ⇒ omitted by
+- `stagecoach providers show claude` does NOT emit `list_models_command` (the field is nil ⇒ omitted by
   go-toml in the reference TOML; in `show` output nil slices render as `[]` — see Gotchas).
 - `TestProviderReferenceFiles_DecodeParity` still passes (all 8 `.toml` files decode-DeepEqual their
   builtins, including the new field) — proving the reference docs never drift from the code.
@@ -52,17 +52,17 @@ P1.M6.T1.S2). Empty-by-default semantics mean the field is backward-compatible a
 ## User Persona
 
 **Target User**: the "plan-holder" (PRD §7.1) and the "multi-agent tinkerer" (§7.3) who want to see what
-models a provider CLI can reach before pinning a default. Today stagehand has no model-discovery surface;
-this field is the data foundation for `stagehand models` (S2) and the `config init --interactive` wizard
+models a provider CLI can reach before pinning a default. Today stagecoach has no model-discovery surface;
+this field is the data foundation for `stagecoach models` (S2) and the `config init --interactive` wizard
 (P1.M6.T2.S1), both of which consume `Manifest.ListModelsCommand`.
 
-**Use Case** (enabling, not delivered here): `stagehand models opencode` (S2) reads
+**Use Case** (enabling, not delivered here): `stagecoach models opencode` (S2) reads
 `manifest.ListModelsCommand`, runs `["opencode", "models"]`, and prints the CLI's own model list under a
-heading — **never an HTTP call** (PRD §6.2 N2 / FR-L1), because stagehand has no API key and the agent CLI
+heading — **never an HTTP call** (PRD §6.2 N2 / FR-L1), because stagecoach has no API key and the agent CLI
 is the only model authority. S1 makes that argv available; S2 wires the command.
 
 **Pain Points Addressed**: incumbents (aicommits/opencommit) list models by hitting provider HTTP APIs
-with the user's key — a key stagehand refuses to require. `list_models_command` routes discovery through
+with the user's key — a key stagecoach refuses to require. `list_models_command` routes discovery through
 the agent CLI the user already has installed, sidestepping the key entirely.
 
 ## Why
@@ -70,7 +70,7 @@ the agent CLI the user already has installed, sidestepping the key entirely.
 - **FR-L2 (PRD §9.23 / §12.1)**: an optional argv array in the provider manifest, e.g.
   `["opencode", "models"]`, empty by default, "Populated at implementation time only for providers whose
   CLI actually exposes a listing (verified per FR-D5, recorded with date)."
-- **FR-L1**: `stagehand models` source-of-truth order — (a) run `list_models_command`, print stdout; (b)
+- **FR-L1**: `stagecoach models` source-of-truth order — (a) run `list_models_command`, print stdout; (b)
   if absent/fails, print the curated FR-D4 tier table. So an empty field is a FIRST-CLASS, EXPECTED state
   (graceful fallback), not a gap.
 - **N2 (PRD §6.2)**: never an HTTP call — the field's documented semantics.
@@ -81,7 +81,7 @@ the agent CLI the user already has installed, sidestepping the key entirely.
   providers must be checked against their live `--help` at implementation time; populate the manifest
   field ONLY where verified." (Live verification found 4, not 1 — see research.)
 - **Scope fences**: S1 CONSUMES the existing manifest/merge/registry/builtin/TOML/doc surface (adds one
-  field across it) and PROVIDES `Manifest.ListModelsCommand` for S2. S1 does NOT implement `stagehand
+  field across it) and PROVIDES `Manifest.ListModelsCommand` for S2. S1 does NOT implement `stagecoach
   models` (S2), `config init --interactive` (P1.M6.T2.S1), or any CLI flag/config key (the field is set
   per-provider in manifests, not via the 5-layer config resolver). The change is additive + nil-default ⇒
   byte-identical behavior for every code path that does not read the new field (which is all of them
@@ -372,7 +372,7 @@ Task 5: EDIT providers/*.toml — keep the 8 reference files in lock-step with b
 Task 6: EDIT docs/providers.md — field reference (Mode A)
   - IMPLEMENT: add a row to the schema table (discovery section, after `command`, before `subcommand`):
       | `list_models_command` | list of string | `[]` (none) | Full argv that asks the agent CLI to list its
-        reachable models (e.g. `["opencode", "models"]`), used by `stagehand models`. Empty/nil ⇒ stagehand
+        reachable models (e.g. `["opencode", "models"]`), used by `stagecoach models`. Empty/nil ⇒ stagecoach
         prints its curated per-role tier table instead (FR-L1). Populated only for providers whose CLI
         exposes a verified listing (opencode, pi, agy, cursor); never an HTTP call (§6.2 N2). |
   - IMPLEMENT: reconcile the field-count strings — the `## What a manifest is` intro says "the 19-field
@@ -465,7 +465,7 @@ DOCS (docs/providers.md):
   - schema table: "+list_models_command row (discovery section); reconcile field-count strings to 21"
 
 DOWNSTREAM CONSUMERS (NOT this task — do not implement):
-  - P1.M6.T1.S2: "stagehand models [<provider>] reads Manifest.ListModelsCommand, runs it, prints stdout (FR-L1)"
+  - P1.M6.T1.S2: "stagecoach models [<provider>] reads Manifest.ListModelsCommand, runs it, prints stdout (FR-L1)"
   - P1.M6.T2.S1: "config init --interactive wizard may surface the listing"
 ```
 
@@ -588,7 +588,7 @@ gemini --help 2>&1 | grep -iE 'models' | head    # only `gemini gemma` (local ro
   OMIT the key; note it in the absent-fields comment.
 - ❌ Don't use `["pi", "models"]` for pi — pi's listing is a FLAG: `["pi", "--list-models"]`.
 - ❌ Don't use `["cursor", "models"]` for cursor — the binary is `agent`: `["agent", "models"]`.
-- ❌ Don't implement the `stagehand models` command, a CLI flag, or a config key — those are S2 / out of
+- ❌ Don't implement the `stagecoach models` command, a CLI flag, or a config key — those are S2 / out of
   scope. S1 is schema + data + docs only.
 - ❌ Don't skip the live re-confirmation (FR-D5) — model CLIs change; stamp the date, and empty the field
   if a CLI dropped its listing rather than shipping a stale argv.

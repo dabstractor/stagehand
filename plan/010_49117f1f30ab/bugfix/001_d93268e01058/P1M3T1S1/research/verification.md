@@ -20,7 +20,7 @@ guard cannot catch it. Confirmed by reading the function top-to-bottom.
 
 ## §2 — ErrEmptyMessage exists and is the right sentinel (same package, bare → exit 1)
 
-`internal/generate/finalize.go:45`: `var ErrEmptyMessage = errors.New("stagehand: empty commit message —
+`internal/generate/finalize.go:45`: `var ErrEmptyMessage = errors.New("stagecoach: empty commit message —
 aborted")`. Used by `EditMessage` (finalize.go:117-118). It is a BARE error (not `*RescueError`) →
 `exitcode.For()` maps it to exit 1 (NOT exit 3 rescue). The CommitStaged `--edit` path already propagates
 it bare (L~411 comment). The new guard returns the SAME sentinel (`ErrEmptyMessage`, same package — no
@@ -74,5 +74,5 @@ CommitStaged guard; they fixed the hooks runner's argv + newline.)
 ## §6 — Scope boundary (S1 = CommitStaged ONLY; S2/S3 = the other two paths)
 
 The PRD Issue 4 names THREE call sites with the same gap: `CommitStaged` (generate.go), `runPipeline`
-(pkg/stagehand), and `publishCommit` (decompose). This task (S1) fixes **CommitStaged ONLY**. The sibling
+(pkg/stagecoach), and `publishCommit` (decompose). This task (S1) fixes **CommitStaged ONLY**. The sibling
 S2 (P1.M3.T1.S2) fixes runPipeline; S3 (P1.M3.T1.S3) fixes publishCommit. Do NOT touch those files here.

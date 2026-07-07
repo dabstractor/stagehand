@@ -200,7 +200,7 @@ FENCE (owned elsewhere — do NOT edit):
   running in parallel. Different file; no conflict.
 - `internal/decompose/planner_test.go` → callPlanner signature unchanged ⇒ no edit (§2).
 - `docs/how-it-works.md` → **P2.M1.T2.S2** (Mode A doc edit). Item §5: NO DOCS here.
-- `internal/config/*`, `cmd/stagehand/*`, `docs/cli.md`, `docs/configuration.md` → no new flags/keys.
+- `internal/config/*`, `cmd/stagecoach/*`, `docs/cli.md`, `docs/configuration.md` → no new flags/keys.
 - `internal/prompt/reserve.go` → `PlannerReserveTokens` signature UNCHANGED.
 - `PlannerCommit.Files`, `ParsePlannerOutput` → already done by S1 (COMPLETE); this task only READS the
   struct shape (the JSON contract const now references files, matching S1's field).
@@ -208,7 +208,7 @@ FENCE (owned elsewhere — do NOT edit):
 ## §11 — Validation commands (Go project, verified)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go build ./...                         # must compile (signature change + call-site)
 go vet ./...                           # no vet issues
 go test ./internal/prompt/... -v       # planner_test + reserve_test (the in-scope packages)

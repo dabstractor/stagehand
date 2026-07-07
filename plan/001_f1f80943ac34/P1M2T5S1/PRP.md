@@ -120,7 +120,7 @@ expected (the CI matrix is Linux/macOS; PRD §20.4).
 **Target User**: The generate orchestrator (P1.M3.T4 — calls `Execute(ctx, spec, cfg.Timeout)` and
 maps the returned `err` to retry/rescue/exit-code) and transitively the parser (P1.M2.T6 — consumes
 the returned `stdout`). End-user persona is "the plan-holder" / "the API-key refusenik" (PRD §7)
-running any of the 6 verified agent CLIs (pi, claude, gemini, opencode, codex, cursor) via Stagehand.
+running any of the 6 verified agent CLIs (pi, claude, gemini, opencode, codex, cursor) via Stagecoach.
 
 **Use Case**: The generate flow resolves the provider manifest (P1.M2.T3), renders the `CmdSpec`
 (P1.M2.T4), then calls `Execute(ctx, *spec, cfg.Timeout)`. If the agent finishes in time, its stdout
@@ -281,7 +281,7 @@ an already-landed `CmdSpec` type, exec'ing real binaries in tests.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; require go-toml/v2 + pflag  (UNCHANGED — Execute adds NO dep)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; require go-toml/v2 + pflag  (UNCHANGED — Execute adds NO dep)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — untouched; do NOT import (cycle)
@@ -297,7 +297,7 @@ internal/
     executor.go                 # NEW (this subtask) ← Execute (no build tag; stdlib: bytes,context,fmt,os/exec,strings,time)
     procgroup_unix.go           # NEW (this subtask) ← setupProcessGroup (//go:build !windows; os/exec,syscall,time)
     executor_test.go            # NEW (this subtask) ← ~8 test groups (no build tag)
-cmd/stagehand/main.go           # `package main; func main(){}` stub — untouched
+cmd/stagecoach/main.go           # `package main; func main(){}` stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -608,8 +608,8 @@ func TestExecute_StderrCaptureAndNonZeroExit(t *testing.T) {
 // 6. Env propagation: a manifest/env var reaches the child (`printenv VAR` prints its value).
 func TestExecute_EnvPropagation(t *testing.T) {
 	mustBin(t, "printenv")
-	env := append(os.Environ(), "STAGEHAND_TEST_VAR=s3cr3t")
-	spec := CmdSpec{Command: "printenv", Args: []string{"STAGEHAND_TEST_VAR"}, Env: env}
+	env := append(os.Environ(), "STAGECOACH_TEST_VAR=s3cr3t")
+	spec := CmdSpec{Command: "printenv", Args: []string{"STAGECOACH_TEST_VAR"}, Env: env}
 	out, _, err := Execute(context.Background(), spec, 5*time.Second)
 	if err != nil { t.Fatalf("Execute: err = %v, want nil", err) }
 	if strings.TrimSpace(out) != "s3cr3t" { t.Errorf("env var: stdout = %q, want %q", out, "s3cr3t") }
@@ -627,7 +627,7 @@ func TestExecute_NoStdinDoesNotHang(t *testing.T) {
 
 // 8. Command not found ⇒ wrapped Start() error.
 func TestExecute_CommandNotFound(t *testing.T) {
-	spec := CmdSpec{Command: "definitely-not-a-real-binary-xyz-stagehand", Env: os.Environ()}
+	spec := CmdSpec{Command: "definitely-not-a-real-binary-xyz-stagecoach", Env: os.Environ()}
 	_, _, err := Execute(context.Background(), spec, 3*time.Second)
 	if err == nil { t.Fatal("err = nil, want non-nil (command not found)") }
 	if !strings.Contains(err.Error(), "start") && !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "executable") {
@@ -699,7 +699,7 @@ FROZEN FILES (do NOT edit):
   - internal/provider/render.go + render_test.go (T4): CmdSpec {Command, Args, Stdin, Env} is a
         CONTRACT (Execute consumes it; the parser/orchestrator/verbose-CLI depend on it downstream).
   - internal/provider/manifest.go/merge.go/builtin.go/registry.go + their tests (S1–T3): untouched.
-  - internal/config/*, internal/git/*, cmd/stagehand/main.go, Makefile.
+  - internal/config/*, internal/git/*, cmd/stagecoach/main.go, Makefile.
 
 DOWNSTREAM CONTRACTS (do NOT implement here — just honor the shapes they will consume):
   - P1.M2.T6 (parser): consumes the returned stdout string (raw agent output) — Execute's stdout is

@@ -191,7 +191,7 @@ So THIS task's EXPORTED surface (the contract P3.M2.T2.S1 consumes):
 
 ## §8 — Imports / module / lint (verified)
 
-- Module: `github.com/dustin/stagehand`, go 1.22.
+- Module: `github.com/dustin/stagecoach`, go 1.22.
 - planner.go imports: `encoding/json`, `fmt`, `strings` (stdlib only — NO new internal dep).
 - planner_test.go imports: `encoding/json`, `errors`, `strings`, `testing`.
 - Lint (.golangci.yml): errcheck/gosimple/govet/ineffassign/staticcheck/unused. The unexported

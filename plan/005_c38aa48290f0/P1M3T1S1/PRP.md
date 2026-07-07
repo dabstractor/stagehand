@@ -11,10 +11,10 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Provide the two lowest-level building blocks for stagehand's git hook mode (PRD §9.20):
+**Feature Goal**: Provide the two lowest-level building blocks for stagecoach's git hook mode (PRD §9.20):
 (1) a reliable way to locate the repo's hooks directory as an ABSOLUTE path regardless of `core.hooksPath`,
 subdirectory invocation, or linked worktrees; and (2) the exact bytes of the `prepare-commit-msg` script
-stagehand installs, carrying its identity marker and honoring the `--strict` opt-in.
+stagecoach installs, carrying its identity marker and honoring the `--strict` opt-in.
 
 **Deliverable**:
 1. `HooksPath(ctx context.Context) (string, error)` added to the `Git` interface + implemented on
@@ -27,18 +27,18 @@ stagehand installs, carrying its identity marker and honoring the `--strict` opt
 - `HooksPath` returns an absolute, cleaned path to the hooks directory for all four layouts (default
   `.git/hooks`; `core.hooksPath` set; invoked from a subdirectory; from a linked worktree), and a real error
   on a non-repo (exit 128).
-- `hookScript(false)` == the exact 3-line strict-POSIX script (`#!/bin/sh` + Marker + `exec stagehand hook
+- `hookScript(false)` == the exact 3-line strict-POSIX script (`#!/bin/sh` + Marker + `exec stagecoach hook
   exec "$@"`); `hookScript(true)` appends `--strict` to the exec line; both parse under `sh -n` with no
   bashisms.
 - `go build ./...`, `go test ./...`, `go vet ./...`, `golangci-lint run` all green.
 
 ## User Persona
 
-**Target User**: (Indirect) the "plan-holder" (PRD §7.1) who runs `stagehand hook install` so plain
+**Target User**: (Indirect) the "plan-holder" (PRD §7.1) who runs `stagecoach hook install` so plain
 `git commit` in their IDE/lazygit auto-fills the message. This subtask ships no command they touch — it is
 the plumbing S2 wires to `hook install`.
 
-**Use Case**: `stagehand hook install` (S2) calls `Git.HooksPath()` to find where to write, and `hookScript`
+**Use Case**: `stagecoach hook install` (S2) calls `Git.HooksPath()` to find where to write, and `hookScript`
 to get the bytes to write. This subtask makes both calls possible and correct.
 
 **User Journey**: none user-visible in S1. S2's journey: `hook install` → `HooksPath()` resolves the dir →
@@ -50,10 +50,10 @@ architecture §3) is the correct, portable location; the strict-POSIX script run
 
 ## Why
 
-- **PRD §9.20 FR-H1**: *"`stagehand hook install` resolves the hook directory via `git rev-parse --git-path
+- **PRD §9.20 FR-H1**: *"`stagecoach hook install` resolves the hook directory via `git rev-parse --git-path
   hooks` (this honors `core.hooksPath` and worktrees) and writes an executable `prepare-commit-msg` POSIX-sh
-  script containing a marker line (`# stagehand prepare-commit-msg hook v1`) and, essentially, `exec
-  stagehand hook exec "$@"`."* — S1 provides the resolver + the script; S2 does the writing.
+  script containing a marker line (`# stagecoach prepare-commit-msg hook v1`) and, essentially, `exec
+  stagecoach hook exec "$@"`."* — S1 provides the resolver + the script; S2 does the writing.
 - **PRD §9.20 FR-H5**: *"`hook install --strict` bakes a `--strict` flag into the script."* — the `strict`
   parameter of `hookScript`.
 - **Architecture §3 (VERIFIED, git 2.54.0)**: `git rev-parse --git-path hooks` honors `core.hooksPath`,
@@ -76,7 +76,7 @@ constants + builder. Everything is a pure/plumbing primitive with unit tests; no
       `git rev-parse --git-path hooks` with absolute-path resolution against `g.workDir`.
 - [ ] `HooksPath` returns an absolute path for: default layout, `core.hooksPath` (relative AND absolute
       values), subdirectory invocation, and linked worktree; returns a non-nil error on a non-repo (exit 128).
-- [ ] `internal/hook/script.go`: `const Marker = "# stagehand prepare-commit-msg hook v1"`,
+- [ ] `internal/hook/script.go`: `const Marker = "# stagecoach prepare-commit-msg hook v1"`,
       `const ScriptMode os.FileMode = 0o755`, `func hookScript(strict bool) string`.
 - [ ] `hookScript(false)` / `hookScript(true)` produce the exact scripts (below); tests assert bytes, marker
       placement, shebang, and POSIX-ness (`sh -n`).
@@ -115,10 +115,10 @@ document + codebase access._
 
 - docfile: plan/005_c38aa48290f0/prd_snapshot.md
   why: §9.20 FR-H1 (install resolves via `git rev-parse --git-path hooks`; marker line;
-       `exec stagehand hook exec "$@"`), FR-H5 (`--strict` baked into the script). The contract this
+       `exec stagecoach hook exec "$@"`), FR-H5 (`--strict` baked into the script). The contract this
        primitive serves.
   section: "§9.20 FR-H1 + FR-H5"
-  critical: 'Marker EXACTLY `# stagehand prepare-commit-msg hook v1`; body `exec stagehand hook exec "$@"`;
+  critical: 'Marker EXACTLY `# stagecoach prepare-commit-msg hook v1`; body `exec stagecoach hook exec "$@"`;
              strict appends `--strict`.'
 
 - file: internal/git/git.go
@@ -211,7 +211,7 @@ internal/hook/        # NEW PACKAGE (S2 builds install|uninstall|status on top)
 // under git-for-windows sh. Verify with `sh -n` in a test (skip the test if `sh` is not on PATH).
 
 // GOTCHA (script bytes): the marker is the SECOND line (after the shebang), EXACTLY
-// `# stagehand prepare-commit-msg hook v1`. Trailing newline on the file. strict==true changes ONLY the
+// `# stagecoach prepare-commit-msg hook v1`. Trailing newline on the file. strict==true changes ONLY the
 // exec line (adds ` --strict` before `"$@"`). Build with explicit "\n" joins — do not rely on fmt quirks.
 
 // GOTCHA (placement): hookScript is UNEXPORTED per the contract → it must live in the package S2 consumes it
@@ -234,22 +234,22 @@ package hook
 
 import "os"
 
-// Marker is the identity line stagehand writes as the SECOND line of its prepare-commit-msg hook (after the
-// shebang). Its presence is how `hook status`/`hook uninstall` (P1.M3.T1.S2) recognize a stagehand-owned
+// Marker is the identity line stagecoach writes as the SECOND line of its prepare-commit-msg hook (after the
+// shebang). Its presence is how `hook status`/`hook uninstall` (P1.M3.T1.S2) recognize a stagecoach-owned
 // hook (marker present → ours, rewrite/remove; absent → foreign, refuse — PRD §9.20 FR-H2/FR-H3).
-const Marker = "# stagehand prepare-commit-msg hook v1"
+const Marker = "# stagecoach prepare-commit-msg hook v1"
 
-// ScriptMode is the file mode stagehand writes the hook with (executable — PRD §9.20 FR-H1).
+// ScriptMode is the file mode stagecoach writes the hook with (executable — PRD §9.20 FR-H1).
 const ScriptMode os.FileMode = 0o755
 
-// hookScript returns the exact bytes of the prepare-commit-msg hook stagehand installs (PRD §9.20 FR-H1).
+// hookScript returns the exact bytes of the prepare-commit-msg hook stagecoach installs (PRD §9.20 FR-H1).
 // It is strict POSIX sh (no bashisms) so it runs under git-for-windows' sh (Appendix E #15). When strict is
 // true the runtime call gets `--strict` (PRD §9.20 FR-H5: failures then abort the commit). The trailing
 // newline keeps the file POSIX-clean.
 func hookScript(strict bool) string {
-	run := `exec stagehand hook exec "$@"`
+	run := `exec stagecoach hook exec "$@"`
 	if strict {
-		run = `exec stagehand hook exec --strict "$@"`
+		run = `exec stagecoach hook exec --strict "$@"`
 	}
 	return "#!/bin/sh\n" + Marker + "\n" + run + "\n"
 }
@@ -259,11 +259,11 @@ Exact expected output — `hookScript(false)`:
 
 ```sh
 #!/bin/sh
-# stagehand prepare-commit-msg hook v1
-exec stagehand hook exec "$@"
+# stagecoach prepare-commit-msg hook v1
+exec stagecoach hook exec "$@"
 ```
 
-`hookScript(true)` differs on the last line only: `exec stagehand hook exec --strict "$@"`.
+`hookScript(true)` differs on the last line only: `exec stagecoach hook exec --strict "$@"`.
 
 ### Implementation Tasks (ordered by dependencies)
 
@@ -298,8 +298,8 @@ Task 5: CREATE internal/git/hookspath_test.go
 
 Task 6: CREATE internal/hook/script_test.go
   - TestHookScript_NonStrict: equals the exact 3-line script; first line "#!/bin/sh"; second line == Marker;
-    contains `exec stagehand hook exec "$@"`; does NOT contain "--strict".
-  - TestHookScript_Strict: last content line == `exec stagehand hook exec --strict "$@"`; still starts with
+    contains `exec stagecoach hook exec "$@"`; does NOT contain "--strict".
+  - TestHookScript_Strict: last content line == `exec stagecoach hook exec --strict "$@"`; still starts with
     shebang + Marker.
   - TestHookScript_MarkerPresent: strings.Contains(hookScript(false), Marker) && strings.Contains(hookScript(true), Marker).
   - TestHookScript_POSIX: write hookScript(false)/(true) to t.TempDir() files, run `sh -n <file>`; expect
@@ -372,7 +372,7 @@ OUT OF SCOPE (do NOT touch):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/git/git.go internal/git/hookspath_test.go internal/hook/script.go internal/hook/script_test.go
 go build ./...        # HooksPath impl + new internal/hook package must compile
 go vet ./...
@@ -396,8 +396,8 @@ go test ./internal/git/... -v                  # confirm existing git tests stil
 # Prove the script is POSIX under a real sh and (if available) dash:
 cat > /tmp/sh_probe <<'EOF'
 #!/bin/sh
-# stagehand prepare-commit-msg hook v1
-exec stagehand hook exec "$@"
+# stagecoach prepare-commit-msg hook v1
+exec stagecoach hook exec "$@"
 EOF
 sh -n /tmp/sh_probe && echo "POSIX OK"
 command -v dash >/dev/null && dash -n /tmp/sh_probe && echo "dash OK" || true
@@ -427,7 +427,7 @@ golangci-lint run ./...
 - [ ] `HooksPath` returns an ABSOLUTE path for default / core.hooksPath (rel+abs) / subdirectory / linked
       worktree; non-repo → error.
 - [ ] `hookScript(false)` == the exact 3-line strict-POSIX script; `hookScript(true)` appends `--strict`.
-- [ ] Marker is exactly `# stagehand prepare-commit-msg hook v1` and is line 2 of the script.
+- [ ] Marker is exactly `# stagecoach prepare-commit-msg hook v1` and is line 2 of the script.
 - [ ] `sh -n` accepts both scripts (POSIX; no bashisms).
 
 ### Code Quality Validation

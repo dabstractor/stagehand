@@ -81,4 +81,4 @@ The previous session (plan/003) implemented the full FR-R6 reasoning machinery: 
 - Add/adjust a bootstrap test asserting the generated config contains an uncommented `reasoning = "off"` under `[defaults]`.
 - **Mode A docs:** the inline comment on the emitted line.
 
-*Done state: `go test ./...` green; `stagehand config init` writes an uncommented `reasoning = "off"`; with no config a planner run resolves reasoning to `off`; setting `[role.planner].reasoning = "high"` still turns it on.*
+*Done state: `go test ./...` green; `stagecoach config init` writes an uncommented `reasoning = "off"`; with no config a planner run resolves reasoning to `off`; setting `[role.planner].reasoning = "high"` still turns it on.*

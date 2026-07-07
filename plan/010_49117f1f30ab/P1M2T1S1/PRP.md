@@ -291,9 +291,9 @@ func TestGitRunner_RunWithEnv_PassesEnv(t *testing.T) {
 	// If cmd.Env is NOT set, the child never sees GIT_CONFIG_COUNT → config --get exits 1, output empty.
 	out, _, code, err := g.runWithEnv(context.Background(), repo, []string{
 		"GIT_CONFIG_COUNT=1",
-		"GIT_CONFIG_KEY_0=stagehand.envtest",
+		"GIT_CONFIG_KEY_0=stagecoach.envtest",
 		"GIT_CONFIG_VALUE_0=passed-via-env",
-	}, "config", "--get", "stagehand.envtest")
+	}, "config", "--get", "stagecoach.envtest")
 	if err != nil || code != 0 {
 		t.Fatalf("runWithEnv config --get: code=%d err=%v (cmd.Env likely not set)", code, err)
 	}
@@ -396,7 +396,7 @@ go test -race ./...             # full module — no regression.
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only git.go + git_test.go changed:
 git diff --name-only | grep -Ev '^internal/git/git\.go$|^internal/git/git_test\.go$' \

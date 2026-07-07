@@ -52,7 +52,7 @@
 ## Testing approach for tip amend / mid-chain (the hard part)
 
 The arbiter must return a DYNAMIC SHA (the tip / a mid-chain SHA) but the loop creates SHAs at runtime.
-The **stub binary** (`cmd/stubagent`) only emits fixed responses (`STAGEHAND_STUB_OUT`/`SCRIPT`) — it
+The **stub binary** (`cmd/stubagent`) only emits fixed responses (`STAGECOACH_STUB_OUT`/`SCRIPT`) — it
 cannot read git. KEY FACTS:
 - **Agent subprocess cwd is the USER's CWD, NOT the repo** (executor.go:25: "cmd.Dir is NOT set").
 - BUT the **arbiter prompt is on STDIN** (PromptDelivery "stdin"), and the payload lists each commit's

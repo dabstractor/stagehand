@@ -1,11 +1,11 @@
 # S1 Implementation Notes — resolved-config injection (research)
 
-> Scope: P1.M1.T1.S1 — add `Config *config.Config` to `pkg/stagehand.Options`; skip
+> Scope: P1.M1.T1.S1 — add `Config *config.Config` to `pkg/stagecoach.Options`; skip
 > `config.Load` in `resolveConfig` when non-nil. Verified against the live source on 2026-06-30.
 
 ## 1. The single edit locus (confirmed verbatim)
 
-`pkg/stagehand/stagehand.go`:
+`pkg/stagecoach/stagecoach.go`:
 
 - **`Options` struct** — currently 7 fields (Provider, Model, SystemExtra, DryRun, Timeout, Verbose,
   VerboseOn). Additive-only contract ("Stable as of v1.0 / ADDITIVE-ONLY"). The new `Config` field
@@ -36,9 +36,9 @@ aliases `opts.Config.Providers`.
 
 ## 3. No new import edge
 
-`pkg/stagehand/stagehand.go` already imports `"github.com/dustin/stagehand/internal/config"` (used
+`pkg/stagecoach/stagecoach.go` already imports `"github.com/dustin/stagecoach/internal/config"` (used
 in `resolveConfig`'s return type and `config.Load`). The new field type `*config.Config` reuses it.
-**Zero import changes.** No import-cycle risk (config does not import pkg/stagehand).
+**Zero import changes.** No import-cycle risk (config does not import pkg/stagecoach).
 
 ## 4. API-stability — additive-only, in-module only
 
@@ -50,7 +50,7 @@ by the "ADDITIVE-ONLY" doc on `Options`.
 
 ## 5. Existing tests are UNAFFECTED (the nil path is unchanged)
 
-Every existing test in `pkg/stagehand/stagehand_test.go` constructs `Options{Provider: "stub", …}`
+Every existing test in `pkg/stagecoach/stagecoach_test.go` constructs `Options{Provider: "stub", …}`
 with **no `Config` field** → `opts.Config == nil` → the existing `config.Load` branch runs
 **unchanged**. Verified test inventory: `_Success`, `_DryRun`, `_NothingStaged`, `_ProviderOverride`,
 `_Timeout` (dryrun + commit_path), `_SystemExtra`. All pass on the nil path → `go test -race ./...`
@@ -66,15 +66,15 @@ stays green with zero edits to existing tests.
 - S1 changes neither the `GenerateCommit` signature nor the `Result` struct.
 - S1 adds no docs (contract: "DOCS: none").
 
-## 7. S1's own verifiability (within pkg/stagehand, no CLI)
+## 7. S1's own verifiability (within pkg/stagecoach, no CLI)
 
-At the `pkg/stagehand` level we can directly assert S1's contract:
+At the `pkg/stagecoach` level we can directly assert S1's contract:
 - Inject `Options{Config: &config.Config{Provider: "stub", Providers: {stub→...}}, ...}` →
   `GenerateCommit` resolves the stub provider → proves `config.Load` was skipped (Load would NOT see
   the in-memory `Providers` map; only the injected config carries it).
 - The "no second Load / notice printed once" property is **only** observable end-to-end through the
   CLI (the `loadRepoLocalConfig` notice writes to `internal/config.noticeOut`, an unexported var
-  inaccessible from `pkg/stagehand` tests). That assertion lives in **S3**, not S1.
+  inaccessible from `pkg/stagecoach` tests). That assertion lives in **S3**, not S1.
 
 So S1 ships one focused unit test proving the injected-config path resolves the injected provider
 without any on-disk config file — and defers the stderr/notice-count regression to S3.

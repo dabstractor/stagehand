@@ -41,11 +41,11 @@ pointing at its owning subtask; `git grep -nE 'sh -c|zsh -c|cmd /c' internal/git
 
 ## User Persona
 
-**Target User**: The Stagehand contributors implementing the rest of milestone P1.M1.T2/T3
+**Target User**: The Stagecoach contributors implementing the rest of milestone P1.M1.T2/T3
 (plumbing methods S2–S6 and diff/log/stage methods T3.S1–S5) and the P1.M3.T4 orchestrator that
 will call them.
 
-**Use Case**: Every git operation in Stagehand flows through one `Git` instance obtained from
+**Use Case**: Every git operation in Stagecoach flows through one `Git` instance obtained from
 `New(workDir)`. Each subsequent subtask implements exactly one interface method by delegating to
 the private `run()` helper — no subprocess plumbing is ever re-written, and every git invocation
 is guaranteed shell-free and `-C repo`-scoped.
@@ -64,7 +64,7 @@ rather than rediscovering them per method.
 - **PRD §19 (Security):** *"Commands are built as `[]string` and run via `exec.Command` directly,
   never via `sh -c`."* This subtask is the structural enforcement of that rule for ALL git access —
   every method delegates to `run()`, which uses `exec.CommandContext` + `[]string` args only.
-- **PRD §22.3 (Dependencies):** *"No git library dependency. Stagehand shells out to the real `git`
+- **PRD §22.3 (Dependencies):** *"No git library dependency. Stagecoach shells out to the real `git`
   binary… go-git is tempting but adds a large dependency."* `run()` is the single shell-out point.
 - **PRD §13 / §11.1 (Core IP):** The atomic snapshot flow (`rev-parse` → `write-tree` →
   `commit-tree` → `update-ref` CAS → `diff-tree`) is a sequence of plumbing calls. `run()` is the
@@ -147,8 +147,8 @@ expected exit codes. No inference required.
   critical: "FINDING 8 (signal handling needs process-group kill) is NOT this subtask's concern (that is P1.M2.T5/P1.M4.T2) — run() here does NOT set SysProcAttr/Setpgid; the agent subprocess is a different package. Do not pre-empt that work."
 
 - docfile: plan/001_f1f80943ac34/P1M1T1S1/PRP.md
-  why: "The CONTRACT for the inputs: module path github.com/dustin/stagehand, go 1.22, the §14 directory tree (internal/git/ already exists as an EMPTY dir), main.go stub. Confirms the module compiles today and internal/git/ is waiting for this file."
-  critical: "internal/git/ already exists (empty) — DO NOT mkdir it, just create git.go inside. The module path is github.com/dustin/stagehand, so the package's import path is github.com/dustin/stagehand/internal/git."
+  why: "The CONTRACT for the inputs: module path github.com/dustin/stagecoach, go 1.22, the §14 directory tree (internal/git/ already exists as an EMPTY dir), main.go stub. Confirms the module compiles today and internal/git/ is waiting for this file."
+  critical: "internal/git/ already exists (empty) — DO NOT mkdir it, just create git.go inside. The module path is github.com/dustin/stagecoach, so the package's import path is github.com/dustin/stagecoach/internal/git."
 
 - docfile: plan/001_f1f80943ac34/P1M1T1S2/PRP.md
   why: "The CONTRACT for the validation surface: `make test` = `go test -race ./...`, `make build`, `make lint` (golangci-lint, absent on this box — use `go vet`/`gofmt` as the local gate). This subtask's tests are exercised via `make test`."
@@ -173,12 +173,12 @@ expected exit codes. No inference required.
 ### Current Codebase Tree (after P1.M1.T1.S1 has landed)
 
 ```bash
-stagehand/
+stagecoach/
 ├── .gitignore            # from S1 — has /bin/ *.test coverage.out /dist/
 ├── PRD.md
-├── go.mod                # from S1 — module github.com/dustin/stagehand, go 1.22 (no deps)
+├── go.mod                # from S1 — module github.com/dustin/stagecoach, go 1.22 (no deps)
 ├── Makefile              # from S2 — build/test/lint/coverage/install/clean targets
-├── cmd/stagehand/main.go # from S1 — stub: package main; func main(){}
+├── cmd/stagecoach/main.go # from S1 — stub: package main; func main(){}
 ├── internal/             # from S1 — empty package dirs; internal/git/ EXISTS and is EMPTY
 │   ├── config/           #   empty ← P1.M1.T4
 │   ├── provider/         #   empty ← P1.M2
@@ -186,7 +186,7 @@ stagehand/
 │   ├── git/              #   empty ← THIS subtask writes git.go here
 │   ├── generate/         #   empty ← P1.M3.T4
 │   └── ui/               #   empty ← P1.M4.T3
-├── pkg/stagehand/        # from S1 — empty
+├── pkg/stagecoach/        # from S1 — empty
 ├── providers/            # from S1 — empty
 ├── docs/                 # from S1 — empty
 └── plan/                 # unchanged (planning artifacts)
@@ -195,7 +195,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 ├── ... (everything above, unchanged)
 └── internal/
     └── git/
@@ -396,7 +396,7 @@ func New(workDir string) Git {
     return &gitRunner{workDir: workDir}
 }
 
-// run is the low-level git exec helper. It is the ONLY place Stagehand shells out to git.
+// run is the low-level git exec helper. It is the ONLY place Stagecoach shells out to git.
 //   - resolves the git binary via exec.LookPath (PRD §19: real binary, never go-git per §22.3)
 //   - targets repo via the -C flag (NOT os.Chdir / cmd.Dir — goroutine-safe)
 //   - captures stdout and stderr to SEPARATE buffers
@@ -573,7 +573,7 @@ Task 3: VALIDATE — run the full gate set (see Validation Loop) and confirm sco
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" → package import path "github.com/dustin/stagehand/internal/git"
+  - module path: "github.com/dustin/stagecoach" → package import path "github.com/dustin/stagecoach/internal/git"
   - go directive: 1.22 → context, os/exec, errors.As, t.Setenv (1.17+) all available
   - deps: NONE added (stdlib only)
 
@@ -602,7 +602,7 @@ LATER-SUBTASK HOOKS (informational — do NOT implement now; each REPLACES one s
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/git/          # Expected: no output (run `gofmt -w internal/git/` if it lists files)
 go vet ./internal/git/...        # Expected: exit 0, no warnings
@@ -616,7 +616,7 @@ go build ./...                   # Expected: exit 0 (whole module compiles)
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race -v ./internal/git/   # Expected: all tests PASS, exit 0
 # Must see: TestNew, TestRun_HappyPath, TestRun_CapturesExitCodeAndSeparateBuffers,
@@ -633,7 +633,7 @@ make test                          # Expected: exit 0 (runs go test -race ./...;
 ### Level 3: Security & Structural Invariants (the §19 enforcement)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # PRD §19: NO shell execution anywhere in the git wrapper.
 git grep -nE '\b(sh|zsh|bash)\s+-c\b|cmd\s*/c\b' internal/git/git.go
@@ -659,7 +659,7 @@ go doc -all ./internal/git 2>/dev/null | grep -E 'func \(\*gitRunner\)' | wc -l
 ### Level 4: Runtime Smoke Test (prove run() works against a real repo)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Build a tiny throwaway program that exercises run() exactly as the test does, to confirm the
 # real binary path end-to-end (this mirrors the research verification):

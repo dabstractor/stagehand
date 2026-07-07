@@ -34,12 +34,12 @@ one new clause. No edit to manifest.go (S1), render.go (S3), builtin.go/pi.toml 
 
 ## User Persona
 
-**Target User**: The Stagehand user who wants to disable multi-turn fallback for a session-capable provider
+**Target User**: The Stagecoach user who wants to disable multi-turn fallback for a session-capable provider
 (e.g. `session_mode = ""` in `[provider.pi]` to force one-shot + rescue), or to enable it on a provider
 they've personally verified (FR-T9) — and the contributor wiring S3 (RenderMultiTurn capability gate) and
 S4 (pi's `"append"` value).
 
-**Use Case**: A user drops `[provider.pi] session_mode = ""` into `.stagehand.toml`. The registry merges
+**Use Case**: A user drops `[provider.pi] session_mode = ""` into `.stagecoach.toml`. The registry merges
 this override onto pi's built-in manifest; after S2 the merged `SessionMode` is `""` (was silently
 `"append"` before S2). S3's gate then sees `*r.SessionMode != "append"` → multi-turn skipped.
 
@@ -130,7 +130,7 @@ explained (nil ⇒ inherit; non-nil incl. "" ⇒ override) with the FR-37a + dis
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/provider/
     ├── manifest.go        # READ-ONLY (S1 landed: SessionMode field + Resolve + Validate)
     ├── merge.go           # EDIT: + regime-1 SessionMode clause (after ProviderFlag)
@@ -142,7 +142,7 @@ stagehand/
 ### Desired Codebase Tree After S2
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/provider/merge.go        # +1 regime-1 SessionMode clause
     internal/provider/merge_test.go   # sampleBase +1 field; PartialOverride +1 row; ExplicitZero +1 override+assertion
@@ -332,7 +332,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S2):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/provider/merge.go internal/provider/merge_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -343,7 +343,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The merge tests — the ExplicitZeroPointerWins SessionMode assertion is the FR-37a payoff
 go test -race ./internal/provider/ -v -run 'TestMergeManifest'
@@ -359,7 +359,7 @@ go test -race ./internal/provider/ -v
 ### Level 3: Whole-Repository Regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green
 go vet ./...                     # Expected: exit 0
@@ -376,7 +376,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/ providers/
 ### Level 4: Behavior Smoke (the FR-37a end-to-end, via a throwaway in-package test)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Inline proof (delete after): a session_mode="" override on a pi-shape base disables multi-turn.
 cat > internal/provider/zz_smoke_test.go <<'EOF'

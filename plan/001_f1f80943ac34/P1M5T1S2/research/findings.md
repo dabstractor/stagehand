@@ -2,7 +2,7 @@
 
 > Research for the `//go:build integration_real` suite (PRD §20.1 layer 4). Manual pre-release smoke
 > test that drives `generate.CommitStaged` against each of the 6 REAL provider manifests, gated by the
-> `integration_real` build tag AND `STAGEHAND_RUN_REAL=1`. NOT in CI (`make test` = `go test -race ./...`,
+> `integration_real` build tag AND `STAGECOACH_RUN_REAL=1`. NOT in CI (`make test` = `go test -race ./...`,
 > no `-tags`). All findings verified against the live tree on 2026-06-29.
 
 ---
@@ -70,7 +70,7 @@ if *r.ModelFlag    != "" && modelToUse    != "" { args = append(args, *r.ModelFl
 - **cursor**: `default_model=""` → NO `--model` → cursor uses its per-account default. Leave `cfg.Model=""`.
 
 **These are environment-specific.** The test MUST make model+provider env-overridable
-(`STAGEHAND_REAL_MODEL_<NAME>` / `STAGEHAND_REAL_PROVIDER_<NAME>`) with documented best-effort
+(`STAGECOACH_REAL_MODEL_<NAME>` / `STAGECOACH_REAL_PROVIDER_<NAME>`) with documented best-effort
 defaults (§4), so the operator can point at whatever model is actually available.
 
 ## 4. Documented best-effort model/provider defaults (env-overridable)
@@ -84,8 +84,8 @@ var realDefaults = map[string]struct{ model, provider string }{
     "codex":    {"", ""},                       // model from ~/.codex/config.toml
     "cursor":   {"", ""},                       // per-account default model
 }
-// cfg.Model     = envOr("STAGEHAND_REAL_MODEL_"    + UPPER(name), realDefaults[name].model)
-// cfg.Provider  = envOr("STAGEHAND_REAL_PROVIDER_" + UPPER(name), realDefaults[name].provider)
+// cfg.Model     = envOr("STAGECOACH_REAL_MODEL_"    + UPPER(name), realDefaults[name].model)
+// cfg.Provider  = envOr("STAGECOACH_REAL_PROVIDER_" + UPPER(name), realDefaults[name].provider)
 ```
 All six verified present on this machine per `architecture/external_deps.md` (2026-06-29).
 
@@ -138,10 +138,10 @@ compiles BOTH files together. Confirmed: no existing test func is named `TestRea
   `//go:build !windows` + blank line + `package provider`).
 - **Double gate**: (a) the build tag excludes the file from `go test ./...` / `make test` / `make coverage`
   (Makefile: `go test -race ./...` and `go test -coverprofile=... ./...` — neither passes `-tags`);
-  (b) the env var `STAGEHAND_RUN_REAL=1` is a runtime gate so even `go test -tags integration_real ./...`
+  (b) the env var `STAGECOACH_RUN_REAL=1` is a runtime gate so even `go test -tags integration_real ./...`
   without the env var skips (defense-in-depth against accidental slow/costly real runs).
 - **Per-subtest gate**: `if !reg.IsInstalled(m) { t.Skipf("%s (%s) not on $PATH", name, m.DetectCommand()) }`.
-- **Run command (manual)**: `STAGEHAND_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v -timeout 30m`.
+- **Run command (manual)**: `STAGECOACH_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v -timeout 30m`.
   (`-timeout 30m`: real agents are slow; Go's test timeout, distinct from `cfg.Timeout`=120s per attempt.)
 
 ## 9. Assertions (deterministic on the COMMIT, NOT the message content)
@@ -171,11 +171,11 @@ gofmt -l internal/generate/                            # empty
 go vet -tags integration_real ./internal/generate/     # clean
 
 # Level 2 — env-gate skip (no real agents run, no API cost):
-STAGEHAND_RUN_REAL=0 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v
-# → every subtest SKIPS ("set STAGEHAND_RUN_REAL=1 to run") OR skips on not-installed.
+STAGECOACH_RUN_REAL=0 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v
+# → every subtest SKIPS ("set STAGECOACH_RUN_REAL=1 to run") OR skips on not-installed.
 
 # Level 3 — the real manual gate (requires all 6 agents + network/API):
-STAGEHAND_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v -timeout 30m
+STAGECOACH_RUN_REAL=1 go test -tags integration_real ./internal/generate/ -run TestRealAgents -v -timeout 30m
 
 # Level 4 — CI-exclusion proof + no regression:
 make test            # go test -race ./... (NO tag → file excluded → no real runs, green)

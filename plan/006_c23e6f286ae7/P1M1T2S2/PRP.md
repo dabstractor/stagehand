@@ -21,7 +21,7 @@ description: |
 ## Goal
 
 **Feature Goal**: Make the FR52 per-repo run lock actually guard the commit-producing runs. Two
-stagehand invocations against one repo can no longer race on `update-ref`: the first acquires and
+stagecoach invocations against one repo can no longer race on `update-ref`: the first acquires and
 proceeds; the second either exits 0 ("nothing to do — an in-progress run already covers your staged
 changes", the accidental-double-run no-op fast path) or exits 5 (Busy, naming the holder's pid/host and
 leaving the new changes staged). The holder publishes its frozen snapshot SHA so the fast path can
@@ -46,12 +46,12 @@ same repo succeeds); the holder's lock file gains a `snapshot=` line after a run
 
 ## User Persona
 
-**Target User**: (1) End users who accidentally run stagehand twice in two terminals on the same repo
+**Target User**: (1) End users who accidentally run stagecoach twice in two terminals on the same repo
 (the common double-run); (2) wrapper scripts / CI that need to distinguish "busy, retry" (exit 5) from a
 real failure (1/3/124).
 
-**Use Case**: User has stagehand generating in terminal A (10s agent call). They accidentally hit their
-lazygit `stagehand` binding in terminal B. Terminal B either sees its staged set is already covered by
+**Use Case**: User has stagecoach generating in terminal A (10s agent call). They accidentally hit their
+lazygit `stagecoach` binding in terminal B. Terminal B either sees its staged set is already covered by
 A's snapshot (exit 0, "nothing to do") or sees genuinely new work and exits 5 naming A's pid — leaving
 the new work staged for a re-run after A finishes. Neither terminal's HEAD is ever clobbered.
 
@@ -60,7 +60,7 @@ the new work staged for a re-run after A finishes. Neither terminal's HEAD is ev
 "nothing to do" → `exitcode.New(Success, nil)` → main exits 0 (silent). Or mismatch → busy message →
 `exitcode.New(Busy, nil)` → main exits 5 (silent).
 
-**Pain Points Addressed**: Eliminates the §13.5 CAS-abort race where the second stagehand to commit
+**Pain Points Addressed**: Eliminates the §13.5 CAS-abort race where the second stagecoach to commit
 moves HEAD under the first, leaving a dangling snapshot and the confusing "already committed" message.
 The lock is the FIRST line of defense (§18.5); the CAS remains the second (defense in depth).
 
@@ -176,7 +176,7 @@ gotcha (XDG dir). The three edit anchors are quoted from the live files. No infe
   pattern: "Acquire returns (*Locker, error); on contention the error IS the *HeldError (errors.As
             recovers it). The singleton (current atomic.Pointer[Locker]) is set on Acquire, cleared on
             Release — so package-level SetSnapshot reaches the live lock."
-  gotcha: "lockDir() resolves XDG_RUNTIME_DIR → XDG_CACHE_HOME → ~/.cache/stagehand/locks (NO CWD fallback
+  gotcha: "lockDir() resolves XDG_RUNTIME_DIR → XDG_CACHE_HOME → ~/.cache/stagecoach/locks (NO CWD fallback
            — a lock in the repo is the §18.5 anti-pattern). Tests must isolate these env vars (see §Gotchas)."
 
 - file: internal/cmd/default_action.go
@@ -192,7 +192,7 @@ gotcha (XDG dir). The three edit anchors are quoted from the live files. No infe
 - file: internal/generate/generate.go
   why: "EDIT TARGET #2. Inside CommitStaged, after Step 3 WriteTree: 'signal.SetSnapshot(treeSHA, parentSHA,
         \"\")' is the anchor — add 'lock.SetSnapshot(treeSHA)' on the next line. CommitStaged is called by
-        pkg/stagehand.GenerateCommit (public API) AND runDefault (dogfood) — one site covers both."
+        pkg/stagecoach.GenerateCommit (public API) AND runDefault (dogfood) — one site covers both."
   gotcha: "Add the 'internal/lock' import. The call is a no-op when no lock is held (library use, tests)."
 
 - file: internal/decompose/decompose.go
@@ -229,7 +229,7 @@ gotcha (XDG dir). The three edit anchors are quoted from the live files. No infe
 ### Current Codebase Tree (relevant slice — after P1.M1.T1.S1 COMPLETE, P1.M1.T2.S1 in progress)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     ├── cmd/
     │   ├── default_action.go        # EDIT: +lock import, acquire/defer/handleLockContention
@@ -251,7 +251,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     ├── cmd/
     │   ├── default_action.go        # MODIFIED: +lock import; acquire/defer; +handleLockContention helper
@@ -364,8 +364,8 @@ func handleLockContention(stderr io.Writer, heldErr *lock.HeldError, g git.Git, 
 		// werr != nil (e.g. merge conflicts) or SHAs differ → fall through to Busy (G5).
 	}
 	fmt.Fprintf(stderr,
-		"stagehand: another stagehand run is already in progress on %s (pid %s on %s). "+
-			"Your newly-staged changes will remain staged — re-run stagehand after it finishes. Lock: %s.\n",
+		"stagecoach: another stagecoach run is already in progress on %s (pid %s on %s). "+
+			"Your newly-staged changes will remain staged — re-run stagecoach after it finishes. Lock: %s.\n",
 		heldErr.Contents.Repo, heldErr.Contents.Pid, heldErr.Contents.Hostname, heldErr.Path)
 	return exitcode.New(exitcode.Busy, nil) // exit 5, SILENT
 }
@@ -376,7 +376,7 @@ func handleLockContention(stderr io.Writer, heldErr *lock.HeldError, g git.Git, 
 ```go
 	g := git.New(repoDir)
 
-	// FR52 / PRD §18.5: acquire the per-repo run lock so two stagehand processes cannot race on
+	// FR52 / PRD §18.5: acquire the per-repo run lock so two stagecoach processes cannot race on
 	// update-ref. One acquire + one defer covers BOTH the single-commit path and the decompose path
 	// (runDecompose is called below). Read-only subcommands never reach runDefault; hook mode only
 	// writes a message (git commits) — neither needs the lock.
@@ -403,14 +403,14 @@ lock.SetSnapshot(treeSHA) // publish frozen index tree for the FR52 no-op fast p
 lock.SetSnapshot(tStart) // publish frozen working-tree snapshot for the FR52 no-op fast path (nil-safe)
 ```
 
-Both files need `import "github.com/dustin/stagehand/internal/lock"` added.
+Both files need `import "github.com/dustin/stagecoach/internal/lock"` added.
 
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
 Task 1: EDIT internal/cmd/default_action.go — acquire/release + helper
-  - EDIT 1a — add the import: "github.com/dustin/stagehand/internal/lock" (alphabetical with the other
-    github.com/dustin/stagehand/internal/* imports).
+  - EDIT 1a — add the import: "github.com/dustin/stagecoach/internal/lock" (alphabetical with the other
+    github.com/dustin/stagecoach/internal/* imports).
   - EDIT 1b — INSERT the acquire block (§"acquire-site code") immediately AFTER `g := git.New(repoDir)`
     (line 55) and BEFORE the `// ---- §9.4 auto-stage-all state machine` comment (line 73). Use the
     captured `stderr` (cmd.ErrOrStderr()) and `ctx` (cmd.Context()) already at the top of runDefault.
@@ -421,14 +421,14 @@ Task 1: EDIT internal/cmd/default_action.go — acquire/release + helper
   - VERIFY: go build ./internal/cmd/ → exit 0.
 
 Task 2: EDIT internal/generate/generate.go — publish snapshot (single-commit path)
-  - EDIT 2a — add import "github.com/dustin/stagehand/internal/lock".
+  - EDIT 2a — add import "github.com/dustin/stagecoach/internal/lock".
   - EDIT 2b — on the line AFTER `signal.SetSnapshot(treeSHA, parentSHA, "") // arm rescue (§18.4)`,
     add `lock.SetSnapshot(treeSHA)` (with the comment above).
   - DO NOT add a second SetSnapshot elsewhere in generate.go.
   - VERIFY: go build ./internal/generate/ → exit 0.
 
 Task 3: EDIT internal/decompose/decompose.go — publish snapshot (decompose path)
-  - EDIT 3a — add import "github.com/dustin/stagehand/internal/lock".
+  - EDIT 3a — add import "github.com/dustin/stagecoach/internal/lock".
   - EDIT 3b — AFTER the FreezeWorkingTree error-check block (`if err != nil { return ... }`) and BEFORE
     the one-file short-circuit comment, add `lock.SetSnapshot(tStart)` (with the comment above).
   - DO NOT add SetSnapshot in runSingleEscape/runSingleShortcut (the freeze — and thus this publish —
@@ -475,7 +475,7 @@ Task 6: VALIDATE — full gate set + scope discipline
 // === Why the helper returns SILENT exits (G3) ===
 // handleLockContention writes the user-facing message to stderr ONCE, then returns exitcode.New(code, nil).
 // main.go calls exitcode.For(err) → code; because ExitError{Err:nil}.Error()=="", main's "err.Error() != """
-// guard skips printing. A non-nil err would make main print "stagehand: <msg>" AGAIN. This is identical
+// guard skips printing. A non-nil err would make main print "stagecoach: <msg>" AGAIN. This is identical
 // to handleGenError's rescue/CAS branches and handleDecomposeError's silent mapping.
 
 // === Why errors.As over IsHeldError (G2) ===
@@ -543,7 +543,7 @@ NO-TOUCH (explicitly — owned by siblings):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/cmd/default_action.go internal/cmd/lock_contention_test.go internal/generate/generate.go internal/decompose/decompose.go
 # Expected: empty (run gofmt -w on any listed file).
@@ -559,7 +559,7 @@ go build ./...
 ### Level 2: Unit Tests (the helper + wiring)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new helper unit tests (fast, in-process — no real git needed):
 go test -race ./internal/cmd/ -v -run 'HandleLockContention|LockReleased'
@@ -573,7 +573,7 @@ go test -race ./internal/generate/ -v -run 'SetSnapshot'   # or ./internal/decom
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...     # Expected: ALL packages green. Existing runDefault/generate/decompose suites
                         # are unaffected: lock.SetSnapshot is a nil-safe no-op without a lock (G9), and
@@ -599,17 +599,17 @@ git grep -n 'lock.SetSnapshot' internal/generate/generate.go internal/decompose/
 ### Level 4: Behavioral Smoke Test (prove the contention logic end-to-end in-process)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Throwaway main: proves handleLockContention's two outcomes resolve to the right exit codes via
 # exitcode.For (the exact path runDefault→main uses). Requires exitcode.Busy (P1.M1.T2.S1) landed.
 cat > /tmp/sh_lock_check.go <<'EOF'
 package main
 import ("bytes";"context";"fmt"
-  "github.com/dustin/stagehand/internal/cmd"   // NOTE: cmd is internal — run from module root
-  _ "github.com/dustin/stagehand/internal/exitcode"
-  "github.com/dustin/stagehand/internal/git"
-  "github.com/dustin/stagehand/internal/lock")
+  "github.com/dustin/stagecoach/internal/cmd"   // NOTE: cmd is internal — run from module root
+  _ "github.com/dustin/stagecoach/internal/exitcode"
+  "github.com/dustin/stagecoach/internal/git"
+  "github.com/dustin/stagecoach/internal/lock")
 type fg struct{ git.Git; sha string }
 func (f *fg) WriteTree(context.Context)(string,error){ return f.sha, nil }
 func main(){
@@ -622,7 +622,7 @@ func main(){
 EOF
 # NOTE: handleLockContention is unexported (package cmd), so a /tmp main can't call it directly. The
 # authoritative proof is the in-package unit test (Level 2). The behavioral guarantee at the binary level
-# (two real stagehand subprocesses → exit 0 / 5) is P1.M1.T2.S3's E2E. Delete the scratch file:
+# (two real stagecoach subprocesses → exit 0 / 5) is P1.M1.T2.S3's E2E. Delete the scratch file:
 rm -f /tmp/sh_lock_check.go
 
 # Instead, the in-process proof is the unit test (run it verbose — it exercises both branches):

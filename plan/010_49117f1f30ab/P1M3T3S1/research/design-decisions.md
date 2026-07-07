@@ -33,7 +33,7 @@ It does NOT:
   `publishCommit` — which now runs hooks internally; no caller edit needed),
 - touch `runSingleEscape` (delegates to `generate.CommitStaged`, covered by P1.M3.T2.S1),
 - add a `Hooks` field to `decompose.Deps` (decompose calls `hooks.*` DIRECTLY — §1),
-- modify `internal/hooks/*`, `internal/generate/*`, `internal/git/*`, `pkg/stagehand/*`, `internal/cmd/*`,
+- modify `internal/hooks/*`, `internal/generate/*`, `internal/git/*`, `pkg/stagecoach/*`, `internal/cmd/*`,
 - change docs (the decompose composition is covered by M3.T2.S1's how-it-works.md subsection — item point 5).
 
 The per-concept scoping (FR-V8c) is AUTOMATIC: each `publishCommit`/arbiter commit call passes THAT
@@ -44,7 +44,7 @@ concept's `tree[i]`/`tStart` as the snapshot tree, so `pre-commit` sees only tha
 
 ## §1 — THE import-graph call: decompose imports `internal/hooks` DIRECTLY (NOT the interface approach)
 
-**Decision: `internal/decompose` does `import "github.com/dustin/stagehand/internal/hooks"` and calls
+**Decision: `internal/decompose` does `import "github.com/dustin/stagecoach/internal/hooks"` and calls
 `hooks.RunCommitHooks` / `hooks.RunPostCommit` with `hooks.HookOpts{DryRun: false, Verbose: deps.Verbose}`
 — the CONCRETE functions, NOT an interface on `Deps`.**
 
@@ -163,7 +163,7 @@ This does NOT violate §20.2: the mid-chain fidelity invariant constrains ONLY t
 (rebuilt by `resolveMidChain`, which is hook-free). The tip IS the arbiter's target (the amend target), so
 its message changing is permitted — exactly as an amended commit's message may change. The double-
 annotation parity (the tip already went through hooks when first published; amend re-runs them) is git's
-own behavior, not a stagehand bug. Document it in the `resolveTipAmend` comment.
+own behavior, not a stagecoach bug. Document it in the `resolveTipAmend` comment.
 
 ---
 
@@ -237,7 +237,7 @@ the hook in the temp repo's `.git/hooks/prepare-commit-msg` (0755) BEFORE callin
   delegates to `generate.CommitStaged`, P1.M3.T2.S1).
 - `internal/decompose/roles.go` (`Deps` — NO `Hooks` field added; §1), `arbiter.go`, `planner.go`, `stager.go`.
 - `internal/hooks/*` (runner.go/adapter.go/subset.go — P1.M3.T1/M1.T2 COMPLETE; consumed read-only),
-  `internal/generate/*` (P1.M3.T2.S1), `internal/git/*`, `internal/cmd/*`, `pkg/stagehand/*`, `internal/signal/*`,
+  `internal/generate/*` (P1.M3.T2.S1), `internal/git/*`, `internal/cmd/*`, `pkg/stagecoach/*`, `internal/signal/*`,
   `internal/hook/*`, `internal/lock/*`, `docs/*`.
 - `go.mod`/`go.sum` (decompose already imports generate/git; adding `internal/hooks` adds NO module — it's
   an internal package).

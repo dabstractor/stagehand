@@ -30,7 +30,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Guarantee `FUTURE_SPEC.md` (Stagehand's deferred/rejected-ideas
+**Feature Goal**: Guarantee `FUTURE_SPEC.md` (Stagecoach's deferred/rejected-ideas
 registry, PRD §10.5) is **consistent** with the lossless multi-turn fallback that
 shipped as PRD §9.24 (FR-T1–T12, built in P1.M1.T1–T4). Specifically: the lossless
 multi-turn form must read as *graduated* (pointing at §9.24), and the lossy

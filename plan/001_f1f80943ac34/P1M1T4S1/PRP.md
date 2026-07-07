@@ -23,7 +23,7 @@ description: |
   with string durations, then merges field-by-field into this plain `Config`).
   ⚠️ **THE second design call — TOML tags are §16.2 leaf names; NoColor is `toml:"-"`.** The flat struct
   carries snake_case leaf tags (`provider`, `auto_stage_all`, `max_diff_bytes`, …) so a flat round-trip
-  uses the file vocabulary. `NoColor` is CLI/UI-only (PRD §15.2: `--no-color`/`STAGEHAND_NO_COLOR`/
+  uses the file vocabulary. `NoColor` is CLI/UI-only (PRD §15.2: `--no-color`/`STAGECOACH_NO_COLOR`/
   `NO_COLOR`, TTY-aware) and has NO config-file key → tagged `toml:"-"` so it never leaks into a file.
   go-toml/v2 honors `toml:"-"` (encoding/json-aligned); a test proves it empirically.
   ⚠️ **THE third design call — Provider/Model default to `""`, NOT "pi".** PRD §16.1 Layer-1 does NOT pin a
@@ -46,7 +46,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Define the single resolved-configuration type for all of Stagehand — a flat
+**Feature Goal**: Define the single resolved-configuration type for all of Stagecoach — a flat
 `Config` struct whose 12 fields carry the PRD §16.2 scalars (provider, model, timeout, auto-stage,
 verbose, no-color, diff/md/retry caps, subject target, output mode, fence stripping) as plain Go
 types (`time.Duration` for Timeout), plus a `Defaults()` function returning the PRD §16.1 Layer-1
@@ -81,7 +81,7 @@ omits `no_color`; `go.mod` declares `github.com/pelletier/go-toml/v2` ≥ v2.2 w
 
 ## User Persona
 
-**Target User**: Downstream Stagehand subtasks — the config loaders (P1.M1.T4.S2 TOML, S3 git-config,
+**Target User**: Downstream Stagecoach subtasks — the config loaders (P1.M1.T4.S2 TOML, S3 git-config,
 S4 env+CLI+`Load()`), the provider registry (P1.M2.T3), and ultimately the generation pipeline
 (P1.M3) + CLI (P1.M4.T1) that read the resolved config. Transitively US8 (configuration & precedence,
 FR34) and every user story that depends on a tunable knob (timeout, caps, output mode).
@@ -182,19 +182,19 @@ git/provider/generation knowledge required — this subtask is pure data + one d
   pattern: `package git` (white-box); `t.Helper()` for helpers; `t.Errorf` for field-by-field assertions.
 
 - file: plan/001_f1f80943ac34/P1M1T1S1/PRP.md
-  why: confirms the INPUT contract — module `github.com/dustin/stagehand`, `go 1.22`, `internal/config/`
+  why: confirms the INPUT contract — module `github.com/dustin/stagecoach`, `go 1.22`, `internal/config/`
        dir already exists (empty). No deps before this subtask (go.sum absent).
 ```
 
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; NO require
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; NO require
 # (go.sum absent — zero deps)
 internal/
   config/                       # EXISTS, EMPTY (T1.S1 created the dir)
   git/                          # populated by T2/T3 (RevParseHEAD…AddAll, StagedFileCount)
-cmd/stagehand/main.go           # `package main; func main(){}` stub (T1.S1)
+cmd/stagecoach/main.go           # `package main; func main(){}` stub (T1.S1)
 Makefile                        # build/test/coverage/lint/clean/help (T1.S2)
 ```
 
@@ -248,7 +248,7 @@ package config
 
 import "time"
 
-// Config is the fully-resolved Stagehand configuration: the single value produced by the 7-layer
+// Config is the fully-resolved Stagecoach configuration: the single value produced by the 7-layer
 // precedence resolver (PRD §16.1, FR34) and read by every consumer — the TOML/git/env/CLI loaders
 // (P1.M1.T4.S2-S4), the provider registry (P1.M2.T3), and the generation pipeline.
 //
@@ -266,7 +266,7 @@ type Config struct {
 	AutoStageAll bool          `toml:"auto_stage_all"` // git add -A when nothing staged (PRD §9.4)
 	Verbose      bool          `toml:"verbose"`       // print resolved cmd, raw output, retries
 
-	// CLI / UI only — NOT in the §16.2 config file (PRD §15.2: --no-color / STAGEHAND_NO_COLOR / NO_COLOR)
+	// CLI / UI only — NOT in the §16.2 config file (PRD §15.2: --no-color / STAGECOACH_NO_COLOR / NO_COLOR)
 	NoColor bool `toml:"-"` // TTY-aware at runtime; set by UI layer (P1.M4.T3.S1)
 
 	// [generation] (PRD §16.2)
@@ -402,13 +402,13 @@ func TestTOMLMarshalKeysAndNoColorExclusion(t *testing.T) {
 GO MODULE (go.mod / go.sum):
   - add:     "require github.com/pelletier/go-toml/v2 <v2.2.x>" (via `go get`)
   - create:  go.sum (module hash) — first dependency in the repo
-  - preserve: `module github.com/dustin/stagehand`, `go 1.22`; NO `toolchain` line added
+  - preserve: `module github.com/dustin/stagecoach`, `go 1.22`; NO `toolchain` line added
 
 DOWNSTREAM CONTRACTS (do NOT implement here — just honor the shape they will consume):
   - P1.M1.T4.S2 (TOML load):  will define a nested decode struct (Defaults/Generation/Provider map)
         with string `timeout`, decode §16.2 files, then merge field-by-field into THIS Config.
-  - P1.M1.T4.S3 (git-config): will read `stagehand.*` keys and overlay onto THIS Config.
-  - P1.M1.T4.S4 (env+CLI+Load): will apply STAGEHAND_* env + cobra flags onto THIS Config; defines Load().
+  - P1.M1.T4.S3 (git-config): will read `stagecoach.*` keys and overlay onto THIS Config.
+  - P1.M1.T4.S4 (env+CLI+Load): will apply STAGECOACH_* env + cobra flags onto THIS Config; defines Load().
   - P1.M2.T3 (provider registry): reads cfg.Provider/cfg.Model to select + override a manifest.
   => Config field names/types/tags are now FROZEN for downstream. Do not rename after this subtask.
 
@@ -446,7 +446,7 @@ go test -race ./...
 ```bash
 # No runtime integration to exercise yet (no Load(), no file I/O, no CLI). Validate the build artifact
 # and the dependency resolution end-to-end:
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"   # main.go stub still links.
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"   # main.go stub still links.
 go list -m github.com/pelletier/go-toml/v2                          # prints the resolved v2.2.x version.
 grep -q '^require github.com/pelletier/go-toml/v2' go.mod && echo "require present"
 test -f go.sum && echo "go.sum present"

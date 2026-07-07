@@ -2,7 +2,7 @@
 
 ## 1. Project state
 
-**Stagehand** is a Go CLI tool that generates git commit messages by shelling out to AI coding agents
+**Stagecoach** is a Go CLI tool that generates git commit messages by shelling out to AI coding agents
 (pi, Claude Code, Gemini, opencode, etc.) using the user's existing coding-plan subscription quota.
 
 The codebase is **mature** — v1.0 (single-commit core) was built in plan/001, v2.0 features
@@ -53,7 +53,7 @@ written config is, for the user, a property that does not exist").
 | `internal/config/roles.go` | 1–63 | **Remove** `defaultRoleReasoning` map (was `{"planner": "high"}`). Rewrite `ResolveRoleModel`'s fallback logic (line ~63: `reasoning = cfg.Reasoning` — drop the final `defaultRoleReasoning[role]` fallback). Rewrite doc comment block (lines 1–19) and inline comments. |
 | `internal/config/config.go` | 27–28, 65, 126 | Update 3 doc comments: `RoleConfig.Reasoning`, `Config.Reasoning`, `Defaults() Reasoning` — change "planner=high" / "fall through to shipped default (planner=high)" to "off for every role; opt-in per role". |
 | `internal/cmd/root.go` | 137 | `--reasoning` help string: `default off, planner: high` → `default off`. |
-| `pkg/stagehand/stagehand.go` | 62, 66 | `RoleModel` comment: "shipped default" → "off by default for every role". |
+| `pkg/stagecoach/stagecoach.go` | 62, 66 | `RoleModel` comment: "shipped default" → "off by default for every role". |
 | `internal/config/roles_test.go` | ~43, ~85, ~109-116, ~154-168, ~172-189 | Flip assertions: `TestResolveRoleModel_FullOverride` planner reasoning `high`→`""`; `TestResolveRoleModel_BothEmptyManifestSentinel` same; `TestResolveRoleModel_AllCanonicalRoles` planner entry `high`→`""`; rename `TestResolveRoleModel_PlannerShippedDefault` → `TestResolveRoleModel_NoShippedReasoningDefault`, assert all roles `""`; `TestResolveRoleModel_ReasoningOffIsNonZero` comment updates. |
 | `internal/decompose/roles_test.go` | ~540-580 | Rename `TestResolveRoles_ReasoningShippedDefault` → `TestResolveRoles_NoShippedReasoningDefault`; assert planner `""` (not `"high"`); `TestResolveRoles_ReasoningPerRoleSet` planner assertion `high`→`""`. |
 | `internal/cmd/default_action_test.go` | ~1438-1440 | `TestProgressLabel_DecomposeVerboseRoles`: change assertion from "stderr contains `(reasoning: high)`" to "stderr contains NO reasoning suffix". |

@@ -86,7 +86,7 @@ byte, they fail. They MUST pass unchanged (the PRP's success criterion).
 ## Scope boundary (no conflict)
 
 - **P1.M1.T2.S2 (parallel)** maps cfg fields at the 6 production CALL-SITE struct literals
-  (generate/hook/stagehand/decompose) + adds `Config.DiffContextValue()`. It does NOT touch the 3 diff
+  (generate/hook/stagecoach/decompose) + adds `Config.DiffContextValue()`. It does NOT touch the 3 diff
   function internals → ZERO overlap with this refactor.
 - **T2 (next)** injects -M/-U via this helper (single-site edit, enabled by this refactor).
 - This task: ONLY `internal/git/git.go` (add the helper + edit 9 argv sites). No tests added (the golden

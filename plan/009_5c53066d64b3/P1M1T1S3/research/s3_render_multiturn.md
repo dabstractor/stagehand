@@ -57,7 +57,7 @@ pi turn-1 render (stdin delivery):
 pi --provider zai --model glm-5.2 \
    --system-prompt "<sys>" \
    --no-tools --no-extensions --no-skills --no-prompt-templates --no-context-files \
-   --session-id stagehand-<run-uuid> \
+   --session-id stagecoach-<run-uuid> \
    -p                       < <payload via stdin>
 ```
 - `--no-session` REMOVED from BareFlags; everything else (--no-tools/--no-extensions/--no-skills/--

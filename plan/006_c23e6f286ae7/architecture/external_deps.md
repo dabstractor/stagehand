@@ -33,7 +33,7 @@ err := unix.Flock(fd, unix.LOCK_EX|unix.LOCK_NB)
 err := unix.Flock(fd, unix.LOCK_EX|unix.LOCK_NB)
 if err != nil {
     if errors.Is(err, unix.EWOULDBLOCK) {
-        // another stagehand holds the lock → contention path
+        // another stagecoach holds the lock → contention path
     } else {
         // genuine I/O error → treat as acquisition failure (exit Error)
     }
@@ -79,7 +79,7 @@ Simple `key=value` per line (not TOML — a lock file is tiny and needs no schem
 ```go
 pid=12345
 hostname=workstation
-repo=/home/dustin/projects/stagehand
+repo=/home/dustin/projects/stagecoach
 timestamp=2026-07-03T22:06:00Z
 snapshot=9f3a1c...
 ```

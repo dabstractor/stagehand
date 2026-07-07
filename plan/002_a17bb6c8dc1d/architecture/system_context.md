@@ -1,8 +1,8 @@
-# System Context — Stagehand V2.0 Delta
+# System Context — Stagecoach V2.0 Delta
 
 ## Current State (V1 — Fully Implemented)
 
-The Stagehand v1 single-commit core is **fully implemented and tested** across these packages:
+The Stagecoach v1 single-commit core is **fully implemented and tested** across these packages:
 
 | Package | Location | Purpose |
 |---|---|---|
@@ -16,9 +16,9 @@ The Stagehand v1 single-commit core is **fully implemented and tested** across t
 | `internal/ui` | `output.go`, `verbose.go` | Progress messages, color, verbose diagnostics |
 | `internal/exitcode` | `exitcode.go` | Canonical exit codes (0/1/2/3/124) |
 | `internal/stubtest` | `stubtest.go` | Fake agent for integration tests (cmd/stubagent binary) |
-| `pkg/stagehand` | `stagehand.go` | Public API: `GenerateCommit(ctx, Options) (Result, error)` |
+| `pkg/stagecoach` | `stagecoach.go` | Public API: `GenerateCommit(ctx, Options) (Result, error)` |
 | `cmd/stubagent` | `main.go` | Test-only stub agent binary |
-| `cmd/stagehand` | `main.go` | CLI entrypoint |
+| `cmd/stagecoach` | `main.go` | CLI entrypoint |
 
 ## V2 Delta — What Must Be Added/Changed
 

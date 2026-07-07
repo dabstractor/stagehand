@@ -97,11 +97,11 @@ correct:
 
 OUT OF SCOPE (documented, NOT enforced here): when provider IS set to the manifest name "pi" but the
 SUB-provider (zai) is not — config has no separate sub-provider field (cfg.Provider conflates manifest
-name + Render provider param, a v1 design quirk). stagehand cannot detect "glm-5-turbo ≠ pi's default
+name + Render provider param, a v1 design quirk). stagecoach cannot detect "glm-5-turbo ≠ pi's default
 upstream" at resolution time. That is a Render-layer / future concern. ResolveRoles surfaces only the
 resolvable misconfiguration (bare model, no provider, multi-provider manifest).
 
-## 7. The closest existing pattern — pkg/stagehand.buildDeps (pkg/stagehand/stagehand.go)
+## 7. The closest existing pattern — pkg/stagecoach.buildDeps (pkg/stagecoach/stagecoach.go)
 
 buildDeps(cfg, repoDir) is the v1 single-commit analog of ResolveRoles (one role: message). It:
 1. `overrides, _ := provider.DecodeUserOverrides(cfg.Providers)` → `reg := provider.NewRegistry(overrides)`.

@@ -42,7 +42,7 @@ expected keystone state; S1's gate is `go build ./...`, not `go test`.)
 
 ## User Persona
 
-**Target User**: The Stagehand contributor implementing the v3 config/provider/decompose subtasks that
+**Target User**: The Stagecoach contributor implementing the v3 config/provider/decompose subtasks that
 depend on this keystone (S2 test rewrites, P1.M2 per-role reasoning plumbing + ResolveRoles v3, P1.M3
 config v3 migration, P2 qwen-code, P3 decompose freeze). This is a foundation subtask — no end-user-visible
 behavior change in isolation (call sites pass `reasoning=""`).
@@ -148,7 +148,7 @@ CmdSpec-unchanged finding, and the S1/S2 test boundary.
 # The 6 non-test Render call sites
 - file: internal/generate/generate.go
   why: "EDIT line ~196 (inside CommitStaged's generate→dedupe loop): Render(cfg.Model, \"\", sysPrompt, payload) → Render(cfg.Model, sysPrompt, payload, \"\"). Drop the provider arg, add reasoning=\"\"."
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: "EDIT line ~461 (runPipeline): Render(cfg.Model, \"\", sysPrompt, payload) → Render(cfg.Model, sysPrompt, payload, \"\")."
 - file: internal/decompose/planner.go
   why: "EDIT line ~98: Render(mdl, \"\", sysPrompt, payload, provider.RenderBare) → Render(mdl, sysPrompt, payload, \"\", provider.RenderBare)."
@@ -177,7 +177,7 @@ CmdSpec-unchanged finding, and the S1/S2 test boundary.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/provider/
 │   ├── manifest.go        # EDIT (struct -DefaultProvider +ReasoningLevels; Resolve; doc)
 │   ├── render.go          # EDIT (keystone: new signature + body; +strings import)
@@ -192,19 +192,19 @@ stagehand/
 │   ├── arbiter.go         # EDIT (Render arity, 1 line)
 │   └── stager.go          # EDIT (Render arity, 1 line)
 ├── internal/generate/generate.go   # EDIT (Render arity, 1 line)
-├── pkg/stagehand/stagehand.go      # EDIT (Render arity, 1 line)
+├── pkg/stagecoach/stagecoach.go      # EDIT (Render arity, 1 line)
 └── providers/pi.toml               # EDIT (remove default_provider)
 ```
 
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/provider/{manifest,render,merge,builtin}.go   # schema + keystone + merge + builtins
     internal/decompose/{roles,planner,message,arbiter,stager}.go  # dead-code removal + 4 arity fixes
     internal/generate/generate.go        # arity fix
-    pkg/stagehand/stagehand.go           # arity fix
+    pkg/stagecoach/stagecoach.go           # arity fix
     providers/pi.toml                    # -default_provider
 # NOTE: ~13 _test.go files will NOT compile until S2 (P1.M1.T1.S2). This is EXPECTED — see Validation.
 ```
@@ -218,7 +218,7 @@ stagehand/
 | `internal/decompose/roles.go` | MODIFY | Remove dead `inferenceProvider` + guard; keep `isMultiProvider`; TODO P1.M2. |
 | `internal/decompose/{planner,message,arbiter,stager}.go` | MODIFY | Render arity (drop provider arg, add `""` reasoning). |
 | `internal/generate/generate.go` | MODIFY | Render arity. |
-| `pkg/stagehand/stagehand.go` | MODIFY | Render arity. |
+| `pkg/stagecoach/stagecoach.go` | MODIFY | Render arity. |
 | `providers/pi.toml` | MODIFY | Remove `default_provider` (Mode A doc). |
 
 **Explicitly NOT touched in S1**: all `*_test.go` (S2 / P1.M1.T1.S2), `internal/provider/executor.go` +
@@ -358,7 +358,7 @@ Task 4: builtin.go — 8 builtins
 
 Task 5: the 6 non-test Render call sites — new arity (reasoning="" temporarily)
   - generate.go:196   → deps.Manifest.Render(cfg.Model, sysPrompt, payload, "")
-  - stagehand.go:461  → deps.Manifest.Render(cfg.Model, sysPrompt, payload, "")
+  - stagecoach.go:461  → deps.Manifest.Render(cfg.Model, sysPrompt, payload, "")
   - planner.go:98     → deps.Manifest.Render(mdl, sysPrompt, payload, "", provider.RenderBare)
   - message.go:129    → deps.Manifest.Render(mdl, sysPrompt, payload, "", provider.RenderBare)
   - arbiter.go:97     → deps.Manifest.Render(mdl, sysPrompt, payload, "", provider.RenderBare)
@@ -473,7 +473,7 @@ BUILTINS (internal/provider/builtin.go):
   - other 6: nil; BuiltinManifests map unchanged (7 entries; qwen-code = P2)
 
 CALL SITES (6 non-test, reasoning="" temporarily — P1.M2 wires real values):
-  - generate.go:196, stagehand.go:461, planner.go:98, message.go:129, arbiter.go:97, stager.go:86
+  - generate.go:196, stagecoach.go:461, planner.go:98, message.go:129, arbiter.go:97, stager.go:86
 
 DEAD-CODE REMOVAL (internal/decompose/roles.go):
   - removed: inferenceProvider func + its ResolveRoles guard block
@@ -502,7 +502,7 @@ DOWNSTREAM HOOKS (informational — owned by LATER subtasks, NOT S1):
 ### Level 1: Build (S1's GREEN gate)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go build ./...            # EXPECTED: exit 0 — production compiles (the "compiling tree" deliverable)
 
@@ -515,20 +515,20 @@ go build ./...            # EXPECTED: exit 0 — production compiles (the "compi
 ### Level 2: Compile-Only Checks on Edited Packages (catch typos early)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Build ONLY the production packages you edited (excludes _test.go) — fast signal, no test-breakage noise
-go build ./internal/provider/ ./internal/decompose/ ./internal/generate/ ./pkg/stagehand/
+go build ./internal/provider/ ./internal/decompose/ ./internal/generate/ ./pkg/stagecoach/
 gofmt -l internal/provider/manifest.go internal/provider/render.go internal/provider/merge.go \
           internal/provider/builtin.go internal/decompose/*.go internal/generate/generate.go \
-          pkg/stagehand/stagehand.go
+          pkg/stagecoach/stagecoach.go
 # Expected: empty (run gofmt -w on any listed file).
 ```
 
 ### Level 3: Targeted Verification (grep invariants — no test run needed)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # DefaultProvider is GONE from non-test production source (only the registry METHOD + comments may remain)
 grep -rn "DefaultProvider" --include="*.go" . | grep -v "_test.go" | grep -v "/plan/"
@@ -556,10 +556,10 @@ grep -n "default_provider" providers/pi.toml                     # Expected: NO 
 ### Level 4: Keystone Behavior Smoke (throwaway — the S2 tests will codify these permanently)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 cat > /tmp/sh_keystone_smoke.go <<'EOF'
 package main
-import ("fmt"; "github.com/dustin/stagehand/internal/provider")
+import ("fmt"; "github.com/dustin/stagecoach/internal/provider")
 func pi() provider.Manifest {
 	pf, mf, spf, prf := "--provider", "--model", "--system-prompt", "pi"
 	t := true

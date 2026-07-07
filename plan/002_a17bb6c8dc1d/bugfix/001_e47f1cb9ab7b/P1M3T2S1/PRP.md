@@ -59,7 +59,7 @@ entries (resolvable SHAs, correct subjects, correct file-lists), closing the §G
   is shown SHAs that no longer resolve and is missing commits — the most common decompose outcomes
   (leftovers reconciled). Root cause: `runArbiterPhase`/`resolveArbiter` move HEAD but return only an
   error/count — the new SHAs never flow back to `DecomposeResult.Commits`.
-- **The fix**: stagehand already owns every ref mutation, so after a successful arbiter the final
+- **The fix**: stagecoach already owns every ref mutation, so after a successful arbiter the final
   commits are exactly the range `preRunHEAD..HEAD`. Re-read them with the `LogRange` primitive
   (P1.M3.T1.S1) + `DiffTree` and replace the loop's pre-arbiter entries.
 - **Why now / sequencing**: `LogRange` shipped in T1.S1 (Complete). This subtask (T2.S1) is the FIRST
@@ -240,7 +240,7 @@ prompt-format facts that make it robust), and the dcm* test helpers are all belo
 
 # How the stub agent works (for the shell-script-arbiter test technique)
 - file: cmd/stubagent/main.go
-  why: The stub emits fixed responses (STAGEHAND_STUB_OUT/SCRIPT) — it CANNOT read git. For tip/mid-chain
+  why: The stub emits fixed responses (STAGECOACH_STUB_OUT/SCRIPT) — it CANNOT read git. For tip/mid-chain
         tests the arbiter must return a DYNAMIC SHA, so override Manifest.Command with a shell script that
         parses SHAs from its STDIN prompt (see "Known Gotchas" + Tasks 7-8).
   critical: The agent subprocess cwd is the USER's CWD, NOT the repo (executor.go L25). Do NOT have the
@@ -428,7 +428,7 @@ DOCS: Mode A — in-source doc comments only (CommitResult + DecomposeResult §G
 ### Level 1: Syntax & Style (run after Tasks 1-4)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go build ./...                              # MUST pass — catches the missing "strings" import first.
 go vet ./internal/decompose/...
 gofmt -l internal/decompose/decompose.go    # expect: no output (else gofmt -w it)
@@ -463,7 +463,7 @@ go test ./...
 ```bash
 # Build the CLI; exercise a real decompose where the arbiter folds a leftover into the tip.
 # (Requires a configured default provider / stub; the unit tests in Level 2 are the primary gate.)
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 # In a throwaway repo with an un-staged dirty tree the planner partitions, observe the success report's
 # [<short-sha>] lines now MATCH `git log --oneline` after the arbiter ran (no dangling SHAs), and a
 # null-path run prints the (N+1)-th commit. (See architecture/issue3_post_arbiter_output.md reproduction.)

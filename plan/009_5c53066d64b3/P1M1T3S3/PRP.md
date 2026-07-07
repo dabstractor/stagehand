@@ -60,7 +60,7 @@ are unchanged; `multiturn.Run`/`chunkPayload`/`newSessionID`/S1's helpers are by
 
 ## User Persona
 
-**Target User**: The end user running `stagehand` against a repo with a LARGE diff (e.g. a 266K-token
+**Target User**: The end user running `stagecoach` against a repo with a LARGE diff (e.g. a 266K-token
 working-tree change) against a provider whose per-request reliability ceiling lies below its context
 window (PRD §9.24). And — transitively — the CLI default action (P1.M4.T1.S2) / hook path that calls
 `CommitStaged` / `GenerateCommit`.
@@ -72,7 +72,7 @@ message at the end. The user sees a one-line progress notice ("↳ falling back 
 ~10m total") and, if multi-turn succeeds, a committed message where one-shot failed. If multi-turn also
 fails, the rescue is identical to a plain one-shot failure (the user is no worse off).
 
-**User Journey**: `stagehand` → one-shot (fails after retries) → [FR-T1 gate: all 4 hold] → stderr
+**User Journey**: `stagecoach` → one-shot (fails after retries) → [FR-T1 gate: all 4 hold] → stderr
 progress line → `multiturn.Run` (N+1 turns) → [success] FinalizeMessage + dedupe + commit → success
 report; OR [failure/dup] → existing rescue message (byte-identical) → exit 3.
 
@@ -183,13 +183,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/git"
-	"github.com/dustin/stagehand/internal/lock"
-	"github.com/dustin/stagehand/internal/prompt"
-	"github.com/dustin/stagehand/internal/provider"
-	"github.com/dustin/stagehand/internal/signal"
-	"github.com/dustin/stagehand/internal/ui"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dustin/stagecoach/internal/lock"
+	"github.com/dustin/stagecoach/internal/prompt"
+	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dustin/stagecoach/internal/signal"
+	"github.com/dustin/stagecoach/internal/ui"
 )
 ```
 NO new internal-package imports: `Run`/`chunkPayload` (same package), `FinalizeMessage`/`ExtractSubject`/
@@ -378,7 +378,7 @@ call-1 sequencing), and the hard scope fences. No inference required.
 ### Current Codebase Tree (this task's scope — generate.go + generate_test.go; multiturn.go is S2's)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/generate/
     ├── generate.go        # EDIT (file 1): hoist payload; nest FR-T1 gate + multi-turn branch; +os +time imports
     ├── generate_test.go   # EDIT (file 2): +3–4 focused multi-turn tests
@@ -394,7 +394,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/generate/
     ├── generate.go        # + var payload hoist, + FR-T1 gate + multi-turn branch, + os/time imports
     └── generate_test.go   # + TestCommitStaged_MultiTurnFallbackSuccess, + ..._MultiTurnSkipped_NonAppend,
@@ -781,7 +781,7 @@ NO-TOUCH (explicitly — owned by siblings):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/generate/generate.go internal/generate/generate_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -796,7 +796,7 @@ go build ./...                   # Expected: exit 0 (os+time used; Run/chunkPayl
 ### Level 2: The Focused Multi-Turn Tests (the deliverable)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./internal/generate/ -v -run 'TestCommitStaged_MultiTurn'
 # Expected: 3 (or 4) tests PASS, exit 0:
@@ -809,7 +809,7 @@ go test -race ./internal/generate/ -v -run 'TestCommitStaged_MultiTurn'
 ### Level 3: Whole-Repository Regression + Scope Discipline
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...    # Expected: ALL packages green (2 files changed, additive + a pure refactor)
 go vet ./...           # Expected: exit 0
@@ -841,7 +841,7 @@ grep -n 'cfg.MultiTurnFallback\|EstimateTokens(payload) > cfg.MultiTurnChunkToke
 ### Level 4: Runtime Smoke Test (prove the gate fires against a real stub)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # A focused in-process proof (mirrors TestCommitStaged_MultiTurnFallbackSuccess) — run via go test -v
 # and observe (a) the "↳ falling back to multi-turn" progress line on stderr, (b) the commit landing.

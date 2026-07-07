@@ -1,7 +1,7 @@
 ---
 name: "Blank pi per-role models in bootstrap + add sub-provider annotation (Issue 5)"
 work_item: P1.M5.T1.S1
-changeset: plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b (Stagehand v2.0 QA bug pass)
+changeset: plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b (Stagecoach v2.0 QA bug pass)
 issue: 5 (Minor — latent; surfaces once Issue 1 is fixed, which is Complete)
 kind: code + test (Go), Mode-A doc (the bootstrap output header comment IS the user-facing doc)
 depends_on:
@@ -408,7 +408,7 @@ go test ./...
 
 # (Optional) eyeball the actual generated bootstrap for pi:
 go test ./internal/config/ -run TestBuildBootstrapConfig_Pi -v 2>&1 | head   # then print content if useful
-# Or run: bin/stagehand config init --provider pi  (in a throwaway HOME) and confirm model="" x4 + NOTE.
+# Or run: bin/stagecoach config init --provider pi  (in a throwaway HOME) and confirm model="" x4 + NOTE.
 ```
 
 ### Level 4: Manual smoke (optional, confirms FR-B1 "works immediately")
@@ -416,9 +416,9 @@ go test ./internal/config/ -run TestBuildBootstrapConfig_Pi -v 2>&1 | head   # t
 ```bash
 # In a temp HOME so you don't clobber your real config:
 export TMPHOME=$(mktemp -d) && export HOME=$TMPHOME && export XDG_CONFIG_HOME=$TMPHOME/.config
-SH=$(pwd)/bin/stagehand   # build first: make build
+SH=$(pwd)/bin/stagecoach   # build first: make build
 $SH config init --provider pi
-cat "$XDG_CONFIG_HOME/stagehand/config.toml" | grep -E '^\[role|^model|default_provider|NOTE'
+cat "$XDG_CONFIG_HOME/stagecoach/config.toml" | grep -E '^\[role|^model|default_provider|NOTE'
 # Expected: four [role.*] blocks each with `model = ""`, and the NOTE line. NO gpt-5.4 lines.
 ```
 

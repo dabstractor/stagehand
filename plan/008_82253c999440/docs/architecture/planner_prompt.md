@@ -367,7 +367,7 @@ Add a short paragraph in the "Key design points" section (after "One-file short-
 7. **Stager `files` block ordering.** The block goes **between description and guardrails** (PRD §17.6 sketch). Existing test `TestBuildStagerTask_Properties` asserts description is "between title and guardrails" — the files block sits in that same gap; update the ordering assertion to allow the files block (or assert title < description < files-block < guardrails).
 8. **`callPlanner` signature unchanged.** The mode/target info reaches `callPlanner` already (via `forcedCount` arg + `deps.Config.MaxCommits`). The only call-site change inside `callPlanner` is the two extra args to `BuildPlannerSystemPrompt` at line 73.
 9. **Mode-A docs are a ride-along, not a separate task.** The `docs/how-it-works.md` edit lands with T2 (per delta_prd.md §4.2 / §5 Phase-2 T2). Keep it tight — one paragraph + the roles-table cell.
-10. **No new config keys / CLI flags.** FR-M4's soft target is **derived** from existing `max_commits`; FR-M3's `files` is automatic in the planner JSON. Neither adds user-facing surface (delta_prd.md §3 non-goals). Do not touch `internal/config/`, `cmd/stagehand/`, or `docs/cli.md`/`docs/configuration.md`.
+10. **No new config keys / CLI flags.** FR-M4's soft target is **derived** from existing `max_commits`; FR-M3's `files` is automatic in the planner JSON. Neither adds user-facing surface (delta_prd.md §3 non-goals). Do not touch `internal/config/`, `cmd/stagecoach/`, or `docs/cli.md`/`docs/configuration.md`.
 
 ---
 

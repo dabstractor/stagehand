@@ -37,7 +37,7 @@ description: |
       no-behavioral-change proof). See verification.md §5.
 
   ⚠️ **#4 — No conflict with the parallel work item (P1.M2.T1.S2).** P1.M2.T1.S2 (dry-run runPipeline gate)
-      is **pkg/stagehand ONLY** — its PRP explicitly excludes `internal/hook/exec.go` as P1.M3's scope (lines
+      is **pkg/stagecoach ONLY** — its PRP explicitly excludes `internal/hook/exec.go` as P1.M3's scope (lines
       64/242/297-298/476/606). This task edits `internal/hook/exec.go` ONLY. Zero file overlap ⇒ no merge
       conflict. (P1.M2.T1.S1, Complete, did the analogous `payload` hoist in runPipeline — the precedent.)
       See verification.md §4.
@@ -69,7 +69,7 @@ are visible at function scope after the loop (ready for S2's gate).
 
 **Target User**: The sibling subtask P1.M3.T1.S2 (the FR-T1 multi-turn gate on the hook path), which needs
 `resolved.SessionMode` (to decide multi-turn eligibility) and the post-loop `payload` (the captured
-one-shot payload the multi-turn session reuses, FR-T2). Transitively: a user running `stagehand hook exec`
+one-shot payload the multi-turn session reuses, FR-T2). Transitively: a user running `stagecoach hook exec`
 (most often indirectly via the installed `prepare-commit-msg` hook) whose large diff should fall back to
 multi-turn — currently it can't because the gate isn't wired (Issue 2).
 
@@ -125,7 +125,7 @@ confirmation (§4). No multi-turn/gate/decompose knowledge required — this is 
 - docfile: plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/P1M3T1S1/research/verification.md
   why: §1 (the 3 edits match L151/L154-155/L158 exactly), §2 (ZERO shadowing — the load-bearing safety
        check), §3 (Resolve() returns Manifest with SessionMode+RetryInstruction), §4 (no conflict with
-       P1.M2.T1.S2 — pkg/stagehand only), §5 (pure refactor; tests stay green).
+       P1.M2.T1.S2 — pkg/stagecoach only), §5 (pure refactor; tests stay green).
   critical: §2 (shadowing) and §3 (why `resolved` must be bound) are the things that confirm the refactor
        is safe and purposeful.
 
@@ -161,7 +161,7 @@ confirmation (§4). No multi-turn/gate/decompose knowledge required — this is 
 
 # The parallel PRP — the no-conflict confirmation (READ to be sure)
 - file: plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/P1M2T1S2/PRP.md
-  why: confirms P1.M2.T1.S2 is pkg/stagehand ONLY and explicitly excludes internal/hook/exec.go (P1.M3's
+  why: confirms P1.M2.T1.S2 is pkg/stagecoach ONLY and explicitly excludes internal/hook/exec.go (P1.M3's
        scope). Zero file overlap ⇒ this refactor and the parallel gate-insertion don't collide.
   critical: P1.M2.T1.S1 (Complete) already did the analogous payload hoist in runPipeline — same pattern.
 
@@ -310,7 +310,7 @@ DOWNSTREAM (the consumer — NOT this task):
 FROZEN/LEAVE (do NOT edit):
   - The loop body (Render/Execute/ParseOutput/FinalizeMessage/dedupe/WriteMessageFile), the never-block
     returns (timeout/cancel), the exhaustion return.
-  - internal/provider/*, internal/generate/*, internal/config/*, pkg/stagehand/*, internal/cmd/*.
+  - internal/provider/*, internal/generate/*, internal/config/*, pkg/stagecoach/*, internal/cmd/*.
   - All other hook files (exec_test.go etc.). PRD.md, go.mod, Makefile.
 
 NO NEW DATABASE / ROUTES / CLI / FILES / CONFIG / DOCS.
@@ -395,7 +395,7 @@ grep -n "resolved := deps.Manifest.Resolve\|var payload string\|payload = prompt
 - ❌ **Don't worry about shadowing (it's verified safe) — but DO run `go vet`.** The grep proves `payload`/
       `resolved` are loop-local today; `go vet` is the deterministic confirmation. If `go vet` flags
       anything, the edits were misapplied — recheck. (research §2)
-- ❌ **Don't edit any other file.** pkg/stagehand/stagehand.go is P1.M2.T1.S2's scope; internal/generate is
+- ❌ **Don't edit any other file.** pkg/stagecoach/stagecoach.go is P1.M2.T1.S2's scope; internal/generate is
       the frozen reference gate; internal/provider/manifest.go is the consumed API. This task is
       internal/hook/exec.go ONLY. (research §4)
 - ❌ **Don't add imports/deps.** The 3 edits use already-imported symbols. `go mod tidy` is a no-op.

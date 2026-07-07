@@ -2,7 +2,7 @@
 name: "P1.M1.T2.S1 — Wire MeasureAssembled at message-role consumer sites (generate, pkg, hook)"
 description: |
   Wire the FR3j closed-loop `MeasureAssembled` closure at the 3 message-role StagedDiff call sites:
-  generate.go:208 (CommitStaged), stagehand.go:437 (runPipeline), exec.go:123 (hook.Run). At each site,
+  generate.go:208 (CommitStaged), stagecoach.go:437 (runPipeline), exec.go:123 (hook.Run). At each site,
   when `cfg.TokenLimit != 0`, add a closure: `func(gatedDiff string) int { return
   git.EstimateTokens(sysPrompt + prompt.BuildUserPayload(gatedDiff, cfg.Context, nil)) }` to the
   StagedDiffOptions literal. The closure measures the ACTUAL assembled prompt (FR3j closed-loop) so the
@@ -22,7 +22,7 @@ that FR3i's open-loop water-fill cannot guarantee alone.
 **Deliverable** (3 identical edits in 3 files):
 1. `internal/generate/generate.go` (~line 208): add a conditional `MeasureAssembled` closure to the
    CommitStaged `StagedDiffOptions` literal.
-2. `pkg/stagehand/stagehand.go` (~line 437): same for runPipeline.
+2. `pkg/stagecoach/stagecoach.go` (~line 437): same for runPipeline.
 3. `internal/hook/exec.go` (~line 123): same for hook.Run.
 
 **Success Definition**: When `cfg.TokenLimit != 0`, each of the 3 one-shot StagedDiff calls passes a
@@ -46,7 +46,7 @@ re-measurement). This task injects the actual measurement closure, activating th
 
 ## Why
 
-- **FR3j mandates the closed-loop guarantee.** "After the water-fill produces the gated diff, stagehand assembles the actual full prompt — the system prompt plus BuildUserPayload(gatedDiff) — measures it with the same EstimateTokens used for sizing, and if it exceeds token_limit, reduces the body budget by the overshoot plus a small slack and re-applies the per-file truncation. Invariant: EstimateTokens(assembledFullPrompt) ≤ token_limit, always."
+- **FR3j mandates the closed-loop guarantee.** "After the water-fill produces the gated diff, stagecoach assembles the actual full prompt — the system prompt plus BuildUserPayload(gatedDiff) — measures it with the same EstimateTokens used for sizing, and if it exceeds token_limit, reduces the body budget by the overshoot plus a small slack and re-applies the per-file truncation. Invariant: EstimateTokens(assembledFullPrompt) ≤ token_limit, always."
 - **The seam exists (S1) and the gate calls it (S2).** S1 landed `MeasureAssembled func(gatedDiff string) int` on StagedDiffOptions; S2 wired `closedLoopGate` to pass it through. The only missing piece is the consumers INJECTING the closure. Without this task, `MeasureAssembled` is nil at every call site → the closed-loop is dead code.
 - **3 identical edits.** Each site already has `sysPrompt` in scope, `cfg.Context` available, and both `git.EstimateTokens` and `prompt.BuildUserPayload` imported. The edit is a mechanical closure + conditional + field addition.
 - **No behavioral change when TokenLimit==0.** The closure is nil → `closedLoopGate`'s nil-safe path delegates to `applyWaterFillGate` → the legacy path is byte-identical.
@@ -59,7 +59,7 @@ No signature changes, no new imports, no docs.
 
 ### Success Criteria
 
-- [ ] Each of the 3 one-shot StagedDiff calls (generate.go:208, stagehand.go:437, exec.go:123) passes a
+- [ ] Each of the 3 one-shot StagedDiff calls (generate.go:208, stagecoach.go:437, exec.go:123) passes a
       non-nil `MeasureAssembled` closure when `cfg.TokenLimit != 0`.
 - [ ] The closure body is `func(gatedDiff string) int { return git.EstimateTokens(sysPrompt +
       prompt.BuildUserPayload(gatedDiff, cfg.Context, nil)) }`.
@@ -82,15 +82,15 @@ confirmed landed; S2's gate wiring is confirmed parallel (different file).
 ```yaml
 # MUST READ — the FR3j spec + the wiring architecture
 - file: PRD.md
-  why: "§9.1 FR3j (closed-loop budget guarantee): 'after the water-fill produces the gated diff, stagehand assembles the actual full prompt — the system prompt plus BuildUserPayload(gatedDiff) — measures it with the same EstimateTokens used for sizing, and if it exceeds token_limit, reduces the body budget by the overshoot and re-applies the per-file truncation. Invariant: EstimateTokens(assembledFullPrompt) ≤ token_limit, always.'"
+  why: "§9.1 FR3j (closed-loop budget guarantee): 'after the water-fill produces the gated diff, stagecoach assembles the actual full prompt — the system prompt plus BuildUserPayload(gatedDiff) — measures it with the same EstimateTokens used for sizing, and if it exceeds token_limit, reduces the body budget by the overshoot and re-applies the per-file truncation. Invariant: EstimateTokens(assembledFullPrompt) ≤ token_limit, always.'"
   critical: "FR3j's 'Measure it with the SAME EstimateTokens' is the single-estimator rule (D2). FR3j's 'assembles the actual full prompt' is what the MeasureAssembled closure does."
 
 - docfile: plan/011_98cef660a41d/architecture/fr3j_closed_loop.md
-  why: "§'The 6 Consumer Wiring Sites': lists the 3 message-role sites (generate.go:~208, stagehand.go:~437, exec.go:~123) and the 3 decompose-role sites (planner.go, message.go, arbiter.go — P1.M1.T2.S2's territory). Confirms the closure shape and the nil-rejected rationale."
+  why: "§'The 6 Consumer Wiring Sites': lists the 3 message-role sites (generate.go:~208, stagecoach.go:~437, exec.go:~123) and the 3 decompose-role sites (planner.go, message.go, arbiter.go — P1.M1.T2.S2's territory). Confirms the closure shape and the nil-rejected rationale."
   critical: "The 6-site table confirms the message-role vs decompose-role split (S1 vs S2). The closure shape + the nil-rejected rationale are the implementation spec."
 
 - docfile: plan/011_98cef660a41d/P1M1T1S2/PRP.md
-  why: "The parallel sibling (wires closedLoopGate into the 3 diff functions in git.go). Confirms it does NOT touch the consumer call sites (generate.go, stagehand.go, exec.go) → no conflict. Confirms closedLoopGate is nil-safe (MeasureAssembled==nil → delegates to applyWaterFillGate)."
+  why: "The parallel sibling (wires closedLoopGate into the 3 diff functions in git.go). Confirms it does NOT touch the consumer call sites (generate.go, stagecoach.go, exec.go) → no conflict. Confirms closedLoopGate is nil-safe (MeasureAssembled==nil → delegates to applyWaterFillGate)."
   critical: "S2 makes the diff functions CALL closedLoopGate. S1/T2.S1 (THIS task) makes the consumers INJECT the closure. Both are needed for the closed-loop to work. S2 is parallel; the consumer wiring is correct regardless of whether S2 has landed."
 
 - docfile: plan/011_98cef660a41d/P1M1T2S1/research/measure_assembled_wiring_notes.md
@@ -102,7 +102,7 @@ confirmed landed; S2's gate wiring is confirmed parallel (different file).
   pattern: "The literal currently ends with `PromptReserveTokens: reserve,` then `})`. Add `MeasureAssembled: measureAssembled,` before the `})`."
   gotcha: "Do NOT touch the multi-turn re-capture StagedDiff call at line ~349 (TokenLimit: 0 — the gate doesn't run there)."
 
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: "EDIT (runPipeline, ~line 437). The StagedDiffOptions literal is at lines 437-445. `sysPrompt` is at line ~432 (with systemExtra appended). `reserve` is at line ~435. Same insertion pattern."
   gotcha: "Do NOT touch the multi-turn re-capture StagedDiff call at line ~573 (TokenLimit: 0)."
 
@@ -122,26 +122,26 @@ confirmed landed; S2's gate wiring is confirmed parallel (different file).
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/generate/generate.go     # EDIT: CommitStaged StagedDiffOptions (~line 208)
-├── pkg/stagehand/stagehand.go        # EDIT: runPipeline StagedDiffOptions (~line 437)
+├── pkg/stagecoach/stagecoach.go        # EDIT: runPipeline StagedDiffOptions (~line 437)
 └── internal/hook/exec.go             # EDIT: hook.Run StagedDiffOptions (~line 123)
 ```
 
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/generate/generate.go     # +MeasureAssembled closure (conditional on TokenLimit!=0)
-    pkg/stagehand/stagehand.go        # +MeasureAssembled closure
+    pkg/stagecoach/stagecoach.go        # +MeasureAssembled closure
     internal/hook/exec.go             # +MeasureAssembled closure
 ```
 
 | Path | Action | Responsibility |
 |---|---|---|
 | `internal/generate/generate.go` | MODIFY | Add the conditional MeasureAssembled closure to CommitStaged's StagedDiffOptions. |
-| `pkg/stagehand/stagehand.go` | MODIFY | Add the closure to runPipeline's StagedDiffOptions. |
+| `pkg/stagecoach/stagecoach.go` | MODIFY | Add the closure to runPipeline's StagedDiffOptions. |
 | `internal/hook/exec.go` | MODIFY | Add the closure to hook.Run's StagedDiffOptions. |
 
 **Explicitly NOT touched**: `internal/git/git.go` (S1 field + S2 gate wiring), the 3 multi-turn
@@ -244,11 +244,11 @@ Task 1: EDIT internal/generate/generate.go — CommitStaged StagedDiffOptions (~
   - DO NOT: touch the multi-turn re-capture StagedDiff call (~line 349).
   - RUN: gofmt -w internal/generate/generate.go; go build ./internal/generate/
 
-Task 2: EDIT pkg/stagehand/stagehand.go — runPipeline StagedDiffOptions (~line 437)
-  - FILE: pkg/stagehand/stagehand.go
+Task 2: EDIT pkg/stagecoach/stagecoach.go — runPipeline StagedDiffOptions (~line 437)
+  - FILE: pkg/stagecoach/stagecoach.go
   - Same insertion pattern as Task 1. `sysPrompt` is at ~432; `reserve` at ~435; StagedDiff at ~437.
   - DO NOT: touch the multi-turn re-capture StagedDiff call (~line 573).
-  - RUN: gofmt -w pkg/stagehand/stagehand.go; go build ./pkg/stagehand/
+  - RUN: gofmt -w pkg/stagecoach/stagecoach.go; go build ./pkg/stagecoach/
 
 Task 3: EDIT internal/hook/exec.go — hook.Run StagedDiffOptions (~line 123)
   - FILE: internal/hook/exec.go
@@ -299,7 +299,7 @@ Task 4: VALIDATE
 ```yaml
 PRODUCTION (3 files, 1 edit each):
   - internal/generate/generate.go: +MeasureAssembled closure to CommitStaged's StagedDiffOptions
-  - pkg/stagehand/stagehand.go:   +MeasureAssembled closure to runPipeline's StagedDiffOptions
+  - pkg/stagecoach/stagecoach.go:   +MeasureAssembled closure to runPipeline's StagedDiffOptions
   - internal/hook/exec.go:        +MeasureAssembled closure to hook.Run's StagedDiffOptions
 
 CONSUMED (READ-ONLY):
@@ -323,7 +323,7 @@ NO-TOUCH (explicitly):
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l .               # Expected: empty
 go vet ./...              # Expected: exit 0
@@ -335,38 +335,38 @@ go build ./...            # Expected: exit 0 (closure field; no signature change
 ### Level 2: Whole-Repository Regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test ./...    # Expected: ALL packages green (the closure is nil when TokenLimit==0; no behavior change)
 
 # Confirm ONLY the 3 intended files changed.
 git diff --stat -- internal/ pkg/
-# Expected: internal/generate/generate.go + pkg/stagehand/stagehand.go + internal/hook/exec.go only.
+# Expected: internal/generate/generate.go + pkg/stagecoach/stagecoach.go + internal/hook/exec.go only.
 ```
 
 ### Level 3: Field-Presence Cross-Check
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The MeasureAssembled closure is present at all 3 one-shot StagedDiff sites.
-grep -n "measureAssembled" internal/generate/generate.go pkg/stagehand/stagehand.go internal/hook/exec.go
+grep -n "measureAssembled" internal/generate/generate.go pkg/stagecoach/stagecoach.go internal/hook/exec.go
 # Expected: 3 matches for the var declaration + 3 for the conditional + 3 for the literal field
 #           (9 total — 3 per site).
 
 # The multi-turn re-capture calls do NOT have MeasureAssembled.
-grep -B5 "PromptReserveTokens: 0" internal/generate/generate.go pkg/stagehand/stagehand.go internal/hook/exec.go | grep "MeasureAssembled" || echo "OK: multi-turn re-capture calls have NO MeasureAssembled"
+grep -B5 "PromptReserveTokens: 0" internal/generate/generate.go pkg/stagecoach/stagecoach.go internal/hook/exec.go | grep "MeasureAssembled" || echo "OK: multi-turn re-capture calls have NO MeasureAssembled"
 ```
 
 ### Level 4: Closed-Loop Activation (when TokenLimit != 0)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # When TokenLimit != 0, the closure is non-nil → closedLoopGate (S2) re-measures.
 # When TokenLimit == 0, the closure is nil → closedLoopGate delegates to applyWaterFillGate (nil-safe).
 # Verify the conditional:
-grep -A2 "var measureAssembled" internal/generate/generate.go pkg/stagehand/stagehand.go internal/hook/exec.go
+grep -A2 "var measureAssembled" internal/generate/generate.go pkg/stagecoach/stagecoach.go internal/hook/exec.go
 # Expected: 3 `if cfg.TokenLimit != 0 {` blocks.
 ```
 
@@ -388,7 +388,7 @@ grep -A2 "var measureAssembled" internal/generate/generate.go pkg/stagehand/stag
 
 ### Scope Discipline Validation
 
-- [ ] ONLY `internal/generate/generate.go` + `pkg/stagehand/stagehand.go` + `internal/hook/exec.go` modified.
+- [ ] ONLY `internal/generate/generate.go` + `pkg/stagecoach/stagecoach.go` + `internal/hook/exec.go` modified.
 - [ ] Did NOT touch `internal/git/git.go` (S1/S2), tokengate.go (S1/S2), the decompose-role sites (P1.M1.T2.S2).
 - [ ] Did NOT modify `PRD.md`, `tasks.json`, `prd_snapshot.md`, or anything under `plan/`.
 
@@ -418,7 +418,7 @@ grep -A2 "var measureAssembled" internal/generate/generate.go pkg/stagehand/stag
 
 Rationale: This is 3 byte-identical edits — each a conditional closure + a struct field addition —
 with the exact closure body supplied by the contract, the exact StagedDiffOptions literals quoted from
-the live source (generate.go:208, stagehand.go:437, exec.go:123), all variables confirmed in scope
+the live source (generate.go:208, stagecoach.go:437, exec.go:123), all variables confirmed in scope
 (`sysPrompt`, `cfg.Context`, `git.EstimateTokens`, `prompt.BuildUserPayload`), and the MeasureAssembled
 field confirmed LANDED (git.go:81, S1). The prior parallel PRP (S2) wires the gate function in git.go
 (different file → no conflict). When TokenLimit==0, the closure is nil → byte-identical legacy path

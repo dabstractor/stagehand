@@ -88,4 +88,4 @@ Then `os.ReadFile(tmpPath)` + `strings.Contains`.
 - `go test ./internal/cmd/... -run 'ConfigInit_Template' -v`
 - `go test ./...`
 - `golangci-lint run ./internal/cmd/...` (if configured)
-- Manual: `go build -o /tmp/stagehand ./cmd/stagehand && /tmp/stagehand config init --template --config /tmp/ref.toml && grep -nE 'exclude|format|locale|template|push' /tmp/ref.toml`
+- Manual: `go build -o /tmp/stagecoach ./cmd/stagecoach && /tmp/stagecoach config init --template --config /tmp/ref.toml && grep -nE 'exclude|format|locale|template|push' /tmp/ref.toml`

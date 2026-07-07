@@ -282,7 +282,7 @@ generate/CLI/signal-handler knowledge required — T6 is a single pure-function 
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; require go-toml/v2 + pflag  (UNCHANGED — T6 adds NO dep: stdlib json+strings)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; require go-toml/v2 + pflag  (UNCHANGED — T6 adds NO dep: stdlib json+strings)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — untouched
@@ -299,7 +299,7 @@ internal/
     executor_test.go                        # P1.M2.T5.S1                                    (do NOT edit)
     parse.go                                # NEW (this subtask) ← ParseOutput + helpers
     parse_test.go                           # NEW (this subtask) ← table-driven TestParseOutput
-cmd/stagehand/main.go           # stub — untouched
+cmd/stagecoach/main.go           # stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -860,7 +860,7 @@ FROZEN FILES (do NOT edit):
   - internal/provider/manifest.go (+_test.go), merge.go, builtin.go, registry.go, render.go,
         executor.go, procgroup_unix.go, procgroup_windows*.go, executor_test.go, render_test.go,
         registry_test.go, builtin_test.go, merge_test.go, manifest_test.go.
-  - internal/config/*, internal/git/*, cmd/stagehand/main.go, Makefile, go.mod, go.sum.
+  - internal/config/*, internal/git/*, cmd/stagecoach/main.go, Makefile, go.mod, go.sum.
 ```
 
 ## Validation Loop

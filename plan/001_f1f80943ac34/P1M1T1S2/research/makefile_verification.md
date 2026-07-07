@@ -1,6 +1,6 @@
 # Research: Makefile targets — empirically verified behaviors
 
-> **Verified on:** GNU Make 4.4.1, `go version go1.26.4-X:nodwarf5 linux/amd64`, repo root `/home/dustin/projects/stagehand`.
+> **Verified on:** GNU Make 4.4.1, `go version go1.26.4-X:nodwarf5 linux/amd64`, repo root `/home/dustin/projects/stagecoach`.
 > All behaviors below were confirmed by direct execution in a throwaway temp module, NOT by the
 > real repo (which has no `go.mod` yet — P1.M1.T1.S1 lands it in parallel).
 
@@ -73,7 +73,7 @@ EXIT=0
 ```
 
 `go env GOBIN` is empty → installs fall back to `$GOPATH/bin` = `/home/dustin/go/bin`.
-The `install` target (`go install ./cmd/stagehand`) will place the binary at `~/go/bin/stagehand`.
+The `install` target (`go install ./cmd/stagecoach`) will place the binary at `~/go/bin/stagecoach`.
 No special handling required; this is standard Go behavior.
 
 ## The Makefile TABS gotcha (the #1 implementation failure mode)
@@ -93,13 +93,13 @@ Makefile:5: *** missing separator.  Stop.
 ## DESIGN DECISION: build target MUST include ldflags (else VERSION is dead code)
 
 The contract says two things that only cohere if `build` uses ldflags:
-1. "`build` (go build -o bin/stagehand ./cmd/stagehand)" — the base command.
+1. "`build` (go build -o bin/stagecoach ./cmd/stagecoach)" — the base command.
 2. "Add a `VERSION` variable defaulting to `dev` for the ldflags pattern" + PRD §21.1
    "Version injected via `-ldflags "-X main.version=…"` at release."
 
 If `build` did NOT use ldflags, the `VERSION` variable would be unreferenced dead code. The
-coherent reading: `build` = `go build -ldflags "-X main.version=$(VERSION)" -o bin/stagehand ./cmd/stagehand`,
-preserving the exact `-o bin/stagehand ./cmd/stagehand` tail while adding the ldflags the VERSION
+coherent reading: `build` = `go build -ldflags "-X main.version=$(VERSION)" -o bin/stagecoach ./cmd/stagecoach`,
+preserving the exact `-o bin/stagecoach ./cmd/stagecoach` tail while adding the ldflags the VERSION
 variable exists to feed. `install` mirrors this (same versioned binary).
 
 `VERSION ?= dev` (recursive-assignment-with-default) lets release tooling override it:

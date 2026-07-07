@@ -201,17 +201,17 @@ toward the CLI. **FIRM SCOPE BOUNDARY: no signal import in message.go.**
 ```go
 import (
     "context"; "errors"; "fmt"; "strings"
-    "github.com/dustin/stagehand/internal/config"   // ResolveRoleModel
-    "github.com/dustin/stagehand/internal/generate" // RescueError, CASError, ErrTimeout, ErrRescue, ExtractSubject, IsDuplicate
-    "github.com/dustin/stagehand/internal/git"      // StagedDiffOptions, ErrCASFailed
-    "github.com/dustin/stagehand/internal/prompt"   // BuildUserPayload, BuildSystemPrompt, BuildFallbackPrompt, DetectMultiline
-    "github.com/dustin/stagehand/internal/provider" // Execute, RenderBare, ParseOutput
+    "github.com/dustin/stagecoach/internal/config"   // ResolveRoleModel
+    "github.com/dustin/stagecoach/internal/generate" // RescueError, CASError, ErrTimeout, ErrRescue, ExtractSubject, IsDuplicate
+    "github.com/dustin/stagecoach/internal/git"      // StagedDiffOptions, ErrCASFailed
+    "github.com/dustin/stagecoach/internal/prompt"   // BuildUserPayload, BuildSystemPrompt, BuildFallbackPrompt, DetectMultiline
+    "github.com/dustin/stagecoach/internal/provider" // Execute, RenderBare, ParseOutput
 )
 ```
 **No import cycle:** generate imports {config, git, prompt, provider, signal, ui}; it does NOT import
 decompose. decompose → generate is a clean one-way dependency. (ui is NOT needed — deps.Verbose is the
 ui.Verbose handle, obtained via Deps; no direct ui symbol referenced in message.go.) Module path:
-`github.com/dustin/stagehand` (confirmed go.mod).
+`github.com/dustin/stagecoach` (confirmed go.mod).
 
 ## §10. Test-fixture name collision — message_test.go MUST use the `msg*` prefix
 

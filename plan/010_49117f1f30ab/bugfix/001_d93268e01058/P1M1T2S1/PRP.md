@@ -35,7 +35,7 @@ message with the appended content on a SEPARATE line (not concatenated onto the 
 (`Signed-off-by`, branch name, ticket ref) via `echo "..." >> "$1"` — the Linux-kernel `Signed-off-by`
 pattern, corporate contribution agreements, `git commit -s` parity.
 
-**Use Case**: `stagehand` generates `feat: change`; the user's `prepare-commit-msg` hook appends
+**Use Case**: `stagecoach` generates `feat: change`; the user's `prepare-commit-msg` hook appends
 `Signed-off-by: Dev <dev@example.com>`. Before the fix: the commit message is
 `feat: changeSigned-off-by: Dev <dev@example.com>` (corrupted). After: two clean lines.
 
@@ -45,7 +45,7 @@ commit-message shape (single-line) with the most common append-style hook patter
 ## Why
 
 - **The HIGHEST-IMPACT finding in the hooks bug report.** Issue 2 silently produces wrong commit messages for a mainstream workflow (single-line message + `Signed-off-by`/branch-name/ticket-ref append hook). The corruption is invisible to the user until they inspect `git log`.
-- **Git-parity guarantee.** Git's `strbuf_complete_line()` (in `commit.c` / `builtin/commit.c`) ensures `COMMIT_EDITMSG` always ends with `\n`. The hex-dump comparison confirmed: git writes `feat: change\n` (`0a` trailer); stagehand writes `feat: change` (no trailer).
+- **Git-parity guarantee.** Git's `strbuf_complete_line()` (in `commit.c` / `builtin/commit.c`) ensures `COMMIT_EDITMSG` always ends with `\n`. The hex-dump comparison confirmed: git writes `feat: change\n` (`0a` trailer); stagecoach writes `feat: change` (no trailer).
 - **One-line fix, zero behavioral risk.** The guard adds a `\n` only when the message lacks one. `stripCommentLines`'s `TrimRight("\n")` on read-back consumes it, so the returned `finalMsg` is byte-identical to the pre-fix return for messages that already end with `\n`, and has NO spurious trailing `\n` for messages that didn't. The existing `TestRunCommitHooks_CommitMsgAppends_Annotated` and `TestRunCommitHooks_PrepareCommitMsg_Foreign_AnnotationReadBack` still pass.
 - **The existing tests masked the bug** by using `printf '\n...' >> "$1"` (leading `\n` creates the break without the fix). The new test uses `echo` (no leading `\n`) to catch the regression.
 
@@ -111,7 +111,7 @@ bug. `strings` is confirmed imported. No inference.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/hooks/
     ├── runner.go           # EDIT: trailing-newline guard before WriteString (~line 103) + comment
     └── runner_test.go      # EDIT: +TestRunCommitHooks_PrepareCommitMsg_AppendOnNewLine
@@ -120,7 +120,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/hooks/runner.go           # +HasSuffix guard + strbuf_complete_line comment
     internal/hooks/runner_test.go      # +1 test (echo append → separate line)
@@ -301,7 +301,7 @@ NO-TOUCH (explicitly):
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/hooks/   # Expected: empty
 go vet ./internal/hooks/... # Expected: exit 0
@@ -313,7 +313,7 @@ go build ./...              # Expected: exit 0 (one-line guard; no signature cha
 ### Level 2: The New Test (fails before the fix, passes after)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new test (should PASS after the fix):
 go test -race ./internal/hooks/ -v -run TestRunCommitHooks_PrepareCommitMsg_AppendOnNewLine
@@ -332,7 +332,7 @@ go test -race ./internal/hooks/ -v
 ### Level 3: Whole-Repository Regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...    # Expected: ALL packages green
 go vet ./...           # Expected: exit 0
@@ -345,7 +345,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 ### Level 4: Return-Value Safety (no spurious trailing \n)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The guard adds \n to the FILE content, but stripCommentLines's TrimRight("\n") consumes it on read-back.
 # So the returned finalMsg has NO spurious trailing \n. Verify with a hook that does NOT append (the

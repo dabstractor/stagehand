@@ -68,7 +68,7 @@ but will be a verification no-op.
 ## Finding 5: Working tree already contains the implementation
 
 The uncommitted working tree diff (`git diff`) already contains ALL the changes described above:
-- `roles.go`, `config.go`, `bootstrap.go`, `root.go`, `pkg/stagehand/stagehand.go` — source changes
+- `roles.go`, `config.go`, `bootstrap.go`, `root.go`, `pkg/stagecoach/stagecoach.go` — source changes
 - `roles_test.go`, `bootstrap_test.go`, `decompose/roles_test.go`, `default_action_test.go` — test changes  
 - `docs/cli.md`, `docs/configuration.md` — doc changes
 
@@ -77,6 +77,6 @@ the implementer should verify the working tree matches the contracts and finaliz
 
 ## Finding 6: No git-config v2 keys (out of scope for this plan)
 
-`internal/config/git.go` `loadGitConfig` reads ZERO v2 keys (no `stagehand.role.*`, `stagehand.reasoning`,
-`stagehand.commits`, etc.). This is a PRE-EXISTING gap from plan/002 that is NOT part of this delta.
+`internal/config/git.go` `loadGitConfig` reads ZERO v2 keys (no `stagecoach.role.*`, `stagecoach.reasoning`,
+`stagecoach.commits`, etc.). This is a PRE-EXISTING gap from plan/002 that is NOT part of this delta.
 Documented for awareness; not in scope for plan/004.

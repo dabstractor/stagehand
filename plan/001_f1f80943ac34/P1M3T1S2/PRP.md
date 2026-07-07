@@ -255,7 +255,7 @@ No executor/parse/CLI/git-plumbing knowledge required — S2 is one pure functio
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — S2 adds NO dep: stdlib fmt, already imported)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — S2 adds NO dep: stdlib fmt, already imported)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — untouched (Config.SubjectTargetChars read-only ref)
@@ -266,7 +266,7 @@ internal/
     system_test.go              # EXISTS (S1) ← S2 APPENDS: 3 TestBuildFallbackPrompt_* functions
   provider/                     # P1.M2 (T1–T6) — untouched
   ui/                           # P1.M4 (empty stub) — untouched
-cmd/stagehand/main.go           # stub — untouched
+cmd/stagecoach/main.go           # stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -577,7 +577,7 @@ SIBLING SUBTASKS (same package — do NOT implement, just leave room):
         rejection block). Will add to this package later. Do NOT create it here.
 
 FROZEN FILES (do NOT edit):
-  - internal/provider/*, internal/config/*, internal/git/*, cmd/stagehand/main.go, pkg/*, Makefile,
+  - internal/provider/*, internal/config/*, internal/git/*, cmd/stagecoach/main.go, pkg/*, Makefile,
         go.mod, go.sum, AND S1's existing symbols/comments within internal/prompt/system.go and
         internal/prompt/system_test.go.
 ```

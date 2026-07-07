@@ -1,6 +1,6 @@
 name: "P1.M4.T1.S2 — `integrate list|install|remove` command surface with detection gating"
 description: |
-  Implement the COBRA COMMAND SURFACE + TARGET REGISTRY + DETECTION GATING for `stagehand integrate`
+  Implement the COBRA COMMAND SURFACE + TARGET REGISTRY + DETECTION GATING for `stagecoach integrate`
   (PRD §9.21 FR-I1/I2, §15.3). Three leaf commands on an `integrate` group: `list` (TARGET/DETECTED/
   STATUS/CONFIG table), `install <target>…` and `remove <target>…` (explicit targets, ≥1, multiple
   allowed). Consumes P1.M4.T1.S1's protocol engine (`protocol.Apply` + `Target` + `Outcome`) and
@@ -21,7 +21,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Ship the user-facing `stagehand integrate list|install|remove` command surface and the
+**Feature Goal**: Ship the user-facing `stagecoach integrate list|install|remove` command surface and the
 pluggable `Entry`/`Registry` abstraction that dispatches to it, with detection gating (FR-I2) and status
 reporting (FR-I1) fully working — so that when T2.S1 (git-alias) and T2.S2 (lazygit) append their `Entry`
 implementations to the single `defaultEntries()` seam, the commands light up with zero further cmd-layer
@@ -54,18 +54,18 @@ interface + `Registry` are the exact contract T2.S1/S2 implement. `go build ./..
 ## User Persona
 
 **Target User**: the "plan-holder" (PRD §7.1) who lives in lazygit and types `git <thing>` all day — they
-want `git stagehand` and a `<c-a>` keybind wired in one command, but their overriding fear is "will this
+want `git stagecoach` and a `<c-a>` keybind wired in one command, but their overriding fear is "will this
 trash my hand-tuned dotfiles?" (PRD §9.21 lead-in). This subtask delivers the *front door* — `integrate
 list` to see what's available + detected, `install <target>` to opt into exactly the targets they name
 (no "install everything" surprise), and `remove` to undo — while the no-mangle guarantee itself is S1's
 engine that the surface drives.
 
-**Use Case**: `stagehand integrate list` → see lazygit detected, git-alias always-available. `stagehand
+**Use Case**: `stagecoach integrate list` → see lazygit detected, git-alias always-available. `stagecoach
 integrate install git-alias lazygit` → each is previewed/confirmed/backed-up (via S1's protocol, once T2
 plugs in). If lazygit isn't installed, it's still listed but install prints a note and exits 1.
 
 **User Journey**: `list` (survey) → `install <target>…` (diff → y/N → backup → done) → later `remove
-<target>…` (restore to pre-stagehand). `--yes` for scripts.
+<target>…` (restore to pre-stagecoach). `--yes` for scripts.
 
 **Pain Points Addressed**: no magic "install all" (explicit targets only — delta_prd.md R4); a missing
 tool is reported, not silently skipped or crashing; the surface is uniform across targets so adding a
@@ -78,7 +78,7 @@ third target (future) is one Entry + one registration line.
 - **delta_prd.md R4**: "explicit targets only (no install-everything default); detection-gated: a target
   whose tool is absent is LISTED but install exits 1 with a note (FR-I2; git-alias requires only git).
   v2.1 targets are exactly git-alias and lazygit (gitui is blocked upstream — FUTURE_SPEC.md)."
-- **PRD §15.3**: `stagehand integrate list|install <target>…|remove <target>…` subcommand reference.
+- **PRD §15.3**: `stagecoach integrate list|install <target>…|remove <target>…` subcommand reference.
 - **Scope fences**: CONSUMES S1's protocol engine + `Outcome`/`ConfirmFunc`/`DefaultConfirm`; PROVIDES the
   dispatch surface + the `Entry`/`Registry` contract consumed by T2.S1 (git-alias) and T2.S2 (lazygit).
   Does NOT implement any concrete target, does NOT add yaml.v3, does NOT edit gitconfig/lazygit-config.
@@ -112,7 +112,7 @@ whole surface is testable with fake `Entry` impls before any real target exists.
 - [ ] `printIntegrateList(w, ctx, reg)`: tabwriter table `TARGET\tDETECTED\tSTATUS\tCONFIG` — one row per
       `reg.List()` (sorted), DETECTED ✓/✗ via Detect, STATUS via Status().String(), CONFIG via
       ConfigPath (or "—" on error/empty). Deterministic; takes `io.Writer`.
-- [ ] Unknown target: `Get` miss ⇒ stderr "unknown target <x>; see `stagehand integrate list`" + exit 1.
+- [ ] Unknown target: `Get` miss ⇒ stderr "unknown target <x>; see `stagecoach integrate list`" + exit 1.
 - [ ] `internal/cmd/integrate_test.go`: fake `Entry` (configurable detect/status/install outcome/err +
       call log) + dispatch matrix (detection-gate-exit-1-with-note, status-reporting per state,
       unknown-target, batch-continue-on-failure, decline+no-change-exit-0, `--yes` flows to opts) +
@@ -208,7 +208,7 @@ prior codebase knowledge can build it from this document + codebase access._
        foreign-refusal / idempotent-status messaging style.
   pattern: "groupCmd with no-op PersistentPreRunE; leafCmd.RunE = runX; init(){ group.AddCommand(leaves...);
             rootCmd.AddCommand(group) }. Errors → exitcode.New(exitcode.Error, ...). Status verbs: Installed/
-            Updated/No stagehand X to remove."
+            Updated/No stagecoach X to remove."
   gotcha: "hook's --strict/--print are LOCAL to hookInstallCmd. integrate's --yes is shared by install AND
            remove → register it as a PERSISTENT flag on the integrateCmd parent (inherited by both; list
            harmlessly ignores it)."
@@ -225,7 +225,7 @@ prior codebase knowledge can build it from this document + codebase access._
 - file: internal/exitcode/exitcode.go
   why: exitcode.Success/Error + New(code,err) + ExitError + errors.As. Detection-gate / unknown-target /
        install-error → exitcode.New(exitcode.Error, err) (exit 1). Decline/NoChange → return nil (exit 0).
-  pattern: "return exitcode.New(exitcode.Error, fmt.Errorf(\"stagehand: %w\", err)). Never os.Exit."
+  pattern: "return exitcode.New(exitcode.Error, fmt.Errorf(\"stagecoach: %w\", err)). Never os.Exit."
 
 - file: internal/cmd/providers_test.go  (and internal/cmd/hook_test.go)
   why: THE test style — saveRootState/restoreRootState (rootCmd out/err/RunE isolation), rootCmd.SetArgs +
@@ -309,13 +309,13 @@ docs/
 // method is the polymorphism point — do NOT assume all targets go through Apply.
 
 // CRITICAL (Status is integrate's OWN enum, not hook's): integrate.Status{NotInstalled,Installed,Foreign}
-// with String() "not installed"/"installed"/"foreign" (FR-I1 exact tokens). hook.Status{None,Stagehand,
-// Foreign} is a DIFFERENT type with different strings ("none"/"stagehand (v1)"). Do NOT import or alias
+// with String() "not installed"/"installed"/"foreign" (FR-I1 exact tokens). hook.Status{None,Stagecoach,
+// Foreign} is a DIFFERENT type with different strings ("none"/"stagecoach (v1)"). Do NOT import or alias
 // hook.Status. (A target whose tool is absent still has a Status — StatusNotInstalled — independent of
 // DETECTED. DETECTED=✗ + STATUS=not-installed is the normal "not set up yet" row.)
 
 // CRITICAL (DETECTED and STATUS are independent columns): DETECTED = is the TOOL on $PATH (Detect ctx);
-// STATUS = is stagehand's ENTRY present (Status ctx). A target can be DETECTED=✓ STATUS=not-installed
+// STATUS = is stagecoach's ENTRY present (Status ctx). A target can be DETECTED=✓ STATUS=not-installed
 // (tool present, integration not yet applied) or DETECTED=✗ STATUS=installed (entry exists from a prior
 // machine — list still shows it). list prints both; install gates on DETECTED only.
 
@@ -354,7 +354,7 @@ docs/
 
 ```go
 // internal/integrate/registry.go  (NEW — package integrate; siblings: protocol.go from S1)
-package integrate // import "github.com/dustin/stagehand/internal/integrate"
+package integrate // import "github.com/dustin/stagecoach/internal/integrate"
 
 import (
 	"context"
@@ -369,8 +369,8 @@ import (
 type Status int
 
 const (
-	StatusNotInstalled Status = iota // no stagehand-managed entry in the target's config
-	StatusInstalled                  // stagehand entry present (marker/key ours)
+	StatusNotInstalled Status = iota // no stagecoach-managed entry in the target's config
+	StatusInstalled                  // stagecoach entry present (marker/key ours)
 	StatusForeign                    // a conflicting entry exists at the target's key/alias
 )
 
@@ -397,7 +397,7 @@ type Entry interface {
 
 	// Detect reports whether the target's TOOL is on $PATH (FR-I2 detection gating). nil ⇒ present (install
 	// may proceed); non-nil ⇒ absent — the command prints the error's message as the note and skips install
-	// for this target (exit 1). git-alias detects git (always present for stagehand); lazygit detects lazygit.
+	// for this target (exit 1). git-alias detects git (always present for stagecoach); lazygit detects lazygit.
 	Detect(ctx context.Context) error
 
 	// ConfigPath resolves the config file/path the target edits (FR-I1 "resolved config path" column + the
@@ -405,7 +405,7 @@ type Entry interface {
 	// for `list`; it just shows "—".
 	ConfigPath(ctx context.Context) (string, error)
 
-	// Status reports the integration's current state (FR-I1). Reads the target's config for the stagehand
+	// Status reports the integration's current state (FR-I1). Reads the target's config for the stagecoach
 	// entry: NotInstalled (absent) / Installed (ours) / Foreign (a conflicting entry). Independent of Detect
 	// (a target can be StatusInstalled with the tool since uninstalled).
 	Status(ctx context.Context) (Status, error)
@@ -417,7 +417,7 @@ type Entry interface {
 	// reported via Outcome, NOT as errors.
 	Install(ctx context.Context, opts InstallOptions) (InstallResult, error)
 
-	// Remove deletes the stagehand entry (FR-I6 uninstall symmetry). Same controls/contract as Install.
+	// Remove deletes the stagecoach entry (FR-I6 uninstall symmetry). Same controls/contract as Install.
 	Remove(ctx context.Context, opts RemoveOptions) (RemoveResult, error)
 }
 
@@ -457,7 +457,7 @@ type RemoveResult struct {
 // Sentinels for the dispatch refusal paths. Callers use errors.Is.
 var (
 	// ErrUnknownTarget is returned/wrapped when a named target is not in the registry. The cmd layer prints
-	// "unknown target <x>; see `stagehand integrate list`" and exits 1.
+	// "unknown target <x>; see `stagecoach integrate list`" and exits 1.
 	ErrUnknownTarget = errors.New("unknown integration target")
 	// ErrToolNotDetected wraps a target-specific Detect failure for detection-gating context (FR-I2). The
 	// target's Detect error is the primary signal; this is the category the cmd layer recognizes.
@@ -515,10 +515,10 @@ var flagIntegrateYes bool // --yes (persistent on integrateCmd; install+remove h
 
 var integrateCmd = &cobra.Command{
 	Use:   "integrate",
-	Short: "Wire stagehand into installed git tools",
-	Long: `Install or remove stagehand integrations for the git tools you already run (PRD §9.21).
+	Short: "Wire stagecoach into installed git tools",
+	Long: `Install or remove stagecoach integrations for the git tools you already run (PRD §9.21).
 
-Targets are explicit — name one or more of the supported tools (see 'stagehand integrate list').
+Targets are explicit — name one or more of the supported tools (see 'stagecoach integrate list').
 Every file edit runs the no-mangle protocol: a unified-diff preview, a y/N prompt (use --yes to skip),
 a timestamped backup, and a post-write re-parse with automatic restore on failure.`,
 	SilenceErrors:     true,
@@ -531,11 +531,11 @@ var integrateListCmd = &cobra.Command{
 	Args: cobra.NoArgs, SilenceErrors: true, SilenceUsage: true, RunE: runIntegrateList,
 }
 var integrateInstallCmd = &cobra.Command{
-	Use: "install <target>…", Short: "Install one or more stagehand integrations",
+	Use: "install <target>…", Short: "Install one or more stagecoach integrations",
 	Args: cobra.MinimumNArgs(1), SilenceErrors: true, SilenceUsage: true, RunE: runIntegrateInstall,
 }
 var integrateRemoveCmd = &cobra.Command{
-	Use: "remove <target>…", Short: "Remove one or more stagehand integrations",
+	Use: "remove <target>…", Short: "Remove one or more stagecoach integrations",
 	Args: cobra.MinimumNArgs(1), SilenceErrors: true, SilenceUsage: true, RunE: runIntegrateRemove,
 }
 
@@ -582,25 +582,25 @@ func dispatchInstall(ctx context.Context, reg *integrate.Registry, targets []str
 	for _, name := range targets {
 		e, ok := reg.Get(name)
 		if !ok {
-			fmt.Fprintf(stderr, "stagehand: unknown target %q; see `stagehand integrate list`.\n", name)
+			fmt.Fprintf(stderr, "stagecoach: unknown target %q; see `stagecoach integrate list`.\n", name)
 			failed = true
 			continue
 		}
 		if err := e.Detect(ctx); err != nil { // FR-I2 detection gating
-			fmt.Fprintf(stderr, "stagehand: %s requires its tool on $PATH, which was not detected (%v); skipping.\n", name, err)
+			fmt.Fprintf(stderr, "stagecoach: %s requires its tool on $PATH, which was not detected (%v); skipping.\n", name, err)
 			failed = true
 			continue
 		}
 		res, err := e.Install(ctx, opts)
 		if err != nil {
-			fmt.Fprintf(stderr, "stagehand: install %s failed: %v\n", name, err)
+			fmt.Fprintf(stderr, "stagecoach: install %s failed: %v\n", name, err)
 			failed = true
 			continue
 		}
 		fmt.Fprintln(stdout, formatInstallResult(res)) // "Installed/Updated/Created/No change/Declined ..."
 	}
 	if failed {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: one or more targets failed"))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: one or more targets failed"))
 	}
 	return nil
 }
@@ -792,7 +792,7 @@ CONSUMES (do NOT re-implement):
 OUT OF SCOPE (owned by sibling subtasks — do NOT implement):
   - S1 (parallel): the protocol engine itself (Target/Apply/Outcome) — CONSUME only.
   - T2.S1: the gitAliasEntry Entry impl + the --alias-name flag + its line in defaultEntries. Delegates the
-           edit to `git config --global alias.<name> '!stagehand'` (FR-I4; external_deps.md §7).
+           edit to `git config --global alias.<name> '!stagecoach'` (FR-I4; external_deps.md §7).
   - T2.S2: the lazygitEntry Entry impl (yaml.v3 Node API, comment-preserving) + the --key flag + its line in
            defaultEntries + adds gopkg.in/yaml.v3 to go.mod (FR-I5; external_deps.md §1/§2).
   - Any concrete Entry, the real git-config / lazygit-config editing, yaml.v3.
@@ -804,7 +804,7 @@ OUT OF SCOPE (owned by sibling subtasks — do NOT implement):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/integrate/registry.go internal/cmd/integrate.go internal/cmd/integrate_test.go
 go build ./...            # the new package + cmd file must compile (integrate pkg now has registry.go + S1's protocol.go)
 go vet ./...
@@ -831,25 +831,25 @@ go test ./...     # full suite — confirm no regression in providers/hook/confi
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 # list — empty registry (S2 ships no concrete target): header-only table, exit 0
-/tmp/stagehand integrate list
+/tmp/stagecoach integrate list
 # Expected: prints "TARGET  DETECTED  STATUS  CONFIG" header, no data rows (T2 populates them), exit 0.
 
 # unknown target — exit 1 + discoverable note
-/tmp/stagehand integrate install bogus; echo "exit=$?"
-# Expected: stderr "stagehand: unknown target \"bogus\"; see `stagehand integrate list`.", exit=1.
+/tmp/stagecoach integrate install bogus; echo "exit=$?"
+# Expected: stderr "stagecoach: unknown target \"bogus\"; see `stagecoach integrate list`.", exit=1.
 
 # explicit-targets arg enforcement
-/tmp/stagehand integrate install; echo "exit=$?"
+/tmp/stagecoach integrate install; echo "exit=$?"
 # Expected: cobra usage error (MinimumNArgs(1)), exit=1.
 
 # --help surfaces all three leaves + the --yes flag
-/tmp/stagehand integrate --help
+/tmp/stagecoach integrate --help
 # Expected: Available Commands: install, list, remove; Flags: --yes.
 
 # works OUTSIDE a git repo (confirms the no-op PersistentPreRunE skipped config.Load / no FR-B3 bootstrap)
-cd /tmp && /tmp/stagehand integrate list; echo "exit=$?"
+cd /tmp && /tmp/stagecoach integrate list; echo "exit=$?"
 # Expected: header-only table, exit 0 (no "config not found" / no bootstrap write).
 ```
 
@@ -880,7 +880,7 @@ go test ./internal/cmd/... -run IntegrateYesFlag -v -count=1
 - [ ] DETECTED (✓/✗ via Detect) and STATUS (NotInstalled/Installed/Foreign via Status) are INDEPENDENT columns.
 - [ ] `install`/`remove` take ≥1 explicit targets (cobra.MinimumNArgs(1)); no "install everything" default.
 - [ ] Detection gating (FR-I2): absent-tool target ⇒ stderr note + skip; remaining targets still attempted; exit 1 iff any failed.
-- [ ] Unknown target ⇒ "unknown target <x>; see `stagehand integrate list`" + exit 1.
+- [ ] Unknown target ⇒ "unknown target <x>; see `stagecoach integrate list`" + exit 1.
 - [ ] `--yes` (persistent on parent) flows into InstallOptions.Yes / RemoveOptions.Yes; list ignores it.
 - [ ] Decline/NoChange outcomes are reported (stdout) but NOT failures (exit 0).
 - [ ] `Entry`/`Registry`/`Status`/`InstallOptions`/`InstallResult`/sentinels are the exact contract T2 implements.

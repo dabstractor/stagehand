@@ -10,7 +10,7 @@
 
 From `architecture/external_deps.md` (research performed 2026-07-02 against the live `--help` output):
 
-| Provider | Reasoning flag | Verified values | Stagehand mapping |
+| Provider | Reasoning flag | Verified values | Stagecoach mapping |
 |----------|----------------|-----------------|-------------------|
 | `pi` | `--thinking` | off, minimal, low, medium, high, xhigh | high→`["--thinking","high"]`, medium→medium, low→low, off→no tokens |
 | `claude` | `--effort` | low, medium, high | high→`["--effort","high"]`, medium→medium, low→low, off→no tokens |
@@ -33,24 +33,24 @@ of the **"Multi-commit decomposition"** section:
 
 ```
 121:# Use reasoning for deeper analysis on the planner
-122:stagehand --reasoning high
+122:stagecoach --reasoning high
 ```
 
 Surrounding context (the code block runs lines ~113–130, then a blank line, then line 132 begins
-`See [How Stagehand works…`):
+`See [How Stagecoach works…`):
 
 ```
 … (code block)
 # Keep the v1 single-commit behavior
-stagehand --single
+stagecoach --single
 
-# Route planning to a bigger model (per-repo .stagehand.toml):
+# Route planning to a bigger model (per-repo .stagecoach.toml):
 # [role.planner]
 # provider = "claude"
 # model = "opus"
 ```                              ← code fence closes (~line 130)
 (blank)
-See [How Stagehand works — Multi-commit decomposition](docs/how-it-works.md#…) …
+See [How Stagecoach works — Multi-commit decomposition](docs/how-it-works.md#…) …
 ```
 
 **README house note-callout pattern**: the README already uses `> [!NOTE]`, `> [!TIP]` blocks (e.g.
@@ -69,7 +69,7 @@ Lines 121–122 are untouched.
 
 **Site A — line 43 (the Global flags table row, the contract's primary target):**
 ```
-| `--reasoning <level>` | string | "" (off; planner: high) | `STAGEHAND_REASONING` | `stagehand.reasoning` | Global reasoning effort: off|low|medium|high |
+| `--reasoning <level>` | string | "" (off; planner: high) | `STAGECOACH_REASONING` | `stagecoach.reasoning` | Global reasoning effort: off|low|medium|high |
 ```
 - The default cell `"" (off; planner: high)` is **now accurate** — `planner = high` (the shipped
   default in `internal/config/roles.go` `defaultRoleReasoning`) now emits `--thinking`/`--effort` for
@@ -82,7 +82,7 @@ Lines 121–122 are untouched.
 **Site B — lines 212–213 (Examples block):**
 ```
 # Use reasoning for deeper analysis
-stagehand --reasoning high
+stagecoach --reasoning high
 ```
 - Already a valid, now-functional example. Leave the command; optionally tighten the comment to name the
   provider scope. Minimal-touch: keep as-is OR add a short parenthetical. The table-row note (Site A)

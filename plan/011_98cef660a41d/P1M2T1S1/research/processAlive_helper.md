@@ -6,7 +6,7 @@ truth for the cross-platform pid-liveness helper that makes stale lock-FILE reap
 ## Why it exists (lock_reaping.md Fix 1)
 
 `flock` auto-releases on process death, so the *lock* is never stale — but the lock *FILE*
-(`$XDG_RUNTIME_DIR/stagehand/locks/<hash>.lock`) is orphaned by any exit that bypasses the deferred
+(`$XDG_RUNTIME_DIR/stagecoach/locks/<hash>.lock`) is orphaned by any exit that bypasses the deferred
 `os.Remove` (SIGKILL, crash, the signal-rescue `os.Exit`). These accumulate as unbounded litter.
 `Acquire` reaps them (S2: `reapStaleLocks`), and the safety of unlinking depends on knowing the recorded
 pid is DEAD: a dead pid holds no open fd → no flock → unlinking its file is safe (cannot defeat contention
@@ -18,7 +18,7 @@ that makes reaping safe. S1 delivers the helper; S2 (reapStaleLocks) consumes it
 `internal/lock/lock_unix.go` (`//go:build !windows`, package lock, imports errors+syscall) and
 `internal/lock/lock_windows.go` (`//go:build windows`, package lock, NO imports — no-op flock/isWouldBlock).
 processAlive follows the SAME split: a real impl in lock_unix.go, a conservative always-true stub in
-lock_windows.go. (lock.go is `package lock`, stdlib-only, "self-contained leaf — no stagehand imports".)
+lock_windows.go. (lock.go is `package lock`, stdlib-only, "self-contained leaf — no stagecoach imports".)
 
 ## processAlive — verbatim from lock_reaping.md (the authoritative spec)
 

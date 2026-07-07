@@ -11,7 +11,7 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` |
 | Edit targets | `internal/hooks/runner.go` (newline guard before WriteString), `internal/hooks/runner_test.go` (new test) |
 | Bug line | runner.go ~line 103: `msgFile.WriteString(finalMsg)` — NO trailing-newline check. |
 | Baseline | `go test ./internal/hooks/` → **ok (2.125s)**. |

@@ -86,7 +86,7 @@ byte-identical to their landed forms; the `Git` interface gains exactly one new 
 ## User Persona
 
 **Target User**: The CLI default-action (P1.M4.T1.S2) and the auto-stage-all path (FINDING 11 /
-P1.M3.T2.S2) — and, transitively, US11 ("As a plan-holder with nothing staged, I want `stagehand` to
+P1.M3.T2.S2) — and, transitively, US11 ("As a plan-holder with nothing staged, I want `stagecoach` to
 stage all changes and commit them in one message").
 
 **Use Case**: The orchestrator/CLI checks `HasStagedChanges` (T3.S2). If nothing is staged and
@@ -183,7 +183,7 @@ simple `code != 0 → error` form, NOT `HasStagedChanges`' inversion form.
 ### Context Completeness Check
 
 _If someone knew nothing about this codebase, would they have everything needed to implement this
-successfully?_ **Yes.** This PRP gives: the exact module path (`github.com/dustin/stagehand`); the exact
+successfully?_ **Yes.** This PRP gives: the exact module path (`github.com/dustin/stagecoach`); the exact
 four files to touch; the exact `run()` contract; BOTH exact method bodies (empirically verified against
 real git); the empirically-pinned exit codes (add -A: 0 on happy / 128 on non-repo; diff --cached
 --name-only: 0 whether-or-not-staged / 129 on non-repo); the three central design calls (interface
@@ -301,11 +301,11 @@ addition; omit `--quiet`; no 128 special-case for the mutation); the exact stub-
 > edits are entirely NON-OVERLAPPING with any prior region.
 
 ```bash
-stagehand/
+stagecoach/
 ├── PRD.md
-├── go.mod                # module github.com/dustin/stagehand, go 1.22, NO deps
+├── go.mod                # module github.com/dustin/stagecoach, go 1.22, NO deps
 ├── Makefile              # build/test/lint/coverage/install/clean (test = go test -race ./...)
-├── cmd/stagehand/main.go # stub
+├── cmd/stagecoach/main.go # stub
 ├── internal/
 │   └── git/
 │       ├── git.go        # imports (landed): bytes, context, errors, fmt, io, os/exec, strconv, strings.
@@ -334,7 +334,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     └── git/
         ├── git.go               # MODIFIED — (a) interface: ADD StagedFileCount; (b) comment block:
@@ -950,7 +950,7 @@ func TestStagedFileCount_ContextCancelled(t *testing.T) {
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" → package "github.com/dustin/stagehand/internal/git"
+  - module path: "github.com/dustin/stagecoach" → package "github.com/dustin/stagecoach/internal/git"
   - go directive: 1.22 → context, errors.Is, strings, fmt, os/exec, os.Remove, filepath.Join all available
   - deps: ZERO new imports; go.mod unchanged (stdlib only)
 

@@ -4,9 +4,9 @@
 
 ### F1 — `cfg.Verbose` is ALREADY fully resolved across all 7 layers.
 `config.Config.Verbose bool` (config.go:21) is populated by every loader: `Defaults()` (false),
-TOML `[defaults] verbose` (file.go:32/136), git `stagehand.verbose` (git.go:148),
-`STAGEHAND_VERBOSE` env (load.go:108–111), and `--verbose/-v` flag (load.go:146–149). All use the
-DIRECT-set idiom so `--verbose=false` / `STAGEHAND_VERBOSE=false` work (the escape hatch).
+TOML `[defaults] verbose` (file.go:32/136), git `stagecoach.verbose` (git.go:148),
+`STAGECOACH_VERBOSE` env (load.go:108–111), and `--verbose/-v` flag (load.go:146–149). All use the
+DIRECT-set idiom so `--verbose=false` / `STAGECOACH_VERBOSE=false` work (the escape hatch).
 → **This task does NOT touch config.** It CONSUMES `cfg.Verbose`. Verified by grep: no loader is
 missing verbose. So the verbose *intent* is solved; only the verbose *output* is missing.
 
@@ -18,8 +18,8 @@ refactor, only seams to wire.
 
 ### F3 — `provider.Execute` is called in exactly 3 production sites + 9 test calls.
 - `internal/generate/generate.go:194` (CommitStaged loop)
-- `pkg/stagehand/stagehand.go:257` (runPipeline dry-run single pass)
-- `pkg/stagehand/stagehand.go:295` (runPipeline commit loop)
+- `pkg/stagecoach/stagecoach.go:257` (runPipeline dry-run single pass)
+- `pkg/stagecoach/stagecoach.go:295` (runPipeline commit loop)
 - `internal/provider/executor_test.go` — 9 `Execute(ctx, spec, timeout)` calls.
 
 Adding a nil-safe `vb *ui.Verbose` param to `Execute` is **compiler-driven**: `go build`/`go test`
@@ -28,7 +28,7 @@ will list EVERY call site that needs updating. Production sites pass `deps.Verbo
 
 ### F4 — There are TWO generation code paths that both need verbose wiring.
 1. `generate.CommitStaged` (generate.go) — the common path (no DryRun, no SystemExtra).
-2. `pkg/stagehand.runPipeline` (stagehand.go) — the DryRun and/or SystemExtra path.
+2. `pkg/stagecoach.runPipeline` (stagecoach.go) — the DryRun and/or SystemExtra path.
 Both contain the Render→Execute→Parse→dedupe loop. Because `generate.Deps` carries the `Verbose`
 sink and BOTH paths receive `deps`, threading `deps.Verbose` wires BOTH paths uniformly (Execute
 gets it as a param; each loop logs retries). **Do not wire only one path** — that would leave
@@ -37,13 +37,13 @@ gets it as a param; each loop logs retries). **Do not wire only one path** — t
 ### F5 — `generate.Deps` is the natural injection point (already a DI struct).
 `generate.Deps{Git, Manifest}` is explicitly an injected-dependencies struct (generate.go:24
 docstring: "carries the runtime collaborators that vary by environment/test"). Adding a
-`Verbose *ui.Verbose` field is consistent with its purpose. `buildDeps` (stagehand.go:184)
+`Verbose *ui.Verbose` field is consistent with its purpose. `buildDeps` (stagecoach.go:184)
 constructs it — the one place to set `deps.Verbose = ui.NewVerbose(opts.Verbose, cfg.Verbose)`.
 Deps zero-value (`Verbose: nil`) is **nil-safe** → all existing Deps constructors (generate_test,
-stagehand_test) keep working unchanged.
+stagecoach_test) keep working unchanged.
 
 ### F6 — The public `Options` must stay additive-only (PRD §14.1, Appendix E item 6).
-`pkg/stagehand.Options` docstring: "ADDITIVE-ONLY for future versions: new fields may be added,
+`pkg/stagecoach.Options` docstring: "ADDITIVE-ONLY for future versions: new fields may be added,
 existing fields will not be removed or repurposed." Adding `Verbose io.Writer` (a **stdlib** type
 — no `internal/ui` leak into the public surface) is compliant. Zero value `nil` ⇒ silent, so all
 existing `Options{Provider: "stub"}` test literals are unaffected. The construction of the
@@ -60,7 +60,7 @@ guaranteed.
 from the S1 PRP era NO LONGER APPLIES.
 `internal/signal/` exists; `executor.go` already calls `signal.RegisterChild/ClearChild`;
 `generate.go` calls `signal.SetSnapshot/SetCandidate/RestoreDefault/ClearSnapshot`. So S2 may freely
-edit `executor.go`, `generate.go`, `stagehand.go`, `default_action.go`. (S1's PRP scoped those as
+edit `executor.go`, `generate.go`, `stagecoach.go`, `default_action.go`. (S1's PRP scoped those as
 do-not-touch because T2.S1 was then in-flight; the plan_status now shows T2.S1 = Complete.)
 
 ## Decisions (D1–D9)

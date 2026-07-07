@@ -18,7 +18,7 @@ description: |
   FALSE-POSITIVE EDITS: a naive grep-and-replace that "fixes" the README `--reasoning high` example
   (or the `reasoning_levels` shape doc, or the verb "reasoning") would itself introduce an error.
   The single repo-wide narrow-grep match (`docs/configuration.md:153`
-  `STAGEHAND_PLANNER_REASONING=high`) is (a) a correct opt-in example and (b) OUT OF SCOPE (T2.S1's
+  `STAGECOACH_PLANNER_REASONING=high`) is (a) a correct opt-in example and (b) OUT OF SCOPE (T2.S1's
   file). The deliverable is the verification itself (grep gates + per-file classification), not a
   doc rewrite. This PRP is a VERIFY-AND-CONFIRM runbook: run the gates, classify each hit against
   the stale-default-vs-correct-example decision criterion, and pass with zero edits (or, in the
@@ -52,12 +52,12 @@ edits."
 
 ## User Persona
 
-**Target User**: The Stagehand contributor / reviewer confirming the plan/004 "reasoning opt-in
+**Target User**: The Stagecoach contributor / reviewer confirming the plan/004 "reasoning opt-in
 everywhere" changeset is reflected consistently across the entire documentation surface — so a user
 reading ANY doc (README, how-it-works, providers, the docs index) never encounters a contradiction
 of the "off by default" behavior, while opt-in examples (`--reasoning high`) remain to teach usage.
 
-**Use Case**: A user reads the README, sees `stagehand --reasoning high` in the examples, and
+**Use Case**: A user reads the README, sees `stagecoach --reasoning high` in the examples, and
 understands it as "here's how to turn deeper reasoning on" (opt-in) — NOT as "reasoning defaults to
 high." They then read providers.md / how-it-works.md and find no conflicting default claim. The
 docs are coherent with what the binary does (off out of the box, per FR-R6) and with what
@@ -83,7 +83,7 @@ users who want it).
   T2.S1 (configuration.md) did the Mode-A edits. This task covers the remaining three files plus
   the repo-root README — the surfaces no other subtask swept.
 - **The false-positive risk is the real hazard.** A mechanical grep for "high" near "reasoning"
-  matches the README's `stagehand --reasoning high` example, the configuration.md env-var examples,
+  matches the README's `stagecoach --reasoning high` example, the configuration.md env-var examples,
   and providers.md's `reasoning_levels` shape doc. Blindly "fixing" those would damage correct docs.
   This PRP front-loads the classification rule so the implementer edits only genuine default claims.
 
@@ -173,7 +173,7 @@ and the research note pin the provenance and the per-file verdicts.
         (work already done at HEAD; verify, don't churn; prescribe a surgical edit ONLY on drift)
         and confirms docs/configuration.md is T2.S1's territory — NOT this task's."
   critical: "T2.S1 owns docs/configuration.md. The one repo-wide narrow-grep match
-             (configuration.md:153 STAGEHAND_PLANNER_REASONING=high) is in T2.S1's file AND is a
+             (configuration.md:153 STAGECOACH_PLANNER_REASONING=high) is in T2.S1's file AND is a
              correct opt-in example. This task must NOT edit it (D2)."
 
 - docfile: plan/004_136878664597/P1M1T1S2/PRP.md
@@ -185,7 +185,7 @@ and the research note pin the provenance and the per-file verdicts.
 # The four in-scope files (VERIFY; surgical edit only if a REAL stale default claim is found)
 - file: README.md
   why: "Repo-root marketing surface (PRD §21.5). The 'Example invocations' bash block (L115–133)
-        includes `stagehand --reasoning high` (L122) under the comment `# Use reasoning for deeper
+        includes `stagecoach --reasoning high` (L122) under the comment `# Use reasoning for deeper
         analysis on the planner` (L121) — a CORRECT opt-in example (Category 2). The `> [!NOTE]`
         (L137–139) describes the provider-dependent mechanism (pi --thinking / claude --effort /
         graceful no-op / per-role) — NO default claim."
@@ -232,7 +232,7 @@ and the research note pin the provenance and the per-file verdicts.
 ### Current Codebase Tree (this task's scope)
 
 ```bash
-stagehand/
+stagecoach/
 ├── README.md                # IN SCOPE — verify (--reasoning high example, NOTE block)
 └── docs/
     ├── README.md            # IN SCOPE — verify (index; no reasoning content)
@@ -245,7 +245,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (expected: ZERO edits at HEAD — all four in-scope files already coherent with FR-R6)
     README.md                # unchanged (--reasoning high is a correct opt-in example)
     docs/README.md           # unchanged (no reasoning content)
@@ -263,7 +263,7 @@ stagehand/
 | `docs/configuration.md` | NO-TOUCH | T2.S1 territory. |
 
 **Explicitly NOT touched**: `docs/cli.md` (T1.S2), `docs/configuration.md` (T2.S1), any `*.go`
-source or test (the behavioral flip is S1/S2 of T1, already landed), `pkg/stagehand/*`,
+source or test (the behavioral flip is S1/S2 of T1, already landed), `pkg/stagecoach/*`,
 `providers/*.toml` (the `reasoning_levels` tables are unchanged — only the default level changed),
 `PRD.md` (read-only), `tasks.json`, `prd_snapshot.md`, `.gitignore`, anything under `plan/`.
 
@@ -278,7 +278,7 @@ HIDE the opt-in feature from the README. Do NOT touch README.md:122. (Decision D
 
 <!-- CRITICAL (G2 — the one repo-wide narrow-grep match is OUT OF SCOPE and correct). `grep -rn
 'planner.*high' README.md docs/` returns exactly ONE hit: docs/configuration.md:153
-(`STAGEHAND_PLANNER_REASONING=high stagehand` in the env-var table's example column). This is (a) a
+(`STAGECOACH_PLANNER_REASONING=high stagecoach` in the env-var table's example column). This is (a) a
 CORRECT opt-in example (Category 2 — an env-var invocation, not a default claim) and (b) in
 docs/configuration.md, which is T2.S1's file (OUT OF SCOPE for this task, D2). The companion default
 statement on the SAME file (L80 `reasoning = "off" … off by default for every role`) is the correct
@@ -331,7 +331,7 @@ in-scope for an edit.**
 | Category | Signal | Example | Verdict |
 |---|---|---|---|
 | **1. STALE default claim** | asserts `high` IS the shipped/default value for planner (or any role) | "the planner defaults to high"; "planner reasoning is high by default"; "default off (planner: high)"; "reasoning: high (default for planner)" | 🛠 UPDATE → "off for every role; opt-in per role (FR-R6)" |
-| **2. CORRECT opt-in example** | shows the user INVOKING reasoning high to turn it on | `stagehand --reasoning high`; `STAGEHAND_PLANNER_REASONING=high stagehand`; `STAGEHAND_REASONING=high stagehand` | ✅ LEAVE — teaches opt-in usage |
+| **2. CORRECT opt-in example** | shows the user INVOKING reasoning high to turn it on | `stagecoach --reasoning high`; `STAGECOACH_PLANNER_REASONING=high stagecoach`; `STAGECOACH_REASONING=high stagecoach` | ✅ LEAVE — teaches opt-in usage |
 | **3. CORRECT shape / mechanism / verb** | documents the `reasoning_levels` TABLE; the Render append rule; or uses "reasoning" as a verb | "`reasoning_levels`: off/low/medium/high token lists; nil⇒no-op"; "needs reasoning to evaluate diffs" | ✅ LEAVE — mechanism, not a default |
 
 **Discriminator:** does the text answer "what is it out of the box?" (default claim) or "how do I
@@ -342,7 +342,7 @@ turn it on?" (example) or "how does the field work?" (shape)? Only the first is 
 ```yaml
 Task 1: RUN the contract grep + classify every hit
   - RUN: grep -rn 'planner.*high\|planner.*default.*high\|reasoning.*planner.*high' README.md docs/
-  - EXPECT: exactly ONE match — docs/configuration.md:153 (STAGEHAND_PLANNER_REASONING=high …).
+  - EXPECT: exactly ONE match — docs/configuration.md:153 (STAGECOACH_PLANNER_REASONING=high …).
   - CLASSIFY: Category 2 (correct opt-in example) AND out-of-scope (T2.S1's file). → NO EDIT.
   - IF a DIFFERENT match appears in an in-scope file (README/how-it-works/providers/docs-README):
     classify it. Only if it is Category 1 (a genuine "high is the default" assertion) → proceed to
@@ -398,7 +398,7 @@ Task 5: GATES + scope-check
 
 <!-- README.md:122 (Example invocations bash block) — CORRECT opt-in example (Category 2): -->
 # Use reasoning for deeper analysis on the planner
-stagehand --reasoning high
+stagecoach --reasoning high
 <!-- LEAVE — the contract explicitly blesses this. It shows opt-in, not a default. -->
 
 <!-- README.md:137–139 (NOTE) — CORRECT mechanism doc (Category 3): -->
@@ -412,7 +412,7 @@ reasoning = "off"   # off|low|medium|high; off by default for every role (FR-R6)
 <!-- LEAVE — this IS the target state; editing it would REVERT the delta. -->
 
 <!-- docs/configuration.md:153 — the one narrow-grep match (T2.S1, OUT OF SCOPE, CORRECT): -->
-| `STAGEHAND_PLANNER_REASONING` | `--planner-reasoning` | Per-role: planner reasoning | `STAGEHAND_PLANNER_REASONING=high stagehand` |
+| `STAGECOACH_PLANNER_REASONING` | `--planner-reasoning` | Per-role: planner reasoning | `STAGECOACH_PLANNER_REASONING=high stagecoach` |
 <!-- LEAVE — an env-var invocation EXAMPLE (Category 2), not a default claim. -->
 
 <!-- docs/providers.md:35 — CORRECT shape doc (Category 3): -->
@@ -459,11 +459,11 @@ NO-TOUCH (explicitly):
 ### Level 1: The Grep Gates (the core verification)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (1) The CONTRACT grep (narrow). Expect exactly ONE match, in configuration.md (out-of-scope, correct).
 grep -rn 'planner.*high\|planner.*default.*high\|reasoning.*planner.*high' README.md docs/
-# Expected: docs/configuration.md:153:| `STAGEHAND_PLANNER_REASONING` | ... | `STAGEHAND_PLANNER_REASONING=high stagehand` |
+# Expected: docs/configuration.md:153:| `STAGECOACH_PLANNER_REASONING` | ... | `STAGECOACH_PLANNER_REASONING=high stagecoach` |
 # Classify: Category 2 (opt-in example) + out-of-scope (T2.S1). NO EDIT.
 
 # (2) The BROADER default-claim grep (catches "default(s) ... high" / "high by default" phrasings).
@@ -476,7 +476,7 @@ grep -rniE 'default.*(high|reasoning)|reasoning.*default|high by default|default
 ### Level 2: Per-File Confirmation (the four in-scope files)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # README.md — the --reasoning high EXAMPLE + NOTE must remain (Category 2/3).
 grep -n 'reasoning' README.md
@@ -497,7 +497,7 @@ grep -ci 'reasoning\|planner' docs/README.md   # Expected: 0
 ### Level 3: Sibling-File Integrity (NO-TOUCH confirmation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # This task must NOT have edited the sibling-owned files.
 git diff --stat -- docs/cli.md docs/configuration.md
@@ -511,7 +511,7 @@ grep -n '"" (off)' docs/cli.md                        # Expected: the --reasonin
 ### Level 4: Scope Boundary + Build Backstop
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (A) Scope: ideally ZERO edits at HEAD (all four in-scope files coherent with FR-R6).
 git diff --stat -- README.md docs/
@@ -568,7 +568,7 @@ go test -race ./...      # Expected: all packages green
   (Category 2), explicitly blessed by the contract. "Fixing" it would hide the opt-in feature.
   (G1/D1.)
 - ❌ Don't edit docs/configuration.md (any line). It is T2.S1's file (out of scope). Its one
-  narrow-grep match (L153 `STAGEHAND_PLANNER_REASONING=high`) is a correct env-var example, and its
+  narrow-grep match (L153 `STAGECOACH_PLANNER_REASONING=high`) is a correct env-var example, and its
   L80 `reasoning = "off"` is the correct flipped default. Editing either reverts/corrupts sibling
   work. (G2/G7/D2.)
 - ❌ Don't edit docs/cli.md. It is T1.S2's file (out of scope) and already correct. (G7/D2.)

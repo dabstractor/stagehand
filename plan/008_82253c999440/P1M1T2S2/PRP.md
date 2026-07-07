@@ -39,8 +39,8 @@ consistent with the paragraph; `git diff --stat` shows ONLY `docs/how-it-works.m
 
 ## User Persona
 
-**Target User**: The reader of `docs/how-it-works.md` — a stagehand user (or contributor) trying to
-understand the decompose pipeline's concurrency safety. They want to know whether running `stagehand`
+**Target User**: The reader of `docs/how-it-works.md` — a stagecoach user (or contributor) trying to
+understand the decompose pipeline's concurrency safety. They want to know whether running `stagecoach`
 while another tool (editor save, concurrent coding agent) writes to the working tree can contaminate
 the commits.
 
@@ -82,7 +82,7 @@ S1 IS the behavior):
    `diff-names(tipTree, T_start)`; the arbiter runs iff it is non-empty; the live working tree is never
    consulted (not `git status --porcelain`), so a post-`T_start` file cannot trigger it or enter any
    arbiter commit; the arbiter is shown `TreeDiff(tipTree, T_start)` and decides amend-vs-new;
-   stagehand performs all git from frozen trees and syncs the index to `T_start`.
+   stagecoach performs all git from frozen trees and syncs the index to `T_start`.
 2. **Refine** the "Start-of-run freeze (T_start)" paragraph's arbiter clause: "the arbiter's leftover
    staging" → "the arbiter (its gate, its diff, and its leftover staging)".
 3. **Refine** the pipeline-diagram gate label: "git status clean?" → "frozen leftover empty?".
@@ -166,7 +166,7 @@ edit needs no toolchain — only the three quoted replacements. No inference req
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── docs/
     ├── how-it-works.md   # EDIT TARGET — 3 edits in the decompose section (lines ~91, ~111, ~117)
     ├── cli.md            # READ-ONLY (do NOT touch — contract)
@@ -178,7 +178,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only one existing file modified — no new files)
     docs/how-it-works.md   # arbiter narrative rewritten to the freeze-safe behavior (FR-M1d)
 ```
@@ -248,7 +248,7 @@ Current:
 
 Target:
 ```markdown
-**Arbiter leftover reconciliation.** After all N concepts are committed, stagehand computes the **frozen leftover** = `diff-names(tipTree, T_start)` — the `T_start` content no stager claimed (`tipTree` is the last committed tree) — and runs the arbiter **iff it is non-empty**. The live working tree is never consulted for the gate (not `git status --porcelain`), so a file written after `T_start` was captured cannot trigger the arbiter or enter any arbiter commit. Given `TreeDiff(tipTree, T_start)`, the arbiter decides whether the leftovers belong to an existing commit (a plumbing amend that rebuilds the chain from the frozen per-concept `tree[j]` and `T_start`) or warrant a new (N+1)th commit (committing `T_start` directly); stagehand performs all git from frozen trees, then syncs the index to `T_start`, and the arbiter only decides.
+**Arbiter leftover reconciliation.** After all N concepts are committed, stagecoach computes the **frozen leftover** = `diff-names(tipTree, T_start)` — the `T_start` content no stager claimed (`tipTree` is the last committed tree) — and runs the arbiter **iff it is non-empty**. The live working tree is never consulted for the gate (not `git status --porcelain`), so a file written after `T_start` was captured cannot trigger the arbiter or enter any arbiter commit. Given `TreeDiff(tipTree, T_start)`, the arbiter decides whether the leftovers belong to an existing commit (a plumbing amend that rebuilds the chain from the frozen per-concept `tree[j]` and `T_start`) or warrant a new (N+1)th commit (committing `T_start` directly); stagecoach performs all git from frozen trees, then syncs the index to `T_start`, and the arbiter only decides.
 ```
 
 **Edit 2 — refine the "Start-of-run freeze (T_start)" paragraph's arbiter clause (~line 111).**
@@ -303,7 +303,7 @@ Task 3: EDIT docs/how-it-works.md — Edit 3 (diagram gate label, ~line 91)
   - REPLACE the label "git status clean?" with "frozen leftover empty?" and re-align the `──yes──▶ done`
     arrow and the `│ no / ▼` branch under the new label (gotcha G3).
   - KEEP the rest of the diagram (the loop, the arbiter box, the "leftover diff" arrow label) unchanged.
-  - DO NOT: alter the diagram's box-drawing characters elsewhere or the "stagehand does all git" caption.
+  - DO NOT: alter the diagram's box-drawing characters elsewhere or the "stagecoach does all git" caption.
 
 Task 4: VALIDATE (editorial + scope — no compile/test for docs)
   - RUN: grep -n 'git status --porcelain' docs/how-it-works.md            → expect NO output
@@ -376,7 +376,7 @@ DOWNSTREAM HOOKS (informational):
 ### Level 1: Markdown Sanity (no broken structure)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The edits are prose within existing paragraphs + one ASCII label inside a ```text fence. Confirm no
 # accidental heading/structure breakage:
@@ -391,7 +391,7 @@ awk '/^```text/{f=1} f{print} /^```$/{if(f){f=0; print "---END---"}}' docs/how-i
 ### Level 2: Content Assertions (the stale gate is gone; the freeze narrative is present)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # THE headline check: the stale live-status gate is GONE from the doc.
 grep -n 'git status --porcelain' docs/how-it-works.md
@@ -414,7 +414,7 @@ grep -n 'diff-names(tipTree, T_start)\|TreeDiff(tipTree, T_start)' docs/how-it-w
 ### Level 3: Scope Discipline (only the one doc changed)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # ONLY docs/how-it-works.md changed.
 git diff --stat -- docs/
@@ -437,7 +437,7 @@ git diff -- docs/how-it-works.md
 ### Level 4: Cross-Reference Consistency (the section tells one story)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Read the decompose section end-to-end and confirm the gate story is consistent across the three surfaces:
 sed -n '85,128p' docs/how-it-works.md

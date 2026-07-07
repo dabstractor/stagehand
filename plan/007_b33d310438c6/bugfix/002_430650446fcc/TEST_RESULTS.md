@@ -37,7 +37,7 @@ mode interacting with a realistic class of file content.
 ### Issue 1: `splitDiffSections` fragments files whose content contains the literal `diff --git `, defeating `token_limit` truncation and overflowing the context window
 
 **Severity**: Major
-**PRD Reference**: §9.1 FR3d ("the payload always fits **without stagehand maintaining a per-model context registry**"; "When set … the payload always fits"); §9.1 FR3i ("the aggregate non-markdown diff is split on `diff --git` boundaries to apply the per-file level without extra `git` invocations"); §9.1 FR3c (parity — the bug is replicated across all three diff paths); system_context.md §6 invariant 2 (the `>0` truncation contract).
+**PRD Reference**: §9.1 FR3d ("the payload always fits **without stagecoach maintaining a per-model context registry**"; "When set … the payload always fits"); §9.1 FR3i ("the aggregate non-markdown diff is split on `diff --git` boundaries to apply the per-file level without extra `git` invocations"); §9.1 FR3c (parity — the bug is replicated across all three diff paths); system_context.md §6 invariant 2 (the `>0` truncation contract).
 **Affected code**: `internal/git/truncatediff.go` → `splitDiffSections` (the `strings.Split(diff, "diff --git ")` call); consumed by `applyWaterFillGate` (`internal/git/tokengate.go`) in the `opts.TokenLimit > 0` branch of `StagedDiff` (git.go:883), `TreeDiff` (git.go:1360), and `WorkingTreeDiff` (git.go:1533).
 
 **Root cause**: `splitDiffSections` splits the captured non-markdown aggregate on the **un-anchored** substring `"diff --git "`:

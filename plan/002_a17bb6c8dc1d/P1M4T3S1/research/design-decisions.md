@@ -1,6 +1,6 @@
 # P1.M4.T3.S1 — Design Decisions & Findings
 
-Scope: add `stagehand config upgrade` (PRD §9.17 FR-B5) — a cobra subcommand that rewrites an existing
+Scope: add `stagecoach config upgrade` (PRD §9.17 FR-B5) — a cobra subcommand that rewrites an existing
 global config in place to `config_version = CurrentConfigVersion` via a minimal textual transform that
 preserves every other line. Plus FR-B6 help de-duplication (remove the manual "Subcommands:" block from
 the `config` and `providers` parent commands). Plus shouldSkipConfigLoad("upgrade").
@@ -41,11 +41,11 @@ user values, satisfying "preserves user values for keys that still exist" automa
 key migrations.
 
 **D6 — Missing file → exit 1 pointing at `config init`.** `os.ReadFile(GlobalConfigPath())` IsNotExist →
-`exitcode.New(exitcode.Error, fmt.Errorf("no config file at %s (run 'stagehand config init' first)", path))`.
+`exitcode.New(exitcode.Error, fmt.Errorf("no config file at %s (run 'stagecoach config init' first)", path))`.
 Upgrade targets an EXISTING file (unlike `init`, which creates one). Consistent with the load.go advisory
 wording (which suggests both `config upgrade` and `config init --force`).
 
-**D7 — `--config`/`STAGEHAND_CONFIG` is intentionally NOT honored.** The work item INPUT names
+**D7 — `--config`/`STAGECOACH_CONFIG` is intentionally NOT honored.** The work item INPUT names
 `GlobalConfigPath()` (the GLOBAL file). Upgrade is in shouldSkipConfigLoad (config.Load does NOT run), so
 the Layer-7 discovery override isn't resolved. Upgrade rewrites the global file; `--config` is a read-path
 discovery override (semantically different). Reading the persistent flag manually would contradict the
@@ -58,7 +58,7 @@ no config.Load). `Args: cobra.NoArgs` (extra args → exit 1), matching configIn
 
 **D9 — FR-B6 help de-dup: remove the manual "Subcommands:" block from `configCmd.Long` AND
 `providersCmd.Long`.** cobra's auto-generated "Available Commands" is the single source (PRD §9.17 FR-B6;
-the v1 `stagehand config` showed init/path both in prose AND in Available Commands). Removing the block
+the v1 `stagecoach config` showed init/path both in prose AND in Available Commands). Removing the block
 makes the new `upgrade` (and any future leaf) appear with zero extra edits. The contract's Mode-A "update
 the config command group Long help to list the upgrade subcommand" is satisfied by REGISTRATION (cobra
 auto-lists it) — do NOT re-add a manual list.
@@ -74,7 +74,7 @@ upgrade writes. Do NOT read `Defaults().ConfigVersion` (it's the 0 "unset" senti
 
 **F2 — `GlobalConfigPath()` (internal/config/file.go:83)** is the write/read target (the work item INPUT).
 Already used by `runConfigPath`. In tests, `setupNoRepo` sets HOME=XDG=t.TempDir() so the path is
-`<tmp>/stagehand/config.toml`.
+`<tmp>/stagecoach/config.toml`.
 
 **F3 — shouldSkipConfigLoad lives in root.go:97.** `func shouldSkipConfigLoad(cmd) bool { name :=
 cmd.Name(); return name == "init" || name == "path" }`. Add `|| name == "upgrade"`. The PARALLEL sibling
@@ -96,7 +96,7 @@ the init line") and does NOT implement `config upgrade` ("config upgrade (P1.M4.
 do-not-edit). So removing it (FR-B6) is conflict-free. providersCmd.Long currently lists `list`/`show`.
 
 **F6 — The load.go advisory (P1.M4.T1.S1) already names `config upgrade`.** `configVersionNotice`
-(load.go:263) emits, for a missing/older version: *"Run 'stagehand config upgrade' or 'stagehand config
+(load.go:263) emits, for a missing/older version: *"Run 'stagecoach config upgrade' or 'stagecoach config
 init --force'."* So this command is the documented remediation — it MUST exist and behave as the advisory
 implies (rewrite in place to CurrentConfigVersion; safe if already current).
 

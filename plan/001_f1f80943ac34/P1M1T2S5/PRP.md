@@ -2,7 +2,7 @@
 name: "P1.M1.T2.S5 — UpdateRefCAS (3-arg compare-and-swap, never force)"
 description: |
   Replace the `(*gitRunner).UpdateRefCAS` panic-stub (landed by P1.M1.T2.S1) with the real
-  implementation — the atomic HEAD-publish primitive that is the FINAL step of Stagehand's
+  implementation — the atomic HEAD-publish primitive that is the FINAL step of Stagecoach's
   snapshot-based commit flow (PRD §13.2 step 3, §18.1 "the invariant"). Signature is fixed by the
   `Git` interface (already landed): `UpdateRefCAS(ctx, ref, newSHA, expectedOld string) error` —
   note the `ref` parameter (the interface is authoritative over the work-item prose's
@@ -30,7 +30,7 @@ description: |
 ## Goal
 
 **Feature Goal**: Implement the fourth real git plumbing method on `*gitRunner` — `UpdateRefCAS` —
-the atomic compare-and-swap ref-update that is the **sole** point at which Stagehand mutates a ref
+the atomic compare-and-swap ref-update that is the **sole** point at which Stagecoach mutates a ref
 (PRD §18.1: *"The repository's refs and index are modified only at the final `update-ref` step, and
 only if HEAD is unchanged since the snapshot"*). It takes a `ref` ("HEAD"), a `newSHA` (the dangling
 commit object SHA from `CommitTree`, P1.M1.T2.S4), and an `expectedOld` (the `PARENT_SHA` captured
@@ -238,7 +238,7 @@ exact validation commands with expected results. No inference required.
         (exec.CommandContext + update-ref HEAD new old; on exit != 0 do NOT force)."
   critical: "§3 establishes the 3-arg CAS contract, the all-zeros-as-unborn semantics, and the
              'never force-update' rule. Confirms atomicity is guaranteed by git's own ref lock —
-             Stagehand adds no locking of its own."
+             Stagecoach adds no locking of its own."
 
 - docfile: plan/001_f1f80943ac34/architecture/git_plumbing_summary.md
   why: "The Atomic Commit Sequence (step 6 = update-ref HEAD NEW PARENT → atomic publish, fails if
@@ -305,9 +305,9 @@ exact validation commands with expected results. No inference required.
              exactly what PRD §13.2/§18.1 forbid."
 - url: https://git-scm.com/docs/git-update-ref#_options
   why: "Documents that update-ref takes the ref lock under .git/<ref>.lock and performs the
-        read-compare-write atomically within one process — the atomicity guarantee Stagehand relies on
+        read-compare-write atomically within one process — the atomicity guarantee Stagecoach relies on
         (it adds no locking of its own)."
-  critical: "Confirms atomicity w.r.t. concurrent git writers is git's responsibility, not Stagehand's."
+  critical: "Confirms atomicity w.r.t. concurrent git writers is git's responsibility, not Stagecoach's."
 - url: https://pkg.go.dev/errors#Is
   why: "errors.Is unwraps wrapped errors; fmt.Errorf with the %w verb creates a wrapping error whose
         Is/As chain includes the wrapped value. This is HOW the orchestrator detects ErrCASFailed via
@@ -325,11 +325,11 @@ exact validation commands with expected results. No inference required.
 ### Current Codebase Tree (after S1 + S2 + S3 + S4 have landed — verified on disk)
 
 ```bash
-stagehand/
+stagecoach/
 ├── PRD.md
-├── go.mod                # module github.com/dustin/stagehand, go 1.22, NO deps
+├── go.mod                # module github.com/dustin/stagecoach, go 1.22, NO deps
 ├── Makefile              # build/test/lint/coverage/install/clean (test = go test -race ./...)
-├── cmd/stagehand/main.go # stub
+├── cmd/stagecoach/main.go # stub
 ├── internal/
 │   └── git/
 │       ├── git.go        # S1: interface+gitRunner+run()+New()+stubs; S2: RevParseHEAD real;
@@ -345,7 +345,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     └── git/
         ├── git.go              # MODIFIED — +var ErrCASFailed; UpdateRefCAS stub → real body. NO import change.
@@ -511,7 +511,7 @@ immediately above it.
 // UpdateRefCAS atomically moves ref to newSHA only if ref's current value equals expectedOld — the
 // 3-arg compare-and-swap form of git update-ref (git takes the ref lock, reads the current value, and
 // writes newSHA only if current == expectedOld, all under .git/<ref>.lock in one process). It is the
-// SOLE point at which Stagehand mutates a ref (PRD §18.1: "refs are modified only at the final
+// SOLE point at which Stagecoach mutates a ref (PRD §18.1: "refs are modified only at the final
 // update-ref step, and only if HEAD is unchanged since the snapshot"). The 2-arg force form is NEVER
 // used — it would silently clobber a concurrent commit (PRD §13.1/§13.2/§18.2).
 //
@@ -747,7 +747,7 @@ Task 4: VALIDATE — full gate set + scope discipline
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" → package import path "github.com/dustin/stagehand/internal/git"
+  - module path: "github.com/dustin/stagecoach" → package import path "github.com/dustin/stagecoach/internal/git"
   - go directive: 1.22 → context, errors, fmt, strings, os/exec, testing.T.TempDir/Setenv all available
   - deps: NONE added (errors/fmt/strings already imported; test helpers use only stdlib)
 
@@ -829,7 +829,7 @@ git grep -n 'runWithInput' internal/git/git.go | grep -i updateref      # expect
 # Prove the sentinel is detectable end-to-end via a tiny throwaway program (optional, ad-hoc):
 # cat > /tmp/cas_probe_test.go <<'EOF'
 # package main
-# import ("context"; "errors"; "fmt"; "github.com/dustin/stagehand/internal/git")
+# import ("context"; "errors"; "fmt"; "github.com/dustin/stagecoach/internal/git")
 # func main() {
 #   g := git.New("/tmp") // path irrelevant; will fail fast, but exercise the error path
 #   err := g.UpdateRefCAS(context.Background(), "HEAD", "0".Lol, "old")  // (illustrative)

@@ -10,7 +10,7 @@ the current tree.
    (P2.M2.T2.S1) is non-empty after the loop. It receives: SHAs, subjects, and file-lists
    (diff-tree) of every commit made this run, plus a diff of remaining changes (WorkingTreeDiff).
    Returns JSON: {"target": "<sha>"} or {"target": null}. Ambiguous → null. May only target a
-   commit from this run. The arbiter only DECIDES; stagehand performs all git (FR-M10). Output
+   commit from this run. The arbiter only DECIDES; stagecoach performs all git (FR-M10). Output
    is parsed via ParseArbiterOutput (P3.M1.T1.S3).
 2. INPUT: prompt/arbiter.go (P3.M1.T1.S1), StatusPorcelain (P2.M2.T2.S1), the list of commits
    made this run (SHAs, subjects, file-lists).

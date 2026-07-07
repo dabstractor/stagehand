@@ -1,12 +1,12 @@
 ---
 name: "P1.M1.T4.S2 — TOML file loading (global + repo-local) with go-toml/v2"
 description: |
-  The SECOND subtask of the Configuration System (P1.M1.T4): load Stagehand's TOML config files and
+  The SECOND subtask of the Configuration System (P1.M1.T4): load Stagecoach's TOML config files and
   merge them. Implement `internal/config/file.go` with three contract functions plus a repo-local
   helper: `loadTOML(path) (*Config, error)` (decode a §16.2 file; `(nil, nil)` if missing),
-  `globalConfigPath()` (`$XDG_CONFIG_HOME/stagehand/config.toml` else `~/.config/stagehand/config.toml`),
+  `globalConfigPath()` (`$XDG_CONFIG_HOME/stagecoach/config.toml` else `~/.config/stagecoach/config.toml`),
   and `overlay(dst, src *Config)` (field-by-field non-zero merge; provider map merged key-by-key).
-  Plus `loadRepoLocalConfig()` which loads `./.stagehand.toml` and prints a one-line stderr notice
+  Plus `loadRepoLocalConfig()` which loads `./.stagecoach.toml` and prints a one-line stderr notice
   when it sets the provider (PRD §19). PRD §16.1 (resolution order, layers 2–3) + §16.2 (file shape)
   + §9.8/FR34 are the spec; arch `go_ecosystem_patterns.md` §2.4 (overlay/merge) + §5.5
   (map-of-struct decode) are the patterns. INPUT = `Config` struct + `Defaults()` from P1.M1.T4.S1
@@ -51,22 +51,22 @@ description: |
   `max_duplicate_retries = 0`, etc.) is INDISTINGUISHABLE from "field absent" and is therefore NOT
   applied by overlay (arch §2.4 "Bool caveat" / FINDING 5). This is a deliberate, contract-specified
   tradeoff for the FILE layers (2 & 3): to force a zero value, use a higher layer — env vars
-  (`STAGEHAND_AUTO_STAGE_ALL=0` etc., S4, presence-checked) or CLI flags (`--no-auto-stage`,
+  (`STAGECOACH_AUTO_STAGE_ALL=0` etc., S4, presence-checked) or CLI flags (`--no-auto-stage`,
   `--no-strip-code-fence`, S4, `flag.Changed`-checked) — which CAN set `false`/`0`. S2 documents this
   limitation in code comments and ships a clean, contract-faithful non-zero overlay; the empirically-
   validated pointer-typed `fileConfig` upgrade (arch §5.4 Option A — `*bool`/`*int` correctly capture
   `false`/`0`) is noted as a one-function future refinement. **Do NOT silently "fix" this by making
   `Config` pointer-typed** (breaks S1's frozen plain struct + all consumers).
 
-  ⚠️ **THE fourth design call — repo-local path is `.stagehand.toml` (a FILE), NOT arch §2.8's
-  `.stagehand/config.toml` (a DIR).** The contract (point 1) and PRD §16.1 (h3.57 item 4) both say
-  `./.stagehand.toml`; arch `go_ecosystem_patterns.md` §2.8's `filepath.Join(".stagehand",
+  ⚠️ **THE fourth design call — repo-local path is `.stagecoach.toml` (a FILE), NOT arch §2.8's
+  `.stagecoach/config.toml` (a DIR).** The contract (point 1) and PRD §16.1 (h3.57 item 4) both say
+  `./.stagecoach.toml`; arch `go_ecosystem_patterns.md` §2.8's `filepath.Join(".stagecoach",
   "config.toml")` is inconsistent and is NOT the authority here. `repoLocalConfigPath()` returns
-  `".stagehand.toml"`.
+  `".stagecoach.toml"`.
 
   ⚠️ **THE fifth design call — `globalConfigPath()` honors the XDG Base Directory Specification.**
   `$XDG_CONFIG_HOME` is used ONLY if set AND absolute (the XDG spec mandates ignoring a relative or
-  empty value); otherwise fall back to `~/.config/stagehand/config.toml` via `os.UserHomeDir()`
+  empty value); otherwise fall back to `~/.config/stagecoach/config.toml` via `os.UserHomeDir()`
   (Go 1.12+, respects `$HOME` on Unix / `%USERPROFILE%` on Windows). This refines arch §2.8's
   simpler `xdg != ""` check by one `filepath.IsAbs` line — prevents a relative `XDG_CONFIG_HOME` from
   silently resolving against the CWD (a real footgun in shared dev boxes / CI).
@@ -82,9 +82,9 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Give Stagehand the ability to read its TOML configuration from the two file layers
-defined by PRD §16.1 — the GLOBAL file (`$XDG_CONFIG_HOME/stagehand/config.toml`, default
-`~/.config/stagehand/config.toml`) and the REPO-LOCAL file (`./.stagehand.toml`) — and to merge either
+**Feature Goal**: Give Stagecoach the ability to read its TOML configuration from the two file layers
+defined by PRD §16.1 — the GLOBAL file (`$XDG_CONFIG_HOME/stagecoach/config.toml`, default
+`~/.config/stagecoach/config.toml`) and the REPO-LOCAL file (`./.stagecoach.toml`) — and to merge either
 into the resolved `Config` from P1.M1.T4.S1 with correct precedence ("higher layer wins", FR34) and
 correct section handling (`[defaults]` / `[generation]` / `[provider.X]`, string→Duration parse for
 `timeout`). A missing file is a normal "no override" condition, never an error.
@@ -95,8 +95,8 @@ correct section handling (`[defaults]` / `[generation]` / `[provider.X]`, string
    the existing 12 fields, their tags, `Defaults()` values, or imports. (`Defaults()` returns
    `Providers: nil` implicitly — leave the literal as-is or omit the key; either yields a nil map.)
 2. **CREATE** `internal/config/file.go` (`package config`) — unexported decode structs + the functions:
-   (a) `func globalConfigPath() string` — XDG-aware (set+absolute → `$XDG_CONFIG_HOME/stagehand/config.toml`;
-       else `~/.config/stagehand/config.toml` via `os.UserHomeDir()`).
+   (a) `func globalConfigPath() string` — XDG-aware (set+absolute → `$XDG_CONFIG_HOME/stagecoach/config.toml`;
+       else `~/.config/stagecoach/config.toml` via `os.UserHomeDir()`).
    (b) `func loadTOML(path string) (*Config, error)` — `os.ReadFile`; if `os.IsNotExist` → `(nil, nil)`;
        `toml.Unmarshal` into an unexported `fileConfig`; materialize non-zero fields into a fresh
        `*Config` (`time.ParseDuration` for `Timeout`; copy the provider map).
@@ -107,7 +107,7 @@ correct section handling (`[defaults]` / `[generation]` / `[provider.X]`, string
        loaded config sets `Provider != ""`, print a one-line notice to a swappable `io.Writer`
        (default `os.Stderr`) per PRD §19.
    (e) unexported helpers: `fileConfig`/`fileDefaults`/`fileGeneration` (the §16.2 decode shape),
-       `repoLocalConfigPath()` (`".stagehand.toml"`), `repoProviderNotice(cfg *Config) string`
+       `repoLocalConfigPath()` (`".stagecoach.toml"`), `repoProviderNotice(cfg *Config) string`
        (pure: returns the notice text or `""`).
 3. **CREATE** `internal/config/file_test.go` (`package config`, white-box) — `TestLoadTOMLValid`,
    `TestLoadTOMLMissing`, `TestOverlayPartial` (the contract's three required cases), plus
@@ -130,13 +130,13 @@ entries per-key; `loadRepoLocalConfig` prints the §19 notice iff the repo file 
 
 ## User Persona
 
-**Target User**: Downstream Stagehand subtasks — S3 (git-config reader, overlays onto the same
+**Target User**: Downstream Stagecoach subtasks — S3 (git-config reader, overlays onto the same
 `*Config`) and S4 (`Load()` orchestrator, which calls `loadTOML(globalConfigPath())`,
 `loadRepoLocalConfig()`, and `overlay` in §16.1 order); plus P1.M2.T3 (provider registry, consumes
 `Config.Providers`). Transitively US8 (configuration & precedence, FR34/FR37) and every user who
-tunes Stagehand via a file.
+tunes Stagecoach via a file.
 
-**Use Case**: A user authors `~/.config/stagehand/config.toml` (global) and/or `./.stagehand.toml`
+**Use Case**: A user authors `~/.config/stagecoach/config.toml` (global) and/or `./.stagecoach.toml`
 (per-repo). S2 turns each into a partial `*Config` and provides the merge primitive so S4 can build
 the file-merged config before applying git/env/CLI layers.
 
@@ -178,8 +178,8 @@ no `Manifest` type, no file writing.
 
 - [ ] `internal/config/file.go` exists, `package config`, imports only stdlib (`os`, `fmt`,
       `path/filepath`, `time`) + `github.com/pelletier/go-toml/v2` (already in `go.mod`).
-- [ ] `globalConfigPath()` returns `$XDG_CONFIG_HOME/stagehand/config.toml` when `XDG_CONFIG_HOME` is
-      set AND absolute; otherwise `filepath.Join(home, ".config", "stagehand", "config.toml")` where
+- [ ] `globalConfigPath()` returns `$XDG_CONFIG_HOME/stagecoach/config.toml` when `XDG_CONFIG_HOME` is
+      set AND absolute; otherwise `filepath.Join(home, ".config", "stagecoach", "config.toml")` where
       `home` comes from `os.UserHomeDir()`.
 - [ ] `loadTOML(path)` returns `(nil, nil)` for a missing file (via `os.IsNotExist`); returns a
       wrapped error for other read errors or a TOML parse error; on success returns a `*Config`
@@ -188,7 +188,7 @@ no `Manifest` type, no file writing.
 - [ ] `overlay(dst, src *Config)` is `nil`-safe (`src == nil` → return); copies each scalar field only
       when `src`'s value is non-zero; merges `src.Providers` into `dst.Providers` key-by-key
       (initializing `dst.Providers` if nil), each key replacing dst's whole entry.
-- [ ] `loadRepoLocalConfig()` loads `".stagehand.toml"` and, iff the result is non-nil and its
+- [ ] `loadRepoLocalConfig()` loads `".stagecoach.toml"` and, iff the result is non-nil and its
       `Provider != ""`, writes the `repoProviderNotice` text to the package's notice writer
       (default `os.Stderr`).
 - [ ] `Config` has the NEW field `Providers map[string]map[string]any \`toml:"-"\``; all other fields,
@@ -228,14 +228,14 @@ decode + merge.
        `if src.B { dst.B = true }` for bools (NOTE the documented caveat — see call #3).
   gotcha: arch §2.4's overlay is written against a NESTED `Config{Defaults,Generation,Provider map}`;
        S1's `Config` is FLAT. Translate the §2.4 scalar-overlay idea onto S1's flat fields. Also: arch
-       §2.4's repo path (`".stagehand/config.toml"`) is WRONG for this project — use `.stagehand.toml`
+       §2.4's repo path (`".stagecoach/config.toml"`) is WRONG for this project — use `.stagecoach.toml`
        (design call #4).
 
 - file: plan/001_f1f80943ac34/architecture/go_ecosystem_patterns.md
   section: "2.8 Full Load Function (All Layers)" — the `globalConfigPath()` reference impl.
   why: the XDG resolution pattern (`os.Getenv("XDG_CONFIG_HOME")` else `os.UserHomeDir()`). S2 adds the
        `filepath.IsAbs` guard (design call #5) to be XDG-spec-compliant.
-  pattern: `filepath.Join(xdg, "stagehand", "config.toml")` / `filepath.Join(home, ".config", "stagehand", "config.toml")`.
+  pattern: `filepath.Join(xdg, "stagecoach", "config.toml")` / `filepath.Join(home, ".config", "stagecoach", "config.toml")`.
   gotcha: do NOT copy arch §2.8's `Load()` — that is S4's job. S2 ships only `globalConfigPath()`,
        `loadTOML`, `overlay`, `loadRepoLocalConfig`.
 
@@ -265,7 +265,7 @@ decode + merge.
 
 - file: PRD.md
   section: "16.1 Resolution order (FR34)" (h3.57) + "16.2 Full config file example" (h3.58) + "9.8" (h3.24)
-  why: §16.1 fixes layers 2 (global) & 3 (repo-local `.stagehand.toml`) and the field-by-field provider-
+  why: §16.1 fixes layers 2 (global) & 3 (repo-local `.stagecoach.toml`) and the field-by-field provider-
        merge-with-built-in principle (the registry's job, not S2's); §16.2 is the exact file shape to
        decode; FR34 is the "higher wins" invariant S2's overlay serves.
 
@@ -278,14 +278,14 @@ decode + merge.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; require go-toml/v2 v2.4.2
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; require go-toml/v2 v2.4.2
 go.sum                          # has the go-toml/v2 v2.4.2 hashes (S1 added them)
 internal/
   config/
     config.go                   # S1: Config (12 fields) + Defaults()        ← MODIFY (add Providers)
     config_test.go              # S1: TestDefaults + TestTOMLMarshalKeys...   ← UNCHANGED (must stay green)
   git/                          # T2/T3 (RevParseHEAD…AddAll) — untouched by S2
-cmd/stagehand/main.go           # `package main; func main(){}` stub — untouched
+cmd/stagecoach/main.go           # `package main; func main(){}` stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -328,8 +328,8 @@ internal/
 // BETWEEN a file layer and a BUILT-IN manifest it is FIELD-MERGE (PRD §16.1) — but that is P1.M2.T3's
 // job, NOT S2's. S2 only accumulates raw entries; the registry decodes+merges them later.
 
-// GOTCHA: repo-local path is the FILE `.stagehand.toml` (contract + PRD §16.1), NOT arch §2.8's
-// `.stagehand/config.toml` directory. Do not copy arch §2.8's repo path.
+// GOTCHA: repo-local path is the FILE `.stagecoach.toml` (contract + PRD §16.1), NOT arch §2.8's
+// `.stagecoach/config.toml` directory. Do not copy arch §2.8's repo path.
 
 // GOTCHA: `os.IsNotExist` (not `errors.Is(err, fs.ErrNotExist)`) is the idiomatic missing-file check
 // here and matches arch §2.4. (`errors.Is(err, fs.ErrNotExist)` also works on Go 1.13+; either is fine —
@@ -438,23 +438,23 @@ type fileGeneration struct {
 // defaults to os.Stderr. (PRD §19: a repo-local config redirecting the provider is surfaced to the user.)
 var noticeOut io.Writer = os.Stderr
 
-// globalConfigPath returns the GLOBAL config path (PRD §16.1 layer 2): $XDG_CONFIG_HOME/stagehand/config.toml
+// globalConfigPath returns the GLOBAL config path (PRD §16.1 layer 2): $XDG_CONFIG_HOME/stagecoach/config.toml
 // when XDG_CONFIG_HOME is set AND absolute (XDG Base Dir Spec: a relative/empty value is ignored);
-// otherwise ~/.config/stagehand/config.toml via os.UserHomeDir().
+// otherwise ~/.config/stagecoach/config.toml via os.UserHomeDir().
 func globalConfigPath() string {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" && filepath.IsAbs(xdg) {
-		return filepath.Join(xdg, "stagehand", "config.toml")
+		return filepath.Join(xdg, "stagecoach", "config.toml")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "config.toml" // last-resort fallback (CWD); matches arch §2.8
 	}
-	return filepath.Join(home, ".config", "stagehand", "config.toml")
+	return filepath.Join(home, ".config", "stagecoach", "config.toml")
 }
 
-// repoLocalConfigPath returns the REPO-LOCAL config path (PRD §16.1 layer 3): the file ./.stagehand.toml.
-// (Contract + PRD §16.1; NOT arch §2.8's .stagehand/config.toml directory.)
-func repoLocalConfigPath() string { return ".stagehand.toml" }
+// repoLocalConfigPath returns the REPO-LOCAL config path (PRD §16.1 layer 3): the file ./.stagecoach.toml.
+// (Contract + PRD §16.1; NOT arch §2.8's .stagecoach/config.toml directory.)
+func repoLocalConfigPath() string { return ".stagecoach.toml" }
 
 // loadTOML reads and decodes a TOML file into a partial *Config (PRD §16.2). A MISSING file is the
 // normal "no override" condition: it returns (nil, nil). Other read errors and parse errors are
@@ -577,7 +577,7 @@ func overlay(dst, src *Config) {
 	}
 }
 
-// loadRepoLocalConfig loads the repo-local ./.stagehand.toml. If it sets the default provider, a
+// loadRepoLocalConfig loads the repo-local ./.stagecoach.toml. If it sets the default provider, a
 // one-line notice is written to noticeOut (default os.Stderr) per PRD §19 (a repo file redirecting
 // the provider is surfaced to the user). Returns (nil, nil) if the file is absent.
 func loadRepoLocalConfig() (*Config, error) {
@@ -598,7 +598,7 @@ func repoProviderNotice(cfg *Config) string {
 	if cfg == nil || cfg.Provider == "" {
 		return ""
 	}
-	return fmt.Sprintf("stagehand: repo-local config (.stagehand.toml) sets provider to %q\n", cfg.Provider)
+	return fmt.Sprintf("stagecoach: repo-local config (.stagecoach.toml) sets provider to %q\n", cfg.Provider)
 }
 ```
 
@@ -623,7 +623,7 @@ Task 1: MODIFY internal/config/config.go  — add the Providers field
 
 Task 2: CREATE internal/config/file.go  — decode structs + path helpers
   - IMPLEMENT: fileConfig/fileDefaults/fileGeneration (the Data Models block); globalConfigPath()
-    (XDG set+absolute else ~/.config/...); repoLocalConfigPath() (".stagehand.toml"); the package-level
+    (XDG set+absolute else ~/.config/...); repoLocalConfigPath() (".stagecoach.toml"); the package-level
     `var noticeOut io.Writer = os.Stderr` (+ `import "io"`).
   - IMPORTS: os, fmt, path/filepath, time, io, github.com/pelletier/go-toml/v2. (All already available.)
   - NAMING: unexported decode structs + path helpers; exported names only if S4 must call them directly
@@ -663,17 +663,17 @@ Task 5: CREATE internal/config/file_test.go
     Output:"json"} (everything else zero); overlay(&dst, src) → dst.Timeout==90s, dst.Output=="json",
     and ALL OTHER fields unchanged from Defaults() (AutoStageAll still true, MaxDiffBytes still 300000, …).
     This proves field-by-field (NOT wholesale replace).
-  - TEST D TestGlobalConfigPath: t.Setenv("XDG_CONFIG_HOME", absTmp) → endsWith "stagehand/config.toml"
-    under it; t.Setenv("XDG_CONFIG_HOME","") → under home/.config/stagehand/config.toml; t.Setenv with a
+  - TEST D TestGlobalConfigPath: t.Setenv("XDG_CONFIG_HOME", absTmp) → endsWith "stagecoach/config.toml"
+    under it; t.Setenv("XDG_CONFIG_HOME","") → under home/.config/stagecoach/config.toml; t.Setenv with a
     RELATIVE path → ignored (falls back to home). (Use t.Setenv — auto-restores, -race-safe.)
   - TEST E TestOverlayProvidersKeyReplace: dst.Providers={"pi":{"default_model":"A"},"claude":{…}},
     src.Providers={"pi":{"default_model":"B"}}; overlay → dst.Providers["pi"]=={"default_model":"B"}
     (replaced), "claude" still present.
-  - TEST F TestRepoProviderNotice: repoProviderNotice(&Config{Provider:"pi"}) contains `.stagehand.toml`
+  - TEST F TestRepoProviderNotice: repoProviderNotice(&Config{Provider:"pi"}) contains `.stagecoach.toml`
     and `pi`; repoProviderNotice(nil)==""; repoProviderNotice(&Config{})=="".
-  - TEST G TestLoadRepoLocalConfig: write .stagehand.toml (in a chdir'd t.TempDir OR pass a path —
+  - TEST G TestLoadRepoLocalConfig: write .stagecoach.toml (in a chdir'd t.TempDir OR pass a path —
     SIMPLEST: test repoProviderNotice + a small loadRepoLocalConfig test that swaps noticeOut to a
-    buffer and asserts the notice is emitted when the CWD's .stagehand.toml sets provider; use
+    buffer and asserts the notice is emitted when the CWD's .stagecoach.toml sets provider; use
     t.Chdir (Go 1.24+) or os.Chdir+restore if t.Chdir unavailable). If chdir is awkward, at minimum
     unit-test repoProviderNotice (pure) and assert loadRepoLocalConfig defers to loadTOML for I/O.
   - PATTERN: mirror internal/git/*_test.go style (t.Helper for helpers, t.Errorf for per-field asserts,
@@ -790,7 +790,7 @@ CONFIG STRUCT (internal/config/config.go):
   - add field: `Providers map[string]map[string]any \`toml:"-"\`` (additive; frozen S1 fields untouched).
 
 DOWNSTREAM CONTRACTS (do NOT implement here — just honor the shapes they will consume):
-  - P1.M1.T4.S3 (git-config): will produce a *Config from `git config stagehand.*` and call overlay().
+  - P1.M1.T4.S3 (git-config): will produce a *Config from `git config stagecoach.*` and call overlay().
   - P1.M1.T4.S4 (Load orchestrator): cfg := Defaults(); overlay(&cfg, loadTOML(globalConfigPath()));
         overlay(&cfg, loadRepoLocalConfig()); (then S3 git, S4 env, S4 CLI). S2 ships the primitives;
         S4 does the sequencing. overlay's NON-ZERO semantics are part of this contract — do not change them.
@@ -831,7 +831,7 @@ go test -race ./...
 
 ```bash
 # No CLI/runtime integration yet (no Load(), no command wiring). Validate deps + build end-to-end:
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"   # main.go stub still links.
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"   # main.go stub still links.
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED by S2"   # MUST be empty.
 grep -c 'Providers map\[string\]map\[string\]any' internal/config/config.go   # prints 1.
 # Expected: binary builds; go.mod/go.sum unchanged; exactly one Providers field added.
@@ -871,14 +871,14 @@ golangci-lint run ./internal/config/ 2>/dev/null || echo "golangci-lint not inst
 
 ### Feature Validation
 
-- [ ] `globalConfigPath()` honors set+absolute `XDG_CONFIG_HOME`, falls back to `~/.config/stagehand/config.toml`,
+- [ ] `globalConfigPath()` honors set+absolute `XDG_CONFIG_HOME`, falls back to `~/.config/stagecoach/config.toml`,
       and ignores a relative `XDG_CONFIG_HOME` (3 sub-assertions).
 - [ ] `loadTOML` returns `(nil, nil)` for a missing file (no error); decodes a §16.2 file with
       `timeout "90s"`→`90*time.Second`, `[provider.pi]`→`cfg.Providers["pi"]`, and the `[defaults]`/
       `[generation]` scalars; returns a wrapped error on a malformed `timeout` or invalid TOML.
 - [ ] `overlay` copies ONLY non-zero scalars (TestOverlayPartial: a 2-field src leaves all other dst
       fields at their Defaults() values) and replaces provider entries key-by-key (TestOverlayProvidersKeyReplace).
-- [ ] `loadRepoLocalConfig` loads `.stagehand.toml` and emits the §19 notice iff it sets `Provider != ""`
+- [ ] `loadRepoLocalConfig` loads `.stagecoach.toml` and emits the §19 notice iff it sets `Provider != ""`
       (TestRepoProviderNotice + TestLoadRepoLocalConfig).
 - [ ] `Config` has the new `Providers map[string]map[string]any \`toml:"-"\``; S1's 12 fields/tags/
       `Defaults()` values unchanged (TestDefaults + TestTOMLMarshalKeysAndNoColorExclusion still green).
@@ -920,8 +920,8 @@ golangci-lint run ./internal/config/ 2>/dev/null || echo "golangci-lint not inst
   an import cycle. Carry providers as the raw `map[string]map[string]any`.
 - ❌ Don't tag `Providers` with a real key (e.g. `toml:"provider"`) — it clashes with `Provider string`'s tag
   and would leak into flat marshaling. Use `toml:"-"`.
-- ❌ Don't use `.stagehand/config.toml` (arch §2.8's directory) for the repo-local path — the contract and
-  PRD §16.1 say `.stagehand.toml` (a file). Use `repoLocalConfigPath() == ".stagehand.toml"`.
+- ❌ Don't use `.stagecoach/config.toml` (arch §2.8's directory) for the repo-local path — the contract and
+  PRD §16.1 say `.stagecoach.toml` (a file). Use `repoLocalConfigPath() == ".stagecoach.toml"`.
 - ❌ Don't treat `XDG_CONFIG_HOME` as authoritative when it's relative or empty — the XDG spec says ignore
   it then; guard with `filepath.IsAbs`.
 - ❌ Don't swallow a bad `timeout` silently — parse it in `loadTOML` and return a wrapped error so a

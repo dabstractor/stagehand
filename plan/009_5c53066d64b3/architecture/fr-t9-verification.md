@@ -20,7 +20,7 @@ pi's BareFlags MINUS `--no-session`, PLUS `--session-id <id>`. Full turn-1 rende
 pi --provider zai --model glm-5.2 \
    --system-prompt "<sys>" \
    --no-tools --no-extensions --no-skills --no-prompt-templates --no-context-files \
-   --session-id stagehand-<run-uuid> \
+   --session-id stagecoach-<run-uuid> \
    -p                       < <payload via stdin>
 ```
 
@@ -35,7 +35,7 @@ pi --provider zai --model glm-5.2 \
 ```
 pi --provider zai --model glm-5.2 --no-tools --no-extensions --no-skills \
    --no-prompt-templates --no-context-files \
-   --session-id stagehand-frt9-probe -p "remember the word BANANA"
+   --session-id stagecoach-frt9-probe -p "remember the word BANANA"
 ```
 → stdout: `Got it — BANANA. 🍌`
 
@@ -43,7 +43,7 @@ pi --provider zai --model glm-5.2 --no-tools --no-extensions --no-skills \
 ```
 pi --provider zai --model glm-5.2 --no-tools --no-extensions --no-skills \
    --no-prompt-templates --no-context-files \
-   --session-id stagehand-frt9-probe -p "What word did I ask you to remember? Reply with just that word."
+   --session-id stagecoach-frt9-probe -p "What word did I ask you to remember? Reply with just that word."
 ```
 → stdout: `BANANA`
 

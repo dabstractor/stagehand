@@ -17,7 +17,7 @@ description: |
 **Feature Goal**: Eliminate the provider/sub-provider conflation at the single-commit Render call site
 so that `CommitStaged` renders the **sub-provider** (`zai`, `openrouter`, …) resolved from the
 manifest's merged `DefaultProvider` (FR37a) instead of the manifest/agent name (`pi`). With the fix,
-`stagehand` (single-commit path) emits `pi --provider openrouter …` when `default_provider` is set, or
+`stagecoach` (single-commit path) emits `pi --provider openrouter …` when `default_provider` is set, or
 omits `--provider` entirely when it is not — exactly per PRD §12.2/§12.3. This is the root-cause fix
 for the Critical Issue 1 (the default provider, pi, is broken in every common configuration).
 
@@ -38,12 +38,12 @@ unchanged (stubtest default has no `DefaultProvider` → `--provider` omitted, b
 
 ## User Persona
 
-**Target User**: Every Stagehand user who configures the default provider (pi) — the most common
+**Target User**: Every Stagecoach user who configures the default provider (pi) — the most common
 configuration. Specifically: the bootstrap config (`[defaults] provider = "pi"`), `--provider pi`,
-`git config stagehand.provider pi` (PRD §15.5's recommended setup), and `STAGEHAND_PROVIDER=pi`.
+`git config stagecoach.provider pi` (PRD §15.5's recommended setup), and `STAGECOACH_PROVIDER=pi`.
 
 **Use Case**: A user sets `default_provider = "openrouter"` under `[provider.pi]` so pi routes to an
-OpenRouter backend, then runs `stagehand` to generate a commit.
+OpenRouter backend, then runs `stagecoach` to generate a commit.
 
 **Pain Points Addressed**: Today the rendered command is `pi --provider pi …` — an invalid sub-provider
 that overrides and silently ignores the user's configured `default_provider`, defeating the FR37a merge
@@ -52,7 +52,7 @@ fix that was supposed to preserve it. The fix makes the documented `--provider <
 ## Why
 
 - **Critical, default-path bug.** This breaks pi — the shipped default provider — in EVERY common
-  configuration (bootstrap, `--provider pi`, `git config stagehand.provider pi`, env). It is Issue 1,
+  configuration (bootstrap, `--provider pi`, `git config stagecoach.provider pi`, env). It is Issue 1,
   the single Critical issue in the v2.0 QA pass.
 - **Defeats an already-correct layer.** FR37a's field-merge correctly preserves `default_provider`
   across config layers into the manifest's `DefaultProvider`. That value is correct at the merge layer
@@ -133,7 +133,7 @@ root cause, the render.go-already-correct finding, and the scope boundary vs S2/
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/generate/
 │   ├── generate.go        # EDIT TARGET (CommitStaged Render call ~L192)
 │   └── generate_test.go   # EDIT TARGET (add TestCommitStaged_ResolvesSubProviderFromManifest)
@@ -148,7 +148,7 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/generate/generate.go        # Render call: cfg.Provider → ""  (+ comment)
     internal/generate/generate_test.go   # +1 test (TestCommitStaged_ResolvesSubProviderFromManifest) + 2 imports
@@ -243,7 +243,7 @@ Task 1: EDIT internal/generate/generate.go — pass "" to Render + comment
   - VERIFY: `go build ./internal/generate/` compiles.
 
 Task 2: ADD TestCommitStaged_ResolvesSubProviderFromManifest in internal/generate/generate_test.go
-  - ADD imports (if not already present): "bytes" and "github.com/dustin/stagehand/internal/ui".
+  - ADD imports (if not already present): "bytes" and "github.com/dustin/stagecoach/internal/ui".
   - NAMING: TestCommitStaged_ResolvesSubProviderFromManifest (descriptive; matches existing TestCommitStaged_* family).
   - PLACEMENT: alongside the existing TestCommitStaged_* tests.
   - BODY (reuse helpers initRepo/commitRaw/writeFile/stageFile/runGit/stubtest.Build):
@@ -367,7 +367,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S1):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l .                       # Expected: empty (run `gofmt -w internal/generate/generate.go generate_test.go` if listed)
 go vet ./internal/generate/...   # Expected: exit 0
@@ -379,7 +379,7 @@ go build ./...                   # Expected: exit 0 (render.go/merge.go/decompos
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new test (asserts the sub-provider is resolved from the manifest, not cfg.Provider)
 go test -race -run 'TestCommitStaged_ResolvesSubProviderFromManifest' ./internal/generate/ -v
@@ -394,7 +394,7 @@ go test -race ./internal/generate/ -v
 ### Level 3: Whole-Repository Regression (No Behavior Change Elsewhere)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages pass
 go vet ./...                     # Expected: exit 0
@@ -410,19 +410,19 @@ git diff --name-only -- internal/provider/render.go internal/provider/merge.go i
 
 ### Level 4: Bug-Reproduction Cross-Check (manual smoke — optional for S1)
 
-> S1 fixes the single-commit LIBRARY path. The user-visible CLI end-to-end (`stagehand --dry-run
+> S1 fixes the single-commit LIBRARY path. The user-visible CLI end-to-end (`stagecoach --dry-run
 > --verbose`) also exercises this path, but the dedicated E2E test is T2 (P1.M1.T2.S1). This smoke
 > confirms the fix holds through the real binary for the single-commit case.
 
 ```bash
-cd /home/dustin/projects/stagehand
-go build -o bin/stagehand ./cmd/stagehand && go build -o bin/stubagent ./cmd/stubagent
+cd /home/dustin/projects/stagecoach
+go build -o bin/stagecoach ./cmd/stagecoach && go build -o bin/stubagent ./cmd/stubagent
 
 # Throwaway repo + pi-shaped stub config (mirrors the PRD repro)
 cd /tmp && rm -rf repro && mkdir repro && cd repro
 git init -q && git config user.email t@t.com && git config user.name t && git commit -q --allow-empty -m init
 echo x > f.txt && git add f.txt
-SH=/home/dustin/projects/stagehand/bin/stagehand; STUB=/home/dustin/projects/stagehand/bin/stubagent
+SH=/home/dustin/projects/stagecoach/bin/stagecoach; STUB=/home/dustin/projects/stagecoach/bin/stubagent
 cat > config.toml <<EOF
 config_version = 2
 [defaults]
@@ -439,9 +439,9 @@ prompt_delivery = "stdin"
 print_flag = "-p"
 output = "raw"
 [provider.pi.env]
-STAGEHAND_STUB_OUT = "feat: repro"
+STAGECOACH_STUB_OUT = "feat: repro"
 EOF
-STAGEHAND_CONFIG=config.toml $SH --dry-run --verbose --no-color 2>&1 | grep "DEBUG: command"
+STAGECOACH_CONFIG=config.toml $SH --dry-run --verbose --no-color 2>&1 | grep "DEBUG: command"
 # Expected (after fix): contains "--provider openrouter"; does NOT contain "--provider pi".
 ```
 

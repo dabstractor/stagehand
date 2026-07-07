@@ -33,9 +33,9 @@ description: |
       NOT touch ui/* or the progress call sites (no file overlap; safe to consume its outputs).
     - internal/config/*.go — CONSUMED. config.RoleConfig{Provider,Model,Reasoning}; config.ResolveRoleModel.
     - internal/provider/{registry.go,manifest.go} — CONSUMED. NewRegistry, DecodeUserOverrides,
-      DefaultProvider, List, IsInstalled, Get (mirror pkg/stagehand.buildDeps for the generate autodetect).
-    - pkg/stagehand/stagehand.go — CONSUMED (GenerateCommit; buildDeps is the autodetect reference).
-    - All other files (git, generate, exitcode, signal, cmd/stagehand/main.go, root.go) — UNCHANGED.
+      DefaultProvider, List, IsInstalled, Get (mirror pkg/stagecoach.buildDeps for the generate autodetect).
+    - pkg/stagecoach/stagecoach.go — CONSUMED (GenerateCommit; buildDeps is the autodetect reference).
+    - All other files (git, generate, exitcode, signal, cmd/stagecoach/main.go, root.go) — UNCHANGED.
     - PRD.md, tasks.json, prd_snapshot.md, .gitignore — NEVER modify.
 
   DELIVERABLES (3 production EDITS + 3 test EDITS; 0 NEW files):
@@ -106,13 +106,13 @@ unset; (3) the decompose path surfaces the PLANNER role's resolved config on the
 
 **Target User**: the end user at the shell (the "plan-holder", §7.1) and the lazygit integrator (§15.5).
 
-**Use Case**: the user runs `stagehand` and, while generation runs, sees WHICH agent+model is actually
+**Use Case**: the user runs `stagecoach` and, while generation runs, sees WHICH agent+model is actually
 doing the work (`↳ Generating with zai/glm-5.2 in pi…`) instead of a generic `↳ Generating…`. For
 decompose, the main line names the planner; `--verbose` shows the full four-role roster so a tinkerer
 (§7.3) can confirm per-role routing before the run.
 
-**User Journey**: (1) `stagehand` → `↳ Generating with sonnet in claude…` on stderr; (2) commit lands on
-stdout; (3) `stagehand -v` (decompose) → `↳ Decomposing with … in ……` then four `DEBUG: role …` lines;
+**User Journey**: (1) `stagecoach` → `↳ Generating with sonnet in claude…` on stderr; (2) commit lands on
+stdout; (3) `stagecoach -v` (decompose) → `↳ Decomposing with … in ……` then four `DEBUG: role …` lines;
 (4) the user adjusts `--planner-model` / `--stager-model` and re-runs to see the roster change.
 
 **Pain Points Addressed**: the progress line was opaque (often just `Generating…` for the auto-detected
@@ -136,15 +136,15 @@ visible and, under `--verbose`, the whole four-role plan.
 ## What
 
 **User-visible behavior**:
-- Single-commit (`stagehand` with staged changes, or `--single`/`--all`/dry-run): stderr shows
+- Single-commit (`stagecoach` with staged changes, or `--single`/`--all`/dry-run): stderr shows
   `↳ Generating with <model> in <provider>…` (model set) or `↳ Generating with <provider>…` (model =
   provider default). The provider is the resolved one (explicit or auto-detected).
-- Decompose (`stagehand` with nothing staged + dirty tree): stderr shows
+- Decompose (`stagecoach` with nothing staged + dirty tree): stderr shows
   `↳ Decomposing with <planner-model> in <planner-provider>…`.
-- `stagehand -v` (decompose): after the main line, four `DEBUG:` lines enumerate planner/stager/message/
+- `stagecoach -v` (decompose): after the main line, four `DEBUG:` lines enumerate planner/stager/message/
   arbiter with their resolved `<model> in <provider>` (and `(reasoning: high)` on the planner).
 - Stdout is unchanged (still the commit report / dry-run message) — all progress/verbose goes to stderr
-  (FR51), preserving pipe use (`stagehand --dry-run --no-color | tee /tmp/msg.txt`).
+  (FR51), preserving pipe use (`stagecoach --dry-run --no-color | tee /tmp/msg.txt`).
 
 **Technical requirements**: a pure `ui.ProgressLabel`; a shared unexported `ui.invocation`; a
 `ui.VerboseRoles([]ui.RoleLine)` method; the generate path builds the registry + auto-detects (mirror
@@ -259,7 +259,7 @@ explained, not just named.
         {Provider, Model, Reasoning string}. So roleModels.X.Reasoning is the RESOLVED level."
   pattern: "No edit. Reasoning drives the verbose suffix only (low/medium/high ⇒ '(reasoning: <level>)')."
 
-- file: pkg/stagehand/stagehand.go   # CONSUMED (reference) — buildDeps autodetect
+- file: pkg/stagecoach/stagecoach.go   # CONSUMED (reference) — buildDeps autodetect
   why: "buildDeps computes `installed` via reg.List()+IsInstalled, then reg.DefaultProvider(installed) when
         cfg.Provider=='' — the exact logic the generate-path label must mirror so the label names the
         auto-detected provider."
@@ -317,7 +317,7 @@ internal/cmd/
 internal/decompose/roles.go # CONSUMED — ResolveRoles, RoleModels (P1.M2.T1.S2 v3 form)
 internal/config/{config.go,roles.go} # CONSUMED — RoleConfig, ResolveRoleModel
 internal/provider/registry.go        # CONSUMED — DefaultProvider/List/IsInstalled/Get/NewRegistry
-pkg/stagehand/stagehand.go           # CONSUMED (reference) — buildDeps autodetect
+pkg/stagecoach/stagecoach.go           # CONSUMED (reference) — buildDeps autodetect
 ```
 
 ### Desired Codebase tree (files this task EDITS — no new files)
@@ -464,7 +464,7 @@ Task 3: EDIT internal/cmd/default_action.go — generate label (autodetect) via 
             return exitcode.New(exitcode.Error, fmt.Errorf("provider overrides: %w", oerr))
         }
         reg := provider.NewRegistry(overrides)
-        // FR51b: resolve the message role's provider (auto-detect mirrors pkg/stagehand.buildDeps) so
+        // FR51b: resolve the message role's provider (auto-detect mirrors pkg/stagecoach.buildDeps) so
         // the label names the resolved invocation even when --provider is unset.
         labelProvider := cfg.Provider
         if labelProvider == "" {
@@ -483,7 +483,7 @@ Task 3: EDIT internal/cmd/default_action.go — generate label (autodetect) via 
             }
         }
         u.Progress(ui.ProgressLabel("Generating", cfg.Model, labelProvider))
-  - PRESERVE: the subsequent stagehand.GenerateCommit call + Options EXACTLY as-is.
+  - PRESERVE: the subsequent stagecoach.GenerateCommit call + Options EXACTLY as-is.
   - GOTCHA: do NOT add reg.IsInstalled at the CLI (buildDeps owns pre-flight). The only behavioral change
     vs the old block: (a) the label format (FR51b), (b) autodetect names the provider, (c) the
     DecodeUserOverrides error is now surfaced (was ignored).
@@ -585,7 +585,7 @@ func reasoningSuffix(level string) string {
 	return ""
 }
 
-// Generate-path autodetect (default_action.go) — mirror pkg/stagehand.buildDeps exactly:
+// Generate-path autodetect (default_action.go) — mirror pkg/stagecoach.buildDeps exactly:
 //   labelProvider := cfg.Provider
 //   if labelProvider == "" {
 //       var installed []string
@@ -662,7 +662,7 @@ go test -race ./...
 
 ```bash
 # Build + exercise the real label surface (smoke):
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 # (In a repo with staged changes + a configured provider/model, stderr shows the FR51b line.)
 # CI relies on TestProgressLabel_GenerateVisible / _DecomposeMainLineVisible / _DecomposeVerboseRoles.
 
@@ -687,7 +687,7 @@ make coverage-gate
 #   planner suffix = " (reasoning: high)" (shipped default); others no suffix; nil-safe + off ⇒ 0 bytes.
 
 # Stream invariant: Progress + VerboseRoles write to STDERR only (FR51) — stdout stays clean for piping
-# (`stagehand --dry-run --no-color | tee …`). Assert outBuf is empty of "↳"/"DEBUG:" in the cmd tests.
+# (`stagecoach --dry-run --no-color | tee …`). Assert outBuf is empty of "↳"/"DEBUG:" in the cmd tests.
 ```
 
 ## Final Validation Checklist
@@ -753,5 +753,5 @@ make coverage-gate
   (exitcode.New(Error, …)), consistent with runDecompose.
 - ❌ Don't assert commit creation in the decompose label tests — the bare stub can't run the tooled
   stager, so Decompose errors downstream; assert the label + verbose lines are EMITTED (they print first).
-- ❌ Don't touch decompose.go / config / provider / pkg/stagehand — this task is ui + cmd only. The
+- ❌ Don't touch decompose.go / config / provider / pkg/stagecoach — this task is ui + cmd only. The
   parallel P3.M2.T1.S2 owns decompose.go's one-file short-circuit (no file overlap).

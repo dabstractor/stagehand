@@ -7,7 +7,7 @@
 
 - Go toolchain: `go version go1.26.4 linux/amd64` (repo `go.mod` floor is `go 1.22`).
 - `make` → `/usr/bin/make` (GNU make). `awk` → `/usr/bin/awk` (gawk).
-- Repo module path: `module github.com/dustin/stagehand` (go.mod line 1) → `go list -m` = `github.com/dustin/stagehand`.
+- Repo module path: `module github.com/dustin/stagecoach` (go.mod line 1) → `go list -m` = `github.com/dustin/stagecoach`.
 - `.gitignore` already ignores `coverage.out` and `Makefile` is NOT gitignored (good — it's source).
 
 ## 2. Current per-package coverage of the 4 core packages (the gate's subjects)
@@ -45,10 +45,10 @@ coverprofile fields: `$1`=block id (`pkg/file.go:start.col,end.col`), `$2`=numSt
 Ran ci.yml's **exact** awk against a profile generated from ONLY the 4 packages:
 
 ```
-github.com/dustin/stagehand/internal/git        94.1%
-github.com/dustin/stagehand/internal/provider   93.6%
-github.com/dustin/stagehand/internal/generate   87.1%
-github.com/dustin/stagehand/internal/config     85.4%
+github.com/dustin/stagecoach/internal/git        94.1%
+github.com/dustin/stagecoach/internal/provider   93.6%
+github.com/dustin/stagecoach/internal/generate   87.1%
+github.com/dustin/stagecoach/internal/config     85.4%
 exit=0
 ```
 
@@ -118,7 +118,7 @@ So the recipe is copy-paste-ready for the PRP.
 - **POSIX awk only**: `sub/split/printf/exit/arrays` are POSIX → works on gawk, mawk, BSD awk (macOS),
   and Git-Bash awk (Windows). No GNU-only features (no `gawk`-specific extensions).
 - **`-v var=$(MAKE_VAR)`**: Make expands `$(COVERAGE_THRESHOLD)` and `$(MODULE)` BEFORE awk runs, so
-  `awk -v threshold=85 -v mod=github.com/dustin/stagehand`. Clean injection, no quoting issues for
+  `awk -v threshold=85 -v mod=github.com/dustin/stagecoach`. Clean injection, no quoting issues for
   these identifier-safe values.
 
 ## 8. Portability / OS matrix (PRD §20.4)

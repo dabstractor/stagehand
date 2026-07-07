@@ -20,8 +20,8 @@ func handleLockContention(stderr io.Writer, heldErr *lock.HeldError, g git.Git, 
 		// werr != nil (e.g. merge conflicts) or SHAs differ → fall through to Busy (G5).
 	}
 	fmt.Fprintf(stderr,
-		"stagehand: another stagehand run is already in progress on %s (pid %s on %s). "+
-			"Your newly-staged changes will remain staged — re-run stagehand after it finishes. Lock: %s.\n",
+		"stagecoach: another stagecoach run is already in progress on %s (pid %s on %s). "+
+			"Your newly-staged changes will remain staged — re-run stagecoach after it finishes. Lock: %s.\n",
 		heldErr.Contents.Repo, heldErr.Contents.Pid, heldErr.Contents.Hostname, heldErr.Path)
 	return exitcode.New(exitcode.Busy, nil) // exit 5, SILENT
 }
@@ -40,7 +40,7 @@ lands in the empty/partial-file window (Issue 4a's target), `parseContents` yiel
 empty Repo/Pid/Hostname the Busy line becomes:
 
 ```
-stagehand: another stagehand run is already in progress on  (pid  on ). Your newly-staged ...
+stagecoach: another stagecoach run is already in progress on  (pid  on ). Your newly-staged ...
 ```
 
 Note the DOUBLE SPACES: `on  (` (space+empty+space+paren) and `pid  on` (space+empty+space). Ugly and
@@ -76,14 +76,14 @@ Insert a fallback block between the fast-path `if` and the Busy `fmt.Fprintf`. S
 		hostname = "<unknown>"
 	}
 	fmt.Fprintf(stderr,
-		"stagehand: another stagehand run is already in progress on %s (pid %s on %s). "+
-			"Your newly-staged changes will remain staged — re-run stagehand after it finishes. Lock: %s.\n",
+		"stagecoach: another stagecoach run is already in progress on %s (pid %s on %s). "+
+			"Your newly-staged changes will remain staged — re-run stagecoach after it finishes. Lock: %s.\n",
 		repo, pid, hostname, heldErr.Path)
 	return exitcode.New(exitcode.Busy, nil) // exit 5, SILENT
 ```
 
 The guarded message with all-empty input reads:
-`"stagehand: another stagehand run is already in progress on an unknown repo (pid <unknown> on <unknown>). Your newly-staged changes will remain staged — re-run stagehand after it finishes. Lock: /x.lock."` — sensible, no double spaces.
+`"stagecoach: another stagecoach run is already in progress on an unknown repo (pid <unknown> on <unknown>). Your newly-staged changes will remain staged — re-run stagecoach after it finishes. Lock: /x.lock."` — sensible, no double spaces.
 
 ## 4. What MUST NOT change (the scope fences)
 

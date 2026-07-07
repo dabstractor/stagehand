@@ -122,7 +122,7 @@ description: |
 ## User Persona
 
 **Target User**: the decompose pipeline's orchestrator + arbiter (internal code, P3.x), and by
-extension the end user running `stagehand` on an un-staged working tree to get multiple logically-
+extension the end user running `stagecoach` on an un-staged working tree to get multiple logically-
 coherent commits. These primitives are NOT user-facing CLI flags; they are the plumbing the pipeline is
 built on.
 
@@ -714,7 +714,7 @@ FROZEN/LEAVE (do NOT edit):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/git/git.go internal/git/revparsetree_test.go internal/git/readtree_test.go
 go build ./...                 # whole module compiles (interface + 2 impls + 2 test files)
 go vet ./...
@@ -788,7 +788,7 @@ cd /; rm -rf "$T" "$(mktemp -d)"
 ### Level 4: Regression & Audit
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go build ./...                 # whole module compiles
 go test ./...                  # FULL regression
 git status --short             # Expected: EXACTLY:

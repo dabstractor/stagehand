@@ -2,7 +2,7 @@
 
 > **Purpose:** Pin the exact edits for wiring the FR3j `MeasureAssembled` closure at the 3 message-role
 > consumer call sites, checked against the live codebase on 2026-07-07. **`MeasureAssembled` field is
-> LANDED (git.go:81, S1 Complete). The 3 sites are confirmed (generate.go:208, stagehand.go:437,
+> LANDED (git.go:81, S1 Complete). The 3 sites are confirmed (generate.go:208, stagecoach.go:437,
 > exec.go:123). Prior PRP (S2) wires `closedLoopGate` into `internal/git/git.go` — NOT the consumer
 > sites → no conflict.**
 
@@ -12,8 +12,8 @@
 
 | Item | Value / Evidence |
 |---|---|
-| Module | `github.com/dustin/stagehand`, `go 1.22` |
-| Edit targets | `internal/generate/generate.go`, `pkg/stagehand/stagehand.go`, `internal/hook/exec.go` |
+| Module | `github.com/dustin/stagecoach`, `go 1.22` |
+| Edit targets | `internal/generate/generate.go`, `pkg/stagecoach/stagecoach.go`, `internal/hook/exec.go` |
 | S1 (MeasureAssembled field) | **LANDED** — git.go:81 `MeasureAssembled func(gatedDiff string) int`. |
 | S2 (closedLoopGate wiring) | Parallel — wires `closedLoopGate` into the 3 diff functions in `internal/git/git.go`. Does NOT touch the consumer call sites → **no conflict**. |
 | The 3 sites | All identical shape: `sysPrompt` built → `reserve := prompt.MessageReserveTokens(sysPrompt, ...)` → `deps.Git.StagedDiff(ctx, git.StagedDiffOptions{... PromptReserveTokens: reserve})`. |
@@ -70,7 +70,7 @@ diff, err := deps.Git.StagedDiff(ctx, git.StagedDiffOptions{         // line ~20
 Insert the closure var BETWEEN the `reserve` line and the `StagedDiff` call. Add `MeasureAssembled:
 measureAssembled,` to the literal.
 
-### 3.2 stagehand.go:437 (runPipeline)
+### 3.2 stagecoach.go:437 (runPipeline)
 ```go
 sysPrompt += "\n\n" + systemExtra                                    // line ~432
 ...
@@ -99,7 +99,7 @@ Same insertion pattern.
 ## 4. Multi-Turn Re-Capture Calls (NOT touched)
 
 Each site also has a multi-turn re-capture StagedDiff call with `TokenLimit: 0` (generate.go:349,
-stagehand.go:573, exec.go:223). Those do NOT get a `MeasureAssembled` — `TokenLimit: 0` means the gate
+stagecoach.go:573, exec.go:223). Those do NOT get a `MeasureAssembled` — `TokenLimit: 0` means the gate
 doesn't run. Only the one-shot StagedDiff calls (the ones with `TokenLimit: cfg.TokenLimit`) get the
 closure.
 

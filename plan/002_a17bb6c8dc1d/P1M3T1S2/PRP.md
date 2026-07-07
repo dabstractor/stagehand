@@ -130,7 +130,7 @@ per-role model routing + multi-commit decomposition + binary filtering — all g
 decoding correctly.
 
 **Use Case**: A user writes `[role.planner] provider = "agy"; model = "gemini-2.5-pro"` in their global
-config and `[role.planner] model = "gemini-3.5-pro"` in a repo-local `.stagehand.toml`. After S2,
+config and `[role.planner] model = "gemini-3.5-pro"` in a repo-local `.stagecoach.toml`. After S2,
 `Load()` decodes both, field-merges them (planner.provider="agy" from global survives; planner.model=
 "gemini-3.5-pro" from repo wins), and the resolved `cfg.Roles["planner"]` is `{agy, gemini-3.5-pro}` —
 exactly the FR-R3 field-merge guarantee, and the same correctness property FR37a already enforces for
@@ -619,7 +619,7 @@ func TestOverlay_V2Scalars(t *testing.T) {
 # The four agent roles — planner, stager, message, arbiter — each resolve their provider/model
 # independently. A single [defaults] (above) covers ALL roles; a [role.*] table overrides it for the
 # roles you care about. Both fields "" -> inherit [defaults]. Precedence (highest wins):
-#   flag > STAGEHAND_<ROLE>_* env > [role.*] config > [defaults] > provider manifest default.
+#   flag > STAGECOACH_<ROLE>_* env > [role.*] config > [defaults] > provider manifest default.
 #
 # [role.planner]
 # provider = "agy"
@@ -727,7 +727,7 @@ PACKAGE EDGES: NONE added. config stays a leaf (RoleConfig is plain, not Manifes
 
 DOWNSTREAM (NOT this task — S2 only POPULATES; these CONSUME):
   - P1.M3.T2 (load.go): ResolveRoleModel(role, cfg) reads cfg.Roles[role] then falls back to cfg.Provider/
-        cfg.Model. Also adds STAGEHAND_<ROLE>_* env + --<role>-* flags (which set cfg.Roles directly).
+        cfg.Model. Also adds STAGECOACH_<ROLE>_* env + --<role>-* flags (which set cfg.Roles directly).
   - P2.M1.T1 (internal/git/binary.go): merges cfg.BinaryExtensions with the built-in denylist (FR3a runtime).
   - P3.M2/M4 (decompose): reads cfg.MaxCommits (FR-M4 cap).
   - P1.M4.T1.S1 (config_version advisory): reads fileConfig.ConfigVersion at the loadTOML seam to detect

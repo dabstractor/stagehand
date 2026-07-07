@@ -75,7 +75,7 @@ Use git's env-based config injection (`GIT_CONFIG_COUNT` / `GIT_CONFIG_KEY_<n>` 
 + `git config --get`. These env vars are NEVER in the parent env (git-specific protocol), so there is no
 duplicate-key/override ambiguity, and the assertion is deterministic. `initRepo` does NOT commit, but
 `git config --get` works in a fresh/unborn repo (it reads config, independent of HEAD). If cmd.Env is NOT
-set (the bug), the child never sees GIT_CONFIG_COUNT → `git config --get stagehand.envtest` exits 1 with
+set (the bug), the child never sees GIT_CONFIG_COUNT → `git config --get stagecoach.envtest` exits 1 with
 empty output → the test fails loudly.
 
 ```go
@@ -86,9 +86,9 @@ func TestGitRunner_RunWithEnv_PassesEnv(t *testing.T) {
 	// Inject a config key via git's env-var protocol (deterministic; never in parent env).
 	out, _, code, err := g.runWithEnv(context.Background(), repo, []string{
 		"GIT_CONFIG_COUNT=1",
-		"GIT_CONFIG_KEY_0=stagehand.envtest",
+		"GIT_CONFIG_KEY_0=stagecoach.envtest",
 		"GIT_CONFIG_VALUE_0=passed-via-env",
-	}, "config", "--get", "stagehand.envtest")
+	}, "config", "--get", "stagecoach.envtest")
 	if err != nil || code != 0 {
 		t.Fatalf("runWithEnv config --get: code=%d err=%v (cmd.Env likely not set)", code, err)
 	}

@@ -70,18 +70,18 @@ blurb + link, not a reference dump.
 - The Features row contains NO `--commits` / `--single` / `[role.` / `max_commits` tokens (no per-flag /
   per-key duplication — those live in docs/cli.md + docs/configuration.md + the how-to subsection).
 - The `### Multi-commit decomposition` narrative's freeze clause is arbiter-inclusive and mentions per-file
-  + soft target; the four-role-pipeline opener, the stager-constraint sentence, and "Stagehand owns every
+  + soft target; the four-role-pipeline opener, the stager-constraint sentence, and "Stagecoach owns every
   commit via git plumbing" are byte-unchanged.
 - The hero pitch blockquote (README lines 3-5) is BYTE-UNCHANGED.
 - `git status --short` shows EXACTLY `M README.md` — no docs/ file, no `.go` file, no go.mod.
 
 ## User Persona
 
-**Target User**: a developer reading the README to decide whether Stagehand is safe to run on a busy
-working tree — the persona from PRD §7.1 ("the plan-holder") who keeps coding while stagehand runs. They
+**Target User**: a developer reading the README to decide whether Stagecoach is safe to run on a busy
+working tree — the persona from PRD §7.1 ("the plan-holder") who keeps coding while stagecoach runs. They
 skim the Features table and the decompose blurb.
 
-**Use Case**: the user has a messy working tree, is running stagehand auto-decompose, and is ALSO running
+**Use Case**: the user has a messy working tree, is running stagecoach auto-decompose, and is ALSO running
 an editor / a second coding agent / a formatter that writes files mid-run. They want to know: will that
 concurrent edit get swept into a commit? (v2.2 answer: no — never, including the arbiter's reconciliation.)
 
@@ -126,7 +126,7 @@ REPLACE the single sentence beginning "A start-of-run freeze (T_start) captures 
 front, so files you change mid-run are excluded from every commit — the run only ever commits what existed
 when it started." with a refreshed version that (a) makes the freeze arbiter-inclusive and (b) adds a
 concise per-file + soft-target clause. The preceding sentence (the four-role-pipeline opener) and the
-following sentences (the stager-constraint details; "Stagehand owns every commit via git plumbing") are
+following sentences (the stager-constraint details; "Stagecoach owns every commit via git plumbing") are
 byte-unchanged.
 
 ### Success Criteria
@@ -139,7 +139,7 @@ byte-unchanged.
       (no per-flag / per-key / per-role duplication).
 - [ ] The `### Multi-commit decomposition` narrative's freeze clause is arbiter-inclusive ("...across the
       arbiter too" or equivalent) and adds a per-file + soft-target clause; the four-role-pipeline opener,
-      the stager-constraint sentence, and "Stagehand owns every commit via git plumbing" are unchanged.
+      the stager-constraint sentence, and "Stagecoach owns every commit via git plumbing" are unchanged.
 - [ ] The hero pitch blockquote (README lines 3-5) is BYTE-UNCHANGED (verify by diff).
 - [ ] `git status --short` shows EXACTLY `M README.md` — no docs/ file, no `.go` file, no go.mod/go.sum.
 
@@ -263,7 +263,7 @@ README.md   # MODIFY — two edits:
      in docs/cli.md + docs/configuration.md AND in the `### Multi-commit decomposition` how-to subsection's
      code blocks (which STAY). The Features row is a concise blurb + link, not a reference. -->
 
-<!-- CRITICAL (hero pitch FROZEN — work item): the blockquote at README L3-5 ("> **Stagehand writes your
+<!-- CRITICAL (hero pitch FROZEN — work item): the blockquote at README L3-5 ("> **Stagecoach writes your
      commit messages...**") must be BYTE-UNCHANGED. Byte-compare before/after (diff L3-5). The L6 "v2.1
      adds..." tagline is OUT OF SCOPE (not the feature list; not requested) — leave it, even though it
      names v2.1 not v2.2. -->
@@ -356,7 +356,7 @@ Task 2: EDIT README.md — Edit B (refresh the narrative freeze sentence)
     NEW). Use an exact-text edit (the OLD sentence is unique in the file).
   - PRESERVE byte-for-byte: the preceding "With a dirty working tree ... planner → stager → message →
     arbiter). Each concept becomes its own commit." opener AND the following "The stager is constrained to
-    staging operations: ... Either way, Stagehand owns every commit via git plumbing." sentence.
+    staging operations: ... Either way, Stagecoach owns every commit via git plumbing." sentence.
   - VERIFY: the em-dash "—" and the arrows "→" in the preserved opener are intact (UTF-8); the backticks
     around `T_start` / git commands are intact.
 
@@ -397,7 +397,7 @@ BUILD/TEST: none — docs-only edit; zero Go code change. `go build`/`go test` a
 ### Level 1: Markdown Integrity (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # 1a. Hero pitch BYTE-UNCHANGED: the diff must show NO hunk on the blockquote (README L3-5).
 git diff README.md                       # eyeball: only the new Features row + the refreshed sentence.

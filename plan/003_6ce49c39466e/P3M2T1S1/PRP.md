@@ -93,7 +93,7 @@ guard). The orchestrator owns the freeze boundary, not the stager.
 
 ## User Persona
 
-**Target User**: the end user running `stagehand` on an un-staged working tree while another tool (an
+**Target User**: the end user running `stagecoach` on an un-staged working tree while another tool (an
 editor auto-save, a concurrent coding agent) may also be writing files. The freeze enforcement is NOT a
 user-facing flag; it is an internal safety guarantee (defense-in-depth, PRD §9.14 FR-M1c).
 
@@ -104,7 +104,7 @@ enforcement, that content would land in a commit the user never intended. The gu
 freeze boundary (right after `tree[i]` is materialized) and aborts cleanly BEFORE any commit containing it.
 
 **Pain Points Addressed**: the v2 decompose trust hole — the external stager mutates the index, and
-stagehand cannot assume it honors `T_start`. The HEAD-movement guard (ErrStagerMovedHEAD) already catches
+stagecoach cannot assume it honors `T_start`. The HEAD-movement guard (ErrStagerMovedHEAD) already catches
 ref mutations; THIS guard catches INDEX/CONTENT violations (the stager staged a path or blob not in
 T_start). Together they make the external stager fully untrusted on both axes (refs + content), closing
 the §22.1 "Stager mutates the working tree/index" risk to a clean abort.
@@ -112,8 +112,8 @@ the §22.1 "Stager mutates the working tree/index" risk to a clean abort.
 ## Why
 
 - **Closes the enforcement half of PRD §13.6.1 FR-M1c / §9.14 FR-M1c.** FR-M1c: "After each staging step,
-  stagehand verifies the resulting tree is a subset of T_start — only paths present in T_start, with
-  T_start's content. Any staged path or content not traceable to T_start ... is a hard error: stagehand
+  stagecoach verifies the resulting tree is a subset of T_start — only paths present in T_start, with
+  T_start's content. Any staged path or content not traceable to T_start ... is a hard error: stagecoach
   aborts the run (non-rescue; already-landed commits stand, per FR-M12) rather than letting a concurrent
   change into a commit. The orchestrator owns the freeze boundary, not the stager." This task is the
   literal enforcement. P3.M1.T1.S2 captured T_start + froze the diff INPUTS; THIS task verifies every
@@ -294,7 +294,7 @@ exist; T_start is already threaded (P3.M1.T1.S2 on disk). No external research n
        call git.New(repo) directly to set up baseTree/tStart/treeI.
 
 # MUST READ — the PRD spec (authoritative requirements)
-- url: PRD.md §9.14 FR-M1c (the freeze-enforcement contract: "after each staging step, stagehand verifies
+- url: PRD.md §9.14 FR-M1c (the freeze-enforcement contract: "after each staging step, stagecoach verifies
        the resulting tree is a subset of T_start ... hard error ... non-rescue; already-landed commits
        stand ... The orchestrator owns the freeze boundary, not the stager — mirroring the HEAD-movement
        guard (§19)").
@@ -400,7 +400,7 @@ internal/decompose/decompose_test.go  # MODIFIED — +TestDecompose_StagerFreeze
 
 // GOTCHA (arbiter staging is OUT OF SCOPE — findings §8): the contract (point 3) scopes THIS task to the
 //   per-concept LOOP (invokeStagerRetry → freezeSnapshot → tree[i]) — the EXTERNAL tooled stager (the trust
-//   boundary FR-M1c names). The arbiter is BARE (stagehand owns its git: chain.go AddAll/Add). Its AddAll
+//   boundary FR-M1c names). The arbiter is BARE (stagecoach owns its git: chain.go AddAll/Add). Its AddAll
 //   COULD sweep a concurrent change, but closing that means staging from T_start (a chain.go change) — NOT
 //   this task. Document this as a conscious scoping decision. Under the no-concurrent-change invariant
 //   (the common case) the arbiter's AddAll already yields a T_start subset.

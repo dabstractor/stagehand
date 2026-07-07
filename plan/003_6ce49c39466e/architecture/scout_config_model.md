@@ -41,10 +41,10 @@ type RoleConfig struct {
 | `materialize` file→typed | `internal/config/file.go:202-208` | `c.Roles[role] = RoleConfig{Provider: frc.Provider, Model: frc.Model}` — **add `Reasoning: frc.Reasoning`** |
 | `overlay` role field-merge | `internal/config/file.go:284-296` | per-role field-merge; **add a `Reasoning != ""` branch** |
 | `setRoleProvider` (env/flag) | `internal/config/load.go:33-40` | sets `.Provider` only |
-| `setRoleModel` (env/flag) | `internal/config/load.go:45-52` | sets `.Model` only — **add `setRoleReasoning` (or extend) for `STAGEHAND_<ROLE>_REASONING` + `--<role>-reasoning`** |
+| `setRoleModel` (env/flag) | `internal/config/load.go:45-52` | sets `.Model` only — **add `setRoleReasoning` (or extend) for `STAGECOACH_<ROLE>_REASONING` + `--<role>-reasoning`** |
 | decompose `setRole` | `internal/decompose/roles.go:193-204` | `rc := config.RoleConfig{Provider: prov, Model: mdl}` — **add reasoning from `ResolveRoleModel`** |
 | decompose `RoleModels` | `internal/decompose/roles.go:38-47` | `RoleModels{Planner,Stager,Message,Arbiter config.RoleConfig}` — carries the resolved per-role config |
-| pkg stagehand overrides | `pkg/stagehand/stagehand.go:263-279` (`applyRoleOverride`) | programmatic RoleModel→cfg.Roles; takes a `RoleModel{Provider,Model}` — **extend `RoleModel`** |
+| pkg stagecoach overrides | `pkg/stagecoach/stagecoach.go:263-279` (`applyRoleOverride`) | programmatic RoleModel→cfg.Roles; takes a `RoleModel{Provider,Model}` — **extend `RoleModel`** |
 
 ---
 
@@ -63,7 +63,7 @@ Returns ONLY `(provider, model)`. **For `reasoning`** this signature must change
 - `internal/decompose/stager.go:78` — `_, mdl := config.ResolveRoleModel("stager", deps.Config)`
 - `internal/decompose/roles.go:96` — `prov, mdl := config.ResolveRoleModel(role, cfg)` (the `ResolveRoles` loop, the authoritative 4-role resolver)
 
-**Single-commit path** (`pkg/stagehand`, `internal/cmd/default_action.go`) does NOT call `ResolveRoleModel` — it reads `cfg.Model`/`cfg.Provider` directly via `buildDeps`. So a global `reasoning` default must be read there too.
+**Single-commit path** (`pkg/stagecoach`, `internal/cmd/default_action.go`) does NOT call `ResolveRoleModel` — it reads `cfg.Model`/`cfg.Provider` directly via `buildDeps`. So a global `reasoning` default must be read there too.
 
 Each decompose caller then calls `deps.Roles.<Role>.Render(mdl, "", sysPrompt, payload, mode)` — note Render is called with `provider=""` (FR-R5b: the manifest's `default_provider` supplies the inference backend). **This is exactly what changes in v3** (the slash-prefix on model replaces `default_provider`).
 
@@ -129,7 +129,7 @@ Config does NOT have a typed `default_provider` field — it flows as **raw `any
 - Field-merge across layers: `file.go:266-278`.
 - Bridge to typed Manifest: **`provider.DecodeUserOverrides`** (`internal/provider/registry.go:147-167`) — re-encodes each `map[string]any` to TOML, unmarshals into `Manifest` (which has `DefaultProvider *string \`toml:"default_provider"\``, `internal/provider/manifest.go:59`).
 - Callers of `DecodeUserOverrides(cfg.Providers)`:
-  - `pkg/stagehand/stagehand.go:183`, `:311`
+  - `pkg/stagecoach/stagecoach.go:183`, `:311`
   - `internal/cmd/default_action.go:131`, `:271`
   - `internal/cmd/providers.go:114` (`raw = cfg.Providers`)
 - Registry merge: `provider.NewRegistry` (`registry.go:46-65`) + `MergeManifest` (`merge.go:56-60` — `DefaultProvider` field-merge).
@@ -176,9 +176,9 @@ Reference TOML files carrying `default_provider`: `providers/pi.toml:52` (`defau
 `roleNames` — `load.go:14`: `[]string{"planner", "stager", "message", "arbiter"}` (loop target for env+flag per-role).
 
 **Env (`loadEnv`, `load.go:157-202`):**
-- `STAGEHAND_PROVIDER` (L161), `STAGEHAND_MODEL` (L165), `STAGEHAND_TIMEOUT` (L169), `STAGEHAND_VERBOSE` (L177), `STAGEHAND_NO_COLOR` (L185).
-- Per-role loop `loadEnv:190-194`: `STAGEHAND_<ROLE>_PROVIDER` → `setRoleProvider`; `STAGEHAND_<ROLE>_MODEL` → `setRoleModel`. **Add `STAGEHAND_<ROLE>_REASONING` → `setRoleReasoning` here.**
-- `STAGEHAND_COMMITS` (L199-203).
+- `STAGECOACH_PROVIDER` (L161), `STAGECOACH_MODEL` (L165), `STAGECOACH_TIMEOUT` (L169), `STAGECOACH_VERBOSE` (L177), `STAGECOACH_NO_COLOR` (L185).
+- Per-role loop `loadEnv:190-194`: `STAGECOACH_<ROLE>_PROVIDER` → `setRoleProvider`; `STAGECOACH_<ROLE>_MODEL` → `setRoleModel`. **Add `STAGECOACH_<ROLE>_REASONING` → `setRoleReasoning` here.**
+- `STAGECOACH_COMMITS` (L199-203).
 
 **Flags (`loadFlags`, `load.go:210-262`):**
 - `provider` (L213), `model` (L219), `timeout` (L225), `verbose` (L233), `no-color` (L239).
@@ -198,9 +198,9 @@ Reference TOML files carrying `default_provider`: `providers/pi.toml:52` (`defau
 Defaults() ─┐
             ├─ Load() [load.go] ─► fully-resolved *Config
 [global TOML]─loadTOML─materialize─overlay ─┐
-[repo .stagehand.toml]──────────────────────┤
-[git config stagehand.*]────────────────────┤   (all via overlay: non-zero field-merge)
-[STAGEHAND_* env]───────────────────────────┤   (DIRECT set: bools can be false)
+[repo .stagecoach.toml]──────────────────────┤
+[git config stagecoach.*]────────────────────┤   (all via overlay: non-zero field-merge)
+[STAGECOACH_* env]───────────────────────────┤   (DIRECT set: bools can be false)
 [--flags (fs.Changed only)]─────────────────┘
 
 Config.Providers (raw map) ─► provider.DecodeUserOverrides ─► NewRegistry (MergeManifest)

@@ -99,22 +99,22 @@ byte/line-cap tests pass UNCHANGED at `token_limit==0` (byte-identical legacy); 
 payload exceeding `token_limit` is water-filled (small file WHOLE — no `... [truncated]` — large file CAPPED
 with the sentinel, skeleton present, total ≤ token_limit + reserve + margin); (c) the e2e test (temp repo, one
 huge + one small file) shows the small file whole and the large capped. `make build` then a real repo with
-`token_limit` set in `.stagehand.toml` produces a water-filled payload; without `token_limit` the output is
+`token_limit` set in `.stagecoach.toml` produces a water-filled payload; without `token_limit` the output is
 byte-identical to pre-M4. `go vet ./...` clean; `gofmt -l` empty; go.mod/go.sum unchanged; only the 4 files.
 
 ## User Persona
 
 **Target User**: A user whose diff exceeds their model's context window — they set `token_limit` (e.g.
-`120000`) so stagehand shrinks the diff to fit, fairly (every file represented via the skeleton; small files
-whole; large files capped at a shared water level with a visible `... [truncated]` marker), without stagehand
+`120000`) so stagecoach shrinks the diff to fit, fairly (every file represented via the skeleton; small files
+whole; large files capped at a shared water level with a visible `... [truncated]` marker), without stagecoach
 maintaining a per-model context registry (FR3d). Transitively: users who DON'T set `token_limit` get the
 exact pre-M4 behavior (no change).
 
-**Use Case**: `token_limit = 120000` in `.stagehand.toml` + a large multi-file change → the diff fits the
+**Use Case**: `token_limit = 120000` in `.stagecoach.toml` + a large multi-file change → the diff fits the
 budget; a 2-line `README.md` tweak appears whole; a 9000-line generated file is capped at the water level L
 with `... [truncated]`. Without `token_limit`, the legacy 300000-byte / 100-line caps apply exactly as before.
 
-**User Journey**: set `token_limit` → run stagehand → the payload fits the model → generation succeeds
+**User Journey**: set `token_limit` → run stagecoach → the payload fits the model → generation succeeds
 (no truncation failure / OOM). The `... [truncated]` markers tell the model WHICH files are partial (honesty);
 the skeleton tells it EVERY file that changed (completeness). Unset `token_limit` → identical to before.
 
@@ -704,16 +704,16 @@ make build
 T=$(mktemp -d); cd "$T"; git init -q .; git config user.email t@t.co; git config user.name t
 git commit -q --allow-empty -m base
 python3 -c "print('x\n'*200000)" > big.txt; git add big.txt
-HOME="$T" XDG_CONFIG_HOME="$T" ../../bin/stagehand --dry-run --no-color 2>/dev/null 1>msg.txt
+HOME="$T" XDG_CONFIG_HOME="$T" ../../bin/stagecoach --dry-run --no-color 2>/dev/null 1>msg.txt
 grep -q 'diff truncated at' msg.txt && echo "PASS: ==0 legacy byte-cap sentinel present" || echo "FAIL"
 # Expected: the `... [diff truncated at N bytes]` sentinel IS present (byte-identical legacy).
 
 # --- >0 water-fill: token_limit set ⇒ big file capped (short sentinel), skeleton present, no legacy sentinel ---
-cat > "$T/.stagehand.toml" <<'EOF'
+cat > "$T/.stagecoach.toml" <<'EOF'
 [generation]
 token_limit = 4000
 EOF
-HOME="$T" XDG_CONFIG_HOME="$T" ../../bin/stagehand --dry-run --no-color 2>/dev/null 1>msg2.txt
+HOME="$T" XDG_CONFIG_HOME="$T" ../../bin/stagecoach --dry-run --no-color 2>/dev/null 1>msg2.txt
 grep -q '\.\.\. \[truncated\]'       msg2.txt && echo "PASS: >0 water-fill sentinel present"
 grep -q 'Change summary (numstat'    msg2.txt && echo "PASS: FR3g skeleton present"
 ! grep -q 'diff truncated at'        msg2.txt && echo "PASS: legacy 'at N bytes' sentinel ABSENT on >0"
@@ -721,7 +721,7 @@ grep -q 'Change summary (numstat'    msg2.txt && echo "PASS: FR3g skeleton prese
 
 # --- >0 fairness: a tiny file alongside the huge one ⇒ tiny file WHOLE ---
 echo "tiny tweak" > small.txt; git add small.txt
-HOME="$T" XDG_CONFIG_HOME="$T" ../../bin/stagehand --dry-run --no-color 2>/dev/null 1>msg3.txt
+HOME="$T" XDG_CONFIG_HOME="$T" ../../bin/stagecoach --dry-run --no-color 2>/dev/null 1>msg3.txt
 grep -q 'tiny tweak' msg3.txt && echo "PASS: small file body WHOLE under water-fill"
 grep -q '\.\.\. \[truncated\]' msg3.txt && echo "PASS: large file still capped"
 # Expected: the small file's content survives; the large file carries the truncated sentinel.

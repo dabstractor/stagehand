@@ -132,7 +132,7 @@ then `MergeManifest(builtin, userOverride)` (S2 merge) to overlay any `[provider
 config, then `Validate()` + `Resolve()` before handing the manifest to the renderer/executor/parser.
 Transitively every user story routed through "call an agent" (US) and FR36/FR37 (provider management).
 
-**Use Case**: A user runs `stagehand` with zero config and has `codex` (or `agent`/cursor) installed. The
+**Use Case**: A user runs `stagecoach` with zero config and has `codex` (or `agent`/cursor) installed. The
 registry has no `[provider.*]` override, so `BuiltinManifests()["codex"]` IS the resolved codex manifest;
 the renderer turns it into `codex exec -m <model> --sandbox read-only --ephemeral` (payload piped to stdin
 via `-`); the executor runs it; the parser cleans stdout. This subtask is what makes "zero config" work
@@ -340,7 +340,7 @@ inline in both the literals and the tests.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; go-toml/v2 v2.4.2 + pflag  (UNCHANGED by this subtask)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; go-toml/v2 v2.4.2 + pflag  (UNCHANGED by this subtask)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — FROZEN, do NOT touch; do NOT import from provider
@@ -352,7 +352,7 @@ internal/
     merge_test.go               # S2(merge) — tests  (do NOT edit)
     builtin.go                  # S1(builtin) created this; S2 extended to pi+claude+gemini+opencode (4). THIS subtask MODIFIES it (+codex +cursor → 6)
     builtin_test.go             # S1(builtin) created; S2 extended to 12 tests. THIS subtask MODIFIES it (+4 tests, update 2)
-cmd/stagehand/main.go           # `package main; func main(){}` stub — untouched
+cmd/stagecoach/main.go           # `package main; func main(){}` stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -844,7 +844,7 @@ FROZEN FILES (do NOT edit):
         are a CONTRACT. This subtask MODIFIES builtin.go/builtin_test.go ONLY.
   - internal/provider/merge.go + merge_test.go (S2 merge): MergeManifest. This subtask does NOT depend on
         it; do NOT edit it.
-  - internal/config/* (P1.M1.T4), internal/git/* (P1.M1.T2/T3), cmd/stagehand/main.go, Makefile.
+  - internal/config/* (P1.M1.T4), internal/git/* (P1.M1.T2/T3), cmd/stagecoach/main.go, Makefile.
 
 DOWNSTREAM CONTRACTS (do NOT implement here — just honor the shapes they will consume):
   - P1.M2.T3 (registry): `builtins := BuiltinManifests(); base := builtins["codex"]` (or "cursor");
@@ -907,7 +907,7 @@ go test -race ./...
 
 ```bash
 # Build + scope checks:
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"   # main.go stub still links.
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"   # main.go stub still links.
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum unchanged"
 # Confirm this subtask touched ONLY the two builtin*.go files:
 git diff --exit-code -- internal/config internal/git cmd Makefile internal/provider/manifest.go internal/provider/manifest_test.go internal/provider/merge.go internal/provider/merge_test.go && echo "frozen + S1(manifest) + S2(merge) files UNCHANGED by this subtask"

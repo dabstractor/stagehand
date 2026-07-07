@@ -44,7 +44,7 @@ description: |
       UNCHANGED.
     - internal/decompose/{planner,stager,message,arbiter,chain,decompose}.go — DO NOT EXIST YET. This
       task creates ONLY roles.go (+ roles_test.go). P3.M2.T2/T3/T4 + P3.M3.* + P3.M4.* own the rest.
-    - pkg/stagehand — UNCHANGED (the public Decompose API is P4.M2.T1.S1).
+    - pkg/stagecoach — UNCHANGED (the public Decompose API is P4.M2.T1.S1).
 
   DELIVERABLES (3 new files, 1 tiny additive method, 0 breaking changes):
     CREATE internal/decompose/roles.go — package `decompose`; package doc; the 3 structs (RoleManifests,
@@ -75,7 +75,7 @@ role's provider+model via `config.ResolveRoleModel`, validating + IsInstalled-ch
 applying the stager TooledFlags fallback (FR-D4 — a TooledFlags-less stager provider falls back to the
 next-priority installed provider that CAN stage), and surfacing the FR-R5b misconfiguration (a model set
 with no provider on a multi-provider agent). It is the 4-role generalization of v1's
-`pkg/stagehand.buildDeps` (one role: message).
+`pkg/stagecoach.buildDeps` (one role: message).
 
 **Deliverable** (2 new files in a new package + 1 tiny additive method):
 1. `internal/decompose/roles.go` (package `decompose`) — `RoleManifests` struct (4 Manifests),
@@ -107,7 +107,7 @@ with no provider on a multi-provider agent). It is the 4-role generalization of 
 ## User Persona
 
 **Target User**: the decompose orchestrator (`internal/decompose/decompose.go`, P3.M4.T1.S1) and, by
-extension, the end user running `stagehand` on an un-staged working tree to get N logically-coherent
+extension, the end user running `stagecoach` on an un-staged working tree to get N logically-coherent
 commits. roles.go is internal plumbing — NOT user-facing CLI text. The user configures per-role
 provider/model (`--planner-model`, `[role.stager].provider`, …) or relies on the config-init defaults;
 ResolveRoles is the layer that turns that config into concrete, validated, install-checked manifests.
@@ -134,8 +134,8 @@ it as a config error.
   (7-layer precedence done by the loaders) and the `provider.Manifest`s the decompose loop consumes.
   With it, the decompose pipeline has its Deps builder; P3.M2.T2/T3/T4 (planner/stager/message) can
   assume a validated, install-checked set of role manifests.
-- **Generalizes the proven v1 pattern (buildDeps → ResolveRoles).** `pkg/stagehand.buildDeps`
-  (stagehand.go) already does this for ONE role (message): overrides→registry→auto-detect→Get→Validate→
+- **Generalizes the proven v1 pattern (buildDeps → ResolveRoles).** `pkg/stagecoach.buildDeps`
+  (stagecoach.go) already does this for ONE role (message): overrides→registry→auto-detect→Get→Validate→
   IsInstalled→error-wrapping. ResolveRoles is the same algorithm × 4 roles, plus the stager fallback and
   the FR-R5b guard — no new architectural concept. The installed computation, the auto-detect path, and
   the error wording SHOULD mirror buildDeps for cohesion (findings §7).
@@ -243,7 +243,7 @@ is fully self-contained at the resolution layer.
             Render's job).
 
 # MUST READ — the CLOSEST PATTERN: buildDeps (the 1-role analog to mirror for cohesion)
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   section: buildDeps(cfg, repoDir) (generate.Deps, error) — the v1 single-commit manifest resolver.
            Steps: DecodeUserOverrides(cfg.Providers) → NewRegistry(overrides); name:=cfg.Provider;
            if name=="" compute installed (reg.List+IsInstalled) → reg.DefaultProvider(installed);
@@ -369,8 +369,8 @@ internal/provider/
   merge.go             # READ (test determinism): override merge regimes (scalar/slice/env).
   builtin.go           # READ (ground truth): only pi+claude have TooledFlags; only pi has ProviderFlag.
   render.go            # READ (understanding): RenderBare/RenderTooled; ProviderFlag governs --provider.
-pkg/stagehand/
-  stagehand.go         # READ (CLOSEST PATTERN): buildDeps — the 1-role analog to mirror (cohesion).
+pkg/stagecoach/
+  stagecoach.go         # READ (CLOSEST PATTERN): buildDeps — the 1-role analog to mirror (cohesion).
 internal/git/git.go    # READ (TYPE only): the Git interface (Deps.Git). UNCHANGED.
 internal/ui/verbose.go # READ (TYPE only): the Verbose struct (Deps.Verbose). UNCHANGED.
 internal/decompose/    # DOES NOT EXIST YET — THIS TASK CREATES IT (roles.go + roles_test.go).
@@ -395,7 +395,7 @@ internal/decompose/roles_test.go     # NEW — ResolveRoles table + edge cases (
 internal/provider/registry.go        # ADD func (r *Registry) FirstTooledProvider(installed []string) string
                                      #   (additive — DefaultProvider twin filtering on non-empty TooledFlags).
                                      #   NO existing signature changes.
-# go.mod/go.sum UNCHANGED. config/provider/git/ui/cmd/stagehand/pkg/stagehand all UNCHANGED (except the 1 additive method).
+# go.mod/go.sum UNCHANGED. config/provider/git/ui/cmd/stagecoach/pkg/stagecoach all UNCHANGED (except the 1 additive method).
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -545,7 +545,7 @@ Task 2: CREATE internal/decompose/roles.go — package doc + the 3 structs (Role
 Task 3: CREATE internal/decompose/roles.go — private helpers (computeInstalled, isMultiProvider)
   - DEFINE `func computeInstalled(reg *provider.Registry) []string`: `var installed []string; for _, m :=
     range reg.List() { if reg.IsInstalled(m) { installed = append(installed, m.Name) } }; return installed`.
-    Doc: mirrors pkg/stagehand.buildDeps's installed computation; computed ONCE per ResolveRoles call
+    Doc: mirrors pkg/stagecoach.buildDeps's installed computation; computed ONCE per ResolveRoles call
     (shared by all 4 roles + FirstTooledProvider).
   - DEFINE `func isMultiProvider(m provider.Manifest) bool { return m.ProviderFlag != nil && *m.ProviderFlag
     != "" }`. Doc: cite FR-R5b + findings §6 — the ProviderFlag signal (only pi today); explain WHY
@@ -587,7 +587,7 @@ Task 4: CREATE internal/decompose/roles.go — ResolveRoles(cfg, reg) (RoleManif
           if bareModelNoProvider && isMultiProvider(m) {
               return RoleManifests{}, RoleModels{}, fmt.Errorf(
                   "role %q: model %q is set without a provider; %q is a multi-provider agent and needs an "+
-                  "explicit provider so the model is routed correctly (set stagehand.provider or --%s-provider)",
+                  "explicit provider so the model is routed correctly (set stagecoach.provider or --%s-provider)",
                   role, mdl, prov, role)
           }
           // FR-D4 stager fallback: a TooledFlags-less stager cannot stage → fall back to a capable one.
@@ -620,12 +620,12 @@ Task 4: CREATE internal/decompose/roles.go — ResolveRoles(cfg, reg) (RoleManif
     the role name is the new diagnostic dimension for the 4-role path). Return zero-value structs on error.
   - DOC COMMENT: cite PRD §13.6.2/§9.15/§9.16; diagram the per-role pipeline (ResolveRoleModel →
     DefaultProvider → Get → Validate → IsInstalled → FR-R5b → stager fallback → store); note it is the
-    4-role generalization of pkg/stagehand.buildDeps; note the merged-but-unresolved manifest (Render
+    4-role generalization of pkg/stagecoach.buildDeps; note the merged-but-unresolved manifest (Render
     Resolves); note the stager fallback switches provider+model; note FR-R5b's narrow non-breaking scope.
 
 Task 5: CREATE internal/decompose/roles_test.go — table + edge-case tests
-  - IMPORTS: "fmt"; "strings"; "testing"; "github.com/dustin/stagehand/internal/config";
-    "github.com/dustin/stagehand/internal/provider". Package: `decompose` (internal test — unexported
+  - IMPORTS: "fmt"; "strings"; "testing"; "github.com/dustin/stagecoach/internal/config";
+    "github.com/dustin/stagecoach/internal/provider". Package: `decompose` (internal test — unexported
     computeInstalled/isMultiProvider visible).
   - ADD a local `strPtr`/`boolPtr` helper (provider.strPtr is unexported — different package) OR use the
     `cmd := "go"; &cmd` inline form (stubtest.go precedent).
@@ -767,7 +767,7 @@ PROVIDER (ADDITIVE METHOD):
 
 CONSUMER (NOT THIS TASK — P3.M4.T1.S1):
   - the decompose orchestrator calls ResolveRoles(cfg, reg) to build Deps; retains RoleModels for Render.
-  - NO caller wiring in this task (do NOT touch cmd/ or pkg/stagehand/).
+  - NO caller wiring in this task (do NOT touch cmd/ or pkg/stagecoach/).
 
 NO DATABASE / NO CONFIG-FILE / NO ROUTE changes. go.mod/go.sum UNCHANGED.
 ```
@@ -886,7 +886,7 @@ rg -n 'type Deps struct' -A 6 internal/decompose/roles.go
 - ❌ Don't change any existing provider.Registry signature — FirstTooledProvider is ADDITIVE only.
 - ❌ Don't rely on pi/claude being on $PATH in tests — override Command/Detect to "go" (deterministic).
 - ❌ Don't use reflection to assign role fields — a 4-case switch is clearer, faster, and vet-friendly.
-- ❌ Don't wire the orchestrator (cmd/, pkg/stagehand/) — this task ONLY builds Deps; P3.M4.T1.S1 consumes it.
+- ❌ Don't wire the orchestrator (cmd/, pkg/stagecoach/) — this task ONLY builds Deps; P3.M4.T1.S1 consumes it.
 - ❌ Don't swallow errors (errcheck is on) — check every Get `ok`, Validate error, etc.; wrap with the role name.
 
 ---

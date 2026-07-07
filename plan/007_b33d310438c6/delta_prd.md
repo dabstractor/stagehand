@@ -36,7 +36,7 @@
 ### Out of scope (do not build)
 - Any change to commit / rescue / CAS / lock logic (§13.1–§13.5, §18.5). This delta only reshapes the *payload string* handed to the agent.
 - Copy detection `-C` (explicitly rejected by FR3e — O(files²), negligible value).
-- A per-model context-window registry. FR3d is model-agnostic **by design** — the user sets `token_limit` to their model's window; stagehand keeps no registry.
+- A per-model context-window registry. FR3d is model-agnostic **by design** — the user sets `token_limit` to their model's window; stagecoach keeps no registry.
 - Re-partitioning the legacy per-section caps. They stay byte-for-byte; they're simply bypassed when `token_limit != 0`.
 
 ### Modification of completed work (note for implementer)
@@ -52,7 +52,7 @@ The new FRs plug into the **already-implemented** diff capture in `internal/git/
 |---|---|---|
 | **Diff capture (3 paths, FR3c parity)** | `internal/git/git.go` | `StagedDiff` (L642), `TreeDiff` (L1094, decompose concept diff), `WorkingTreeDiff` (L1228, decompose T_start snapshot). All three build a `git diff` argv and apply post-capture caps. **All three get `-M`/`-U<diff_context>` flags, index-line stripping, and the skeleton prepend.** The water-fill truncation applies wherever the legacy `defaultMaxDiffBytes` byte-cap currently fires. |
 | **`StagedDiffOptions`** | `internal/git/git.go` L36 | The shared options struct threaded through all three diff paths. **Add `TokenLimit int` and `DiffContext int` here** so every path receives them from one place. |
-| **Config fields** | `internal/config/config.go` L77–78 (next to `MaxDiffBytes`/`MaxMdLines`) | **Add `TokenLimit int` and `DiffContext int`** in the `[generation]` block. Wire `Defaults()` (L168) + the TOML loaders (`internal/config/file.go` L210–214, `312–316`) + the git-config resolver (`internal/config/git.go` L184–191) for `stagehand.tokenLimit` / `stagehand.diffContext`. |
+| **Config fields** | `internal/config/config.go` L77–78 (next to `MaxDiffBytes`/`MaxMdLines`) | **Add `TokenLimit int` and `DiffContext int`** in the `[generation]` block. Wire `Defaults()` (L168) + the TOML loaders (`internal/config/file.go` L210–214, `312–316`) + the git-config resolver (`internal/config/git.go` L184–191) for `stagecoach.tokenLimit` / `stagecoach.diffContext`. |
 | **Config init template** | `internal/config/bootstrap.go` L282–289 (`generationCommented`) | **Add `token_limit` + `diff_context` to the commented `[generation]` section**, annotate legacy caps as "ignored when token_limit is set (FR3d)". |
 | **Where the payload is composed** | `internal/generate/generate.go` L162–216 + `internal/prompt/payload.go` | The diff string from `StagedDiff` flows into `prompt.BuildUserPayload(diff, ...)`. **FR3d's budget is holistic (prompt + examples + diff)**, so the truncation decision needs the prompt/example sizes too — the cleanest seam is to compute the budget inside the git layer using a *measured* prompt+example size passed down (or to truncate the diff against a reserve and let the prompt layer assert it fits). The implementer picks the lower-coupling option; the git layer already owns the diff body so water-fill naturally lives there, with the prompt+example+margin reserve threaded in. |
 
@@ -73,7 +73,7 @@ A single cohesive phase. The natural split is **always-on optimizations** (small
 Unconditional improvements applied in every diff path (`StagedDiff` + `TreeDiff` + `WorkingTreeDiff`, FR3c parity). No config-gated behavior — they just make every payload smaller and more complete.
 
 **Task P1.M1.T1 — Add `-M`, `-U<diff_context>`, and `diff_context` config (FR3e, FR3f).**
-- Add `DiffContext int` to `StagedDiffOptions` and to `Config` (`[generation]`); default `1` (FR3f), range `0`–`3` (clamp/validate at Load). Resolve through the standard 5-layer precedence including git-config key `stagehand.diffContext`.
+- Add `DiffContext int` to `StagedDiffOptions` and to `Config` (`[generation]`); default `1` (FR3f), range `0`–`3` (clamp/validate at Load). Resolve through the standard 5-layer precedence including git-config key `stagecoach.diffContext`.
 - Pass `-M` (FR3e) on every `git diff` argv in all three paths (deterministic renames; no `-C`).
 - Pass `-U<diff_context>` (FR3f) on every `git diff` argv; clamp `diff_context` into `0`–`3` before use.
 - **Docs (Mode A, ride with this task):** `internal/config/bootstrap.go` `generationCommented` (add `diff_context`); `docs/configuration.md` File-format example + Built-in defaults table + a one-line note that reduced context is the default. Field comments in `config.go`.
@@ -92,7 +92,7 @@ Unconditional improvements applied in every diff path (`StagedDiff` + `TreeDiff`
 The opt-in holistic budget. Activated only when `token_limit > 0`; otherwise the M1/legacy path runs byte-for-byte. **Depends on P1.M1.T2** (FR3i sizes off the FR3g numstat skeleton — "one `git` call, dual-use").
 
 **Task P1.M2.T1 — `token_limit` config + mutual-exclusivity (FR3d).**
-- Add `TokenLimit int` to `StagedDiffOptions` and to `Config` (`[generation]`); default `0` (unset ⇒ legacy caps). Resolve through the 5-layer precedence including git-config key `stagehand.tokenLimit`.
+- Add `TokenLimit int` to `StagedDiffOptions` and to `Config` (`[generation]`); default `0` (unset ⇒ legacy caps). Resolve through the 5-layer precedence including git-config key `stagecoach.tokenLimit`.
 - Document + enforce the mutual-exclusivity contract: a non-zero `token_limit` **supersedes** `max_diff_bytes` + `max_md_lines` for that run (the legacy fields are simply not consulted). No hard error — they're ignored.
 - **Docs (Mode A):** `internal/config/bootstrap.go` `generationCommented` (add `token_limit` + annotate legacy caps as "ignored when token_limit is set"); `docs/configuration.md` — add `token_limit` to the File-format example + Built-in defaults table, and a **new "Token-budget mode" subsection** (sibling to "Exclusion globs") explaining: holistic cap over prompt+examples+diff, model-agnostic (no registry), mutual-exclusivity with legacy caps, and the water-fill truncation behavior from FR3i. Field comment in `config.go`.
 

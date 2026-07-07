@@ -302,7 +302,7 @@ internal/git/binary_test.go   # CREATE. Tests (package git):
 // GOTCHA (do NOT extend the exported Git interface): detectBinaryFiles/fileStatuses are UNEXPORTED
 // *gitRunner methods (lowercase) consumed by other internal/git methods (StagedDiff in S2). They are NOT
 // part of the public Git contract. Adding them to the interface would leak internal plumbing into pkg/
-// stagehand — do NOT. (StagedDiff is itself on the interface; its binary filtering is an internal detail.)
+// stagecoach — do NOT. (StagedDiff is itself on the interface; its binary filtering is an internal detail.)
 
 // GOTCHA (same package, no import cycle): binary.go is package git; it references gitRunner.run + the
 // same stdlib imports git.go uses. NO new package imports. NO go.mod change.
@@ -560,7 +560,7 @@ FROZEN/LEAVE (do NOT edit):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/git/binary.go internal/git/binary_test.go
 go vet ./internal/git/
 golangci-lint run ./internal/git/
@@ -611,7 +611,7 @@ cd /; rm -rf "$T"
 ### Level 4: Regression & Audit
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go build ./...                # whole module compiles (binary.go is in package git)
 go test ./...                 # FULL regression — no existing test changes (ZERO edits to existing files)
 git status --short            # Expected: EXACTLY 2 files:
@@ -662,7 +662,7 @@ git status --short            # Expected: EXACTLY 2 files:
   with S2. Leave StagedDiff emitting the old `Binary files … differ` hunk for now; S2 replaces it.
 - ❌ **Don't add detectBinaryFiles/fileStatuses to the exported `Git` interface.** They are internal
   `*gitRunner` plumbing consumed by other internal/git methods. Leaking them into the interface pollutes
-  pkg/stagehand's public surface with an implementation detail.
+  pkg/stagecoach's public surface with an implementation detail.
 - ❌ **Don't rely on numstat alone OR the denylist alone.** FR3a is a UNION. git content-sniffs (verified:
   a text-content `.png` emits `1/0`, not `-/-`), so numstat misses it; a binary without a denylisted
   extension but sniffed by git is missed by the denylist. Implement `(added=="-"&&deleted=="-") || isBinaryByExtension(path,nil)`.

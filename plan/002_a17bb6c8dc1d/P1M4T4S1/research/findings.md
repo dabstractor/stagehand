@@ -2,7 +2,7 @@
 
 ## TL;DR
 Implement FR-B3: when `config.Load()` finds the global config **missing AND not explicit** (no `--config`,
-no `STAGEHAND_CONFIG`), auto-write the populated bootstrap config once, print `stagehand: wrote bootstrap
+no `STAGECOACH_CONFIG`), auto-write the populated bootstrap config once, print `stagecoach: wrote bootstrap
 config to <path>` to stderr (via `noticeOut`), then load it as Layer 2. The bootstrap generation is
 **refactored out of `internal/cmd/config.go`** into a shared **`config.GenerateBootstrapConfig(provider string) string`**
 that BOTH `config init` and this fallback call.
@@ -59,7 +59,7 @@ This BREAKS tests that assert "no config ⇒ pure defaults":
 
 **Decision: add `LoadOpts.DisableBootstrap bool` — a test-only seam.** Rationale: the bootstrap is a
 filesystem-mutating, `$PATH`-dependent side effect; resolver-isolation tests must opt out to preserve
-intent + determinism. Production callers (`cmd.PersistentPreRunE`, `pkg/stagehand.resolveConfig`) leave it
+intent + determinism. Production callers (`cmd.PersistentPreRunE`, `pkg/stagecoach.resolveConfig`) leave it
 `false` ⇒ FR-B3 fully active. Mirrors the existing `noticeOut` swappable sink + `Flags: nil` seams. The
 contract ("missing + !explicit ⇒ bootstrap") is preserved for ALL production paths; the seam is additive.
 
@@ -79,11 +79,11 @@ if g, err := loadTOML(globalPath); err != nil {
 }
 ```
 ADD an `else if !opts.DisableBootstrap` branch (the FR-B3 fallback): `bootstrapWriteConfig(globalPath)` →
-`fmt.Fprintf(noticeOut, "stagehand: wrote bootstrap config to %s\n", globalPath)` → re-`loadTOML` + overlay.
+`fmt.Fprintf(noticeOut, "stagecoach: wrote bootstrap config to %s\n", globalPath)` → re-`loadTOML` + overlay.
 - The bootstrap config carries `config_version = CurrentConfigVersion` (buildBootstrapConfig writes it) ⇒
   `configVersionNotice(true, 2)` returns `""` ⇒ **no spurious advisory** after bootstrap. ✓
 - Notice goes to `noticeOut` (default `os.Stderr`) — matches "print a notice to stderr". ✓
-- `explicit` (–config / STAGEHAND_CONFIG) + missing still hard-errors BEFORE this branch ⇒ fallback never
+- `explicit` (–config / STAGECOACH_CONFIG) + missing still hard-errors BEFORE this branch ⇒ fallback never
   fires for explicit paths (FR-B3 scope: discovery only). ✓
 
 ## §6 New tests (internal/config/bootstrap_test.go + load_test.go)
@@ -93,7 +93,7 @@ ADD an `else if !opts.DisableBootstrap` branch (the FR-B3 fallback): `bootstrapW
   valid TOML + `config_version = 2`; `("claude")` ⇒ provider claude + claude role models.
 - ADD `TestLoad_FirstRun_Bootstraps`: no global file, `DisableBootstrap=false` ⇒ file exists at
   `globalConfigPath()` after Load; `noticeOut` contains the notice; `cfg.Provider=="pi"`; re-Load finds it.
-- ADD `TestLoad_Bootstrap_SkippedWhenExplicit` (–config missing → error; STAGEHAND_CONFIG missing → error).
+- ADD `TestLoad_Bootstrap_SkippedWhenExplicit` (–config missing → error; STAGECOACH_CONFIG missing → error).
 - ADD `TestLoad_Bootstrap_DisabledNoWrite` (`DisableBootstrap=true` + no file ⇒ no file written, defaults).
 - ADD `TestLoad_Bootstrap_DoesNotReFire` (Load twice ⇒ 2nd finds file, single notice).
 

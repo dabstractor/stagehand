@@ -2,7 +2,7 @@
 name: "P1.M3.T1.S3 — Add empty-message guard in decompose.publishCommit after RunCommitHooks (Issue 4: a hook that empties the message file must abort, not create an empty-message commit — the decompose path)"
 description: |
 
-  Bugfix for Issue 4 (Bug-Fix PRD §h2.2/h3.3; stagehand PRD §9.25 FR-V2 git parity + §9.8/§13.2 atomic-commit
+  Bugfix for Issue 4 (Bug-Fix PRD §h2.2/h3.3; stagecoach PRD §9.25 FR-V2 git parity + §9.8/§13.2 atomic-commit
   core). After `hooks.RunCommitHooks` returns, `decompose.publishCommit` assigns `finalTree`/`finalMsg` and
   passes `finalMsg` straight to `CommitTree` with NO empty-message check (message.go:230-235). A
   `prepare-commit-msg` or `commit-msg` hook that empties the message file (a common rejection / force-re-edit
@@ -95,7 +95,7 @@ the two files changed; go.mod/go.sum byte-unchanged.
 
 ## User Persona
 
-**Target User**: A user running `stagehand` in decompose mode (multi-commit decomposition, PRD §13.6) whose
+**Target User**: A user running `stagecoach` in decompose mode (multi-commit decomposition, PRD §13.6) whose
 `commit-msg` or `prepare-commit-msg` hook empties the message file to reject a commit (a commitlint that
 rejects, a "force re-edit" hook, or a buggy hook that truncates). Transitively: git parity (the decompose
 path must behave like `git commit`).
@@ -119,7 +119,7 @@ The guard makes the abort explicit and git-parity.
 ## Why
 
 - **Fixes a documented Major git-parity bug (Issue 4) on the third and final call site.** The atomic-commit
-  core must not land a bad commit (§9.8/§13.2); `git commit` aborts on an empty message; stagehand diverged
+  core must not land a bad commit (§9.8/§13.2); `git commit` aborts on an empty message; stagecoach diverged
   on all three commit paths. S1 fixed `CommitStaged`; S2 fixes `runPipeline`; **S3 fixes `publishCommit`** —
   closing Issue 4 entirely.
 - **The decompose path is especially dangerous.** A silent empty-message commit mid-series corrupts a
@@ -176,9 +176,9 @@ one test.
        and the return type ((string, error) → ("", generate.ErrEmptyMessage)).
   critical: S1 is DONE. S3 does NOT touch generate.go. The guards are independent (one per call site).
 - docfile: plan/010_49117f1f30ab/bugfix/001_d93268e01058/P1M3T1S2/PRP.md
-  why: S2 (parallel) adds the same guard to `pkg/stagehand.runPipeline`. Confirms the shared Issue-4 contract
-       (bare generate.ErrEmptyMessage → exit 1; after the hooks block; before the commit). S3 does NOT touch pkg/stagehand.
-  critical: zero file overlap with S2 (pkg/stagehand) and S1 (internal/generate). S3 is internal/decompose ONLY.
+  why: S2 (parallel) adds the same guard to `pkg/stagecoach.runPipeline`. Confirms the shared Issue-4 contract
+       (bare generate.ErrEmptyMessage → exit 1; after the hooks block; before the commit). S3 does NOT touch pkg/stagecoach.
+  critical: zero file overlap with S2 (pkg/stagecoach) and S1 (internal/generate). S3 is internal/decompose ONLY.
 
 # MUST READ — the caller analysis (the publishCommit hooks block + the gap)
 - docfile: plan/010_49117f1f30ab/bugfix/001_d93268e01058/docs/architecture/hooks_runner_and_callers.md
@@ -188,7 +188,7 @@ one test.
 
 # The bug spec (in your context as selected_prd_content)
 - file: plan/010_…/bugfix/001_d93268e01058/prd_snapshot.md (Bug-Fix PRD)
-  section: "Issue 4" (h3.3) — the exact reproduction (commit-msg `> "$1"`; git aborts exit 1; stagehand creates
+  section: "Issue 4" (h3.3) — the exact reproduction (commit-msg `> "$1"`; git aborts exit 1; stagecoach creates
            an empty-message commit) + the suggested fix (guard after RunCommitHooks, return ErrEmptyMessage) +
            the explicit naming of the decompose publishCommit call site.
   critical: the fix returns the BARE generate.ErrEmptyMessage (exit 1), mirroring EditMessage + S1 — NOT a rescue.
@@ -206,7 +206,7 @@ one test.
 
 # The sentinel (exported — consumed via the generate import)
 - file: internal/generate/finalize.go
-  section: `var ErrEmptyMessage = errors.New("stagehand: empty commit message — aborted")` (L45, EXPORTED);
+  section: `var ErrEmptyMessage = errors.New("stagecoach: empty commit message — aborted")` (L45, EXPORTED);
            `EditMessage`'s `if edited == "" { return "", ErrEmptyMessage }` (L117-118).
   why: the sentinel to return (decompose imports generate ⇒ reference as generate.ErrEmptyMessage).
   critical: it is a BARE error (not *RescueError, not *CASError) → exitcode.For() → exit 1 (exitcode.go:65).
@@ -284,7 +284,7 @@ go.mod / go.sum       # UNCHANGED (strings + generate already imported; no new d
 //   (err==nil) AND HEAD moved → FAILS on the unfixed tree. Run it FIRST (TDD proof), then add the guard → PASSES.
 
 // GOTCHA (publishCommit ONLY — scope): the same gap is fixed in CommitStaged (S1, DONE) and runPipeline (S2, parallel).
-//   Fix ONLY publishCommit here; do NOT touch internal/generate, pkg/stagehand, runLoop, or Decompose().
+//   Fix ONLY publishCommit here; do NOT touch internal/generate, pkg/stagecoach, runLoop, or Decompose().
 // GOTCHA (commit-msg hook empties the file): use msgInstallHook(t, repo, "commit-msg", "#!/bin/sh\n> \"$1\"\nexit 0\n").
 //   commit-msg is the LAST hook to touch the message file ⇒ unambiguous finalMsg="". (prepare-commit-msg would also
 //   trigger it, but commit-msg is the work-item-specified, cleaner reproduction.)
@@ -334,7 +334,7 @@ No new types. The guard + the one test:
 
 // TestPublishCommit_HookEmptiesMessage_Aborts is the Issue-4 guard on the decompose path: a commit-msg hook
 // that empties the message file must NOT create an empty-message commit. git aborts "Aborting commit due to
-// empty commit message."; stagehand returns the BARE generate.ErrEmptyMessage (exit 1, NOT a rescue — it is
+// empty commit message."; stagecoach returns the BARE generate.ErrEmptyMessage (exit 1, NOT a rescue — it is
 // neither *RescueError nor *CASError). Mirrors TestPublishCommit_PreCommitAbort_RescueError's structure but
 // swaps the hook (commit-msg `> "$1"; exit 0`) + the assertion (errors.Is(err, generate.ErrEmptyMessage)).
 // FAILS before the guard (publishCommit creates an empty-message commit → err==nil, HEAD moved); PASSES after.
@@ -407,7 +407,7 @@ Task 3: VERIFY (TDD green + no regression)
   - RUN the full suite: `go build ./... && go vet ./... && go test ./...` → GREEN.
   - CONFIRM the existing publishCommit/hook tests (TestPublishCommit_Success, _RootCommit, _CASFailure,
       _PrepareCommitMsgAnnotates, _PreCommitAbort_RescueError) stay green; go.mod/go.sum byte-unchanged;
-      only message.go + message_test.go modified; generate.go (S1) + pkg/stagehand (S2) untouched.
+      only message.go + message_test.go modified; generate.go (S1) + pkg/stagecoach (S2) untouched.
 ```
 
 ### Implementation Patterns & Key Details
@@ -444,7 +444,7 @@ DOWNSTREAM: the runLoop / single-concept / arbiter call sites propagate the bare
 FROZEN/LEAVE (do NOT edit):
   - The hooks block internals (RunCommitHooks call), CommitTree, the UpdateRefCAS/CASError handling, RunPostCommit,
     generateMessage, the package doc-comments in message.go.
-  - internal/generate/* (S1's CommitStaged guard — DONE), pkg/stagehand/* (S2's runPipeline guard — parallel),
+  - internal/generate/* (S1's CommitStaged guard — DONE), pkg/stagecoach/* (S2's runPipeline guard — parallel),
     internal/decompose/decompose.go (runLoop), internal/decompose/chain.go, internal/hooks/*, internal/cmd/*,
     internal/config/*, internal/exitcode/*.
   - PRD.md, go.mod, Makefile.
@@ -484,8 +484,8 @@ go test ./...     # Expect all PASS — incl. the existing publishCommit tests (
                   # _CASFailure, _PrepareCommitMsgAnnotates, _PreCommitAbort_RescueError) which stay green.
 # Confirm only the two intended files changed:
 git diff --name-only | grep -vE '^internal/decompose/(message|message_test)\.go$' && echo "UNEXPECTED file changed" || echo "only message.go + message_test.go (good)"
-# Confirm frozen files UNCHANGED (S1's generate.go guard intact, S2's pkg/stagehand untouched, runLoop untouched):
-git diff --exit-code go.mod go.sum internal/generate pkg/stagehand internal/decompose/decompose.go internal/decompose/chain.go internal/hooks internal/cmd internal/config internal/exitcode PRD.md && echo "frozen files UNCHANGED (expected)"
+# Confirm frozen files UNCHANGED (S1's generate.go guard intact, S2's pkg/stagecoach untouched, runLoop untouched):
+git diff --exit-code go.mod go.sum internal/generate pkg/stagecoach internal/decompose/decompose.go internal/decompose/chain.go internal/hooks internal/cmd internal/config internal/exitcode PRD.md && echo "frozen files UNCHANGED (expected)"
 grep -n 'TrimSpace(finalMsg) == ""' internal/decompose/message.go && echo "(S3 guard present)"
 grep -n 'TrimSpace(msg) == ""' internal/generate/generate.go && echo "(S1 guard intact — untouched)"
 ```
@@ -565,6 +565,6 @@ precisely (the insertion gap is unambiguous); the two `publishCommit`-specific d
 propagation (decompose.go:484-491) is VERIFIED: the bare `generate.ErrEmptyMessage` is not `*CASError`, so
 `errors.As(&ce)` is false and it rides the existing `return err` hard path — no runLoop/CLI/exitcode change needed
 (exitcode.go:65 already maps `generate.ErrEmptyMessage` → exit 1). `strings` + `generate` are already imported in
-both message.go and message_test.go. Zero file overlap with S1 (generate.go, DONE) or S2 (pkg/stagehand, parallel).
+both message.go and message_test.go. Zero file overlap with S1 (generate.go, DONE) or S2 (pkg/stagecoach, parallel).
 The TDD test is engineered to fail-before/pass-after, reproducing the exact bug (empty-message commit, HEAD moved)
 then proving the abort. No residual risk.

@@ -185,7 +185,7 @@ internal/cmd/hookexec_test.go   # ~ extend SourceGateExit0; + TestHookExec_Empty
 // the specific substring "Generating" (covers "↳ Generating with …" and "↳ Generating…"), NOT on errBuf emptiness.
 
 // GOTCHA: zero-value-nil safety. Adding a func field is backward-compatible ONLY because every existing Deps
-// constructor either sets it (hookexec, after this task) or leaves it nil (decompose/stagehand → CommitStaged,
+// constructor either sets it (hookexec, after this task) or leaves it nil (decompose/stagecoach → CommitStaged,
 // which never reads it). Do not add a non-nil default anywhere except hookexec.go.
 ```
 
@@ -297,7 +297,7 @@ UPSTREAM/DOWNSTREAM: none — fully self-contained. No config, no API, no help-t
 CALLSITES AFFECTED:
   - internal/cmd/hookexec.go (runHookExec): the ONLY producer of a non-nil Progress.
   - internal/hook/exec.go (Run): the ONLY consumer.
-  - internal/decompose/decompose.go:247 + pkg/stagehand/stagehand.go:386: generate.Deps constructors for
+  - internal/decompose/decompose.go:247 + pkg/stagecoach/stagecoach.go:386: generate.Deps constructors for
     CommitStaged — UNCHANGED (Progress stays nil; CommitStaged never reads it). Verified by grep.
 EXIT-CODE MAPPING: unchanged (ErrNoOp → exit 0). The fix only removes a stray stderr line; behavior is otherwise
   byte-identical.
@@ -308,7 +308,7 @@ EXIT-CODE MAPPING: unchanged (ErrNoOp → exit 0). The fix only removes a stray 
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/generate/generate.go internal/hook/exec.go internal/cmd/hookexec.go internal/cmd/hookexec_test.go
 go build ./...
 go vet ./internal/generate/... ./internal/hook/... ./internal/cmd/...
@@ -333,22 +333,22 @@ go test ./...   # nothing else changed behavior
 
 ```bash
 # Build, set up a repo, install the hook (or call hook exec directly).
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 REPO=$(mktemp -d); cd "$REPO"; git init -q; git config user.email t@t; git config user.name t
 echo hi > f; git add f; git commit -qm seed
 printf 'config_version=3\n[provider.stub]\ncommand="/tmp/stub"\nprompt_delivery="stdin"\noutput="raw"\nstrip_code_fence=true\ndefault_model="x"\n' > /tmp/cfg.toml
 
 # (a) Source-gated no-op: must be SILENT on stderr now.
-printf '# c\n' > /tmp/m; /tmp/stagehand --config /tmp/cfg.toml hook exec /tmp/m message
+printf '# c\n' > /tmp/m; /tmp/stagecoach --config /tmp/cfg.toml hook exec /tmp/m message
 echo "exit=$?"; grep -c Generating /dev/stderr 2>/dev/null || true   # stderr should have NO "Generating"
 
 # (b) Empty-diff no-op: must be SILENT on stderr now.
-printf '# c\n' > /tmp/m; /tmp/stagehand --config /tmp/cfg.toml hook exec /tmp/m
+printf '# c\n' > /tmp/m; /tmp/stagecoach --config /tmp/cfg.toml hook exec /tmp/m
 echo "exit=$?"   # 0; stderr should have NO "Generating"
 
 # (c) Real diff (regression): progress SHOULD appear.
 echo more >> f; git add f; printf '# c\n' > /tmp/m
-/tmp/stagehand --config /tmp/cfg.toml --provider stub hook exec /tmp/m 2>/tmp/err
+/tmp/stagecoach --config /tmp/cfg.toml --provider stub hook exec /tmp/m 2>/tmp/err
 grep "Generating" /tmp/err   # expected: the "↳ Generating…" line IS present
 # Expected: (a)/(b) silent; (c) prints "Generating". (c) may fail generation if /tmp/stub is absent — that's fine;
 #   the point is the progress line appears BEFORE generation, proving the happy-path wiring survived.

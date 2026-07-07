@@ -15,7 +15,7 @@ So the editor gate is **stage 2 of the FinalizeMessage pipeline**. Today `Finali
 ApplyTemplate(msg, cfg.Template)`. P1.M5.T1.S1 extends it to `ApplyTemplate → EditMessage`.
 
 **Decision: extend `FinalizeMessage` itself** (not a separate seam call). The 4 existing call sites
-(generate.go L237, stagehand.go runPipeline, decompose/message.go, decompose/runSingleShortcut) already
+(generate.go L237, stagecoach.go runPipeline, decompose/message.go, decompose/runSingleShortcut) already
 invoke `FinalizeMessage`. By adding the editor stage INSIDE FinalizeMessage, all 4 sites gain `--edit`
 transitively — the same transitive-coverage argument P1.M2.T2.S2 used. This is the cleanest integration:
 the seam is the single funnel; the editor is a new stage of it.
@@ -25,7 +25,7 @@ the seam is the single funnel; the editor is a new stage of it.
 | # | Site | File | Current seam call | Editor fires? | Why |
 |---|------|------|-------------------|---------------|-----|
 | 1 | single-commit loop | `internal/generate/generate.go` L237 `m = FinalizeMessage(m, cfg)` | ✓ via seam | YES | FR-E1 single path |
-| 2 | public-API runPipeline | `pkg/stagehand/stagehand.go` `m = generate.FinalizeMessage(m, cfg)` | ✓ via seam | YES | parity with #1 |
+| 2 | public-API runPipeline | `pkg/stagecoach/stagecoach.go` `m = generate.FinalizeMessage(m, cfg)` | ✓ via seam | YES | parity with #1 |
 | 3 | decompose message role | `internal/decompose/message.go` `m = generate.FinalizeMessage(m, deps.Config)` | ✓ via seam | YES | FR-E4 each commit |
 | 4 | decompose FR-M11 shortcut | `internal/decompose/decompose.go` `msg := generate.FinalizeMessage(plannerMsg, deps.Config)` | ✓ via seam | YES | FR-E4 + FR-M11 |
 | 5 | decompose arbiter N+1 | `internal/decompose/chain.go` `resolveNewCommit` → calls `generateMessage` (#3) | transitively | YES | FR-E4 (covered by #3) |
@@ -67,7 +67,7 @@ internal (all 4 callers are in-repo).
 | Site | tree SHA available? | name-status source |
 |------|---------------------|--------------------|
 | generate.go (#1) | `treeSHA` (step 3, WriteTree) ✓ | `DiffTree` against parent — but commit not yet made. Use `git diff-tree --name-status -r --root <parent-tree> <treeSHA>` OR `git diff --name-status <parentTree> <treeSHA>`. Simplest: a NEW git helper `DiffTreeNameStatus(treeA, treeB)` returning the raw name-status string. parentTree = `git rev-parse HEAD^{tree}` (or EmptyTreeSHA if unborn). |
-| stagehand.go (#2) | `treeSHA` ✓ | same as #1 |
+| stagecoach.go (#2) | `treeSHA` ✓ | same as #1 |
 | decompose/message.go (#3) | `treeB` ✓ (the concept tree) | `treeA..treeB` name-status (the concept diff) — `DiffTreeNameStatus(treeA, treeB)`. Already have treeA+treeB in generateMessage's signature. |
 | decompose/runSingleShortcut (#4) | `tStart` ✓ | `baseTree..tStart` name-status. baseTree available in signature. |
 | chain.go arbiter N+1 (#5) | `treePrime` ✓ (in resolveNewCommit) | `treeA..treePrime` name-status. Covered transitively via #3. |
@@ -80,13 +80,13 @@ the parent's tree (HEAD^{tree} or EmptyTreeSHA).
 ## 3. Editor resolution — `git var GIT_EDITOR` (external_deps.md §6, VERIFIED)
 
 `internal/git` has NO `GitDir()` or `GitEditor()` method yet. Both are needed:
-- `GitDir()` → resolve `.git/STAGEHAND_EDITMSG` path (use `git rev-parse --git-path .` or `--absolute-git-dir`).
+- `GitDir()` → resolve `.git/STAGECOACH_EDITMSG` path (use `git rev-parse --git-path .` or `--absolute-git-dir`).
 - `GitEditor()` → resolve the editor command (`git var GIT_EDITOR`).
 
 **Decision: add TWO methods to the `git.Git` interface:**
 1. `GitDir(ctx) (string, error)` — `git rev-parse --absolute-git-dir` (git 2.13+, universally available;
    returns the absolute `.git` dir, honors worktrees + commondir). The EDITMSG file goes in
-   `<gitDir>/STAGEHAND_EDITMSG` (FR-E1). `--absolute-git-dir` exits 128 on non-repo (real error, like
+   `<gitDir>/STAGECOACH_EDITMSG` (FR-E1). `--absolute-git-dir` exits 128 on non-repo (real error, like
    HooksPath's `--git-path hooks`).
 2. `Editor(ctx) (string, error)` — `git var GIT_EDITOR`. Returns the resolved editor string
    (GIT_EDITOR → core.editor → VISUAL → EDITOR → vi — a faithful superset of FR-E1's chain). The value
@@ -100,7 +100,7 @@ read-only w.r.t. refs/index (safe).
 
 ```
 1. resolve gitDir = Git.GitDir(ctx)
-2. editMsgPath = filepath.Join(gitDir, "STAGEHAND_EDITMSG")
+2. editMsgPath = filepath.Join(gitDir, "STAGECOACH_EDITMSG")
 3. build the EDITMSG content:
    <message>
    # Please edit this commit message. Lines starting with '#' will be stripped.
@@ -129,7 +129,7 @@ The editor runs AFTER WriteTree (the snapshot exists) but BEFORE CommitTree (no 
 So on abort: HEAD untouched (CAS never attempted), index untouched (WriteTree is read-only), and the
 only artifact is the orphan `treeSHA` (gc'd eventually — harmless, same as any failed generation).
 
-**The new sentinel:** `var ErrEmptyMessage = errors.New("stagehand: empty commit message — aborted")`.
+**The new sentinel:** `var ErrEmptyMessage = errors.New("stagecoach: empty commit message — aborted")`.
 Returned from the editor stage when the stripped result is empty. The CLI maps it to **exit 1** with the
 message "empty commit message — aborted" (NOT exit 3/124 — not a rescue). The FinalizeMessage seam
 propagates it; the generation loops must NOT treat it as a retryable parse-failure (it's a hard abort —
@@ -176,7 +176,7 @@ This is a SMALL number of well-defined insertion points (one per commit path, ri
 | Site | After | Before |
 |------|-------|--------|
 | generate.go (#1) | loop `break` (msg accepted) L~248 | `CommitTree` L~255 (step 7) |
-| stagehand.go (#2) | loop break | CommitTree equivalent |
+| stagecoach.go (#2) | loop break | CommitTree equivalent |
 | decompose/message.go (#3) | loop `break` (msg accepted) | `return msg, nil` (the publish happens in runLoop via publishCommit) |
 | decompose/runSingleShortcut (#4) | the dup-check block L~325 | `publishCommit` L~335 |
 
@@ -259,7 +259,7 @@ file key, like Context). Wire: `--edit` flag on root → loadFlags reads it → 
 | `Config.Edit bool \`toml:"-"\`` | internal/config/config.go (NEW field) | flag-only config |
 | `--edit` flag | internal/cmd/root.go (NEW StringVar→BoolVar) | global persistent flag |
 | hook-exec usage guard | internal/cmd/hookexec.go (EDIT) | reject --edit on hook exec (FR-E4) |
-| 4 EditMessage call sites | generate.go, stagehand.go, decompose/message.go, decompose/decompose.go | post-dedupe, pre-publish |
+| 4 EditMessage call sites | generate.go, stagecoach.go, decompose/message.go, decompose/decompose.go | post-dedupe, pre-publish |
 | CLI exit mapping | internal/cmd/default_action.go (EDIT) | ErrEmptyMessage → exit 1 "empty commit message — aborted" |
 | docs/cli.md | docs/cli.md (EDIT) | --edit row incl. abort semantics |
 | docs/how-it-works.md | docs/how-it-works.md (EDIT) | FR-E2 edit-while-staging call-out |

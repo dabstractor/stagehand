@@ -9,7 +9,7 @@ ExitError — already shipped P1.M4.T1.S1 (`internal/exitcode`); S3 refine-only.
 
 ➡ **Therefore S3 is NOT a creation task. It is a VERIFICATION + HARDENING + COMPLETENESS-AUDIT task.**
 A PRP that directs the agent to "create `internal/exitcode/exitcode.go`" would overwrite a deployed,
-tested file and regress ~40 call sites + `cmd/stagehand/main.go` + every CLI test (root/providers/
+tested file and regress ~40 call sites + `cmd/stagecoach/main.go` + every CLI test (root/providers/
 config/default_action). The honest PRP must confine changes to small, additive refinements inside
 `internal/exitcode/` and treat the rest as a read-only audit.
 
@@ -26,7 +26,7 @@ File: `internal/exitcode/exitcode.go` (READ — already correct).
 | `ExitError struct{Code int; Err error}` with `Error()+Unwrap()` | Exactly that, plus `New(code, err)` constructor | ✅ matches |
 | `For(err error) int` using `errors.As`, defaulting to 1 | `For()` uses `errors.As(err, &ee)` → `ee.Code`, default `Error`(1) | ✅ matches (+ richer, see §3) |
 | Unit tests for error→code mapping | `internal/exitcode/exitcode_test.go` — 12-case table + a nil-Err test | ✅ mostly; **1 gap — see §4** |
-| OUTPUT: consumed by `main()` (P1.M4.T1.S1) | `cmd/stagehand/main.go:25` calls `exitcode.For(err)`; `os.Exit(code)` | ✅ wired |
+| OUTPUT: consumed by `main()` (P1.M4.T1.S1) | `cmd/stagecoach/main.go:25` calls `exitcode.For(err)`; `os.Exit(code)` | ✅ wired |
 
 **Conclusion:** every LOAD-BEARING contract requirement is satisfied. The only deltas are (a) the
 constant-name prefix (intentional, see §2) and (b) one missing test case (a wrapped `*ExitError`,
@@ -111,15 +111,15 @@ intended.** No missing `exitcode.New` wrapping found. Audit result: PASS.
 
 - **S3 edits ONLY `internal/exitcode/exitcode.go` (doc-comment enrichment, optional) and
   `internal/exitcode/exitcode_test.go` (add the wrapped-ExitError case + any optional cases).**
-- S3 does NOT touch: `main.go`, `internal/cmd/*`, `internal/generate/*`, `pkg/stagehand/*`,
+- S3 does NOT touch: `main.go`, `internal/cmd/*`, `internal/generate/*`, `pkg/stagecoach/*`,
   `internal/ui/*`. The exit mapping in `handleGenError` is **frozen** (rescue §18.3 is byte-frozen;
   the CAS/nothing-to-commit/generic mapping is correct and tested). Editing it risks conflict with the
   **parallel P1.M4.T3.S2** (verbose), which edits `default_action.go` (one line) + executor/generate/
-  stagehand. Zero file overlap with S3.
+  stagecoach. Zero file overlap with S3.
 - **Known transient build state (NOT an S3 bug):** while S2 is in-flight, `go build ./...` may report
-  `pkg/stagehand/stagehand.go: undefined: io` (S2 adding `Options.Verbose io.Writer` before the import
+  `pkg/stagecoach/stagecoach.go: undefined: io` (S2 adding `Options.Verbose io.Writer` before the import
   lands, or mid-edit). S3's validation uses `go test ./internal/exitcode/` (self-contained) and
-  `go vet ./internal/exitcode/`; the full-suite gate is run only after S2 merges. Do not "fix" pkg/stagehand.
+  `go vet ./internal/exitcode/`; the full-suite gate is run only after S2 merges. Do not "fix" pkg/stagecoach.
 
 ## 7. Confidence
 

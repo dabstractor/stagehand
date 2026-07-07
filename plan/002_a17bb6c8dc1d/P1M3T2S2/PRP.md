@@ -115,7 +115,7 @@ every non-target file byte-unchanged.
 - **The CLI** (single-commit path) — resolves the `message` role; with no per-role override it returns
   `(cfg.Provider, cfg.Model)`, which is exactly v1 (back-compatible).
 End-user persona is "the multi-agent tinkerer" (PRD §7.3) who routes roles to different agents
-(`stagehand --planner-model gemini-2.5-pro --planner-provider agy`, §16.4); this function is what makes that
+(`stagecoach --planner-model gemini-2.5-pro --planner-provider agy`, §16.4); this function is what makes that
 routing resolve correctly per-role.
 
 **Use Case**: A user configures `[role.planner] provider="agy" model="gemini-2.5-pro"` and leaves everything
@@ -256,7 +256,7 @@ registry/git/prompt knowledge required — this is a ~6-line pure function over 
            inherit [defaults] pi).
   critical: §9.15 FR-R3 IS the precedence this function implements; §16.4's resolution sentence is the spec.
        Note FR-R5 validation ("switching a role's provider without updating its model is a config error
-       stagehand surfaces") is the REGISTRY's job, NOT this pure function (design-decisions §6).
+       stagecoach surfaces") is the REGISTRY's job, NOT this pure function (design-decisions §6).
 ```
 
 ### Current Codebase tree (relevant slice)

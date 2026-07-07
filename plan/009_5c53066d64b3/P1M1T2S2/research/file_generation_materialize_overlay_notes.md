@@ -147,8 +147,8 @@ suite stays green. The only NEW behavior is: a TOML file that SETS `multi_turn_c
 - Do NOT edit `docs/*` (the `[generation]` table + the multi_turn_fallback=false limitation note ride
   with S3 — contract point 5).
 - Do NOT edit `internal/config/git.go` (the git-config resolver). The contract LOGIC (point 3) lists only
-  fileGeneration/materialize/overlay. The git-config resolver reading `stagehand.multiTurnFallback` /
-  `stagehand.multiTurnChunkTokens` keys is NOT in S2's LOGIC. The overlay edit DOES make the fields
+  fileGeneration/materialize/overlay. The git-config resolver reading `stagecoach.multiTurnFallback` /
+  `stagecoach.multiTurnChunkTokens` keys is NOT in S2's LOGIC. The overlay edit DOES make the fields
   participate in the precedence chain, so a future git-config resolver would compose; but adding the
   git-config keys is a separate concern (plan 007 had it as a distinct subtask; plan 009's breakdown
   doesn't list one → multi-turn appears file-only by design).

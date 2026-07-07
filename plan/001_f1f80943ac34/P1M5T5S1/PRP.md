@@ -2,7 +2,7 @@
 name: "P1.M5.T5.S1 — Review and update docs/ overview and any cross-cutting documentation"
 description: |
 
-  CREATE the repository `docs/` documentation set for Stagehand v1.0 — the Mode-B "changeset-level
+  CREATE the repository `docs/` documentation set for Stagecoach v1.0 — the Mode-B "changeset-level
   documentation sync" task that runs LAST, with full visibility over every implementing subtask. Because
   `docs/` DOES NOT EXIST in the repo today (no "Mode A" docs subtasks created any docs/ files), this is
   NOT a review-and-tweak task: it authors the coherent, non-stale documentation set that the parallel
@@ -48,7 +48,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Ship a coherent, non-stale `docs/` documentation set for Stagehand v1.0 — the
+**Feature Goal**: Ship a coherent, non-stale `docs/` documentation set for Stagecoach v1.0 — the
 authoritative, browsable reference that fulfills the README's promise of a "full reference (growing)" and
 that a new user (or integrator) can read top-to-bottom to understand every flag, exit code, config layer,
 provider manifest field, and the snapshot-based architecture. Every fact in these docs is grounded in the
@@ -69,7 +69,7 @@ task runs LAST with full visibility — it documents what exists, not what is pl
 - `npx markdownlint-cli2 'docs/**/*.md'` exits 0 (zero lint errors) against the repo's existing
   `.markdownlint.json` (`{default:true, MD013:false, MD033:false, MD060:false}`). *Tooling confirmed
   present: markdownlint-cli2 v0.22.1 via `npx`.*
-- Every flag in `docs/cli.md` exists on `bin/stagehand --help`; every exit code matches
+- Every flag in `docs/cli.md` exists on `bin/stagecoach --help`; every exit code matches
   `internal/exitcode/exitcode.go`; the precedence list matches `config.go`'s
   `exampleConfigTemplate` header; every manifest field matches `internal/provider/manifest.go` toml tags;
   the 4 install paths match PRD §21.3 and `.goreleaser.yaml`. (Cross-check commands in Validation Loop L2.)
@@ -82,7 +82,7 @@ task runs LAST with full visibility — it documents what exists, not what is pl
 ## User Persona
 
 **Target User**: two audiences, both served by the same reference set:
-1. The **plan-holder / end user** (PRD §7.1) who installed Stagehand and wants the full flag/exit-code/
+1. The **plan-holder / end user** (PRD §7.1) who installed Stagecoach and wants the full flag/exit-code/
    config reference beyond `--help` — e.g. "what does exit 3 mean?", "how do I set a per-repo model?",
    "why is pi the default and not claude?".
 2. The **multi-agent tinkerer / contributor** (PRD §7.3) adding a new agent via a `[provider.<name>]`
@@ -124,7 +124,7 @@ are in "Implementation Blueprint"; the file-by-file responsibilities are:
 
 | File | Responsibility | Primary PRD source | Primary code source (verify against) |
 |------|----------------|--------------------|----------------------------------------|
-| `docs/README.md` | docs landing: 1-paragraph "what is Stagehand", install (cross-ref README), file index, link to root PRD. | §5, §21.3 | (links only) |
+| `docs/README.md` | docs landing: 1-paragraph "what is Stagecoach", install (cross-ref README), file index, link to root PRD. | §5, §21.3 | (links only) |
 | `docs/cli.md` | Full CLI reference: synopsis, all 11 global flags (table), subcommands, exit codes (table), examples, flag↔env↔git-config map. | §15.1–§15.5 | `internal/cmd/{root,providers,config,default_action}.go`, `internal/exitcode/exitcode.go` |
 | `docs/configuration.md` | Full config reference: 7-layer precedence, config-file format, git-config keys, env vars (full table), built-in defaults, paths, provider overrides. | §16.1–§16.3 | `internal/config/config.go` (+ `exampleConfigTemplate` in `internal/cmd/config.go`) |
 | `docs/providers.md` | Provider manifests: 18-field schema, command-rendering algorithm, 6 built-ins (table), tools-disable asymmetry, adding a new agent, output parsing. | §12.1–§12.9 | `internal/provider/{manifest,builtin,render,parse}.go`, `providers/*.toml` |
@@ -146,12 +146,12 @@ These are facts about the repo today; the docs must handle each deliberately (fu
   `docs/README.md`'s header note ("docs/ is new in v1.0").
 - **GAP 3 — README has no dedicated env-var section.** The contract says "verify the README env-var
   sections are accurate." REALITY: README mentions env vars only inline, in the precedence one-liner
-  (`CLI flags > STAGEHAND_* env vars > …`), which is ACCURATE but not exhaustive. No README edit is
+  (`CLI flags > STAGECOACH_* env vars > …`), which is ACCURATE but not exhaustive. No README edit is
   warranted (accurate; depth belongs in docs/). `docs/configuration.md` carries the FULL env-var table.
   Record this as a "verified, no change needed" finding in the PRP's success notes — do NOT edit README.
-- **GAP 4 — namespace is `dustin/stagehand`, not `dabstractor`.** `git remote` says `dabstractor`, but
-  `go.mod`, `.goreleaser.yaml` (`owner: dustin`), and §21.3 all use `dustin/stagehand`. Every install URL
-  and cross-link in docs/ MUST use `dustin/stagehand` (matching README + goreleaser). Matches README GAP A.
+- **GAP 4 — namespace is `dustin/stagecoach`, not `dabstractor`.** `git remote` says `dabstractor`, but
+  `go.mod`, `.goreleaser.yaml` (`owner: dustin`), and §21.3 all use `dustin/stagecoach`. Every install URL
+  and cross-link in docs/ MUST use `dustin/stagecoach` (matching README + goreleaser). Matches README GAP A.
 - **GAP 5 — `install.sh` does not exist yet.** The curl\|sh path is a release-time artifact. docs/ cross-
   references the README's install section (which already carries the "published with the first release"
   note) rather than re-asserting a working URL. Do NOT invent a different URL.
@@ -161,7 +161,7 @@ These are facts about the repo today; the docs must handle each deliberately (fu
 
 - [ ] `docs/` directory exists with exactly the 5 files listed above.
 - [ ] `npx markdownlint-cli2 'docs/**/*.md'` → 0 errors (against the existing `.markdownlint.json`).
-- [ ] CLI flags cross-check (L2a): every flag in `docs/cli.md` is present in `bin/stagehand --help`.
+- [ ] CLI flags cross-check (L2a): every flag in `docs/cli.md` is present in `bin/stagecoach --help`.
 - [ ] Exit codes cross-check (L2b): the `docs/cli.md` exit-code table matches `internal/exitcode/exitcode.go` constants.
 - [ ] Precedence cross-check (L2c): `docs/configuration.md` precedence matches `exampleConfigTemplate` header.
 - [ ] Manifest fields cross-check (L2d): every field in `docs/providers.md` schema is in `manifest.go` toml tags.
@@ -212,7 +212,7 @@ cross-checks). No prior knowledge of the codebase required beyond reading the li
   why: `config init` (writes commented example, REFUSES overwrite → exit 1) + `config path` (prints
        global path). exampleConfigTemplate IS the canonical config reference — docs/configuration.md
        must agree with its precedence header + [defaults]/[generation]/[provider.X] sections.
-  pattern: the precedence comment block (CLI > env > git-config > repo .stagehand.toml > global > provider
+  pattern: the precedence comment block (CLI > env > git-config > repo .stagecoach.toml > global > provider
            defaults > built-in defaults) + the env-var list + git-config keys.
 
 - file: internal/cmd/default_action.go
@@ -252,7 +252,7 @@ cross-checks). No prior knowledge of the codebase required beyond reading the li
        copy-paste templates; the docs' manifest example should mirror their field set + header style.
 
 - file: .goreleaser.yaml
-  why: confirms install-path namespaces (dustin/stagehand, dustin/homebrew-tap, dustin/scoop-bucket) +
+  why: confirms install-path namespaces (dustin/stagecoach, dustin/homebrew-tap, dustin/scoop-bucket) +
        the owner:dustin override of the git-remote. Anchors GAP 4.
 
 - file: .markdownlint.json
@@ -299,9 +299,9 @@ cross-checks). No prior knowledge of the codebase required beyond reading the li
 README.md                      # EXISTS (P1.M5.T4.S1). docs/ must be consistent with it (READ-ONLY here).
 PRD.md                         # the spec — at REPO ROOT (NOT docs/). READ-ONLY; link to it, don't move.
 .markdownlint.json             # {default:true, MD013:false, MD033:false, MD060:false}. docs must pass it.
-go.mod                         # module github.com/dustin/stagehand; namespace = dustin.
+go.mod                         # module github.com/dustin/stagecoach; namespace = dustin.
 .goreleaser.yaml               # install namespaces (dustin/*); owner:dustin overrides remote.
-Makefile                       # `make build` -> ./bin/stagehand (cross-check source).
+Makefile                       # `make build` -> ./bin/stagecoach (cross-check source).
 internal/cmd/{root,providers,config,default_action}.go  # CLI surface (docs/cli.md).
 internal/exitcode/exitcode.go                          # exit codes (docs/cli.md).
 internal/config/config.go                              # Config + Defaults() (docs/configuration.md).
@@ -338,11 +338,11 @@ docs/                          # CREATE directory.
 #   in docs/ (docs/ is the deeper reference), not by editing README.
 
 # CRITICAL (#3) — MATCH THE BINARY, NOT YOUR MEMORY. Every flag/exit-code/precedence/field must be
-#   cross-checked against the Go source + `bin/stagehand --help` (Validation Loop L2). The §15.4 exit
+#   cross-checked against the Go source + `bin/stagecoach --help` (Validation Loop L2). The §15.4 exit
 #   codes OVERRIDE the architecture doc's generic table (2=nothing-to-commit, 3=rescue) — use exitcode.go.
 
-# CRITICAL (#4) — NAMESPACE = dustin/stagehand, NOT dabstractor. Every install URL and cross-link uses
-#   dustin/stagehand (matches go.mod + goreleaser owner:dustin + §21.3). A dabstractor URL is broken.
+# CRITICAL (#4) — NAMESPACE = dustin/stagecoach, NOT dabstractor. Every install URL and cross-link uses
+#   dustin/stagecoach (matches go.mod + goreleaser owner:dustin + §21.3). A dabstractor URL is broken.
 
 # GOTCHA (#5) — MARKDOWNLINT GATE. markdownlint-cli2 v0.22.1 runs via `npx` (NOT on bare $PATH — `which`
 #   fails). Invoke: `npx markdownlint-cli2 'docs/**/*.md'`. The repo's .markdownlint.json disables MD013
@@ -356,7 +356,7 @@ docs/                          # CREATE directory.
 #   box-drawing spacing; do NOT reorder the precedence ladder; do NOT invent manifest fields.
 
 # GOTCHA (#7) — --version PRINTS "dev" LOCALLY. Do NOT document a release version. State plainly that
-#   `stagehand --version` prints the build version ("dev" for a local build; the release tag for a
+#   `stagecoach --version` prints the build version ("dev" for a local build; the release tag for a
 #   released binary). Cross-ref README (which also avoids a hardcoded version).
 
 # GOTCHA (#8) — DON'T PROMISE UNSHIPPED FEATURES. v1 is SINGLE-COMMIT; multi-commit decomposition is v2
@@ -402,8 +402,8 @@ is reported as `124` (matching GNU `timeout`), not `3`."
 **Block B — Config precedence (§16.1 ↔ exampleConfigTemplate header)** — for `docs/configuration.md`:
 
 ```text
-CLI flags  >  STAGEHAND_* env vars  >  repo git config (stagehand.*)  >
-repo-local .stagehand.toml  >  global config file  >  provider defaults  >  built-in defaults
+CLI flags  >  STAGECOACH_* env vars  >  repo git config (stagecoach.*)  >
+repo-local .stagecoach.toml  >  global config file  >  provider defaults  >  built-in defaults
 ```
 (This is HIGH → LOW. Copy the §16.1 7-step ladder verbatim as an ordered list immediately after.)
 
@@ -419,13 +419,13 @@ Present as a table (field | type | default | purpose), copied from PRD §12.1 + 
 Pane A (lazygit / shell)        Pane B (shell)
 ─────────────────────────       ───────────────────────
 git add feature/login.js
-stagehand                     ┐
+stagecoach                     ┐
   ↳ snapshotting…             │  (user is free to work here)
   ↳ generating with pi…       │  git add docs/login.md
   ↳ (10s pass)                │  git add tests/login.test.js
   ↳ created abc1234           │  (these stay staged — NOT in abc1234)
                               ┘
-                                stagehand        # next run commits these
+                                stagecoach        # next run commits these
 ```
 
 **Block E — Rescue message (§18.3)** — for `docs/how-it-works.md` (verbatim, ```text fence):
@@ -447,29 +447,29 @@ To commit the originally staged files manually:
 
 ```bash
 # Homebrew (macOS / Linuxbrew)
-brew install dustin/tap/stagehand
+brew install dustin/tap/stagecoach
 
 # Go install (anywhere with Go)
-go install github.com/dustin/stagehand/cmd/stagehand@latest
+go install github.com/dustin/stagecoach/cmd/stagecoach@latest
 
 # Direct binary (curl|sh one-liner from GitHub Releases)
-curl -fsSL https://github.com/dustin/stagehand/raw/main/install.sh | bash
+curl -fsSL https://github.com/dustin/stagecoach/raw/main/install.sh | bash
 
 # Windows (Scoop)
-scoop install dustin/stagehand
+scoop install dustin/stagecoach
 ```
 
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
 Task 0: VERIFY inputs (RUN, no edit) — author docs against SHIPPED behavior, not memory
-  - RUN: `make build`                       # produces ./bin/stagehand (the docs' commands must match THIS)
-  - RUN: `./bin/stagehand --help`           # capture the real flag list + descriptions (docs/cli.md)
-  - RUN: `./bin/stagehand --version`        # expect "dev" — do NOT document a release version
-  - RUN: `./bin/stagehand providers list`   # capture the NAME/DETECTED/DEFAULT table
-  - RUN: `./bin/stagehand providers show pi` # capture a real merged manifest (docs/providers.md example)
-  - RUN: `./bin/stagehand config path`      # capture the global config path string (docs/configuration.md)
-  - RUN: `./bin/stagehand config init` (in a throwaway dir; inspect exampleConfigTemplate) # config reference
+  - RUN: `make build`                       # produces ./bin/stagecoach (the docs' commands must match THIS)
+  - RUN: `./bin/stagecoach --help`           # capture the real flag list + descriptions (docs/cli.md)
+  - RUN: `./bin/stagecoach --version`        # expect "dev" — do NOT document a release version
+  - RUN: `./bin/stagecoach providers list`   # capture the NAME/DETECTED/DEFAULT table
+  - RUN: `./bin/stagecoach providers show pi` # capture a real merged manifest (docs/providers.md example)
+  - RUN: `./bin/stagecoach config path`      # capture the global config path string (docs/configuration.md)
+  - RUN: `./bin/stagecoach config init` (in a throwaway dir; inspect exampleConfigTemplate) # config reference
   - READ: internal/exitcode/exitcode.go (exit codes); internal/config/config.go (Config+Defaults);
           internal/cmd/config.go (exampleConfigTemplate precedence header); internal/provider/manifest.go
           (18 toml fields); internal/provider/builtin.go (6 built-ins); .goreleaser.yaml (install ns);
@@ -478,7 +478,7 @@ Task 0: VERIFY inputs (RUN, no edit) — author docs against SHIPPED behavior, n
 
 Task 1: CREATE docs/ + docs/README.md (overview + navigation index)
   - CREATE the docs/ directory.
-  - docs/README.md: H1 `# Stagehand documentation`. One paragraph: what Stagehand is (cross-ref README's
+  - docs/README.md: H1 `# Stagecoach documentation`. One paragraph: what Stagecoach is (cross-ref README's
     §5 pitch — do NOT duplicate verbatim, summarize + link to ../README.md). An install block (Block F
     verbatim + GAP 5 note) OR a one-line "See the README for install" (preferred: link, since README is
     the install home — but include the 4 commands for self-containedness). A "Documentation index" table
@@ -491,7 +491,7 @@ Task 1: CREATE docs/ + docs/README.md (overview + navigation index)
 
 Task 2: CREATE docs/cli.md (full CLI reference — PRD §15)
   - H1 `# CLI reference`. Sections (in order):
-    1. Synopsis (§15.1): `stagehand [flags]` / `stagehand <command> [flags]`; default action paragraph
+    1. Synopsis (§15.1): `stagecoach [flags]` / `stagecoach <command> [flags]`; default action paragraph
        (no command → commit staged; auto-stage-all if nothing staged & on). Link to how-it-works.md.
     2. Global flags (§15.2): a table — Flag | Env | Git config | Default | Description — copied from the
        §15.2 table AND cross-checked against root.go (all 11 flags incl. --version/--help). See the
@@ -510,8 +510,8 @@ Task 2: CREATE docs/cli.md (full CLI reference — PRD §15)
 Task 3: CREATE docs/configuration.md (full config reference — PRD §16)
   - H1 `# Configuration`. Sections (in order):
     1. Precedence (§16.1): Block B verbatim + the 7-step ordered ladder (built-in defaults → … → CLI flags).
-    2. The config file: GLOBAL path ($XDG_CONFIG_HOME/stagehand/config.toml, default
-       ~/.config/stagehand/config.toml) + REPO-LOCAL (./.stagehand.toml, gitignored). `config init`
+    2. The config file: GLOBAL path ($XDG_CONFIG_HOME/stagecoach/config.toml, default
+       ~/.config/stagecoach/config.toml) + REPO-LOCAL (./.stagecoach.toml, gitignored). `config init`
        writes the commented template; `config path` prints the global path. Note field-merge semantics
        for provider overrides (§16.1 last paragraph).
     3. File format (§16.2): the full [defaults]/[generation]/[provider.X] example (copy §16.2; it matches
@@ -519,10 +519,10 @@ Task 3: CREATE docs/configuration.md (full config reference — PRD §16)
     4. Built-in defaults: a table (option | default | source) from config.go Defaults() — timeout 120s,
        auto_stage_all true, max_diff_bytes 300000, max_md_lines 100, max_duplicate_retries 3,
        subject_target_chars 50, output "raw", strip_code_fence true.
-    5. Environment variables (FULL table — the GAP 3 depth): STAGEHAND_PROVIDER, STAGEHAND_MODEL,
-       STAGEHAND_TIMEOUT, STAGEHAND_CONFIG, STAGEHAND_VERBOSE, STAGEHAND_NO_COLOR, NO_COLOR — each with
+    5. Environment variables (FULL table — the GAP 3 depth): STAGECOACH_PROVIDER, STAGECOACH_MODEL,
+       STAGECOACH_TIMEOUT, STAGECOACH_CONFIG, STAGECOACH_VERBOSE, STAGECOACH_NO_COLOR, NO_COLOR — each with
        meaning + example + which flag it mirrors. State these override the file, are overridden by flags.
-    6. Git-config keys (§16.3): stagehand.provider/model/timeout/auto_stage_all; example `[stagehand]`
+    6. Git-config keys (§16.3): stagecoach.provider/model/timeout/auto_stage_all; example `[stagecoach]`
        block; `git config --get`/`--bool` notes; --local vs --global.
   - GOTCHA: the FILE uses string durations + [defaults]/[generation] subtables; Config is the RESOLVED
     form (Timeout is time.Duration). Document the file shape, not the struct. NoColor is toml:"-" (not a
@@ -551,7 +551,7 @@ Task 4: CREATE docs/providers.md (provider manifests — PRD §12)
     subsection, not as hardcoded facts.
 
 Task 5: CREATE docs/how-it-works.md (architecture overview — §13 + §18 + §17)
-  - H1 `# How Stagehand works`. Sections (in order):
+  - H1 `# How Stagecoach works`. Sections (in order):
     1. The snapshot-based flow (§13.1–§13.3): why `git commit` is the wrong primitive (§13.1); the
        plumbing alternative — write-tree → commit-tree → update-ref CAS (§13.2); the 4 invariants from
        §13.3 (frozen content; later-staged files stay staged; atomic+safe; overlap-able latency).
@@ -567,11 +567,11 @@ Task 5: CREATE docs/how-it-works.md (architecture overview — §13 + §18 + §1
     PRD Appendix A) — summarize + link to ../PRD.md Appendix A.
 
 Task 6: REVIEW for accuracy + consistency (READ the rendered docs; fix fiction, no scope creep)
-  - For EVERY `stagehand …`, `git …`, `brew …`, `go install …`, `scoop …` line: confirm it is real
+  - For EVERY `stagecoach …`, `git …`, `brew …`, `go install …`, `scoop …` line: confirm it is real
     (matches Task 0 captures / §21.3 / §15.5 / .goreleaser.yaml). Fix any fiction.
   - Confirm the 6 verbatim blocks (A–F) are byte-identical to the PRP's "Verbatim PRD/source blocks".
   - Confirm GAP 1 (no docs/PRD.md; link to ../PRD.md), GAP 3 (README env-var mention accurate; full table
-    in configuration.md), GAP 4 (dustin/stagehand everywhere), GAP 5 (curl note), GAP 6 (no license).
+    in configuration.md), GAP 4 (dustin/stagecoach everywhere), GAP 5 (curl note), GAP 6 (no license).
   - Confirm README consistency (L3): every claim README makes that docs/ also makes agrees (precedence
     one-liner, install commands, provider list, the docs/ link resolves to docs/README.md).
   - Confirm no unshipped feature is documented as working (GOTCHA #8: single-commit; no install.sh/LICENSE).
@@ -675,7 +675,7 @@ npx markdownlint-cli2 'docs/**/*.md' README.md
 ```bash
 # Build the binary the docs' commands must match.
 make build
-BIN=./bin/stagehand
+BIN=./bin/stagecoach
 
 # (a) FLAGS — every flag in docs/cli.md exists on the binary (11 flags incl. --version/--help/-h):
 $BIN --help | tee /tmp/help.txt
@@ -690,7 +690,7 @@ grep -E 'Success|Error|NothingToCommit|Rescue|Timeout' internal/exitcode/exitcod
 
 # (c) PRECEDENCE — docs/configuration.md precedence matches exampleConfigTemplate header:
 grep -A2 'Resolution precedence' internal/cmd/config.go
-# Expected: CLI flags > STAGEHAND_* env > repo git config > repo .stagehand.toml > global file >
+# Expected: CLI flags > STAGECOACH_* env > repo git config > repo .stagecoach.toml > global file >
 #           provider defaults > built-in defaults. docs/configuration.md Block B must match.
 
 # (d) MANIFEST FIELDS — every field in docs/providers.md schema is in manifest.go toml tags (18 fields):
@@ -701,7 +701,7 @@ grep -oE 'toml:"[^"]+"' internal/provider/manifest.go | sed 's/toml:"//;s/"//' |
 #           strip_code_fence,retry_instruction,env). docs must use ONLY these.
 
 # (e) INSTALL PATHS — the 4 install commands in docs match §21.3 + .goreleaser.yaml:
-grep -nE 'brew install dustin/tap/stagehand|go install github.com/dustin/stagehand|install.sh|scoop install dustin/stagehand' docs/README.md docs/cli.md 2>/dev/null
+grep -nE 'brew install dustin/tap/stagecoach|go install github.com/dustin/stagecoach|install.sh|scoop install dustin/stagecoach' docs/README.md docs/cli.md 2>/dev/null
 grep -nE 'dustin/homebrew-tap|dustin/scoop-bucket|owner: dustin' .goreleaser.yaml
 # Expected: install block present in docs/README.md (Block F verbatim); namespaces = dustin/* everywhere.
 
@@ -734,18 +734,18 @@ done
 test ! -e docs/PRD.md && echo "OK: no docs/PRD.md" || echo "FAIL: docs/PRD.md exists"
 grep -q '\.\./PRD\.md' docs/README.md && echo "OK: links to ../PRD.md" || echo "FAIL: no PRD link"
 
-# (d) GAP 4 — namespace = dustin/stagehand everywhere in docs (no dabstractor):
+# (d) GAP 4 — namespace = dustin/stagecoach everywhere in docs (no dabstractor):
 grep -rni 'dabstractor' docs/ && echo "FAIL: dabstractor found" || echo "OK: no dabstractor"
-grep -rni 'dustin/stagehand' docs/ | head -1 && echo "OK: dustin/stagehand present"
+grep -rni 'dustin/stagecoach' docs/ | head -1 && echo "OK: dustin/stagecoach present"
 
 # (e) README consistency — docs/ and README agree on the shared facts:
-grep -q 'CLI flags  >  STAGEHAND' docs/configuration.md   # precedence one-liner present
-grep -q 'brew install dustin/tap/stagehand' docs/README.md 2>/dev/null || grep -q 'brew install dustin/tap/stagehand' docs/cli.md
+grep -q 'CLI flags  >  STAGECOACH' docs/configuration.md   # precedence one-liner present
+grep -q 'brew install dustin/tap/stagecoach' docs/README.md 2>/dev/null || grep -q 'brew install dustin/tap/stagecoach' docs/cli.md
 grep -q 'pi, claude, gemini, opencode, codex, cursor' docs/providers.md   # auto-detect order
 
 # (f) Dead-link audit — every URL/link in docs resolves or is explicitly a placeholder:
 grep -roE 'https?://[^ )"]+|]\([^)]+\)' docs/ | sort -u
-#   eyeball: external = dustin/stagehand or github.com or shields.io; relative links resolve (b).
+#   eyeball: external = dustin/stagecoach or github.com or shields.io; relative links resolve (b).
 
 # (g) Mode-B honesty sweep — no unshipped feature documented as working:
 grep -rniE '\-\-split|multi-commit hunk|install\.sh exists' docs/
@@ -771,11 +771,11 @@ grep -rE '\[.*\]\(cli\.md\)|\(configuration\.md\)|\(providers\.md\)|\(how-it-wor
 
 # (c) Verbatim-block fidelity — the 6 blocks (A–F) match the PRP's "Verbatim PRD/source blocks":
 grep -q '124' docs/cli.md && grep -q 'Nothing to commit' docs/cli.md       # Block A exit codes
-grep -q 'CLI flags  >  STAGEHAND' docs/configuration.md                     # Block B precedence
+grep -q 'CLI flags  >  STAGECOACH' docs/configuration.md                     # Block B precedence
 grep -qw 'prompt_delivery' docs/providers.md && grep -qw 'bare_flags' docs/providers.md  # Block C schema
 grep -q 'Pane A (lazygit / shell)' docs/how-it-works.md                     # Block D diagram
 grep -q 'Tree ID: <TREE_SHA>' docs/how-it-works.md                          # Block E rescue
-grep -q 'brew install dustin/tap/stagehand' docs/README.md 2>/dev/null || grep -q 'README' docs/README.md  # Block F install or link
+grep -q 'brew install dustin/tap/stagecoach' docs/README.md 2>/dev/null || grep -q 'README' docs/README.md  # Block F install or link
 
 # (d) Title-deliverable match — "docs/ overview" exists (docs/README.md) and cross-cutting docs exist:
 test -f docs/README.md && test -f docs/how-it-works.md && echo "OK: overview + cross-cutting present"
@@ -819,7 +819,7 @@ test -f docs/README.md && test -f docs/how-it-works.md && echo "OK: overview + c
 
 - [ ] docs/ is self-contained: a user can find any flag/exit-code/config-layer/manifest-field from docs/
       alone (+ the binary's --help/config init as the always-available backup).
-- [ ] All internal links are relative and resolve; external links use github.com/dustin/stagehand.
+- [ ] All internal links are relative and resolve; external links use github.com/dustin/stagecoach.
 - [ ] The 6 GAPs are each handled deliberately (not silently papered over).
 - [ ] docs/README.md explicitly notes docs/ is new in v1.0 (GAP 2) and links to the read-only root PRD.
 
@@ -833,11 +833,11 @@ test -f docs/README.md && test -f docs/how-it-works.md && echo "OK: overview + c
 - ❌ Don't edit `README.md` — it is owned by P1.M5.T4.S1 (parallel). This task VERIFIES consistency only
       (GAP 3); if docs/ and README would disagree, fix the doc.
 - ❌ Don't document from memory — cross-check every flag/exit-code/precedence/field/path against the Go
-      source + `bin/stagehand --help` (Validation Loop L2). The §15.4 exit codes OVERRIDE the architecture
+      source + `bin/stagecoach --help` (Validation Loop L2). The §15.4 exit codes OVERRIDE the architecture
       doc's generic table (2=nothing-to-commit, 3=rescue); use `exitcode.go`.
 - ❌ Don't invent manifest fields — only the 18 in `manifest.go` exist. The 6 built-ins table mirrors
       `builtin.go` + `providers/*.toml`. The TO CONFIRM notes from §12.7 are caveats, not hard facts.
-- ❌ Don't use `dabstractor/stagehand` anywhere — the public namespace is `dustin/stagehand` (go.mod +
+- ❌ Don't use `dabstractor/stagecoach` anywhere — the public namespace is `dustin/stagecoach` (go.mod +
       goreleaser owner:dustin + §21.3). A dabstractor URL is a broken install (GAP 4).
 - ❌ Don't assert a release version or a license — `--version` prints "dev" locally (GOTCHA #7); there is
       no LICENSE file (GAP 6). State the version behavior; omit license claims.

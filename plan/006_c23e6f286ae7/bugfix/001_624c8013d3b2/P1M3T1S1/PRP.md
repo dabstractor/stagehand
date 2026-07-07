@@ -76,7 +76,7 @@ docs/cli.md + docs/how-it-works.md untouched (sibling sweep P1.M3.T1.S2).
 
 ## User Persona
 
-**Target User**: The README reader (a new or prospective stagehand user) reading any section that mentions
+**Target User**: The README reader (a new or prospective stagecoach user) reading any section that mentions
 decompose, safety, or running the tool — who must not be misled by a stale, unconditional "exits 0 on
 double-run" claim into thinking the decompose path no-ops on an accidental double-tap (it exits Busy/5).
 

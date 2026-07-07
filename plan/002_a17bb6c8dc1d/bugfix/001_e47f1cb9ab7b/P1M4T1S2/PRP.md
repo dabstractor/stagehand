@@ -1,10 +1,10 @@
 # PRP — P1.M4.T1.S2: Wire `ResolveConfigPath` into the `config init`/`upgrade`/`path` subcommands (Issue 4)
 
 **Issue**: bugfix-001 Issue 4 (Major) — `config init` / `config upgrade` / `config path` ignore the
-`--config` flag and the `STAGEHAND_CONFIG` env var and always operate on `config.GlobalConfigPath()`. The
+`--config` flag and the `STAGECOACH_CONFIG` env var and always operate on `config.GlobalConfigPath()`. The
 override-aware resolver landed in the sibling subtask **P1.M4.T1.S1** (`config.ResolveConfigPath`); this
 subtask is the thin **wiring + tests + help-text** layer that makes the three subcommands actually use it.
-**PRD refs**: §15.2 (`--config` / `STAGEHAND_CONFIG` "overrides discovery"), §9.8 FR38 (`config init` /
+**PRD refs**: §15.2 (`--config` / `STAGECOACH_CONFIG` "overrides discovery"), §9.8 FR38 (`config init` /
 `config path` / `config upgrade`).
 **Binding analysis**: `plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue4_config_path_override.md`
 (Step 2 + Test Strategy 2–4 + "Files to Touch").
@@ -15,38 +15,38 @@ ships in `internal/config/file.go:99` and `config.Load` already calls it (`inter
 
 ## Goal
 
-**Feature Goal**: Make `stagehand --config X config {path,upgrade,init}` (and `STAGEHAND_CONFIG=X`) operate
+**Feature Goal**: Make `stagecoach --config X config {path,upgrade,init}` (and `STAGECOACH_CONFIG=X`) operate
 on file `X` instead of silently using the global config path. Concretely: replace the three hardcoded
 `config.GlobalConfigPath()` calls in the three config-subcommand `RunE` functions with
 `config.ResolveConfigPath(flagConfig)` (the same resolver `config.Load` uses), update the two now-misleading
 `Long` help texts to state the override IS honored, and add integration tests proving all three subcommands
-honor `--config`/`STAGEHAND_CONFIG` while staying back-compatible when neither is set.
+honor `--config`/`STAGECOACH_CONFIG` while staying back-compatible when neither is set.
 
 **Deliverable**:
 1. **Code (3 one-line edits)** in `internal/cmd/config.go`: `runConfigPath` (L130), `runConfigUpgrade` (L138),
    `runConfigInit` (L231) — each swaps `config.GlobalConfigPath()` → `config.ResolveConfigPath(flagConfig)`.
    No import changes (`config` is already imported; `flagConfig` is the same-package package var in `root.go`).
 2. **Docs (Mode A — rides with this work)**: rewrite the `Long` text of `configPathCmd` and `configUpgradeCmd`
-   to remove the "not a --config/STAGEHAND_CONFIG override" / "targets the GLOBAL config" language and state
+   to remove the "not a --config/STAGECOACH_CONFIG override" / "targets the GLOBAL config" language and state
    the override IS honored.
 3. **Tests**: 5 integration tests in `internal/cmd/config_test.go` covering (a) `config path --config`,
-   (b) `config path` with `STAGEHAND_CONFIG`, (c) `config upgrade --config`, (d) `config init --config`,
+   (b) `config path` with `STAGECOACH_CONFIG`, (c) `config upgrade --config`, (d) `config init --config`,
    (e) back-compat (no override → global path; the existing tests are the regression guard).
 
 **Success Definition**:
-- `stagehand --config X config path` prints `X`; `… config upgrade` upgrades `X` (not the global file);
-  `… config init` writes to `X`. Same for `STAGEHAND_CONFIG=X`.
+- `stagecoach --config X config path` prints `X`; `… config upgrade` upgrades `X` (not the global file);
+  `… config init` writes to `X`. Same for `STAGECOACH_CONFIG=X`.
 - No override set → `ResolveConfigPath("")` returns `GlobalConfigPath()` (back-compatible; every existing
   config test stays green unchanged).
 - `go build ./...`, `go vet ./...`, `go test -race ./...`, `make lint`, `make coverage-gate` all green.
 
 ## Why
 
-- **User impact**: A user who drives stagehand with a custom/repo config (`--config` / `STAGEHAND_CONFIG`)
+- **User impact**: A user who drives stagecoach with a custom/repo config (`--config` / `STAGECOACH_CONFIG`)
   and then runs `config upgrade` today **silently mutates (or creates) their global config** instead of the
   intended file; `config path` misleads debugging by reporting the global path. This is the exact
   "Major" repro in the PRD.
-- **Single source of truth**: S1 already extracted the precedence (`--config > STAGEHAND_CONFIG >
+- **Single source of truth**: S1 already extracted the precedence (`--config > STAGECOACH_CONFIG >
   GlobalConfigPath()`) into one resolver. Wiring the subcommands to it makes the resolution rule authoritative
   in one place (no second drift-prone copy), matching how `config.Load` already resolves.
 - **Scope respect**: This is purely the wiring + tests + help-text for Issue 4. It does NOT touch
@@ -57,12 +57,12 @@ honor `--config`/`STAGEHAND_CONFIG` while staying back-compatible when neither i
 ## What
 
 ### User-visible behavior (after fix)
-- `stagehand --config /tmp/foo.toml config path` → prints `/tmp/foo.toml`.
-- `STAGEHAND_CONFIG=/tmp/foo.toml stagehand config path` → prints `/tmp/foo.toml`.
-- `stagehand --config /tmp/foo.toml config upgrade` → upgrades `/tmp/foo.toml` in place (the global path is
+- `stagecoach --config /tmp/foo.toml config path` → prints `/tmp/foo.toml`.
+- `STAGECOACH_CONFIG=/tmp/foo.toml stagecoach config path` → prints `/tmp/foo.toml`.
+- `stagecoach --config /tmp/foo.toml config upgrade` → upgrades `/tmp/foo.toml` in place (the global path is
   NOT read or written).
-- `stagehand --config /tmp/foo.toml config init` → writes the bootstrap config to `/tmp/foo.toml`.
-- No `--config` and `STAGEHAND_CONFIG` unset → all three operate on the global path (unchanged behavior).
+- `stagecoach --config /tmp/foo.toml config init` → writes the bootstrap config to `/tmp/foo.toml`.
+- No `--config` and `STAGECOACH_CONFIG` unset → all three operate on the global path (unchanged behavior).
 
 ### Technical behavior
 - cobra parses the root persistent `--config` flag during `Execute` (BEFORE `PersistentPreRunE` and `RunE`),
@@ -70,12 +70,12 @@ honor `--config`/`STAGEHAND_CONFIG` while staying back-compatible when neither i
   config subcommands are in `shouldSkipConfigLoad`, so `PersistentPreRunE` returns early (no `config.Load`),
   but **`flagConfig` is already populated** by then. Each `RunE` now reads it via
   `config.ResolveConfigPath(flagConfig)`.
-- Precedence is identical to `config.Load`: `flagConfig` (`--config`) > `STAGEHAND_CONFIG` env >
+- Precedence is identical to `config.Load`: `flagConfig` (`--config`) > `STAGECOACH_CONFIG` env >
   `GlobalConfigPath()` discovery.
 
 ### Success Criteria
 - [ ] `runConfigPath`/`runConfigUpgrade`/`runConfigInit` use `config.ResolveConfigPath(flagConfig)`.
-- [ ] `configPathCmd.Long` and `configUpgradeCmd.Long` state `--config`/`STAGEHAND_CONFIG` are honored.
+- [ ] `configPathCmd.Long` and `configUpgradeCmd.Long` state `--config`/`STAGECOACH_CONFIG` are honored.
 - [ ] 5 new tests pass (a–e); the ~30 existing config tests pass unchanged (regression guard for back-compat).
 - [ ] No new imports, no change to `config.Load`/`ResolveConfigPath`/loaders/`shouldSkipConfigLoad`.
 
@@ -102,11 +102,11 @@ specified below.
 
 # MUST READ — the resolver shipped by S1 (do NOT modify, only call it)
 - file: internal/config/file.go
-  lines: 99-109 (ResolveConfigPath: flagConfig != "" → flagConfig; else STAGEHAND_CONFIG → env; else
+  lines: 99-109 (ResolveConfigPath: flagConfig != "" → flagConfig; else STAGECOACH_CONFIG → env; else
          GlobalConfigPath()).
   why: This is the function the three RunE's now call. Its precedence is identical to config.Load
        (load.go:76), so the subcommands and the default action resolve the same path for the same inputs.
-  gotcha: ResolveConfigPath reads STAGEHAND_CONFIG via os.Getenv internally — the subcommands do NOT need to
+  gotcha: ResolveConfigPath reads STAGECOACH_CONFIG via os.Getenv internally — the subcommands do NOT need to
           read the env var themselves; passing flagConfig ("") is enough and the env fallback is automatic.
 
 # MUST READ — the file & functions to edit (internal/cmd/config.go)
@@ -114,7 +114,7 @@ specified below.
   lines: 129-131 (runConfigPath: `fmt.Fprintln(cmd.OutOrStdout(), config.GlobalConfigPath())` at L130);
          137-139 (runConfigUpgrade: `path := config.GlobalConfigPath()` at L138);
          230-232 (runConfigInit: `path := config.GlobalConfigPath()` at L231);
-         56-69 (configPathCmd.Long — the "not a --config/STAGEHAND_CONFIG override" sentence to rewrite);
+         56-69 (configPathCmd.Long — the "not a --config/STAGECOACH_CONFIG override" sentence to rewrite);
          85-100 (configUpgradeCmd.Long — the "It targets the GLOBAL config" sentence to rewrite).
   why: THE edit sites. All three RunE's are package-`cmd` funcs; `flagConfig` is in scope.
   pattern: Keep each function body otherwise byte-identical; only the path-source changes.
@@ -193,14 +193,14 @@ internal/cmd/config_test.go   # +5 integration tests (a–e)
 // If a single test sets --config in multiple t.Run sub-cases, also manually `flagConfig = ""` + clear the
 // flag's Changed bit between sub-cases (mirror root_test.go:240-244).
 
-// CRITICAL — STAGEHAND_CONFIG env isolation. ResolveConfigPath falls back to os.Getenv("STAGEHAND_CONFIG").
-// The ambient env may carry STAGEHAND_CONFIG. Each test MUST explicitly manage it via t.Setenv: set it for
-// the env-override tests; t.Setenv("STAGEHAND_CONFIG", "") for the --config-only and back-compat tests so a
+// CRITICAL — STAGECOACH_CONFIG env isolation. ResolveConfigPath falls back to os.Getenv("STAGECOACH_CONFIG").
+// The ambient env may carry STAGECOACH_CONFIG. Each test MUST explicitly manage it via t.Setenv: set it for
+// the env-override tests; t.Setenv("STAGECOACH_CONFIG", "") for the --config-only and back-compat tests so a
 // leaked env var can't change the resolved path. (t.Setenv auto-restores.)
 
 // GOTCHA — HOME/XDG isolation for the back-compat / global-path assertions. GlobalConfigPath() reads
 // $XDG_CONFIG_HOME then $HOME. setupNoRepo sets both to a temp `home`, so the global path is deterministic:
-// filepath.Join(home, "stagehand", "config.toml"). Use this for the "global NOT touched" assertion in test (c)
+// filepath.Join(home, "stagecoach", "config.toml"). Use this for the "global NOT touched" assertion in test (c)
 // and the back-compat assertion in test (e).
 
 // GOTCHA — file-existence requirements differ per subcommand. config PATH only prints (never reads) → the
@@ -244,23 +244,23 @@ internal/cmd/config_test.go   # +5 integration tests (a–e)
 ### The 2 help-text rewrites (Mode A — internal/cmd/config.go)
 
 ```go
-// configPathCmd.Long — REMOVE the misleading "not a --config/STAGEHAND_CONFIG override" sentence; STATE
+// configPathCmd.Long — REMOVE the misleading "not a --config/STAGECOACH_CONFIG override" sentence; STATE
 // the override IS honored. Suggested replacement Long (keep the Go backtick-concat style the file uses):
 Long: `Print the config file path that ` + "`config init`" + `/` + "`config upgrade`" + ` operate on and that
-Stagehand reads as its global config layer.
+Stagecoach reads as its global config layer.
 
-By default this is the DISCOVERED global location ($XDG_CONFIG_HOME/stagehand/config.toml, or
-~/.config/stagehand/config.toml). The --config flag and STAGEHAND_CONFIG env var ARE honored here: when
+By default this is the DISCOVERED global location ($XDG_CONFIG_HOME/stagecoach/config.toml, or
+~/.config/stagecoach/config.toml). The --config flag and STAGECOACH_CONFIG env var ARE honored here: when
 either is set, this prints that override path — the same file ` + "`config init`" + `/` + "`config upgrade`" + `
 then target — so you can confirm exactly which file a command will touch.`,
 
-// configUpgradeCmd.Long — REPLACE "It targets the GLOBAL config (the path printed by `stagehand config path`)."
+// configUpgradeCmd.Long — REPLACE "It targets the GLOBAL config (the path printed by `stagecoach config path`)."
 // with override-aware wording. Suggested replacement for that sentence (keep the rest of the Long verbatim):
 //   ...
 //   This is the remediation the load-time advisory points at when a config has no config_version or an older
-//   one. It targets the file reported by ` + "`stagehand config path`" + ` — by default the GLOBAL config, but
-//   the --config flag and STAGEHAND_CONFIG env var ARE honored, so ` + "`--config X config upgrade`" + ` (or
-//   STAGEHAND_CONFIG=X) upgrades file X instead of the global file.
+//   one. It targets the file reported by ` + "`stagecoach config path`" + ` — by default the GLOBAL config, but
+//   the --config flag and STAGECOACH_CONFIG env var ARE honored, so ` + "`--config X config upgrade`" + ` (or
+//   STAGECOACH_CONFIG=X) upgrades file X instead of the global file.
 //   ...
 // (configInitCmd.Long is NOT in scope per the contract; its wording does not claim --config is ignored.
 //  Optional consistency touch only — do not expand scope.)
@@ -284,26 +284,26 @@ Task 1: EDIT internal/cmd/config.go — the 3 RunE swaps
     same-package). VERIFY: go build ./... && go vet ./....
 
 Task 2: EDIT internal/cmd/config.go — the 2 Long help-text rewrites (Mode A)
-  - configPathCmd.Long: remove "not a --config/STAGEHAND_CONFIG override, which selects a separate read
-    path"; state --config/STAGEHAND_CONFIG ARE honored (use the suggested text above).
+  - configPathCmd.Long: remove "not a --config/STAGECOACH_CONFIG override, which selects a separate read
+    path"; state --config/STAGECOACH_CONFIG ARE honored (use the suggested text above).
   - configUpgradeCmd.Long: replace "It targets the GLOBAL config (the path printed by …)" with override-aware
     wording (use the suggested text above).
   - DO NOT touch configInitCmd.Long (out of contract scope). Preserve Go backtick-concat (` + "`" + `) style.
 
 Task 3: ADD the 5 integration tests to internal/cmd/config_test.go
-  - (a) TestConfigPath_ConfigFlag_PrintsOverride: setupNoRepo; t.Setenv("STAGEHAND_CONFIG",""); SetArgs
+  - (a) TestConfigPath_ConfigFlag_PrintsOverride: setupNoRepo; t.Setenv("STAGECOACH_CONFIG",""); SetArgs
         ["--config", <tmp>/foo.toml, "config", "path"]; assert stdout == <tmp>/foo.toml.
-  - (b) TestConfigPath_StagehandConfigEnv_PrintsOverride: setupNoRepo; t.Setenv("STAGEHAND_CONFIG",
+  - (b) TestConfigPath_StagecoachConfigEnv_PrintsOverride: setupNoRepo; t.Setenv("STAGECOACH_CONFIG",
         <tmp>/foo.toml); SetArgs ["config","path"]; assert stdout == <tmp>/foo.toml.
   - (c) TestConfigUpgrade_ConfigFlag_UpgradesOverride_NotGlobal: setupNoRepo; writeConfigFile a v1 config
         ("config_version = 1\n[defaults]\nprovider = \"pi\"\n") to <tmp>/foo.toml; SetArgs ["--config",
         <tmp>/foo.toml, "config","upgrade"]; Execute; assert <tmp>/foo.toml now has config_version = 2 AND
-        provider="pi" preserved; assert the GLOBAL path (filepath.Join(home,"stagehand","config.toml")) was
+        provider="pi" preserved; assert the GLOBAL path (filepath.Join(home,"stagecoach","config.toml")) was
         NOT created (os.Stat → NotExist).
   - (d) TestConfigInit_ConfigFlag_WritesOverride: setupNoRepo; point --config at a NON-existent
         <tmp>/foo.toml; SetArgs ["--config", <tmp>/foo.toml, "config","init"]; Execute; assert file exists at
         <tmp>/foo.toml AND contains "config_version = 2".
-  - (e) TestConfigPath_NoOverride_BackCompatGlobal: setupNoRepo; t.Setenv("STAGEHAND_CONFIG",""); SetArgs
+  - (e) TestConfigPath_NoOverride_BackCompatGlobal: setupNoRepo; t.Setenv("STAGECOACH_CONFIG",""); SetArgs
         ["config","path"]; assert stdout == config.GlobalConfigPath() (== the existing
         TestConfigPath_PrintsGlobalPath behavior — proves back-compat; the existing tests are also regression
         guards).
@@ -324,7 +324,7 @@ func TestConfigPath_ConfigFlag_PrintsOverride(t *testing.T) {
 	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
 
 	setupNoRepo(t)
-	t.Setenv("STAGEHAND_CONFIG", "") // isolate: this test exercises the FLAG, not the env
+	t.Setenv("STAGECOACH_CONFIG", "") // isolate: this test exercises the FLAG, not the env
 	override := filepath.Join(t.TempDir(), "foo.toml") // parent (TempDir) exists
 
 	var out bytes.Buffer
@@ -341,7 +341,7 @@ func TestConfigPath_ConfigFlag_PrintsOverride(t *testing.T) {
 }
 
 // PATTERN — the upgrade "global NOT touched" assertion (test c):
-globalPath := filepath.Join(home, "stagehand", "config.toml") // home from setupNoRepo
+globalPath := filepath.Join(home, "stagecoach", "config.toml") // home from setupNoRepo
 if _, err := os.Stat(globalPath); !os.IsNotExist(err) {
 	t.Errorf("global config %s must NOT exist (upgrade must target the --config file only)", globalPath)
 }
@@ -359,7 +359,7 @@ CODE (this subtask):
   - file: internal/cmd/config.go
     change: "3 RunE swaps (GlobalConfigPath→ResolveConfigPath(flagConfig)) + 2 Long help-text rewrites"
     risk: LOW. ResolveConfigPath("") == GlobalConfigPath(), so with no override the behavior is identical
-          (byte-for-byte). The only behavioral change is when flagConfig/STAGEHAND_CONFIG is non-empty.
+          (byte-for-byte). The only behavioral change is when flagConfig/STAGECOACH_CONFIG is non-empty.
 
 TESTS:
   - file: internal/cmd/config_test.go
@@ -388,7 +388,7 @@ make lint               # golangci-lint — zero findings
 
 ```bash
 # Run ONLY the new Issue-4 wiring tests, verbosely.
-go test -race ./internal/cmd/ -run 'ConfigPath_ConfigFlag|ConfigPath_StagehandConfigEnv|ConfigUpgrade_ConfigFlag|ConfigInit_ConfigFlag|ConfigPath_NoOverride' -v
+go test -race ./internal/cmd/ -run 'ConfigPath_ConfigFlag|ConfigPath_StagecoachConfigEnv|ConfigUpgrade_ConfigFlag|ConfigInit_ConfigFlag|ConfigPath_NoOverride' -v
 # Expected: 5 PASS. If a path test reports the GLOBAL path instead of the override, flagConfig is not flowing
 # — re-check the runConfigPath swap (L130) and that SetArgs puts --config before the subcommand. If upgrade
 # reports "no config file", the override file wasn't written first (test c prerequisite). If init errors
@@ -412,18 +412,18 @@ go test -race ./...
 ### Level 4: Manual end-to-end smoke (proves the user-visible fix)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 tmp=$(mktemp -d)
 printf 'config_version = 1\n[defaults]\nprovider = "pi"\n' > "$tmp/cfg.toml"
 # config path honors --config:
-/tmp/stagehand --config "$tmp/cfg.toml" config path          # → prints "$tmp/cfg.toml"
+/tmp/stagecoach --config "$tmp/cfg.toml" config path          # → prints "$tmp/cfg.toml"
 # config upgrade honors --config (upgrades cfg.toml; global untouched):
-/tmp/stagehand --config "$tmp/cfg.toml" config upgrade        # → "Upgraded config at $tmp/cfg.toml to version 2."
+/tmp/stagecoach --config "$tmp/cfg.toml" config upgrade        # → "Upgraded config at $tmp/cfg.toml to version 2."
 grep -q 'config_version = 2' "$tmp/cfg.toml" && echo "OK: cfg.toml upgraded"
-# config path honors STAGEHAND_CONFIG:
-STAGEHAND_CONFIG="$tmp/cfg.toml" /tmp/stagehand config path   # → prints "$tmp/cfg.toml"
+# config path honors STAGECOACH_CONFIG:
+STAGECOACH_CONFIG="$tmp/cfg.toml" /tmp/stagecoach config path   # → prints "$tmp/cfg.toml"
 # back-compat (no override → global):
-unset STAGEHAND_CONFIG; /tmp/stagehand config path            # → prints the global path
+unset STAGECOACH_CONFIG; /tmp/stagecoach config path            # → prints the global path
 rm -rf "$tmp"
 ```
 
@@ -446,10 +446,10 @@ make coverage-gate     # all 4 core packages still >= 85%
 
 ### Feature Validation
 - [ ] `runConfigPath`/`runConfigUpgrade`/`runConfigInit` call `config.ResolveConfigPath(flagConfig)`.
-- [ ] `configPathCmd.Long` + `configUpgradeCmd.Long` state `--config`/`STAGEHAND_CONFIG` are honored (the
+- [ ] `configPathCmd.Long` + `configUpgradeCmd.Long` state `--config`/`STAGECOACH_CONFIG` are honored (the
       misleading "not a … override" / "targets the GLOBAL config" language removed).
 - [ ] Test (a): `config path --config X` → prints X.
-- [ ] Test (b): `config path` with `STAGEHAND_CONFIG=X` → prints X.
+- [ ] Test (b): `config path` with `STAGECOACH_CONFIG=X` → prints X.
 - [ ] Test (c): `config upgrade --config X` → X upgraded to config_version=2; global path NOT touched.
 - [ ] Test (d): `config init --config X` → X written (contains config_version=2).
 - [ ] Test (e): no override → global path (back-compat).
@@ -458,7 +458,7 @@ make coverage-gate     # all 4 core packages still >= 85%
 ### Code Quality Validation
 - [ ] 3 one-line swaps + 2 Long rewrites only; no collateral edits.
 - [ ] Reuses setupNoRepo/writeConfigFile/saveRootState/restoreRootState/Execute/exitcode.For (no duplication).
-- [ ] Every new test isolates STAGEHAND_CONFIG (t.Setenv) and HOME/XDG (setupNoRepo).
+- [ ] Every new test isolates STAGECOACH_CONFIG (t.Setenv) and HOME/XDG (setupNoRepo).
 - [ ] Every new test uses saveRootState + defer restoreRootState (flagConfig reset via resetFlags).
 
 ### Documentation & Boundaries
@@ -471,11 +471,11 @@ make coverage-gate     # all 4 core packages still >= 85%
 
 - ❌ Don't add a `config.Load` call to the config subcommands — they intentionally skip it
   (`shouldSkipConfigLoad`); read the already-parsed `flagConfig` var instead.
-- ❌ Don't read `STAGEHAND_CONFIG` yourself in the RunE — `ResolveConfigPath` does the env fallback; just pass
+- ❌ Don't read `STAGECOACH_CONFIG` yourself in the RunE — `ResolveConfigPath` does the env fallback; just pass
   `flagConfig`.
 - ❌ Don't qualify `flagConfig` as `root.flagConfig` or similar — it is an unexported package var in the SAME
   package (`internal/cmd`); reference it bare.
-- ❌ Don't forget `t.Setenv("STAGEHAND_CONFIG", "")` in the --config-only and back-compat tests — a leaked
+- ❌ Don't forget `t.Setenv("STAGECOACH_CONFIG", "")` in the --config-only and back-compat tests — a leaked
   ambient env var would change the resolved path and cause flaky failures.
 - ❌ Don't forget `saveRootState` + `defer restoreRootState` in every new test — without it `flagConfig` leaks
   (pflag doesn't reset bound vars between Execute calls) and later tests see a stale `--config` value.

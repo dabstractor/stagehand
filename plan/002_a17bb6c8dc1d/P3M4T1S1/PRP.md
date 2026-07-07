@@ -34,7 +34,7 @@ description: |
        (6) Run the loop (P3.M2.T4.S1 logic) producing []CommitResult.
        (7) StatusPorcelain check.
        (8) If non-empty → runArbiter → resolveArbiter.
-       (9) Return DecomposeResult{Commits, Amended}. Define DecomposeResult struct matching pkg/stagehand.
+       (9) Return DecomposeResult{Commits, Amended}. Define DecomposeResult struct matching pkg/stagecoach.
     4. OUTPUT: Decompose() is the entry point for the multi-commit pipeline. Returns the ordered
        commits created this run.
     5. DOCS: none — internal orchestrator.
@@ -58,7 +58,7 @@ description: |
       generate.CASError, generate.ErrNothingToCommit.
     - internal/prompt/planner.go — CONSUMED (read-only): PlannerOutput{Count,Single,Commits,Message},
       PlannerCommit{Title,Description}.
-    - internal/cmd/root.go, pkg/stagehand/ — UNCHANGED. CLI routing (FR-M1 trigger) + the public
+    - internal/cmd/root.go, pkg/stagecoach/ — UNCHANGED. CLI routing (FR-M1 trigger) + the public
       Decompose API are P4 (P4.M1.T1.S1, P4.M2.T1.S1).
 
   DELIVERABLES (3 git changes):
@@ -145,20 +145,20 @@ every sibling function is a synchronous primitive it calls.
 
 ## User Persona
 
-**Target User**: the CLI default-action router (P4.M1.T1.S1) and the public `pkg/stagehand` API
-(P4.M2.T1.S1), and through them the end user running `stagehand` on an un-staged, dirty working tree.
-decompose.go is internal orchestration — NOT user-facing text. The user invokes `stagehand` (no
+**Target User**: the CLI default-action router (P4.M1.T1.S1) and the public `pkg/stagecoach` API
+(P4.M2.T1.S1), and through them the end user running `stagecoach` on an un-staged, dirty working tree.
+decompose.go is internal orchestration — NOT user-facing text. The user invokes `stagecoach` (no
 subcommand); the router sees nothing staged + a dirty tree (FR-M1) and calls Decompose.
 
-**Use Case**: the user has made several unrelated changes and runs `stagehand`; Decompose partitions
+**Use Case**: the user has made several unrelated changes and runs `stagecoach`; Decompose partitions
 them into N coherent commits via the four-agent pipeline, publishes them in order, and reconciles any
 leftovers — leaving a clean tree and a tidy linear history.
 
-**User Journey**: (1) user edits files across concerns; (2) runs `stagehand`; (3) router checks
+**User Journey**: (1) user edits files across concerns; (2) runs `stagecoach`; (3) router checks
 `HasStagedChanges` (false) + dirty tree → Decompose; (4) Decompose runs planner → loop → (arbiter);
 (5) user sees N `[<sha>] <subject>` lines + per-commit file-lists (FR42).
 
-**Pain Points Addressed**: (a) one `stagehand` invocation produces a coherent multi-commit history
+**Pain Points Addressed**: (a) one `stagecoach` invocation produces a coherent multi-commit history
 without manual `git add` per concept; (b) the overlapped pipeline (stage[i+1] ∥ message[i]) keeps the
 run fast without sacrificing the snapshot safety guarantee; (c) leftovers are never orphaned — the
 arbiter folds them in or makes a new commit; (d) a misbehaving planner (runaway count / unparseable
@@ -179,7 +179,7 @@ output) fails fast and clean (non-rescue) before any commit is attempted.
 
 ## What
 
-**User-visible behavior**: `stagehand` on an un-staged dirty tree produces N commits (or 1 via the
+**User-visible behavior**: `stagecoach` on an un-staged dirty tree produces N commits (or 1 via the
 shortcut/escape-hatch), each with a generated subject and its file-list, in strict order, leaving a
 clean tree. Modes: `--single`/`--commits 1` → one v1 commit; `--commits N` → exactly N; default → the
 planner decides. A runaway planner (Count > 12) or a planner failure aborts before any commit with a
@@ -255,7 +255,7 @@ distinction, and the DecomposeResult-after-arbiter gap — are explained, not ju
 
 - url: PRD.md §13.6.5 (the arbiter) + §9.14 FR-M9
   why: "After the loop, if git status --porcelain is non-empty, run the arbiter. The arbiter DECIDES;
-        resolveArbiter (chain.go, parallel) RESOLVES. Stagehand does ALL git."
+        resolveArbiter (chain.go, parallel) RESOLVES. Stagecoach does ALL git."
   critical: "Gate on StatusPorcelain() != ''. The arbiter does not run on the perfect run (clean tree).
         runArbiter takes (commits []CommitInfo, leftoverDiff string); resolveArbiter takes (target *string,
         commits, chainData []ChainEntry). Decompose unwraps runArbiter's ArbiterOutput.Target."
@@ -409,7 +409,7 @@ internal/
   prompt/planner.go # CONSUMED — PlannerOutput, PlannerCommit
   config/config.go  # CONSUMED — Config{Single,Commits,MaxCommits,...}
   stubtest/stubtest.go # test harness (Build, Manifest, NewScript)
-pkg/stagehand/stagehand.go # UNCHANGED (P4.M2.T1.S1 adds the public Decompose API later)
+pkg/stagecoach/stagecoach.go # UNCHANGED (P4.M2.T1.S1 adds the public Decompose API later)
 ```
 
 ### Desired Codebase tree with files to be added and responsibility of file
@@ -543,7 +543,7 @@ type CommitResult struct {
 
 // DecomposeResult is the outcome of Decompose. Commits is ordered oldest-first. Amended is the number of
 // commits the arbiter rewrote (tip amend=1, mid-chain at index i = N-i); 0 if the arbiter did not run
-// (clean tree) or made a new commit (null target). Designed to mirror the future pkg/stagehand public
+// (clean tree) or made a new commit (null target). Designed to mirror the future pkg/stagecoach public
 // DecomposeResult (P4.M2.T1.S1).
 type DecomposeResult struct {
 	Commits []CommitResult // the ordered commits created this run (oldest first)
@@ -568,7 +568,7 @@ Task 1: EDIT internal/decompose/roles.go — add the unexported stager test-seam
       // git (the stubtest agent cannot run git), exercising the full happy-path loop end-to-end. The
       // signature matches stageConcept exactly. See decompose.invokeStager.
       stager func(ctx context.Context, deps Deps, concept prompt.PlannerCommit) error
-  - ADD the import "github.com/dustin/stagehand/internal/prompt" if not already present (roles.go imports
+  - ADD the import "github.com/dustin/stagecoach/internal/prompt" if not already present (roles.go imports
     config/git/provider/ui but NOT prompt today — verify before adding; if prompt is unused elsewhere,
     add it solely for this field's type).
   - FOLLOW pattern: Deps is the injectable-collaborators struct; adding an unexported optional field is

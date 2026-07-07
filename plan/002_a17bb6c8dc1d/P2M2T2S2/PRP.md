@@ -106,7 +106,7 @@ the ONLY difference is the diff domain, `git diff` (working-tree-vs-index, NO `-
 ## User Persona
 
 **Target User**: the decompose planner agent invocation (internal code, P3.M2.T2.S1), and by extension
-the end user running `stagehand` on an un-staged working tree to get multiple logically-coherent
+the end user running `stagecoach` on an un-staged working tree to get multiple logically-coherent
 commits. WorkingTreeDiff is NOT a user-facing CLI flag; it is the diff primitive whose output is piped
 to the planner agent's stdin (PRD §13.6.2, §17.5).
 

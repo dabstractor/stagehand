@@ -1,6 +1,6 @@
 # P1.M3.T5.S1 — Design Decisions
 
-Public library API (`pkg/stagehand`). The PRD §14.1 surface is intentionally tiny:
+Public library API (`pkg/stagecoach`). The PRD §14.1 surface is intentionally tiny:
 `Options{Provider, Model, SystemExtra, DryRun, Timeout}` → `Result{CommitSHA, Subject, Message,
 Provider, Model}`. This file records the load-bearing decisions. All signatures are quoted
 VERBATIM from the on-disk code (the frozen contracts of P1.M1.T4 / P1.M2 / P1.M3.T1–T4).
@@ -28,7 +28,7 @@ P1.M3.T4.S2's PRP is explicit: *"CommitStaged always commits"* and *"dry-run is 
 (b) silently drop `SystemExtra` (a v1-stable-API defect). This is NOT a contradiction with P1.M3.T4.S2
 — its scope was the orchestrator + its integration tests only; it correctly offloaded DryRun/SystemExtra
 to the public layer. The parallel-context rule (do not modify the previous PRP's deliverable) FORBIDS
-adding a dry-run/extra seam to `CommitStaged`/`Deps`/`Config`. So the resolution lives in `pkg/stagehand`.
+adding a dry-run/extra seam to `CommitStaged`/`Deps`/`Config`. So the resolution lives in `pkg/stagecoach`.
 
 ### Resolution (the design this PRP specifies)
 
@@ -37,7 +37,7 @@ adding a dry-run/extra seam to `CommitStaged`/`Deps`/`Config`. So the resolution
 CommitStaged" for the primary path AND uses the well-tested atomic commit flow with zero duplication.
 
 **When `DryRun` OR `SystemExtra != ""`, GenerateCommit drives a self-contained path** (`runPipeline`,
-unexported, in `pkg/stagehand/stagehand.go`) that reuses the SAME exported primitives `CommitStaged`
+unexported, in `pkg/stagecoach/stagecoach.go`) that reuses the SAME exported primitives `CommitStaged`
 uses — so behavior matches and the only "duplication" is the loop skeleton + the commit plumbing:
 
 - `git.Git` (RevParseHEAD / StagedDiff / WriteTree / CommitTree / UpdateRefCAS) — real `git.New(repo)`.
@@ -58,14 +58,14 @@ is a documented consequence of P1.M3.T4.S2's (correct) scoping, not a defect.
 ## §1 — `Result` mapping drops `Changes` (public surface is PRD §14.1's shape)
 
 `generate.Result` = `{CommitSHA, Subject, Message, Provider, Model, Changes []git.FileChange}`.
-`stagehand.Result` (PRD §14.1) = `{CommitSHA, Subject, Message, Provider, Model}` — **NO `Changes`**.
+`stagecoach.Result` (PRD §14.1) = `{CommitSHA, Subject, Message, Provider, Model}` — **NO `Changes`**.
 The public API is "intentionally tiny." So the common-path delegation maps `generate.Result` →
-`stagehand.Result` by dropping `Changes` (the file listing is a CLI/report concern, not a library
-concern). `runPipeline` constructs `stagehand.Result` directly (it never needs `Changes`).
+`stagecoach.Result` by dropping `Changes` (the file listing is a CLI/report concern, not a library
+concern). `runPipeline` constructs `stagecoach.Result` directly (it never needs `Changes`).
 
 ## §2 — Error re-export (one import for library consumers)
 
-`pkg/stagehand` re-exports the typed errors so consumers import ONLY `pkg/stagehand`:
+`pkg/stagecoach` re-exports the typed errors so consumers import ONLY `pkg/stagecoach`:
 ```go
 var (
     ErrNothingToCommit = generate.ErrNothingToCommit
@@ -76,7 +76,7 @@ var (
 type RescueError = generate.RescueError  // type alias — interchangeable, errors.As works across both
 type CASError   = generate.CASError
 ```
-`errors.Is(err, stagehand.ErrCASFailed)` and `errors.As(err, &stagehand.RescueError{})` both work because
+`errors.Is(err, stagecoach.ErrCASFailed)` and `errors.As(err, &stagecoach.RescueError{})` both work because
 the public symbols ARE the generate symbols (alias / same sentinel).
 
 ## §3 — Config resolution + opts overrides
@@ -101,8 +101,8 @@ if name == "" {
     name = reg.DefaultProvider(installed)                          // "" if none installed
 }
 m, ok := reg.Get(name)
-if !ok { return Result{}, fmt.Errorf("stagehand: unknown or unavailable provider %q", name) }
-if err := m.Validate(); err != nil { return Result{}, fmt.Errorf("stagehand: provider %q: %w", name, err) }
+if !ok { return Result{}, fmt.Errorf("stagecoach: unknown or unavailable provider %q", name) }
+if err := m.Validate(); err != nil { return Result{}, fmt.Errorf("stagecoach: provider %q: %w", name, err) }
 deps := generate.Deps{Git: git.New(repoDir), Manifest: m}
 ```
 `Manifest.Resolve()` is NOT called here — `CommitStaged`/`Render` resolve internally (mirrors P1.M3.T4.S2).
@@ -139,7 +139,7 @@ consumer handles them identically regardless of whether SystemExtra/DryRun was s
 
 ## §8 — Tests mirror `generate_test.go` at the public boundary; own git fixtures
 
-`pkg/stagehand/stagehand_test.go` (`package stagehand`) drives `GenerateCommit` end-to-end with the
+`pkg/stagecoach/stagecoach_test.go` (`package stagecoach`) drives `GenerateCommit` end-to-end with the
 **real** `provider.Execute` + a **stub** agent (`internal/stubtest`) against **real temp git repos** —
 exactly the integration-test pattern of `internal/generate/generate_test.go` (P1.M3.T4.S2), but at the
 PUBLIC boundary. Scenarios: commit-success; DryRun (CommitSHA=="", HEAD unchanged); nothing-staged →
@@ -147,12 +147,12 @@ ErrNothingToCommit; provider override; timeout → ErrTimeout.
 
 **The git fixture helpers (`initRepo`/`writeFile`/`stageFile`/`headSHA`/`commitRaw`/`gitOut`/`runGit`)
 are package-private in `generate_test.go` AND in `internal/git/*_test.go` → UNIMPORTABLE.** Copy the
-~25-line set into `stagehand_test.go` (same approach P1.M3.T4.S2 took). Set identity via repo-local
+~25-line set into `stagecoach_test.go` (same approach P1.M3.T4.S2 took). Set identity via repo-local
 `git config user.name/email` (cleanest — no env pollution).
 
 ## §9 — `go mod tidy` is a no-op; only stdlib + same-module internals
 
-`pkg/stagehand/stagehand.go` imports: `context`, `errors`, `fmt`, `os`, `strings` (stdlib) +
-`github.com/dustin/stagehand/internal/{config,generate,git,prompt,provider}` (same module — `internal/`
-is importable by any package in `github.com/dustin/stagehand`). NO new third-party dep. go.mod/go.sum
+`pkg/stagecoach/stagecoach.go` imports: `context`, `errors`, `fmt`, `os`, `strings` (stdlib) +
+`github.com/dustin/stagecoach/internal/{config,generate,git,prompt,provider}` (same module — `internal/`
+is importable by any package in `github.com/dustin/stagecoach`). NO new third-party dep. go.mod/go.sum
 byte-unchanged.

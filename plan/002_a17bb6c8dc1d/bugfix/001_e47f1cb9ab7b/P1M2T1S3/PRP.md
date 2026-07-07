@@ -32,7 +32,7 @@ and `golangci-lint run` are green.
   runtime for ALL providers (defense-in-depth). Sibling tasks S1 (claude allowlist) and S2 (honest pi
   docs) harden the profiles / docs; S3 is the runtime backstop they explicitly defer to.
 - **Scope boundary**: this is the ONLY stager-path guard. It must NOT alter ref-mutation semantics
-  (stagehand still owns all ref mutations via `UpdateRefCAS`), must NOT change the retry/empty
+  (stagecoach still owns all ref mutations via `UpdateRefCAS`), must NOT change the retry/empty
   behavior for ordinary stager failures, and must NOT touch the arbiter / message / planner paths.
 - **Non-rescue by design**: when the guard fires there is no snapshot to restore — the stager
   corrupted repo state. Abort (exit 1) is the correct outcome (contrast with `*RescueError` → exit 3).
@@ -49,7 +49,7 @@ Internal behavior:
   be subject to the retry-once-then-empty (FR-M8/M12) treatment.
 - The error propagates unchanged through `runLoop` → `Decompose` → `runDecompose` →
   `handleDecomposeError`, which (because it is not `*RescueError` / `*CASError`) maps it to
-  `exitcode.New(exitcode.Error, err)` → main prints `stagehand: <msg>` and exits 1.
+  `exitcode.New(exitcode.Error, err)` → main prints `stagecoach: <msg>` and exits 1.
 
 ### Success Criteria
 
@@ -112,7 +112,7 @@ with line anchors. The guard touches exactly ONE function (`invokeStagerRetry`) 
 
 - file: internal/cmd/default_action.go
   why: `handleDecomposeError` (~L319) — `ErrStagerMovedHEAD` is not `*RescueError`/`*CASError`, so it
-       hits the `exitcode.New(exitcode.Error, err)` branch → main prints `stagehand: <msg>`. No change.
+       hits the `exitcode.New(exitcode.Error, err)` branch → main prints `stagecoach: <msg>`. No change.
 
 - docfile: plan/002_a17bb6c8dc1d/bugfix/001_e47f1cb9ab7b/architecture/issue2_stager_toolset.md
   why: the architecture note for this issue; section "(c) Add a defensive HEAD-movement guard" is the
@@ -352,7 +352,7 @@ DATABASE: none
 CONFIG:   none (no new flag/env; the guard is unconditional defense-in-depth)
 ROUTES:   none — the error propagates through the EXISTING path:
             invokeStagerRetry → runLoop → Decompose → runDecompose → handleDecomposeError
-            → exitcode.New(exitcode.Error, err) → main (exit 1, prints "stagehand: <msg>")
+            → exitcode.New(exitcode.Error, err) → main (exit 1, prints "stagecoach: <msg>")
           No edit is required in exitcode.go or default_action.go.
 ```
 
@@ -405,8 +405,8 @@ golangci-lint run
 # Build the CLI and confirm the error maps to exit 1 with the right message. Requires a real agent
 # (pi) OR a stub stager binary that runs `git commit`. The unit test in Task 3 is the primary gate;
 # this is a sanity check that the full CLI path surfaces the message.
-go build -o /tmp/stagehand ./cmd/stagehand
-# (synthetic): point the stager at a script that commits, run `stagehand` in a dirty repo, and confirm:
+go build -o /tmp/stagecoach ./cmd/stagecoach
+# (synthetic): point the stager at a script that commits, run `stagecoach` in a dirty repo, and confirm:
 #   - exit code 1
 #   - stderr contains "stager moved HEAD from <pre> to <post> — aborting; the stager agent mutated refs which it must not do"
 ```

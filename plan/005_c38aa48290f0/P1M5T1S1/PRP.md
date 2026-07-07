@@ -1,7 +1,7 @@
 name: "P1.M5.T1.S1 — --edit: EDITMSG round-trip inserted at the message-finalization seam"
 description: |
   Add the `--edit` workflow convenience (PRD §9.22 FR-E1/E2/E3/E4, → G19): a FLAG-ONLY (default false)
-  editor gate that opens the user's editor on `.git/STAGEHAND_EDITMSG` (the message + a commented summary
+  editor gate that opens the user's editor on `.git/STAGECOACH_EDITMSG` (the message + a commented summary
   of tree SHA + diff-tree --name-status), and on close strips comment lines + trailing whitespace and
   publishes the edited message via the normal plumbing path. An empty result ABORTS (exit 1 "empty commit
   message — aborted") — an INTENTIONAL abort, NOT a rescue (HEAD and index untouched; the orphan tree is
@@ -37,8 +37,8 @@ description: |
 
 ## Goal
 
-**Feature Goal**: `stagehand --edit` opens the user's editor (resolved via `git var GIT_EDITOR` →
-`core.editor` → `$VISUAL` → `$EDITOR` → `vi`) on `.git/STAGEHAND_EDITMSG` containing the generated message
+**Feature Goal**: `stagecoach --edit` opens the user's editor (resolved via `git var GIT_EDITOR` →
+`core.editor` → `$VISUAL` → `$EDITOR` → `vi`) on `.git/STAGECOACH_EDITMSG` containing the generated message
 plus a commented summary (tree SHA + the diff-tree --name-status of the snapshot), and commits the
 stripped result via the normal plumbing path. The user edits the FINAL text (template already applied,
 FR-E3). An empty result aborts (exit 1, not a rescue). The edited message bypasses the duplicate
@@ -57,7 +57,7 @@ during the edit (FR-E2). In decompose mode every commit's message is gated (FR-E
 6. `internal/cmd/default_action.go` (EDIT) — `--dry-run` + `--edit` → warn + skip the editor (FR-E4).
 7. `internal/cmd/hookexec.go` (EDIT) — `--edit` on `hook exec` → usage error (FR-E4).
 8. `internal/exitcode/exitcode.go` (EDIT) — `For()` maps `generate.ErrEmptyMessage` → `exitcode.Error` (exit 1).
-9. 4 EditMessage call sites (EDIT) — generate.go, pkg/stagehand/stagehand.go, decompose/message.go,
+9. 4 EditMessage call sites (EDIT) — generate.go, pkg/stagecoach/stagecoach.go, decompose/message.go,
    decompose/decompose.go (`runSingleShortcut`); arbiter N+1 covered transitively via #3 (chain.go UNTOUCHED).
 10. docs/cli.md (EDIT) — `--edit` global-flags row incl. abort semantics; docs/how-it-works.md (EDIT) —
     the FR-E2 edit-while-staging property (REQUIRED docs call-out).
@@ -67,42 +67,42 @@ during the edit (FR-E2). In decompose mode every commit's message is gated (FR-E
 **Success Definition**:
 - `--edit` unset → every commit path byte-identical to today (EditMessage is a `cfg.Edit`-gated no-op;
   all existing tests pass unchanged — the regression guard).
-- `stagehand --edit` (single commit) → the editor opens on `.git/STAGEHAND_EDITMSG` containing the message
+- `stagecoach --edit` (single commit) → the editor opens on `.git/STAGECOACH_EDITMSG` containing the message
   + `# Please edit...` + `# Tree: <sha>` + `# <name-status lines>`; on save the stripped message lands.
-- A message emptied in the editor → `stagehand` exits 1 with "empty commit message — aborted"; HEAD and
+- A message emptied in the editor → `stagecoach` exits 1 with "empty commit message — aborted"; HEAD and
   index untouched; no commit object created.
 - The edited message is NOT re-checked for duplicates (a hand-edited message matching a recent subject
   still commits — FR-E3 git parity).
 - The user can `git add` in another pane during the editor session; the in-flight commit is unaffected (FR-E2).
 - In decompose mode, EVERY commit's message is gated (per-concept, the FR-M11 shortcut, the arbiter N+1).
-- `stagehand --dry-run --edit` → warns "--edit ignored in --dry-run mode" and does NOT open the editor.
-- `stagehand hook exec ... ` with `--edit` inherited → usage error (FR-E4).
+- `stagecoach --dry-run --edit` → warns "--edit ignored in --dry-run mode" and does NOT open the editor.
+- `stagecoach hook exec ... ` with `--edit` inherited → usage error (FR-E4).
 - `go build ./...`, `go test ./...`, `go vet ./...`, `golangci-lint run`, `gofmt -l` all green.
 
 ## User Persona
 
 **Target User**: the "plan-holder" (PRD §7.1) who trusts the generated message ~90% but wants a final
 eyeball + tweak before it lands — the same reason `git commit -e` exists, but on top of generation and
-without losing stagehand's snapshot/stage-while-generating property. Their fear: "the AI wrote something
+without losing stagecoach's snapshot/stage-while-generating property. Their fear: "the AI wrote something
 slightly wrong and I can't fix it without re-running." `--edit` lets them fix it in-place, once.
 
-**Use Case**: `stagehand --edit` (or `git stagehand --edit` via the alias, or the lazygit keybind with
+**Use Case**: `stagecoach --edit` (or `git stagecoach --edit` via the alias, or the lazygit keybind with
 `--edit` baked in) → generation runs → the editor pops with the message + a summary of what's landing →
 the user tweaks a word, saves, closes → the commit lands with their edit.
 
-**User Journey**: `stagehand --edit` → generation → editor opens → review/tweak the message (the
+**User Journey**: `stagecoach --edit` → generation → editor opens → review/tweak the message (the
 name-status summary shows exactly what's in the commit) → save+close → `[<sha>] <subject>` prints.
 If they clear the message to abort: `empty commit message — aborted` (exit 1, nothing changed).
 
 **Pain Points Addressed**: incumbents (opencommit) lack an edit gate entirely; aicommits has `--emoji`
 but no `-e`. Git's own `commit -e` is the gold standard but cannot ride on top of generation. `--edit`
-delivers git-parity editing WITHOUT sacrificing stagehand's snapshot atomicity or the stage-while-generating
+delivers git-parity editing WITHOUT sacrificing stagecoach's snapshot atomicity or the stage-while-generating
 overlap (FR-E2 — unique to the snapshot architecture, impossible with `git commit -e`).
 
 ## Why
 
 - **FR-E1 (PRD §9.22)**: the EDITMSG round-trip — write message + commented summary (tree SHA, diff-tree
-  --name-status) to `.git/STAGEHAND_EDITMSG`; open the resolved editor; strip comments + trailing
+  --name-status) to `.git/STAGECOACH_EDITMSG`; open the resolved editor; strip comments + trailing
   whitespace; empty → exit 1 abort (intentional, NOT a rescue).
 - **FR-E2**: editing-while-staging stays safe — the snapshot is frozen before the editor opens (the docs
   MUST call this out; it's the §13.4 property extended through the editor).
@@ -133,7 +133,7 @@ the template was already applied pre-dedupe by FinalizeMessage, so the editor sh
       `git diff-tree --no-commit-id --name-status -r`).
 - [ ] `Config.Edit bool \`toml:"-"\`` + `Defaults()` `Edit: false`; `loadFlags` reads `--edit`;
       `root.go` registers the global persistent `--edit` bool flag.
-- [ ] 4 `EditMessage` call sites: generate.go (post-loop, pre-CommitTree), stagehand.go runPipeline,
+- [ ] 4 `EditMessage` call sites: generate.go (post-loop, pre-CommitTree), stagecoach.go runPipeline,
       decompose/message.go (post-loop, pre-`return msg`), decompose runSingleShortcut (post-dup-check, pre-publishCommit).
 - [ ] `--dry-run` + `--edit` → stderr warning, editor NOT opened (FR-E4).
 - [ ] `hook exec` + `--edit` (inherited persistent flag) → usage error (FR-E4).
@@ -210,7 +210,7 @@ can build it from this document + codebase access._
        published here.
   pattern: |
     // EditMessage is the §9.22 FR-E1 editor gate. cfg.Edit==false ⇒ identity (the default; byte-identical
-    // to the pre-feature path). When true: write msg + a commented summary to <gitDir>/STAGEHAND_EDITMSG,
+    // to the pre-feature path). When true: write msg + a commented summary to <gitDir>/STAGECOACH_EDITMSG,
     // open the editor (git var GIT_EDITOR via sh -c), strip comment lines + trailing whitespace, return
     // the edited message. Empty result ⇒ ErrEmptyMessage (caller aborts: exit 1, NOT a rescue).
     // POST-dedupe (FR-E3: user message bypasses the re-check) and PRE-publish (CommitTree/publishCommit).
@@ -241,7 +241,7 @@ can build it from this document + codebase access._
     which maps it to exit 1. Do NOT call signal.SetSnapshot rescue disposition for it (no TREE_SHA recipe
     — the user INTENDED the abort). The snapshot already exists (treeSHA) but is harmless (gc'd).
 
-- file: pkg/stagehand/stagehand.go   (EDIT — CALL SITE #2, runPipeline)
+- file: pkg/stagecoach/stagecoach.go   (EDIT — CALL SITE #2, runPipeline)
   why: THE public-API copy of the loop. Same accept→publish structure as generate.go. Mirror the
        EditMessage insertion exactly (it's the public surface — must match the CLI behavior). cfg is `cfg`
        (config.Config); the Git boundary is the runPipeline's deps.Git. Insert after the loop break,
@@ -284,7 +284,7 @@ can build it from this document + codebase access._
 
 - file: internal/git/git.go   (EDIT — the Git interface + *gitRunner impl)
   why: ADD 3 methods to the interface + impl. (1) GitDir: `git rev-parse --absolute-git-dir` → the .git
-       dir (for STAGEHAND_EDITMSG path). Exits 128 on non-repo (real error — mirror HooksPath's convention,
+       dir (for STAGECOACH_EDITMSG path). Exits 128 on non-repo (real error — mirror HooksPath's convention,
        NOT RevParseHEAD's 128-as-unborn). (2) Editor: `git var GIT_EDITOR` → the resolved editor string
        (shell-interpreted). (3) DiffTreeNameStatus: `git diff-tree --no-commit-id --name-status -r <treeA>
        <treeB>` → the raw A/M/D lines for the EDITMSG summary. All read-only w.r.t. refs/index.
@@ -354,7 +354,7 @@ can build it from this document + codebase access._
        as a usage error. Check at the top of runHookExec (after arg parsing, before config load).
   pattern: |
     if cmd.Flags().Changed("edit") {
-        fmt.Fprintf(stderr, "stagehand: --edit is not valid with hook exec (git already opens the editor)\n")
+        fmt.Fprintf(stderr, "stagecoach: --edit is not valid with hook exec (git already opens the editor)\n")
         return exitcode.New(exitcode.Error, nil) // silent non-zero (already printed) — or exitcode.Usage if defined
     }
   gotcha: "There is no exitcode.Usage constant (see exitcode.go) — use exitcode.Error (exit 1). Print the
@@ -366,7 +366,7 @@ can build it from this document + codebase access._
        (so EditMessage is a no-op). Do this right after config load, before the generation dispatch.
   pattern: |
     if flagDryRun && cfg.Edit {
-        fmt.Fprintln(cmd.ErrOrStderr(), "stagehand: --edit ignored in --dry-run mode (nothing to commit)")
+        fmt.Fprintln(cmd.ErrOrStderr(), "stagecoach: --edit ignored in --dry-run mode (nothing to commit)")
         cfg.Edit = false
     }
   gotcha: "Mutate the LOCAL cfg copy (Load returns *cfg; either mutate *cfg or copy). The warning is stderr
@@ -384,7 +384,7 @@ can build it from this document + codebase access._
   gotcha: |
     The CLI's printRescueOrCAS (default_action.go ~L190) handles *RescueError/*CASError with SILENT exitcode
     (already-printed). ErrEmptyMessage is NEITHER — it should print "empty commit message — aborted" to
-    stderr. Simplest: in For() return exitcode.Error; the message is the err.Error() ("stagehand: empty
+    stderr. Simplest: in For() return exitcode.Error; the message is the err.Error() ("stagecoach: empty
     commit message — aborted"). The default_action.go generic path (`return exitcode.New(exitcode.Error, err)`)
     already prints err.Error() via main — verify ErrEmptyMessage is NOT caught by errors.As(*RescueError)
     first (it isn't — it's a plain sentinel). Add a small guard: the `printRescueOrCAS` switch should NOT
@@ -457,7 +457,7 @@ internal/cmd/
   hookexec.go      # EDIT — reject --edit on hook exec (FR-E4)
 internal/exitcode/
   exitcode.go      # EDIT — For() maps ErrEmptyMessage → Error (exit 1)
-pkg/stagehand/stagehand.go # EDIT — CALL SITE #2 (runPipeline, post-loop, pre-CommitTree)
+pkg/stagecoach/stagecoach.go # EDIT — CALL SITE #2 (runPipeline, post-loop, pre-CommitTree)
 docs/
   cli.md           # EDIT — --edit global-flags row
   how-it-works.md  # EDIT — FR-E2 edit-while-staging call-out (REQUIRED)
@@ -481,7 +481,7 @@ methods are added to the existing interface + impl. Every change is additive + g
 
 // CRITICAL (byte-identity): cfg.Edit==false (the default) MUST reproduce today's bytes in EVERY path.
 // EditMessage short-circuits `if !cfg.Edit { return msg, nil }` as its FIRST line. All existing
-// generate/decompose/stagehand tests pass UNCHANGED (they never set cfg.Edit) — that is the regression guard.
+// generate/decompose/stagecoach tests pass UNCHANGED (they never set cfg.Edit) — that is the regression guard.
 
 // CRITICAL (abort is NOT a rescue): ErrEmptyMessage is a PLAIN sentinel (not *RescueError). On the editor
 // returning an empty message, EditMessage returns ErrEmptyMessage; the loops `return Result{}, err` /
@@ -503,14 +503,14 @@ methods are added to the existing interface + impl. Every change is additive + g
 
 // CRITICAL (the Git interface edit ripples to ALL test doubles): adding GitDir/Editor/DiffTreeNameStatus
 // to git.Git means EVERY fake/stub Git in the repo (search `git.Git` in *_test.go: stubtest, internal/git
-// fakes, decompose/stagehand test doubles) must gain the 3 methods or the package won't compile. Run
+// fakes, decompose/stagecoach test doubles) must gain the 3 methods or the package won't compile. Run
 // `go build ./...` immediately after the interface edit to enumerate them; add no-op/stub impls.
 
 // CRITICAL (vim's `:cq` abort): vim exits non-zero on `:cq` (quit-with-error). Treat ANY non-zero editor
 // exit as an abort (return an error, do NOT commit). This is the standard git behavior (`git commit -e`
 // aborts on `:cq`). Match it. Do NOT treat non-zero editor exit as ErrEmptyMessage (different cause).
 
-// CRITICAL (the EDITMSG path is <gitDir>/STAGEHAND_EDITMSG, NOT a temp file): use `git rev-parse
+// CRITICAL (the EDITMSG path is <gitDir>/STAGECOACH_EDITMSG, NOT a temp file): use `git rev-parse
 // --absolute-git-dir` (honors worktrees + commondir). Write 0644. Do NOT use t.TempDir() for the EDITMSG
 // in PRODUCTION (only tests may redirect). The file is in .git/ so it's repo-local + cleaned by git gc
 // eventually (git's own COMMIT_EDITMSG lives there too).
@@ -556,15 +556,15 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/dustin/stagehand/internal/config"
-	"github.com/dustin/stagehand/internal/git"
+	"github.com/dustin/stagecoach/internal/config"
+	"github.com/dustin/stagecoach/internal/git"
 )
 
 // ErrEmptyMessage is the §9.22 FR-E1 abort signal: the editor returned an empty message (after stripping
 // comments + whitespace). It is an INTENTIONAL abort, NOT a rescue — HEAD and the index are untouched
 // (the editor runs after WriteTree but before CommitTree; the orphan tree is gc'd eventually). The CLI
 // maps it to exit 1 with "empty commit message — aborted" (NOT exit 3/124 — no manual-recovery recipe).
-var ErrEmptyMessage = errors.New("stagehand: empty commit message — aborted")
+var ErrEmptyMessage = errors.New("stagecoach: empty commit message — aborted")
 
 // EditContext carries the snapshot + git boundary the editor gate needs to build the EDITMSG summary
 // (§9.22 FR-E1: "the message plus a commented summary (tree SHA, diff-tree --name-status of the snapshot)").
@@ -578,7 +578,7 @@ type EditContext struct {
 
 // EditMessage is the §9.22 FR-E1 editor gate — a POST-dedupe, PRE-publish stage. cfg.Edit==false ⇒
 // identity (the default; byte-identical to the pre-feature path). When true: write msg + a commented
-// summary to <gitDir>/STAGEHAND_EDITMSG, open the resolved editor (`git var GIT_EDITOR` via sh -c), strip
+// summary to <gitDir>/STAGECOACH_EDITMSG, open the resolved editor (`git var GIT_EDITOR` via sh -c), strip
 // comment lines + trailing whitespace on close, return the edited message.
 //
 // An empty result (after strip) ⇒ ErrEmptyMessage (caller aborts: exit 1, NOT a rescue). A non-zero editor
@@ -597,7 +597,7 @@ func EditMessage(ctx context.Context, msg string, cfg config.Config, editCtx Edi
 	if err != nil {
 		return "", fmt.Errorf("--edit: resolve git dir: %w", err)
 	}
-	editMsgPath := filepath.Join(gitDir, "STAGEHAND_EDITMSG")
+	editMsgPath := filepath.Join(gitDir, "STAGECOACH_EDITMSG")
 
 	// 2. Build the EDITMSG content: message + commented summary.
 	var buf strings.Builder
@@ -670,7 +670,7 @@ func firstNonEmpty(vs ...string) string {
 // Add to the Git interface:
 	// GitDir returns the absolute path to the repository's .git directory via `git rev-parse
 	// --absolute-git-dir` (honors worktrees + commondir; git 2.13+, universally available). Used by the
-	// --edit editor gate (§9.22 FR-E1) to locate .git/STAGEHAND_EDITMSG. `--absolute-git-dir` succeeds on
+	// --edit editor gate (§9.22 FR-E1) to locate .git/STAGECOACH_EDITMSG. `--absolute-git-dir` succeeds on
 	// an UNBORN repo, so exit 128 here is a REAL error (non-repo/corrupt) — mirror HooksPath's convention
 	// (branch on code != 0, NOT on code == 128). Read-only w.r.t. refs and the index (PRD §18.1).
 	GitDir(ctx context.Context) (dir string, err error)
@@ -715,13 +715,13 @@ func firstNonEmpty(vs ...string) string {
 
 // === internal/cmd/default_action.go (EDIT — dry-run + --edit warn-and-skip, after config load) ===
 	if flagDryRun && cfg.Edit {
-		fmt.Fprintln(cmd.ErrOrStderr(), "stagehand: --edit ignored in --dry-run mode (nothing to commit)")
+		fmt.Fprintln(cmd.ErrOrStderr(), "stagecoach: --edit ignored in --dry-run mode (nothing to commit)")
 		cfg.Edit = false
 	}
 
 // === internal/cmd/hookexec.go (EDIT — reject --edit, top of runHookExec) ===
 	if cmd.Flags().Changed("edit") {
-		fmt.Fprintln(stderr, "stagehand: --edit is not valid with hook exec (git already opens the editor)")
+		fmt.Fprintln(stderr, "stagecoach: --edit is not valid with hook exec (git already opens the editor)")
 		return exitcode.New(exitcode.Error, nil)
 	}
 
@@ -758,7 +758,7 @@ Task 4: EDIT the 4 EditMessage call sites (post-dedupe, pre-publish)
     Capture parentTree (RevParseTree("HEAD") or EmptyTreeSHA if isUnborn), nameStatus
     (DiffTreeNameStatus(parentTree, treeSHA)), then `msg, err = EditMessage(ctx, msg, cfg, EditContext{...})`;
     `if err != nil { return Result{}, err }` (ErrEmptyMessage propagates BARE).
-  - pkg/stagehand/stagehand.go: mirror generate.go #1 (runPipeline's post-loop, pre-CommitTree).
+  - pkg/stagecoach/stagecoach.go: mirror generate.go #1 (runPipeline's post-loop, pre-CommitTree).
   - internal/decompose/message.go: AFTER the loop (success==true), BEFORE `return msg, nil` (~L172→L181).
     nameStatus = DiffTreeNameStatus(treeA, treeB); `msg, err = EditMessage(ctx, msg, deps.Config,
     EditContext{Git: deps.Git, TreeSHA: treeB, NameStatus: nameStatus})`; `if err != nil { return "", err }`.
@@ -846,7 +846,7 @@ GENERATE PACKAGE (owns the editor gate):
   - EditMessage is a SIBLING of FinalizeMessage (post-dedupe; FinalizeMessage is pre-dedupe). NOT nested.
 
 CALL SITES (4 — post-dedupe, pre-publish):
-  - generate.go, pkg/stagehand/stagehand.go, decompose/message.go, decompose/decompose.go (runSingleShortcut).
+  - generate.go, pkg/stagecoach/stagecoach.go, decompose/message.go, decompose/decompose.go (runSingleShortcut).
   - transitive: arbiter N+1 (chain.go), one-file short-circuit, --single escape — covered via #3/#1 (NO edits).
 
 CONFIG (flag-only, mirrors Context):
@@ -874,11 +874,11 @@ OUT OF SCOPE:
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/generate/finalize.go internal/git/git.go internal/config/config.go \
         internal/config/load.go internal/cmd/root.go internal/cmd/default_action.go \
         internal/cmd/hookexec.go internal/exitcode/exitcode.go internal/generate/generate.go \
-        pkg/stagehand/stagehand.go internal/decompose/message.go internal/decompose/decompose.go
+        pkg/stagecoach/stagecoach.go internal/decompose/message.go internal/decompose/decompose.go
 go build ./...   # the interface edit must compile across ALL fake/stub git.Git impls
 go vet ./...
 golangci-lint run
@@ -894,22 +894,22 @@ go test ./internal/git/... -v        # GitDir + Editor + DiffTreeNameStatus
 go test ./internal/config/... -v     # --edit flag plumbing (cfg.Edit set)
 go test ./internal/exitcode/... -v   # ErrEmptyMessage → Error (1)
 go test ./internal/decompose/... -v  # fake-editor across generateMessage + runSingleShortcut
-go test ./pkg/stagehand/... -v       # runPipeline EditMessage call site
+go test ./pkg/stagecoach/... -v       # runPipeline EditMessage call site
 # Expected: all pass. The byte-identity guard: every pre-existing test (cfg.Edit never set) passes UNCHANGED.
 ```
 
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 # Flag exists + help:
-/tmp/stagehand --help 2>&1 | grep -A2 -- '--edit'
+/tmp/stagecoach --help 2>&1 | grep -A2 -- '--edit'
 # Hook exec rejects --edit (FR-E4):
-/tmp/stagehand hook exec /tmp/msg 2>&1 | grep 'not valid with hook exec' || true   # (only if --edit passed)
+/tmp/stagecoach hook exec /tmp/msg 2>&1 | grep 'not valid with hook exec' || true   # (only if --edit passed)
 # Dry-run + --edit warns (FR-E4):
-/tmp/stagehand --dry-run --edit 2>&1 | grep 'ignored in --dry-run mode' || true
+/tmp/stagecoach --dry-run --edit 2>&1 | grep 'ignored in --dry-run mode' || true
 # Manual smoke in a scratch repo (interactive — run by hand, not CI):
-#   cd /tmp/scratch-repo && git add foo.txt && /tmp/stagehand --edit
+#   cd /tmp/scratch-repo && git add foo.txt && /tmp/stagecoach --edit
 #   → editor opens → save → commit lands; empty the message → "empty commit message — aborted" exit 1.
 ```
 
@@ -919,7 +919,7 @@ go build -o /tmp/stagehand ./cmd/stagehand
 go test -race ./...     # full suite
 golangci-lint run ./...
 # Byte-identity guard: cfg.Edit==false (default) → every commit path byte-identical to today — all
-# pre-existing generate/decompose/stagehand tests MUST pass UNCHANGED (they never set cfg.Edit).
+# pre-existing generate/decompose/stagecoach tests MUST pass UNCHANGED (they never set cfg.Edit).
 # Exit-code guard: ErrEmptyMessage → exit 1 (NOT 3/124); HEAD+index untouched on abort (verify in a test
 # repo: capture HEAD + `git diff --cached` before, run with a fake empty editor, assert unchanged after).
 ```
@@ -933,7 +933,7 @@ golangci-lint run ./...
 
 ### Feature Validation
 - [ ] `--edit` unset → every commit path byte-identical to today (EditMessage no-op).
-- [ ] `--edit` (single) → editor opens on `.git/STAGEHAND_EDITMSG` (message + `# Please edit...` + `# Tree:` + `# <name-status>`); stripped message lands.
+- [ ] `--edit` (single) → editor opens on `.git/STAGECOACH_EDITMSG` (message + `# Please edit...` + `# Tree:` + `# <name-status>`); stripped message lands.
 - [ ] Empty editor result → exit 1 "empty commit message — aborted"; HEAD+index untouched; no commit object.
 - [ ] Edited message bypasses the duplicate check (a hand-edit matching a recent subject still commits — FR-E3).
 - [ ] Editing-while-staging safe (stage in another pane during the edit; in-flight commit unaffected — FR-E2).

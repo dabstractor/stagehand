@@ -140,7 +140,7 @@ files were safely snapshotted — they need a copy-pasteable recovery command (P
 
 **Use Case**: When generation fails after the snapshot (timeout, SIGINT/SIGTERM, parse failure, or
 duplicate-exhaustion — §18.2), the orchestrator has a TREE_SHA (the snapshot) but no NEW_SHA (no
-commit was made). Rather than silently fail, Stagehand prints the §18.3 rescue message: it reassures
+commit was made). Rather than silently fail, Stagecoach prints the §18.3 rescue message: it reassures
 the user their staged files are safe, shows the Tree ID, and gives the EXACT `git commit-tree | xargs
 git update-ref HEAD` plumbing command to recover manually (with `-p <PARENT_SHA>` for a normal commit,
 omitted for a repo's first commit). If a candidate message was produced but rejected, it is printed
@@ -287,7 +287,7 @@ required — FormatRescue is one pure string assembler + its tests.
   section: the `// Package generate …` doc comment (dedupe.go OWNS it — rescue.go must NOT add a second
            one, §8) + `ExtractSubject`/`IsDuplicate` (exported, single-value, no-error, stdlib-only,
            PRD-cited doc comments, FROZEN-signature notes).
-  why: the architectural PRECEDENT in the SAME package — Stagehand's generation pipeline is built from
+  why: the architectural PRECEDENT in the SAME package — Stagecoach's generation pipeline is built from
        small exported pure functions. FormatRescue is exactly this shape (exported, string-only,
        no-error, stdlib-only, PRD-cited doc comment, FROZEN-signature note). Mirror the doc-comment
        density (cite PRD §18.3 / FR44 + the commit-pi provenance + the FROZEN-signature + downstream
@@ -312,7 +312,7 @@ required — FormatRescue is one pure string assembler + its tests.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                          # module github.com/dustin/stagehand ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — rescue adds NO dep: stdlib strings only)
+go.mod                          # module github.com/dustin/stagecoach ; go 1.22 ; go-toml/v2 + pflag  (UNCHANGED — rescue adds NO dep: stdlib strings only)
 go.sum                          # unchanged
 internal/
   config/                       # P1.M1.T4 — untouched
@@ -325,7 +325,7 @@ internal/
   prompt/                       # P1.M3.T1 — DONE — untouched (payload.go/payload_test.go read-only refs)
   provider/                     # P1.M2 (T1–T6) — untouched (parse.go ParseOutput read-only ref)
   ui/                           # P1.M4 (empty stub) — untouched
-cmd/stagehand/main.go           # stub — untouched
+cmd/stagecoach/main.go           # stub — untouched
 Makefile                        # build/test(-race)/coverage/lint/clean/help — untouched
 ```
 
@@ -608,13 +608,13 @@ DOWNSTREAM CONTRACTS (the consumers — do NOT implement here, just honor the si
   - P1.M4.T3.S3 (exit codes): exit 3 for the rescue path.
   - P1.M4.T2 (signal handler): produces the "(interrupted)" variant (§5) by its own means (post-process
         or compose) — NOT FormatRescue's job.
-  - P1.M3.T5 (public API pkg/stagehand): may re-export FormatRescue.
+  - P1.M3.T5 (public API pkg/stagecoach): may re-export FormatRescue.
   => The FormatRescue(treeSHA, parentSHA, candidateMsg string) string signature is FROZEN after this subtask.
 
 FROZEN FILES (do NOT edit):
   - internal/generate/dedupe.go + dedupe_test.go (P1.M3.T2.S1's, parallel — owns the package doc),
         internal/prompt/* (payload.go/payload_test.go are the read-only refs), internal/git/*,
-        internal/provider/*, internal/config/*, cmd/stagehand/main.go, pkg/*, Makefile, go.mod, go.sum.
+        internal/provider/*, internal/config/*, cmd/stagecoach/main.go, pkg/*, Makefile, go.mod, go.sum.
 ```
 
 ## Validation Loop

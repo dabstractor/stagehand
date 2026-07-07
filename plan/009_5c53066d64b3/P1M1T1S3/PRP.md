@@ -42,7 +42,7 @@ after Render's closing brace). `git diff --stat` shows ONLY render.go + render_t
 loop that calls `RenderMultiTurn` per turn) and the integration tests (P1.M1.T4); and the end user with a
 very large diff whose one-shot generation repeatedly fails on a session-capable provider (pi).
 
-**Use Case**: P1.M1.T3.S2 mints a session id (`stagehand-<run-uuid>`), then for turn 1 calls
+**Use Case**: P1.M1.T3.S2 mints a session id (`stagecoach-<run-uuid>`), then for turn 1 calls
 `RenderMultiTurn(model, sys, chunk1, reasoning, sessionID, 1)`; for turns 2..N `RenderMultiTurn(model, "",
 chunkI, reasoning, sessionID, i)`; for turn N+1 `RenderMultiTurn(model, "", finalPrompt, reasoning,
 sessionID, N+1)`. Each call yields the argv the executor (P1.M2.T5) runs against the SAME session id,
@@ -57,7 +57,7 @@ its per-turn commands. S3 is the renderer that makes the protocol possible.
 - **Required by the multi-turn fallback (§9.24).** FR-T6 specifies the turn protocol against ONE session id,
   with turn-1 system prompt and a dropped `--no-session`. The renderer must produce that argv; S3 is it.
 - **Sibling method protects the 24+ Render call sites.** Widening `Render`'s signature (adding a sessionID
-  param) would break every caller (generate.go, pkg/stagehand, hook/exec, decompose roles, tests); a new
+  param) would break every caller (generate.go, pkg/stagecoach, hook/exec, decompose roles, tests); a new
   `RenderMode` value cannot carry the session-id string through the variadic `mode ...RenderMode`. The
   sibling is the only shape that keeps Render byte-identical — the same pattern used when `RenderTooled`
   was added (research §2).
@@ -132,7 +132,7 @@ both the flag guard and the prepend guard turn-correct) is the key non-obvious d
 - file: internal/provider/render_test.go
   why: "EDIT (4 new tests). Reuses the existing helpers containsToken/containsPair + the reflect.DeepEqual golden idiom. TestRender_Pi_ByteForByteCommitPi (render_test.go:90) is the golden template; TestRender_DoesNotMutateManifest (render_test.go:271) is the immutability template; TestRender_FR5b_RejectsBareModelOnMultiProvider (render_test.go:231) is the error-template. Build a pi-shape Manifest literal with SessionMode: strPtr('append')."
   pattern: "wantArgs := []string{...}; spec, err := m.RenderMultiTurn(...); if err != nil { t.Fatal(err) }; if !reflect.DeepEqual(spec.Args, wantArgs) { t.Errorf(...) }. For the gate test: m with SessionMode absent/'' → expect err != nil mentioning 'session_mode'. For immutability: snapshot m.BareFlags, call RenderMultiTurn, assert m.BareFlags unchanged (still contains '--no-session')."
-  gotcha: "The golden turn-1 args EXCLUDE '--no-session' and INCLUDE '--session-id','<id>' BEFORE '-p'. The turn-2 args are identical MINUS '--system-prompt','<sys>'. Stdin (stdin delivery) is the payload ONLY on both turns (no sys prepend — sys goes via the flag on turn 1, and is absent on turn 2). Use a distinct sessionID literal (e.g. 'stagehand-test') so the assertion is exact."
+  gotcha: "The golden turn-1 args EXCLUDE '--no-session' and INCLUDE '--session-id','<id>' BEFORE '-p'. The turn-2 args are identical MINUS '--system-prompt','<sys>'. Stdin (stdin delivery) is the payload ONLY on both turns (no sys prepend — sys goes via the flag on turn 1, and is absent on turn 2). Use a distinct sessionID literal (e.g. 'stagecoach-test') so the assertion is exact."
 
 # Read-only refs (do NOT edit in S3)
 - file: internal/provider/manifest.go
@@ -150,7 +150,7 @@ both the flag guard and the prepend guard turn-correct) is the key non-obvious d
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/provider/
     ├── render.go         # EDIT: + RenderMultiTurn method (after Render)
     ├── render_test.go    # EDIT: + 4 RenderMultiTurn tests
@@ -162,7 +162,7 @@ stagehand/
 ### Desired Codebase Tree After S3
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/provider/render.go          # +RenderMultiTurn (appended after Render); Render unchanged
     internal/provider/render_test.go     # +4 tests
@@ -305,11 +305,11 @@ Task 2: render_test.go — TestRenderMultiTurn_PiTurn1_Golden (the byte-for-byte
     ModelFlag strPtr("--model"), SystemPromptFlag strPtr("--system-prompt"), PrintFlag strPtr("-p"),
     PromptDelivery strPtr("stdin"), SessionMode strPtr("append"), BareFlags []string{"--no-tools",
     "--no-extensions","--no-skills","--no-prompt-templates","--no-context-files","--no-session"}.
-  - CALL: spec, err := m.RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagehand-test", 1).
+  - CALL: spec, err := m.RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagecoach-test", 1).
   - ASSERT (reflect.DeepEqual, the load-bearing golden):
         wantArgs := []string{"--provider","zai","--model","glm-5.2","--system-prompt","<sys>",
             "--no-tools","--no-extensions","--no-skills","--no-prompt-templates","--no-context-files",
-            "--session-id","stagehand-test","-p"}
+            "--session-id","stagecoach-test","-p"}
         spec.Command == "pi"; reflect.DeepEqual(spec.Args, wantArgs); spec.Stdin == "<payload>".
   - ALSO assert containsToken(spec.Args, "--session-id") AND !containsToken(spec.Args, "--no-session") (belt
     + suspenders on the FR-T6 swap).
@@ -317,11 +317,11 @@ Task 2: render_test.go — TestRenderMultiTurn_PiTurn1_Golden (the byte-for-byte
 
 Task 3: render_test.go — TestRenderMultiTurn_PiTurn2_NoSysPromptFlag_NoPrepend
   - Same pi-shape Manifest. CALL: spec, err := m.RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "",
-    "stagehand-test", 2).  (sysPrompt is "<sys>" BUT turn==2 ⇒ it must be suppressed.)
+    "stagecoach-test", 2).  (sysPrompt is "<sys>" BUT turn==2 ⇒ it must be suppressed.)
   - ASSERT:
         wantArgs := []string{"--provider","zai","--model","glm-5.2",
             "--no-tools","--no-extensions","--no-skills","--no-prompt-templates","--no-context-files",
-            "--session-id","stagehand-test","-p"}   // NO "--system-prompt","<sys>"
+            "--session-id","stagecoach-test","-p"}   // NO "--system-prompt","<sys>"
         reflect.DeepEqual(spec.Args, wantArgs); spec.Stdin == "<payload>" (NOT "<sys>\n\n<payload>").
   - This is the load-bearing turn-1-only assertion: turn>1 ⇒ no sys flag AND no sys prepend, EVEN THOUGH
     sysPrompt was passed non-empty. (If turnSys were not used, this test fails — sys would leak onto turn 2.)
@@ -472,7 +472,7 @@ wantArgs := []string{
 	"--system-prompt", "<sys>",
 	"--no-tools", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files",
 	// NOTE: "--no-session" is ABSENT (filtered).
-	"--session-id", "stagehand-test",
+	"--session-id", "stagecoach-test",
 	"-p", // print_flag LAST
 }
 // spec.Stdin == "<payload>" (sys goes via --system-prompt; NOT prepended for pi)
@@ -482,7 +482,7 @@ wantArgsTurn2 := []string{
 	"--provider", "zai", "--model", "glm-5.2",
 	// NOTE: NO "--system-prompt","<sys>" (turn>1 ⇒ turnSys="" ⇒ flag suppressed).
 	"--no-tools", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files",
-	"--session-id", "stagehand-test",
+	"--session-id", "stagecoach-test",
 	"-p",
 }
 // spec.Stdin == "<payload>" (turnSys="" ⇒ no prepend — even though sysPrompt arg was "<sys>")
@@ -534,7 +534,7 @@ DOWNSTREAM HOOKS (informational — owned by OTHER subtasks, NOT S3):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/provider/render.go internal/provider/render_test.go
 gofmt -l .                       # Expected: empty after the -w
@@ -545,7 +545,7 @@ go build ./...                   # Expected: exit 0
 ### Level 2: Unit Tests — the 4 new tests + the Render regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new RenderMultiTurn tests — the golden turn-1 + turn-2 are the load-bearing assertions
 go test -race -run 'TestRenderMultiTurn' ./internal/provider/ -v
@@ -565,7 +565,7 @@ go test -race ./internal/provider/ -v
 ### Level 3: Whole-Repository Regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green
 go vet ./...                     # Expected: exit 0
@@ -584,7 +584,7 @@ git diff --stat -- internal/ pkg/ cmd/ docs/ providers/
 ### Level 4: FR-T9 Render-Contract Smoke (the verified flag transformation, via a throwaway in-package test)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Inline proof (delete after): RenderMultiTurn reproduces the FR-T9-verified pi transformation.
 cat > internal/provider/zz_mt_smoke_test.go <<'EOF'
@@ -595,15 +595,15 @@ func TestZZ_MultiTurnFRT9Smoke(t *testing.T) {
 		ModelFlag: strPtr("--model"), SystemPromptFlag: strPtr("--system-prompt"),
 		PrintFlag: strPtr("-p"), PromptDelivery: strPtr("stdin"), SessionMode: strPtr("append"),
 		BareFlags: []string{"--no-tools", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files", "--no-session"}}
-	spec, err := m.RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagehand-frt9", 1)
+	spec, err := m.RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagecoach-frt9", 1)
 	if err != nil { t.Fatalf("err=%v", err) }
 	want := []string{"--provider", "zai", "--model", "glm-5.2", "--system-prompt", "<sys>",
 		"--no-tools", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files",
-		"--session-id", "stagehand-frt9", "-p"}
+		"--session-id", "stagecoach-frt9", "-p"}
 	if !reflect.DeepEqual(spec.Args, want) { t.Fatalf("turn1 args:\n got %v\nwant %v", spec.Args, want) }
 	if spec.Stdin != "<payload>" { t.Fatalf("Stdin=%q want <payload>", spec.Stdin) }
 	// turn 2: no sys flag, no prepend
-	spec2, _ := m.RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagehand-frt9", 2)
+	spec2, _ := m.RenderMultiTurn("zai/glm-5.2", "<sys>", "<payload>", "", "stagecoach-frt9", 2)
 	for _, a := range spec2.Args { if a == "--system-prompt" { t.Fatal("turn2 leaked --system-prompt") } }
 	if spec2.Stdin != "<payload>" { t.Fatalf("turn2 Stdin=%q want <payload> (no prepend)", spec2.Stdin) }
 	t.Log("FR-T9 verified transformation reproduced (turn-1 sys, --no-session dropped, --session-id added) ✅")

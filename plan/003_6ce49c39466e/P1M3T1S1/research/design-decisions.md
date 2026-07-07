@@ -17,7 +17,7 @@
 The migration must "prepend default_provider to model for each MULTI-BACKEND provider (manifest has
 provider_flag set)". But `config` deliberately does NOT import `internal/provider` (the raw-map
 decoupling invariant — `Config.Providers` is `map[string]map[string]any` precisely so config need not
-know the Manifest type; `file_test.go` etc. enforce this). Verified: `grep stagehand/internal
+know the Manifest type; `file_test.go` etc. enforce this). Verified: `grep stagecoach/internal
 internal/provider/` is empty ⇒ no cycle today, but importing provider would regress the deliberate
 layering. So multi-backend is determined LOCALLY:
 

@@ -1,5 +1,5 @@
 ---
-name: "P1.M1.T1.S2 — Update downstream test assertions + user-facing surfaces (decompose roles_test, default_action_test, root.go flag help, pkg/stagehand comment, docs/cli.md)"
+name: "P1.M1.T1.S2 — Update downstream test assertions + user-facing surfaces (decompose roles_test, default_action_test, root.go flag help, pkg/stagecoach comment, docs/cli.md)"
 description: |
   ⚠️ STATUS: ~95% ALREADY REALIZED IN THE CODEBASE. The contract describes a starting state (a
   `TestResolveRoles_ReasoningShippedDefault` test name, planner `"high"` assertions, a
@@ -31,7 +31,7 @@ achieved; this subtask's job is to VERIFY it is complete and apply ONE missed co
 2. `internal/cmd/default_action_test.go`: VERIFY `TestProgressLabel_DecomposeVerboseRoles` (:1415) already
    asserts NO `(reasoning: …)` suffix (the inverted `if strings.Contains(stderr, "(reasoning:")` at :1440).
 3. `internal/cmd/root.go`: VERIFY the `--reasoning` flag help (:137) already says "default off for every role".
-4. `pkg/stagehand/stagehand.go`: VERIFY the `RoleModel` doc comments (:62, :66) already say "off by default for every role".
+4. `pkg/stagecoach/stagecoach.go`: VERIFY the `RoleModel` doc comments (:62, :66) already say "off by default for every role".
 5. `docs/cli.md`: VERIFY the `--reasoning` row (:43) default column is already `"" (off)`.
 
 **Success Definition**: The verification gates pass (the four "already-correct" sites confirmed; the
@@ -40,7 +40,7 @@ stale comment fixed; `grep "ReasoningShippedDefault"` → ZERO; `grep 'planner: 
 
 ## User Persona
 
-**Target User**: The Stagehand contributor / reviewer confirming the plan/004 "reasoning opt-in
+**Target User**: The Stagecoach contributor / reviewer confirming the plan/004 "reasoning opt-in
 everywhere" changeset is consistently reflected in ALL downstream surfaces (decompose tests, the verbose
 progress-label test, the CLI flag help, the public API doc comment, and the CLI docs) before the
 changeset ships.
@@ -69,7 +69,7 @@ that a faithful "rename" should have caught.
 ## What
 
 A verification pass over the five S2 sites (decompose/roles_test.go, default_action_test.go, root.go,
-pkg/stagehand/stagehand.go, docs/cli.md) plus one targeted comment fix. No behavioral change (the
+pkg/stagecoach/stagecoach.go, docs/cli.md) plus one targeted comment fix. No behavioral change (the
 production behavior — `off` for every role — was already landed by S1/earlier work). The authoritative
 "no stale shipped-default" check is `grep 'planner: high\|planner=high'` (ZERO) — the contract's
 `grep 'planner.*high'` is a rough sanity check that still matches legitimate per-role/formatter/example
@@ -82,7 +82,7 @@ references (see Gotchas).
 - [ ] `TestResolveRoles_ReasoningPerRoleSet` (:565) asserts planner `""` + message `"low"`.
 - [ ] `default_action_test.go:1440` asserts NO `(reasoning:` substring in the verbose decompose stderr.
 - [ ] `root.go:137` `--reasoning` help contains "default off for every role".
-- [ ] `pkg/stagehand/stagehand.go` RoleModel comments (:62, :66) say "off by default".
+- [ ] `pkg/stagecoach/stagecoach.go` RoleModel comments (:62, :66) say "off by default".
 - [ ] `docs/cli.md:43` `--reasoning` default column is `"" (off)`.
 - [ ] `grep -rn "ReasoningShippedDefault" --include="*.go" .` (excl. plan/) → ZERO.
 - [ ] `grep -rn 'planner: high\|planner=high' internal/ pkg/ docs/` → ZERO.
@@ -107,7 +107,7 @@ verbose_test.go guard.
 ```yaml
 # MUST READ — the intended delta + the verbose_test.go guard
 - docfile: plan/004_136878664597/docs/system_context.md
-  why: "§3 'Change A' lists S2's exact file set (decompose/roles_test.go, default_action_test.go, root.go, pkg/stagehand/stagehand.go, docs/cli.md) and the per-site intended edits."
+  why: "§3 'Change A' lists S2's exact file set (decompose/roles_test.go, default_action_test.go, root.go, pkg/stagecoach/stagecoach.go, docs/cli.md) and the per-site intended edits."
   critical: "§3 confirms S1 = config package; S2 = these downstream surfaces. The verbose_test.go guard is NOT in S2's list."
 
 - docfile: plan/004_136878664597/docs/critical_findings.md
@@ -128,7 +128,7 @@ verbose_test.go guard.
   why: "VERIFY (no edit). TestProgressLabel_DecomposeVerboseRoles (:1415) already asserts NO '(reasoning: …)' suffix via `if strings.Contains(stderr, \"(reasoning:\")` (:1440) with the explanatory comment (:1439). Already the inverted assertion the contract specifies."
 - file: internal/cmd/root.go
   why: "VERIFY (no edit). The --reasoning flag help (:137) already reads '…default off for every role)'. Already target wording."
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: "VERIFY (no edit). The RoleModel doc comment (:62) already says 'off by default for every role'; the Reasoning field comment (:66) already says 'off by default'. Already target wording."
 - file: docs/cli.md
   why: "VERIFY (no edit). The --reasoning row (:43) default column is already '\"\" (off)' (NOT '(off; planner: high)'). Already target wording."
@@ -141,17 +141,17 @@ verbose_test.go guard.
 - file: internal/config/roles_test.go
   why: "READ-ONLY. Lines 132/136/188 match 'planner.*high' but are PER-ROLE OVERRIDE tests (explicit cfg values) — S1's territory, already verified. Legitimate; not stale."
 - file: docs/configuration.md
-  why: "READ-ONLY. Line 153 'STAGEHAND_PLANNER_REASONING=high' is a per-role env-var EXAMPLE (P1.M1.T2/T3 territory). Legitimate; not stale."
+  why: "READ-ONLY. Line 153 'STAGECOACH_PLANNER_REASONING=high' is a per-role env-var EXAMPLE (P1.M1.T2/T3 territory). Legitimate; not stale."
 ```
 
 ### Current Codebase Tree (S2 scope)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/decompose/roles_test.go   # VERIFY + 1-line comment fix (:537)
 ├── internal/cmd/default_action_test.go # VERIFY (already inverted at :1440)
 ├── internal/cmd/root.go                # VERIFY (--reasoning help :137 already correct)
-├── pkg/stagehand/stagehand.go          # VERIFY (RoleModel comments :62/:66 already correct)
+├── pkg/stagecoach/stagecoach.go          # VERIFY (RoleModel comments :62/:66 already correct)
 ├── docs/cli.md                         # VERIFY (--reasoning row :43 already '"" (off)')
 └── internal/ui/verbose_test.go         # MUST NOT TOUCH (Finding 3 — formatter test)
 ```
@@ -159,7 +159,7 @@ stagehand/
 ### Desired Codebase Tree After S2
 
 ```bash
-stagehand/
+stagecoach/
 └── (ONE 1-line edit; everything else unchanged)
     internal/decompose/roles_test.go   # :537 comment: ReasoningShippedDefault → NoShippedReasoningDefault
 ```
@@ -169,7 +169,7 @@ stagehand/
 | `internal/decompose/roles_test.go` | VERIFY + 1 EDIT | Confirm func/assertions already target; fix the orphaned section-header comment at :537. |
 | `internal/cmd/default_action_test.go` | VERIFY (no edit) | Confirm :1440 already asserts no `(reasoning:` suffix. |
 | `internal/cmd/root.go` | VERIFY (no edit) | Confirm :137 already "default off for every role". |
-| `pkg/stagehand/stagehand.go` | VERIFY (no edit) | Confirm :62/:66 already "off by default". |
+| `pkg/stagecoach/stagecoach.go` | VERIFY (no edit) | Confirm :62/:66 already "off by default". |
 | `docs/cli.md` | VERIFY (no edit) | Confirm :43 already `"" (off)`. |
 
 **Explicitly NOT touched**: `internal/config/*` (S1 — verified complete), `internal/ui/verbose_test.go`
@@ -226,8 +226,8 @@ Task 2: VERIFY root.go --reasoning help (no edit)
   - EXPECT: a match for "default off for every role" (:137); ZERO matches for "planner: high".
   - If already correct (it is): no edit.
 
-Task 3: VERIFY pkg/stagehand/stagehand.go RoleModel comments (no edit)
-  - RUN: grep -n "off by default\|shipped default" pkg/stagehand/stagehand.go
+Task 3: VERIFY pkg/stagecoach/stagecoach.go RoleModel comments (no edit)
+  - RUN: grep -n "off by default\|shipped default" pkg/stagecoach/stagecoach.go
   - EXPECT: "off by default for every role" (:62) + "off by default" (:66); ZERO "shipped default".
   - If already correct (it is): no edit.
 
@@ -286,7 +286,7 @@ if strings.Contains(stderr, "(reasoning:") {    // all four roles default to off
 // root.go:137 (already "default off for every role")
 "...default off for every role)"
 
-// pkg/stagehand/stagehand.go:62 (already "off by default for every role")
+// pkg/stagecoach/stagecoach.go:62 (already "off by default for every role")
 "...off by default for every role)."
 
 // docs/cli.md:43 (already '"" (off)')
@@ -300,7 +300,7 @@ DOWNSTREAM SURFACES (S2 scope — verify + 1 comment fix):
   - internal/decompose/roles_test.go   # :537 comment fix (func/assertions already target)
   - internal/cmd/default_action_test.go # :1440 already inverted (verify only)
   - internal/cmd/root.go                # :137 already "default off for every role" (verify only)
-  - pkg/stagehand/stagehand.go          # :62/:66 already "off by default" (verify only)
+  - pkg/stagecoach/stagecoach.go          # :62/:66 already "off by default" (verify only)
   - docs/cli.md                         # :43 already '"" (off)' (verify only)
 
 CONSUMED (S1's output — already landed):
@@ -325,7 +325,7 @@ DOWNSTREAM HOOKS (informational — owned by SIBLING subtasks, NOT S2):
 ### Level 1: The Authoritative Stale-Reference Gates
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (1) No orphaned old test name anywhere (after the :537 comment fix)
 grep -rn "ReasoningShippedDefault" --include="*.go" . | grep -v "/plan/" && echo "FAIL: stale name present" || echo "PASS: absent"
@@ -340,7 +340,7 @@ grep -n "TestResolveRoles_NoShippedReasoningDefault" internal/decompose/roles_te
 ### Level 2: The Per-Site Verification (the 4 already-correct surfaces)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # default_action_test.go: inverted assertion present
 grep -n 'strings.Contains(stderr, "(reasoning:")' internal/cmd/default_action_test.go   # → :1440
@@ -348,8 +348,8 @@ grep -n 'strings.Contains(stderr, "(reasoning:")' internal/cmd/default_action_te
 # root.go: "default off for every role"
 grep -n "default off for every role" internal/cmd/root.go                                # → :137
 
-# pkg/stagehand: "off by default"
-grep -n "off by default" pkg/stagehand/stagehand.go                                      # → :62, :66
+# pkg/stagecoach: "off by default"
+grep -n "off by default" pkg/stagecoach/stagecoach.go                                      # → :62, :66
 
 # docs/cli.md: '"" (off)' default column
 grep -n '^| `--reasoning <level>`' docs/cli.md                                           # → row with '"" (off)'
@@ -358,7 +358,7 @@ grep -n '^| `--reasoning <level>`' docs/cli.md                                  
 ### Level 3: The Exhaustive Oracle (full suite)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go build ./...           # Expected: exit 0
 go vet ./...             # Expected: exit 0
@@ -369,7 +369,7 @@ go test -race ./...      # Expected: ALL packages green (decompose + cmd + confi
 ### Level 4: Scope-Boundary Check (verbose_test.go untouched; only 1 file edited)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # verbose_test.go MUST be unchanged (Finding 3)
 git diff --stat -- internal/ui/verbose_test.go                                           # Expected: EMPTY
@@ -394,7 +394,7 @@ git diff --stat -- internal/ pkg/ docs/
 - [ ] `TestResolveRoles_ReasoningPerRoleSet` asserts planner `""` + message `"low"`.
 - [ ] `default_action_test.go:1440` asserts NO `(reasoning:` suffix in verbose decompose stderr.
 - [ ] `root.go:137` `--reasoning` help says "default off for every role".
-- [ ] `pkg/stagehand/stagehand.go` RoleModel comments say "off by default".
+- [ ] `pkg/stagecoach/stagecoach.go` RoleModel comments say "off by default".
 - [ ] `docs/cli.md:43` `--reasoning` default column is `"" (off)`.
 
 ### Scope Discipline Validation
@@ -439,7 +439,7 @@ git diff --stat -- internal/ pkg/ docs/
 Rationale: Four independent pieces of evidence confirm S2 is ~95% already realized: (1) the verbatim live
 state of all five sites — `TestResolveRoles_NoShippedReasoningDefault` (:542) with planner assertions
 already `""` (:551-552, :579-580); the inverted `default_action_test.go:1440` assertion; root.go:137
-"default off for every role"; pkg/stagehand:62/:66 "off by default"; docs/cli.md:43 `"" (off)` — each in
+"default off for every role"; pkg/stagecoach:62/:66 "off by default"; docs/cli.md:43 `"" (off)` — each in
 the post-change target state; (2) the shipped-default phrasing `grep 'planner: high\|planner=high'`
 returns ZERO across the tree; (3) `grep "ReasoningShippedDefault"` returns exactly ONE line (the orphaned
 :537 comment) — the single genuine edit; (4) `go test ./...` is GREEN. The contract's described starting

@@ -1,22 +1,22 @@
 # S1 Implementation Notes — explicit-vs-discovery config path distinction
 
-> Scope: P1.M1.T1.S1 — make `config.Load` fail fast when an EXPLICIT `--config`/`STAGEHAND_CONFIG`
+> Scope: P1.M1.T1.S1 — make `config.Load` fail fast when an EXPLICIT `--config`/`STAGECOACH_CONFIG`
 > path points at a missing file. Verified against the live source on 2026-06-30.
 
 ## 1. The exact bug locus (internal/config/load.go, verbatim current code)
 
 ```go
-	// Resolve the global-file path: --config > STAGEHAND_CONFIG > discovery.
+	// Resolve the global-file path: --config > STAGECOACH_CONFIG > discovery.
 	globalPath := opts.ConfigPathOverride
 	if globalPath == "" {
-		if env := os.Getenv("STAGEHAND_CONFIG"); env != "" {
+		if env := os.Getenv("STAGECOACH_CONFIG"); env != "" {
 			globalPath = env
 		} else {
 			globalPath = globalConfigPath()
 		}
 	}
 
-	// Layer 2: global TOML (or --config/STAGEHAND_CONFIG override). nil => absent (no error).
+	// Layer 2: global TOML (or --config/STAGECOACH_CONFIG override). nil => absent (no error).
 	if g, err := loadTOML(globalPath); err != nil {
 		return nil, fmt.Errorf("global config: %w", err)
 	} else if g != nil {
@@ -27,7 +27,7 @@
 `loadTOML` (internal/config/file.go:99-102) returns `(nil, nil)` on `os.IsNotExist` — the DISCOVERY
 path's "layer absent" sentinel. There is no record of whether `globalPath` came from an explicit
 source. → missing explicit file == "discovery default absent" → no provider resolved →
-`pkg/stagehand.buildDeps` auto-detects the first **installed** built-in (pi/claude/…) and invokes the
+`pkg/stagecoach.buildDeps` auto-detects the first **installed** built-in (pi/claude/…) and invokes the
 REAL agent. The `loadTOML` `(nil,nil)` contract MUST be preserved for the discovery path.
 
 ## 2. The precise two-edit fix (matches contract + issue_analysis ISSUE 1 exactly)
@@ -35,10 +35,10 @@ REAL agent. The `loadTOML` `(nil,nil)` contract MUST be preserved for the discov
 **Edit A** — compute `explicit` alongside globalPath resolution:
 ```go
 	globalPath := opts.ConfigPathOverride
-	explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGEHAND_CONFIG") != ""
+	explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGECOACH_CONFIG") != ""
 	if globalPath == "" { ... }
 ```
-`explicit` is `true` iff globalPath's source is `--config` or `STAGEHAND_CONFIG` (NOT discovery).
+`explicit` is `true` iff globalPath's source is `--config` or `STAGECOACH_CONFIG` (NOT discovery).
 - ConfigPathOverride != "" → globalPath = override, explicit=true (the `if globalPath==""` block is skipped).
 - ConfigPathOverride == "" && env != "" → globalPath = env, explicit=true.
 - both empty → globalPath = globalConfigPath() (discovery), explicit=false.
@@ -63,7 +63,7 @@ REAL agent. The `loadTOML` `(nil,nil)` contract MUST be preserved for the discov
 | `--config /missing.toml` | override | true | (nil,nil) | **ERROR "config file not found"** ✓ (FIXED) |
 | `--config /malformed.toml` | override | true | parse err | "global config: parse config…" (unchanged ✓) |
 | `--config /somedir` | override | true | read err | "global config: read config…is a directory" (unchanged ✓) |
-| `STAGEHAND_CONFIG=/missing` (no --config) | env | true | (nil,nil) | **ERROR** ✓ (FIXED) |
+| `STAGECOACH_CONFIG=/missing` (no --config) | env | true | (nil,nil) | **ERROR** ✓ (FIXED) |
 | neither, no global file | globalConfigPath() | false | (nil,nil) | no error, layer absent ✓ (unchanged) |
 | neither, global file present | globalConfigPath() | false | g!=nil | overlay ✓ (unchanged) |
 
@@ -73,7 +73,7 @@ those — the new `else if explicit` arm only triggers on `g == nil && err == ni
 ## 4. Error wrap chain (user-visible string) — verified
 
 `Load` returns `fmt.Errorf("config file not found: %s", globalPath)`.
-- `pkg/stagehand.resolveConfig` wraps it as `load config: config file not found: <path>` (stagehand.go
+- `pkg/stagecoach.resolveConfig` wraps it as `load config: config file not found: <path>` (stagecoach.go
   `fmt.Errorf("load config: %w", err)`) — but this path is bypassed in the CLI now (bugfix-001 S1
   passes the resolved cfg; Load is called once in PersistentPreRunE).
 - `internal/cmd/root.go` PersistentPreRunE (line ~65) wraps as `config: config file not found: <path>`
@@ -86,7 +86,7 @@ So: Load-level (package config) tests assert `strings.Contains(err.Error(), "con
 
 Per contract: `internal/config/load.go` is the ONLY production file touched. Do NOT modify:
 - `loadTOML` / `file.go` — its `(nil,nil)` contract is the discovery sentinel, preserved as-is.
-- `root.go` — `--config` already flows via `ConfigPathOverride` (root.go:64, :82); STAGEHAND_CONFIG is
+- `root.go` — `--config` already flows via `ConfigPathOverride` (root.go:64, :82); STAGECOACH_CONFIG is
   already read in Load. No wiring change.
 
 ## 6. Test reuse (internal/config, package-private helpers — load_test.go)
@@ -98,14 +98,14 @@ Per contract: `internal/config/load.go` is the ONLY production file touched. Do 
 
 Existing path tests STILL PASS unchanged (they use EXISTING files):
 - `TestLoad_ConfigPathOverride` (:510) — existing custom.toml.
-- `TestLoad_STAGEHAND_CONFIG_EnvPath` (:526) — existing env-config.toml + clipath.toml.
+- `TestLoad_STAGECOACH_CONFIG_EnvPath` (:526) — existing env-config.toml + clipath.toml.
 
 NEW tests to add (place in the "Load — path resolution tests" block near :545):
 1. `TestLoad_ConfigPathOverride_MissingFileFails` — `ConfigPathOverride: repo+"/missing.toml"` →
    err non-nil, contains `"config file not found"` AND `missing.toml`.
-2. `TestLoad_STAGEHAND_CONFIG_EnvPath_MissingFileFails` — `t.Setenv("STAGEHAND_CONFIG", …+"/nope.toml")`
+2. `TestLoad_STAGECOACH_CONFIG_EnvPath_MissingFileFails` — `t.Setenv("STAGECOACH_CONFIG", …+"/nope.toml")`
    → err contains `"config file not found"`.
-3. `TestLoad_DiscoveryMissingFileOK` (regression guard) — no --config, no STAGEHAND_CONFIG, no global
+3. `TestLoad_DiscoveryMissingFileOK` (regression guard) — no --config, no STAGECOACH_CONFIG, no global
    file in globalDir → err == nil (discovery tolerates absence); this is the guard that the new code
    did NOT break the discovery "layer absent" contract.
 4. (optional) `TestLoad_ConfigPathOverride_BeatsEnvMissingFile` — both set but only the override
@@ -114,7 +114,7 @@ NEW tests to add (place in the "Load — path resolution tests" block near :545)
 ## 7. Docs (Mode A — rides with the work)
 
 - `docs/cli.md` line 20 (`--config` row description) + the prose note at line 30: add that an
-  explicit `--config`/`STAGEHAND_CONFIG` pointing at a MISSING file fails fast with exit 1 (consistent
+  explicit `--config`/`STAGECOACH_CONFIG` pointing at a MISSING file fails fast with exit 1 (consistent
   with a malformed/directory path), rather than falling back to discovery.
 - `docs/configuration.md` line 34 (the `[!NOTE]`): same wording.
 

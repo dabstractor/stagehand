@@ -8,17 +8,17 @@
 
 ## Goal
 
-**Feature Goal**: Close the missing `cfg → manifest` bridge for the two `[generation]` output-tuning fields. In `buildDeps`, after `m.Validate()` and the Issue-3 pre-flight, copy `cfg.Output` and `cfg.StripCodeFence` onto the resolved provider `Manifest`'s pointer fields so that `provider.ParseOutput` honors them end-to-end — making the `[generation]` (and git-config `stagehand.*`) values override the per-manifest per-provider defaults (broader setting wins).
+**Feature Goal**: Close the missing `cfg → manifest` bridge for the two `[generation]` output-tuning fields. In `buildDeps`, after `m.Validate()` and the Issue-3 pre-flight, copy `cfg.Output` and `cfg.StripCodeFence` onto the resolved provider `Manifest`'s pointer fields so that `provider.ParseOutput` honors them end-to-end — making the `[generation]` (and git-config `stagecoach.*`) values override the per-manifest per-provider defaults (broader setting wins).
 
 **Deliverable**:
-1. **Code** (~6 lines): one block added to `pkg/stagehand/stagehand.go::buildDeps`, inserted between the `reg.IsInstalled(m)` pre-flight and the final `return generate.Deps{...}`.
+1. **Code** (~6 lines): one block added to `pkg/stagecoach/stagecoach.go::buildDeps`, inserted between the `reg.IsInstalled(m)` pre-flight and the final `return generate.Deps{...}`.
 2. **Docs (Mode A — ride with the implementing subtask)**:
-   - `docs/configuration.md` — affirm `output`/`strip_code_fence` now apply to parsing (override per-manifest defaults); reflect the `stagehand.output` / `stagehand.stripCodeFence` git-config keys.
+   - `docs/configuration.md` — affirm `output`/`strip_code_fence` now apply to parsing (override per-manifest defaults); reflect the `stagecoach.output` / `stagecoach.stripCodeFence` git-config keys.
    - `internal/cmd/config.go::exampleConfigTemplate` — make the `[generation] output/strip_code_fence` comment accurate; add a one-line note that these tune ALL providers.
 
 **Success Definition**:
 - `go build ./...`, `go vet ./...`, `go test -race ./...`, `make lint` all green with the change in place.
-- Setting `[generation] output = "json"` (or `git config stagehand.output json`) causes `ParseOutput` to parse JSON; `git config stagehand.stripCodeFence false` disables fence stripping — overriding whatever the resolved manifest's per-provider value was.
+- Setting `[generation] output = "json"` (or `git config stagecoach.output json`) causes `ParseOutput` to parse JSON; `git config stagecoach.stripCodeFence false` disables fence stripping — overriding whatever the resolved manifest's per-provider value was.
 - The pre-existing `buildDeps` contract (unknown-provider → exit 1; `Validate()` → exit 1; missing-command pre-flight → exit 1) is **unchanged** — the new block is strictly additive and runs only on the success path.
 - (End-to-end test assertions live in sibling subtask **P1.M4.T1.S2**; this PRP ships the bridge + docs only.)
 
@@ -32,8 +32,8 @@
 
 ### User-visible behavior (after fix)
 - `[generation] output = "json"` (config file) → the agent's stdout is parsed as JSON (extract `json_field`); non-JSON output falls back to raw with the `fellback` log flag (PRD §12.9 step 3).
-- `git config stagehand.output json` → same, via the git-config loader.
-- `git config stagehand.stripCodeFence false` → ``` fences are NOT stripped from agent output, overriding a per-provider default of `true`.
+- `git config stagecoach.output json` → same, via the git-config loader.
+- `git config stagecoach.stripCodeFence false` → ``` fences are NOT stripped from agent output, overriding a per-provider default of `true`.
 - A `[provider.<name>] output = "json"` per-provider override is **still merged** by the registry, but a `[generation] output` value now **wins** over it (broader layer overrides narrower) — consistent with "generation config tunes ALL providers".
 
 ### Success Criteria
@@ -85,7 +85,7 @@
   gotcha: Manifest fields are POINTERS. You must assign &local, never &cfg.Field (aliasing the cfg copy).
 
 # The exact function to edit
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   lines: 154-198 (buildDeps); insert between the IsInstalled pre-flight (~189-195) and the return (~197)
   why: THE single seam. cfg.Output / cfg.StripCodeFence are in scope (cfg is the value param). m is the
        resolved, Validate()-d, pre-flighted manifest.
@@ -100,7 +100,7 @@
 # Docs to update (Mode A)
 - file: docs/configuration.md
   lines: 47-54 ([generation] example block); 65-80 (Built-in defaults table incl. output/strip_code_fence
-         rows ~78-79); 111-116 (git-config keys table — currently OMITS stagehand.output / stripCodeFence)
+         rows ~78-79); 111-116 (git-config keys table — currently OMITS stagecoach.output / stripCodeFence)
   why: Affirm output/strip_code_fence now apply to PARSING (override per-manifest defaults). The git-config
        keys for these two fields EXIST in git.go but are absent from the docs table — add them for accuracy.
 - file: internal/cmd/config.go
@@ -109,7 +109,7 @@
        (the broader layer), per contract item 5 / decision D6.
 
 # Existing test that exercises the SAME buildDeps tail (must stay green unchanged)
-- file: pkg/stagehand/stagehand_test.go
+- file: pkg/stagecoach/stagecoach_test.go
   lines: 485-589 (TestGenerateCommit_MissingProviderCommand_Issue3)
   why: Proves the pre-flight + return path below the insertion point is intact. S1 must not perturb it.
        S2 (sibling subtask) adds the dedicated cfg→ParseOutput end-to-end test.
@@ -118,9 +118,9 @@
 ### Current Codebase tree (relevant slice)
 
 ```bash
-pkg/stagehand/
-  stagehand.go          # buildDeps (line 154) — THE edit site
-  stagehand_test.go     # TestGenerateCommit_MissingProviderCommand_Issue3 (485) — must stay green
+pkg/stagecoach/
+  stagecoach.go          # buildDeps (line 154) — THE edit site
+  stagecoach_test.go     # TestGenerateCommit_MissingProviderCommand_Issue3 (485) — must stay green
 internal/provider/
   parse.go              # ParseOutput — reads m.Output/.StripCodeFence (NO change)
   manifest.go           # Manifest pointer fields + Resolve() (NO change)
@@ -136,7 +136,7 @@ internal/cmd/
 ### Desired Codebase tree (files MODIFIED — no new files)
 
 ```bash
-pkg/stagehand/stagehand.go    # +~6 lines in buildDeps (cfg→manifest bridge)
+pkg/stagecoach/stagecoach.go    # +~6 lines in buildDeps (cfg→manifest bridge)
 docs/configuration.md         # affirm output/strip_code_fence apply to parsing + git-config keys
 internal/cmd/config.go        # exampleConfigTemplate [generation] comment accuracy + "all providers" note
 ```
@@ -163,7 +163,7 @@ internal/cmd/config.go        # exampleConfigTemplate [generation] comment accur
 // OUT OF SCOPE — the file.go "cannot set false via file" quirk (file.go materialize ~line 153:
 //   if g.StripCodeFence { c.StripCodeFence = true }  // v1 limitation: cannot set false via file
 // ). Via the FILE loader strip_code_fence can only be turned ON. The false case is exercisable via
-// git-config (`stagehand.stripCodeFence false`) or direct cfg injection. DO NOT fix this here (contract).
+// git-config (`stagecoach.stripCodeFence false`) or direct cfg injection. DO NOT fix this here (contract).
 
 // NOTE — cfg.Output is always non-empty post-Defaults ("raw"), so the `!= ""` guard is effectively always
 // true in production. Keep the guard anyway (defensive; matches D4 verbatim).
@@ -171,7 +171,7 @@ internal/cmd/config.go        # exampleConfigTemplate [generation] comment accur
 
 ## Implementation Blueprint
 
-### The single edit (pkg/stagehand/stagehand.go :: buildDeps)
+### The single edit (pkg/stagecoach/stagecoach.go :: buildDeps)
 
 In `buildDeps`, between the closing `}` of the `if !reg.IsInstalled(m) { ... }` pre-flight block and the `return generate.Deps{Git: git.New(repoDir), Manifest: m}, nil`, insert:
 
@@ -197,7 +197,7 @@ In `buildDeps`, between the closing `}` of the `if !reg.IsInstalled(m) { ... }` 
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: MODIFY pkg/stagehand/stagehand.go :: buildDeps (the bridge)
+Task 1: MODIFY pkg/stagecoach/stagecoach.go :: buildDeps (the bridge)
   - INSERT: the ~15-line block (above) between the reg.IsInstalled(m) pre-flight `}` and the
             `return generate.Deps{Git: git.New(repoDir), Manifest: m}, nil` (current ~line 197).
   - PLACEMENT: strictly AFTER `m.Validate()` (~181) AND after the `if !reg.IsInstalled(m)` block (~189-195);
@@ -213,10 +213,10 @@ Task 2: MODIFY docs/configuration.md (Mode A — affirm parsing applies)
   - In the "Built-in defaults" table (output/strip_code_fence rows ~78-79): no value change, but add a
     short prose note immediately after the table (or as a footnote) that `output` and `strip_code_fence`
     apply to PARSING of agent output and override the per-manifest (per-provider) defaults — i.e. setting
-    `output = "json"` makes Stagehand parse the agent's stdout as JSON across all providers.
+    `output = "json"` makes Stagecoach parse the agent's stdout as JSON across all providers.
   - In the "Git-config keys" table (~111-116): ADD two rows documenting the keys git.go already reads —
-    `stagehand.output` (string, `git config --get stagehand.output`, "Agent output mode: raw | json")
-    and `stagehand.stripCodeFence` (bool, `git config --get --bool stagehand.stripCodeFence`,
+    `stagecoach.output` (string, `git config --get stagecoach.output`, "Agent output mode: raw | json")
+    and `stagecoach.stripCodeFence` (bool, `git config --get --bool stagecoach.stripCodeFence`,
     "Strip ``` fences from agent output"). The camelCase bool key matches git.go:152.
   - KEEP tone/format consistent with the existing tables. Do NOT invent new env vars or CLI flags
     (there are none for these fields — intentional; loadEnv/loadFlags don't set them).
@@ -238,7 +238,7 @@ Task 3: MODIFY internal/cmd/config.go :: exampleConfigTemplate (Mode A — comme
 ### Implementation Patterns & Key Details
 
 ```go
-// PATTERN — the bridge (pkg/stagehand/stagehand.go::buildDeps, after Validate()+pre-flight):
+// PATTERN — the bridge (pkg/stagecoach/stagecoach.go::buildDeps, after Validate()+pre-flight):
 //   m is *already* Validate()-d, registry-merged, and pre-flighted (IsInstalled passed).
 //   cfg is the fully-resolved value-param Config (Output always non-empty; StripCodeFence always concrete).
 if cfg.Output != "" {
@@ -257,7 +257,7 @@ m.StripCodeFence = &scf      // ALWAYS set; broader [generation] layer overrides
 
 ```yaml
 CODE:
-  - file: pkg/stagehand/stagehand.go
+  - file: pkg/stagecoach/stagecoach.go
     function: buildDeps
     change: "+~15 line block (comment + 6 LOC logic) between IsInstalled pre-flight and return"
     risk: ADDITIVE only. The new block executes solely on the buildDeps success path. The unknown-provider,
@@ -285,7 +285,7 @@ make lint                 # golangci-lint (.golangci.yml present) — zero findi
 # The dedicated cfg→ParseOutput end-to-end test is OWNED BY S2 (P1.M4.T1.S2).
 # For S1, the gate is: the FULL existing suite stays green (the change is additive; buildDeps'
 # pre-flight/Validate contract is untouched). Specifically the buildDeps-tail test must still pass:
-go test -race ./pkg/stagehand/ -run TestGenerateCommit_MissingProviderCommand_Issue3 -v
+go test -race ./pkg/stagecoach/ -run TestGenerateCommit_MissingProviderCommand_Issue3 -v
 # Expected: PASS unchanged (proves the pre-flight + return path below the insertion point is intact).
 
 # Full suite (Makefile `test`):
@@ -293,7 +293,7 @@ go test -race ./...
 # Expected: all packages pass. If any FAILS, it is a regression from the edit — READ the output and fix
 # (most likely cause: accidentally perturbing the pre-flight/return ordering — re-check placement).
 
-# Coverage gate (not directly affected — pkg/stagehand isn't in the gate set — but confirm no regression):
+# Coverage gate (not directly affected — pkg/stagecoach isn't in the gate set — but confirm no regression):
 make coverage-gate   # >=85% on internal/{git,provider,generate,config}
 ```
 
@@ -303,7 +303,7 @@ make coverage-gate   # >=85% on internal/{git,provider,generate,config}
 
 ```bash
 # Build the binary + stub agent (repo has cmd/stubagent and a providers/ dir with stub manifests).
-go build -o bin/stagehand ./cmd/stagehand
+go build -o bin/stagecoach ./cmd/stagecoach
 go build -o bin/stubagent ./cmd/stubagent   # if a build target/helper exists; else `go build ./cmd/stubagent`
 
 # Set up a scratch repo.
@@ -314,7 +314,7 @@ echo a > a.txt && git add a.txt && git commit -qm "init"
 # CASE A — [generation] output="json" makes ParseOutput parse JSON (override a raw manifest default).
 #   Write a config whose [generation] output=json and a stub provider whose manifest output=raw, emit
 #   valid JSON {"subject":"..."}; confirm the committed subject is the extracted JSON field, not the raw blob.
-cat > .stagehand.toml <<'EOF'
+cat > .stagecoach.toml <<'EOF'
 [provider.stub]
 command = "<abs path to bin/stubagent>"
 prompt_delivery = "stdin"
@@ -325,13 +325,13 @@ json_field = "subject"
 output = "json"                # [generation] overrides -> ParseOutput parses JSON
 EOF
 echo b > b.txt && git add b.txt
-STAGEHAND_PROVIDER=stub ../../bin/stagehand --dry-run   # expect the JSON-extracted subject, proving the bridge
+STAGECOACH_PROVIDER=stub ../../bin/stagecoach --dry-run   # expect the JSON-extracted subject, proving the bridge
 
 # CASE B — git-config stripCodeFence=false disables fence stripping.
 #   With the stub emitting a fenced ```message``` block and the manifest strip_code_fence=true:
-git config stagehand.stripCodeFence false   # camelCase bool key (git.go:152)
+git config stagecoach.stripCodeFence false   # camelCase bool key (git.go:152)
 echo c > c.txt && git add c.txt
-../../bin/stagehand --provider stub --dry-run   # expect the fence retained (not stripped) -> bridge honored
+../../bin/stagecoach --provider stub --dry-run   # expect the fence retained (not stripped) -> bridge honored
 
 # Expected: CASE A parses JSON (fellback semantics if malformed); CASE B retains the fence.
 # (If CASE A/B reveal the values are still ignored, the bridge is misplaced — re-check Task 1 placement.)
@@ -342,8 +342,8 @@ cd - && rm -rf "$tmp"
 
 ```bash
 # Render sanity: the config init template still writes valid TOML.
-go build -o /tmp/stagehand ./cmd/stagehand
-/tmp/stagehand config init && head -40 .stagehand.toml   # confirm the [generation] block + new note read well
+go build -o /tmp/stagecoach ./cmd/stagecoach
+/tmp/stagecoach config init && head -40 .stagecoach.toml   # confirm the [generation] block + new note read well
 # Markdown lint (repo has .markdownlint.json):
 npx --yes markdownlint-cli docs/configuration.md 2>/dev/null || true   # advisory; match existing doc style
 ```
@@ -361,7 +361,7 @@ npx --yes markdownlint-cli docs/configuration.md 2>/dev/null || true   # advisor
 - [ ] Copy-to-local form (`o := cfg.Output`; `scf := cfg.StripCodeFence`) — NO `&cfg.*` aliasing.
 - [ ] Asymmetry preserved: `Output` guarded on `!= ""`; `StripCodeFence` unconditional.
 - [ ] No re-Validate(); no change to ParseOutput/manifest/registry/loaders; file.go quirk untouched.
-- [ ] Level 3 smoke: `[generation] output="json"` → JSON parsed; `stagehand.stripCodeFence false` → fence retained.
+- [ ] Level 3 smoke: `[generation] output="json"` → JSON parsed; `stagecoach.stripCodeFence false` → fence retained.
 - [ ] `docs/configuration.md` affirms parsing applies + documents the two git-config keys.
 - [ ] `internal/cmd/config.go` template comment accurate + "all providers" note added.
 

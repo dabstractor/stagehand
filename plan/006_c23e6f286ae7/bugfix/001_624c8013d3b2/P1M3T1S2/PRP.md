@@ -86,7 +86,7 @@ files byte-unchanged; `go test ./...` still green (no code touched).
 
 ## User Persona
 
-**Target User**: A stagehand user reading the docs architecture overview (how-it-works.md) or CLI reference
+**Target User**: A stagecoach user reading the docs architecture overview (how-it-works.md) or CLI reference
 (cli.md) who must form a correct mental model of the run-lock contention behavior (single-commit double-runs
 can no-op exit 0; decompose double-runs exit Busy/5) and of the exit codes — and must not be confused by a
 failure-modes table that silently omits the Busy(5) code discussed two paragraphs above it.
@@ -261,7 +261,7 @@ The "Failure modes and exit codes" table currently reads (L165-174):
 | Failure | Exit code | Recovery |
 |---------|-----------|----------|
 | Agent missing on `$PATH` | 1 (Error) | Check the `[provider.<name>] command` path; install the agent |
-| Unresolved merge conflicts in the index | 1 (Error) | Resolve the conflicts, then re-run `stagehand` (caught before the snapshot) |
+| Unresolved merge conflicts in the index | 1 (Error) | Resolve the conflicts, then re-run `stagecoach` (caught before the snapshot) |
 | Generation failed (parse/retry exhaustion) | 3 (Rescue) | Rescue message with tree SHA |
 | Generation timed out | 124 (Timeout) | Rescue message with tree SHA |
 | CAS failure (HEAD moved meanwhile) | 1 (Error) | HEAD-moved message |
@@ -274,12 +274,12 @@ exact oldText → newText for a precise `edit`):
 
 ```markdown
 | Nothing to commit (clean tree) | 2 (NothingToCommit) | Stage files and retry |
-| Another stagehand run holds the per-repo lock | 5 (Busy) | Wait for the in-progress run to finish, then re-run (see [Per-repo run lock](#per-repo-run-lock-fr52)) |
+| Another stagecoach run holds the per-repo lock | 5 (Busy) | Wait for the in-progress run to finish, then re-run (see [Per-repo run lock](#per-repo-run-lock-fr52)) |
 | General error | 1 (Error) | Inspect error message |
 ```
 
 **Why this wording:**
-- GENERIC — "Another stagehand run holds the per-repo lock" matches cli.md L374 ("Busy — another stagehand
+- GENERIC — "Another stagecoach run holds the per-repo lock" matches cli.md L374 ("Busy — another stagecoach
   run holds the per-repo lock; retry after it finishes") exactly in spirit; no path-specific claim.
 - POINTS to the qualified prose — the link `#per-repo-run-lock-fr52` (the anchor for the "### Per-repo run
   lock (FR52)" heading at L144) takes the reader to L155's authoritative split. This keeps ONE source of
@@ -380,7 +380,7 @@ Task 6: VERIFY
      docs/cli.md:379 — "Code 5 (Busy) … two behaviors …" single-commit→0/5; decompose→5 (Busy). -->
 
 <!-- THE edit: ONE generic table row. Generic = consistent with BOTH paths (no scatter). Points to L155. -->
-| Another stagehand run holds the per-repo lock | 5 (Busy) | Wait for the in-progress run to finish, then re-run (see [Per-repo run lock](#per-repo-run-lock-fr52)) |
+| Another stagecoach run holds the per-repo lock | 5 (Busy) | Wait for the in-progress run to finish, then re-run (see [Per-repo run lock](#per-repo-run-lock-fr52)) |
 
 <!-- THE no-op is the successful outcome for cli.md and configuration.md. Record it; do not fabricate edits. -->
 ```

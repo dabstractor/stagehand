@@ -140,7 +140,7 @@ Either way, S2's file.go edits (materialize/overlay/fileGeneration) are S2's own
 
 ## 5. Ripple to S3 + future consumers (informational — NOT S2's edits)
 
-- **S3 (git.go loadGitConfig):** when `stagehand.diffContext` is found, set `c.DiffContext = intPtr(v)`
+- **S3 (git.go loadGitConfig):** when `stagecoach.diffContext` is found, set `c.DiffContext = intPtr(v)`
   (nil when absent) — NOT plain int — so the git-config layer also distinguishes unset from explicit-0.
   git.go:106's "non-zero overlay" comment needs a carve-out note for DiffContext (now `*int`/`!= nil`).
 - **Future consumers (P1.M1.T2 StagedDiffOptions, P1.M2 -U<diff_context>):** will deref `*cfg.DiffContext`

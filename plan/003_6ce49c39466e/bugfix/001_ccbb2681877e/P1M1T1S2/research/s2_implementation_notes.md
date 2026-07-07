@@ -16,18 +16,18 @@
 
 ## 1. The verified tokens (external_deps.md §pi — AUTHORITATIVE; do NOT guess)
 
-`pi --help` exposes `--thinking <level>` with values **off|minimal|low|medium|high|xhigh**. Stagehand's
+`pi --help` exposes `--thinking <level>` with values **off|minimal|low|medium|high|xhigh**. Stagecoach's
 level set is **off|low|medium|high** — map ONLY the overlap:
 
-| stagehand level | tokens |
+| stagecoach level | tokens |
 |----------------|--------|
 | `"high"`   | `["--thinking", "high"]` |
 | `"medium"` | `["--thinking", "medium"]` |
 | `"low"`    | `["--thinking", "low"]` |
-| `"off"`    | NO entry (natural zero-value no-op — `off` is `--thinking off`'s own zero, and stagehand's
+| `"off"`    | NO entry (natural zero-value no-op — `off` is `--thinking off`'s own zero, and stagecoach's
               `off` means "no reasoning control" anyway). Leave `off` OUT of the map. |
 
-`minimal`/`xhigh` have no stagehand level — NOT mapped. The map is exactly:
+`minimal`/`xhigh` have no stagecoach level — NOT mapped. The map is exactly:
 `{"high": {"--thinking", "high"}, "medium": {"--thinking", "medium"}, "low": {"--thinking", "low"}}`.
 
 ## 2. The exact builtin.go edit (builtinPi)
@@ -38,7 +38,7 @@ BareFlags block (before the TooledFlags comment)** — honor the contract placem
 ```go
 		BareFlags: []string{ ... },                 // (unchanged, closes ~line 63)
 		// REASONING LEVELS (v3; §12.1, FR-R6). pi exposes `--thinking off|minimal|low|medium|high|xhigh`
-		// (verified `pi --help`, external_deps.md §pi). off ⇒ no entry (natural zero no-op); stagehand's
+		// (verified `pi --help`, external_deps.md §pi). off ⇒ no entry (natural zero no-op); stagecoach's
 		// level set is off|low|medium|high, so minimal/xhigh are not mapped. Tokens append after the model flag.
 		ReasoningLevels: map[string][]string{
 			"high":   {"--thinking", "high"},

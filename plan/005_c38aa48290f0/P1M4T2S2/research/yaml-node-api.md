@@ -63,29 +63,29 @@ discipline in the implementation.)
 
 ## 3. Find the MARKED entry — `LineComment` on the first VALUE scalar
 
-The stagehand marker is a `LineComment` on the **value scalar of the `key` field** (item.Content[1]).
-Stagehand's identity is the marker, NOT the binding value.
+The stagecoach marker is a `LineComment` on the **value scalar of the `key` field** (item.Content[1]).
+Stagecoach's identity is the marker, NOT the binding value.
 
 ```go
 // item is one MappingNode in the sequence; Content[0]=key-name-scalar ("key"), Content[1]=value ("<c-a>")
-func isStagehandItem(item *yaml.Node) bool {
+func isStagecoachItem(item *yaml.Node) bool {
     return item.Kind == yaml.MappingNode && len(item.Content) >= 2 &&
-        strings.Contains(item.Content[1].LineComment, "stagehand-integration")
+        strings.Contains(item.Content[1].LineComment, "stagecoach-integration")
 }
 ```
-Verified: an entry built from `- key: '<c-a>' # stagehand-integration` yields
-`item.Content[1].LineComment == "# stagehand-integration"` — yaml.v3 keeps the `# ` prefix in the stored
-LineComment, so match on the **substring** `stagehand-integration` (robust to the prefix).
+Verified: an entry built from `- key: '<c-a>' # stagecoach-integration` yields
+`item.Content[1].LineComment == "# stagecoach-integration"` — yaml.v3 keeps the `# ` prefix in the stored
+LineComment, so match on the **substring** `stagecoach-integration` (robust to the prefix).
 
 ## 4. BUILD the new entry node — unmarshal a one-item sequence doc, take `.Content[0].Content[0]`
 
 ```go
-const entryTpl = `- key: '%s' # stagehand-integration
+const entryTpl = `- key: '%s' # stagecoach-integration
   context: 'files'
-  command: 'stagehand'
+  command: 'stagecoach'
   loadingText: 'Generating commit message…'
   output: 'none'
-  description: 'stagehand: AI commit'
+  description: 'stagecoach: AI commit'
 `
 func newEntryNode(key string) (*yaml.Node, error) {
     var doc yaml.Node
@@ -97,7 +97,7 @@ func newEntryNode(key string) (*yaml.Node, error) {
 }
 ```
 Verified: `newEntry.Kind=Mapping Tag="!!map" Content=12` (6 fields × 2), and
-`newEntry.Content[1].LineComment == "# stagehand-integration"`. Building from a YAML string (not hand-built
+`newEntry.Content[1].LineComment == "# stagecoach-integration"`. Building from a YAML string (not hand-built
 nodes) is simplest and produces the exact desired serialization.
 
 ## 5. INSERT vs REPLACE
@@ -106,7 +106,7 @@ nodes) is simplest and produces the exact desired serialization.
 // REPLACE if a marked item exists, else APPEND (idempotent — replace, never duplicate).
 replaced := false
 for idx, item := range seq.Content {
-    if isStagehandItem(item) {
+    if isStagecoachItem(item) {
         seq.Content[idx] = newEntry // overwrite in place
         replaced = true
         break
@@ -121,7 +121,7 @@ if !replaced {
 
 ```go
 for idx, item := range seq.Content {
-    if isStagehandItem(item) {
+    if isStagecoachItem(item) {
         seq.Content = append(seq.Content[:idx], seq.Content[idx+1:]...)
         break
     }
@@ -146,14 +146,14 @@ return buf.Bytes(), nil
 ```
 Verified: comments survive (`# a user comment inside gui` round-tripped), quote styles survive
 (`"echo existing"`, `'files'`), the new entry serializes with its marker inline
-(`key: '<c-a>' # stagehand-integration`). `enc.Close()` is REQUIRED (the encoder buffers).
+(`key: '<c-a>' # stagecoach-integration`). `enc.Close()` is REQUIRED (the encoder buffers).
 
 **Gotcha (whole-doc normalization — architecture §2, reproduced):** yaml.v3 re-encodes the ENTIRE
 document, so byte-identity outside the edited node is NOT guaranteed: a blank line between sections may
 be dropped, and inline-comment spacing may be normalized. This is WHY the no-mangle *guarantee* lives in
 `integrate.Apply` (FR-I3: preview+confirm shows any incidental normalization; re-parse validate +
 auto-restore catches breakage) rather than in the serializer. **Implication for idempotency:** after
-stagehand's OWN write the file is in yaml.v3's canonical form, so a *second* Upsert returns
+stagecoach's OWN write the file is in yaml.v3's canonical form, so a *second* Upsert returns
 byte-identical bytes → `Apply` yields `OutcomeNoChange` (clean idempotency). A re-install against a
 hand-maintained file yaml.v3 would normalize shows `OutcomeUpdated` with the normalization visible in the
 diff — correct and confirmed-by-design.
@@ -168,7 +168,7 @@ seq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Content: []*yaml.Node{n
 topMap.Content = append(topMap.Content,
     &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "customCommands"}, seq)
 doc := &yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{topMap}}
-// encode doc — produces a clean config.yml with just the stagehand entry.
+// encode doc — produces a clean config.yml with just the stagecoach entry.
 ```
 **Missing `customCommands` key in an existing file:** locate fails → append the key-scalar + a new
 SequenceNode (holding `newEntry`) to the EXISTING `topMap.Content` (do NOT rebuild the whole mapping —
@@ -213,7 +213,7 @@ func topMap(root *yaml.Node) *yaml.Node { // root is DocumentNode; nil-safe for 
     return root.Content[0]
 }
 
-// Upsert returns new bytes with the stagehand entry inserted/replaced.
+// Upsert returns new bytes with the stagecoach entry inserted/replaced.
 func upsert(orig []byte, key string) ([]byte, error) {
     var root yaml.Node
     if err := yaml.Unmarshal(orig, &root); err != nil { return nil, err }
@@ -231,7 +231,7 @@ func upsert(orig []byte, key string) ([]byte, error) {
     }
     replaced := false
     for i, it := range seq.Content {
-        if isStagehandItem(it) { seq.Content[i] = entry; replaced = true; break }
+        if isStagecoachItem(it) { seq.Content[i] = entry; replaced = true; break }
     }
     if !replaced { seq.Content = append(seq.Content, entry) }
     var buf bytes.Buffer; enc := yaml.NewEncoder(&buf); enc.SetIndent(2)

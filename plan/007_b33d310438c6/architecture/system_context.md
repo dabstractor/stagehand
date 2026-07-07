@@ -10,7 +10,7 @@
 
 ## 1. What this changeset IS (the gap)
 
-The Stagehand codebase is **mature and nearly feature-complete** against PRD v2.1. An audit
+The Stagecoach codebase is **mature and nearly feature-complete** against PRD v2.1. An audit
 of every PRD feature confirmed that **all** of the following are ALREADY IMPLEMENTED and must NOT
 be re-planned: v1 single-commit core, v2.0 multi-commit decomposition, per-role provider/model
 config, binary filtering (FR3a/b/c), the agy/qwen-code providers, cascading provider priority
@@ -76,13 +76,13 @@ See `diff_capture_touchmap.md` §2–§4 for exact line numbers. Summary:
   `MaxDiffBytes`/`MaxMdLines`.
 - **Wiring (3 sites, all next to `MaxDiffBytes`/`MaxMdLines`):** `materialize`
   (`file.go:~205–215`), `overlay` (`file.go:~308–318`), git-config resolver
-  (`internal/config/git.go:181–205` — keys `stagehand.tokenLimit` / `stagehand.diffContext`,
+  (`internal/config/git.go:181–205` — keys `stagecoach.tokenLimit` / `stagecoach.diffContext`,
   camelCase per existing `maxDiffBytes`/`maxMdLines` convention).
 - **`Defaults()`** (`config.go:155–190`): `TokenLimit: 0`, `DiffContext: 1`.
 - **`bootstrap.go` template** (`~282–298`): commented `token_limit`/`diff_context` lines;
   annotate legacy caps "ignored when token_limit is set".
 - **6 production call-site struct literals** (`diff_capture_touchmap.md` §2 table):
-  `generate.go:163`, `hook/exec.go:104`, `stagehand.go:423`, `decompose/planner.go:69`,
+  `generate.go:163`, `hook/exec.go:104`, `stagecoach.go:423`, `decompose/planner.go:69`,
   `decompose/message.go:71`, `decompose/decompose.go:608`. Each maps `cfg → git.StagedDiffOptions`
   inline; add `TokenLimit`/`DiffContext` (+ `PromptReserveTokens` where applicable).
 
@@ -189,7 +189,7 @@ config.toml / git-config (token_limit, diff_context)
 - Any feature outside FR3d–FR3i (all other PRD features are implemented).
 - A `--token-limit` / `--diff-context` CLI flag (PRD specifies config-file + git-config keys
   only for these two; FR35 lists the env var set and neither appears). Env var
-  `STAGEHAND_TOKEN_LIMIT` / `STAGEHAND_DIFF_CONTEXT` are also NOT in FR35 — config/git-config
+  `STAGECOACH_TOKEN_LIMIT` / `STAGECOACH_DIFF_CONTEXT` are also NOT in FR35 — config/git-config
   only. (If the implementer finds value in flags, flag it, but the PRD does not require them.)
 - Copy detection (`-C`) — explicitly rejected by FR3e.
 - A per-model context-window registry — FR3d is model-agnostic by design (`token_limit` is

@@ -302,11 +302,11 @@ with expected results. No inference required.
 ### Current Codebase Tree (after S1 + S2 + S3 + S4 + S5 + S6 have landed — verified on disk)
 
 ```bash
-stagehand/
+stagecoach/
 ├── PRD.md
-├── go.mod                # module github.com/dustin/stagehand, go 1.22, NO deps
+├── go.mod                # module github.com/dustin/stagecoach, go 1.22, NO deps
 ├── Makefile              # build/test/lint/coverage/install/clean (test = go test -race ./...)
-├── cmd/stagehand/main.go # stub
+├── cmd/stagecoach/main.go # stub
 ├── internal/
 │   └── git/
 │       ├── git.go        # S1: interface+gitRunner+run()+New()+FileChange+StagedDiffOptions+stubs;
@@ -329,7 +329,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     └── git/
         ├── git.go              # MODIFIED — StagedDiff stub → constants+var+real body. NO import change.
@@ -840,7 +840,7 @@ Task 4: VALIDATE — full gate set + scope discipline
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" → package import path "github.com/dustin/stagehand/internal/git"
+  - module path: "github.com/dustin/stagecoach" → package import path "github.com/dustin/stagecoach/internal/git"
   - go directive: 1.22 → context, os/exec, errors.As, strings.Builder, t.Setenv (1.17+) all available
   - deps: NONE added (stdlib only)
 
@@ -870,7 +870,7 @@ LATER-SUBTASK HOOKS (the remaining 5 P1.M1.T3 stubs — do NOT implement now):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/git/          # Expected: no output (run `gofmt -w internal/git/` if it lists files)
 go vet ./internal/git/...        # Expected: exit 0, no warnings
@@ -884,7 +884,7 @@ go build ./...                   # Expected: exit 0 (whole module compiles)
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race -v -run TestStagedDiff ./internal/git/   # Expected: all StagedDiff tests PASS, exit 0
 # Must see: TestStagedDiff_MarkdownAndCode, _ExcludesLockSnapMapVendor, _MarkdownNotDoubleCounted,
@@ -905,7 +905,7 @@ make test                                              # Expected: exit 0 (runs 
 ### Level 3: Security & Structural Invariants (the §19 enforcement)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # PRD §19: NO shell execution anywhere in the git wrapper.
 git grep -nE '\b(sh|zsh|bash)\s+-c\b|cmd\s*/c\b' internal/git/git.go
@@ -934,7 +934,7 @@ git grep -n 'func (g \*gitRunner) StagedDiff' internal/git/git.go  # expect: 1 m
 ### Level 4: Runtime Smoke Test (prove the capture works against a real repo)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Build a tiny throwaway program that exercises StagedDiff exactly as the tests do, to confirm the
 # real-binary path end-to-end (mirrors the research verification):

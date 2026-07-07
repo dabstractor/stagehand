@@ -67,11 +67,11 @@ but lives in two independent kill paths (ctx-cancel vs. signal-forward), both id
 internal/signal   → (stdlib only: os, os/signal, syscall, sync, sync/atomic, context, fmt, io)
 internal/provider → internal/signal   (Execute calls signal.RegisterChild/ClearChild — nil-safe)
 internal/generate → internal/signal   (CommitStaged calls signal.SetSnapshot/SetCandidate/RestoreDefault/ClearSnapshot)
-pkg/stagehand     → internal/signal + internal/generate   (runPipeline mirrors CommitStaged wiring)
-cmd/stagehand     → internal/signal + internal/generate + internal/cmd  (Install wires RescueFormat=FormatRescue)
+pkg/stagecoach     → internal/signal + internal/generate   (runPipeline mirrors CommitStaged wiring)
+cmd/stagecoach     → internal/signal + internal/generate + internal/cmd  (Install wires RescueFormat=FormatRescue)
 ```
 
-**No cycle:** `signal` imports NO stagehand package. The rescue message (`generate.FormatRescue`) is
+**No cycle:** `signal` imports NO stagecoach package. The rescue message (`generate.FormatRescue`) is
 passed to the handler as a **callback** (`Options.RescueFormat`) at `Install` time — wired by `main.go`,
 which imports BOTH `signal` and `generate`. This is the key trick that lets the handler print the §18.3
 rescue message WITHOUT `signal` importing `generate` (which would create signal↔generate cycle, since
@@ -89,13 +89,13 @@ singleton (`var active atomic.Pointer[Handler]`) is the pragmatic Go idiom (cf. 
   starts the handler goroutine, stores the handler in `active`, returns a signal-aware `ctx` (cancelled on
   signal). Called ONCE in `main.go`.
 - `signal.Active() *Handler` — returns the current handler (nil if none installed, e.g. library use of
-  `pkg/stagehand` without the CLI).
+  `pkg/stagecoach` without the CLI).
 - **Nil-safe package-level wrappers:** `signal.RegisterChild / ClearChild / SetSnapshot / SetCandidate /
   ClearSnapshot / RestoreDefault` — each does `if h := active.Load(); h != nil { h.<method>(...) }`. So
   `provider.Execute` and `generate.CommitStaged` call them unconditionally; when no handler is installed
   (library use), they are no-ops. **No call-site nil-checks needed.**
 
-**Library-use safety:** a consumer of `pkg/stagehand.GenerateCommit` who never calls `signal.Install` gets
+**Library-use safety:** a consumer of `pkg/stagecoach.GenerateCommit` who never calls `signal.Install` gets
 the baseline behavior (their own ctx/signals; `Execute`'s `cmd.Cancel` still kills the group on their ctx
 cancel). `provider` importing `signal` is harmless — `signal` has no `init()` side effects.
 
@@ -114,12 +114,12 @@ The handler, on a signal with a non-empty snapshot, prints the rescue message an
   forward-kill logic by **injecting fakes** — `Options.Kill` (records the pid/sig instead of really
   killing), `Options.Exit` (records the code instead of exiting), `Options.RescueFormat`, `Options.Out`
   (a `*bytes.Buffer`). These run fast and deterministically.
-- **Integration test** (`signal_integration_test.go`, `//go:build !windows`): drives the REAL stagehand
-  binary as a **subprocess** (`exec.Command("go","build","-o",bin,"./cmd/stagehand")`, cached via
+- **Integration test** (`signal_integration_test.go`, `//go:build !windows`): drives the REAL stagecoach
+  binary as a **subprocess** (`exec.Command("go","build","-o",bin,"./cmd/stagecoach")`, cached via
   `sync.Once` like `stubtest.Build`). Setup: temp git repo + staged file + a config pointing
-  `[provider.stub] command = <stubagent>` with `STAGEHAND_STUB_SLEEP_MS=30000` (stub hangs). Start
-  stagehand, sleep ~800ms (snapshot+Execute guaranteed started; 800ms ≪ 30s stub sleep), send
-  `SIGINT` to the stagehand PID, `cmd.Wait()`, assert **exit code == 3**, stderr contains the §18.3
+  `[provider.stub] command = <stubagent>` with `STAGECOACH_STUB_SLEEP_MS=30000` (stub hangs). Start
+  stagecoach, sleep ~800ms (snapshot+Execute guaranteed started; 800ms ≪ 30s stub sleep), send
+  `SIGINT` to the stagecoach PID, `cmd.Wait()`, assert **exit code == 3**, stderr contains the §18.3
   rescue block (`Commit generation failed` + `Tree ID:` + `git commit-tree`), HEAD unchanged, and the
   stub child is dead.
 
@@ -149,7 +149,7 @@ mid-print exactly as the signal arrives — acceptable for v1; rescue is exit-3 
 
 ## F7 — `RestoreDefault` before `update-ref` (the §18.4 step 3 / commit-pi `trap -` analog)
 
-Right before `deps.Git.UpdateRefCAS(...)` in `CommitStaged` (step 8) AND in `pkg/stagehand.runPipeline`,
+Right before `deps.Git.UpdateRefCAS(...)` in `CommitStaged` (step 8) AND in `pkg/stagecoach.runPipeline`,
 call `signal.RestoreDefault()`. It does `signal.Stop(h.ch)` (stops delivering SIGINT/SIGTERM to our
 channel → restores Go's default disposition) and closes the channel so the handler goroutine returns.
 
@@ -165,9 +165,9 @@ iteration — not our concern now.
 
 ---
 
-## F8 — Wiring touches BOTH `generate.CommitStaged` AND `pkg/stagehand.runPipeline`
+## F8 — Wiring touches BOTH `generate.CommitStaged` AND `pkg/stagecoach.runPipeline`
 
-The CLI default action calls `pkg/stagehand.GenerateCommit`, which delegates to `CommitStaged` for the
+The CLI default action calls `pkg/stagecoach.GenerateCommit`, which delegates to `CommitStaged` for the
 common path (no DryRun, no SystemExtra) BUT runs its OWN pipeline (`runPipeline`) for DryRun/SystemExtra.
 The **commit path** of `runPipeline` (SystemExtra set, not DryRun) ALSO does `WriteTree` + the generate
 loop + `CommitTree` + `UpdateRefCAS` — so it has the SAME post-snapshot signal windows and MUST get the

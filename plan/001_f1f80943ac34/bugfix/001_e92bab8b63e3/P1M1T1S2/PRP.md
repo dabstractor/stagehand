@@ -1,7 +1,7 @@
 ---
 name: "P1.M1.T1.S2 — Wire the CLI's loaded cfg through runDefault into Options"
 description: |
-  Bugfix (Issue 1 + Issue 5 — the CLI wiring half). Add `Config: cfg` to the `stagehand.Options{...}`
+  Bugfix (Issue 1 + Issue 5 — the CLI wiring half). Add `Config: cfg` to the `stagecoach.Options{...}`
   literal in `runDefault` (`internal/cmd/default_action.go`) so `GenerateCommit` consumes the
   CLI-already-loaded `*config.Config` (set by `PersistentPreRunE`, which honors `--config`) instead of
   re-loading config from scratch. This makes `resolveConfig` take its `opts.Config != nil` branch
@@ -14,14 +14,14 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Close the second half of the CLI↔`pkg/stagehand` config-handoff seam — the
+**Feature Goal**: Close the second half of the CLI↔`pkg/stagecoach` config-handoff seam — the
 **wiring** that S1's additive `Options.Config` field was built for. `runDefault` must hand the
 CLI's already-resolved config (`cfg := Config()`) into `GenerateCommit` so the public API performs
 **exactly one** `config.Load` (the one `PersistentPreRunE` already did, which honored `--config`),
 not two.
 
 **Deliverable** (three small edits, two files):
-1. `internal/cmd/default_action.go` — add one field, `Config: cfg,`, to the `stagehand.Options{...}`
+1. `internal/cmd/default_action.go` — add one field, `Config: cfg,`, to the `stagecoach.Options{...}`
    literal passed to `GenerateCommit` (lines ~147-154).
 2. `internal/cmd/default_action.go` — rewrite the stale comment at lines ~130-134 that (falsely, after
    this change) claims "GenerateCommit re-loads config with Flags:nil".
@@ -30,36 +30,36 @@ not two.
    the line-97 flag↔env↔git-config map — both are already accurate.)
 
 **Success Definition**:
-- `stagehand --config X.toml --provider <user-defined-in-X>` resolves the user-defined provider on the
+- `stagecoach --config X.toml --provider <user-defined-in-X>` resolves the user-defined provider on the
   default commit action (Issue 1 closed — no more `unknown provider`).
 - The §19 repo-local provider-redirect notice prints **exactly once** for a default-action run whose
-  `.stagehand.toml` sets `provider` (Issue 5 closed as a side effect).
+  `.stagecoach.toml` sets `provider` (Issue 5 closed as a side effect).
 - `go build ./...`, `go vet ./...`, `gofmt -l .` clean; `go test -race ./...` green (existing tests
   untouched — S2 adds none).
-- `GenerateCommit` signature and `Result` unchanged; `pkg/stagehand` and `internal/config` untouched.
+- `GenerateCommit` signature and `Result` unchanged; `pkg/stagecoach` and `internal/config` untouched.
 
 ## User Persona
 
-**Target User**: A Stagehand user who configures the tool via a custom config file
-(`stagehand --config ./my.toml`) declaring a user-defined provider under `[provider.<name>]` and then
-runs the default commit action (`stagehand --provider <name>`).
+**Target User**: A Stagecoach user who configures the tool via a custom config file
+(`stagecoach --config ./my.toml`) declaring a user-defined provider under `[provider.<name>]` and then
+runs the default commit action (`stagecoach --provider <name>`).
 
-**Use Case**: "I keep my team's provider definitions in a checked-in `stagehand.team.toml`; I want
-`stagehand --config stagehand.team.toml --provider team-llm` to just work without the env-var trick."
+**Use Case**: "I keep my team's provider definitions in a checked-in `stagecoach.team.toml`; I want
+`stagecoach --config stagecoach.team.toml --provider team-llm` to just work without the env-var trick."
 
 **User Journey**:
 1. `git add` some changes.
-2. `stagehand --config stagehand.team.toml --provider team-llm`.
+2. `stagecoach --config stagecoach.team.toml --provider team-llm`.
 3. Expect: `↳ Generating with team-llm…` → `[<sha>] <subject>` (exit 0).
-   Today (bug): `↳ Generating with team-llm…` → `stagehand: unknown provider "team-llm"` (exit 1).
+   Today (bug): `↳ Generating with team-llm…` → `stagecoach: unknown provider "team-llm"` (exit 1).
 
 **Pain Points Addressed**: `--config` worked only for the `providers`/`config` subcommands; the default
-action silently discarded it (the only workaround was the `STAGEHAND_CONFIG` env var, which takes a
+action silently discarded it (the only workaround was the `STAGECOACH_CONFIG` env var, which takes a
 different code path). Plus the confusing double §19 notice.
 
 ## Why
 
-- **Completes the S1→S2 pair.** S1 (`pkg/stagehand`) added the field + the skip-Load branch but could
+- **Completes the S1→S2 pair.** S1 (`pkg/stagecoach`) added the field + the skip-Load branch but could
   not by itself fix the user-visible bug — nothing sets the field. S2 is the single call-site that sets
   it. Per `architecture/decisions.md` D1 and `seam_config_handoff.md` §10 (Option B), the resolved-config
   injection is the chosen fix; S2 is its CLI consumer.
@@ -81,27 +81,27 @@ different code path). Plus the confusing double §19 notice.
 A surgical, additive change to **one CLI source file** plus a one-sentence doc affirmation:
 
 1. **`runDefault`** (`internal/cmd/default_action.go`) adds `Config: cfg` to the existing
-   `stagehand.Options{...}` literal. `cfg` is the `*config.Config` returned by `Config()` at the top of
+   `stagecoach.Options{...}` literal. `cfg` is the `*config.Config` returned by `Config()` at the top of
    `runDefault` (line ~56); its type (`*config.Config`) matches `Options.Config` exactly — no address-of,
    no dereference.
 2. The comment block immediately above the literal is rewritten to describe the new single-Load path
    (it currently documents the OLD double-Load workaround, which would become a lie after the wiring).
 3. **`docs/cli.md`** gains one sentence affirming `--config` honors the default action.
 
-No changes to: `GenerateCommit`/`Result`, `pkg/stagehand/*` (S1 already done), `internal/config/*`
+No changes to: `GenerateCommit`/`Result`, `pkg/stagecoach/*` (S1 already done), `internal/config/*`
 (the notice fix is a *side effect* of the skipped Load, not an edit), any test file (S3 owns the
 `--config`-honored + notice-once regression tests), `Makefile`, `go.mod`.
 
 ### Success Criteria
 
-- [ ] `internal/cmd/default_action.go`'s `stagehand.Options{...}` literal includes `Config: cfg,`.
+- [ ] `internal/cmd/default_action.go`'s `stagecoach.Options{...}` literal includes `Config: cfg,`.
 - [ ] The comment above that literal no longer claims `GenerateCommit` re-loads config; it states the
       CLI passes its already-loaded config via `Options.Config` (one Load total; `--config` honored;
       §19 notice once).
 - [ ] `docs/cli.md` line-30 prose affirms `--config` is honored by all commands incl. the default action.
-- [ ] `stagehand --config <file> --provider <user-defined>` succeeds on the default action (manual repro).
+- [ ] `stagecoach --config <file> --provider <user-defined>` succeeds on the default action (manual repro).
 - [ ] `go build ./...`, `go vet ./...`, `gofmt -l .` clean; `go test -race ./...` green.
-- [ ] No edits to `pkg/stagehand/*`, `internal/config/*`, `GenerateCommit` signature, or any `*_test.go`.
+- [ ] No edits to `pkg/stagecoach/*`, `internal/config/*`, `GenerateCommit` signature, or any `*_test.go`.
 
 ## All Needed Context
 
@@ -135,10 +135,10 @@ by section with conclusions distilled.
 # Source files under edit / cross-reference
 - file: internal/cmd/default_action.go
   why: "THE edit target. runDefault resolves cfg := Config() at ~line 56 and builds the Options literal at ~lines 147-154; the stale 'Options-as-flag-relay' comment sits at ~lines 130-134."
-  pattern: "Add `Config: cfg,` as one more field in the existing stagehand.Options{...} composite literal. Rewrite the comment block above it. Do NOT touch runDefault's control flow, the auto-stage state machine, handleGenError, or the print helpers."
+  pattern: "Add `Config: cfg,` as one more field in the existing stagecoach.Options{...} composite literal. Rewrite the comment block above it. Do NOT touch runDefault's control flow, the auto-stage state machine, handleGenError, or the print helpers."
   gotcha: "cfg is *config.Config (Config() returns a pointer, root.go:108). Options.Config is *config.Config. Write `Config: cfg` — NOT `Config: &cfg` (cfg is already a pointer) and NOT `Config: *cfg` (would pass a value where a pointer is required; won't compile)."
 
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: "READ-ONLY reference (edited by S1, NOT by S2). Confirms Options.Config exists and resolveConfig takes the opts.Config != nil branch (shallow-copies cfg, skips config.Load, still applies Options overrides, still derives repoDir via os.Getwd)."
   pattern: "resolveConfig: `if opts.Config != nil { cfg = *opts.Config } else { config.Load(...) }` then the override block runs unconditionally. S2 relies on this unchanged."
   gotcha: "Do NOT edit this file in S2. If you feel tempted to change resolveConfig or Options, STOP — that is S1's (completed) surface or scope creep."
@@ -159,14 +159,14 @@ by section with conclusions distilled.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/cmd/
 │   ├── default_action.go     # EDIT TARGET (Options literal +1 field; comment rewrite)
 │   ├── default_action_test.go# NOT edited in S2 (S3 adds the regression tests)
 │   ├── root.go               # READ-ONLY (flagConfig, PersistentPreRunE, Config())
 │   └── ...
-├── pkg/stagehand/
-│   └── stagehand.go          # READ-ONLY (Options.Config + resolveConfig branch — done in S1)
+├── pkg/stagecoach/
+│   └── stagecoach.go          # READ-ONLY (Options.Config + resolveConfig branch — done in S1)
 └── docs/
     └── cli.md                # EDIT TARGET (+1 affirming sentence, line 30)
 ```
@@ -174,7 +174,7 @@ stagehand/
 ### Desired Codebase Tree After S2
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/cmd/
 │   └── default_action.go     # MODIFIED: Options literal +`Config: cfg`; comment rewritten
 └── docs/
@@ -188,7 +188,7 @@ stagehand/
 | `docs/cli.md` | MODIFY | Affirm `--config` honors the default action (1 sentence). |
 
 **Explicitly NOT touched in S2** (later subtasks / out of scope):
-`pkg/stagehand/stagehand.go` (S1, done), `internal/config/*` (notice fix is a side effect),
+`pkg/stagecoach/stagecoach.go` (S1, done), `internal/config/*` (notice fix is a side effect),
 `internal/cmd/default_action_test.go` (S3 regression tests), `GenerateCommit`/`Result`,
 `Makefile`, `go.mod`, `PRD.md`, `tasks.json`, `prd_snapshot.md`.
 
@@ -241,7 +241,7 @@ No new data models. The change consumes the S1-shipped `Options.Config` field. R
 (verbatim from source):
 
 ```go
-// pkg/stagehand/stagehand.go — OPTIONS (already has Config; S1 shipped this — S2 does NOT edit)
+// pkg/stagecoach/stagecoach.go — OPTIONS (already has Config; S1 shipped this — S2 does NOT edit)
 type Options struct {
 	Provider    string
 	Model       string
@@ -266,7 +266,7 @@ func Config() *config.Config { return loadedCfg }   // root.go:108
 
 ```yaml
 Task 1: WIRE Options.Config in runDefault (internal/cmd/default_action.go)
-  - LOCATE: the stagehand.GenerateCommit(ctx, stagehand.Options{...}) call (~lines 147-154).
+  - LOCATE: the stagecoach.GenerateCommit(ctx, stagecoach.Options{...}) call (~lines 147-154).
   - ADD one field to the composite literal (placement: alongside the other fields; field order in a
     literal is not significant, but group it logically — e.g. first, since it is now the primary
     config carrier):
@@ -301,9 +301,9 @@ Task 3: AFFIRM --config in docs/cli.md (Mode A)
   - APPEND one sentence affirming scope, e.g.:
         `--config` is honored by every command — including the default commit action, so a user-defined
         provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` on
-        `stagehand` directly (not just the `providers`/`config` subcommands).
+        `stagecoach` directly (not just the `providers`/`config` subcommands).
   - DO NOT: edit the line-20 table row (`Path to a config file, overrides discovery` — accurate) or the
-    line-97 map row (`--config | STAGEHAND_CONFIG | —` — accurate). The current wording does NOT imply
+    line-97 map row (`--config | STAGECOACH_CONFIG | —` — accurate). The current wording does NOT imply
     subcommand-only, so this is a positive affirmation, not a rewrite.
 
 Task 4: VALIDATE (run all gates; all must pass before declaring done)
@@ -320,7 +320,7 @@ Task 4: VALIDATE (run all gates; all must pass before declaring done)
 
 ```go
 // === runDefault call site AFTER S2 (the complete GenerateCommit invocation) ===
-	res, err := stagehand.GenerateCommit(ctx, stagehand.Options{
+	res, err := stagecoach.GenerateCommit(ctx, stagecoach.Options{
 		Config:   cfg,        // ← NEW (S2): CLI-resolved *config.Config; resolveConfig skips its config.Load
 		Provider:  cfg.Provider,
 		Model:     cfg.Model,
@@ -335,7 +335,7 @@ Task 4: VALIDATE (run all gates; all must pass before declaring done)
 ```
 
 ```go
-// === resolveConfig (pkg/stagehand/stagehand.go) — UNCHANGED by S2; this is what makes the wiring work ===
+// === resolveConfig (pkg/stagecoach/stagecoach.go) — UNCHANGED by S2; this is what makes the wiring work ===
 // (quoted so the implementer sees the receiving branch S1 already shipped)
 func resolveConfig(ctx context.Context, opts Options) (config.Config, string, error) {
 	repoDir, err := os.Getwd()
@@ -360,7 +360,7 @@ func resolveConfig(ctx context.Context, opts Options) (config.Config, string, er
 ### Integration Points
 
 ```yaml
-CLI → PUBLIC API (internal/cmd/default_action.go → pkg/stagehand):
+CLI → PUBLIC API (internal/cmd/default_action.go → pkg/stagecoach):
   - literal field added: "Config: cfg"   # cfg = Config() = loadedCfg (*config.Config)
   - effect: resolveConfig takes opts.Config != nil branch; 0 config.Load calls inside GenerateCommit
 
@@ -369,7 +369,7 @@ DOCUMENTATION (docs/cli.md):
   - line 20 table row / line 97 map row: UNCHANGED (already accurate)
 
 NO-TOUCH (explicitly):
-  - pkg/stagehand/stagehand.go   # Options.Config + resolveConfig branch = S1 (done)
+  - pkg/stagecoach/stagecoach.go   # Options.Config + resolveConfig branch = S1 (done)
   - internal/config/*            # Load/LoadOpts/Config/loadRepoLocalConfig/noticeOut — unchanged
   - internal/cmd/default_action_test.go  # S3 owns the regression tests
   - GenerateCommit signature / Result / buildDeps / runPipeline
@@ -386,7 +386,7 @@ DOWNSTREAM HOOKS (informational — implemented by LATER subtasks, NOT S2):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l .                  # Expected: empty (if it lists internal/cmd/default_action.go, run gofmt -w on it)
 go vet ./internal/cmd/...   # Expected: exit 0
@@ -394,7 +394,7 @@ go build ./...              # Expected: exit 0
 
 # Confirm the wiring landed (one match each)
 grep -n "Config:  cfg\|Config: cfg," internal/cmd/default_action.go   # Expected: one match
-# Confirm pkg/stagehand was NOT touched in S2 (git diff scoped to the two edit files)
+# Confirm pkg/stagecoach was NOT touched in S2 (git diff scoped to the two edit files)
 git diff --name-only          # Expected: only internal/cmd/default_action.go and docs/cli.md
 # Expected: Zero output/errors. Fix before proceeding.
 ```
@@ -402,7 +402,7 @@ git diff --name-only          # Expected: only internal/cmd/default_action.go an
 ### Level 2: Unit Tests (Component Validation — S2 adds none; existing must stay green)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The cross-package seam (PersistentPreRunE → runDefault → GenerateCommit → resolveConfig)
 go test -race ./internal/cmd/ -v
@@ -410,7 +410,7 @@ go test -race ./internal/cmd/ -v
 #           no CLI test asserts on the §19 notice count; verified by grep in research/s2_wiring_notes.md).
 
 # The public API surface (S1's injected-config branch + the unchanged nil path)
-go test -race ./pkg/stagehand/ -v
+go test -race ./pkg/stagecoach/ -v
 # Expected: ALL PASS unchanged.
 
 # Full repo
@@ -419,14 +419,14 @@ go test -race ./...          # Expected: ALL packages green.
 
 ### Level 3: Integration / Targeted Bug Reproduction (System Validation)
 
-> Build the binary once (`go build -o bin/stagehand ./cmd/stagehand`). Drive the REAL default action.
+> Build the binary once (`go build -o bin/stagecoach ./cmd/stagecoach`). Drive the REAL default action.
 > `bin/stubagent` is built by the test suite via `internal/stubtest`; for a manual repro, point a
 > provider at any command that emits a valid commit subject to stdout (e.g. a tiny shell script), or
 > reuse an installed built-in if present.
 
 ```bash
-cd /home/dustin/projects/stagehand
-go build -o bin/stagehand ./cmd/stagehand
+cd /home/dustin/projects/stagecoach
+go build -o bin/stagecoach ./cmd/stagecoach
 
 # --- Repro fixture: a config file declaring a USER-DEFINED provider pointing at a stub command ---
 REPO=$(mktemp -d) && cd "$REPO" && git init -q && git config user.email t@t && git config user.name t
@@ -451,46 +451,46 @@ EOF
 echo "hello" > a.txt && git add a.txt
 
 # === ISSUE 1 FIX: --config honored on the DEFAULT action (was: unknown provider "team") ===
-stagehand --config team.toml --provider team
+stagecoach --config team.toml --provider team
 # Expected: a new commit; "[<sha>] feat: wired config honored" on stdout; exit 0.
-#   (Before S2: "↳ Generating with team…" then "stagehand: unknown provider \"team\"" exit 1.)
+#   (Before S2: "↳ Generating with team…" then "stagecoach: unknown provider \"team\"" exit 1.)
 
 # === ISSUE 5 FIX: §19 notice printed EXACTLY ONCE ===
 # Put a provider redirect in the REPO-LOCAL config and count the notice on stderr.
-printf 'provider = "team"\n' > .stagehand.toml
+printf 'provider = "team"\n' > .stagecoach.toml
 echo "more" >> a.txt && git add a.txt
-stagehand --config team.toml --provider team 2>err.log
-grep -c "repo-local config (.stagehand.toml) sets provider" err.log   # Expected: 1  (was 2 before S2)
+stagecoach --config team.toml --provider team 2>err.log
+grep -c "repo-local config (.stagecoach.toml) sets provider" err.log   # Expected: 1  (was 2 before S2)
 
 # Cleanup
-cd /home/dustin/projects/stagehand && rm -rf "$REPO"
+cd /home/dustin/projects/stagecoach && rm -rf "$REPO"
 ```
 
 ### Level 4: Regression & Contract Checks
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
-# STAGEHAND_CONFIG env-var path must STILL work (it was never broken; confirm no regression).
+# STAGECOACH_CONFIG env-var path must STILL work (it was never broken; confirm no regression).
 # (Reuse the team.toml fixture from Level 3; run from inside $REPO with the repo-local config removed.)
-rm -f .stagehand.toml
+rm -f .stagecoach.toml
 echo "x" >> a.txt && git add a.txt
-STAGEHAND_CONFIG=team.toml stagehand --provider team --dry-run   # Expected: prints subject; exit 0.
+STAGECOACH_CONFIG=team.toml stagecoach --provider team --dry-run   # Expected: prints subject; exit 0.
 
 # The providers subcommand path must STILL work (single Load via PersistentPreRunE; no GenerateCommit).
-stagehand --config team.toml providers list   # Expected: lists "team" as detected; exit 0.
+stagecoach --config team.toml providers list   # Expected: lists "team" as detected; exit 0.
 
 # Confirm GenerateCommit signature is byte-for-byte unchanged.
-grep -n "func GenerateCommit(ctx context.Context, opts Options) (Result, error)" pkg/stagehand/stagehand.go
+grep -n "func GenerateCommit(ctx context.Context, opts Options) (Result, error)" pkg/stagecoach/stagecoach.go
 # Expected: exactly one match, unchanged.
 
-# Confirm pkg/stagehand was NOT modified by S2.
-git diff --stat pkg/stagehand/   # Expected: empty.
+# Confirm pkg/stagecoach was NOT modified by S2.
+git diff --stat pkg/stagecoach/   # Expected: empty.
 
 # Confirm the docs affirmation landed and the row/map are untouched.
 grep -n "honored by every command\|default commit action" docs/cli.md   # Expected: ≥1 match (new sentence).
 grep -n "Path to a config file, overrides discovery" docs/cli.md         # Expected: 1 match, unchanged (line 20).
-grep -n '^| `--config` | `STAGEHAND_CONFIG` | — |$' docs/cli.md          # Expected: 1 match, unchanged (line 97).
+grep -n '^| `--config` | `STAGECOACH_CONFIG` | — |$' docs/cli.md          # Expected: 1 match, unchanged (line 97).
 ```
 
 ## Final Validation Checklist
@@ -504,18 +504,18 @@ grep -n '^| `--config` | `STAGEHAND_CONFIG` | — |$' docs/cli.md          # Exp
 
 ### Feature Validation
 
-- [ ] `runDefault`'s `stagehand.Options{...}` literal contains `Config: cfg,` (grep confirms).
+- [ ] `runDefault`'s `stagecoach.Options{...}` literal contains `Config: cfg,` (grep confirms).
 - [ ] The comment above the literal accurately describes the single-Load injection path (no false
       "re-loads config with Flags:nil" claim).
 - [ ] Manual Issue-1 repro passes: a user-defined provider declared ONLY in a `--config` file resolves
       on the default action (exit 0, commit created).
 - [ ] Manual Issue-5 repro passes: the §19 repo-local notice prints exactly once (`grep -c` == 1).
-- [ ] `STAGEHAND_CONFIG` env-var path still works (no regression).
+- [ ] `STAGECOACH_CONFIG` env-var path still works (no regression).
 - [ ] `providers list --config` still works (no regression).
 
 ### Scope Discipline Validation
 
-- [ ] Did NOT edit `pkg/stagehand/*` (S1's surface — already done).
+- [ ] Did NOT edit `pkg/stagecoach/*` (S1's surface — already done).
 - [ ] Did NOT edit `internal/config/*` (the notice fix is a side effect of the skipped Load, not an edit).
 - [ ] Did NOT add/modify any `*_test.go` (S3 owns the regression tests).
 - [ ] Did NOT change `GenerateCommit`'s signature, `Result`, `buildDeps`, `runPipeline`, or `resolveConfig`.
@@ -543,7 +543,7 @@ grep -n '^| `--config` | `STAGEHAND_CONFIG` | — |$' docs/cli.md          # Exp
 - ❌ Don't delete the `Provider/Model/Timeout/VerboseOn` fields from the literal to "simplify" — they
   enforce the documented Options>everything precedence on the standalone-library path and are required by
   the `resolveConfig` override contract (which runs unconditionally on both branches).
-- ❌ Don't edit `pkg/stagehand/stagehand.go` or `resolveConfig` — that surface is S1's (done). The fix is
+- ❌ Don't edit `pkg/stagecoach/stagecoach.go` or `resolveConfig` — that surface is S1's (done). The fix is
   purely at the CLI call site.
 - ❌ Don't edit `internal/config/file.go` to suppress the notice (band-aid). The double-notice disappears
   naturally once `GenerateCommit` stops calling `config.Load`.

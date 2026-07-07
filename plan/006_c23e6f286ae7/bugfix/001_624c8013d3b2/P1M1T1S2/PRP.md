@@ -9,7 +9,7 @@ description: |
   contender always exits `5` (Busy), never 0. Rewrite line 379's paragraph to scope exit-0 to the
   **single-commit (staged) path** (keeping BOTH its outcomes: 0 nothing-to-do AND 5 Busy-if-new-work) and
   add that the **decompose path** exits `5` (Busy) on an accidental double-run. Preserve the first
-  sentence ("Code 5 is distinct…") and the last sentence ("Stagehand never force-breaks the lock.")
+  sentence ("Code 5 is distinct…") and the last sentence ("Stagecoach never force-breaks the lock.")
   verbatim. Do NOT edit the exit-code TABLE (lines 368-375) — it does not over-claim. NO code changes.
   README.md:330 (S1) and docs/how-it-works.md:155 (S3) are sibling subtasks.
 ---
@@ -35,12 +35,12 @@ markdown is valid; no code/test/other-doc files are touched; `go test ./...` is 
 
 ## User Persona
 
-**Target User**: The Stagehand user (or script author) reading the `docs/cli.md` Exit-codes section to
-understand code `5` (Busy) — especially someone binding `stagehand` to a keybind (lazygit/double-tap)
+**Target User**: The Stagecoach user (or script author) reading the `docs/cli.md` Exit-codes section to
+understand code `5` (Busy) — especially someone binding `stagecoach` to a keybind (lazygit/double-tap)
 who needs to know what an accidental double-run does on each commit path, and a reviewer auditing the
 docs for accuracy against the implemented FR52 behavior.
 
-**Use Case**: A user double-invokes `stagehand` on a dirty, un-staged working tree (the decompose
+**Use Case**: A user double-invokes `stagecoach` on a dirty, un-staged working tree (the decompose
 trigger) and consults `docs/cli.md` to learn the exit code. The current prose implies exit 0 is
 reachable; the fixed prose tells them it exits Busy (5) on the decompose path and why.
 
@@ -51,7 +51,7 @@ rest of the exit-code documentation once a user observes the mismatch.
 ## Why
 
 - **Honesty in the concurrency documentation.** The exit-code section is the authoritative reference for
-  scripting around `stagehand`. A generic "exits 0" contention clause that is false on an entire commit
+  scripting around `stagecoach`. A generic "exits 0" contention clause that is false on an entire commit
   path (decompose) undermines the reference the moment a user double-taps a keybind on a dirty tree.
 - **Doc-only is the PRD-recommended fix (Option 1).** `issue_analysis.md` (Issue 1) evaluated two
   options: (1) qualify the documentation (lowest-risk, makes docs honest) vs (2) a more-invasive
@@ -71,7 +71,7 @@ rest of the exit-code documentation once a user observes the mismatch.
 A single-paragraph rewrite of the contention-behavior paragraph at `docs/cli.md:379`. The generic
 "exits 0" clause becomes path-scoped (single-commit only, keeping both its outcomes); a new clause
 documents the decompose path exits Busy. The first sentence ("Code `5` (Busy) is distinct…") and the
-last sentence ("Stagehand never force-breaks the lock.") are preserved verbatim. Everything else in the
+last sentence ("Stagecoach never force-breaks the lock.") are preserved verbatim. Everything else in the
 Exit-codes section (the table 368-375 and the "Exit codes mirror…" explanation paragraph) is unchanged.
 
 ### Success Criteria
@@ -80,7 +80,7 @@ Exit-codes section (the table 368-375 and the "Exit codes mirror…" explanation
 - [ ] The single-commit path still documents BOTH outcomes: exit **0** (nothing to do) AND exit **5** (Busy if genuinely new work is staged).
 - [ ] The paragraph states the **decompose path** (nothing staged, dirty working tree) exits **5** (Busy) on an accidental double-run, and why (working-tree snapshot `T_start` a lock-free contender cannot reproduce from the index alone).
 - [ ] The first sentence ("Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell 'busy, retry' from 'failed.'") is UNCHANGED.
-- [ ] The last sentence ("Stagehand never force-breaks the lock.") is UNCHANGED.
+- [ ] The last sentence ("Stagecoach never force-breaks the lock.") is UNCHANGED.
 - [ ] The "nothing to do — an in-progress run already covers your staged changes" string is preserved.
 - [ ] The exit-code TABLE (lines 368-375) is UNCHANGED.
 - [ ] The "Exit codes mirror the constants in `internal/exitcode/exitcode.go`…" explanation paragraph is UNCHANGED.
@@ -115,21 +115,21 @@ understands the *why* behind the wording, not just the *what*.
 # The file under edit
 - file: docs/cli.md
   why: "EDIT line 379 ONLY (the contention-behavior paragraph beginning 'Code `5` (Busy) is distinct…'). It is ONE logical markdown line. The exit-code TABLE (lines 368-375) and the 'Exit codes mirror the constants…' explanation paragraph (immediately above 379) are UNCHANGED — they are correct and do not over-claim."
-  pattern: "The current paragraph is one long markdown line with: first sentence (Code 5 distinct…), a 'two behaviors' clause with two exit-code cases (0 / 5), and a last sentence (Stagehand never force-breaks the lock.). The rewrite keeps that shape, splits the cases by PATH (single-commit vs decompose), preserves the first+last sentences, and adds the decompose-path Busy clause."
+  pattern: "The current paragraph is one long markdown line with: first sentence (Code 5 distinct…), a 'two behaviors' clause with two exit-code cases (0 / 5), and a last sentence (Stagecoach never force-breaks the lock.). The rewrite keeps that shape, splits the cases by PATH (single-commit vs decompose), preserves the first+last sentences, and adds the decompose-path Busy clause."
   gotcha: "Do NOT edit the exit-code table (368-375). Do NOT edit the 'Exit codes mirror…' paragraph. Keep the paragraph as ONE logical markdown line (the file already uses long single-line paragraphs and .markdownlint.json is configured — do not hard-wrap). Preserve the first and last sentences verbatim."
 ```
 
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── docs/cli.md          # EDIT line 379 (the contention-behavior paragraph)
 ```
 
 ### Desired Codebase Tree After S2
 
 ```bash
-stagehand/
+stagecoach/
 └── docs/cli.md          # line 379 rewritten (path-scoped exit-0 + decompose→Busy); rest unchanged
 ```
 
@@ -151,7 +151,7 @@ mirror…" explanation paragraph, `README.md` (S1), `docs/how-it-works.md` (S3),
 
 <!-- CRITICAL: preserve the FIRST sentence verbatim — "Code `5` (Busy) is distinct from the commit-failure
      codes so scripts can tell "busy, retry" from "failed."" — and the LAST sentence verbatim —
-     "Stagehand never force-breaks the lock." The contract requires both. -->
+     "Stagecoach never force-breaks the lock." The contract requires both. -->
 
 <!-- GOTCHA: keep BOTH single-commit outcomes (exit 0 nothing-to-do AND exit 5 Busy-if-new-work-staged).
      Do NOT drop the Busy case for the single-commit path — only the *unconditional/generic* "exits 0"
@@ -187,8 +187,8 @@ Task 1: REWRITE the contention-behavior paragraph (docs/cli.md:379)
     `internal/exitcode/exitcode.go`…" explanation paragraph. Do not touch them.
   - REPLACE the current paragraph (the single long line at 379) with the path-scoped version. Target
     (ONE logical markdown line — paste verbatim):
-        Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors. On the single-commit path (changes staged): if a contending run's staged changes are already covered by the in-progress run's published index snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. On the decompose path (nothing staged, working tree dirty): an accidental double-run exits **5** (Busy) rather than 0 — the holder publishes a working-tree snapshot (`T_start`) that a lock-free contender cannot reproduce from the index alone, so it conservatively refuses. Stagehand never force-breaks the lock.
-  - PRESERVED in that target: first sentence (Code 5 distinct…), last sentence (Stagehand never
+        Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors. On the single-commit path (changes staged): if a contending run's staged changes are already covered by the in-progress run's published index snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. On the decompose path (nothing staged, working tree dirty): an accidental double-run exits **5** (Busy) rather than 0 — the holder publishes a working-tree snapshot (`T_start`) that a lock-free contender cannot reproduce from the index alone, so it conservatively refuses. Stagecoach never force-breaks the lock.
+  - PRESERVED in that target: first sentence (Code 5 distinct…), last sentence (Stagecoach never
     force-breaks the lock.), the "nothing to do…" string, and BOTH single-commit outcomes (0 + 5).
   - ADDED: path scoping ("On the single-commit path" / "On the decompose path"), the decompose Busy
     clause with the `T_start` rationale, and "index snapshot" precision on the single-commit side.
@@ -213,10 +213,10 @@ Task 2: VERIFY (doc-only validation)
 
 ```markdown
 <!-- === CURRENT docs/cli.md:379 (the line to replace) === -->
-Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors: if a contending run's staged changes are already covered by the in-progress run's published snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. Stagehand never force-breaks the lock.
+Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors: if a contending run's staged changes are already covered by the in-progress run's published snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. Stagecoach never force-breaks the lock.
 
 <!-- === TARGET docs/cli.md:379 (path-scoped; ONE logical markdown line; first+last sentences preserved) === -->
-Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors. On the single-commit path (changes staged): if a contending run's staged changes are already covered by the in-progress run's published index snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. On the decompose path (nothing staged, working tree dirty): an accidental double-run exits **5** (Busy) rather than 0 — the holder publishes a working-tree snapshot (`T_start`) that a lock-free contender cannot reproduce from the index alone, so it conservatively refuses. Stagehand never force-breaks the lock.
+Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors. On the single-commit path (changes staged): if a contending run's staged changes are already covered by the in-progress run's published index snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. On the decompose path (nothing staged, working tree dirty): an accidental double-run exits **5** (Busy) rather than 0 — the holder publishes a working-tree snapshot (`T_start`) that a lock-free contender cannot reproduce from the index alone, so it conservatively refuses. Stagecoach never force-breaks the lock.
 ```
 
 ```markdown
@@ -251,7 +251,7 @@ DOWNSTREAM HOOKS (informational — sibling/later subtasks):
 ### Level 1: Doc Lint & Sanity (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (markdownlint is configured — .markdownlint.json at root)
 markdownlint docs/cli.md 2>/dev/null || npx -y markdownlint-cli2 docs/cli.md 2>/dev/null || echo "markdownlint not runnable; visual check only"
@@ -265,7 +265,7 @@ git diff --stat
 ### Level 2: Build/Test Sanity (no code changed → must stay green)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go build ./...     # Expected: exit 0 (doc change; confirms no accidental source clobber)
 go test ./...      # Expected: all green (doc change; confirms nothing else touched)
@@ -274,7 +274,7 @@ go test ./...      # Expected: all green (doc change; confirms nothing else touc
 ### Level 3: Prose Accuracy Check (the real validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Render the Exit-codes section and verify each claim against the implemented behavior:
 sed -n '366,381p' docs/cli.md
@@ -285,14 +285,14 @@ sed -n '366,381p' docs/cli.md
 #   3. The DECOMPOSE path is documented as exit 5 (Busy), with the "working-tree snapshot (T_start) a
 #      lock-free contender cannot reproduce from the index alone" rationale.
 #   4. The FIRST sentence ("Code `5` (Busy) is distinct from the commit-failure codes…") is UNCHANGED.
-#   5. The LAST sentence ("Stagehand never force-breaks the lock.") is UNCHANGED.
+#   5. The LAST sentence ("Stagecoach never force-breaks the lock.") is UNCHANGED.
 #   6. The exit-code TABLE (368-375) and the "Exit codes mirror…" paragraph are UNCHANGED.
 ```
 
 ### Level 4: Cross-Doc Coherence (light — full sweep is P1.M3.T1)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Confirm the per-path semantics are consistent in spirit with the sibling docs (S1/S3 fully align;
 # here just flag gross contradictions). The "nothing to do — an in-progress run already covers your
@@ -315,7 +315,7 @@ grep -n "nothing to do\|single-commit\|decompose path\|exits .0.\|Busy" README.m
 - [ ] The single-commit path documents BOTH exit **0** (nothing to do) AND exit **5** (Busy if new work staged).
 - [ ] The **decompose path** is documented as exit **5** (Busy) with the working-tree-`T_start` rationale.
 - [ ] The first sentence ("Code `5` (Busy) is distinct…") is UNCHANGED.
-- [ ] The last sentence ("Stagehand never force-breaks the lock.") is UNCHANGED.
+- [ ] The last sentence ("Stagecoach never force-breaks the lock.") is UNCHANGED.
 - [ ] The exit-code table (368-375) and the "Exit codes mirror…" paragraph are UNCHANGED.
 
 ### Scope Discipline Validation
@@ -341,7 +341,7 @@ grep -n "nothing to do\|single-commit\|decompose path\|exits .0.\|Busy" README.m
   single-commit path still exits Busy when genuinely new work is staged — keep both outcomes.
 - ❌ Don't edit the exit-code TABLE (368-375) or the "Exit codes mirror…" paragraph — they are correct and
   do not over-claim. Only the contention-behavior paragraph (379) over-promises.
-- ❌ Don't change the first sentence ("Code `5` (Busy) is distinct…") or the last sentence ("Stagehand
+- ❌ Don't change the first sentence ("Code `5` (Busy) is distinct…") or the last sentence ("Stagecoach
   never force-breaks the lock.") — the contract requires both verbatim.
 - ❌ Don't attempt Option 2 (the holder/contender snapshot-axis code change). `issue_analysis.md`
   recommends Option 1 (this doc fix) as lowest-risk; the behavior is correct, only the doc over-promises.

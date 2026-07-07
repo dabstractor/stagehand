@@ -88,7 +88,7 @@ decompose section — 2 in the pipeline diagram (code-fence lines 1 + 5), 1 in t
 ## User Persona
 
 **Target User**: a developer reading `docs/how-it-works.md` to understand decompose's concurrency safety
-before running it on a busy working tree (the PRD §7.1 "plan-holder" who keeps coding while stagehand
+before running it on a busy working tree (the PRD §7.1 "plan-holder" who keeps coding while stagecoach
 runs). They skim the pipeline diagram and the Safety bullets.
 
 **Use Case**: the user wants to confirm that a file a concurrent process (editor save, another agent)
@@ -427,7 +427,7 @@ BUILD/TEST: none — docs-only edit; zero Go code change. `go build`/`go test` a
 ### Level 1: Markdown + Diagram Integrity (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # 1a. The diff is EXACTLY the 3 edits (2 diagram labels + 1 Safety bullet) — no other line moved.
 git diff docs/how-it-works.md          # eyeball: only the planner-input label, the single-shortcut

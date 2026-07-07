@@ -63,9 +63,9 @@ func ParseOutput(raw string, m Manifest) (msg string, ok bool, fellback bool)
   (committree_test.go `setIdentityConfig`). The stub subtask itself needs NO git — only S2 does.
 
 ## Module facts
-- `module github.com/dustin/stagehand`, `go 1.22`, deps: go-toml/v2 + pflag. (go.mod)
+- `module github.com/dustin/stagecoach`, `go 1.22`, deps: go-toml/v2 + pflag. (go.mod)
 - `go version go1.26.4` in this env (≥ 1.22 ✓).
-- `go list ./...` currently lists: cmd/stagehand, internal/{config,generate,git,prompt,provider}.
+- `go list ./...` currently lists: cmd/stagecoach, internal/{config,generate,git,prompt,provider}.
   After this subtask it ALSO lists `cmd/stubagent` and `internal/stubtest`.
 
 ## No existing "stub"/"stubtest"/"stubagent" references (grep clean) — names are free.

@@ -5,16 +5,16 @@ description: "Mode-B changeset-level docs sweep. Read every file in docs/ and co
 
 ## Goal
 
-**Feature Goal**: Sweep all five files in `docs/` (README.md, cli.md, configuration.md, providers.md, how-it-works.md) and bring every cross-cutting claim into consistency with the **post-fix** behavior of the five Stagehand v2.0 QA bug fixes, so the documentation makes zero stale claims.
+**Feature Goal**: Sweep all five files in `docs/` (README.md, cli.md, configuration.md, providers.md, how-it-works.md) and bring every cross-cutting claim into consistency with the **post-fix** behavior of the five Stagecoach v2.0 QA bug fixes, so the documentation makes zero stale claims.
 
-**Deliverable**: An edited set of `docs/*.md` files whose wording matches the already-shipped behavior. Concretely: (a) `config path`/`config init`/`config upgrade` are described as honoring `--config`/`STAGEHAND_CONFIG`; (b) the stager safety model is described honestly (claude structurally scoped via a staging-only git allowlist; pi instructional + a HEAD-movement guard, NOT flag-scoped); (c) the pi bootstrap is described as leaving per-role models empty (pi needs `default_provider` to route); (d) the provider-rendering and post-arbiter-output claims are verified accurate. No new docs files; no code changes.
+**Deliverable**: An edited set of `docs/*.md` files whose wording matches the already-shipped behavior. Concretely: (a) `config path`/`config init`/`config upgrade` are described as honoring `--config`/`STAGECOACH_CONFIG`; (b) the stager safety model is described honestly (claude structurally scoped via a staging-only git allowlist; pi instructional + a HEAD-movement guard, NOT flag-scoped); (c) the pi bootstrap is described as leaving per-role models empty (pi needs `default_provider` to route); (d) the provider-rendering and post-arbiter-output claims are verified accurate. No new docs files; no code changes.
 
-**Success Definition**: Every stale claim enumerated in the Implementation Blueprint is corrected to match the authoritative post-fix wording in the already-updated `README.md` (root) and `providers/{pi,claude}.toml`; `go build ./...` and `go test ./...` still pass; markdown lints clean; a full re-read of each `docs/` file turns up zero contradictions with `stagehand --help` or the source.
+**Success Definition**: Every stale claim enumerated in the Implementation Blueprint is corrected to match the authoritative post-fix wording in the already-updated `README.md` (root) and `providers/{pi,claude}.toml`; `go build ./...` and `go test ./...` still pass; markdown lints clean; a full re-read of each `docs/` file turns up zero contradictions with `stagecoach --help` or the source.
 
 ## Why
 
 - The five fixes changed shipped behavior that the `docs/` directory documents. The prior subtask (P1.M6.T1.S1, **Complete**) synced the root `README.md`; this subtask sweeps the derived reference docs in `docs/` for the same cross-cutting claims, which were last edited **before** the fixes (timestamps 2026-07-01 ~10:38–10:41, predating the code changes at ~11:30+).
-- `docs/` is the user-facing reference ("tracks the shipped binary; if anything here disagrees with `stagehand --help`, the binary is authoritative"). Stale claims here directly mislead users about the stager safety model, the config override semantics, and the pi out-of-box experience — the exact behaviors the five fixes corrected.
+- `docs/` is the user-facing reference ("tracks the shipped binary; if anything here disagrees with `stagecoach --help`, the binary is authoritative"). Stale claims here directly mislead users about the stager safety model, the config override semantics, and the pi out-of-box experience — the exact behaviors the five fixes corrected.
 - This is the **final** subtask (Mode B, runs last; depends on all implementing subtasks). It must not regress any prior work and must not touch code.
 
 ## What
@@ -23,8 +23,8 @@ User-visible (documentation-only) changes to `docs/`:
 
 ### Success Criteria
 
-- [ ] `docs/cli.md`: `config path` is described as printing the **override-aware** path (honors `--config`/`STAGEHAND_CONFIG`), not "the resolved global config path".
-- [ ] `docs/cli.md`: the `--config` flag is described as honored by the default commit action **and the `config init`, `config path`, and `config upgrade` subcommands** (with the `stagehand --config X config upgrade` example).
+- [ ] `docs/cli.md`: `config path` is described as printing the **override-aware** path (honors `--config`/`STAGECOACH_CONFIG`), not "the resolved global config path".
+- [ ] `docs/cli.md`: the `--config` flag is described as honored by the default commit action **and the `config init`, `config path`, and `config upgrade` subcommands** (with the `stagecoach --config X config upgrade` example).
 - [ ] `docs/cli.md`: `config init` reflects that (a) the target path is override-aware and (b) for **pi** the per-role models are left empty.
 - [ ] `docs/configuration.md`: the `config path` reference line and the `--config` NOTE both reflect override-aware behavior incl. config subcommands.
 - [ ] `docs/configuration.md`: the Bootstrap section notes pi's per-role models are blanked (pi needs `default_provider` to route).
@@ -100,7 +100,7 @@ _Passed._ An agent with no prior knowledge of this codebase can complete this PR
 - file: internal/cmd/config.go
   why: Confirms config path(L133)/upgrade(L141)/init(L234) use config.ResolveConfigPath(flagConfig).
 - file: internal/config/file.go
-  why: ResolveConfigPath(flagConfig) at L99 — flag > STAGEHAND_CONFIG env > GlobalConfigPath().
+  why: ResolveConfigPath(flagConfig) at L99 — flag > STAGECOACH_CONFIG env > GlobalConfigPath().
 - file: internal/config/bootstrap.go
   why: L131–146 — piBlanked: when target=="pi", all per-role models set to "" with an annotation.
 - file: internal/provider/builtin.go
@@ -190,21 +190,21 @@ Task 1: VERIFY the five fixes are shipped (no edits — ground truth)
 
 Task 2: MODIFY docs/cli.md — config subcommand override behavior (Issue 4)
   - FIND (L111, `### config path`): "Print the resolved global config path:"
-  - REPLACE with: "Print the resolved config path (override-aware: honors `--config` / `STAGEHAND_CONFIG`, falling back to the global path):"
-  - FIND (L46, `--config` paragraph, end): "...usable with `--provider <name>` on `stagehand` directly (not just the `providers`/`config` subcommands)."
-  - REPLACE the parenthetical to mirror README: "...usable with `--provider <name>` on `stagehand` directly. It is also honored by the `config init`, `config path`, and `config upgrade` subcommands — e.g. `stagehand --config X config upgrade` upgrades file `X`, and `config path` prints the resolved path."
-  - CHECK: `config upgrade` and `config init` sections — if they imply a global-only target, add a one-line note that `--config`/`STAGEHAND_CONFIG` select the target file (precedence flag > env > global). Do not over-edit.
+  - REPLACE with: "Print the resolved config path (override-aware: honors `--config` / `STAGECOACH_CONFIG`, falling back to the global path):"
+  - FIND (L46, `--config` paragraph, end): "...usable with `--provider <name>` on `stagecoach` directly (not just the `providers`/`config` subcommands)."
+  - REPLACE the parenthetical to mirror README: "...usable with `--provider <name>` on `stagecoach` directly. It is also honored by the `config init`, `config path`, and `config upgrade` subcommands — e.g. `stagecoach --config X config upgrade` upgrades file `X`, and `config path` prints the resolved path."
+  - CHECK: `config upgrade` and `config init` sections — if they imply a global-only target, add a one-line note that `--config`/`STAGECOACH_CONFIG` select the target file (precedence flag > env > global). Do not over-edit.
 
 Task 3: MODIFY docs/cli.md — pi bootstrap models (Issue 5) [can combine with Task 2 in one edit pass]
   - FIND (L76, `config init`): "Bootstrap a **populated, working config** to the global config path. ... writes `config_version = 2`, `[defaults] provider = \"<detected>\"`, and that provider's per-role model defaults UNCOMMENTED so the tool works immediately. Other installed providers appear as commented-out `[role.*]` blocks. If no agent is detected, defaults to `\"pi\"`."
-  - REPLACE with wording that: (a) the written path is override-aware (honors `--config`/`STAGEHAND_CONFIG`, default global); (b) for **pi** (the default), the per-role models are left EMPTY so pi picks its own backend model — set `[provider.pi] default_provider` to pin a backend; other detected providers get their per-role defaults uncommented. Mirror README "Configure your agent" bootstrap NOTE.
+  - REPLACE with wording that: (a) the written path is override-aware (honors `--config`/`STAGECOACH_CONFIG`, default global); (b) for **pi** (the default), the per-role models are left EMPTY so pi picks its own backend model — set `[provider.pi] default_provider` to pin a backend; other detected providers get their per-role defaults uncommented. Mirror README "Configure your agent" bootstrap NOTE.
   - GOTCHA: claude's bootstrap example block later in the file (opus/sonnet/haiku/sonnet) stays valid — claude models are NOT blanked. Only pi is special.
 
 Task 4: MODIFY docs/configuration.md — config path + --config NOTE (Issue 4)
-  - FIND (L31): "Use `stagehand config path` to print the resolved global path."
-  - REPLACE: "Use `stagehand config path` to print the resolved config path (override-aware: honors `--config` / `STAGEHAND_CONFIG`, else the global path)."
+  - FIND (L31): "Use `stagecoach config path` to print the resolved global path."
+  - REPLACE: "Use `stagecoach config path` to print the resolved config path (override-aware: honors `--config` / `STAGECOACH_CONFIG`, else the global path)."
   - FIND (L67, NOTE): "It overrides global and repo-local file discovery and is honored by every command — including the default commit action — so a provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` directly."
-  - REPLACE to match README: "...honored by every command — including the default commit action AND the `config init`, `config path`, and `config upgrade` subcommands (e.g. `stagehand --config X config upgrade` upgrades file `X`; `config path` prints the resolved path) — so a provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` directly."
+  - REPLACE to match README: "...honored by every command — including the default commit action AND the `config init`, `config path`, and `config upgrade` subcommands (e.g. `stagecoach --config X config upgrade` upgrades file `X`; `config path` prints the resolved path) — so a provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` directly."
 
 Task 5: MODIFY docs/configuration.md — Bootstrap section pi models (Issue 5)
   - FIND (L38, Bootstrap numbered step 2): "Writes `[defaults] provider = \"<detected>\"` and that provider's per-role model defaults UNCOMMENTED (from the FR-D4 table)."
@@ -214,7 +214,7 @@ Task 5: MODIFY docs/configuration.md — Bootstrap section pi models (Issue 5)
 Task 6: MODIFY docs/providers.md — honest stager safety model (Issue 2)
   - FIND (L94, the three-layer stager safety list, Layer 1): "1. **`tooled_flags`** — scopes tools to staging (claude: git/read/edit allowlist via `--allowed-tools`; pi: all tools on, chrome stripped)."
   - REPLACE Layer 1 with the honest split (mirror pi.toml/claude.toml): "1. **`tooled_flags`** — claude is **structurally** scoped via a staging-only git allowlist (`--allowed-tools Bash(git add:*,git apply:*,git status:*,git diff:*),Read,Edit`) that makes `git commit`/`push`/`update-ref`/`reset`/`rebase` unreachable. pi is **not** flag-scoped — it has no git-scoped allowlist flag, so its tooled profile enables tools with chrome stripped; a misbehaving pi stager CAN run arbitrary Bash. pi's safety is therefore INSTRUCTIONAL (the §17.6 stager task prompt) + a best-effort HEAD-movement guard, not structural."
-  - FIND Layer 2 ("Stagehand's ref-mutation monopoly") and Layer 3 (stager task prompt): augment to note the HEAD-movement guard (P1.M2.T1.S3) snapshots HEAD before each stager call and aborts the run if HEAD moved — this is pi's actual safety net, with claude's structural allowlist as defense-in-depth.
+  - FIND Layer 2 ("Stagecoach's ref-mutation monopoly") and Layer 3 (stager task prompt): augment to note the HEAD-movement guard (P1.M2.T1.S3) snapshots HEAD before each stager call and aborts the run if HEAD moved — this is pi's actual safety net, with claude's structural allowlist as defense-in-depth.
   - GOTCHA: PRD §19's "structurally constrained … cannot commit/amend/push" holds for CLAUDE but NOT pi. Do not state it unqualified for both.
 
 Task 7: MODIFY docs/providers.md — FR-D4 bootstrap note (Issue 5)
@@ -223,8 +223,8 @@ Task 7: MODIFY docs/providers.md — FR-D4 bootstrap note (Issue 5)
   - NOTE: the pi table row (L113, gpt-5.4*) stays as-is — it is the accurate compiled-in FR-D4 default.
 
 Task 8: MODIFY docs/how-it-works.md — multi-commit safety bullet (Issue 2)
-  - FIND (L115, "Safety" bullet under Multi-commit decomposition): "- **Atomic and safe** — `update-ref CAS` is the only ref mutation per commit. The stager is the ONE role that touches the index (scoped strictly to `git add`); stagehand owns all `commit-tree`, `update-ref`, and `push` operations."
-  - REPLACE to distinguish providers honestly (mirror README "Multi-commit decomposition"): "- **Atomic and safe** — `update-ref CAS` is the only ref mutation per commit; stagehand owns all `commit-tree`, `update-ref`, and `push` operations. The stager is the ONE role that touches the index. Its scoping differs by provider: claude is structurally constrained to a staging-only git allowlist (`git add`/`apply`/`status`/`diff`); pi is constrained instructionally (its task prompt) plus a HEAD-movement guard that aborts the run if the stager moves a ref. See [providers.md](providers.md#tooled-mode-and-the-stager-role)."
+  - FIND (L115, "Safety" bullet under Multi-commit decomposition): "- **Atomic and safe** — `update-ref CAS` is the only ref mutation per commit. The stager is the ONE role that touches the index (scoped strictly to `git add`); stagecoach owns all `commit-tree`, `update-ref`, and `push` operations."
+  - REPLACE to distinguish providers honestly (mirror README "Multi-commit decomposition"): "- **Atomic and safe** — `update-ref CAS` is the only ref mutation per commit; stagecoach owns all `commit-tree`, `update-ref`, and `push` operations. The stager is the ONE role that touches the index. Its scoping differs by provider: claude is structurally constrained to a staging-only git allowlist (`git add`/`apply`/`status`/`diff`); pi is constrained instructionally (its task prompt) plus a HEAD-movement guard that aborts the run if the stager moves a ref. See [providers.md](providers.md#tooled-mode-and-the-stager-role)."
 
 Task 9: VERIFY providers rendering (Issue 1) and post-arbiter output (Issue 3) — optional edits only
   - READ docs/providers.md "Command rendering" (the pseudocode) and docs/cli.md / docs/how-it-works.md arbiter sections.
@@ -235,7 +235,7 @@ Task 9: VERIFY providers rendering (Issue 1) and post-arbiter output (Issue 3) �
 Task 10: FINAL full re-read + lint + build/test gate
   - RE-READ every docs/*.md end-to-end. Confirm zero contradictions with README.md and providers/*.toml.
   - RUN markdown lint (Validation Level 1) and `go build ./...` + `go test ./...` (Validation Level 2).
-  - RUN the targeted `stagehand` commands in Validation Level 3 to confirm doc claims match the binary.
+  - RUN the targeted `stagecoach` commands in Validation Level 3 to confirm doc claims match the binary.
 ```
 
 ### Implementation Patterns & Key Details
@@ -255,7 +255,7 @@ Task 10: FINAL full re-read + lint + build/test gate
 # for BOTH providers. That phrasing is correct ONLY for claude. pi is instructional +
 # HEAD guard. Mirror pi.toml's "SAFETY MODEL — HONEST" block verbatim in spirit.
 
-# CRITICAL (Issue 4): config path/init/upgrade NOW honor --config/STAGEHAND_CONFIG.
+# CRITICAL (Issue 4): config path/init/upgrade NOW honor --config/STAGECOACH_CONFIG.
 # Any phrase like "the global config path" or "resolved global path" in the context of
 # these three subcommands is stale and must become "override-aware" / "resolved config path".
 
@@ -303,20 +303,20 @@ go test ./...
 
 ```bash
 # Build the binary if needed.
-make build            # produces ./bin/stagehand
+make build            # produces ./bin/stagecoach
 
-# Issue 4 — config subcommands honor --config / STAGEHAND_CONFIG:
-STAGEHAND_CONFIG=/tmp/sentinel.toml ./bin/stagehand config path   # must print /tmp/sentinel.toml (NOT the global path)
-./bin/stagehand --config /tmp/sentinel.toml config path          # must print /tmp/sentinel.toml
+# Issue 4 — config subcommands honor --config / STAGECOACH_CONFIG:
+STAGECOACH_CONFIG=/tmp/sentinel.toml ./bin/stagecoach config path   # must print /tmp/sentinel.toml (NOT the global path)
+./bin/stagecoach --config /tmp/sentinel.toml config path          # must print /tmp/sentinel.toml
 # docs/cli.md + docs/configuration.md "config path" claims must match this output.
 
 # Issue 2 — stager safety (read the merged manifests; compare to docs/providers.md + how-it-works.md):
-./bin/stagehand providers show claude | grep -A3 tooled_flags    # Bash(git add:*,...),Read,Edit
-./bin/stagehand providers show pi      | grep -A8 tooled_flags   # honest: tools on, no allowlist
+./bin/stagecoach providers show claude | grep -A3 tooled_flags    # Bash(git add:*,...),Read,Edit
+./bin/stagecoach providers show pi      | grep -A8 tooled_flags   # honest: tools on, no allowlist
 # docs/ must describe claude as structurally scoped and pi as instructional + HEAD guard.
 
 # Issue 5 — bootstrap pi models blanked:
-cd "$(mktemp -d)" && git init -q && STAGEHAND_CONFIG=./out.toml stagehand config init && grep -A1 'role.planner' out.toml
+cd "$(mktemp -d)" && git init -q && STAGECOACH_CONFIG=./out.toml stagecoach config init && grep -A1 'role.planner' out.toml
 # For pi, model lines must be empty/absent (NOT gpt-5.4). docs/configuration.md + providers.md must say so.
 
 # Issue 1 — provider rendering (pi --provider carries default_provider, not the manifest name):
@@ -331,7 +331,7 @@ cd "$(mktemp -d)" && git init -q && STAGEHAND_CONFIG=./out.toml stagehand config
 ```bash
 # Read each docs/*.md end-to-end and check against the canonical sources.
 # For each file, answer: "Does any sentence contradict README.md (root), providers/*.toml,
-# or `stagehand --help`?" If yes, fix; if no, pass.
+# or `stagecoach --help`?" If yes, fix; if no, pass.
 # Re-check the internal anchor links you may have touched, e.g.:
 grep -rn "how-it-works.md#multi-commit-decomposition\|providers.md#tooled-mode\|configuration.md" docs/ README.md
 # Expected: all anchor links resolve to real headings.
@@ -353,7 +353,7 @@ grep -rn "how-it-works.md#multi-commit-decomposition\|providers.md#tooled-mode\|
 - [ ] Stager safety doc matches `providers show` output (claude scoped; pi honest).
 - [ ] Pi bootstrap doc matches the blanked-models config init output.
 - [ ] Provider-rendering (Issue 1) and post-arbiter output (Issue 3) verified accurate.
-- [ ] Full re-read of each docs/*.md yields zero contradictions with README.md / providers/*.toml / `stagehand --help`.
+- [ ] Full re-read of each docs/*.md yields zero contradictions with README.md / providers/*.toml / `stagecoach --help`.
 
 ### Documentation & Quality
 
@@ -370,7 +370,7 @@ grep -rn "how-it-works.md#multi-commit-decomposition\|providers.md#tooled-mode\|
 - ❌ Don't edit any `.go` file, `PRD.md`, `tasks.json`, `prd_snapshot.md`, or `.gitignore` — documentation only.
 - ❌ Don't invent new wording when the canonical post-fix phrasing already exists in README.md / providers/*.toml — mirror it so README and docs/ agree.
 - ❌ Don't claim the stager is "structurally constrained" or "scoped to git add" for BOTH providers — that is the exact stale claim Issue 2 corrected (true for claude only; pi is instructional + HEAD guard).
-- ❌ Don't describe `config path`/`init`/`upgrade` as operating on "the global config path" unconditionally — they now honor `--config`/`STAGEHAND_CONFIG`.
+- ❌ Don't describe `config path`/`init`/`upgrade` as operating on "the global config path" unconditionally — they now honor `--config`/`STAGECOACH_CONFIG`.
 - ❌ Don't claim the bootstrap writes pi's `gpt-5.4*` per-role models — Issue 5 blanks them (claude and others are unaffected).
 - ❌ Don't force edits for Issues 1 & 3 if no stale claim exists — verify first; the Render algorithm and the success-report description may already be accurate.
 - ❌ Don't skip the `go build`/`go test` gate — even a docs-only task must prove it didn't accidentally touch code.

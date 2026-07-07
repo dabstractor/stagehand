@@ -1,18 +1,18 @@
 # Issue Analysis & Fix Plan — Bugfix-002
 
 Verified root cause, exact fix location, blast radius, and test patterns for all four issues.
-All file:line refs verified against `/home/dustin/projects/stagehand` (2026-06-30).
+All file:line refs verified against `/home/dustin/projects/stagecoach` (2026-06-30).
 
 ---
 
-## ISSUE 1 (Major) — Explicit `--config`/`STAGEHAND_CONFIG` to a NONEXISTENT file is silently ignored
+## ISSUE 1 (Major) — Explicit `--config`/`STAGECOACH_CONFIG` to a NONEXISTENT file is silently ignored
 
 ### Root cause (verified)
 `config.Load` (internal/config/load.go:48-65) resolves the global-file path:
 ```go
 globalPath := opts.ConfigPathOverride
 if globalPath == "" {
-    if env := os.Getenv("STAGEHAND_CONFIG"); env != "" { globalPath = env } else { globalPath = globalConfigPath() }
+    if env := os.Getenv("STAGECOACH_CONFIG"); env != "" { globalPath = env } else { globalPath = globalConfigPath() }
 }
 if g, err := loadTOML(globalPath); err != nil { return nil, fmt.Errorf("global config: %w", err) }
 else if g != nil { overlay(&cfg, g) }
@@ -26,7 +26,7 @@ if err != nil {
 }
 ```
 There is **no record** of whether `globalPath` came from an explicit source (`--config` /
-`STAGEHAND_CONFIG`) or from discovery (`globalConfigPath()`). A missing explicit path is
+`STAGECOACH_CONFIG`) or from discovery (`globalConfigPath()`). A missing explicit path is
 indistinguishable from "discovery default absent" → `cfg.Provider == ""` → `buildDeps`
 auto-detects the first **installed** built-in (pi/claude/gemini/…) and invokes the REAL agent.
 Contrast: a *malformed* or *directory* explicit path correctly errors (loadTOML parse error /
@@ -35,7 +35,7 @@ read error), so only the *missing* case is the dangerous inconsistency.
 ### Fix (localized to internal/config/load.go)
 Track whether the path is explicit, and make a missing explicit file a hard error:
 ```go
-explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGEHAND_CONFIG") != ""
+explicit := opts.ConfigPathOverride != "" || os.Getenv("STAGECOACH_CONFIG") != ""
 ...
 g, err := loadTOML(globalPath)
 if err != nil { return nil, fmt.Errorf("global config: %w", err) }
@@ -49,12 +49,12 @@ before any provider is resolved. No change to `loadTOML`, `file.go`, or the disc
 
 ### Blast radius
 - **Production:** internal/config/load.go ONLY (Load). `--config` already flows via
-  `ConfigPathOverride` (internal/cmd/root.go:79, PersistentPreRunE:42-55); `STAGEHAND_CONFIG`
+  `ConfigPathOverride` (internal/cmd/root.go:79, PersistentPreRunE:42-55); `STAGECOACH_CONFIG`
   is already read in Load. No wiring changes.
 - **Tests:** internal/config/load_test.go. Existing `TestLoad_ConfigPathOverride` (load_test.go:317)
-  and `TestLoad_STAGEHAND_CONFIG_EnvPath` (load_test.go:330) use EXISTING files (still pass). ADD:
+  and `TestLoad_STAGECOACH_CONFIG_EnvPath` (load_test.go:330) use EXISTING files (still pass). ADD:
   a missing `ConfigPathOverride` path → error containing `"config file not found"`; a missing
-  `STAGEHAND_CONFIG` path → same error; the discovery path with no global file → still `(nil)` /
+  `STAGECOACH_CONFIG` path → same error; the discovery path with no global file → still `(nil)` /
   no error (regression guard).
 
 ### Test patterns to reuse (internal/config, package-private helpers)
@@ -69,7 +69,7 @@ before any provider is resolved. No change to `loadTOML`, `file.go`, or the disc
 ## ISSUE 2 (Major) — Manifest-level `output` / `strip_code_fence` silently clobbered by `[generation]` defaults
 
 ### Root cause (verified)
-`buildDeps` (pkg/stagehand/stagehand.go:206-211) overrides the resolved manifest unconditionally:
+`buildDeps` (pkg/stagecoach/stagecoach.go:206-211) overrides the resolved manifest unconditionally:
 ```go
 if cfg.Output != "" { o := cfg.Output; m.Output = &o }       // ALWAYS true: Defaults() sets "raw"
 if cfg.StripCodeFence != nil { m.StripCodeFence = cfg.StripCodeFence } // ALWAYS true: Defaults() sets boolPtr(true)
@@ -99,7 +99,7 @@ are always overwritten. Consequence (verified end-to-end in the PRD repro):
    local — `&v` safe). StripCodeFence (152-155) UNCHANGED.
 
 **Part 2 (the bridge — delivers the behavior):**
-4. `pkg/stagehand/stagehand.go` `buildDeps` (206-211): `if cfg.Output != nil { m.Output = cfg.Output }`
+4. `pkg/stagecoach/stagecoach.go` `buildDeps` (206-211): `if cfg.Output != nil { m.Output = cfg.Output }`
    (drop the local copy). StripCodeFence guard UNCHANGED (`!= nil`). After the change BOTH branches
    are `if cfg.X != nil { m.X = cfg.X }` — manifest wins by default; `[generation]` overrides only
    when explicitly set.
@@ -114,12 +114,12 @@ are always overwritten. Consequence (verified end-to-end in the PRD repro):
   `output =`/`strip_code_fence =` — with nil defaults these keys vanish from the marshal; UPDATE the
   test to marshal a Config with explicit values OR drop those two key assertions); file_test.go
   (82-83 deref, 114 struct-literal `strPtr("json")`, 119-120 deref, 407 literal); git_test.go
-  (111-112 deref, 133 `!= nil`, 345-346 deref); stagehand_test.go (846 `cfg.Output = nil`).
+  (111-112 deref, 133 `!= nil`, 345-346 deref); stagecoach_test.go (846 `cfg.Output = nil`).
 
 ### Test patterns (behavior validation)
 - `TestOverlayPartial` (file_test.go:108) is the clobber-detection contract model.
-- pkg/stagehand `setupTestRepo`/`setupScriptedRepo` (stagehand_test.go:60-180) register a stub via
-  repo-local `.stagehand.toml` and exercise the REAL config.Load+registry path. ADD end-to-end tests:
+- pkg/stagecoach `setupTestRepo`/`setupScriptedRepo` (stagecoach_test.go:60-180) register a stub via
+  repo-local `.stagecoach.toml` and exercise the REAL config.Load+registry path. ADD end-to-end tests:
   (a) `[provider.stub] output="json"`+`json_field`, no `[generation]` → parsed JSON (message ==
   json_field value); (b) `[provider.stub] strip_code_fence=false` + fenced stub output → fence
   preserved; (c) `[generation] output="json"` overrides a `[provider.stub] output="raw"` manifest;
@@ -151,15 +151,15 @@ HEAD/index untouched — WriteTree is step 3, pre-generation) — only the MESSA
 Return a single clean line when the failure is unresolved conflicts. Two acceptable variants
 (implementer's choice; the PRD accepts "at minimum, wrap to the friendly text"):
 - **(preferred, accurate)** On `code != 0`, run `git ls-files -u`; if non-empty → return a clean
-  error (e.g. `errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagehand")`);
+  error (e.g. `errors.New("unresolved merge conflicts in the index — resolve them first, then re-run stagecoach")`);
   else return the original detailed error (some other write-tree failure). The extra git call is on
   the failure path only (not hot).
 - **(minimal)** Just drop the `%s` stderr from the message and keep a clean single line (the
   exit-128-on-populated-index is unambiguously unmerged in practice).
 
 Either way: the error propagates through CommitStaged (generate.go step 3) AND runPipeline
-(stagehand.go step 3) unchanged → `handleGenError` default branch → `exitcode.New(Error, err)` →
-main prints `stagehand: <clean msg>` + exit 1. STILL pre-generation, STILL exit 1, HEAD untouched.
+(stagecoach.go step 3) unchanged → `handleGenError` default branch → `exitcode.New(Error, err)` →
+main prints `stagecoach: <clean msg>` + exit 1. STILL pre-generation, STILL exit 1, HEAD untouched.
 
 ### Blast radius
 - **Production:** internal/git/git.go `WriteTree` only (one method; both call sites covered).
@@ -179,14 +179,14 @@ main prints `stagehand: <clean msg>` + exit 1. STILL pre-generation, STILL exit 
 
 ### Root cause (verified)
 `--dry-run` correctly runs the full pipeline incl. the write-tree snapshot (FR49, bugfix-001 fix).
-On generation failure, `pkg/stagehand.runPipeline` returns a `*generate.RescueError` (timeout→124 /
+On generation failure, `pkg/stagecoach.runPipeline` returns a `*generate.RescueError` (timeout→124 /
 rescue→3), identical to the commit path. `handleGenError` (internal/cmd/default_action.go:169-188)
 then prints the FULL `FormatRescue` recovery block (Tree ID + manual `git commit-tree` recipe) and
 maps to exit 3/124. For an operation that was never going to commit, the recovery recipe is odd,
-and `msg=$(stagehand --dry-run)` gets a non-zero exit + no message on stdout.
+and `msg=$(stagecoach --dry-run)` gets a non-zero exit + no message on stdout.
 
 ### Fix (localized to the CLI layer — internal/cmd/default_action.go handleGenError)
-The library API (`pkg/stagehand`) is UNCHANGED (still returns `*RescueError`); only the CLI
+The library API (`pkg/stagecoach`) is UNCHANGED (still returns `*RescueError`); only the CLI
 rendering special-cases dry-run. In `handleGenError`, BEFORE the existing RescueError branch, add:
 ```go
 if flagDryRun {
@@ -214,8 +214,8 @@ exit 1/2 appropriately).
   msg + NO `git commit-tree` recipe in stderr; `--dry-run` + rescue (blank stub) → exit 1 + short
   msg. Use `setupStubRepoWithTimeout` (default_action_test.go:109) and the `rootCmd.SetArgs({"--dry-run"})`
   pattern from `TestRunDefault_DryRun` (268).
-- **Library test guard:** pkg/stagehand `TestGenerateCommit_Timeout` "dryrun" subtest
-  (stagehand_test.go:296-362) asserts the LIBRARY returns `*RescueError{Kind:ErrTimeout}` →
+- **Library test guard:** pkg/stagecoach `TestGenerateCommit_Timeout` "dryrun" subtest
+  (stagecoach_test.go:296-362) asserts the LIBRARY returns `*RescueError{Kind:ErrTimeout}` →
   `exitcode.For == Timeout` (124). This STILL HOLDS — the library is unchanged; only the CLI wraps
   it to exit 1. Do NOT change this test.
 

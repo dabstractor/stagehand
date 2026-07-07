@@ -14,7 +14,7 @@ description: |
   (2) `docs/configuration.md` — ⚠️ the work item writes "docs/CONFIGURATION.md" but the ACTUAL file on
       this Linux checkout is LOWERCASE `docs/configuration.md` (verified; no CONFIGURATION.md exists).
       Add the two keys to the "Built-in defaults" table + the "Git-config keys" table (S3 added
-      `stagehand.tokenLimit`/`stagehand.diffContext` and explicitly deferred their docs to S4), add a
+      `stagecoach.tokenLimit`/`stagecoach.diffContext` and explicitly deferred their docs to S4), add a
       focused explanation paragraph (FR3d/FR3f + mutual-exclusivity), and update the "Populated config"
       worked example that shows the `[generation]` block.
 
@@ -28,7 +28,7 @@ description: |
 
 **Feature Goal**: Make the two new `[generation]` knobs (`token_limit`, `diff_context`) discoverable and
 self-documenting on every user-facing config surface: (a) the commented `[generation]` template block that
-`stagehand config init` (and the first-run bootstrap fallback) emits, and (b) `docs/configuration.md`'s
+`stagecoach config init` (and the first-run bootstrap fallback) emits, and (b) `docs/configuration.md`'s
 reference tables + worked example — so a user who opens a freshly-bootstrapped config or the docs sees the
 two new keys with correct FR3d/FR3f semantics, correct defaults (0 / 1), and the mutual-exclusivity rule
 (token_limit > 0 supersedes the legacy caps).
@@ -42,14 +42,14 @@ No new files.
 
 **Success Definition**: `go build ./...`, `go vet ./...`, `gofmt -l .` clean; `go test -race ./...` green
 (the existing bootstrap tests use `strings.Contains` + a TOML-validity parse — new *commented* lines do
-not affect either, verified). `grep` of `GenerateBootstrapConfig("")` output (or `stagehand config init`
+not affect either, verified). `grep` of `GenerateBootstrapConfig("")` output (or `stagecoach config init`
 stdout) shows both `token_limit` and `diff_context`; `docs/configuration.md` greps show both keys in the
 defaults table, the git-config table, and the worked example. `git diff --stat` shows ONLY
 `internal/config/bootstrap.go` + `docs/configuration.md`.
 
 ## User Persona
 
-**Target User**: The Stagehand user opening a freshly-bootstrapped `config.toml` (from `config init` or the
+**Target User**: The Stagecoach user opening a freshly-bootstrapped `config.toml` (from `config init` or the
 first-run auto-write) or reading `docs/configuration.md` to tune the diff payload — and the contributor
 landing P1.M2+ (`-U<diff_context>`, the `token_limit` water-fill) who needs the user-facing knobs to match
 the Config fields S1/S2 landed.
@@ -67,11 +67,11 @@ are **invisible in the shipped template and docs** — `config init` emits neith
 
 - **Closes the config-plumbing chain's last gap (the USER-FACING layer).** S1 added the Config fields;
   S2 wired file→Config (materialize/overlay, with the `*int` correction that makes an explicit
-  `diff_context = 0` survive); S3 wired the git-config layer (`stagehand.tokenLimit`/`stagehand.diffContext`,
+  `diff_context = 0` survive); S3 wired the git-config layer (`stagecoach.tokenLimit`/`stagecoach.diffContext`,
   precedence layer 5). S4 is the bootstrap template + docs — the layer a *user* actually reads. Without it,
   the chain is internally complete but externally invisible.
 - **S3's explicit downstream hook.** S3's PRP (Integration Points → DOWNSTREAM HOOKS) states verbatim:
-  "S4 (bootstrap/docs): document `stagehand.tokenLimit` / `stagehand.diffContext` in the user-facing key
+  "S4 (bootstrap/docs): document `stagecoach.tokenLimit` / `stagecoach.diffContext` in the user-facing key
   reference + the bootstrap template. S3 is the internal resolver; S3 adds NO docs." S4 fulfills that hook
   (the Git-config keys table rows in configuration.md are precisely "the user-facing key reference" S3
   names). The work item's point 5 reinforces: "THIS subtask IS the docs update for these two keys ... No
@@ -108,8 +108,8 @@ Extend the commented `[generation]` block. The block currently lists 8 keys (`ma
 
 1. **"Built-in defaults" table** — add two rows (`token_limit` default `0`; `diff_context` default `1`),
    placed after the `max_md_lines` row, before `max_duplicate_retries`.
-2. **Git-config keys table** — add two rows (`stagehand.tokenLimit`; `stagehand.diffContext`), placed
-   after `stagehand.stripCodeFence` (the last generation-adjacent key) or grouped with the generation
+2. **Git-config keys table** — add two rows (`stagecoach.tokenLimit`; `stagecoach.diffContext`), placed
+   after `stagecoach.stripCodeFence` (the last generation-adjacent key) or grouped with the generation
    keys. (Satisfies S3's downstream hook; point 5 = "THE docs update for these two keys".)
 3. **Explanatory paragraph** — add a focused "Token budget & diff context" note after the "Built-in
    defaults" table's output/strip_code_fence paragraph: token_limit (FR3d holistic budget, the
@@ -129,8 +129,8 @@ Extend the commented `[generation]` block. The block currently lists 8 keys (`ma
       legacy caps above` (FR3d); `diff_context`'s comment explains `0`/`1`/`3` (FR3f).
 - [ ] `docs/configuration.md` "Built-in defaults" table has `token_limit` (default `0`) and
       `diff_context` (default `1`) rows.
-- [ ] `docs/configuration.md` "Git-config keys" table has `stagehand.tokenLimit` and
-      `stagehand.diffContext` rows.
+- [ ] `docs/configuration.md` "Git-config keys" table has `stagecoach.tokenLimit` and
+      `stagecoach.diffContext` rows.
 - [ ] `docs/configuration.md` has an explanatory paragraph covering both keys with FR3d/FR3f cross-refs
       and the mutual-exclusivity rule.
 - [ ] `docs/configuration.md` "Populated config" worked example's `[generation]` block shows both new keys.
@@ -158,16 +158,16 @@ documents the git-config keys S3 wires; treat S3 as a contract).
 ```yaml
 # MUST READ — the S3 contract S4 depends on (git-config keys S4 must document)
 - docfile: plan/007_b33d310438c6/P1M1T1S3/PRP.md
-  why: "S3 adds stagehand.tokenLimit / stagehand.diffContext to loadGitConfig (git.go). S3's DOWNSTREAM
+  why: "S3 adds stagecoach.tokenLimit / stagecoach.diffContext to loadGitConfig (git.go). S3's DOWNSTREAM
         HOOK (Integration Points) states verbatim: 'S4 (bootstrap/docs): document
-        stagehand.tokenLimit / stagehand.diffContext in the user-facing key reference + the bootstrap
+        stagecoach.tokenLimit / stagecoach.diffContext in the user-facing key reference + the bootstrap
         template. S3 is the internal resolver; S3 adds NO docs.' S4's Git-config keys table rows are the
         fulfillment of that hook."
-  critical: "S3 is being implemented IN PARALLEL. Treat S3's PRP as a CONTRACT — assume stagehand.tokenLimit
-        and stagehand.diffContext WILL exist in the resolver. If S3 is dropped, drop the two Git-config
+  critical: "S3 is being implemented IN PARALLEL. Treat S3's PRP as a CONTRACT — assume stagecoach.tokenLimit
+        and stagecoach.diffContext WILL exist in the resolver. If S3 is dropped, drop the two Git-config
         keys table rows (they'd document non-existent keys); the bootstrap + defaults-table + worked-example
         edits are independent of S3 and stay. Keys are CAMELCASE (tokenLimit/diffContext), matching the
-        existing stagehand.maxDiffBytes / stripCodeFence convention."
+        existing stagecoach.maxDiffBytes / stripCodeFence convention."
 
 # MUST READ — the field semantics S4 surfaces (S1/S2 LANDED — verified in working tree)
 - docfile: plan/007_b33d310438c6/P1M1T1S1/PRP.md
@@ -243,11 +243,11 @@ documents the git-config keys S3 wires; treat S3 as a contract).
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/config/
 │   ├── bootstrap.go          # EDIT: generationCommented (282-296) +token_limit +diff_context lines
 │   ├── config.go             # READ-ONLY (S1/S2): TokenLimit (81), DiffContext *int (82), intPtr (11), seeds (174-175)
-│   ├── git.go                # READ-ONLY (S3, in parallel): +stagehand.tokenLimit +stagehand.diffContext
+│   ├── git.go                # READ-ONLY (S3, in parallel): +stagecoach.tokenLimit +stagecoach.diffContext
 │   ├── file.go               # READ-ONLY (S2): materialize/overlay
 │   └── bootstrap_test.go     # READ-ONLY: strings.Contains-based; stays green (new lines are comments)
 └── docs/
@@ -257,7 +257,7 @@ stagehand/
 ### Desired Codebase Tree After S4
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/config/bootstrap.go     # generationCommented +2 key lines +2 annotated legacy-cap lines
     docs/configuration.md            # +2 defaults-table rows +2 git-config-table rows +1 paragraph +worked-example keys
@@ -304,8 +304,8 @@ functions / `-U<diff_context>` (P1.M2+), any other doc file (`docs/cli.md`, `doc
 // line 290 (current max_duplicate_retries position) and shift max_duplicate_retries down. Do NOT place
 // token_limit above max_diff_bytes.
 
-// GOTCHA (S3-in-parallel dependency for the Git-config table rows ONLY): S3 wires stagehand.tokenLimit /
-// stagehand.diffContext into git.go's loadGitConfig. S4's Git-config keys table rows describe those keys.
+// GOTCHA (S3-in-parallel dependency for the Git-config table rows ONLY): S3 wires stagecoach.tokenLimit /
+// stagecoach.diffContext into git.go's loadGitConfig. S4's Git-config keys table rows describe those keys.
 // The bootstrap + defaults-table + worked-example edits are INDEPENDENT of S3. ONLY the 2 Git-config table
 // rows depend on S3 landing. Treat S3's PRP as a contract (it WILL land). camelCase keys (tokenLimit /
 // diffContext), NOT snake_case.
@@ -315,7 +315,7 @@ functions / `-U<diff_context>` (P1.M2+), any other doc file (`docs/cli.md`, `doc
 // docs show the concrete DEFAULT VALUE (diff_context = 1), NOT a pointer or nil. The *int is invisible to users.
 
 // GOTCHA (the git-config table is SELECTIVE — do NOT retrofit): docs/configuration.md's Git-config keys table
-// currently OMITS even stagehand.maxDiffBytes / stagehand.maxMdLines (a pre-existing doc gap). S4 adds ONLY
+// currently OMITS even stagecoach.maxDiffBytes / stagecoach.maxMdLines (a pre-existing doc gap). S4 adds ONLY
 // the two new keys (S3's hook + point 5). Do NOT retrofit maxDiffBytes/maxMdLines rows — that is a separate
 // pre-existing gap out of S4's scope (would be scope creep + risks touching unrelated docs).
 ```
@@ -402,14 +402,14 @@ Task 2: docs/configuration.md — "Built-in defaults" table (+2 rows)
 
 Task 3: docs/configuration.md — "Git-config keys" table (+2 rows)  [DEPENDS ON S3]
   - LOCATE the "## Git-config keys" table (`| Key | Type | Reads with | Description |`). Find the
-    `| \`stagehand.stripCodeFence\` | ... |` row (the last generation-adjacent key).
+    `| \`stagecoach.stripCodeFence\` | ... |` row (the last generation-adjacent key).
   - INSERT two rows immediately after it:
-        | `stagehand.tokenLimit` | int | `git config --get stagehand.tokenLimit` | Holistic token budget for the whole payload; `0` = unset ⇒ legacy `max_diff_bytes`/`max_md_lines` caps (§9.1 FR3d). Supersedes both legacy caps when >0 (mutually exclusive). |
-        | `stagehand.diffContext` | int | `git config --get stagehand.diffContext` | Unchanged context lines per hunk: `0` = changed-lines-only, `1` = one anchor line (default), `3` = git default (§9.1 FR3f). An explicit `0` is honored (changed-lines-only is a first-class value). |
+        | `stagecoach.tokenLimit` | int | `git config --get stagecoach.tokenLimit` | Holistic token budget for the whole payload; `0` = unset ⇒ legacy `max_diff_bytes`/`max_md_lines` caps (§9.1 FR3d). Supersedes both legacy caps when >0 (mutually exclusive). |
+        | `stagecoach.diffContext` | int | `git config --get stagecoach.diffContext` | Unchanged context lines per hunk: `0` = changed-lines-only, `1` = one anchor line (default), `3` = git default (§9.1 FR3f). An explicit `0` is honored (changed-lines-only is a first-class value). |
   - WHY here: S3 added these two resolver keys; S3's downstream hook defers their docs to S4 ("the
     user-facing key reference"). This table IS that reference. camelCase keys (matching
-    stagehand.stripCodeFence / autoStageAll).
-  - DO NOT: retrofit stagehand.maxDiffBytes / stagehand.maxMdLines rows (pre-existing gap, out of scope).
+    stagecoach.stripCodeFence / autoStageAll).
+  - DO NOT: retrofit stagecoach.maxDiffBytes / stagecoach.maxMdLines rows (pre-existing gap, out of scope).
   - S3 DEPENDENCY: these rows are correct ONLY if S3 lands. S3's PRP is a contract — assume it lands. If a
     reviewer reports S3 was dropped, remove these 2 rows (the rest of S4 is S3-independent).
 
@@ -420,9 +420,9 @@ Task 4: docs/configuration.md — explanatory paragraph (the "explanations + cro
         > **Token budget & diff context.** Two `[generation]` knobs size and shape the diff payload:
         > - **`token_limit`** (default `0` = unset) — a holistic token budget over the **whole** agent
         >   payload (system prompt + style examples + the concatenated diff). When set (e.g. `120000`),
-        >   Stagehand reserves room for the prompt/examples and truncates the diff to fit using the ≈4
+        >   Stagecoach reserves room for the prompt/examples and truncates the diff to fit using the ≈4
         >   chars/token estimate, so the payload always fits your model's context window **without
-        >   Stagehand maintaining a per-model context registry** (§9.1 FR3d). A non-zero `token_limit`
+        >   Stagecoach maintaining a per-model context registry** (§9.1 FR3d). A non-zero `token_limit`
         >   **supersedes** the legacy per-section caps `max_diff_bytes` and `max_md_lines` for that run;
         >   the two modes are mutually exclusive. When `0`/unset, the legacy caps apply unchanged.
         > - **`diff_context`** (default `1`) — unchanged context lines surrounding each diff hunk: `0` =
@@ -489,17 +489,17 @@ Task 6: VALIDATE (the contract's "verify by running the bootstrap and grepping t
 //   | `diff_context` | `1` | `config.Defaults()` (§9.1 FR3f — `-U1`) |               ← NEW
 //
 // Git-config keys table (Key | Type | Reads with | Description) — camelCase keys:
-//   | `stagehand.tokenLimit` | int | `git config --get stagehand.tokenLimit` | ... FR3d ... |   ← NEW (S3 hook)
-//   | `stagehand.diffContext` | int | `git config --get stagehand.diffContext` | ... FR3f ... |  ← NEW (S3 hook)
+//   | `stagecoach.tokenLimit` | int | `git config --get stagecoach.tokenLimit` | ... FR3d ... |   ← NEW (S3 hook)
+//   | `stagecoach.diffContext` | int | `git config --get stagecoach.diffContext` | ... FR3f ... |  ← NEW (S3 hook)
 ```
 
 ```markdown
 <!-- docs/configuration.md — the explanatory paragraph (the contract's "explanations + cross-refs") -->
 > **Token budget & diff context.** Two `[generation]` knobs size and shape the diff payload:
 > - **`token_limit`** (default `0` = unset) — a holistic token budget over the **whole** agent payload
->   (system prompt + style examples + the concatenated diff). When set (e.g. `120000`), Stagehand reserves
+>   (system prompt + style examples + the concatenated diff). When set (e.g. `120000`), Stagecoach reserves
 >   room for the prompt/examples and truncates the diff to fit using the ≈4 chars/token estimate, so the
->   payload always fits your model's context window **without Stagehand maintaining a per-model context
+>   payload always fits your model's context window **without Stagecoach maintaining a per-model context
 >   registry** (§9.1 FR3d). A non-zero `token_limit` **supersedes** the legacy per-section caps
 >   `max_diff_bytes` and `max_md_lines` for that run; the two modes are mutually exclusive. When `0`/unset,
 >   the legacy caps apply unchanged.
@@ -513,14 +513,14 @@ Task 6: VALIDATE (the contract's "verify by running the bootstrap and grepping t
 ```yaml
 BOOTSTRAP TEMPLATE (internal/config/bootstrap.go generationCommented):
   - emitted by: buildBootstrapConfig → b.WriteString(generationCommented) (bootstrap.go:229)
-  - surfaces in: `stagehand config init` stdout AND the first-run auto-write (FR-B3 bootstrapWriteConfig →
+  - surfaces in: `stagecoach config init` stdout AND the first-run auto-write (FR-B3 bootstrapWriteConfig →
     GenerateBootstrapConfig) — BOTH paths flow through generationCommented. ONE edit covers both.
   - TOML validity: unaffected (all new lines are `#` comments). TestBuildBootstrapConfig_ValidTOML green.
 
 DOCS (docs/configuration.md):
   - "Built-in defaults" table: +2 rows (token_limit/diff_context). The table that documents every config
     key's default — the natural home for the two new keys' defaults (0 / 1).
-  - "Git-config keys" table: +2 rows (stagehand.tokenLimit/diffContext). S3's downstream hook. camelCase.
+  - "Git-config keys" table: +2 rows (stagecoach.tokenLimit/diffContext). S3's downstream hook. camelCase.
   - Explanatory paragraph: the full FR3d/FR3f explainer + mutual-exclusivity (placed after the defaults table).
   - "Populated config" worked example: the [generation] block snippet updated with both new keys.
 
@@ -548,7 +548,7 @@ DOWNSTREAM (informational — owned by LATER subtasks, NOT S4):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -w internal/config/bootstrap.go          # raw-string interior is untouched; safe
 gofmt -l .                                     # Expected: empty after the -w
@@ -562,7 +562,7 @@ go build ./...                                 # Expected: exit 0
 ### Level 2: Unit Tests — the existing bootstrap suite stays green
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The bootstrap tests — all strings.Contains-based + one TOML-validity parse. Adding commented lines to
 # generationCommented is invisible to all of them (comments are TOML-inert; no test asserts [generation] text).
@@ -578,7 +578,7 @@ go test -race ./internal/config/ -v
 ### Level 3: Whole-Repository Regression + the contract's grep verification
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...                             # Expected: ALL packages green
 go vet ./...                                    # Expected: exit 0
@@ -606,22 +606,22 @@ git diff --stat -- internal/ pkg/ cmd/ docs/
 ### Level 4: End-to-End Smoke (the contract's "run the bootstrap" — a real config init)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Build the binary, then run the ACTUAL user-facing command into a throwaway HOME (no clobber of the
 # user's real config). This is the contract's "run the bootstrap and grep the output" at the CLI surface.
-go build -o /tmp/stagehand-smoke . || { echo "build failed"; exit 1; }
+go build -o /tmp/stagecoach-smoke . || { echo "build failed"; exit 1; }
 export HOME_SMOKE="$(mktemp -d)"
-XDG_CONFIG_HOME="$HOME_SMOKE/.config" /tmp/stagehand-smoke config init   # writes ~/.config/stagehand/config.toml
+XDG_CONFIG_HOME="$HOME_SMOKE/.config" /tmp/stagecoach-smoke config init   # writes ~/.config/stagecoach/config.toml
 echo "--- generated [generation] block ---"
-grep -A14 '\[generation\]' "$HOME_SMOKE/.config/stagehand/config.toml"
+grep -A14 '\[generation\]' "$HOME_SMOKE/.config/stagecoach/config.toml"
 echo "--- key presence ---"
-grep -E 'token_limit|diff_context' "$HOME_SMOKE/.config/stagehand/config.toml"
+grep -E 'token_limit|diff_context' "$HOME_SMOKE/.config/stagecoach/config.toml"
 #   Expected: both `# token_limit           = 0` and `# diff_context          = 1` present (commented).
 echo "--- legacy-cap annotations ---"
-grep -E 'max_diff_bytes|max_md_lines' "$HOME_SMOKE/.config/stagehand/config.toml"
+grep -E 'max_diff_bytes|max_md_lines' "$HOME_SMOKE/.config/stagecoach/config.toml"
 #   Expected: both lines carry "ignored when token_limit is set (FR3d)".
-rm -rf "$HOME_SMOKE" /tmp/stagehand-smoke
+rm -rf "$HOME_SMOKE" /tmp/stagecoach-smoke
 
 # (If a CLI smoke is undesirable in CI, the authoritative check is the Level-3 grep of bootstrap.go +
 # go test TestGenerateBootstrapConfig_AutoDetectPi — both prove generationCommented carries the keys.)
@@ -648,7 +648,7 @@ rm -rf "$HOME_SMOKE" /tmp/stagehand-smoke
 - [ ] The `max_diff_bytes` and `max_md_lines` lines in `generationCommented` carry "ignored when
       token_limit is set (FR3d)".
 - [ ] `docs/configuration.md` "Built-in defaults" table has `token_limit` (0) + `diff_context` (1) rows.
-- [ ] `docs/configuration.md` "Git-config keys" table has `stagehand.tokenLimit` + `stagehand.diffContext`
+- [ ] `docs/configuration.md` "Git-config keys" table has `stagecoach.tokenLimit` + `stagecoach.diffContext`
       rows (S3's downstream hook fulfilled).
 - [ ] `docs/configuration.md` has the explanatory paragraph with the mutual-exclusivity rule.
 - [ ] `docs/configuration.md` "Populated config" worked example's `[generation]` block shows both keys.
@@ -660,7 +660,7 @@ rm -rf "$HOME_SMOKE" /tmp/stagehand-smoke
 - [ ] Did NOT edit `config.go` (S1/S2), `git.go` (S3), `file.go`/`load.go`, `bootstrap_test.go`.
 - [ ] Did NOT uncomment any key in `generationCommented` (would change Defaults behavior — out of scope).
 - [ ] Did NOT touch `StagedDiffOptions`/call sites (P1.M1.T2) or the diff functions (P1.M2+).
-- [ ] Did NOT retrofit `stagehand.maxDiffBytes`/`maxMdLines` rows into the git-config table (pre-existing gap).
+- [ ] Did NOT retrofit `stagecoach.maxDiffBytes`/`maxMdLines` rows into the git-config table (pre-existing gap).
 - [ ] Did NOT edit other doc files (`docs/how-it-works.md`, `README.md` — P1.M5.T1).
 - [ ] Did NOT modify `PRD.md`, `tasks.json`, `prd_snapshot.md`, or anything under `plan/`.
 
@@ -693,7 +693,7 @@ rm -rf "$HOME_SMOKE" /tmp/stagehand-smoke
   the legacy caps are silently superseded.
 - ❌ Don't write the docs `diff_context` default as a pointer/nil/`*int` — that is an INTERNAL Config concern
   (S2). The user-facing default is the concrete value `1`. The `*int` is invisible to users.
-- ❌ Don't retrofit `stagehand.maxDiffBytes`/`maxMdLines` rows into the Git-config keys table — that table
+- ❌ Don't retrofit `stagecoach.maxDiffBytes`/`maxMdLines` rows into the Git-config keys table — that table
   is already selective (it omits them pre-existing-ly). S4 adds ONLY the two NEW keys (S3's hook). Fixing
   the pre-existing gap is scope creep and risks unrelated docs.
 - ❌ Don't add a brittle full-output golden test for `generationCommented` — the populated config varies by

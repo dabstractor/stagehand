@@ -2,7 +2,7 @@ name: "P1.M4.T2.S1 — Add n==0 early-return for the auto-stage notice on a clea
 description: |
 
   Cosmetic UX fix for PRD Issue 7. When nothing is staged, `auto_stage_all` is on, and the working
-  tree is already clean, Stagehand currently prints the misleading line
+  tree is already clean, Stagecoach currently prints the misleading line
   `Nothing staged — staging all changes (0 files).` (FR18 template) right before `Nothing to commit.`
   (exit 2). Add a 4-line early return between the `StagedFileCount` error guard and the FR18 notice
   so a clean tree goes straight to the exit-2 "Nothing to commit." path, skipping the "(0 files)" line.
@@ -31,14 +31,14 @@ notice is absent on a clean tree. No other files change.
 
 ## User Persona (if applicable)
 
-**Target User**: Stagehand end user running `stagehand` on an already-clean working tree with the
+**Target User**: Stagecoach end user running `stagecoach` on an already-clean working tree with the
 default `auto_stage_all = true` config.
 
-**Use Case**: A user runs `stagehand` again after their previous commit (or after staging nothing),
+**Use Case**: A user runs `stagecoach` again after their previous commit (or after staging nothing),
 expecting a clean `Nothing to commit.` message. Today they see a confusing "staging all changes
 (0 files)" line that implies work happened when nothing did.
 
-**User Journey**: `stagehand` (clean tree) → stderr shows only `Nothing to commit.` → exit 2.
+**User Journey**: `stagecoach` (clean tree) → stderr shows only `Nothing to commit.` → exit 2.
 
 **Pain Points Addressed**: The "(0 files)" phrasing suggests a no-op staging action was taken, which
 is confusing/misleading. FR18's literal `N` template is correct for `N>0` but reads badly for `N==0`.
@@ -48,7 +48,7 @@ is confusing/misleading. FR18's literal `N` template is correct for `N>0` but re
 - **Business value**: Polished, honest UX on the empty case — a documented "Minor / Nice to Fix"
   issue (PRD h3.6 / Issue 7) found during the v1.0 QA pass.
 - **Integration**: Pure CLI-layer cosmetic change in the auto-stage state machine (PRD §9.4
-  FR16–FR20). No effect on the snapshot/atomic-commit pipeline, the public `pkg/stagehand` API,
+  FR16–FR20). No effect on the snapshot/atomic-commit pipeline, the public `pkg/stagecoach` API,
   config resolution, or exit-code semantics (§15.4).
 - **Problems solved**: Removes a misleading stderr line. For whom: every user with the default
   `auto_stage_all = true` hitting a clean tree.
@@ -295,18 +295,18 @@ go test -race ./...
 
 ```bash
 # Build the binary
-make build    # → ./bin/stagehand
+make build    # → ./bin/stagecoach
 
 # Reproduce the BEFORE bug (on the unpatched tree) to confirm the scenario, then confirm the AFTER:
 cd "$(mktemp -d)" && git init -q && git config user.email t@t && git config user.name t \
   && git commit -q --allow-empty -m "init"
 # Clean tree now. Run with auto_stage_all default (true):
-./bin/stagehand --provider <any> ; echo "exit=$?"
+./bin/stagecoach --provider <any> ; echo "exit=$?"
 # AFTER the fix: stderr contains ONLY "Nothing to commit." (no "staging all changes (0 files)").
 # exit=2. HEAD unchanged (git log --format=%s -n1 == "init").
 
 # Positive control: the n>0 notice still prints verbatim on an actually-dirty tree:
-echo x > a.txt && ./bin/stagehand --provider <any>
+echo x > a.txt && ./bin/stagecoach --provider <any>
 # stderr should contain: Nothing staged — staging all changes (1 files).   (em-dash)
 ```
 

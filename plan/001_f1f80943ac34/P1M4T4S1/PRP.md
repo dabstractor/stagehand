@@ -2,7 +2,7 @@
 name: "P1.M4.T4.S1 — --dry-run flag: COMPLETE the single deferred decoration '(no commit created)' → stderr (PRD FR49 / §9.12, Appendix B.3)"
 description: |
 
-  ⚠️ THIS IS NOT A CREATION TASK. `stagehand --dry-run` is **~95% already shipped** across two COMPLETE
+  ⚠️ THIS IS NOT A CREATION TASK. `stagecoach --dry-run` is **~95% already shipped** across two COMPLETE
   tasks: the public API `Options.DryRun` + `runPipeline` dry-run branch (P1.M3.T5.S1) and the CLI
   default action's flag registration, `DryRun` pass-through, dry-run success branch, message→stdout,
   exit 0, and the `↳ Generating…` progress line (P1.M4.T1.S2). The default-action author **explicitly
@@ -10,7 +10,7 @@ description: |
   `internal/cmd/default_action.go:128`:  `// / "(no commit created)" decorations are P1.M4.T3/T4.`
 
   P1.M4.T4.S1 is the **COMPLETION gate**: add the `(no commit created)` notice to STDERR in the dry-run
-  success path (so stdout stays clean for piping — `stagehand --dry-run --no-color | tee`), and extend
+  success path (so stdout stays clean for piping — `stagecoach --dry-run --no-color | tee`), and extend
   the existing `TestRunDefault_DryRun` to assert it is on stderr and NOT on stdout. That is the entire
   deliverable. The implementing agent must NOT recreate the flag, the pass-through, the branch, the
   public-API dry-run mechanics, or the progress line — they all exist.
@@ -24,11 +24,11 @@ description: |
     3. LOGIC: "… Print the message to stdout (clean, for piping). Print '(no commit created)' to stderr.
        Exit 0. … commit-tree/update-ref are skipped. Mock: integration test — dry-run produces a message,
        HEAD unchanged."  ← message/stdout/exit-0/HEAD-unchanged ALL done; the ONE gap is the stderr line.
-    4. OUTPUT: "Working `stagehand --dry-run` that previews the message without committing."  ← true after the fix.
+    4. OUTPUT: "Working `stagecoach --dry-run` that previews the message without committing."  ← true after the fix.
     5. DOCS: "none — documented in CLI help (P1.M4.T1.S1) and README (P1.M5.T4)."
 
   SCOPE BOUNDARY (frozen / owned elsewhere — do NOT edit):
-    - `pkg/stagehand/stagehand.go` (`runPipeline` dry-run branch) — P1.M3.T5.S1 (Complete). Its choice
+    - `pkg/stagecoach/stagecoach.go` (`runPipeline` dry-run branch) — P1.M3.T5.S1 (Complete). Its choice
       to skip `WriteTree` + duplicate-check in dry-run is a deliberate, defensible optimization; the
       contract's "snapshot is still taken" prose is NOT observable (the contract's own mock checks only
       "message produced, HEAD unchanged"). Do NOT modify the public API. See Context §"Known Gotchas".
@@ -46,14 +46,14 @@ description: |
 
   SUCCESS: `go test -race ./internal/cmd/ -v` green with the new assertions; `go vet ./internal/cmd/`
   clean; `gofmt -l internal/cmd/` empty; `git status` shows changes ONLY under `internal/cmd/`;
-  `make build` succeeds; a manual `./bin/stagehand --provider stub --dry-run` (in a stub repo) prints
+  `make build` succeeds; a manual `./bin/stagecoach --provider stub --dry-run` (in a stub repo) prints
   the message on stdout and "(no commit created)" on stderr with exit 0.
 
 ---
 
 ## Goal
 
-**Feature Goal**: Complete Stagehand's `--dry-run` UX (PRD FR49 / §9.12) by adding the one decoration
+**Feature Goal**: Complete Stagecoach's `--dry-run` UX (PRD FR49 / §9.12) by adding the one decoration
 the default-action author deferred to P1.M4.T4 — the `(no commit created)` notice on **stderr** — so the
 Appendix B.3 output format is fully realized while stdout remains a clean, pipeable commit-message stream.
 
@@ -68,7 +68,7 @@ Appendix B.3 output format is fully realized while stdout remains a clean, pipea
 **Success Definition**:
 - Appendix B.3 dry-run output is fully produced: progress `↳ Generating…` (stderr, already present) →
   message (stdout, already present) → `(no commit created)` (stderr, **the new line**).
-- stdout is **message-only** — `stagehand --dry-run --no-color | tee /tmp/msg.txt` yields a clean message
+- stdout is **message-only** — `stagecoach --dry-run --no-color | tee /tmp/msg.txt` yields a clean message
   (the `(no commit created)` notice never contaminates stdout). Asserted by the (already-present)
   exact-match `stdout == "feat: dry run"` check PLUS the new "stdout must NOT contain" assertion.
 - Exit 0 (`return nil`); HEAD unchanged (public API skips commit-tree/update-ref; already proven).
@@ -78,20 +78,20 @@ Appendix B.3 output format is fully realized while stdout remains a clean, pipea
 ## User Persona
 
 **Target User**: the scripter/integrator (PRD §7 personas) who previews a commit message before
-committing or pipes it onward — `stagehand --dry-run | git commit -F -`, a lazygit keybind, a CI "show
+committing or pipes it onward — `stagecoach --dry-run | git commit -F -`, a lazygit keybind, a CI "show
 me what you'd write" step. Also the cautious developer who wants to eyeball the message without moving HEAD.
 
-**Use Case**: `stagehand --dry-run` → see the generated message → decide. stdout = the message (pipeable);
+**Use Case**: `stagecoach --dry-run` → see the generated message → decide. stdout = the message (pipeable);
 stderr = human-readable scaffolding (`↳ Generating…`, `(no commit created)`). Exit 0 = "I have a message
 for you; nothing was committed."
 
-**User Journey**: user runs `stagehand --dry-run` → progress line on stderr → message printed to stdout
+**User Journey**: user runs `stagecoach --dry-run` → progress line on stderr → message printed to stdout
 → `(no commit created)` confirmation on stderr → shell sees exit 0. Piping `| tee msg.txt` captures ONLY
 the message because the notice is on stderr.
 
 **Pain Points Addressed**: ambiguity about whether a commit was actually created (the explicit
 `(no commit created)` notice removes all doubt); stdout pollution that would break
-`stagehand --dry-run | git commit -F -` (the notice is correctly routed to stderr).
+`stagecoach --dry-run | git commit -F -` (the notice is correctly routed to stderr).
 
 ## Why
 
@@ -99,7 +99,7 @@ the message because the notice is on stderr.
   ("Print '(no commit created)' to stderr") — the only piece of the dry-run UX not yet present.
 - **Realizes the Appendix B.3 output format** end-to-end (progress → message → notice), matching the
   PRD's documented terminal session exactly.
-- **Protects the pipe use case (§15.5).** `stagehand --dry-run --no-color | tee` MUST yield a clean
+- **Protects the pipe use case (§15.5).** `stagecoach --dry-run --no-color | tee` MUST yield a clean
   message. Routing the notice to stderr (not stdout) is what makes that work; the new "stdout must NOT
   contain" assertion locks it as a regression test.
 - **Avoids scope creep.** A naive reading of "--dry-run flag" could lead to recreating the flag, the
@@ -136,15 +136,15 @@ if strings.Contains(stdout, "(no commit created)") {
 }
 ```
 
-NO changes to: `pkg/stagehand/*` (public API — Complete, frozen), `internal/exitcode/*` (parallel S3),
+NO changes to: `pkg/stagecoach/*` (public API — Complete, frozen), `internal/exitcode/*` (parallel S3),
 `internal/ui/*` (Progress/Success/Error/Verbose — Complete), `internal/cmd/root.go` (flag already
 registered), `internal/generate/*`, or any other file.
 
 ### Success Criteria
 
-- [ ] `stagehand --dry-run` prints the generated message to **stdout** AND `(no commit created)` to
+- [ ] `stagecoach --dry-run` prints the generated message to **stdout** AND `(no commit created)` to
       **stderr**; exit 0; HEAD unchanged (Appendix B.3).
-- [ ] stdout is **message-only** — `stagehand --dry-run | tee` captures a clean message (the notice is
+- [ ] stdout is **message-only** — `stagecoach --dry-run | tee` captures a clean message (the notice is
       never on stdout). Asserted by the existing exact-match check + the new "must NOT contain" check.
 - [ ] `TestRunDefault_DryRun` asserts both: stderr CONTAINS `(no commit created)`, stdout does NOT.
 - [ ] `go test -race ./internal/cmd/ -v` green; `go vet ./internal/cmd/` clean; `gofmt -l internal/cmd/` empty.
@@ -169,7 +169,7 @@ internals are required (all frozen / out of scope).
        exact one-line fix, §3 why NOT to touch the public API (snapshot prose is non-observable + owned by
        Complete P1.M3.T5.S1), §4 the test plan, §5 parallel coordination (S3 = internal/exitcode/ only,
        zero overlap), §6 confidence 9.5/10.
-  critical: §1 (don't recreate — it's ~95% done), §2 (the one line), §3 (don't touch pkg/stagehand).
+  critical: §1 (don't recreate — it's ~95% done), §2 (the one line), §3 (don't touch pkg/stagecoach).
 
 - file: internal/cmd/default_action.go   (P1.M4.T1.S2 — the file you EDIT; 2-line region only)
   section: `runDefault`'s success branch, ~L124-130:
@@ -201,7 +201,7 @@ internals are required (all frozen / out of scope).
   why: confirms the flag + behavioral-var wiring is DONE — do not re-register or rename it.
   gotcha: NO change here. The contract's "DOCS: CLI help (P1.M4.T1.S1)" is satisfied by this very line.
 
-- file: pkg/stagehand/stagehand.go   (P1.M3.T5.S1 — READ only; the public API is FROZEN)
+- file: pkg/stagecoach/stagecoach.go   (P1.M3.T5.S1 — READ only; the public API is FROZEN)
   section: `Options.DryRun bool` (L36); `GenerateCommit` dispatch (`!opts.DryRun ...` → CommitStaged, else
        runPipeline) L93-109; `runPipeline` dry-run branch L254-276 (single generate→parse pass, returns
        `Result{CommitSHA:""}`, no WriteTree/CommitTree/UpdateRef).
@@ -230,13 +230,13 @@ internals are required (all frozen / out of scope).
 ### Current Codebase tree (relevant slice)
 
 ```bash
-go.mod                                  # module github.com/dustin/stagehand ; go 1.22 ; UNCHANGED (no new deps)
+go.mod                                  # module github.com/dustin/stagecoach ; go 1.22 ; UNCHANGED (no new deps)
 internal/cmd/
   root.go                               # P1.M4.T1.S1 — --dry-run flag + flagDryRun var (READ; ALREADY REGISTERED)
   default_action.go                     # P1.M4.T1.S2 — runDefault: DryRun pass-through + dry-run branch (EDIT: +1 line)
   default_action_test.go                # P1.M4.T1.S2 — TestRunDefault_DryRun (EDIT: +2 assertions)
   providers.go / config.go              # P1.M4.T1.S3/S4 — subcommands (READ; unrelated)
-pkg/stagehand/stagehand.go              # P1.M3.T5.S1 — Options.DryRun + runPipeline dry-run branch (READ; FROZEN)
+pkg/stagecoach/stagecoach.go              # P1.M3.T5.S1 — Options.DryRun + runPipeline dry-run branch (READ; FROZEN)
 internal/ui/output.go                   # P1.M4.T3.S1 — UI.Progress (↳ prefix, stderr) (READ; progress already wired)
 internal/exitcode/exitcode.go           # P1.M4.T1.S1 — Success=0 doc notes "dry-run message printed" (READ; S3 in flight)
 Makefile                                # build / test(-race) / vet / lint / coverage / clean (UNCHANGED)
@@ -247,7 +247,7 @@ Makefile                                # build / test(-race) / vet / lint / cov
 ```bash
 internal/cmd/default_action.go          # EDIT — +1 line: fmt.Fprintln(stderr, "(no commit created)"); + comment refresh.
 internal/cmd/default_action_test.go     # EDIT — TestRunDefault_DryRun: +2 assertions (stderr has it; stdout doesn't).
-# ALL other files UNCHANGED. pkg/stagehand/*, internal/exitcode/*, internal/ui/*, internal/cmd/root.go untouched.
+# ALL other files UNCHANGED. pkg/stagecoach/*, internal/exitcode/*, internal/ui/*, internal/cmd/root.go untouched.
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -260,7 +260,7 @@ internal/cmd/default_action_test.go     # EDIT — TestRunDefault_DryRun: +2 ass
 // is the `(no commit created)` stderr line — explicitly deferred in the comment at default_action.go:128.
 // Overwriting/recreating any of the above regresses ~6 call sites + 2 test files. S1 = add one line + assert it.
 
-// CRITICAL (DON'T TOUCH THE PUBLIC API): pkg/stagehand.runPipeline SKIPS WriteTree (and duplicate-check) in
+// CRITICAL (DON'T TOUCH THE PUBLIC API): pkg/stagecoach.runPipeline SKIPS WriteTree (and duplicate-check) in
 // dry-run. The contract prose says "the snapshot is still taken (write-tree runs)" — but (a) it's owned by the
 // COMPLETE task P1.M3.T5.S1, (b) it is NOT observable (an orphan tree object is never created; the contract's
 // OWN mock checks only "message produced, HEAD unchanged"), (c) it's a deliberate optimization, and (d) modifying
@@ -273,7 +273,7 @@ internal/cmd/default_action_test.go     # EDIT — TestRunDefault_DryRun: +2 ass
 // for piping, but the appendix shows it plain, so match the appendix.)
 
 // GOTCHA (stream separation is the POINT): the contract deliberately puts `(no commit created)` on STDERR so
-// `stagehand --dry-run --no-color | tee /tmp/msg.txt` captures a clean message. The existing exact-match check
+// `stagecoach --dry-run --no-color | tee /tmp/msg.txt` captures a clean message. The existing exact-match check
 // (`strings.TrimSpace(outBuf.String()) == "feat: dry run"`) already guards stdout; the new "stdout must NOT
 // contain" assertion makes the contract explicit as a regression test.
 
@@ -294,8 +294,8 @@ internal/cmd/default_action_test.go     # EDIT — TestRunDefault_DryRun: +2 ass
 
 ### Data models and structure
 
-No new data models. `flagDryRun` (bool, `internal/cmd/root.go:40`) and `stagehand.Options.DryRun`
-(bool, `pkg/stagehand/stagehand.go:36`) already exist and flow through to the dry-run branch. This task
+No new data models. `flagDryRun` (bool, `internal/cmd/root.go:40`) and `stagecoach.Options.DryRun`
+(bool, `pkg/stagecoach/stagecoach.go:36`) already exist and flow through to the dry-run branch. This task
 adds a single output line + test assertions; no struct/type changes.
 
 ### Implementation Tasks (ordered by dependencies)
@@ -349,7 +349,7 @@ Task 4: FINAL VALIDATION (the gate)
   - RUN: `go test -race ./internal/cmd/ -run TestRunDefault_DryRun -v` → confirm the new assertions ran.
   - RUN: `make build` → succeeds (proves the one-line edit compiles).
   - RUN: `git status` → changes ONLY under internal/cmd/.
-  - (optional smoke) In a scratch stub repo: `./bin/stagehand --provider stub --dry-run` → stdout = message,
+  - (optional smoke) In a scratch stub repo: `./bin/stagecoach --provider stub --dry-run` → stdout = message,
       stderr contains "(no commit created)", exit 0, HEAD unchanged. (Requires the stub provider; the unit
       test already proves this deterministically.)
 ```
@@ -373,9 +373,9 @@ if strings.Contains(stdout, "(no commit created)") {
 
 // What NOT to do (the guardrails):
 //   ✗ recreate the flag / pass-through / branch / public-API dry-run path / progress line (all exist)
-//   ✗ modify pkg/stagehand/runPipeline (Complete task P1.M3.T5.S1; non-observable snapshot prose)
+//   ✗ modify pkg/stagecoach/runPipeline (Complete task P1.M3.T5.S1; non-observable snapshot prose)
 //   ✗ route the notice through u.Success/u.Progress/u.Yellow (adds ↳ prefix / color; appendix shows it plain)
-//   ✗ put "(no commit created)" on stdout (breaks `stagehand --dry-run | tee`)
+//   ✗ put "(no commit created)" on stdout (breaks `stagecoach --dry-run | tee`)
 //   ✗ fork a new test instead of extending TestRunDefault_DryRun
 ```
 
@@ -388,7 +388,7 @@ CLI DEFAULT ACTION (PRD §15.1):
     writer, no new stream.
 
 PUBLIC API (frozen — read-only dependency):
-  - pkg/stagehand.GenerateCommit(opts with DryRun:true) returns Result{CommitSHA:""} on success → the CLI's
+  - pkg/stagecoach.GenerateCommit(opts with DryRun:true) returns Result{CommitSHA:""} on success → the CLI's
     `if flagDryRun || res.CommitSHA == ""` branch fires → the message is printed + (now) the stderr notice.
     P1.M4.T4.S1 does NOT change the public API; it only consumes Result.Message.
 
@@ -433,13 +433,13 @@ go test -race ./internal/cmd/ -run TestRunDefault_DryRun -v
 ```bash
 # Build sanity (the one-line edit compiles into the binary).
 make build
-# Expected: ./bin/stagehand produced; exit 0.
+# Expected: ./bin/stagecoach produced; exit 0.
 
 # (optional, requires a stub-provider repo) End-to-end dry-run in a scratch repo:
 cd /tmp && rm -rf dryrun-smoke && git init dryrun-smoke && cd dryrun-smoke &&
   git config user.email t@t.co && git config user.name t &&
   # configure the stub provider per internal/stubtest, stage a file, then:
-  /home/dustin/projects/stagehand/bin/stagehand --provider stub --dry-run --no-color >msg.txt 2>notice.txt
+  /home/dustin/projects/stagecoach/bin/stagecoach --provider stub --dry-run --no-color >msg.txt 2>notice.txt
 echo "rc=$?"                                         # expect rc=0
 cat msg.txt                                          # expect: the generated message ONLY (no notice)
 grep -q "(no commit created)" notice.txt && echo OK  # expect: OK (notice on stderr)
@@ -475,7 +475,7 @@ grep -n "no commit created" internal/cmd/default_action_test.go  # the two new a
 
 ### Feature Validation
 
-- [ ] `stagehand --dry-run` prints the message to **stdout** AND `(no commit created)` to **stderr** (Appendix B.3).
+- [ ] `stagecoach --dry-run` prints the message to **stdout** AND `(no commit created)` to **stderr** (Appendix B.3).
 - [ ] stdout is **message-only** (pipeable): `--dry-run | tee` captures a clean message; asserted by exact-match
       + the new "stdout must NOT contain" check.
 - [ ] Exit 0; HEAD unchanged (both already true; the edit doesn't touch them).
@@ -484,7 +484,7 @@ grep -n "no commit created" internal/cmd/default_action_test.go  # the two new a
 ### Code Quality Validation
 
 - [ ] NO recreation of the flag / pass-through / branch / public-API dry-run path / progress line (all exist).
-- [ ] NO modification of `pkg/stagehand/*` (frozen Complete task) or `internal/exitcode/*` (parallel S3).
+- [ ] NO modification of `pkg/stagecoach/*` (frozen Complete task) or `internal/exitcode/*` (parallel S3).
 - [ ] The notice is PLAIN (no `↳ ` prefix, no color), matching Appendix B.3 verbatim.
 - [ ] File placement unchanged; `git status` shows changes ONLY under `internal/cmd/`.
 - [ ] New assertions mirror the existing `t.Errorf("... = %q, want ...", got)` style.
@@ -503,13 +503,13 @@ grep -n "no commit created" internal/cmd/default_action_test.go  # the two new a
 
 - ❌ **Don't recreate the dry-run feature.** It is ~95% shipped (flag, pass-through, branch, message→stdout,
   exit 0, HEAD-unchanged, progress line — all present and green-tested). P1.M4.T4.S1 adds ONE deferred line.
-- ❌ **Don't modify `pkg/stagehand/runPipeline`** to run WriteTree/duplicate-check in dry-run. It's owned by
+- ❌ **Don't modify `pkg/stagecoach/runPipeline`** to run WriteTree/duplicate-check in dry-run. It's owned by
   the COMPLETE task P1.M3.T5.S1, the contract's "write-tree runs" prose is non-observable, the contract's own
   mock checks only "message produced, HEAD unchanged", and changing it would regress the pinned dry-run error
   shapes in TestGenerateCommit_DryRun/TestGenerateCommit_Timeout. Leave it (research/findings.md §3).
 - ❌ **Don't route `(no commit created)` through `u.Success`/`u.Progress`/`u.Yellow`.** Those add a `↳ ` prefix
   and/or ANSI color; Appendix B.3 shows the notice PLAIN. Use a direct `fmt.Fprintln(stderr, "(no commit created)")`.
-- ❌ **Don't put the notice on stdout.** That breaks `stagehand --dry-run --no-color | tee /tmp/msg.txt` (§15.5).
+- ❌ **Don't put the notice on stdout.** That breaks `stagecoach --dry-run --no-color | tee /tmp/msg.txt` (§15.5).
   The whole point of the task is stream separation: message → stdout, notice → stderr.
 - ❌ **Don't fork a new test.** Extend the canonical `TestRunDefault_DryRun` (it already sets up outBuf/errBuf,
   `--provider stub --dry-run`, and the message/HEAD/err assertions). `strings` is already imported.

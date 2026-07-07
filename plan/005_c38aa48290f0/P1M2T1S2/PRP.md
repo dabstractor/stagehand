@@ -38,11 +38,11 @@ is touched.
 ## User Persona (if applicable)
 
 **Target User**: The implementing agent for **S3 (P1.M2.T1.S3)** — the consumer of this table — and, one layer
-out, "the plan-holder" / "the API-key refusenik" who runs `stagehand --format gitmoji` (PRD §7). This subtask
+out, "the plan-holder" / "the API-key refusenik" who runs `stagecoach --format gitmoji` (PRD §7). This subtask
 is invisible to end users (Mode A: no user-facing docs); it exists so S3 has a tested, offline, canonical data
 source to render.
 
-**Use Case**: `--format gitmoji` (FR-F3) makes stagehand emit commit subjects prefixed with a single gitmoji.
+**Use Case**: `--format gitmoji` (FR-F3) makes stagecoach emit commit subjects prefixed with a single gitmoji.
 The model needs the reference table (emoji + meaning) in its system prompt to choose the right emoji; that
 table must be byte-stable, offline, and current — which is exactly what `GitmojiTable` + `RenderGitmojiTable()`
 provide.
@@ -52,7 +52,7 @@ provide.
 `🎨 Refactor foo`-style subjects. S2 is the data under that flow.
 
 **Pain Points Addressed**: (1) Incumbents that fetch the gitmoji list at runtime are fragile/offline-hostile
-(stagehand's whole thesis, PRD §5); a compiled-in constant removes the network dependency entirely (FR-F3).
+(stagecoach's whole thesis, PRD §5); a compiled-in constant removes the network dependency entirely (FR-F3).
 (2) Hand-transcribed tables drift / typo; generating the literal from the canonical JSON + a self-checking
 count const removes transcription risk and makes drift detectable.
 
@@ -464,7 +464,7 @@ NO DEPENDENCY / CONFIG CHANGES:
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand-competitor-feature-parity
+cd /home/dustin/projects/stagecoach-competitor-feature-parity
 gofmt -w internal/prompt/gitmoji.go internal/prompt/gitmoji_test.go
 go build ./...
 go vet ./internal/prompt/...
@@ -505,7 +505,7 @@ grep -nE 'net/http|os\.ReadFile|go:embed' internal/prompt/gitmoji.go || echo "OK
 # (b) Public surface is reachable + renders: a tiny smoke check via `go run` (or a one-liner test).
 cat > /tmp/smoke_test.go <<'EOF'
 package main
-import ("fmt"; "github.com/dustin/stagehand/internal/prompt")
+import ("fmt"; "github.com/dustin/stagecoach/internal/prompt")
 func main() {
   fmt.Printf("entries=%d first=%q render_head=%q\n", len(prompt.GitmojiTable), prompt.GitmojiTable[0], prompt.RenderGitmojiTable()[:40])
 }

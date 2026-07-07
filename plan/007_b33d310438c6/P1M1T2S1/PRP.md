@@ -119,7 +119,7 @@ today (genuine add) + the baseline is green. No inference required.
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/git/
     └── git.go    # EDIT TARGET — StagedDiffOptions struct (lines 36-44); 3 diff functions unchanged
 # (internal/config/* is READ-ONLY — the config source, S1/S2 landed)
@@ -128,7 +128,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only one existing file modified — no new files)
     internal/git/git.go   # +3 fields on StagedDiffOptions (+ doc comments + group header)
 ```
@@ -139,7 +139,7 @@ stagehand/
 
 **Explicitly NOT touched**: the three diff functions (StagedDiff/TreeDiff/WorkingTreeDiff — they do not
 read the new fields), the `Git` interface, any other `internal/git/*` file, `internal/config/*`
-(S1/S2/S4), `internal/generate/*`, `internal/decompose/*`, `internal/hook/*`, `pkg/stagehand/*`
+(S1/S2/S4), `internal/generate/*`, `internal/decompose/*`, `internal/hook/*`, `pkg/stagecoach/*`
 (the 6 call sites = T2.S2), any docs, `PRD.md`, `tasks.json`, `prd_snapshot.md`, `plan/*`.
 
 ### Known Gotchas of our Codebase & toolchain
@@ -320,7 +320,7 @@ NO-TOUCH (explicitly — owned by sibling/downstream subtasks):
   - internal/git/git.go diff functions (StagedDiff/TreeDiff/WorkingTreeDiff)   # consumption = M2/M4
   - internal/git/* other files (binary.go, etc.)                               # unaffected
   - internal/config/* (config.go, file.go, git.go, bootstrap.go)              # S1/S2/S4 (landed/parallel)
-  - the 6 production call sites (generate/hook/stagehand/decompose)           # T2.S2 (the mapping task)
+  - the 6 production call sites (generate/hook/stagecoach/decompose)           # T2.S2 (the mapping task)
   - internal/prompt/*                                                         # M4.T1.S2 measures PromptReserveTokens here
   - any docs (README.md, docs/*)                                              # contract: no docs surface
   - PRD.md, tasks.json, prd_snapshot.md, plan/*
@@ -337,7 +337,7 @@ DOWNSTREAM HOOKS (informational — owned by LATER subtasks, NOT this one):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/git/git.go     # Expected: empty (run gofmt -w if listed — re-aligns the comment column)
 go vet ./internal/git/...        # Expected: exit 0
@@ -351,7 +351,7 @@ go build ./...                   # Expected: exit 0 (the struct change compiles 
 ### Level 2: Unit Tests (no behavior change — existing suite stays green)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test ./internal/git/          # Expected: ok — the diff-function tests are unchanged (fields unread)
 go test ./...                    # Expected: ALL packages green (no call site changed; fields are zero-value)
@@ -363,7 +363,7 @@ go test ./...                    # Expected: ALL packages green (no call site ch
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...              # Expected: ALL packages green (only a struct field was added)
 go vet ./...                     # Expected: exit 0
@@ -381,7 +381,7 @@ git diff -- internal/git/git.go | grep -E '^\+.*func .*Staged|^\+.*func .*TreeDi
 ### Level 4: Field-Presence Cross-Check (prove the seam is threaded)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The three fields exist on the struct with the right types (plain int), are cited by FR, and the
 # DiffContext guard-note is present.

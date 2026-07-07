@@ -1,6 +1,6 @@
 # Research Findings — P1.M4.T1.S1 (bugfix-002): dry-run RescueError branch in handleGenError
 
-Research-only scout. Repo: `/home/dustin/projects/stagehand`. All refs verified 2026-06-30.
+Research-only scout. Repo: `/home/dustin/projects/stagecoach`. All refs verified 2026-06-30.
 
 ## 1. The exact function to edit
 
@@ -31,13 +31,13 @@ The new dry-run branch goes at the **TOP**, before the existing `errors.As(err, 
 
 ## 3. The error sentinels / RescueError (confirmed in internal/generate/generate.go)
 
-- Line 54: `var ErrTimeout = errors.New("stagehand: generation timed out")`
-- Line 59: `var ErrRescue = errors.New("stagehand: commit generation failed after retries")`
+- Line 54: `var ErrTimeout = errors.New("stagecoach: generation timed out")`
+- Line 59: `var ErrRescue = errors.New("stagecoach: commit generation failed after retries")`
 - Lines 76-93: `type RescueError struct { Kind error; TreeSHA, ParentSHA, Candidate string }`;
   `func (e *RescueError) Unwrap() error { return e.Kind }` → `errors.Is(err, generate.ErrTimeout)`
   works because Unwrap returns the Kind.
 
-So `pkg/stagehand.runPipeline` returns `*generate.RescueError{Kind: ErrTimeout|ErrRescue}` for dry-run
+So `pkg/stagecoach.runPipeline` returns `*generate.RescueError{Kind: ErrTimeout|ErrRescue}` for dry-run
 generation failures (library UNCHANGED by this task). The CLI's `errors.As(err, &re)` + `errors.Is(err, generate.ErrTimeout)`
 discrimination pattern is reused verbatim for the dry-run branch.
 
@@ -45,15 +45,15 @@ discrimination pattern is reused verbatim for the dry-run branch.
 
 - `Error = 1`, `NothingToCommit = 2`, `Rescue = 3`, `Timeout = 124` (lines 23-27).
 - `exitcode.New(code, nil)` → SILENT (main prints nothing extra, because the code already wrote to
-  stderr via fmt.Fprintln). `exitcode.New(code, err)` → main prints `stagehand: <err>`.
+  stderr via fmt.Fprintln). `exitcode.New(code, err)` → main prints `stagecoach: <err>`.
 - The contract wants: dry-run gen failure → exit 1 + a SHORT stderr line + NO recovery recipe.
   So: `fmt.Fprintln(stderr, msg)` then `return exitcode.New(exitcode.Error, nil)`.
 
 ## 5. The library contract is UNCHANGED (critical regression guard)
 
-`pkg/stagehand/stagehand_test.go` `TestGenerateCommit_Timeout` "dryrun" subtest (~296-362) asserts
+`pkg/stagecoach/stagecoach_test.go` `TestGenerateCommit_Timeout` "dryrun" subtest (~296-362) asserts
 the LIBRARY returns `*RescueError{Kind:ErrTimeout}` → `exitcode.For(err) == Timeout (124)`. This task
-ONLY changes the CLI rendering in `handleGenError`. The library (`pkg/stagehand`) is untouched, so that
+ONLY changes the CLI rendering in `handleGenError`. The library (`pkg/stagecoach`) is untouched, so that
 test continues to pass unchanged. DO NOT modify it.
 
 ## 6. The COMMIT-path CLI tests stay as-is (second regression guard)
@@ -68,16 +68,16 @@ DO NOT modify them.
 - `TestRunDefault_DryRun` (268-308): the `rootCmd.SetArgs([]string{"--provider","stub","--dry-run"})`
   pattern + `saveRootState`/`restoreRootState` bracket + stdout/stderr buffers + `Execute(ctx)`.
 - `TestRunDefault_Timeout` (563-595): uses `setupStubRepoWithTimeout(t, out, sleepMs, timeout)`
-  (default_action_test.go:109-133) which builds the stub, writes a repo-local `.stagehand.toml` with
-  a short `[defaults] timeout`, commits the config, and sets `STAGEHAND_STUB_SLEEP_MS`.
+  (default_action_test.go:109-133) which builds the stub, writes a repo-local `.stagecoach.toml` with
+  a short `[defaults] timeout`, commits the config, and sets `STAGECOACH_STUB_SLEEP_MS`.
 - `TestRunDefault_Rescue` (504-541): uses `setupStubRepoRaw` + `[generation] max_duplicate_retries = 0`
-  + `STAGEHAND_STUB_OUT=""` (blank → unparseable → parse-retry exhaustion → rescue).
+  + `STAGECOACH_STUB_OUT=""` (blank → unparseable → parse-retry exhaustion → rescue).
 
 So the two new tests:
 - (a) dry-run TIMEOUT: `setupStubRepoWithTimeout(t, "feat: slow", 2000, 150*time.Millisecond)`,
   SetArgs `{"--provider","stub","--dry-run"}` → assert `exitcode.For(err) == exitcode.Error` (1) +
   stderr contains the short timeout message + stderr does NOT contain "git commit-tree" (no recipe).
-- (b) dry-run RESCUE: `setupStubRepoRaw` + `max_duplicate_retries = 0` + `STAGEHAND_STUB_OUT=""`,
+- (b) dry-run RESCUE: `setupStubRepoRaw` + `max_duplicate_retries = 0` + `STAGECOACH_STUB_OUT=""`,
   SetArgs `{"--provider","stub","--dry-run"}` → exit 1 + short message + no recipe.
 
 ## 8. flagDryRun isolation between tests (verified safe)
@@ -108,7 +108,7 @@ timeout wording. Both end in a hint to re-run without --dry-run (the recovery re
 ## 11. Boundaries / siblings
 
 - This subtask (S1) = the CLI `handleGenError` branch + the two CLI tests + Mode A docs/cli.md edits.
-- The library `pkg/stagehand` is UNCHANGED (the rescue/timeout semantics there are intentional per
+- The library `pkg/stagecoach` is UNCHANGED (the rescue/timeout semantics there are intentional per
   bugfix-001 FR49). Only the CLI wraps a dry-run gen failure to exit 1.
 - P1.M5 (Mode B final doc sweep: README.md + docs/how-it-works.md) runs LAST and depends on every
   implementing subtask; S1's cli.md edits are the authoritative source P1.M5 reconciles against.
@@ -118,7 +118,7 @@ timeout wording. Both end in a hint to re-run without --dry-run (the recovery re
 ## 12. Validation commands (verified from Makefile)
 
 - `go build ./...` / `go vet ./...`
-- `go test -race ./internal/cmd/... ./pkg/stagehand/...` (the targeted gate; the library test guard
+- `go test -race ./internal/cmd/... ./pkg/stagecoach/...` (the targeted gate; the library test guard
   lives here too).
 - `go test -race ./...` (full suite).
 - `make lint` (golangci-lint).

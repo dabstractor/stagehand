@@ -16,13 +16,13 @@
 **1** (`Error`) instead of being misclassified as a post-snapshot `*RescueError` (exit **3**).
 
 **Deliverable**:
-1. A `reg.IsInstalled(m)` pre-flight check added to `buildDeps` in `pkg/stagehand/stagehand.go`,
+1. A `reg.IsInstalled(m)` pre-flight check added to `buildDeps` in `pkg/stagecoach/stagecoach.go`,
    immediately after `m.Validate()` and before the `return generate.Deps{...}`.
 2. Two doc updates (Mode A): `docs/cli.md` exit-code table and `docs/how-it-works.md` failure-modes
    table, recording the new pre-generation exit-1 behavior.
 
 **Success Definition**:
-- `stagehand --provider <missing-command>` (with `[provider.<name>] command = "/nonexistent/..."`)
+- `stagecoach --provider <missing-command>` (with `[provider.<name>] command = "/nonexistent/..."`)
   fails **pre-snapshot**, exit **1**, printing `provider "<name>": command "<cmd>" not found. Is the
   agent installed?` — with **no rescue block** and **no dangling tree object**.
 - `go build ./...`, `go vet ./...`, and the **entire existing** `go test -race ./...` suite remain
@@ -36,7 +36,7 @@
   <command> installed?' … exit non-zero" — **pre-generation**, exit **1**.
 - **Root cause** (full trace: `architecture/seam_provider_preflight.md`): the missing binary is only
   detected inside `provider.Execute`'s `cmd.Start` (`internal/provider/executor.go:64`), which runs
-  ~40 lines / 2 pipeline steps **after** `WriteTree` (`generate.go:156` / `stagehand.go:228`). The
+  ~40 lines / 2 pipeline steps **after** `WriteTree` (`generate.go:156` / `stagecoach.go:228`). The
   start-failure error is neither `DeadlineExceeded` nor `Canceled`, so the loop treats it as a
   non-zero exit, retries identically, exhausts attempts, and returns a `*RescueError{Kind:ErrRescue,
   TreeSHA:<non-empty>}` → `exitcode.For` maps to exit **3** → the §18.3 rescue block + a dangling tree.
@@ -58,7 +58,7 @@ provider %q: command %q not found. Is the agent installed?
 
 Because it is a plain error, `exitcode.For` (`internal/exitcode/exitcode.go`) falls through every
 `errors.Is` branch to `return Error` → **exit 1**, and `handleGenError`'s generic branch prints
-`stagehand: <msg>`. Because `buildDeps` returns before either pipeline runs, the check is strictly
+`stagecoach: <msg>`. Because `buildDeps` returns before either pipeline runs, the check is strictly
 before any `WriteTree` → no snapshot, no rescue, no dangling tree.
 
 ### Success Criteria
@@ -96,7 +96,7 @@ all below.
   section: "D2 — Fix Issue 3 with a pre-snapshot IsInstalled check in buildDeps"
 
 # The edit site
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: buildDeps (line 154) is the single chokepoint; insertion is between m.Validate() (line 182)
        and `return generate.Deps{...}` (line 186). reg (line 150) and m (line 180) already in scope.
   pattern: buildDeps already returns plain fmt.Errorf for "unknown provider %q" and Validate() failures
@@ -128,7 +128,7 @@ all below.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-pkg/stagehand/stagehand.go          # buildDeps (L154) — THE EDIT SITE
+pkg/stagecoach/stagecoach.go          # buildDeps (L154) — THE EDIT SITE
 internal/provider/registry.go       # Registry.IsInstalled (L76) — reused primitive
 internal/provider/manifest.go       # Validate() (L80), DetectCommand() (L103) — guarantees + probe
 internal/exitcode/exitcode.go       # For() => Error(1) for a plain error
@@ -165,7 +165,7 @@ docs/how-it-works.md                # Failure modes and exit codes table (Mode A
 
 ### The exact edit (Task 1)
 
-In `pkg/stagehand/stagehand.go`, function `buildDeps` (line 154). The current tail is:
+In `pkg/stagecoach/stagecoach.go`, function `buildDeps` (line 154). The current tail is:
 
 ```go
 	m, ok := reg.Get(name)
@@ -197,7 +197,7 @@ Insert, between the `Validate()` error block and the `return generate.Deps{...}`
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: MODIFY pkg/stagehand/stagehand.go :: buildDeps
+Task 1: MODIFY pkg/stagecoach/stagecoach.go :: buildDeps
   - INSERT: the reg.IsInstalled(m) pre-flight block (code above) between m.Validate() (L182) and
             `return generate.Deps{...}` (L186).
   - REUSE: reg.IsInstalled(m) — the existing tested seam (internal/provider/registry.go:76). Do NOT
@@ -230,7 +230,7 @@ Task 3: MODIFY docs/how-it-works.md :: "### Failure modes and exit codes" table
 ```go
 // PATTERN (buildDeps already follows this for its other exit-1 returns): return a PLAIN fmt.Errorf.
 // A plain error → exitcode.For falls through to `return Error` (1) → handleGenError generic branch
-// prints `stagehand: <msg>`. Compare the adjacent "unknown provider %q" return: identical discipline.
+// prints `stagecoach: <msg>`. Compare the adjacent "unknown provider %q" return: identical discipline.
 //
 // GOTCHA: do NOT wrap a generate.* sentinel here. fmt.Errorf("...: %w", generate.ErrRescue) would make
 // errors.Is(err, generate.ErrRescue) TRUE → exitcode.For returns 3. Keep it sentinel-free.
@@ -257,11 +257,11 @@ SIGNALS: none — the check runs before signal.SetSnapshot arms the rescue, so n
 ```bash
 # Build + vet the affected packages. Expected: zero output / clean exit.
 go build ./...
-go vet ./pkg/stagehand/... ./internal/provider/... ./internal/exitcode/...
+go vet ./pkg/stagecoach/... ./internal/provider/... ./internal/exitcode/...
 
 # Format check (match repo convention; run formatter if it reports a diff).
-gofmt -l pkg/stagehand/stagehand.go docs   # docs are .md; gofmt only touches the .go file
-# Expected: gofmt lists nothing for stagehand.go. If it does, run: gofmt -w pkg/stagehand/stagehand.go
+gofmt -l pkg/stagecoach/stagecoach.go docs   # docs are .md; gofmt only touches the .go file
+# Expected: gofmt lists nothing for stagecoach.go. If it does, run: gofmt -w pkg/stagecoach/stagecoach.go
 ```
 
 ### Level 2: Existing tests (regression guard — S1 writes NO new tests)
@@ -271,7 +271,7 @@ gofmt -l pkg/stagehand/stagehand.go docs   # docs are .md; gofmt only touches th
 go test -race ./...
 
 # Targeted re-run of the most relevant packages (fast feedback):
-go test -race ./pkg/stagehand/... ./internal/provider/... ./internal/exitcode/... ./internal/generate/...
+go test -race ./pkg/stagecoach/... ./internal/provider/... ./internal/exitcode/... ./internal/generate/...
 # Expected: all PASS. The stub binary is an absolute path → IsInstalled stays true → happy paths,
 # dry-run, timeout, CAS, nothing-staged tests are unaffected.
 ```
@@ -284,25 +284,25 @@ go test -race ./pkg/stagehand/... ./internal/provider/... ./internal/exitcode/..
 
 ```bash
 # Build the binary.
-go build -o /tmp/stagehand ./cmd/stagehand
+go build -o /tmp/stagecoach ./cmd/stagecoach
 
 # Scratch repo + a provider whose command does not exist.
 TMP=$(mktemp -d) && cd "$TMP"
 git init -q && git config user.email t@e.com && git config user.name t
 git commit -q --allow-empty -m init
-printf '[provider.missing]\ncommand = "/nonexistent/path/agent"\n' > .stagehand.toml
+printf '[provider.missing]\ncommand = "/nonexistent/path/agent"\n' > .stagecoach.toml
 echo hi > a.txt && git add a.txt
 
 # Run with the missing provider.
-/tmp/stagehand --provider missing; echo "EXIT=$?"
+/tmp/stagecoach --provider missing; echo "EXIT=$?"
 # EXPECT: prints a single line like
-#   stagehand: provider "missing": command "/nonexistent/path/agent" not found. Is the agent installed?
+#   stagecoach: provider "missing": command "/nonexistent/path/agent" not found. Is the agent installed?
 #   EXIT=1
 # AND: NO "Commit generation failed" rescue block, NO "Tree ID:" line.
 
 # PROVE no dangling tree was written: object count must be UNCHANGED by the run.
 before=$(git count-objects -v | awk '/^count:/{print $2}')
-/tmp/stagehand --provider missing >/dev/null 2>&1
+/tmp/stagecoach --provider missing >/dev/null 2>&1
 after=$(git count-objects -v | awk '/^count:/{print $2}')
 [ "$before" = "$after" ] && echo "OK: no new objects ($before == $after)" || echo "FAIL: $before != $after"
 
@@ -325,8 +325,8 @@ grep -n "pre-generation\|missing on" docs/cli.md docs/how-it-works.md
 
 ### Technical Validation
 - [ ] `go build ./...` clean.
-- [ ] `go vet ./...` clean (or at least `./pkg/stagehand/... ./internal/provider/... ./internal/exitcode/...`).
-- [ ] `gofmt -l pkg/stagehand/stagehand.go` reports nothing.
+- [ ] `go vet ./...` clean (or at least `./pkg/stagecoach/... ./internal/provider/... ./internal/exitcode/...`).
+- [ ] `gofmt -l pkg/stagecoach/stagecoach.go` reports nothing.
 - [ ] `go test -race ./...` — all previously-green tests still PASS (no new tests added in S1).
 - [ ] Manual repro (Level 3): missing provider → exit 1, single-line message, **no** rescue block.
 - [ ] Manual repro (Level 3): `git count-objects` unchanged across the run (no dangling tree).
@@ -341,7 +341,7 @@ grep -n "pre-generation\|missing on" docs/cli.md docs/how-it-works.md
 
 ### Code Quality Validation
 - [ ] Reuses the existing `Registry.IsInstalled`/`DetectCommand` seam — no new `exec.LookPath`, no
-      `os/exec` import added to `pkg/stagehand`.
+      `os/exec` import added to `pkg/stagecoach`.
 - [ ] Matches `buildDeps`'s existing plain-error style (`unknown provider %q`, Validate failures).
 - [ ] No edits outside `buildDeps` in source (CommitStaged/runPipeline/executor/registry/manifest/exitcode untouched).
 - [ ] Docs wording consistent with existing table voice; no other doc rows disturbed.

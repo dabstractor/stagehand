@@ -89,12 +89,12 @@ are byte-unchanged.
 
 ## User Persona
 
-**Target User**: Every Stagehand user on first run. `DefaultProvider(installed)` picks the auto-default
+**Target User**: Every Stagecoach user on first run. `DefaultProvider(installed)` picks the auto-default
 provider; FR-D1 makes it prefer open/self-hostable harnesses (pi/opencode/cursor/agy) over closed
 subscription CLIs (gemini/codex/claude). FR-D2 means a fresh install's pi default no longer silently
 routes to the maintainer's personal z.ai backend — the user (or `config init`) supplies the model.
 
-**Use Case**: A user installs stagehand and runs it with no config. The registry auto-selects the
+**Use Case**: A user installs stagecoach and runs it with no config. The registry auto-selects the
 highest-priority installed provider (FR-D1). If that's pi, the shipped manifest has no pinned model —
 `config init` (later task) or the user fills it. No built-in assumes someone else's account.
 
@@ -238,7 +238,7 @@ git/generate/prompt knowledge required — this is data + test-expectation surge
   section: realDefaults pi entry (L36) + providerNames (L44).
   why: pi's manifest default is now "" → the real run must pass an explicit model (glm-5-turbo) to keep
        testing the commit-pi shape; providerNames comment claims "preferredBuiltins order" → align to FR-D1.
-  gotcha: this test is SKIPPED unless -tags integration_real + STAGEHAND_RUN_REAL=1; it won't break CI, but
+  gotcha: this test is SKIPPED unless -tags integration_real + STAGECOACH_RUN_REAL=1; it won't break CI, but
        it must still be CORRECT (the comment + model value are now wrong without the edit).
 
 - file: internal/cmd/providers_test.go
@@ -540,9 +540,9 @@ grep -rn '"pi", "claude", "gemini", "opencode", "codex", "cursor"' internal/   #
 ### Level 4: Behavioral spot-check (proves the cascade + show output)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
-/tmp/stagehand providers show pi | grep "default_model"   # → default_model = ''  (FR-D2)
-/tmp/stagehand providers list 2>/dev/null | head           # default-provider resolution respects FR-D1
+go build -o /tmp/stagecoach ./cmd/stagecoach
+/tmp/stagecoach providers show pi | grep "default_model"   # → default_model = ''  (FR-D2)
+/tmp/stagecoach providers list 2>/dev/null | head           # default-provider resolution respects FR-D1
 # (DefaultProvider itself is unit-tested in registry_test.go; this is a smoke check of the CLI surface.)
 ```
 

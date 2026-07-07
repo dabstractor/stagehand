@@ -69,9 +69,9 @@ carry the context the CLI needs to render the recovery message (PRD §18.3 / §1
 
 ```go
 var (
-    ErrNothingToCommit = errors.New("stagehand: nothing staged to commit")
-    ErrTimeout         = errors.New("stagehand: generation timed out")
-    ErrRescue          = errors.New("stagehand: commit generation failed after retries")
+    ErrNothingToCommit = errors.New("stagecoach: nothing staged to commit")
+    ErrTimeout         = errors.New("stagecoach: generation timed out")
+    ErrRescue          = errors.New("stagecoach: commit generation failed after retries")
 )
 // ErrCASFailed is git.ErrCASFailed (already a typed sentinel wrapping the update-ref exit code).
 // Re-exported from internal/git so the CLI imports a single package; detected via errors.Is.

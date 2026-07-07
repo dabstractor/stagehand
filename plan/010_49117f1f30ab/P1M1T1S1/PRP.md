@@ -81,7 +81,7 @@ change, no behavior change, no env/flag wiring (S2).
 ### Current Codebase Tree
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/config/
 │   ├── config.go     # EDIT: + NoVerify + HookTimeout fields + Defaults
 │   └── file.go       # EDIT: + fileGeneration fields + loadTOML parse + materialize + overlay
@@ -123,7 +123,7 @@ Task 1: config.go — add NoVerify + HookTimeout fields + Defaults
   - ADD after the Push field block (line ~126), before the Providers field:
         // NoVerify is the §9.25 FR-V5 --no-verify hook bypass (mirrors `git commit --no-verify`).
         // When true, skips pre-commit and commit-msg hooks (prepare-commit-msg and post-commit still run).
-        // Full 5-layer precedence: --no-verify / STAGEHAND_NO_VERIFY / stagehand.no_verify / [generation].no_verify,
+        // Full 5-layer precedence: --no-verify / STAGECOACH_NO_VERIFY / stagecoach.no_verify / [generation].no_verify,
         // default false — hooks run by default; --no-verify is the deliberate exception. FILE LAYER LIMITATION
         // (same as Push): only-true-propagates — a file setting `no_verify = false` is a no-op; the flag/env
         // layers can set it false. See cmd root.go + hooks.RunCommitHooks (M3).
@@ -193,7 +193,7 @@ Task 7: VALIDATE
 // === config.go — NoVerify field (mirrors Push) ===
 	// NoVerify is the §9.25 FR-V5 --no-verify hook bypass (mirrors `git commit --no-verify`).
 	// When true, skips pre-commit and commit-msg hooks (prepare-commit-msg and post-commit still run).
-	// Full 5-layer precedence: --no-verify / STAGEHAND_NO_VERIFY / stagehand.no_verify / [generation].no_verify,
+	// Full 5-layer precedence: --no-verify / STAGECOACH_NO_VERIFY / stagecoach.no_verify / [generation].no_verify,
 	// default false — hooks run by default; --no-verify is the deliberate exception. FILE LAYER LIMITATION
 	// (same as Push): only-true-propagates — a file setting `no_verify = false` is a no-op; the flag/env
 	// layers can set it false. See cmd root.go + hooks.RunCommitHooks (M3).
@@ -271,7 +271,7 @@ DOCS (Mode A): docs/configuration.md — hook_timeout row + template entry; no_v
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/config/config.go internal/config/file.go
 gofmt -l .            # Expected: empty
 go vet ./internal/config/...  # Expected: exit 0
@@ -281,14 +281,14 @@ go build ./...        # Expected: exit 0
 ### Level 2: Unit Tests
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go test -race ./internal/config/ -v   # Expected: all green (existing tests field-specific, not DeepEqual)
 ```
 
 ### Level 3: Whole-Repository Regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go test -race ./...   # Expected: ALL packages green (S1 adds dead fields; no behavior change)
 git diff --stat       # Expected: internal/config/{config,file}.go + docs/configuration.md only
 ```

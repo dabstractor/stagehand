@@ -14,7 +14,7 @@
 
 This subtask makes the ENV and CLI-FLAG layers populate the v2 `Config` fields S1 declared. Concretely:
 
-- `loadEnv()`: read `STAGEHAND_<ROLE>_PROVIDER`/`_MODEL` (4 roles) → `cfg.Roles`; `STAGEHAND_COMMITS` → `cfg.Commits`.
+- `loadEnv()`: read `STAGECOACH_<ROLE>_PROVIDER`/`_MODEL` (4 roles) → `cfg.Roles`; `STAGECOACH_COMMITS` → `cfg.Commits`.
 - `loadFlags()`: read `--<role>-provider`/`--<role>-model` (4 roles) → `cfg.Roles`; `--commits` → `cfg.Commits`;
   `--single`/`--no-decompose` → `cfg.Single`; `--max-commits` → `cfg.MaxCommits`.
 - TWO helper methods (`setRoleProvider`/`setRoleModel`) + a `roleNames` slice, all in load.go (NOT config.go).
@@ -52,36 +52,36 @@ Lazy allocation: `if c.Roles == nil { c.Roles = make(...) }` in each helper. Def
 (FR-R2: "no per-role overrides → all roles use the global"); the FIRST per-role env/flag/file to fire
 allocates it. Unexported (lowercase) — internal to the config package.
 
-## §2 — loadEnv: per-role loop + STAGEHAND_COMMITS (NEW import: "strings")
+## §2 — loadEnv: per-role loop + STAGECOACH_COMMITS (NEW import: "strings")
 
 Append to loadEnv(), before `return nil`. The per-role loop uses `strings.ToUpper(role)` to build the env
-var name (`STAGEHAND_PLANNER_PROVIDER`, …). load.go currently imports context/fmt/os/strconv/time/pflag —
+var name (`STAGECOACH_PLANNER_PROVIDER`, …). load.go currently imports context/fmt/os/strconv/time/pflag —
 NOT `strings`. ADD `"strings"` (stdlib, go.mod-neutral). Presence-semantic (`ok && v != ""`) matches the
-existing STAGEHAND_PROVIDER/MODEL handling.
+existing STAGECOACH_PROVIDER/MODEL handling.
 
 ```go
 for _, role := range roleNames {
-	if v, ok := os.LookupEnv("STAGEHAND_"+strings.ToUpper(role)+"_PROVIDER", ); ok && v != "" {
+	if v, ok := os.LookupEnv("STAGECOACH_"+strings.ToUpper(role)+"_PROVIDER", ); ok && v != "" {
 		cfg.setRoleProvider(role, v)
 	}
-	if v, ok := os.LookupEnv("STAGEHAND_" + strings.ToUpper(role) + "_MODEL"); ok && v != "" {
+	if v, ok := os.LookupEnv("STAGECOACH_" + strings.ToUpper(role) + "_MODEL"); ok && v != "" {
 		cfg.setRoleModel(role, v)
 	}
 }
-if v, ok := os.LookupEnv("STAGEHAND_COMMITS"); ok && v != "" {
+if v, ok := os.LookupEnv("STAGECOACH_COMMITS"); ok && v != "" {
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		return fmt.Errorf("STAGEHAND_COMMITS: %w", err)   // fail-at-load, like STAGEHAND_TIMEOUT
+		return fmt.Errorf("STAGECOACH_COMMITS: %w", err)   // fail-at-load, like STAGECOACH_TIMEOUT
 	}
 	cfg.Commits = n
 }
 ```
 
-DECISION — STAGEHAND_COMMITS errors on a non-integer (delta §3 shows silent-ignore). Rationale: loadEnv
-ALREADY errors on a bad STAGEHAND_TIMEOUT (parseTimeout) and a bad STAGEHAND_VERBOSE/NO_COLOR (ParseBool).
-Erroring on a bad STAGEHAND_COMMITS is CONSISTENT (fail-at-load with a wrapped, layer-named error) and
+DECISION — STAGECOACH_COMMITS errors on a non-integer (delta §3 shows silent-ignore). Rationale: loadEnv
+ALREADY errors on a bad STAGECOACH_TIMEOUT (parseTimeout) and a bad STAGECOACH_VERBOSE/NO_COLOR (ParseBool).
+Erroring on a bad STAGECOACH_COMMITS is CONSISTENT (fail-at-load with a wrapped, layer-named error) and
 catches typos early. The delta's silent-ignore is a sketch, not a contract; the work-item just says
-"handle STAGEHAND_COMMITS (int)". A wrapped error is the better, consistent choice. (A test pins the error.)
+"handle STAGECOACH_COMMITS (int)". A wrapped error is the better, consistent choice. (A test pins the error.)
 
 ## §3 — loadFlags: per-role loop + commits/single/no-decompose/max-commits (NO new import)
 
@@ -121,7 +121,7 @@ bypass); do NOT invert.
 PRD §9.14 FR-M2c + §15.2: "`--commits 1` ≡ `--single`" — a forced count of 1 IS the single-commit escape
 hatch. The delta §3 does NOT normalize this; but leaving `cfg.Commits==1, cfg.Single==false` is an
 INCONSISTENT state that a downstream consumer (the decompose orchestrator, P3.M4) would have to re-derive.
-Normalize in `Load()` AFTER both env and flags so it covers BOTH sources (`STAGEHAND_COMMITS=1` AND
+Normalize in `Load()` AFTER both env and flags so it covers BOTH sources (`STAGECOACH_COMMITS=1` AND
 `--commits 1`):
 
 ```go
@@ -133,7 +133,7 @@ if cfg.Commits == 1 {
 
 Only sets TRUE (never forces false) → preserves the escape-hatch philosophy. One place, both sources, cfg
 self-consistent. The orchestrator MAY also defensively check `cfg.Single || cfg.Commits==1`, but it does
-not HAVE to — cfg is guaranteed consistent. (A test pins `STAGEHAND_COMMITS=1 → cfg.Single==true` via Load.)
+not HAVE to — cfg is guaranteed consistent. (A test pins `STAGECOACH_COMMITS=1 → cfg.Single==true` via Load.)
 
 ## §5 — Coordination: flag REGISTRATION is P4.M1.T1.S1 (loadFlags is defensive)
 
@@ -152,7 +152,7 @@ For TESTS: the test FlagSet must register the v2 flags so `Changed`/`Set`/`GetIn
 BOTH this subtask AND S2 (P1.M3.T1.S2, implementing NOW) edit `internal/cmd/config.go`'s `exampleConfigTemplate`
 constant. S2 edits: (a) the [generation] section (adds `# max_commits` / `# binary_extensions`), (b) APPENDS
 a `# [role.*]` TOML-config section at the END of the template. THIS subtask edits the HEADER region:
-extends the existing `# Environment variables` block (adds `# STAGEHAND_<ROLE>_*` + `# STAGEHAND_COMMITS`)
+extends the existing `# Environment variables` block (adds `# STAGECOACH_<ROLE>_*` + `# STAGECOACH_COMMITS`)
 and adds a new `# CLI flags` reference block — both placed in the header, BEFORE `# [defaults]`.
 
 These regions are DISJOINT (header vs [generation]-middle vs [role.*]-end), so a 3-way git merge should
@@ -197,15 +197,15 @@ flags, so `Changed` stays false → cfg unchanged → they stay green). New test
 the new code. This is the DRY choice (one "Config-backed flag set") over a separate `newV2FlagSet`.
 
 New tests (all `package config` white-box):
-- `TestLoadEnv_PerRole` — set STAGEHAND_PLANNER_PROVIDER/_MODEL + STAGEHAND_STAGER_MODEL → cfg.Roles populated.
-- `TestLoadEnv_PerRolePartial` — set only STAGEHAND_PLANNER_MODEL → cfg.Roles["planner"]={Provider:"",Model:X}
+- `TestLoadEnv_PerRole` — set STAGECOACH_PLANNER_PROVIDER/_MODEL + STAGECOACH_STAGER_MODEL → cfg.Roles populated.
+- `TestLoadEnv_PerRolePartial` — set only STAGECOACH_PLANNER_MODEL → cfg.Roles["planner"]={Provider:"",Model:X}
   (field-level, not whole-block; mirrors the FR-R3 field-merge the file layer does).
-- `TestLoadEnv_Commits` — STAGEHAND_COMMITS=3 → cfg.Commits=3.
-- `TestLoadEnv_CommitsBadIntErrors` — STAGEHAND_COMMITS=abc → wrapped error containing "STAGEHAND_COMMITS".
-- `TestLoadEnv_PerRoleOverridesGlobal` — (precedence sanity) STAGEHAND_PLANNER_MODEL beats a pre-set global.
+- `TestLoadEnv_Commits` — STAGECOACH_COMMITS=3 → cfg.Commits=3.
+- `TestLoadEnv_CommitsBadIntErrors` — STAGECOACH_COMMITS=abc → wrapped error containing "STAGECOACH_COMMITS".
+- `TestLoadEnv_PerRoleOverridesGlobal` — (precedence sanity) STAGECOACH_PLANNER_MODEL beats a pre-set global.
 - `TestLoadFlags_PerRole` — fs.Set("planner-provider","agy"), fs.Set("planner-model","gemini-2.5-pro") → cfg.Roles.
 - `TestLoadFlags_Decompose` — fs.Set("commits","3")/("single")/("no-decompose")/("max-commits","5") → cfg fields.
-- `TestLoad_CommitsOneNormalizesSingle` — via Load(): STAGEHAND_COMMITS=1 → cfg.Commits==1 && cfg.Single==true
+- `TestLoad_CommitsOneNormalizesSingle` — via Load(): STAGECOACH_COMMITS=1 → cfg.Commits==1 && cfg.Single==true
   (the §4 normalization). Also `--commits 1` via fs → Single==true.
 - `TestLoad_PerRoleFlagBeatsEnv` — env sets planner-model=X, flag sets planner-model=Y → cfg.Roles["planner"].Model==Y
   (flag > env, the FR-R3 precedence; mirrors TestLoad_CLIOverridesEnv for the per-role case).

@@ -13,7 +13,7 @@ description: |
   (a) README.md L67 (Payload optimization row): append "— a closed-loop guarantee that the assembled prompt
       never exceeds the limit" after "via `token_limit`".
   (b) docs/configuration.md L160 (token_limit bullet): insert the closed-loop sentence after "truncates the
-      diff to fit using the ≈4 chars/token estimate" — "After truncation, Stagehand assembles the actual
+      diff to fit using the ≈4 chars/token estimate" — "After truncation, Stagecoach assembles the actual
       full prompt, re-measures it, and re-trims until it fits — a closed-loop guarantee (§9.1 FR3j) that the
       payload never exceeds `token_limit`."
 
@@ -136,7 +136,7 @@ config. No code knowledge required — this is a prose enhancement.
 - file: docs/configuration.md
   section: L160 diff_context bullet — "Valid range is 0–3; an out-of-range value is rejected at config
            load" (already correct — from a prior bugfix). The `no_verify` bullet (~L155) already uses
-           `stagehand.noVerify` (the corrected git-valid key). No v2.5 change needed for either.
+           `stagecoach.noVerify` (the corrected git-valid key). No v2.5 change needed for either.
 
 # House style
 - file: .markdownlint.json
@@ -201,9 +201,9 @@ No code. The two edits, as precise before→after:
 
 <!-- ── EDIT 2: docs/configuration.md L160 (token_limit bullet) ───────────────────────── -->
 <!-- BEFORE: -->
-> - **`token_limit`** (default `0` = unset) — a holistic token budget over the **whole** agent payload (system prompt + style examples + the concatenated diff). When set (e.g. `120000`), Stagehand reserves room for the prompt/examples and truncates the diff to fit using the ≈4 chars/token estimate, so the payload always fits your model's context window **without Stagehand maintaining a per-model context registry** (§9.1 FR3d). A non-zero `token_limit` **supersedes** the legacy per-section caps `max_diff_bytes` and `max_md_lines` for that run; the two modes are mutually exclusive. When `0`/unset, the legacy caps apply unchanged.
+> - **`token_limit`** (default `0` = unset) — a holistic token budget over the **whole** agent payload (system prompt + style examples + the concatenated diff). When set (e.g. `120000`), Stagecoach reserves room for the prompt/examples and truncates the diff to fit using the ≈4 chars/token estimate, so the payload always fits your model's context window **without Stagecoach maintaining a per-model context registry** (§9.1 FR3d). A non-zero `token_limit` **supersedes** the legacy per-section caps `max_diff_bytes` and `max_md_lines` for that run; the two modes are mutually exclusive. When `0`/unset, the legacy caps apply unchanged.
 <!-- AFTER (insert ONE sentence after "truncates the diff to fit using the ≈4 chars/token estimate"): -->
-> - **`token_limit`** (default `0` = unset) — a holistic token budget over the **whole** agent payload (system prompt + style examples + the concatenated diff). When set (e.g. `120000`), Stagehand reserves room for the prompt/examples and truncates the diff to fit using the ≈4 chars/token estimate; after truncation it assembles the actual full prompt, re-measures it, and re-trims until it fits — a closed-loop guarantee (§9.1 FR3j) that the payload never exceeds `token_limit`. The payload always fits your model's context window **without Stagehand maintaining a per-model context registry** (§9.1 FR3d). A non-zero `token_limit` **supersedes** the legacy per-section caps `max_diff_bytes` and `max_md_lines` for that run; the two modes are mutually exclusive. When `0`/unset, the legacy caps apply unchanged.
+> - **`token_limit`** (default `0` = unset) — a holistic token budget over the **whole** agent payload (system prompt + style examples + the concatenated diff). When set (e.g. `120000`), Stagecoach reserves room for the prompt/examples and truncates the diff to fit using the ≈4 chars/token estimate; after truncation it assembles the actual full prompt, re-measures it, and re-trims until it fits — a closed-loop guarantee (§9.1 FR3j) that the payload never exceeds `token_limit`. The payload always fits your model's context window **without Stagecoach maintaining a per-model context registry** (§9.1 FR3d). A non-zero `token_limit` **supersedes** the legacy per-section caps `max_diff_bytes` and `max_md_lines` for that run; the two modes are mutually exclusive. When `0`/unset, the legacy caps apply unchanged.
 ```
 
 ### Implementation Tasks (ordered by dependencies)

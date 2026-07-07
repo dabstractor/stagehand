@@ -29,7 +29,7 @@ description: |
       "Enforce >=85%" step) — flagged OPTIONAL below, NOT required, coordinate with S1's owner.
     - `.goreleaser.yaml` + `.github/workflows/release.yml` → S2 (P1.M5.T3.S2, running in parallel).
       S3 does NOT touch either. No file overlap (S2 touches neither the Makefile nor ci.yml).
-    - `cmd/stagehand/main.go`, `go.mod`, `go.sum` → UNCHANGED.
+    - `cmd/stagecoach/main.go`, `go.mod`, `go.sum` → UNCHANGED.
     - `PRD.md`, `tasks.json`, `prd_snapshot.md`, `.gitignore` → READ-ONLY (`.gitignore` already ignores
       `coverage.out` — confirmed; no change needed).
 
@@ -46,7 +46,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Give Stagehand a single, local-runnable Makefile target (`make coverage-gate`) that
+**Feature Goal**: Give Stagecoach a single, local-runnable Makefile target (`make coverage-gate`) that
 deterministically enforces PRD §20.3's coverage floor — ≥85% statement coverage on each of the four
 core packages (`internal/git`, `internal/provider`, `internal/generate`, `internal/config`) — and that
 produces the **same pass/fail decision** as the CI `coverage` job (so a green local run predicts a green
@@ -196,7 +196,7 @@ run green on this machine.
            step "Enforce >=85% on internal/{git,provider,generate,config}" (the inline awk).
   why: the Makefile gate's awk MUST mirror THIS algorithm (statement-weighted: `tot[pkg]+=$2; if($3>0)
        cov[pkg]+=$2; pct=cov/tot*100`, threshold 85, on the 4 FQ packages) so local==CI. The repo-path
-       strings (`github.com/dustin/stagehand/internal/<pkg>`) are reconstructed in the Makefile from
+       strings (`github.com/dustin/stagecoach/internal/<pkg>`) are reconstructed in the Makefile from
        `MODULE := $(shell go list -m)` for robustness.
   gotcha: ci.yml is owned by S1 — do NOT edit it. Its inline awk already enforces §20.3 in CI. The
           Makefile gate mirrors it; the optional "CI calls make coverage-gate" change is flagged below.
@@ -206,7 +206,7 @@ run green on this machine.
        commits. `Makefile` is NOT ignored → your edit is tracked.
 
 - file: go.mod   (READ only)
-  why: `module github.com/dustin/stagehand` is what `go list -m` returns → `MODULE` var value. `go 1.22`
+  why: `module github.com/dustin/stagecoach` is what `go list -m` returns → `MODULE` var value. `go 1.22`
        floor; the awk/`go test -coverprofile` APIs are stable since Go 1.2+.
 
 # --- Go cover toolchain (confirm the profile format + -func limitations) ---
@@ -244,7 +244,7 @@ Makefile                       # ← P1.M1.T1.S2. YOU EDIT THIS FILE: add covera
 internal/
   git/        provider/  generate/  config/     # the 4 GATED packages (each has *_test.go).
   cmd/  exitcode/  prompt/  signal/  stubtest/  ui/   # NOT gated (ui has the lower bar; others out of §20.3).
-go.mod                         # module github.com/dustin/stagehand. UNCHANGED.
+go.mod                         # module github.com/dustin/stagecoach. UNCHANGED.
 .gitignore                     # already ignores coverage.out. UNCHANGED.
 ```
 
@@ -303,7 +303,7 @@ Makefile                       # EDIT — add: COVERAGE_THRESHOLD, COVERAGE_PKGS
 
 # GOTCHA (#8) — `MODULE := $(shell go list -m)` runs `go` at make-parse time. Requires `go` on PATH
 #   (it always is for this project). Deriving the module path (instead of hardcoding
-#   github.com/dustin/stagehand) means a future module rename updates the gate automatically. ci.yml
+#   github.com/dustin/stagecoach) means a future module rename updates the gate automatically. ci.yml
 #   hardcodes the same paths; if CI is later wired to call `make coverage-gate` (optional), it inherits
 #   this robustness for free.
 
@@ -326,7 +326,7 @@ Task 0: VERIFY prerequisites (READ + RUN, no edit)
   - RUN: `grep -n 'coverage\|\.PHONY\|clean:' Makefile` -> see the existing `coverage:` target (~line 40),
     the `.PHONY` line (~line 29), and `clean:` (~line 47). These are the anchors for your edits.
   - RUN: `grep -n coverage.out .gitignore` -> confirm `coverage.out` is ignored (no .gitignore edit needed).
-  - RUN: `go list -m` -> `github.com/dustin/stagehand` (the MODULE value the gate will use).
+  - RUN: `go list -m` -> `github.com/dustin/stagecoach` (the MODULE value the gate will use).
   - RUN (baseline): `go test -coverprofile=/tmp/baseline.out ./internal/git/... ./internal/provider/...
     ./internal/generate/... ./internal/config/...` and note the 4 self-reported percentages
     (expect 94.1 / 93.6 / 87.1 / 85.4 — if they differ, a prior change shifted coverage; the gate's job is
@@ -431,7 +431,7 @@ coverage-gate: ## Enforce >=85% statement coverage on internal/{git,provider,gen
 COVERAGE_THRESHOLD ?= 85          # `?=` so `make coverage-gate COVERAGE_THRESHOLD=88` wins on the CLI.
 
 # PATTERN — derive the module path once (robust to a rename; matches go.mod automatically):
-MODULE := $(shell go list -m)     # → github.com/dustin/stagehand
+MODULE := $(shell go list -m)     # → github.com/dustin/stagecoach
 
 # PATTERN — the four gated packages as a single space-separated list (contract's exact set; ui excluded):
 COVERAGE_PKGS := ./internal/git/... ./internal/provider/... ./internal/generate/... ./internal/config/...
@@ -517,7 +517,7 @@ go test -coverprofile=/tmp/parity.out ./internal/git/... ./internal/provider/...
 # The new target must not disturb the existing Makefile surface:
 make coverage       # unchanged: go test -coverprofile ./... && go tool cover -func (over ALL packages)
 make test           # unchanged: go test -race ./...
-make build          # unchanged: builds ./bin/stagehand
+make build          # unchanged: builds ./bin/stagecoach
 make clean          # unchanged: rm -rf bin coverage.out dist/
 
 # Confirm the gate works with a COLD profile (no stale coverage.out confusing results):
@@ -537,7 +537,7 @@ grep -n 'internal/ui' Makefile && echo "WARNING: ui is in the gate (should be ex
 
 # Prove scope discipline (ONLY Makefile changed):
 git status --short                 # expect exactly: " M Makefile"
-git diff --stat -- .github/workflows/ci.yml .goreleaser.yaml .github/workflows/release.yml go.mod go.sum cmd/stagehand/main.go .gitignore
+git diff --stat -- .github/workflows/ci.yml .goreleaser.yaml .github/workflows/release.yml go.mod go.sum cmd/stagecoach/main.go .gitignore
 # expect: empty (no changes to any sibling-owned file)
 
 # Prove the awk is POSIX-portable (no GNU-only features) by running it under a second awk if available:

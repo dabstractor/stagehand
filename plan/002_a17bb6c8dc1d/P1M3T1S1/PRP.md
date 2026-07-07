@@ -113,7 +113,7 @@ only `time`.
 - **S2 (file.go)** — will add `fileRoleConfig`/extended `fileGeneration`/`fileConfig.ConfigVersion` decode
   structs and copy them into `Config.Roles`/`MaxCommits`/`BinaryExtensions`/`ConfigVersion` via `materialize`
   + field-merge them via `overlay`. S1 declares the TARGET fields S2 writes into.
-- **P1.M3.T2 (load.go)** — will add `STAGEHAND_<ROLE>_{PROVIDER,MODEL}`, `STAGEHAND_COMMITS` env handling,
+- **P1.M3.T2 (load.go)** — will add `STAGECOACH_<ROLE>_{PROVIDER,MODEL}`, `STAGECOACH_COMMITS` env handling,
   `--commits`/`--single`/`--max-commits`/`--<role>-*` flags, and `ResolveRoleModel`. S1 declares the fields
   these set (`cfg.Commits`, `cfg.Single`, `cfg.Roles`).
 - **P3 (decompose)** — reads `MaxCommits` (safety cap, FR-M4), `Commits`/`Single` (mode, FR-M2), `Roles`
@@ -262,7 +262,7 @@ additions, and the LEAVE list (file.go/load.go are S2/P1.M3.T2). No decompose/gi
        +binary_extensions) and fileConfig (+config_version), and wires materialize()+overlay() to populate
        Config.Roles/MaxCommits/BinaryExtensions/ConfigVersion. S1 only DECLARES the target fields.
 - file: internal/config/load.go   (Load/loadEnv/loadFlags)
-  why: P1.M3.T2 adds STAGEHAND_<ROLE>_* / STAGEHAND_COMMITS env, --commits/--single/--max-commits/--<role>-*
+  why: P1.M3.T2 adds STAGECOACH_<ROLE>_* / STAGECOACH_COMMITS env, --commits/--single/--max-commits/--<role>-*
        flags, and ResolveRoleModel. S1 only DECLARES Commits/Single/Roles.
 - file: internal/config/git.go   (git-config reader)
   why: untouched by the per-role schema work in S1.
@@ -327,7 +327,7 @@ go.mod / go.sum    # UNCHANGED (config.go stays `time`-only; no new dep)
 // same-package type; the const is untyped. `go mod tidy` MUST be a no-op.
 
 // GOTCHA (existing Config{} literals are safe): the repo has empty `config.Config{}` literals
-// (pkg/stagehand error paths) and ONE keyed literal (pkg/stagehand/stagehand_test.go:599 — keyed, not
+// (pkg/stagecoach error paths) and ONE keyed literal (pkg/stagecoach/stagecoach_test.go:599 — keyed, not
 // positional). Adding fields breaks NEITHER (Go keyed/empty literals tolerate added fields). Verified.
 
 // GOTCHA (TestDefaults is per-field, not whole-struct): TestDefaults asserts each field individually — it
@@ -357,7 +357,7 @@ func boolPtr(b bool) *bool { return &b }
 func strPtr(s string) *string { return &s }
 
 // CurrentConfigVersion is the config-schema version this binary understands (PRD §9.17 FR-B4). Bumped on any
-// breaking config change. On load, stagehand compares a config file's config_version to this constant and
+// breaking config change. On load, stagecoach compares a config file's config_version to this constant and
 // emits an advisory staleness ("older") or ahead ("newer") warning pointing at `config upgrade` / `config
 // init --force`; it is advisory only — no automatic migration (there are no existing users to migrate).
 // config_version is metadata, NOT a precedence layer (PRD §16.1). v2 = per-role models + multi-commit
@@ -368,7 +368,7 @@ const CurrentConfigVersion = 2
 // "planner", "stager", "message", "arbiter" (§13.6.2). Both fields "" ⇒ the role inherits the global
 // [defaults] (FR-R2); a non-empty value overrides just that field (FR-R3 field-merge across layers). Model
 // strings are provider-specific (FR-R5): a role's Model is interpreted by that role's resolved Provider's
-// manifest, so changing a role's Provider without updating its Model is a configuration error stagehand
+// manifest, so changing a role's Provider without updating its Model is a configuration error stagecoach
 // surfaces. For multi-provider agents (pi/opencode/agy) Provider is required when Model is set (FR-R5b).
 //
 // Config.Roles (below) carries the RESOLVED per-role table; it is toml:"-" because the [role.<role>] FILE
@@ -379,7 +379,7 @@ type RoleConfig struct {
 	Model    string `toml:"model"`
 }
 
-// Config is the fully-resolved Stagehand configuration: the single value produced by the 7-layer
+// Config is the fully-resolved Stagecoach configuration: the single value produced by the 7-layer
 // precedence resolver (PRD §16.1, FR34) and read by every consumer — the TOML/git/env/CLI loaders
 // (P1.M1.T4.S2-S4, extended in v2 P1.M3.T1.S2 + P1.M3.T2), the provider registry (P1.M2.T3), and the
 // generation/decompose pipeline (v1 §13 / v2 §13.6).
@@ -408,7 +408,7 @@ type Config struct {
 	Verbose      bool          `toml:"verbose"`        // print resolved cmd, raw output, retries
 
 	// CLI / UI only — NOT in the §16.2 config file (toml:"-"). Set by flags/env at runtime, never by a file.
-	NoColor bool `toml:"-"` // --no-color / STAGEHAND_NO_COLOR / NO_COLOR; TTY-aware at runtime (UI layer)
+	NoColor bool `toml:"-"` // --no-color / STAGECOACH_NO_COLOR / NO_COLOR; TTY-aware at runtime (UI layer)
 	// V2 decompose mode flags (PRD §9.14 FR-M2) — set by --commits/--single (P1.M3.T2/P4.M1.T1), not files.
 	Commits int  `toml:"-"` // --commits N (N≥2 forces exactly N commits); 0 = auto-decompose (planner decides); --commits 1 ⇒ Single
 	Single  bool `toml:"-"` // --single/--no-decompose: bypass the planner entirely (v1 single-commit path)
@@ -664,7 +664,7 @@ PACKAGE EDGES: NONE added. config stays a LEAF (does not import internal/provide
 DOWNSTREAM (NOT this task — S1 only DECLARES; these POPULATE/consume):
   - P1.M3.T1.S2 (file.go): adds fileRoleConfig + extends fileGeneration (+max_commits, +binary_extensions)
         + fileConfig (+config_version); materialize() copies them into Config; overlay() field-merges Roles.
-  - P1.M3.T2 (load.go): adds STAGEHAND_<ROLE>_{PROVIDER,MODEL} + STAGEHAND_COMMITS env, --commits/--single/
+  - P1.M3.T2 (load.go): adds STAGECOACH_<ROLE>_{PROVIDER,MODEL} + STAGECOACH_COMMITS env, --commits/--single/
         --max-commits/--<role>-* flags, and ResolveRoleModel(role, cfg).
   - P2.M1.T1 (internal/git/binary.go): merges cfg.BinaryExtensions with the built-in denylist (FR3a).
   - P3.M2/M4 (decompose): reads cfg.MaxCommits (FR-M4 cap), cfg.Commits/cfg.Single (FR-M2 mode), cfg.Roles.
@@ -710,7 +710,7 @@ go test ./internal/config/ -v
 
 ```bash
 go build ./...     # Expect clean (the new fields are consumed by nothing yet — pure additive).
-go test ./...      # Expect all PASS. (pkg/stagehand's keyed Config literal + empty Config{} literals are
+go test ./...      # Expect all PASS. (pkg/stagecoach's keyed Config literal + empty Config{} literals are
                    # unaffected — verified; no whole-Config DeepEqual exists anywhere.)
 # Confirm the LEAVE files are byte-unchanged:
 git diff --exit-code internal/config/file.go internal/config/load.go internal/config/git.go \

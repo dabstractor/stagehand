@@ -37,7 +37,7 @@ independence, and keeps the "single estimator" rule enforceable by the PRP (all 
 
 ## §1 — Three role-specific helpers (the contract's "planner path" lumping is a simplification)
 
-The contract says: message path (generate.go, hook/exec.go, pkg/stagehand.go) = systemPrompt + worst-
+The contract says: message path (generate.go, hook/exec.go, pkg/stagecoach.go) = systemPrompt + worst-
 case rejection block + margin; "planner path" (decompose/planner.go, message.go, decompose.go) =
 plannerSystemPrompt + examples + instruction + margin. But the LIVE code shows the decompose sites use
 THREE different roles:
@@ -46,7 +46,7 @@ THREE different roles:
 |------|-----------|------|----------------|----------------|
 | 1 | generate.go:CommitStaged | **message** | BuildSystemPrompt / BuildFallbackPrompt | YES — rejection list (FR32) |
 | 2 | hook/exec.go:Run | **message** | hookSystemPrompt → BuildSystemPrompt | YES — rejection list |
-| 3 | pkg/stagehand.go:runPipeline | **message** | buildSysPrompt → BuildSystemPrompt (+ systemExtra) | YES — rejection list |
+| 3 | pkg/stagecoach.go:runPipeline | **message** | buildSysPrompt → BuildSystemPrompt (+ systemExtra) | YES — rejection list |
 | 4 | decompose/planner.go:callPlanner | **planner** | BuildPlannerSystemPrompt | NO (1 retry, fixed retry-instr) |
 | 5 | decompose/message.go:generateMessage | **message** | messageSystemPrompt → BuildSystemPrompt | YES — rejection list |
 | 6 | decompose/decompose.go:runArbiterPhase | **arbiter** | BuildArbiterSystemPrompt (zero-arg) | NO (single call) |
@@ -97,7 +97,7 @@ preamble (~15 tokens, prepended on parse-fail retries) AND the chars/4-vs-chars/
 Today every site builds its system prompt (which fetches `RecentMessages` via git) AFTER the diff call:
 - Site 1 generate.go: StagedDiff(:163) → … → buildSystemPrompt(:189).
 - Site 2 hook/exec.go: StagedDiff(:104) → … → hookSystemPrompt(:131).
-- Site 3 pkg/stagehand.go: StagedDiff(:423) → … → buildSysPrompt(:447) → append systemExtra(:452).
+- Site 3 pkg/stagecoach.go: StagedDiff(:423) → … → buildSysPrompt(:447) → append systemExtra(:452).
 - Site 4 planner.go: TreeDiff(:69) → plannerExamples + BuildPlannerSystemPrompt(:86).
 - Site 5 message.go: TreeDiff(:71) → … → messageSystemPrompt(:95).
 - Site 6 decompose.go: TreeDiff(:608) → runArbiter builds BuildArbiterSystemPrompt (zero-arg, arbiter.go:88).
@@ -141,7 +141,7 @@ sites mechanically identical (measure → set), which is the whole point of the 
 The diff functions (`StagedDiff`/`TreeDiff`/`WorkingTreeDiff`) do NOT read `PromptReserveTokens` until
 M4.T3's gate. Setting it now + reordering the system-prompt build changes ZERO diff output (the diff is
 captured identically; the reserve flows into an unread field). So every golden diff test
-(stagediff/treediff/workingtreediff) and every pipeline test (generate/hook/decompose/stagehand) passes
+(stagediff/treediff/workingtreediff) and every pipeline test (generate/hook/decompose/stagecoach) passes
 UNCHANGED. The reorder changes the ORDER of git operations (`RecentMessages` before `StagedDiff`) but not
 their RESULTS (real git, not a call-order-asserting mock) — so tests that assert on outcomes (not call
 order) are unaffected. `go test ./...` staying green IS the regression proof.
@@ -159,10 +159,10 @@ commits-info block can be substantial (each commit's message + diff-tree file li
 
 `BuildArbiterSystemPrompt()` is zero-arg (a fixed §17.7 constant) — trivial to call before the TreeDiff.
 
-## §9 — Site 3 (pkg/stagehand runPipeline): measure AFTER the systemExtra append
+## §9 — Site 3 (pkg/stagecoach runPipeline): measure AFTER the systemExtra append
 
 runPipeline appends the integrator's `SystemExtra` to the system prompt AFTER `buildSysPrompt`
-(stagehand.go:452: `sysPrompt += "\n\n" + systemExtra`). The reserve must include systemExtra (it's part
+(stagecoach.go:452: `sysPrompt += "\n\n" + systemExtra`). The reserve must include systemExtra (it's part
 of the prompt the agent receives), so the measurement must happen AFTER the append. Order at site 3:
 `buildSysPrompt` → `sysPrompt += "\n\n" + systemExtra` → `reserve := MessageReserveTokens(sysPrompt, …)`
 → `StagedDiff(… PromptReserveTokens: reserve)`. (The helper takes the already-built `sysPrompt` string,

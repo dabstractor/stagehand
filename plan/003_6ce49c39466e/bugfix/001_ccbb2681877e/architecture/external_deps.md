@@ -12,7 +12,7 @@
 
 - Flag: `--thinking`
 - Accepted values: `off, minimal, low, medium, high, xhigh`
-- Stagehand reasoning levels (`off|low|medium|high`) map cleanly:
+- Stagecoach reasoning levels (`off|low|medium|high`) map cleanly:
   - `"high"` → `["--thinking", "high"]`
   - `"medium"` → `["--thinking", "medium"]`
   - `"low"` → `["--thinking", "low"]`
@@ -29,7 +29,7 @@
 
 - Flag: **`--effort`** — NOT `--thinking-effort` (the PRD Suggested Fix was wrong here)
 - Accepted values: `low, medium, high`
-- Stagehand reasoning levels map:
+- Stagecoach reasoning levels map:
   - `"high"` → `["--effort", "high"]`
   - `"medium"` → `["--effort", "medium"]`
   - `"low"` → `["--effort", "low"]`

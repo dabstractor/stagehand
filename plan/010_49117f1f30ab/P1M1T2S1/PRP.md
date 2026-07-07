@@ -5,7 +5,7 @@ description: |
   `internal/cmd/root.go` (var `flagNoVerify bool` + `pf.BoolVar(&flagNoVerify, "no-verify", false,
   "<help>")` after the --push registration). Help text states: bypass pre-commit + commit-msg only
   (prepare-commit-msg and post-commit still run), mirrors `git commit --no-verify`; env
-  STAGEHAND_NO_VERIFY, git stagehand.no_verify, default false; §9.25 FR-V5. Add the matching row to
+  STAGECOACH_NO_VERIFY, git stagecoach.no_verify, default false; §9.25 FR-V5. Add the matching row to
   docs/cli.md global-flags table (after --push). Config.NoVerify is LANDED (S1); loadFlags READER is S2
   (parallel). This task is the flag DEFINITION + docs row only. No behavior yet (M3 consumes cfg.NoVerify).
 ---
@@ -21,17 +21,17 @@ document it in the docs/cli.md global-flags table.
    `pf.BoolVar(&flagNoVerify, "no-verify", false, "<help>")` (after the --push block, ~line 213).
 2. `docs/cli.md` — a `--no-verify` row in the global-flags table (after --push, line 43).
 
-**Success Definition**: `--no-verify` is a registered persistent flag; `stagehand --help` lists it with the
+**Success Definition**: `--no-verify` is a registered persistent flag; `stagecoach --help` lists it with the
 correct help text; `go build/vet/gofmt` clean; `go test ./...` green. The docs/cli.md table has the row
 with the FR-V5 semantics. No behavior change (M3's runner consumes cfg.NoVerify).
 
 ## User Persona
 
-**Target User**: The user who wants to bypass `pre-commit`/`commit-msg` hooks on a stagehand commit
+**Target User**: The user who wants to bypass `pre-commit`/`commit-msg` hooks on a stagecoach commit
 (mirroring `git commit --no-verify`), and the contributor wiring the loadFlags reader (S2) + the
 RunCommitHooks runner (M3).
 
-**Use Case**: `stagehand --no-verify` on a repo with a slow `pre-commit` hook skips it for that commit;
+**Use Case**: `stagecoach --no-verify` on a repo with a slow `pre-commit` hook skips it for that commit;
 `prepare-commit-msg` and `post-commit` still run (FR-V5).
 
 **Pain Points Addressed**: Provides the CLI surface for the hook-bypass escape hatch — without it, there
@@ -39,7 +39,7 @@ is no way to opt out of the hooks-on-commit-path feature (§9.25) for a one-off 
 
 ## Why
 
-- **PRD §9.25 FR-V5 mandates the flag.** "`--no-verify` — bypass `pre-commit` and `commit-msg` only. Mirrors `git commit --no-verify` exactly... Surfaced as CLI `--no-verify`, env `STAGEHAND_NO_VERIFY`, git config `stagehand.no_verify`." §15.2 lists it in the global-flags table.
+- **PRD §9.25 FR-V5 mandates the flag.** "`--no-verify` — bypass `pre-commit` and `commit-msg` only. Mirrors `git commit --no-verify` exactly... Surfaced as CLI `--no-verify`, env `STAGECOACH_NO_VERIFY`, git config `stagecoach.no_verify`." §15.2 lists it in the global-flags table.
 - **Unblocks S2 (the reader) + M3 (the runner).** S2's loadFlags reads `fs.Changed("no-verify")` — the flag must be registered for the reader to find it (cobra's `fs.Changed` returns false for an unregistered flag). M3's runner reads `cfg.NoVerify` to decide whether to skip pre-commit/commit-msg.
 - **Mirrors the proven --push pattern.** `--no-verify` is a bool flag with env/git-config/default — the exact shape of `--push` (root.go:100/206-213). The registration is a 2-line mechanical edit.
 - **No behavior change yet.** The flag is inert until M3 wires the runner. Defining it now lets S2 + M3 land independently against a stable flag surface.
@@ -54,7 +54,7 @@ loadFlags reads it). No behavior, no test (S2 has the reader test), no other fil
 
 - [ ] `internal/cmd/root.go` has `var flagNoVerify bool` (after `flagPush`, ~line 100).
 - [ ] `internal/cmd/root.go` has `pf.BoolVar(&flagNoVerify, "no-verify", false, "<help>")` (after --push, ~line 213).
-- [ ] The help text states: bypass pre-commit + commit-msg only (prepare-commit-msg and post-commit still run); env STAGEHAND_NO_VERIFY, git stagehand.no_verify; default false; §9.25 FR-V5.
+- [ ] The help text states: bypass pre-commit + commit-msg only (prepare-commit-msg and post-commit still run); env STAGECOACH_NO_VERIFY, git stagecoach.no_verify; default false; §9.25 FR-V5.
 - [ ] `docs/cli.md` global-flags table has a `--no-verify` row (after --push, ~line 43).
 - [ ] `flagNoVerify` is NEVER read directly (only via `fs.Changed`/`fs.GetBool` in loadFlags — same as flagPush).
 - [ ] `go build ./...`, `go vet ./...`, `gofmt -l .` clean; `go test ./...` green.
@@ -74,7 +74,7 @@ task boundary (S2 = the reader; M3 = the consumer). The help text is supplied ve
 ```yaml
 # MUST READ — the FR spec + the global-flags table
 - file: PRD.md
-  why: "§9.25 FR-V5 (--no-verify: bypass pre-commit + commit-msg only; prepare-commit-msg and post-commit still run; mirrors git commit --no-verify; env STAGEHAND_NO_VERIFY, git stagehand.no_verify, default false). §15.2 (the global-flags table has the --no-verify row — the exact text to mirror in docs/cli.md)."
+  why: "§9.25 FR-V5 (--no-verify: bypass pre-commit + commit-msg only; prepare-commit-msg and post-commit still run; mirrors git commit --no-verify; env STAGECOACH_NO_VERIFY, git stagecoach.no_verify, default false). §15.2 (the global-flags table has the --no-verify row — the exact text to mirror in docs/cli.md)."
   critical: "FR-V5's semantics ('skips pre-commit and commit-msg. prepare-commit-msg and post-commit STILL run') MUST be in the help text — it's the key distinction from a blanket 'skip all hooks'. Default false (hooks run by default)."
 
 - docfile: plan/010_49117f1f30ab/architecture/codebase_reality.md
@@ -92,11 +92,11 @@ task boundary (S2 = the reader; M3 = the consumer). The help text is supplied ve
 - file: internal/cmd/root.go
   why: "EDIT (2 spots). (a) Var: add `var flagNoVerify bool` after `var flagPush bool` (line 100). (b) BoolVar: add `pf.BoolVar(&flagNoVerify, \"no-verify\", false, \"<help>\")` after the --push block (lines 206-213), before the reasoning-flags comment (line 214)."
   pattern: "Mirror --push EXACTLY: a `var flagX bool` declaration + a `pf.BoolVar(&flagX, \"name\", false, \"multi-line help with (env…, git…; default false.) (§FR)\")` registration. The flag var is read ONLY via fs.Changed/fs.GetBool in loadFlags — NEVER directly."
-  gotcha: "Insert the BoolVar BETWEEN the --push closing `)` (line 213) and the `// §15.2 reasoning flags` comment (line 214). Do NOT place it elsewhere. The help text must cite env STAGEHAND_NO_VERIFY + git stagehand.no_verify + default false (mirrors --push's citation style)."
+  gotcha: "Insert the BoolVar BETWEEN the --push closing `)` (line 213) and the `// §15.2 reasoning flags` comment (line 214). Do NOT place it elsewhere. The help text must cite env STAGECOACH_NO_VERIFY + git stagecoach.no_verify + default false (mirrors --push's citation style)."
 
 - file: docs/cli.md
   why: "EDIT (1 row). The global-flags table's --push row is at line 43. Insert the --no-verify row BETWEEN --push (43) and --planner-provider (44). Match the table's column structure: `| Flag | Type | Default | Env | Git config | Description |`."
-  pattern: "Mirror the --push row's structure: `| \`--no-verify\` | bool | false | \`STAGEHAND_NO_VERIFY\` | \`stagehand.no_verify\` | <description with §9.25 FR-V5> |`."
+  pattern: "Mirror the --push row's structure: `| \`--no-verify\` | bool | false | \`STAGECOACH_NO_VERIFY\` | \`stagecoach.no_verify\` | <description with §9.25 FR-V5> |`."
   gotcha: "The description must state the FR-V5 semantics precisely: 'Bypass pre-commit and commit-msg hooks... (prepare-commit-msg and post-commit still run).' NOT a blanket 'skip all hooks' — the distinction is the FR-V5 contract."
 
 # Read-only refs
@@ -109,7 +109,7 @@ task boundary (S2 = the reader; M3 = the consumer). The help text is supplied ve
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/cmd/root.go     # EDIT: +var flagNoVerify (line ~100) +BoolVar (after --push, ~line 213)
 └── docs/cli.md              # EDIT: +--no-verify row (after --push, line 43)
 ```
@@ -117,7 +117,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/cmd/root.go     # +var flagNoVerify bool + pf.BoolVar(&flagNoVerify, "no-verify", ...)
     docs/cli.md              # +--no-verify row in the global-flags table
@@ -154,7 +154,7 @@ stagehand/
 
 // GOTCHA (G5 — no test for this task): the flag definition is a 2-line registration; S2's loadFlags test
 // (TestLoadFlags_NoVerify) verifies the reader works once the flag is registered. The validation here is
-// `go build` (the reader compiles against the registered flag) + `stagehand --help` (the flag appears).
+// `go build` (the reader compiles against the registered flag) + `stagecoach --help` (the flag appears).
 ```
 
 ## Implementation Blueprint
@@ -181,31 +181,31 @@ var flagNoVerify bool
 **root.go BoolVar registration** (after the --push block ~line 213, before the reasoning comment ~line 214):
 ```go
 // CURRENT (excerpt — the --push block ends here, then the reasoning comment)
-		"...push failed\" prints, and stagehand exits 1. Skipped on --dry-run, the nothing-to-commit "+
-			"exit, and any rescue/CAS abort. (env STAGEHAND_PUSH, git stagehand.push, config "+
+		"...push failed\" prints, and stagecoach exits 1. Skipped on --dry-run, the nothing-to-commit "+
+			"exit, and any rescue/CAS abort. (env STAGECOACH_PUSH, git stagecoach.push, config "+
 			"[generation].push; default false.) (§9.22 FR-P1)")
 	// §15.2 reasoning flags (FR-R6) — global + per-role; zero default; loadFlags reads via fs.Changed.
 
 // TARGET (insert the --no-verify BoolVar between --push and the reasoning comment)
-		"...push failed\" prints, and stagehand exits 1. Skipped on --dry-run, the nothing-to-commit "+
-			"exit, and any rescue/CAS abort. (env STAGEHAND_PUSH, git stagehand.push, config "+
+		"...push failed\" prints, and stagecoach exits 1. Skipped on --dry-run, the nothing-to-commit "+
+			"exit, and any rescue/CAS abort. (env STAGECOACH_PUSH, git stagecoach.push, config "+
 			"[generation].push; default false.) (§9.22 FR-P1)")
 	pf.BoolVar(&flagNoVerify, "no-verify", false,
 		"Bypass pre-commit and commit-msg hooks for this commit (mirrors git commit --no-verify; "+
-			"prepare-commit-msg and post-commit still run). (env STAGEHAND_NO_VERIFY, git "+
-			"stagehand.no_verify; default false.) (§9.25 FR-V5)")
+			"prepare-commit-msg and post-commit still run). (env STAGECOACH_NO_VERIFY, git "+
+			"stagecoach.no_verify; default false.) (§9.25 FR-V5)")
 	// §15.2 reasoning flags (FR-R6) — global + per-role; zero default; loadFlags reads via fs.Changed.
 ```
 
 **docs/cli.md table row** (after line 43, before line 44):
 ```
 // CURRENT (line 43-44)
-| `--push` | bool | false | `STAGEHAND_PUSH` | `stagehand.push` | Run plain `git push` ... (§9.22 FR-P1) |
+| `--push` | bool | false | `STAGECOACH_PUSH` | `stagecoach.push` | Run plain `git push` ... (§9.22 FR-P1) |
 | `--planner-provider <name>` | string | "" | ... |
 
 // TARGET (insert the --no-verify row between --push and --planner-provider)
-| `--push` | bool | false | `STAGEHAND_PUSH` | `stagehand.push` | Run plain `git push` ... (§9.22 FR-P1) |
-| `--no-verify` | bool | false | `STAGEHAND_NO_VERIFY` | `stagehand.no_verify` | Bypass `pre-commit` and `commit-msg` hooks for this commit (mirrors `git commit --no-verify`; `prepare-commit-msg` and `post-commit` still run). §9.25, FR-V5. |
+| `--push` | bool | false | `STAGECOACH_PUSH` | `stagecoach.push` | Run plain `git push` ... (§9.22 FR-P1) |
+| `--no-verify` | bool | false | `STAGECOACH_NO_VERIFY` | `stagecoach.no_verify` | Bypass `pre-commit` and `commit-msg` hooks for this commit (mirrors `git commit --no-verify`; `prepare-commit-msg` and `post-commit` still run). §9.25, FR-V5. |
 | `--planner-provider <name>` | string | "" | ... |
 ```
 
@@ -233,7 +233,7 @@ Task 3: VALIDATE
   - RUN: go build ./...        # the flag registration compiles; the reader (S2) compiles against it
   - RUN: go vet ./...
   - RUN: go test ./...         # whole repo green (the flag is inert; no behavior change)
-  - RUN: go run ./cmd/stagehand --help 2>&1 | grep -q "no-verify"  # the flag appears in help output
+  - RUN: go run ./cmd/stagecoach --help 2>&1 | grep -q "no-verify"  # the flag appears in help output
   - FIX-FORWARD: a compile failure = a typo in the var/BoolVar name; a --help miss = the flag wasn't registered.
 ```
 
@@ -243,13 +243,13 @@ Task 3: VALIDATE
 // === The --no-verify flag mirrors --push exactly ===
 // --push:   var flagPush bool (line 100) + pf.BoolVar(&flagPush, "push", false, "<help with env/git/default>") (line 206)
 // --no-verify: var flagNoVerify bool (line 101) + pf.BoolVar(&flagNoVerify, "no-verify", false, "<help>") (after line 213)
-// Both are bool flags with env (STAGEHAND_*) + git-config (stagehand.*) + default false.
+// Both are bool flags with env (STAGECOACH_*) + git-config (stagecoach.*) + default false.
 // Both are read ONLY via fs.Changed/fs.GetBool in loadFlags (never directly).
 
 // === The FR-V5 help-text distinction ===
 // --no-verify bypasses pre-commit + commit-msg ONLY. prepare-commit-msg and post-commit STILL run.
 // This mirrors `git commit --no-verify` exactly (FR-V5). The help text MUST state this — it is NOT
-// "skip all hooks" (prepare-commit-msg runs because it composes with stagehand's message; post-commit
+// "skip all hooks" (prepare-commit-msg runs because it composes with stagecoach's message; post-commit
 // runs because it cannot undo a landed commit — FR-V5/FR-V7).
 ```
 
@@ -272,7 +272,7 @@ NO-TOUCH (explicitly):
   - any other internal/cmd/* file; internal/generate/*, internal/hooks/* (M3)
   - docs other than cli.md; PRD.md, tasks.json, prd_snapshot.md, plan/*
 
-GATE: go build ./... → OK; stagehand --help shows --no-verify; go test ./... green
+GATE: go build ./... → OK; stagecoach --help shows --no-verify; go test ./... green
 ```
 
 ## Validation Loop
@@ -280,7 +280,7 @@ GATE: go build ./... → OK; stagehand --help shows --no-verify; go test ./... g
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/cmd/root.go   # Expected: empty (run gofmt -w if listed)
 go vet ./internal/cmd/...        # Expected: exit 0
@@ -292,12 +292,12 @@ go build ./...                   # Expected: exit 0 (flag registration compiles)
 ### Level 2: Flag Registration (the flag appears in help)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The flag is registered + appears in --help with the correct help text.
-go run ./cmd/stagehand --help 2>&1 | grep -A2 "no-verify"
+go run ./cmd/stagecoach --help 2>&1 | grep -A2 "no-verify"
 # Expected: the --no-verify line with the FR-V5 help text (bypass pre-commit + commit-msg only;
-# prepare-commit-msg and post-commit still run; env STAGEHAND_NO_VERIFY, git stagehand.no_verify; default false).
+# prepare-commit-msg and post-commit still run; env STAGECOACH_NO_VERIFY, git stagecoach.no_verify; default false).
 
 go test ./...   # Expected: all green (the flag is inert; no behavior change)
 ```
@@ -305,7 +305,7 @@ go test ./...   # Expected: all green (the flag is inert; no behavior change)
 ### Level 3: Docs + Scope
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The docs/cli.md row exists with the correct columns.
 grep -n '\-\-no-verify' docs/cli.md   # Expected: one row in the global-flags table
@@ -318,7 +318,7 @@ git diff --stat -- internal/ docs/
 ### Level 4: No Direct Read (the flag-var discipline)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # flagNoVerify is NEVER read directly (only via fs.Changed/fs.GetBool in loadFlags).
 grep -n 'flagNoVerify' internal/cmd/root.go
@@ -337,13 +337,13 @@ grep -n 'no-verify' internal/config/load.go 2>/dev/null || echo "(S2 not yet lan
 - [ ] `go vet ./...` exits 0.
 - [ ] `gofmt -l .` reports nothing.
 - [ ] `go test ./...` green.
-- [ ] `stagehand --help` shows `--no-verify` with the FR-V5 help text.
+- [ ] `stagecoach --help` shows `--no-verify` with the FR-V5 help text.
 
 ### Feature Validation
 
 - [ ] `var flagNoVerify bool` exists in root.go (after `flagPush`).
 - [ ] `pf.BoolVar(&flagNoVerify, "no-verify", false, "<help>")` exists (after --push).
-- [ ] The help text states: bypass pre-commit + commit-msg only; prepare-commit-msg and post-commit still run; env STAGEHAND_NO_VERIFY, git stagehand.no_verify; default false; §9.25 FR-V5.
+- [ ] The help text states: bypass pre-commit + commit-msg only; prepare-commit-msg and post-commit still run; env STAGECOACH_NO_VERIFY, git stagecoach.no_verify; default false; §9.25 FR-V5.
 - [ ] `docs/cli.md` has the `--no-verify` row (after --push) with the FR-V5 semantics.
 - [ ] `flagNoVerify` is NEVER read directly (grep: only the var + BoolVar binding).
 

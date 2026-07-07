@@ -5,7 +5,7 @@
 > (`runPipeline` for `--dry-run`/`SystemExtra`, and `hook.Run` for git hooks), plus three
 > minor correctness/UX fixes (payload consistency, verbose token estimate, hook FR-H5 safety).
 >
-> **Date**: 2026-07-05 · **Module**: `github.com/dustin/stagehand` (Go 1.22)
+> **Date**: 2026-07-05 · **Module**: `github.com/dustin/stagecoach` (Go 1.22)
 
 ---
 
@@ -17,10 +17,10 @@ The multi-turn gate was wired into only ONE of them (CommitStaged). The other tw
 | # | Path | File | Loop line | Multi-turn? | Package |
 |---|------|------|-----------|-------------|---------|
 | 1 | `CommitStaged` (commit path) | `internal/generate/generate.go:229` | ✅ gate at 290–374 | ✅ **reference** | `internal/generate` |
-| 2 | `runPipeline` (dry-run / SystemExtra) | `pkg/stagehand/stagehand.go:489` | ❌ **MISSING** | `pkg/stagehand` |
+| 2 | `runPipeline` (dry-run / SystemExtra) | `pkg/stagecoach/stagecoach.go:489` | ❌ **MISSING** | `pkg/stagecoach` |
 | 3 | `hook.Run` (git hook mode) | `internal/hook/exec.go:157` | ❌ **MISSING** | `internal/hook` |
 
-### Routing decision (`GenerateCommit`, `pkg/stagehand/stagehand.go:160`)
+### Routing decision (`GenerateCommit`, `pkg/stagecoach/stagecoach.go:160`)
 
 ```go
 if !opts.DryRun && opts.SystemExtra == "" {
@@ -100,7 +100,7 @@ the progress-line turn-count at `generate.go:332`:
 turns := len(chunkPayload(mtPayload, cfg.MultiTurnChunkTokens)) + 1
 ```
 
-Both target paths (`pkg/stagehand`, `internal/hook`) are OUTSIDE `internal/generate` and cannot
+Both target paths (`pkg/stagecoach`, `internal/hook`) are OUTSIDE `internal/generate` and cannot
 call `chunkPayload`. **Resolution**: add a thin exported wrapper:
 
 ```go
@@ -136,7 +136,7 @@ This avoids exposing the internal `chunk` type. CommitStaged keeps using `chunkP
 | ChunkCount export | Foundation | Add exported wrapper | `internal/generate/multiturn.go` | P1.M1 |
 | Issue 4: mtPayload inconsistency | Minor | Rebuild from `diff` when TokenLimit==0 (strip retryInstr) | `internal/generate/generate.go` (reference gate) | P1.M1 |
 | Issue 3: per-chunk token estimate | Minor | Add `cfg.MultiTurnChunkTokens` to progress line | `internal/generate/generate.go` (reference gate) | P1.M1 |
-| Issue 1: dry-run multi-turn | **Major** | Hoist payload + insert gate (copy reference) | `pkg/stagehand/stagehand.go::runPipeline` | P1.M2 |
+| Issue 1: dry-run multi-turn | **Major** | Hoist payload + insert gate (copy reference) | `pkg/stagecoach/stagecoach.go::runPipeline` | P1.M2 |
 | Issue 2: hook multi-turn | Minor | Bind resolved + hoist payload + insert gate (FR-H5 preserved) | `internal/hook/exec.go::Run` | P1.M3 |
 | Documentation sync | Mode B | Update overview docs | `docs/how-it-works.md`, `README.md` | P1.M4 |
 

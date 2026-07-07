@@ -16,7 +16,7 @@
 ## Goal
 
 **Feature Goal**: Make `agy` a compiled-in built-in provider whose manifest exactly matches PRD §12.5.1
-(as refined by the work-item contract), so `stagehand providers list` shows it, `providers show agy`
+(as refined by the work-item contract), so `stagecoach providers list` shows it, `providers show agy`
 prints its manifest, and it can serve the bare roles (planner/message/arbiter) — but NOT the stager
 (empty `tooled_flags`). It ships `experimental = true`.
 
@@ -40,12 +40,12 @@ prints its manifest, and it can serve the bare roles (planner/message/arbiter) �
 
 - **PRD §12.5.1**: `agy` (Antigravity CLI) **superseded `gemini` (Gemini CLI) on 2026-06-18** and is the
   Gemini lineage's current surface. The Antigravity coding-plan quota is reachable only through `agy`.
-- It matters structurally like every provider: Stagehand must render a concrete command line for it. Per
+- It matters structurally like every provider: Stagecoach must render a concrete command line for it. Per
   §12.7.2, a provider added from docs (not a verified `--help`) ships `experimental = true` until a real
   end-to-end run clears the `# TO CONFIRM` items.
 - **§12.5.1.1 item 1 (the blocker):** `agy -p`/`--print` **silently drops stdout when invoked from a
-  non-TTY** (issue #76) — exactly how Stagehand spawns agents. So `agy` is unusable for any role until
-  upstream fixes it or Stagehand PTY-shims the child (out of scope here). It still ships as a built-in so
+  non-TTY** (issue #76) — exactly how Stagecoach spawns agents. So `agy` is unusable for any role until
+  upstream fixes it or Stagecoach PTY-shims the child (out of scope here). It still ships as a built-in so
   it is discoverable and ready.
 
 ---
@@ -187,7 +187,7 @@ No new types. `builtinAgy()` returns the existing `Manifest` struct (which alrea
 // default` is a read-only, never-ask profile (§12.7.1 "read-only constraint").
 //
 // BLOCKER (§12.5.1.1 item 1): agy -p/--print silently drops stdout when spawned from a non-TTY (issue #76)
-// — exactly how stagehand spawns agents. agy is unusable for any role until upstream fixes it or stagehand
+// — exactly how stagecoach spawns agents. agy is unusable for any role until upstream fixes it or stagecoach
 // PTY-shims the child. Shipping experimental keeps it discoverable/ready.
 //
 // STAGER: TooledFlags is intentionally nil — agy CANNOT serve as a stager until §12.5.1.1 item 4 (the
@@ -367,9 +367,9 @@ go test ./...    # Expected: all PASS. If a non-provider package breaks, it hard
 ### Level 4: Behavioral spot-check (proves discoverability)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand
-/tmp/stagehand providers show agy | head   # prints the agy manifest TOML (experimental=true, bare_flags, …)
-/tmp/stagehand providers list | grep agy   # agy appears (detected iff `agy` is on $PATH; experimental marker TBD)
+go build -o /tmp/stagecoach ./cmd/stagecoach
+/tmp/stagecoach providers show agy | head   # prints the agy manifest TOML (experimental=true, bare_flags, …)
+/tmp/stagecoach providers list | grep agy   # agy appears (detected iff `agy` is on $PATH; experimental marker TBD)
 ```
 
 ---

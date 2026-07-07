@@ -23,7 +23,7 @@ description: |
        (b) Insert 'qwen-code' into preferredBuiltins between 'gemini' and 'codex' → 8-element FR-D1 order.
        (c) Create providers/qwen-code.toml mirroring the manifest (experimental + DashScope + # TO CONFIRM).
        (d) Update TestPreferredBuiltins_MatchesBuiltinKeys wantOrder + the builtin-keys count assertion.
-    4. OUTPUT: qwen-code is a registered experimental built-in at the correct priority; `stagehand
+    4. OUTPUT: qwen-code is a registered experimental built-in at the correct priority; `stagecoach
        providers list` shows it; the order test passes.
     5. DOCS: [Mode A] providers/qwen-code.toml (note experimental + DashScope); builtin.go doc comment for
        builtinQwenCode.
@@ -92,13 +92,13 @@ tests pass; the 5 listed files are the ONLY diffs.
 
 ## User Persona
 
-**Target User**: a developer on the Qwen3-Coder / DashScope stack who wants stagehand to drive
+**Target User**: a developer on the Qwen3-Coder / DashScope stack who wants stagecoach to drive
 `qwen-code` as its agent CLI. Today qwen-code is absent from the built-in set, so they must hand-write a
-`[provider.qwen-code]` override block. After S1, `stagehand --provider qwen-code` resolves a compiled-in
+`[provider.qwen-code]` override block. After S1, `stagecoach --provider qwen-code` resolves a compiled-in
 manifest (zero-config), and `config init` lists qwen-code as a (commented) switchable agent.
 
-**Use Case**: a user with `qwen-code` on `$PATH` and `DASHSCOPE_API_KEY` set runs `stagehand --provider
-qwen-code --model qwen3-coder-plus`. stagehand resolves the built-in manifest and renders
+**Use Case**: a user with `qwen-code` on `$PATH` and `DASHSCOPE_API_KEY` set runs `stagecoach --provider
+qwen-code --model qwen3-coder-plus`. stagecoach resolves the built-in manifest and renders
 `qwen-code -m qwen3-coder-plus --approval-mode default -p < <payload>`. If qwen-code is the highest-priority
 agent installed (FR-D1 rank 6), it is the auto-default.
 
@@ -317,7 +317,7 @@ internal/provider/builtin_test.go # EDIT. KeysAndCount 7→8+key; + qwenCodeTOML
 // go.mod/go.sum byte-unchanged.
 
 // GOTCHA (providers/*.toml are NOT runtime-loaded): they are human reference docs. They mirror the compiled-in
-// manifest for readers; the config loader reads .stagehand.toml, NOT this directory. Byte-faithfulness to the
+// manifest for readers; the config loader reads .stagecoach.toml, NOT this directory. Byte-faithfulness to the
 // manifest is a documentation goal, not a runtime requirement.
 
 // GOTCHA (parallel sibling = internal/cmd/* only): P1.M3.T1.S2 edits config.go/config_test.go. This task edits
@@ -562,7 +562,7 @@ PROVIDER REGISTRY (internal/provider/builtin.go + registry.go — EDIT):
   - add: "builtinQwenCode() (Manifest) + BuiltinManifests() map entry; preferredBuiltins += 'qwen-code' (rank 6);
           NewRegistry map headroom +8."
   - effect: "qwen-code is a registered experimental built-in at FR-D1 rank 6; Registry.List() includes it;
-          DefaultProvider/FirstTooledProvider consider it (single-backend, nil TooledFlags); `stagehand
+          DefaultProvider/FirstTooledProvider consider it (single-backend, nil TooledFlags); `stagecoach
           providers list` shows it; `config init` lists it as a commented switchable agent (bootstrap iterates
           BuiltinManifests() dynamically — no config change needed)."
 
@@ -590,7 +590,7 @@ FROZEN/LEAVE (do NOT edit):
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/provider/builtin.go internal/provider/builtin_test.go \
           internal/provider/registry.go internal/provider/registry_test.go
 go vet ./internal/provider/
@@ -626,10 +626,10 @@ make build
 
 # `providers list` shows qwen-code (experimental); the cascade order is correct.
 # (qwen-code is almost certainly NOT on $PATH in CI — it appears as not-installed, which is fine.)
-./bin/stagehand providers list | grep -i qwen-code && echo "PASS: qwen-code listed" || echo "FAIL: qwen-code missing"
+./bin/stagecoach providers list | grep -i qwen-code && echo "PASS: qwen-code listed" || echo "FAIL: qwen-code missing"
 
 # providers show qwen-code prints the merged manifest as TOML (experimental=true, default_model qwen3-coder-plus).
-./bin/stagehand providers show qwen-code | grep -E 'qwen3-coder-plus|experimental' && echo "PASS: manifest fields present"
+./bin/stagecoach providers show qwen-code | grep -E 'qwen3-coder-plus|experimental' && echo "PASS: manifest fields present"
 
 # Verify the FR-D1 priority: if ONLY qwen-code were installed it would be the default (rank 6). This is
 # covered by TestDefaultProvider's logic; the CLI smoke test just confirms listing/show work.
@@ -638,7 +638,7 @@ make build
 ### Level 4: Regression & Audit
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go build ./...                 # whole module compiles
 go test ./...                  # FULL regression — only the 2 mandated assertion updates change behavior
 git status --short             # Expected: EXACTLY 5 files:

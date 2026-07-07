@@ -82,7 +82,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Make Stagehand's shipped documentation self-consistent with the v3 binary (PRD §21.5 + delta_prd
+**Feature Goal**: Make Stagecoach's shipped documentation self-consistent with the v3 binary (PRD §21.5 + delta_prd
 §2 Mode B). The v3 changeset changed the user-visible surface in four ways that the docs (written for v2,
 partially patched) no longer reflect: (1) the inference backend folded into the model string as a slash-prefix
 (`model = "zai/glm-5.2"`), removing the `default_provider` field entirely (FR-R5b/FR-B7); (2) a per-role
@@ -90,7 +90,7 @@ partially patched) no longer reflect: (1) the inference backend folded into the 
 (FR-R6); (3) a new qwen-code built-in provider raising the count to eight (§12.5.2/FR-D1); (4) the decompose
 start-of-run freeze `T_start` + one-file short-circuit that change what a multi-commit run is guaranteed to
 contain (FR-M1b/M1c/M2b). This task edits the 5 user-facing docs (+ 1 comment-only source annotation block) so
-every example, table, flag list, and prose description matches what `stagehand --help` and the source actually
+every example, table, flag list, and prose description matches what `stagecoach --help` and the source actually
 ship — and reconciles the abandoned `agent`/`[agent.*]`/`--planner-agent` terminology back to `provider`.
 
 **Deliverable** (5 doc EDITS + 1 comment-only source EDIT — no logic changes):
@@ -119,7 +119,7 @@ ship — and reconciles the abandoned `agent`/`[agent.*]`/`--planner-agent` term
   README.md docs/` returns nothing; `config_version = 3` appears in config examples.
 - **qwen-code everywhere**: `grep -rln "qwen-code" README.md docs/providers.md docs/configuration.md docs/cli.md`
   returns all 4 files.
-- **reasoning surface documented**: `grep -rn "\-\-reasoning\|STAGEHAND_REASONING\|reasoning_levels" docs/cli.md
+- **reasoning surface documented**: `grep -rn "\-\-reasoning\|STAGECOACH_REASONING\|reasoning_levels" docs/cli.md
   docs/configuration.md docs/providers.md` returns hits.
 - **message flags documented**: `grep -rn "\-\-message-provider\|\-\-message-reasoning" docs/cli.md
   docs/configuration.md` returns hits (the v2 "no message flag" gap is closed in the docs).
@@ -129,10 +129,10 @@ ship — and reconciles the abandoned `agent`/`[agent.*]`/`--planner-agent` term
 
 ## User Persona
 
-**Target User**: the end user reading the README or docs/ to install, configure, and use Stagehand (PRD §7.1
+**Target User**: the end user reading the README or docs/ to install, configure, and use Stagecoach (PRD §7.1
 plan-holder + §7.2 API-key refusenik + §7.3 multi-agent tinkerer), and the contributor adding a provider.
 
-**Use Case**: a user installs stagehand, runs `config init`, and follows the README/docs to set their provider +
+**Use Case**: a user installs stagecoach, runs `config init`, and follows the README/docs to set their provider +
 model. With v3 they MUST supply a model-prefix for multi-backend providers (pi/opencode) or get a hard error,
 CAN tune reasoning per role, and SEE qwen-code as an option. If the docs still show `default_provider` or bare
 models on pi, the user mis-configures and gets an FR-R5b error with no doc explanation — a direct trust failure.
@@ -185,7 +185,7 @@ logic changes, no schema/config/flag changes, no go.mod changes.
 - [ ] README + docs use the model-prefix form for multi-backend providers (`zai/glm-5.2`), bare for single-backend.
 - [ ] docs/cli.md global-flags + map tables include `--reasoning`, `--<role>-reasoning` (all 4 roles), and
       `--message-provider`/`--message-model`/`--message-reasoning`; the "message role has no CLI flag" note is GONE.
-- [ ] docs/configuration.md env table includes `STAGEHAND_REASONING` + `STAGEHAND_<ROLE>_REASONING`; the message
+- [ ] docs/configuration.md env table includes `STAGECOACH_REASONING` + `STAGECOACH_<ROLE>_REASONING`; the message
       role "(no flag)" row is corrected.
 - [ ] docs/providers.md schema table has NO `default_provider` row, HAS `reasoning_levels` + `experimental` rows;
       command-rendering documents the FR-R5b model-prefix split + reasoning emit; qwen-code is a proper table row.
@@ -298,7 +298,7 @@ codebase exploration beyond the 6 files listed and the verified source facts bel
     - The `pi is a multi-provider agent` NOTE + the `config init` note reference `[provider.pi] default_provider`
       (REMOVED) → rewrite to the model-prefix (FR-R5b): the backend is the slash-prefix on `model`
       (`zai/glm-5.2`); a bare model on pi is a hard error.
-    - Quick start: add `--reasoning` (e.g. `stagehand --reasoning high`); show the model-prefix form in the
+    - Quick start: add `--reasoning` (e.g. `stagecoach --reasoning high`); show the model-prefix form in the
       "Configure your agent" / git-config examples for pi.
     - Multi-commit decomposition blurb: add the v3 T_start freeze (concurrent changes excluded from every commit)
       + keep the existing stager-safety sentence.
@@ -333,8 +333,8 @@ codebase exploration beyond the 6 files listed and the verified source facts bel
       byte); keep idempotent.
     - "current schema (version 2)" → version 3 (adds reasoning, model-prefix).
     - Populated config example: `config_version = 2` → 3; add `# reasoning = "off"` to [defaults].
-    - Env table: MISSING `STAGEHAND_REASONING` + `STAGEHAND_<ROLE>_REASONING` (4 roles) → ADD; the
-      `STAGEHAND_MESSAGE_PROVIDER/MODEL` rows marked "(no flag)" → correct (now mirror --message-provider/--message-model).
+    - Env table: MISSING `STAGECOACH_REASONING` + `STAGECOACH_<ROLE>_REASONING` (4 roles) → ADD; the
+      `STAGECOACH_MESSAGE_PROVIDER/MODEL` rows marked "(no flag)" → correct (now mirror --message-provider/--message-model).
     - Bottom note: "The message role has no CLI flag" → DELETE (v3 adds --message-provider/--message-model/--message-reasoning).
 
 - file: docs/cli.md   # EDIT — the CLI reference
@@ -426,7 +426,7 @@ internal/config/bootstrap.go       # COMMENT-ONLY: default_provider annotations 
 
 <!-- G-REASONING-DEFAULTS: shipped defaults are planner=high, stager=message=arbiter=off (FR-R6). Reasoning is a
      graceful no-op when the provider/model lacks reasoning control (never an error). Document --reasoning
-     (global) + --<role>-reasoning (4 roles) + STAGEHAND_REASONING / STAGEHAND_<ROLE>_REASONING. -->
+     (global) + --<role>-reasoning (4 roles) + STAGECOACH_REASONING / STAGECOACH_<ROLE>_REASONING. -->
 
 <!-- G-QWEN-CODE-EXPERIMENTAL: qwen-code is single-backend (Qwen/DashScope), a Gemini-CLI fork, marked
      experimental (§12.5.2), and CANNOT serve as the stager (empty tooled_flags → FR-D4 fallback). It sits
@@ -488,18 +488,18 @@ Task 2: EDIT docs/configuration.md — precedence, bootstrap, upgrade, env/flag 
     list (reasoning, model-prefix inference provider).
   - POPULATED CONFIG example: `config_version = 2` → 3; add `# reasoning = "off"  # off|low|medium|high; planner
     defaults to high (FR-R6)` to [defaults].
-  - ENVIRONMENT VARIABLES table: ADD rows for `STAGEHAND_REASONING` (→ --reasoning) and
-    `STAGEHAND_<ROLE>_REASONING` for planner/stager/message/arbiter. CORRECT the `STAGEHAND_MESSAGE_PROVIDER`/
-    `STAGEHAND_MESSAGE_MODEL` rows: they now mirror `--message-provider`/`--message-model` (remove "(no flag)").
+  - ENVIRONMENT VARIABLES table: ADD rows for `STAGECOACH_REASONING` (→ --reasoning) and
+    `STAGECOACH_<ROLE>_REASONING` for planner/stager/message/arbiter. CORRECT the `STAGECOACH_MESSAGE_PROVIDER`/
+    `STAGECOACH_MESSAGE_MODEL` rows: they now mirror `--message-provider`/`--message-model` (remove "(no flag)").
   - BOTTOM NOTE: DELETE "The message role has no CLI flag" (v3 adds --message-*); replace with a one-liner:
     "Every role (including message) exposes `--<role>-provider`/`--<role>-model`/`--<role>-reasoning` (FR-R3)."
   - PRESERVE: file paths, git-config-keys table, the [generation] opt-in-override note (accurate).
 
 Task 3: EDIT docs/cli.md — global flags + map tables + subcommand prose
-  - GLOBAL FLAGS table: ADD rows — `--reasoning <level>` (string, "" → off / planner high, STAGEHAND_REASONING,
-    stagehand.reasoning, "off|low|medium|high"); `--planner-reasoning`/`--stager-reasoning`/
-    `--message-reasoning`/`--arbiter-reasoning` (string, "", STAGEHAND_<ROLE>_REASONING); `--message-provider`
-    (string, "", STAGEHAND_MESSAGE_PROVIDER); `--message-model` (string, "", STAGEHAND_MESSAGE_MODEL).
+  - GLOBAL FLAGS table: ADD rows — `--reasoning <level>` (string, "" → off / planner high, STAGECOACH_REASONING,
+    stagecoach.reasoning, "off|low|medium|high"); `--planner-reasoning`/`--stager-reasoning`/
+    `--message-reasoning`/`--arbiter-reasoning` (string, "", STAGECOACH_<ROLE>_REASONING); `--message-provider`
+    (string, "", STAGECOACH_MESSAGE_PROVIDER); `--message-model` (string, "", STAGECOACH_MESSAGE_MODEL).
   - FLAG↔ENV↔GIT-CONFIG MAP: ADD rows for --reasoning, the 4 --<role>-reasoning, --message-provider, --message-model.
   - `providers list` + `config init` prose: add qwen-code to the preference order (8 providers).
   - `config init`: `config_version = 2` → 3; rewrite the "set [provider.pi] default_provider" note to the
@@ -520,7 +520,7 @@ Task 4: EDIT docs/how-it-works.md — the v3 decompose freeze (contract clause d
           tree); every stager, the arbiter's leftover staging, and the one-file/single shortcuts stage content
           drawn STRICTLY from T_start. A file created/modified after T_start is captured is invisible to the run.
       (2) FREEZE ENFORCEMENT — because the stager is an external agent running git against the live tree, after
-          each staging step stagehand verifies the resulting tree is a content-SUBSET of T_start (only T_start
+          each staging step stagecoach verifies the resulting tree is a content-SUBSET of T_start (only T_start
           paths, T_start content). Any deviation (a concurrent change swept in, or a stager that ran a bare
           `git add -A`) is a HARD abort (non-rescue; already-landed commits stand per FR-M12).
       (3) ONE-FILE SHORT-CIRCUIT — FR-M2b: in auto-decompose, if exactly ONE path changed, the planner is
@@ -538,9 +538,9 @@ Task 5: EDIT README.md — the marketing surface (PRD §21.5)
   - "Configure your agent": preference order → 8 providers (add qwen-code between gemini and codex).
   - The `pi is a multi-provider agent` NOTE + the `config init` note: rewrite to the model-prefix — "pi is a
     multi-backend provider: the inference backend is a slash-prefix on the model (`zai/glm-5.2`); a bare model
-    on pi is a config error. Set `git config stagehand.model zai/glm-5.2` (or `[defaults] model = \"zai/glm-5.2\`").
-  - QUICK START: add a `--reasoning` example (e.g. `stagehand --reasoning high`); in "Configure your agent" show
-    the model-prefix form for pi (`stagehand.model zai/glm-5.2`) alongside the existing bare-model claude example.
+    on pi is a config error. Set `git config stagecoach.model zai/glm-5.2` (or `[defaults] model = \"zai/glm-5.2\`").
+  - QUICK START: add a `--reasoning` example (e.g. `stagecoach --reasoning high`); in "Configure your agent" show
+    the model-prefix form for pi (`stagecoach.model zai/glm-5.2`) alongside the existing bare-model claude example.
   - MULTI-COMMIT DECOMPOSITION blurb: add one sentence on the v3 T_start freeze ("A start-of-run freeze captures
     your entire change set up front, so files you change mid-run are excluded from every commit — the run only
     ever commits what existed when it started."); keep the existing stager-safety sentence.
@@ -559,7 +559,7 @@ Task 6: EDIT internal/config/bootstrap.go — COMMENT/ANNOTATION STRINGS ONLY (c
     Keep the existing multi-line string-builder style (b.WriteString per line) so the generated config reads cleanly.
   - DO NOT touch the LOGIC: the pi per-role models are written EMPTY — that is correct for v3 (the user supplies
     the backend/model prefix). Only the explanatory comment/annotation wording changes.
-  - VERIFY after: `make build && make test` green; `stagehand config init` (in a temp dir) produces a config
+  - VERIFY after: `make build && make test` green; `stagecoach config init` (in a temp dir) produces a config
     whose comments reference the model-prefix, not default_provider.
 ```
 
@@ -567,7 +567,7 @@ Task 6: EDIT internal/config/bootstrap.go — COMMENT/ANNOTATION STRINGS ONLY (c
 
 ```markdown
 <!-- The model-prefix example to use EVERYWHERE for pi (the canonical v3 form): -->
-  model = "zai/glm-5.2"      # [defaults] / [role.planner] / git config stagehand.model
+  model = "zai/glm-5.2"      # [defaults] / [role.planner] / git config stagecoach.model
 
 <!-- The single-backend example (claude) — BARE model, NO prefix: -->
   model = "sonnet"           # claude is single-backend; a prefix here is wrong
@@ -576,10 +576,10 @@ Task 6: EDIT internal/config/bootstrap.go — COMMENT/ANNOTATION STRINGS ONLY (c
   pi, opencode, cursor, agy, gemini, qwen-code, codex, claude   (8 providers; qwen-code between gemini and codex)
 
 <!-- The reasoning flag surface (verbatim root.go) — add to EVERY flag/env table: -->
-  --reasoning <off|low|medium|high>      (global; STAGEHAND_REASONING; stagehand.reasoning; default off, planner: high)
+  --reasoning <off|low|medium|high>      (global; STAGECOACH_REASONING; stagecoach.reasoning; default off, planner: high)
   --planner-reasoning / --stager-reasoning / --message-reasoning / --arbiter-reasoning
-                                         (per-role; STAGEHAND_<ROLE>_REASONING; all FOUR roles incl. message)
-  --message-provider / --message-model  (per-role message; STAGEHAND_MESSAGE_PROVIDER / _MODEL)
+                                         (per-role; STAGECOACH_<ROLE>_REASONING; all FOUR roles incl. message)
+  --message-provider / --message-model  (per-role message; STAGECOACH_MESSAGE_PROVIDER / _MODEL)
   # NOTE: v2 had NO --message-* flags; v3 CORRECTS this (FR-R3). Delete every "message has no flag" note.
 
 <!-- The config upgrade v3 message (FR-B7 fold, NOT byte-for-byte): -->
@@ -657,7 +657,7 @@ grep -rniE "pi, opencode, cursor, agy, gemini, qwen-code, codex, claude" README.
 
 # (7) reasoning flag surface documented:
 grep -rn -- "--reasoning" docs/cli.md docs/configuration.md
-grep -rn "STAGEHAND_REASONING\|STAGEHAND_.*_REASONING" docs/configuration.md
+grep -rn "STAGECOACH_REASONING\|STAGECOACH_.*_REASONING" docs/configuration.md
 grep -rn "reasoning_levels" docs/providers.md
 # Expected: hits in each.
 
@@ -694,7 +694,7 @@ make test      # full suite green — the bootstrap annotation change is comment
                #   shipped UX, so the test SHOULD follow the new wording). go.mod/go.sum UNCHANGED.
 
 # Smoke the config init output actually reads default_provider-free:
-tmp=$(mktemp -d) && STAGEHAND_CONFIG=$tmp/c.toml ./bin/stagehand config init --force >/dev/null 2>&1
+tmp=$(mktemp -d) && STAGECOACH_CONFIG=$tmp/c.toml ./bin/stagecoach config init --force >/dev/null 2>&1
 grep -i "default_provider" $tmp/c.toml && echo "STALE annotation present" || echo "OK: no default_provider in generated config"
 rm -rf $tmp
 ```
@@ -709,7 +709,7 @@ rm -rf $tmp
 #   - config_version is 3 everywhere; config upgrade describes the FR-B7 fold.
 #   - The decompose description (README blurb + how-it-works) matches: T_start freeze + one-file short-circuit.
 #   - The "Adding a new agent" / user-provider example stays single-backend (bare default_model) — UNCHANGED.
-# Cross-check any numbers against `stagehand --help` (the binary is authoritative per docs/README.md).
+# Cross-check any numbers against `stagecoach --help` (the binary is authoritative per docs/README.md).
 ```
 
 ## Final Validation Checklist
@@ -720,7 +720,7 @@ rm -rf $tmp
 - [ ] All Level 2 PRESENCE greps (6)–(12) return the expected hits.
 - [ ] `make build` succeeds; `make test` green; go.mod/go.sum UNCHANGED.
 - [ ] The bootstrap.go diff is comment/annotation STRINGS only (no logic change) — verified by `git diff`.
-- [ ] `stagehand config init` output is default_provider-free (Level 3 smoke).
+- [ ] `stagecoach config init` output is default_provider-free (Level 3 smoke).
 
 ### Feature Validation
 
@@ -744,7 +744,7 @@ rm -rf $tmp
 
 - [ ] The docs are internally self-consistent (same 8-provider order, same model-prefix form, same reasoning
       defaults, same version 3) across README + docs/.
-- [ ] The docs match the shipped binary (`stagehand --help` is authoritative; docs/README.md already states this).
+- [ ] The docs match the shipped binary (`stagecoach --help` is authoritative; docs/README.md already states this).
 - [ ] No new env vars / config keys / flags are INVENTED — only documented (all were shipped in P1–P3).
 - [ ] The config init generated-file annotations (bootstrap.go) explain the v3 model-prefix, not default_provider.
 

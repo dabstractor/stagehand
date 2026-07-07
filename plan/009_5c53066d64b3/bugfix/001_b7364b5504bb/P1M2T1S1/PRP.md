@@ -2,7 +2,7 @@
 name: "P1.M2.T1.S1 — Hoist payload variable out of runPipeline generation loop"
 description: |
   Pure variable-scoping refactor (0.5 pt — the structural enabler for P1.M2.T1.S2). In
-  `pkg/stagehand/stagehand.go`, the `runPipeline` generation+dedupe loop (the `--dry-run` / SystemExtra
+  `pkg/stagecoach/stagecoach.go`, the `runPipeline` generation+dedupe loop (the `--dry-run` / SystemExtra
   path) declares `payload := prompt.BuildUserPayload(...)` INSIDE the loop (line 490), making it
   loop-scoped — invisible after the loop. The FR-T1 multi-turn trigger gate (landing in P1.M2.T1.S2) must
   read the **last-built payload** at the rescue insertion point (between `if !success {` and the
@@ -19,7 +19,7 @@ description: |
   ⚠️ **THE second design call — behavioral UNCHANGED is the keystone invariant.** payload is STILL rebuilt
   every iteration (the `payload = prompt.BuildUserPayload(...)` is the first statement in the loop body,
   unchanged). The ONLY difference is SCOPE: loop-scoped → function-scoped, so the last-built payload
-  survives for the FR-T1 gate to read post-loop. Every existing `pkg/stagehand` test (which exercises the
+  survives for the FR-T1 gate to read post-loop. Every existing `pkg/stagecoach` test (which exercises the
   loop, not post-loop payload reads) MUST stay green byte-for-byte. No new test is warranted — a pure
   scoping refactor has no new behavior to pin; the existing suite is the regression net.
 
@@ -28,7 +28,7 @@ description: |
   scope. S1 ONLY hoists the variable so S2 has somewhere to read it. Inserting the gate here would steal
   S2's scope and couple two changes.
 
-  SCOPE: edit `pkg/stagehand/stagehand.go` ONLY (the 2 edits above). No tests, no docs, no other files.
+  SCOPE: edit `pkg/stagecoach/stagecoach.go` ONLY (the 2 edits above). No tests, no docs, no other files.
   INPUT = the runPipeline var block (483-487) + the loop-scoped payload (490). OUTPUT = `payload` hoisted
   to function scope, readable at the rescue insertion point; consumed by P1.M2.T1.S2. DOCS: none (pure
   refactor).
@@ -37,25 +37,25 @@ description: |
 ## Goal
 
 **Feature Goal**: Hoist the `payload` variable from loop scope to function scope in `runPipeline`
-(`pkg/stagehand/stagehand.go`), so the last-built payload survives the generation loop and is readable at
+(`pkg/stagecoach/stagecoach.go`), so the last-built payload survives the generation loop and is readable at
 the rescue insertion point — the structural prerequisite for the FR-T1 multi-turn trigger gate
 (P1.M2.T1.S2). Zero behavioral change to the loop.
 
 **Deliverable** (edit to ONE file):
-1. **`pkg/stagehand/stagehand.go`** — (a) add `var payload string // hoisted: survives the loop for the
+1. **`pkg/stagecoach/stagecoach.go`** — (a) add `var payload string // hoisted: survives the loop for the
    FR-T1 multi-turn gate (mirrors CommitStaged)` immediately after line 487 (`var lastCause error`);
    (b) line 490, change `payload := prompt.BuildUserPayload(diff, cfg.Context, rejected)` →
    `payload = prompt.BuildUserPayload(diff, cfg.Context, rejected)` (`:=` → `=`).
 
-**Success Definition**: `gofmt -l pkg/stagehand/` clean; `go vet ./pkg/stagehand/` clean (no shadowing);
-`go build ./...` succeeds; `go test ./pkg/stagehand/...` green AND `go test -race ./...` green (no
+**Success Definition**: `gofmt -l pkg/stagecoach/` clean; `go vet ./pkg/stagecoach/` clean (no shadowing);
+`go build ./...` succeeds; `go test ./pkg/stagecoach/...` green AND `go test -race ./...` green (no
 behavioral change — every existing test passes byte-for-byte). go.mod/go.sum unchanged; only
-`pkg/stagehand/stagehand.go` touched; the loop body is identical except the one `:=`→`=`.
+`pkg/stagecoach/stagecoach.go` touched; the loop body is identical except the one `:=`→`=`.
 
 ## User Persona
 
 **Target User**: The NEXT subtask (P1.M2.T1.S2 — wires the FR-T1 multi-turn gate into runPipeline) and,
-transitively, the user who runs `stagehand --dry-run` on a large diff (Issue 1: the dry-run path silently
+transitively, the user who runs `stagecoach --dry-run` on a large diff (Issue 1: the dry-run path silently
 lacks multi-turn). This task is the variable-scope prerequisite that makes S2's gate possible.
 
 **Use Case**: (internal refactor, no user-visible change yet) `runPipeline` builds `payload` each loop
@@ -77,7 +77,7 @@ multi-turn into the dry-run path. (The user-visible fix lands in S2; this task i
   `var payload string` before its loop for the same reason (its FR-T1 gate already reads it). runPipeline
   is a pre-multi-turn copy that never got the hoist. This task brings it to parity.
 - **Zero risk.** A pure scoping refactor: payload is still rebuilt every iteration; only its lifetime
-  changes. The existing `pkg/stagehand` suite is a strong regression net.
+  changes. The existing `pkg/stagecoach` suite is a strong regression net.
 - **Tiny + isolated.** 2 edits in one file; no tests/docs/deps. Keeps S1 and S2 cleanly separable (S1 =
   hoist; S2 = gate) so each is independently reviewable.
 
@@ -95,9 +95,9 @@ readability of `payload` changes (for S2 to consume).
       `payload = prompt.BuildUserPayload(diff, cfg.Context, rejected)`.
 - [ ] The rest of the loop body is byte-identical (the `if parseFail { payload = retryInstr + "\n\n" +
       payload }` and the `Render(..., payload, ...)` are unchanged).
-- [ ] `gofmt -l pkg/stagehand/`, `go vet ./pkg/stagehand/`, `go build ./...` clean; `go test -race
-      ./pkg/stagehand/...` AND `go test -race ./...` green (no behavioral change).
-- [ ] go.mod/go.sum unchanged; only `pkg/stagehand/stagehand.go` touched; no FR-T1 gate / multiturn.Run /
+- [ ] `gofmt -l pkg/stagecoach/`, `go vet ./pkg/stagecoach/`, `go build ./...` clean; `go test -race
+      ./pkg/stagecoach/...` AND `go test -race ./...` green (no behavioral change).
+- [ ] go.mod/go.sum unchanged; only `pkg/stagecoach/stagecoach.go` touched; no FR-T1 gate / multiturn.Run /
       verbose line added (those are S2).
 
 ## All Needed Context
@@ -127,7 +127,7 @@ knowledge required — this is a variable-scope hoist.
   critical: the resolution_strategy scopes Edit 1 + Edit 2 as THIS task (S1); the gate insertion is a
        separate, later step in the same ISSUE 1 section (consumed by S2).
 
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   section: runPipeline var block (483-487) + loop (489) + payload line (490)
   why: the file you edit. var block: `retryInstr`/`rejected`/`candidate,msg`/`parseFail,success`/
        `lastCause`. Loop body: `payload :=` (490) → hoist + `=`.
@@ -146,7 +146,7 @@ knowledge required — this is a variable-scope hoist.
 
 - docfile: plan/009_5c53066d64b3/bugfix/001_b7364b5504bb/P1M1T3S1/PRP.md
   why: confirms the PARALLEL task touches ONLY `internal/generate/generate.go` (CommitStaged verbose
-       progress line) + `internal/generate/multiturn_test.go`. ZERO overlap with pkg/stagehand/stagehand.go.
+       progress line) + `internal/generate/multiturn_test.go`. ZERO overlap with pkg/stagecoach/stagecoach.go.
        Its PRP line 18 notes "the line is the copy source for P1.M2.T1.S2" — S2 copies the verbose format,
        not S1; the hoist is independent of it.
 ```
@@ -154,16 +154,16 @@ knowledge required — this is a variable-scope hoist.
 ### Current Codebase tree (relevant slice)
 
 ```bash
-pkg/stagehand/stagehand.go   # runPipeline var block (483-487) + loop payload (490) — EDIT (2 edits: hoist + := → =)
+pkg/stagecoach/stagecoach.go   # runPipeline var block (483-487) + loop payload (490) — EDIT (2 edits: hoist + := → =)
 go.mod / go.sum              # unchanged
-# NO tests added (pure refactor; existing pkg/stagehand suite is the regression net).
+# NO tests added (pure refactor; existing pkg/stagecoach suite is the regression net).
 # NO docs (pure refactor). NO other files.
 ```
 
 ### Desired Codebase tree with files to be added
 
 ```bash
-# NO new files. ONE edit: pkg/stagehand/stagehand.go (hoist `var payload string` + `:=` → `=`).
+# NO new files. ONE edit: pkg/stagecoach/stagecoach.go (hoist `var payload string` + `:=` → `=`).
 ```
 
 ### Known Gotchas of our codebase & Library Quirks
@@ -187,7 +187,7 @@ go.mod / go.sum              # unchanged
 // (line 492) ALREADY uses `=`; after the hoist it assigns to the function-scoped payload (same effect).
 
 // GOTCHA: no shadowing. grep confirms `payload` is declared only at line 490 today (→ becomes the hoist);
-// the loop body only ASSIGNS. `go vet ./pkg/stagehand/` is clean now and stays clean (the hoist removes
+// the loop body only ASSIGNS. `go vet ./pkg/stagecoach/` is clean now and stays clean (the hoist removes
 // the only in-loop declaration, it doesn't add one). If vet warns, you left a `:=` somewhere.
 
 // GOTCHA: do NOT reorder runPipeline's var block to match CommitStaged's ordering. Just ADD the one
@@ -216,21 +216,21 @@ N/A — no types, no data models. A variable-scope hoist. The "before/after":
 ### Implementation Tasks (ordered by dependencies)
 
 ```yaml
-Task 1: stagehand.go — hoist `var payload string` (Edit 1)
+Task 1: stagecoach.go — hoist `var payload string` (Edit 1)
   - ADD immediately after line 487 (`var lastCause error`):
     `var payload string // hoisted: survives the loop for the FR-T1 multi-turn gate (mirrors CommitStaged)`.
   - KEEP it inside the var block (do not scatter). Exact comment text (documents the WHY for future readers).
 
-Task 2: stagehand.go — loop body `:=` → `=` (Edit 2)
+Task 2: stagecoach.go — loop body `:=` → `=` (Edit 2)
   - CHANGE line 490 from `payload := prompt.BuildUserPayload(diff, cfg.Context, rejected)` to
     `payload = prompt.BuildUserPayload(diff, cfg.Context, rejected)`.
   - DO NOT touch any other line in the loop body (the `if parseFail { payload = retryInstr + "\n\n" +
     payload }` and `Render(..., payload, ...)` are unchanged).
 
 Task 3: VERIFY (no further file change)
-  - RUN `gofmt -w pkg/stagehand/stagehand.go`; `go vet ./pkg/stagehand/`; `go build ./...`;
-    `go test -race ./pkg/stagehand/...`; `go test -race ./...`.
-  - go.mod/go.sum byte-unchanged. Only pkg/stagehand/stagehand.go touched. No gate / multiturn / verbose
+  - RUN `gofmt -w pkg/stagecoach/stagecoach.go`; `go vet ./pkg/stagecoach/`; `go build ./...`;
+    `go test -race ./pkg/stagecoach/...`; `go test -race ./...`.
+  - go.mod/go.sum byte-unchanged. Only pkg/stagecoach/stagecoach.go touched. No gate / multiturn / verbose
     line added (S2's scope).
 ```
 
@@ -260,7 +260,7 @@ for attempt := 0; attempt <= cfg.MaxDuplicateRetries; attempt++ {
 GO MODULE (go.mod / go.sum): NONE — pure refactor; no new dep. go mod tidy MUST be a no-op.
 
 FROZEN / NOT-EDITED:
-  - Everything except the 2 edits in pkg/stagehand/stagehand.go's runPipeline.
+  - Everything except the 2 edits in pkg/stagecoach/stagecoach.go's runPipeline.
   - The runPipeline loop body (only the `:=`→`=` changes; the parseFail branch + Render call are unchanged).
   - internal/generate/generate.go (P1.M1.T3.S1 owns the CommitStaged verbose line there — parallel, no overlap).
   - internal/hook/exec.go (P1.M3.T1.S1/S2 own the hook-path multi-turn propagation — separate).
@@ -280,9 +280,9 @@ NO DATABASE / NO ROUTES / NO CONFIG / NO CLI / NO NEW FILES / NO TESTS / NO DOCS
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-gofmt -w pkg/stagehand/stagehand.go
-test -z "$(gofmt -l pkg/stagehand/)" && echo "gofmt clean" || echo "GOFMT DIRTY"
-go vet ./pkg/stagehand/        # THE key gate: catches a shadowing warning or a stray `:=`.
+gofmt -w pkg/stagecoach/stagecoach.go
+test -z "$(gofmt -l pkg/stagecoach/)" && echo "gofmt clean" || echo "GOFMT DIRTY"
+go vet ./pkg/stagecoach/        # THE key gate: catches a shadowing warning or a stray `:=`.
 go build ./...                 # Whole module compiles.
 git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
 # Expected: clean. If `go vet` warns about `payload` (declared and not used / shadowing), you either left
@@ -292,7 +292,7 @@ git diff --exit-code go.mod go.sum && echo "go.mod/go.sum UNCHANGED (expected)"
 ### Level 2: Unit Tests (Component Validation) — the no-behavioral-change gate
 
 ```bash
-go test -race ./pkg/stagehand/...   # the runPipeline generation loop + dry-run path
+go test -race ./pkg/stagecoach/...   # the runPipeline generation loop + dry-run path
 # Expected: ALL PASS UNCHANGED. payload is still rebuilt every iteration; only its scope changed. These
 #   tests exercise the loop (generate→parse→dedupe) and the dry-run success/rescue paths, none of which
 #   read post-loop payload — so they are byte-for-byte unaffected.
@@ -303,11 +303,11 @@ go test -race ./...                 # full module — no regression.
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
-# Confirm only pkg/stagehand/stagehand.go changed, and only the 2 edits:
-git diff --stat pkg/stagehand/stagehand.go
-git diff pkg/stagehand/stagehand.go | grep -E '^\+' | grep -v '^\+\+\+'   # the added/changed lines
+# Confirm only pkg/stagecoach/stagecoach.go changed, and only the 2 edits:
+git diff --stat pkg/stagecoach/stagecoach.go
+git diff pkg/stagecoach/stagecoach.go | grep -E '^\+' | grep -v '^\+\+\+'   # the added/changed lines
 # Expected: exactly (1) the new `var payload string // hoisted: ...` line and (2) the `payload =` (was `:=`).
 #   No other added/changed lines. No gate, no multiturn import, no verbose Fprintf.
 ```
@@ -316,10 +316,10 @@ git diff pkg/stagehand/stagehand.go | grep -E '^\+' | grep -v '^\+\+\+'   # the 
 
 ```bash
 # Scope audit: confirm NO multi-turn machinery leaked into this refactor (S2's scope).
-grep -nE 'multiturn|MultiTurn|FR-T1|trigger gate|falling back to multi-turn' pkg/stagehand/stagehand.go
+grep -nE 'multiturn|MultiTurn|FR-T1|trigger gate|falling back to multi-turn' pkg/stagecoach/stagecoach.go
 # Expected: NO new matches (S1 is a pure hoist; the gate is S2). Pre-existing references, if any in
 # unrelated parts of the file, are fine — this audit is about the DIFF, so check `git diff` instead:
-git diff pkg/stagehand/stagehand.go | grep -iE 'multiturn|FR-T1|gate' || echo "no gate/multiturn added (correct — S2's scope)"
+git diff pkg/stagecoach/stagecoach.go | grep -iE 'multiturn|FR-T1|gate' || echo "no gate/multiturn added (correct — S2's scope)"
 # golangci-lint: `make lint` (project-wide gate).
 ```
 
@@ -327,9 +327,9 @@ git diff pkg/stagehand/stagehand.go | grep -iE 'multiturn|FR-T1|gate' || echo "n
 
 ### Technical Validation
 
-- [ ] Level 1 clean: `gofmt -l pkg/stagehand/`, `go vet ./pkg/stagehand/`, `go build ./...`, `go mod tidy` no-op.
-- [ ] Level 2 green: `go test -race ./pkg/stagehand/...` AND `go test -race ./...` (no behavioral change).
-- [ ] Level 3: binary builds; go.mod/go.sum unchanged; only `pkg/stagehand/stagehand.go` changed; diff is
+- [ ] Level 1 clean: `gofmt -l pkg/stagecoach/`, `go vet ./pkg/stagecoach/`, `go build ./...`, `go mod tidy` no-op.
+- [ ] Level 2 green: `go test -race ./pkg/stagecoach/...` AND `go test -race ./...` (no behavioral change).
+- [ ] Level 3: binary builds; go.mod/go.sum unchanged; only `pkg/stagecoach/stagecoach.go` changed; diff is
       exactly the 2 edits (hoist + `:=`→`=`).
 
 ### Feature Validation
@@ -370,10 +370,10 @@ git diff pkg/stagehand/stagehand.go | grep -iE 'multiturn|FR-T1|gate' || echo "n
   var back to `:=`, silently re-breaking the S2 gate that reads it post-loop.
 - ❌ Don't touch the `if parseFail { payload = retryInstr + "\n\n" + payload }` line (492). It already uses
   `=`; after the hoist it assigns to the function-scoped payload (same per-iteration effect).
-- ❌ Don't add a test. A pure scoping refactor has no new behavior to pin; the existing `pkg/stagehand`
+- ❌ Don't add a test. A pure scoping refactor has no new behavior to pin; the existing `pkg/stagecoach`
   suite (which exercises the loop and the dry-run success/rescue paths) is the regression net.
 - ❌ Don't touch `internal/generate/generate.go` or `internal/hook/exec.go`. generate.go is P1.M1.T3.S1's
-  (parallel, no overlap); hook is P1.M3's. This task is `pkg/stagehand/stagehand.go` only.
+  (parallel, no overlap); hook is P1.M3's. This task is `pkg/stagecoach/stagecoach.go` only.
 - ❌ Don't change go.mod/go.sum or add files. Two edits, one file.
-- ❌ Don't skip `go vet ./pkg/stagehand/` — it is THE gate that confirms no shadowing / no stray `:=`. And
-  don't skip `go test -race ./pkg/stagehand/...` — it confirms the loop behaves identically.
+- ❌ Don't skip `go vet ./pkg/stagecoach/` — it is THE gate that confirms no shadowing / no stray `:=`. And
+  don't skip `go test -race ./pkg/stagecoach/...` — it confirms the loop behaves identically.

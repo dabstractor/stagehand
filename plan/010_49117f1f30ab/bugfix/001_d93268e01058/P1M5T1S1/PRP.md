@@ -3,13 +3,13 @@ name: "P1.M5.T1.S1 (Mode B docs) — Sweep README.md and docs/how-it-works.md fo
 description: |
 
   Mode B changeset-level documentation sync, DEPENDENT ON all 4 implementing subtasks (P1.M1.T1 argc=1,
-  P1.M1.T2 trailing newline, P1.M2.T1 stagehand.noVerify, P1.M3.T1 empty-message guard — all COMPLETE).
+  P1.M1.T2 trailing newline, P1.M2.T1 stagecoach.noVerify, P1.M3.T1 empty-message guard — all COMPLETE).
   The per-file docs (docs/cli.md:44, docs/configuration.md:155) + config.go:130 were ALREADY corrected in
   P1.M2.T1.S1 (Mode A). THIS task sweeps ONLY the overview/README-level docs that the per-file fix didn't
   touch: README.md:71, README.md:367-369, docs/how-it-works.md:310-324, docs/how-it-works.md:337.
 
   RESEARCH VERDICT (grep-confirmed, all 4 locations read in full):
-    - Check (a) stale `stagehand.no_verify` key: NOT PRESENT in either overview doc (grep count 0). The
+    - Check (a) stale `stagecoach.no_verify` key: NOT PRESENT in either overview doc (grep count 0). The
       stale key was only in docs/cli.md:44 + docs/configuration.md:155 + config.go:130 — all already fixed
       in P1.M2.T1.S1. NO CHANGE.
     - Check (b) 2-args/argc claim: NOT PRESENT (overview docs never mention argv). NO CHANGE.
@@ -25,7 +25,7 @@ description: |
 
   CONTRACT (item_description §1–§5; Bug-Fix PRD §h2.2 Issue 4):
     3. LOGIC: "Review README.md:71, README.md:367-369, docs/how-it-works.md:310-324, and docs/how-it-works.md:337.
-       Check whether any content: (a) references the old invalid key name 'stagehand.no_verify' … (b) claims
+       Check whether any content: (a) references the old invalid key name 'stagecoach.no_verify' … (b) claims
        prepare-commit-msg runs with 2 args … (c) implies message files have no trailing newline … or (d)
        omits the empty-message abort behavior (should mention it for completeness, like the --edit abort).
        If any of these are found, update the doc text … If none are found (likely for README which is
@@ -43,13 +43,13 @@ description: |
   SCOPE BOUNDARY (do NOT edit):
     - README.md — REVIEWED, NO CHANGE required (high-level; both locations clean). Do NOT add failure-mode
       detail to the feature-table row or rewrite the FAQ.
-    - docs/cli.md, docs/configuration.md, internal/config/config.go — the `stagehand.noVerify` key fix is
+    - docs/cli.md, docs/configuration.md, internal/config/config.go — the `stagecoach.noVerify` key fix is
       ALREADY DONE (P1.M2.T1.S1). Re-touching is out of scope and risks churn.
     - docs/how-it-works.md other sections + the L337 feature-list bullet — NOT in scope for the abort detail.
     - ANY source code / tests — Mode B docs-only.
 
   SUCCESS: docs/how-it-works.md "Commit hooks on the plumbing path" documents the empty-message-after-hooks
-  abort (exit 1, no commit) alongside the existing rescue (exit 3) behavior; NO stale `stagehand.no_verify`/
+  abort (exit 1, no commit) alongside the existing rescue (exit 3) behavior; NO stale `stagecoach.no_verify`/
   argc/trailing-newline references exist in either overview doc (grep-confirmed 0); README.md reviewed and
   unchanged; markdown well-formed; only docs/how-it-works.md modified.
 
@@ -59,7 +59,7 @@ description: |
 
 **Feature Goal**: Sync the overview-level hooks documentation to the post-bugfix git-parity behavior.
 Concretely: (1) confirm by grep + full read that README.md and docs/how-it-works.md contain NO stale
-`stagehand.no_verify` key name, NO incorrect argc/2-args claim, and NO trailing-newline misstatement (the
+`stagecoach.no_verify` key name, NO incorrect argc/2-args claim, and NO trailing-newline misstatement (the
 stale technical details were per-file/code, already fixed in P1.M2.T1.S1); and (2) close the ONE real
 accuracy gap — the detailed "Commit hooks on the plumbing path" section enumerates hook failure modes but
 omits the Issue-4 empty-message-after-hooks abort, so add it for completeness, mirroring the `--edit`
@@ -82,12 +82,12 @@ empty-result abort.
 
 ## User Persona
 
-**Target User**: the stagehand user (or contributor) reading "How it works" to understand what happens when
+**Target User**: the stagecoach user (or contributor) reading "How it works" to understand what happens when
 a hook misbehaves — specifically the user whose `commit-msg`/`prepare-commit-msg` hook rejects a message by
-emptying the file (a common force-re-edit / rejection pattern). They want to know stagehand aborts cleanly
+emptying the file (a common force-re-edit / rejection pattern). They want to know stagecoach aborts cleanly
 (exit 1, no commit) just like `git commit`.
 
-**Use Case**: user has a `commit-msg` hook that empties `$1` to reject a message → runs `stagehand` → reads
+**Use Case**: user has a `commit-msg` hook that empties `$1` to reject a message → runs `stagecoach` → reads
 how-it-works.md to confirm the behavior → sees the empty-message abort documented (exit 1, no commit, clean
 repo) alongside the rescue behavior.
 
@@ -96,7 +96,7 @@ sees the new empty-message abort sentence (exit 1) → understands the two disti
 leave the repo clean.
 
 **Pain Points Addressed**: the detailed section documented ONE abort path (rescue) but not the other
-(empty-message); a user with a rejecting hook had no doc confirming stagehand matches git's "Aborting commit
+(empty-message); a user with a rejecting hook had no doc confirming stagecoach matches git's "Aborting commit
 due to empty commit message." behavior. This closes that gap.
 
 ## Why
@@ -108,7 +108,7 @@ due to empty commit message." behavior. This closes that gap.
   abort that the Issue-4 fix added is the sync this section needs.
 - **Documents shipped behavior, not a promise.** The empty-message guard is LANDED (P1.M3.T1.S1 Complete)
   in all 3 commit paths. The docs describe existing behavior.
-- **Confirms the per-file fix covered the stale key.** The `stagehand.no_verify` → `stagehand.noVerify`
+- **Confirms the per-file fix covered the stale key.** The `stagecoach.no_verify` → `stagecoach.noVerify`
   rename was done in P1.M2.T1.S1 for the per-file docs + code. This task CONFIRMS (grep + read) that the
   overview docs never carried the stale key — so no dangling reference remains anywhere user-facing.
 - **Cheap and isolated.** One sentence in one docs file + a documented review. No code, no tests, no
@@ -129,7 +129,7 @@ sentence:
 > `update-ref` has run).
 
 **The review (documented, no edits)**: README.md:71 (feature-table row), README.md:367-369 (FAQ), and
-docs/how-it-works.md:337 (feature-list bullet) were checked for stale `stagehand.no_verify` / 2-args /
+docs/how-it-works.md:337 (feature-list bullet) were checked for stale `stagecoach.no_verify` / 2-args /
 trailing-newline content. None found (`grep -cE 'no_verify|argc|two arg|2 arg'` = 0 for both files). These
 locations are appropriately high-level (the feature-table row and the feature-list bullet enumerate no
 failure modes; the FAQ lists one abort example already) and require no change.
@@ -196,7 +196,7 @@ the LEAVE list (README, cli.md, configuration.md, config.go, all code/tests). No
 
 # READ — the cited README locations (confirm high-level + clean; do NOT edit)
 - file: README.md   (READ ONLY — L71 feature-table row + L367-369 FAQ)
-  section: L71 "Commit hooks on every `stagehand` commit" row (mentions only the hook chain + `--no-verify`;
+  section: L71 "Commit hooks on every `stagecoach` commit" row (mentions only the hook chain + `--no-verify`;
        enumerates NO failure modes). L367-369 "Does it run my pre-commit hooks?" FAQ (lists one abort example:
        "a hook that stages brand-new content aborts the run").
   why: confirms README is appropriately high-level and contains no stale key/argc/newline refs. The contract
@@ -209,13 +209,13 @@ the LEAVE list (README, cli.md, configuration.md, config.go, all code/tests). No
 - file: internal/generate/generate.go   (READ ONLY)
   section: CommitStaged — after RunCommitHooks returns, the empty-message guard (P1.M3.T1.S1) returns a
        non-rescue error when the finalized message is empty (after trimming) → exit 1, no CommitTree, no
-       update-ref. (Same guard in pkg/stagehand.runPipeline and internal/decompose/message.go publishCommit.)
+       update-ref. (Same guard in pkg/stagecoach.runPipeline and internal/decompose/message.go publishCommit.)
   why: confirms the empty-message abort IS the shipped behavior the new sentence describes. (Issue 4 fix =
        Complete; no code change needed for this docs task.)
 
 - url: (PRD internal) Bug-Fix PRD §h2.2 Issue 4 (in context as selected_prd_content h3.3) — the AUTHORITATIVE
        statement of the empty-message abort: git aborts "Aborting commit due to empty commit message." (exit 1,
-       no commit); stagehand must do the same. The new sentence documents this parity.
+       no commit); stagecoach must do the same. The new sentence documents this parity.
 ```
 
 ### Current Codebase tree (relevant slice)
@@ -224,11 +224,11 @@ the LEAVE list (README, cli.md, configuration.md, config.go, all code/tests). No
 docs/
   how-it-works.md   # EDIT — `## Commit hooks on the plumbing path`: +1 sentence (empty-message abort, Issue 4).
   cli.md            # READ ONLY — L42 the --edit "exit 1, not a rescue" parallel (wording source). NOT edited.
-  configuration.md  # READ ONLY — stagehand.noVerify already fixed (P1.M2.T1.S1). NOT edited.
+  configuration.md  # READ ONLY — stagecoach.noVerify already fixed (P1.M2.T1.S1). NOT edited.
 README.md           # READ ONLY — L71 + L367-369 reviewed, high-level + clean. NOT edited.
 internal/generate/generate.go   # READ ONLY — CommitStaged empty-message guard (P1.M3.T1.S1, shipped).
 internal/hooks/runner.go        # READ ONLY — Issues 1/2 fixes (argc=1, trailing newline) shipped.
-internal/config/config.go       # READ ONLY — stagehand.noVerify comment already fixed (P1.M2.T1.S1).
+internal/config/config.go       # READ ONLY — stagecoach.noVerify comment already fixed (P1.M2.T1.S1).
 ```
 
 ### Desired Codebase tree with files to be added/changed
@@ -255,8 +255,8 @@ docs/how-it-works.md   # +1 sentence in `## Commit hooks on the plumbing path` (
 
 <!-- CRITICAL (checks a/b/c are CLEAN — do NOT invent stale refs to "fix"): grep confirms ZERO
      `no_verify`/`argc`/`two arg`/`2 arg` references in README.md and docs/how-it-works.md. The stale
-     `stagehand.no_verify` key was ONLY in docs/cli.md:44 + docs/configuration.md:155 + config.go:130 — all
-     already corrected to `stagehand.noVerify` in P1.M2.T1.S1. Do NOT "fix" a non-existent reference, and do
+     `stagecoach.no_verify` key was ONLY in docs/cli.md:44 + docs/configuration.md:155 + config.go:130 — all
+     already corrected to `stagecoach.noVerify` in P1.M2.T1.S1. Do NOT "fix" a non-existent reference, and do
      NOT re-touch those already-fixed files. The only edit is check (d). (findings §1/§4.) -->
 
 <!-- GOTCHA (placement — group the two aborts): insert the new sentence IMMEDIATELY AFTER the rescue
@@ -372,7 +372,7 @@ README (READ ONLY — reviewed, no change):
   - L367-369 FAQ: "answers 'does it run my hooks', lists one abort example already — NO change."
 
 FROZEN/LEAVE (do NOT edit):
-  - docs/configuration.md, internal/config/config.go (stagehand.noVerify fixed in P1.M2.T1.S1).
+  - docs/configuration.md, internal/config/config.go (stagecoach.noVerify fixed in P1.M2.T1.S1).
   - docs/how-it-works.md other sections + the L337 feature-list bullet.
   - ALL source code and tests (Mode B docs-only; the 4 bugfixes are the INPUT).
 ```
@@ -458,7 +458,7 @@ grep -rn 'empty' internal/decompose/message.go | grep -iE 'message|abort'   # th
       abort (exit 1, no commit, mirrors git + `--edit`, HEAD/index untouched) alongside the rescue (exit 3).
 - [ ] The new sentence is placed after the rescue sentence, before the `post-commit` best-effort sentence.
 - [ ] Accuracy: "exit 1, NOT a rescue" (not exit 3); "no commit"; "HEAD and the index untouched".
-- [ ] Checks (a)/(b)/(c) confirmed clean (grep 0); the stale `stagehand.no_verify` key lives nowhere in the
+- [ ] Checks (a)/(b)/(c) confirmed clean (grep 0); the stale `stagecoach.no_verify` key lives nowhere in the
       overview docs (it was per-file/code, already fixed in P1.M2.T1.S1).
 - [ ] README.md reviewed and unchanged (high-level + clean at both cited locations).
 
@@ -485,10 +485,10 @@ grep -rn 'empty' internal/decompose/message.go | grep -iE 'message|abort'   # th
 - ❌ **Don't edit README.md.** The contract says README is "likely high-level" → no change. The feature-table
   row (L71) enumerates no failure modes; the FAQ (L367-369) answers "does it run my hooks" and already lists
   one abort example. Adding failure-mode detail there is inconsistent. REVIEW ONLY. (gotcha)
-- ❌ **Don't re-touch docs/cli.md, docs/configuration.md, or config.go.** The `stagehand.noVerify` rename was
+- ❌ **Don't re-touch docs/cli.md, docs/configuration.md, or config.go.** The `stagecoach.noVerify` rename was
   completed in P1.M2.T1.S1 (Mode A). Re-editing is out of scope and risks churn. (scope)
 - ❌ **Don't invent stale references to "fix".** Checks (a)/(b)/(c) are CLEAN (grep count 0). Do not add a
-  `stagehand.noVerify` mention to the overview docs "for completeness" — these docs intentionally stay
+  `stagecoach.noVerify` mention to the overview docs "for completeness" — these docs intentionally stay
   high-level and mention only the `--no-verify` flag. The only edit is check (d). (gotcha)
 - ❌ **Don't place the new sentence at the section end or near `--no-verify`.** Group it with the rescue
   sentence (immediately after it, before `post-commit` best-effort) so the two abort behaviors sit together.

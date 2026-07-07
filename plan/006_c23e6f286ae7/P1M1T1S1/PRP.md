@@ -5,7 +5,7 @@ description: |
   SetSnapshot, lockDir, sha256 hash, LockContents, HeldError, parseContents, atomic.Pointer singleton),
   `lock_unix.go` (`//go:build !windows` — flock via LOCK_EX|LOCK_NB), `lock_windows.go`
   (`//go:build windows` — no-op stub; CAS is the guarantee), and `lock_test.go`. The lock is an advisory
-  flock auto-released on process death; located via XDG_RUNTIME_DIR → XDG_CACHE_HOME → ~/.cache/stagehand
+  flock auto-released on process death; located via XDG_RUNTIME_DIR → XDG_CACHE_HOME → ~/.cache/stagecoach
   /locks/<sha256-of-canonical-repo-path>.lock (NEVER in the repo). Acquire returns *HeldError (holder's
   parsed contents) on EWOULDBLOCK. SetSnapshot is a nil-safe package singleton (mirrors internal/signal).
   DEPENDENCY DECISION: prefer stdlib `syscall.Flock` (no go.mod change; matches the codebase's stdlib-only
@@ -61,12 +61,12 @@ flock.
 
 ## Why
 
-- **FR52 / PRD §18.5 defense-in-depth.** Two stagehand processes on one repo race on HEAD (the loser's
+- **FR52 / PRD §18.5 defense-in-depth.** Two stagecoach processes on one repo race on HEAD (the loser's
   §13.5 CAS aborts → dangling snapshot + "already committed" confusion). The lock makes the common local
   double-run impossible to stumble into; the CAS catches everything else (incl. shared/network FS). S1 is
   the lock primitive; S2 wires it.
 - **Self-contained leaf, no cycles.** `internal/lock` imports only stdlib (+ optionally x/sys) — no
-  stagehand deps (system_context.md §3). It mirrors the proven `internal/signal` singleton pattern.
+  stagecoach deps (system_context.md §3). It mirrors the proven `internal/signal` singleton pattern.
 - **Auto-release on death = no stale-lock bugs.** `flock` releases when the fd/process closes (incl.
   SIGKILL/crash) — deliberately avoiding the fragile `O_CREAT|O_EXCL`+PID-check pattern (PRD §18.5).
 - **stdlib syscall convention.** The codebase deliberately avoids `golang.org/x/sys` (4 files document
@@ -83,7 +83,7 @@ subsections. No wiring, no Busy exit code, no contention-message logic, no E2E (
 
 - [ ] `internal/lock/lock.go` exports `Locker`, `Acquire`, `(*Locker).Release`, `(*Locker).SetSnapshot`,
       `SetSnapshot` (package), `LockContents`, `HeldError`, and `parseContents`; has `var current atomic.Pointer[Locker]`.
-- [ ] `lockDir()` resolves `XDG_RUNTIME_DIR` → `XDG_CACHE_HOME` → `~/.cache/stagehand/locks` (each only
+- [ ] `lockDir()` resolves `XDG_RUNTIME_DIR` → `XDG_CACHE_HOME` → `~/.cache/stagecoach/locks` (each only
       if the env var is absolute); returns an error (NO CWD/repo fallback) when none resolve.
 - [ ] `Acquire(repoPath)` resolves the dir (`MkdirAll 0o700`), hashes the canonical path
       (`filepath.EvalSymlinks` → sha256 hex), opens `<hash>.lock` (`O_CREATE|O_RDWR`), calls `flock`;
@@ -154,13 +154,13 @@ the S1/S2 boundary.
 - file: docs/how-it-works.md
   why: "EDIT. Under `## Safety and the rescue protocol` (line 142), add `### Per-repo run lock (FR52)`: two-stage defense (lock + CAS), per-host limit, never-in-repo location, no-op fast path, flock auto-release."
 - file: docs/configuration.md
-  why: "EDIT. Add a lock-file location-resolution subsection (XDG_RUNTIME_DIR → XDG_CACHE_HOME → ~/.cache/stagehand/locks/<hash>.lock) + the never-in-repo rationale."
+  why: "EDIT. Add a lock-file location-resolution subsection (XDG_RUNTIME_DIR → XDG_CACHE_HOME → ~/.cache/stagecoach/locks/<hash>.lock) + the never-in-repo rationale."
 ```
 
 ### Current Codebase Tree (relevant slice)
 
 ```bash
-stagehand/
+stagecoach/
 ├── go.mod                       # EDIT only if Option A (x/sys); UNCHANGED for Option B (stdlib)
 ├── internal/
 │   ├── lock/                    # NEW package (4 files)
@@ -179,7 +179,7 @@ stagehand/
 ### Desired Codebase Tree After S1
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/lock/               # NEW (self-contained leaf; stdlib-only under Option B)
 │   ├── lock.go
 │   ├── lock_unix.go
@@ -308,14 +308,14 @@ type LockContents struct {
 	Pid, Hostname, Repo, Timestamp, Snapshot string
 }
 
-// HeldError is returned by Acquire when another stagehand process holds the lock (LOCK_NB failed).
+// HeldError is returned by Acquire when another stagecoach process holds the lock (LOCK_NB failed).
 // Contents is the holder's parsed lock file (for the contention message); Path is the lock file path.
 type HeldError struct {
 	Contents LockContents
 	Path     string
 }
 func (e *HeldError) Error() string {
-	return fmt.Sprintf("stagehand run lock held by pid %s on %s", e.Contents.Pid, e.Contents.Hostname)
+	return fmt.Sprintf("stagecoach run lock held by pid %s on %s", e.Contents.Pid, e.Contents.Hostname)
 }
 
 // current is the process-global singleton (mirrors internal/signal.active). nil when no lock is held
@@ -384,9 +384,9 @@ Task 4: CREATE internal/lock/lock_test.go (package lock; in-process; -race clean
   - import os, path/filepath, strings, sync, testing.
   - helper: reset current in t.Cleanup (current.Store(nil)) — prevent singleton poisoning under -race.
   - TestLockDir_RuntimePreferred: t.Setenv("XDG_RUNTIME_DIR", tmpAbs); unset XDG_CACHE_HOME; → resolved dir
-    == tmpAbs/stagehand/locks.
-  - TestLockDir_CacheFallback: unset XDG_RUNTIME_DIR; t.Setenv("XDG_CACHE_HOME", tmpAbs) → tmpAbs/stagehand/locks.
-  - TestLockDir_HomeFallback: unset both XDG; t.Setenv("HOME", tmpHome) → tmpHome/.cache/stagehand/locks.
+    == tmpAbs/stagecoach/locks.
+  - TestLockDir_CacheFallback: unset XDG_RUNTIME_DIR; t.Setenv("XDG_CACHE_HOME", tmpAbs) → tmpAbs/stagecoach/locks.
+  - TestLockDir_HomeFallback: unset both XDG; t.Setenv("HOME", tmpHome) → tmpHome/.cache/stagecoach/locks.
   - TestLockDir_RejectedRelative: t.Setenv("XDG_RUNTIME_DIR", "rel/path") (not abs) → skipped; falls through.
   - TestLockDir_NoCwdFallbackError: unset both XDG + HOME (os.UserHomeDir fails) → lockDir returns error.
         (Use a HOME the resolver can't use, e.g. t.Setenv("HOME","") on a system where that breaks UserHomeDir,
@@ -424,8 +424,8 @@ Task 6: DOCS (Mode A)
     shared FS is the CAS's job); never-in-repo location (XDG runtime/cache; in-repo pollutes git status /
     committable / ambiguous across worktrees / lost on clone); no-op fast path (a contender with nothing
     new staged since the holder's published snapshot= exits 0); flock auto-release (no stale locks on crash/SIGKILL).
-  - docs/configuration.md: add a subsection: lock-file location = $XDG_RUNTIME_DIR/stagehand/locks/<hash>.lock
-    → else $XDG_CACHE_HOME/... → else ~/.cache/stagehand/locks/<hash>.lock; <hash> = sha256 of the repo's
+  - docs/configuration.md: add a subsection: lock-file location = $XDG_RUNTIME_DIR/stagecoach/locks/<hash>.lock
+    → else $XDG_CACHE_HOME/... → else ~/.cache/stagecoach/locks/<hash>.lock; <hash> = sha256 of the repo's
     canonical absolute path; never inside the repo (§18.5).
   - DO NOT edit docs/cli.md (Busy row = S2) or README (S3).
 ```
@@ -436,16 +436,16 @@ Task 6: DOCS (Mode A)
 // === lockDir() — VERBATIM target (integration_seams.md §5); NO CWD fallback ===
 func lockDir() (string, error) {
 	if xdg := os.Getenv("XDG_RUNTIME_DIR"); xdg != "" && filepath.IsAbs(xdg) {
-		return filepath.Join(xdg, "stagehand", "locks"), nil
+		return filepath.Join(xdg, "stagecoach", "locks"), nil
 	}
 	if xdg := os.Getenv("XDG_CACHE_HOME"); xdg != "" && filepath.IsAbs(xdg) {
-		return filepath.Join(xdg, "stagehand", "locks"), nil
+		return filepath.Join(xdg, "stagecoach", "locks"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err // NO CWD fallback — a lock in the repo is the §18.5 anti-pattern
 	}
-	return filepath.Join(home, ".cache", "stagehand", "locks"), nil
+	return filepath.Join(home, ".cache", "stagecoach", "locks"), nil
 }
 
 // === Acquire — the contention branch (EWOULDBLOCK → *HeldError with parsed holder contents) ===
@@ -495,7 +495,7 @@ func parseContents(data []byte) LockContents {
 ```yaml
 NEW PACKAGE (internal/lock — self-contained leaf):
   - imports: stdlib only (Option B); stdlib + golang.org/x/sys (Option A)
-  - NO stagehand imports (leaf — no cycle risk, system_context §3)
+  - NO stagecoach imports (leaf — no cycle risk, system_context §3)
   - exports: Locker, Acquire, (*Locker).Release, (*Locker).SetSnapshot, SetSnapshot (package),
              LockContents, HeldError, parseContents
 
@@ -526,7 +526,7 @@ DOWNSTREAM HOOKS (informational — S2 owns):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/lock/            # Expected: empty (run gofmt -w on any listed file)
 go vet ./internal/lock/            # Expected: exit 0
@@ -537,7 +537,7 @@ go build ./...                     # Expected: exit 0 (leaf adds cleanly; nothin
 ### Level 2: Unit Tests (the package's own validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./internal/lock/ -v   # Expected: all green (dir/hash/contents/contention/release/SetSnapshot)
 
@@ -548,7 +548,7 @@ go test -race ./internal/lock/ -v   # Expected: all green (dir/hash/contents/con
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...                 # Expected: ALL packages green (S1 adds a leaf, changes nothing else)
 go vet ./...                        # Expected: exit 0
@@ -562,7 +562,7 @@ git status --porcelain -- internal/ docs/ go.mod go.sum
 ### Level 4: Behavioral Smoke (manual cross-check of the primitive)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (Optional) a throwaway /tmp main that imports internal/lock and prints the resolved lock path + hash
 # for the CWD, then Acquire/Release — confirms XDG resolution + the canonical hash end-to-end. Not required

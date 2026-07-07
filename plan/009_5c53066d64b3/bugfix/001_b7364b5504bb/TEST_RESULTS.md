@@ -6,7 +6,7 @@ Comprehensive end-to-end validation of the multi-turn generation fallback featur
 
 The core multi-turn implementation in `internal/generate/generate.go::CommitStaged` is **solid and correct**: the trigger gate (FR-T1 conditions a–d), the N+1 turn protocol (FR-T4), the lossless chunking (FR-T2/FR-T3), the session lifecycle (FR-T6), the failure→rescue path (FR-T7), and the token_limit non-interaction (FR-T12) all match the PRD specification. The unit and integration tests are thorough.
 
-However, the multi-turn fallback was **only wired into `CommitStaged`** (`internal/generate/generate.go`) — one of **three** duplicated generation-loop implementations in the codebase. The other two — the `--dry-run` path (`runPipeline` in `pkg/stagehand/stagehand.go`) and the git hook path (`internal/hook/exec.go`) — were not updated, creating a functional gap where multi-turn is silently absent on those paths. The `--dry-run` gap is a Major issue because it directly contradicts FR49's "run the full pipeline" requirement.
+However, the multi-turn fallback was **only wired into `CommitStaged`** (`internal/generate/generate.go`) — one of **three** duplicated generation-loop implementations in the codebase. The other two — the `--dry-run` path (`runPipeline` in `pkg/stagecoach/stagecoach.go`) and the git hook path (`internal/hook/exec.go`) — were not updated, creating a functional gap where multi-turn is silently absent on those paths. The `--dry-run` gap is a Major issue because it directly contradicts FR49's "run the full pipeline" requirement.
 
 ---
 
@@ -24,22 +24,22 @@ None.
 
 **PRD Reference**: §9.12 FR49 ("`--dry-run` — run the full diff→snapshot→generate→parse→duplicate-check pipeline"); §9.24 FR-T1/FR-T10 (multi-turn trigger gate).
 
-**Expected Behavior**: When `stagehand --dry-run` is run on a large diff whose one-shot generation exhausts (empty/unparseable output after all retries), the multi-turn fallback should activate identically to the commit path — losslessly re-delivering the full diff across N+1 session turns to produce a single commit message. FR49 explicitly requires `--dry-run` to "run the full ... pipeline," and multi-turn is now part of that pipeline.
+**Expected Behavior**: When `stagecoach --dry-run` is run on a large diff whose one-shot generation exhausts (empty/unparseable output after all retries), the multi-turn fallback should activate identically to the commit path — losslessly re-delivering the full diff across N+1 session turns to produce a single commit message. FR49 explicitly requires `--dry-run` to "run the full ... pipeline," and multi-turn is now part of that pipeline.
 
-**Actual Behavior**: The `--dry-run` path routes through `runPipeline` (`pkg/stagehand/stagehand.go:415`), NOT through `CommitStaged`. `runPipeline` has its **own** generation loop (line 489) that is a pre-multi-turn copy — it has **zero** references to `MultiTurnFallback`, `multiturn.Run`, or any multi-turn logic. When the one-shot loop exhausts on a large diff, `runPipeline` directly returns a `*RescueError` (line 543–547) with no multi-turn gate in between. The user sees:
+**Actual Behavior**: The `--dry-run` path routes through `runPipeline` (`pkg/stagecoach/stagecoach.go:415`), NOT through `CommitStaged`. `runPipeline` has its **own** generation loop (line 489) that is a pre-multi-turn copy — it has **zero** references to `MultiTurnFallback`, `multiturn.Run`, or any multi-turn logic. When the one-shot loop exhausts on a large diff, `runPipeline` directly returns a `*RescueError` (line 543–547) with no multi-turn gate in between. The user sees:
 
 ```
 could not generate a commit message; run without --dry-run to see retries and the recovery recipe
 ```
 
-(exit 1) — even though running `stagehand` **without** `--dry-run` on the **same** diff would succeed via multi-turn.
+(exit 1) — even though running `stagecoach` **without** `--dry-run` on the **same** diff would succeed via multi-turn.
 
 **Steps to Reproduce**:
 
 1. Configure a pi provider with `session_mode = "append"` and a model (e.g., `zai/glm-5.2`).
 2. Stage a large diff (e.g., a file with ~200+ lines of changes, exceeding `multi_turn_chunk_tokens`).
-3. Run `stagehand --dry-run` → observe rescue error (exit 1).
-4. Run `stagehand` (without `--dry-run`) → multi-turn fires and succeeds (exit 0, commit lands).
+3. Run `stagecoach --dry-run` → observe rescue error (exit 1).
+4. Run `stagecoach` (without `--dry-run`) → multi-turn fires and succeeds (exit 0, commit lands).
 
 The inconsistency: `--dry-run` fails where the commit path succeeds, on the same diff.
 
@@ -48,10 +48,10 @@ The inconsistency: `--dry-run` fails where the commit path succeeds, on the same
 | Path | File | Multi-turn? |
 |---|---|---|
 | `CommitStaged` (commit path) | `internal/generate/generate.go:229` | ✅ Yes (gate at line ~300) |
-| `runPipeline` (dry-run / SystemExtra) | `pkg/stagehand/stagehand.go:489` | ❌ No |
+| `runPipeline` (dry-run / SystemExtra) | `pkg/stagecoach/stagecoach.go:489` | ❌ No |
 | hook exec (git hook mode) | `internal/hook/exec.go:157` | ❌ No |
 
-The routing decision in `GenerateCommit` (`pkg/stagehand/stagehand.go:147`):
+The routing decision in `GenerateCommit` (`pkg/stagecoach/stagecoach.go:147`):
 ```go
 if !opts.DryRun && opts.SystemExtra == "" {
     res, gerr := generate.CommitStaged(ctx, deps, cfg)  // HAS multi-turn
@@ -79,19 +79,19 @@ The cleanest long-term fix is to **eliminate the code duplication** — extract 
 
 **PRD Reference**: §9.24 FR-T10 ("Multi-turn serves the message role (the single-commit path, §13.1–§13.5)"); §9.20 FR-H4 ("run the standard pipeline — ... message-role generation ...").
 
-**Expected Behavior**: When a user has the `prepare-commit-msg` hook installed and runs `git commit` (from terminal, VS Code, or JetBrains) on a large diff, the hook's message-role generation should benefit from multi-turn, just as `stagehand` (the plumbing path) does.
+**Expected Behavior**: When a user has the `prepare-commit-msg` hook installed and runs `git commit` (from terminal, VS Code, or JetBrains) on a large diff, the hook's message-role generation should benefit from multi-turn, just as `stagecoach` (the plumbing path) does.
 
-**Actual Behavior**: The hook exec path (`internal/hook/exec.go:157`) has its own generation loop with **zero** multi-turn references. On a large diff, the one-shot loop exhausts, the hook prints a warning and exits 0 (FR-H5 never-block), and the user gets an empty editor — the multi-turn fallback never fires. The user would need to run `stagehand` directly (not `git commit`) to get multi-turn.
+**Actual Behavior**: The hook exec path (`internal/hook/exec.go:157`) has its own generation loop with **zero** multi-turn references. On a large diff, the one-shot loop exhausts, the hook prints a warning and exits 0 (FR-H5 never-block), and the user gets an empty editor — the multi-turn fallback never fires. The user would need to run `stagecoach` directly (not `git commit`) to get multi-turn.
 
 **Steps to Reproduce**:
-1. `stagehand hook install` with pi as the provider.
+1. `stagecoach hook install` with pi as the provider.
 2. Stage a large diff (exceeding `multi_turn_chunk_tokens`).
 3. `git commit` → empty editor (no generated message); one-shot exhausted, no multi-turn.
-4. `stagehand` (plumbing path) → multi-turn fires, message generated.
+4. `stagecoach` (plumbing path) → multi-turn fires, message generated.
 
 **Note**: FR-T10 explicitly scopes multi-turn to "the single-commit path (§13.1–§13.5)", and hook mode is §9.20 (a different path). So this is arguably by design. However, the practical inconsistency (hook mode silently lacks a feature the plumbing path has) could surprise users who rely on hook mode for IDE integration. If this is intentional, it should be documented; if not, the multi-turn gate should be propagated to the hook exec loop.
 
-**Suggested Fix**: Either (a) propagate the multi-turn gate into the hook exec loop (mirroring the CommitStaged gate, with the FR-H5 never-block contract preserved — multi-turn failure still exits 0), or (b) document explicitly in the hook FAQ that multi-turn is unavailable in hook mode and the user should use `stagehand` directly for large diffs.
+**Suggested Fix**: Either (a) propagate the multi-turn gate into the hook exec loop (mirroring the CommitStaged gate, with the FR-H5 never-block contract preserved — multi-turn failure still exits 0), or (b) document explicitly in the hook FAQ that multi-turn is unavailable in hook mode and the user should use `stagecoach` directly for large diffs.
 
 ### Issue 3: `--verbose` does not print the per-chunk token estimate (FR-T11)
 
@@ -110,7 +110,7 @@ The per-turn `VerbosePayload` call (in `executor.go`) does print each turn's byt
 
 **Steps to Reproduce**:
 1. Configure a large diff with pi as the provider.
-2. `stagehand -v` → observe the trigger line; it lacks the chunk token estimate.
+2. `stagecoach -v` → observe the trigger line; it lacks the chunk token estimate.
 
 **Suggested Fix**: Add the chunk token budget to the progress line or the verbose trigger line. For example, extend the progress line to: `"↳ falling back to multi-turn: %d turns (chunks of ~%d tokens), ~%dm total\n"` where the second `%d` is `cfg.MultiTurnChunkTokens`. Alternatively, add a `VerbosePayload`-style line for the total payload token count alongside the trigger.
 

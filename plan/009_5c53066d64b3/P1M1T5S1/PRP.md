@@ -12,7 +12,7 @@ description: |
      new section, no paragraph, no callout, no FAQ entry.
   2. Wording (adapt to the README's existing voice; verbatim candidate is in the
      Implementation block): "Lossless multi-turn fallback: when a one-shot generation
-     of a large diff fails, stagehand re-delivers the full diff across session turns
+     of a large diff fails, stagecoach re-delivers the full diff across session turns
      so the message still lands — no truncation, no extra commits."
   3. NO CLI flags or config details in the README body beyond a POINTER to docs. The
      feature is internally triggered; its only user surfaces are the progress line
@@ -51,13 +51,13 @@ for the two config keys).
 
 ## User Persona
 
-**Target User**: A developer reading the README to decide whether stagehand handles
+**Target User**: A developer reading the README to decide whether stagecoach handles
 their large diffs. (Transitively: PRD §7.1 primary persona "the plan-holder"; §9.24
 → G21.)
 
-**Use Case**: Scanning the Features table to see what stagehand does. They have a
+**Use Case**: Scanning the Features table to see what stagecoach does. They have a
 repo with very large commits where one-shot generation occasionally fails on a big
-diff, and they want to know whether stagehand recovers or just bails to the rescue
+diff, and they want to know whether stagecoach recovers or just bails to the rescue
 message.
 
 **User Journey**: README → Features table → reads "Multi-turn fallback" row → clicks
@@ -67,7 +67,7 @@ config keys.
 
 **Pain Points Addressed**: Without this row, a reader has no idea the fallback exists
 (it is internally triggered — there is no flag to discover). They'd assume a large
-diff that fails one-shot just produces a rescue message; in fact stagehand silently
+diff that fails one-shot just produces a rescue message; in fact stagecoach silently
 recovers losslessly when the provider supports it (pi).
 
 ## Why
@@ -225,7 +225,7 @@ Task 1: EDIT README.md — insert one row into the Features table
     folds in the contract's parenthetical "(no truncation, no extra commits)"; link pair
     mirrors the "Payload optimization" row):
 
-      | Multi-turn fallback | Lossless multi-turn fallback: when a one-shot generation of a large diff fails, stagehand re-delivers the full diff across session turns so the message still lands — no truncation, no extra commits ([how it works](docs/how-it-works.md#multi-turn-generation-fallback) · [knobs](docs/configuration.md#built-in-defaults)). |
+      | Multi-turn fallback | Lossless multi-turn fallback: when a one-shot generation of a large diff fails, stagecoach re-delivers the full diff across session turns so the message still lands — no truncation, no extra commits ([how it works](docs/how-it-works.md#multi-turn-generation-fallback) · [knobs](docs/configuration.md#built-in-defaults)). |
 
   - NAMING/VOICE: first cell `Multi-turn fallback` (matches the `Multi-*` / two-word capability
     naming of sibling rows like `Multi-commit decomposition`, `Payload optimization`).
@@ -243,13 +243,13 @@ Task 2: VERIFY (no further file change)
 <!-- The exact row to add (copy verbatim). It is one logical line (markdown tables do not wrap
      across lines); keep it on a single source line like every other row in the table. -->
 
-| Multi-turn fallback | Lossless multi-turn fallback: when a one-shot generation of a large diff fails, stagehand re-delivers the full diff across session turns so the message still lands — no truncation, no extra commits ([how it works](docs/how-it-works.md#multi-turn-generation-fallback) · [knobs](docs/configuration.md#built-in-defaults)). |
+| Multi-turn fallback | Lossless multi-turn fallback: when a one-shot generation of a large diff fails, stagecoach re-delivers the full diff across session turns so the message still lands — no truncation, no extra commits ([how it works](docs/how-it-works.md#multi-turn-generation-fallback) · [knobs](docs/configuration.md#built-in-defaults)). |
 
 <!-- Why this wording (traces each clause to the spec, so a reviewer can audit it):
   - "Lossless multi-turn fallback:"         → FR-T2 ("Lossless — full diff, request-sized chunks").
   - "when a one-shot generation of a large  → FR-T1 (fallback, not default; activates only AFTER
     diff fails,"                               the one-shot retry loop exhausts; cond a + payload>chunk).
-  - "stagehand re-delivers the full diff    → FR-T2 (the SAME captured payload, unmodified — no
+  - "stagecoach re-delivers the full diff    → FR-T2 (the SAME captured payload, unmodified — no
     across session turns"                     summarization, no truncation) + FR-T4 (N+1 turn protocol).
   - "so the message still lands"            → FR-T7 (best-effort; on failure falls to rescue — never
                                               worse than one-shot-exhausted). "lands" = success case.

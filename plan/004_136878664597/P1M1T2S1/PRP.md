@@ -15,7 +15,7 @@ description: |
 
 ## Goal
 
-**Feature Goal**: Ensure `stagehand config init` produces a config file with an **uncommented**
+**Feature Goal**: Ensure `stagecoach config init` produces a config file with an **uncommented**
 `reasoning = "off"` under `[defaults]` (FR-B1 discoverability), that the bootstrap test asserts this, and
 that `docs/configuration.md`'s config example matches — with NO duplicate lines and the full suite green.
 **In the live codebase this state is already fully achieved; this subtask's job is to VERIFY it is
@@ -37,12 +37,12 @@ green). No duplicate is introduced. If every gate already passes at HEAD (it doe
 
 ## User Persona
 
-**Target User**: The Stagehand contributor / reviewer confirming the plan/004 "reasoning opt-in
+**Target User**: The Stagecoach contributor / reviewer confirming the plan/004 "reasoning opt-in
 everywhere" changeset is consistently reflected in the `config init` bootstrap output and its docs, so a
-fresh `stagehand config init` visibly exposes the `reasoning` field (discoverable + obviously opt-in)
+fresh `stagecoach config init` visibly exposes the `reasoning` field (discoverable + obviously opt-in)
 rather than hiding it.
 
-**Use Case**: A new user runs `stagehand config init`, opens the generated config, and sees
+**Use Case**: A new user runs `stagecoach config init`, opens the generated config, and sees
 `reasoning = "off"   # off|low|medium|high; off by default for every role (FR-R6)` — they immediately
 know the field exists, that `off` is the default, and that they can opt in per role. The test guards this
 against regression; the docs match what the command emits.
@@ -147,7 +147,7 @@ and the research note pin the provenance (commit `9d33b9e`).
 ### Current Codebase Tree (this task's scope)
 
 ```bash
-stagehand/
+stagecoach/
 ├── internal/config/
 │   ├── bootstrap.go        # Site (a): [defaults] writer — reasoning = "off" ALREADY present (line 127)
 │   └── bootstrap_test.go   # Site (b): TestBuildBootstrapConfig_Pi assertion ALREADY present
@@ -158,7 +158,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (expected: ZERO edits at HEAD — all three sites are target-state)
     internal/config/bootstrap.go        # unchanged (already emits exactly one reasoning = "off")
     internal/config/bootstrap_test.go   # unchanged (assertion already present)
@@ -172,7 +172,7 @@ stagehand/
 | `docs/configuration.md` | VERIFY (edit ONLY if drifted) | Confirm `reasoning = "off"` uncommented in the Populated config example. |
 
 **Explicitly NOT touched**: `internal/config/config.go`, `roles.go`, `roles_test.go` (S1 — verified
-complete), `internal/decompose/*`, `internal/cmd/*`, `pkg/stagehand/*`, `docs/cli.md` (S2 — the
+complete), `internal/decompose/*`, `internal/cmd/*`, `pkg/stagecoach/*`, `docs/cli.md` (S2 — the
 downstream-surfaces verify), `internal/ui/verbose_test.go` (the formatter test), `README.md` + other docs
 (P1.M1.T3.S1), `providers/*.toml`, `PRD.md`, `tasks.json`, `prd_snapshot.md`, anything under `plan/`.
 
@@ -209,7 +209,7 @@ downstream-surfaces verify), `internal/ui/verbose_test.go` (the formatter test),
 // docs example is illustrative; do NOT try to make it emit "pi".
 
 // GOTCHA (do not touch sibling files): S1 owns config.go/roles.go/roles_test.go (Change A); S2 owns
-// decompose/roles_test.go, default_action_test.go, root.go, pkg/stagehand, docs/cli.md. This task owns
+// decompose/roles_test.go, default_action_test.go, root.go, pkg/stagecoach, docs/cli.md. This task owns
 // ONLY bootstrap.go + bootstrap_test.go + docs/configuration.md. Editing a sibling site is scope creep
 // and risks conflicting with a parallel/landed subtask.
 ```
@@ -312,7 +312,7 @@ GATE: go test -race ./... → GREEN ; grep -c reasoning in bootstrap.go → 1 ; 
 
 NO-TOUCH (explicitly — owned by sibling subtasks):
   - internal/config/config.go, roles.go, roles_test.go   # S1 (Change A — verified complete)
-  - internal/decompose/*, internal/cmd/*, pkg/stagehand/*, docs/cli.md   # S2 (downstream surfaces)
+  - internal/decompose/*, internal/cmd/*, pkg/stagecoach/*, docs/cli.md   # S2 (downstream surfaces)
   - internal/ui/verbose_test.go   # the reasoningSuffix FORMATTER test (S2 Finding 3 — never touch)
   - README.md + other docs        # P1.M1.T3.S1 (stale-reference sweep)
   - providers/*.toml              # reasoning_levels tables unchanged
@@ -327,7 +327,7 @@ DOWNSTREAM HOOKS (informational — owned by LATER subtasks, NOT this one):
 ### Level 1: The Three-Site Verification (target-state check)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (1) bootstrap.go: EXACTLY ONE uncommented reasoning line with the contract comment
 grep -c 'reasoning = \\"off\\"   # off|low|medium|high; off by default for every role (FR-R6)' internal/config/bootstrap.go
@@ -347,7 +347,7 @@ grep -c '^# reasoning' docs/configuration.md
 ### Level 2: The Duplicate-Detector + Component Tests
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The ValidTOML test is the runtime duplicate-key detector
 go test -race ./internal/config/ -v -run TestBuildBootstrapConfig
@@ -362,7 +362,7 @@ go test -race ./internal/config/
 ### Level 3: The Exhaustive Oracle (whole repo)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go build ./...           # Expected: exit 0
 go vet ./...             # Expected: exit 0
@@ -373,13 +373,13 @@ go test -race ./...      # Expected: ALL packages green (14 packages ok per syst
 ### Level 4: Scope-Boundary + End-to-End Emission Check
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # (A) End-to-end: a real `config init` emission contains exactly-one uncommented reasoning under [defaults]
 #     (mirrors what TestBuildBootstrapConfig_Pi asserts, but via the public generator).
 cat > /tmp/sh_emit_check.go <<'EOF'
 package main
-import ("fmt";"strings";"github.com/dustin/stagehand/internal/config")
+import ("fmt";"strings";"github.com/dustin/stagecoach/internal/config")
 func main() {
   content := config.GenerateBootstrapConfig("pi")
   // exactly-one reasoning = "off" line, uncommented
@@ -425,7 +425,7 @@ git diff --stat -- internal/config/config.go internal/config/roles.go internal/d
       found and fixed, only the ONE drifted file was touched, with a minimal diff (no duplicates).
 - [ ] `git diff --stat` for the three files is empty (HEAD) OR a single minimal surgical edit.
 - [ ] Sibling files UNCHANGED: `config.go`, `roles.go`, `roles_test.go` (S1); `decompose/*`, `cmd/*`,
-      `pkg/stagehand/*`, `docs/cli.md` (S2); `ui/verbose_test.go` (formatter test); README/other docs (T3.S1).
+      `pkg/stagecoach/*`, `docs/cli.md` (S2); `ui/verbose_test.go` (formatter test); README/other docs (T3.S1).
 - [ ] Did NOT modify `PRD.md`, `tasks.json`, `prd_snapshot.md`, or anything under `plan/` (except this PRP + research note).
 
 ### Code Quality Validation
@@ -452,7 +452,7 @@ git diff --stat -- internal/config/config.go internal/config/roles.go internal/d
 - ❌ Don't weaken or remove `TestBuildBootstrapConfig_ValidTOML` to tolerate a duplicate key — it is the
   runtime guard against exactly the duplicate-line regression this task must avoid.
 - ❌ Don't edit sibling files: `config.go`/`roles.go`/`roles_test.go` (S1), `decompose/*`/`cmd/*`/
-  `pkg/stagehand/*`/`docs/cli.md` (S2), `ui/verbose_test.go` (the formatter test), README/other docs (T3.S1).
+  `pkg/stagecoach/*`/`docs/cli.md` (S2), `ui/verbose_test.go` (the formatter test), README/other docs (T3.S1).
 - ❌ Don't try to make the `docs/configuration.md` example emit "pi" — it intentionally shows "claude" as a
   readable single-backend example; both correctly carry the uncommented `reasoning = "off"` line.
 - ❌ Don't fabricate a before/after diff to justify the subtask. The honest outcome is "100% already

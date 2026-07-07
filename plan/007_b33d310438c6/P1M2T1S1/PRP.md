@@ -312,7 +312,7 @@ FROZEN / NOT-EDITED:
     (g.detectBinaryFiles(ctx, "--cached") etc.) — pass the domain verbatim, unchanged.
   - internal/git/{stagediff,treediff,workingtreediff,difftree,difftreenames}_test.go — the golden suites
     (must pass UNCHANGED; add NO new tests).
-  - The 6 production call sites (generate/hook/stagehand/decompose) — P1.M1.T2.S2 owns the
+  - The 6 production call sites (generate/hook/stagecoach/decompose) — P1.M1.T2.S2 owns the
     StagedDiffOptions struct-literal field mapping; this task is function-internal only.
   - docs/* (no user-facing change; P1.M5 owns the diff-capture doc sync).
 
@@ -351,7 +351,7 @@ go test -race ./...                # full module — no regression (the 3 diff f
 ### Level 3: Integration Testing (System Validation)
 
 ```bash
-go build -o /tmp/stagehand ./cmd/stagehand && echo "binary builds"
+go build -o /tmp/stagecoach ./cmd/stagecoach && echo "binary builds"
 git diff --exit-code go.mod go.sum && echo "deps unchanged"
 # Confirm only internal/git/git.go changed:
 git diff --name-only | grep -Ev '^internal/git/git\.go$' && echo "UNEXPECTED file changed" || echo "only internal/git/git.go changed (good)"
@@ -423,7 +423,7 @@ grep -n '"diff"' internal/git/git.go   # the 3 functions' sites should now go th
   so its md-list becomes `["diff","--name-only","--","*.md","*.markdown"]` as today. Verify explicitly.
 - ❌ Don't add new tests. A pure refactor has no new behavior to pin; the existing golden suites are the
   regression net. (If you feel a test urge, direct it at T2's -M/-U behavior, not here.)
-- ❌ Don't edit the 6 production call sites (generate/hook/stagehand/decompose) — that's P1.M1.T2.S2's
+- ❌ Don't edit the 6 production call sites (generate/hook/stagecoach/decompose) — that's P1.M1.T2.S2's
   StagedDiffOptions field-mapping scope. This task is strictly function-internal.
 - ❌ Don't change go.mod/go.sum or add files. One file, one helper, nine rewrites.
 - ❌ Don't skip `go test ./internal/git/ -run 'TestStagedDiff|TestTreeDiff|TestWorkingTreeDiff'` — it is THE

@@ -89,7 +89,7 @@ suffice.
 ## Call sites UNCHANGED; buildDiffArgs clamp stays as belt-and-suspenders
 
 The 6 production call sites already consume `cfg.DiffContextValue()` / `deps.Config.DiffContextValue()`:
-generate.go:184, decompose.go:624, message.go:96, planner.go:85, hook/exec.go:128, stagehand.go:442. After
+generate.go:184, decompose.go:624, message.go:96, planner.go:85, hook/exec.go:128, stagecoach.go:442. After
 validation, DiffContextValue() returns a value in [0,3], so `buildDiffArgs`' clamp (git.go:689) is NEVER hit
 for config-loaded runs — leave it as a defensive guard for programmatic Config construction (which bypasses
 Load/Validate). Do NOT touch the call sites, DiffContextValue, buildDiffArgs, materialize, or overlay.

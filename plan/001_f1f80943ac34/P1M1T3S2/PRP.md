@@ -168,7 +168,7 @@ constants, no new error sentinels, no new imports.
 ### Context Completeness Check
 
 _If someone knew nothing about this codebase, would they have everything needed to implement this
-successfully?_ **Yes.** This PRP gives: the exact module path (`github.com/dustin/stagehand`); the
+successfully?_ **Yes.** This PRP gives: the exact module path (`github.com/dustin/stagecoach`); the
 exact three files to touch (and the exact single line to remove from `git_test.go`); the exact
 `run()` contract (signature + the `err==nil`-for-non-zero-exits invariant that the `code` branches
 rely on); the exact `HasStagedChanges` body (verified-equivalent to throwaway git invocations run
@@ -272,11 +272,11 @@ exact validation commands with expected results. No inference required.
 ### Current Codebase Tree (after S1 + S2 + S3 + S4 + S5 + S6 + T3.S1 have landed — the assumed state)
 
 ```bash
-stagehand/
+stagecoach/
 ├── PRD.md
-├── go.mod                # module github.com/dustin/stagehand, go 1.22, NO deps
+├── go.mod                # module github.com/dustin/stagecoach, go 1.22, NO deps
 ├── Makefile              # build/test/lint/coverage/install/clean (test = go test -race ./...)
-├── cmd/stagehand/main.go # stub
+├── cmd/stagecoach/main.go # stub
 ├── internal/
 │   └── git/
 │       ├── git.go        # S1: interface+gitRunner+run()+New()+FileChange+StagedDiffOptions+stubs;
@@ -304,7 +304,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     └── git/
         ├── git.go              # MODIFIED — HasStagedChanges stub → real switch body. NO import change.
@@ -617,7 +617,7 @@ Task 4: VALIDATE — full gate set + scope discipline
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" → package import path "github.com/dustin/stagehand/internal/git"
+  - module path: "github.com/dustin/stagecoach" → package import path "github.com/dustin/stagecoach/internal/git"
   - go directive: 1.22 → context, errors.Is, strings, t.Setenv (1.17+) all available
   - deps: NONE added (fmt, strings are stdlib and already imported)
 
@@ -650,7 +650,7 @@ PARALLEL-EXECUTION NOTE (with P1.M1.T3.S1 — StagedDiff, landing concurrently):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/git/          # Expected: no output (run `gofmt -w internal/git/` if it lists files)
 go vet ./internal/git/...        # Expected: exit 0, no warnings (e.g. no unused import, no shadowing)
@@ -665,7 +665,7 @@ go build ./...                   # Expected: exit 0 (whole module compiles)
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race -v -run 'TestHasStagedChanges' ./internal/git/   # Expected: 6 tests PASS, exit 0
 # Must see: TestHasStagedChanges_NothingStaged, _StagedFile, _CommittedNothingStaged, _NotARepo,
@@ -682,7 +682,7 @@ make test                        # Expected: exit 0 (Makefile target = go test -
 ### Level 3: Security & Structural Invariants (the §19 enforcement + scope discipline)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # PRD §19: NO shell execution in the PRODUCTION git wrapper (inherited; new code adds none).
 git grep -nE '\b(sh|zsh|bash)\s+-c\b|cmd\s*/c\b' internal/git/git.go
@@ -712,7 +712,7 @@ git diff --name-only go.mod go.sum
 ### Level 4: Runtime Smoke Test (prove HasStagedChanges works against a real repo)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Reproduce the exit codes the tests assert, against the real binary (mirrors the research):
 tmp=$(mktemp -d); git -C "$tmp" init -q

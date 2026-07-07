@@ -10,21 +10,21 @@ match what the binary actually does. Verified 2026-06-29 against the working tre
 
 From `internal/cmd/root.go`, `providers.go`, `config.go`, `default_action.go`:
 
-- **Default action**: `stagehand` (no subcommand) → commit staged changes; auto-stages all if nothing
+- **Default action**: `stagecoach` (no subcommand) → commit staged changes; auto-stages all if nothing
   is staged and `auto_stage_all` is on (default true). Prints to **stdout** the success report:
   `[<7-char-sha>] <subject>` then one `STATUS  path` line per changed file. Notices/diagnostics → stderr.
-- **Global flags** (all persistent, `stagehand --help` lists them):
+- **Global flags** (all persistent, `stagecoach --help` lists them):
   `--provider`, `--model`, `--config`, `--timeout`, `--verbose`/`-v`, `--no-color`,
   `--all`/`-a`, `--no-auto-stage`, `--dry-run`. Plus cobra-builtin `--version` and `--help`/`-h`.
 - **Subcommands**:
-  - `stagehand providers list` → `NAME  DETECTED  DEFAULT` table (`✓`/`✗`, `(default)`).
-  - `stagehand providers show <name>` → merged manifest as TOML (exit 1 if unknown).
-  - `stagehand config init` → writes a fully-commented example config to the GLOBAL path; **refuses to
+  - `stagecoach providers list` → `NAME  DETECTED  DEFAULT` table (`✓`/`✗`, `(default)`).
+  - `stagecoach providers show <name>` → merged manifest as TOML (exit 1 if unknown).
+  - `stagecoach config init` → writes a fully-commented example config to the GLOBAL path; **refuses to
     overwrite** an existing file (exit 1). THIS TEMPLATE IS THE CONFIG REFERENCE (Mode-A docs).
-  - `stagehand config path` → prints the global config path.
-- **Dry run**: `stagehand --dry-run` → stdout is the message ONLY; stderr gets `(no commit created)`.
-- **Version**: `var version = "dev"` in `cmd/stagehand/main.go`; injected via `-X main.version`. So
-  `stagehand --version` works (prints `dev` for a local build).
+  - `stagecoach config path` → prints the global config path.
+- **Dry run**: `stagecoach --dry-run` → stdout is the message ONLY; stderr gets `(no commit created)`.
+- **Version**: `var version = "dev"` in `cmd/stagecoach/main.go`; injected via `-X main.version`. So
+  `stagecoach --version` works (prints `dev` for a local build).
 
 ## 3. Providers (6 built-in, P1.M2.T2) + auto-detect order
 
@@ -36,40 +36,40 @@ are NEVER auto-selected. `providers list` shows which is `(default)`.
 ## 4. Config model (P1.M1.T4) — precedence + locations
 
 From `internal/cmd/config.go` example template + `config.GlobalConfigPath()`:
-- **Global file** = `$XDG_CONFIG_HOME/stagehand/config.toml` (default `~/.config/stagehand/config.toml`).
-- **Repo-local file** = `./.stagehand.toml` (gitignored by default, §19).
-- **Git-config keys**: `git config stagehand.provider <name>`, `stagehand.model`, `stagehand.timeout`,
-  `stagehand.auto_stage_all`.
-- **Env**: `STAGEHAND_PROVIDER`, `STAGEHAND_MODEL`, `STAGEHAND_TIMEOUT`, `STAGEHAND_CONFIG`,
-  `STAGEHAND_VERBOSE`, `STAGEHAND_NO_COLOR` (also honors `NO_COLOR`).
-- **Precedence** (high→low): CLI flags > STAGEHAND_* env > repo git-config (stagehand.*) >
-  repo `.stagehand.toml` > global config file > provider `default_*` > built-in defaults.
+- **Global file** = `$XDG_CONFIG_HOME/stagecoach/config.toml` (default `~/.config/stagecoach/config.toml`).
+- **Repo-local file** = `./.stagecoach.toml` (gitignored by default, §19).
+- **Git-config keys**: `git config stagecoach.provider <name>`, `stagecoach.model`, `stagecoach.timeout`,
+  `stagecoach.auto_stage_all`.
+- **Env**: `STAGECOACH_PROVIDER`, `STAGECOACH_MODEL`, `STAGECOACH_TIMEOUT`, `STAGECOACH_CONFIG`,
+  `STAGECOACH_VERBOSE`, `STAGECOACH_NO_COLOR` (also honors `NO_COLOR`).
+- **Precedence** (high→low): CLI flags > STAGECOACH_* env > repo git-config (stagecoach.*) >
+  repo `.stagecoach.toml` > global config file > provider `default_*` > built-in defaults.
 
 ## 5. Install paths (PRD §21.3 + `.goreleaser.yaml`)
 
 | Path        | Command                                                            |
 |-------------|-------------------------------------------------------------------|
-| Homebrew    | `brew install dustin/tap/stagehand`                              |
-| Go install  | `go install github.com/dustin/stagehand/cmd/stagehand@latest`     |
-| curl\|sh    | `curl -fsSL https://github.com/dustin/stagehand/raw/main/install.sh \| bash` |
-| Scoop       | `scoop install dustin/stagehand`                                  |
+| Homebrew    | `brew install dustin/tap/stagecoach`                              |
+| Go install  | `go install github.com/dustin/stagecoach/cmd/stagecoach@latest`     |
+| curl\|sh    | `curl -fsSL https://github.com/dustin/stagecoach/raw/main/install.sh \| bash` |
+| Scoop       | `scoop install dustin/stagecoach`                                  |
 
 goreleaser wires: `release.github.owner=dustin`; Homebrew tap repo `dustin/homebrew-tap`; Scoop bucket
-`dustin/scoop-bucket`. go.mod module path = `github.com/dustin/stagehand`.
+`dustin/scoop-bucket`. go.mod module path = `github.com/dustin/stagecoach`.
 
 ## 6. GAPS / DECISIONS the README author MUST handle (do NOT silently paper over)
 
 ### GAP A — namespace mismatch (CRITICAL for install URLs)
-- git remote is `git@github.com:dabstractor/stagehand` (origin).
-- BUT module path, `.goreleaser.yaml`, and §21.3 all use `github.com/dustin/stagehand`.
+- git remote is `git@github.com:dabstractor/stagecoach` (origin).
+- BUT module path, `.goreleaser.yaml`, and §21.3 all use `github.com/dustin/stagecoach`.
 - `.goreleaser.yaml` already flags this: "before the first REAL tag the repo must be reachable at
-  github.com/dustin/stagehand (or the namespace is reconciled repo-wide)."
-- **README DECISION**: use `dustin/stagehand` in ALL install URLs (Homebrew/Scoop/go-install/curl|sh),
+  github.com/dustin/stagecoach (or the namespace is reconciled repo-wide)."
+- **README DECISION**: use `dustin/stagecoach` in ALL install URLs (Homebrew/Scoop/go-install/curl|sh),
   matching goreleaser + §21.3. Do NOT use `dabstractor`. This is what the released artifacts will use.
 
 ### GAP B — `install.sh` does not exist yet
 - `ls install.sh` → none. The curl|sh one-liner points at
-  `https://github.com/dustin/stagehand/raw/main/install.sh`, which is a RELEASE-TIME artifact
+  `https://github.com/dustin/stagecoach/raw/main/install.sh`, which is a RELEASE-TIME artifact
   (goreleaser's `before.hooks` only runs `go mod tidy`; nothing writes install.sh).
 - **README DECISION**: still document the curl|sh path per §21.3 (it is the intended public path and
   lands with the first release), but add a short note that the script is published at first release.
@@ -86,7 +86,7 @@ goreleaser wires: `release.github.owner=dustin`; Homebrew tap repo `dustin/homeb
 - No `docs/` dir; `find . -name '*.md'` outside plan/ returns only `PRD.md`.
 - P1.M5.T5.S1 ("Review and update docs/ overview") is **Planned** — it will create `docs/`.
 - **README DECISION**: the "Full CLI + config reference" section must NOT dead-link. Use the
-  LIVING references that already work — `stagehand --help` (CLI) and `stagehand config init` (writes
+  LIVING references that already work — `stagecoach --help` (CLI) and `stagecoach config init` (writes
   the full commented config = the canonical config reference) — as the PRIMARY reference, and add a
   link to `docs/` (relative, to be populated by P1.M5.T5) as the secondary. If `docs/` is empty at
   author time, the `--help`/`config init` commands fully satisfy the reader — no broken link.
@@ -96,7 +96,7 @@ goreleaser wires: `release.github.owner=dustin`; Homebrew tap repo `dustin/homeb
 (GitHub-flavored markdown; fenced code blocks render fine. `git remote` confirmable.)
 
 ## 8. Verbatim PRD blocks the README MUST reproduce EXACTLY (do not paraphrase)
-- **Hero pitch** (§5): the blockquote beginning "Stagehand writes your commit messages using the AI
+- **Hero pitch** (§5): the blockquote beginning "Stagecoach writes your commit messages using the AI
   agent you already pay for." (full text in the work-item / PRD §5).
 - **Stage-while-generating diagram** (§13.4): the two-pane ASCII block (Pane A lazygit/shell, Pane B
   shell) — reproduce character-for-character.
@@ -105,14 +105,14 @@ goreleaser wires: `release.github.owner=dustin`; Homebrew tap repo `dustin/homeb
 
 ## 9. "Why not opencommit/aicommits?" — 3 sentences (§4.3)
 Distill §4.3's moat into 3 sentences: (1) incumbents own the HTTP call → they normalize providers but
-CANNOT reach a coding-plan subscription (not reachable over the public API). (2) Stagehand inverts it:
+CANNOT reach a coding-plan subscription (not reachable over the public API). (2) Stagecoach inverts it:
 it shells out to your installed CLI agent, giving up provider normalization in exchange for spending
 the quota you already bought. (3) That trade-off — give up control of the model call to access your
 existing plan — is the entire product; the provider manifest makes the "give up normalization" part
 tolerable. Keep to ~3 sentences per the contract.
 
 ## 10. Anti-persona (§7.4) — "not for you if…"
-Plain-language: a developer with no coding-agent CLI installed and no desire to get one. Stagehand is
+Plain-language: a developer with no coding-agent CLI installed and no desire to get one. Stagecoach is
 useless to them; opencommit is the right tool. Say so plainly to avoid disappointing installs.
 
 ## 11. Mode B note (the contract's DOCS bullet)

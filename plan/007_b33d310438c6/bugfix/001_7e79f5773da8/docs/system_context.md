@@ -2,7 +2,7 @@
 
 > Research artifact for the FR3d–FR3i diff-payload optimization bugfix delta (plan `007_b33d310438c6`).
 > Scope: validate PRD feasibility, pin root causes, and ground the downstream PRP agents. All paths
-> relative to `/home/dustin/projects/stagehand/`.
+> relative to `/home/dustin/projects/stagecoach/`.
 
 ## 1. PRD feasibility verdict
 

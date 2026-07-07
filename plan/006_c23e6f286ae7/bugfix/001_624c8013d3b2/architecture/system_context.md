@@ -2,7 +2,7 @@
 
 ## What this changeset touches
 
-Stagehand's **per-repo run lock** (FR52 / PRD §18.5) serializes concurrent
+Stagecoach's **per-repo run lock** (FR52 / PRD §18.5) serializes concurrent
 commit-producing runs against the same git repo so two processes cannot race on
 `update-ref` (HEAD). The lock is the *first* line of defense; the §13.5
 `update-ref` CAS is the *second* (holds even on shared/network FS the lock cannot
@@ -24,7 +24,7 @@ false-no-op). All four issues are correctness/UX/hygiene polish.
 | `internal/decompose/decompose.go` | Decomposition orchestrator. `Decompose` → `FreezeWorkingTree` (line 165) → `lock.SetSnapshot(tStart)` (line 169). | 1 (context only — NOT modified under Option 1) |
 | `internal/exitcode/exitcode.go` | `Busy=5` constant; `For` routes via `*ExitError` short-circuit (no dedicated `errors.Is` arm needed). | (none — read-only context) |
 | `internal/e2e/lock_scenarios_test.go` | 5 cross-process contention scenarios A–E (build tag `e2e`). | 1 (new scenario F) |
-| `internal/e2e/harness_test.go` | Shared e2e helpers: `buildStagehand`, `newRepo`, `runStagehand`, `writeStubConfig`, `stubEnv`, `waitForMarker`. | 1 (reuse) |
+| `internal/e2e/harness_test.go` | Shared e2e helpers: `buildStagecoach`, `newRepo`, `runStagecoach`, `writeStubConfig`, `stubEnv`, `waitForMarker`. | 1 (reuse) |
 | `README.md` (line 330) | "Safe to run twice" FAQ claim. | 1 |
 | `docs/cli.md` (line 379) | Contention-behavior prose under exit-code table. | 1 |
 | `docs/how-it-works.md` (line 155) | "No-op fast path" subsection. | 1 |

@@ -4,7 +4,7 @@ description: |
   Thread `TokenLimit` + `DiffContext` from `config.Config` into the `git.StagedDiffOptions{...}`
   literal at all 6 production call sites, so the FR3d (token_limit) and FR3f (diff_context) knobs flow
   from config to the diff functions. The 6 sites: internal/generate/generate.go:163 (StagedDiff),
-  internal/hook/exec.go:104 (StagedDiff), pkg/stagehand/stagehand.go:423 (StagedDiff),
+  internal/hook/exec.go:104 (StagedDiff), pkg/stagecoach/stagecoach.go:423 (StagedDiff),
   internal/decompose/planner.go:69 (TreeDiff), internal/decompose/message.go:71 (TreeDiff),
   internal/decompose/decompose.go:608 (TreeDiff). Two variable shapes: sites 1-3 use a local
   `cfg config.Config`; sites 4-6 use `deps.Config`.
@@ -32,7 +32,7 @@ struct (ready for M2 to read `DiffContext` → `-U<n>` and M4 to read `TokenLimi
    `git.StagedDiffOptions{...}` literal (keep the existing 4 fields byte-identical):
    - `internal/generate/generate.go:163` (StagedDiff, `cfg`)
    - `internal/hook/exec.go:104` (StagedDiff, `cfg`)
-   - `pkg/stagehand/stagehand.go:423` (StagedDiff, `cfg`)
+   - `pkg/stagecoach/stagecoach.go:423` (StagedDiff, `cfg`)
    - `internal/decompose/planner.go:69` (TreeDiff, `deps.Config`)
    - `internal/decompose/message.go:71` (TreeDiff, `deps.Config`)
    - `internal/decompose/decompose.go:608` (TreeDiff, `deps.Config`)
@@ -49,7 +49,7 @@ literals carries `TokenLimit` + `DiffContext`; `PromptReserveTokens` is left at 
 `opts.DiffContext` → injects `-U<DiffContext>`) and M4.T3/T2 (read `opts.TokenLimit` → the gate +
 water-fill). After this task those values are populated and waiting.
 
-**Use Case**: A user sets `token_limit = 120000` and `diff_context = 0` in `.stagehand.toml`. Config
+**Use Case**: A user sets `token_limit = 120000` and `diff_context = 0` in `.stagecoach.toml`. Config
 resolves them to `cfg.TokenLimit = 120000` (plain int) and `cfg.DiffContext = *0` (pointer). At each of
 the 6 diff call sites, the literal now carries `TokenLimit: 120000` and `DiffContext: 0` (via
 `DiffContextValue()` preserving the `*0`). M2 then emits `-U0`; M4 then runs the water-fill.
@@ -184,9 +184,9 @@ inference is gofmt alignment. No guesswork.
             4 fields (MaxDiffBytes/MaxMDLines/BinaryExtensions/Excludes). Keep gofmt alignment."
 - file: internal/hook/exec.go
   why: "EDIT TARGET #3 (site 2). Line ~104: the StagedDiff literal inside Run. Uses local `cfg`."
-- file: pkg/stagehand/stagehand.go
+- file: pkg/stagecoach/stagecoach.go
   why: "EDIT TARGET #4 (site 3). Line ~423: the StagedDiff literal inside runPipeline. Uses local `cfg`.
-        NOTE: pkg/stagehand already imports internal/config (uses cfg.Output/cfg.StripCodeFence at :379-383)
+        NOTE: pkg/stagecoach already imports internal/config (uses cfg.Output/cfg.StripCodeFence at :379-383)
         — so cfg.DiffContextValue() resolves without a new import."
 - file: internal/decompose/planner.go
   why: "EDIT TARGET #5 (site 4). Line ~69: the TreeDiff literal inside callPlanner. Uses `deps.Config`."
@@ -210,7 +210,7 @@ inference is gofmt alignment. No guesswork.
 ### Current Codebase Tree (relevant slice — S1 LANDED, P1.M1.T1 COMPLETE)
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     ├── config/
     │   ├── config.go          # EDIT: +Config.DiffContextValue() method (TokenLimit int + DiffContext *int already present)
@@ -223,21 +223,21 @@ stagehand/
         ├── planner.go         # EDIT (site 4): StagedDiffOptions literal +TokenLimit +DiffContext  [deps.Config]
         ├── message.go         # EDIT (site 5): StagedDiffOptions literal +TokenLimit +DiffContext  [deps.Config]
         └── decompose.go       # EDIT (site 6): StagedDiffOptions literal +TokenLimit +DiffContext  [deps.Config]
-└── pkg/stagehand/
-    └── stagehand.go           # EDIT (site 3): StagedDiffOptions literal +TokenLimit +DiffContext  [cfg]
+└── pkg/stagecoach/
+    └── stagecoach.go           # EDIT (site 3): StagedDiffOptions literal +TokenLimit +DiffContext  [cfg]
 # (internal/git/git.go is READ-ONLY — S1 already landed the 3 StagedDiffOptions fields.)
 ```
 
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── (only existing files modified — no new files)
     internal/config/config.go          # +func (c Config) DiffContextValue() int
     internal/config/config_test.go     # +TestDiffContextValue
     internal/generate/generate.go      # site 1: +TokenLimit +DiffContext in the literal
     internal/hook/exec.go              # site 2: +TokenLimit +DiffContext in the literal
-    pkg/stagehand/stagehand.go         # site 3: +TokenLimit +DiffContext in the literal
+    pkg/stagecoach/stagecoach.go         # site 3: +TokenLimit +DiffContext in the literal
     internal/decompose/planner.go      # site 4: +TokenLimit +DiffContext in the literal
     internal/decompose/message.go      # site 5: +TokenLimit +DiffContext in the literal
     internal/decompose/decompose.go    # site 6: +TokenLimit +DiffContext in the literal
@@ -249,7 +249,7 @@ stagehand/
 | `internal/config/config_test.go` | MODIFY | Add `TestDiffContextValue` (nil→1, *0→0, *3→3). |
 | `internal/generate/generate.go` | MODIFY | Site 1: +`TokenLimit: cfg.TokenLimit` +`DiffContext: cfg.DiffContextValue()`. |
 | `internal/hook/exec.go` | MODIFY | Site 2: same (cfg). |
-| `pkg/stagehand/stagehand.go` | MODIFY | Site 3: same (cfg). |
+| `pkg/stagecoach/stagecoach.go` | MODIFY | Site 3: same (cfg). |
 | `internal/decompose/planner.go` | MODIFY | Site 4: +`TokenLimit: deps.Config.TokenLimit` +`DiffContext: deps.Config.DiffContextValue()`. |
 | `internal/decompose/message.go` | MODIFY | Site 5: same (deps.Config). |
 | `internal/decompose/decompose.go` | MODIFY | Site 6: same (deps.Config). |
@@ -278,7 +278,7 @@ COMPLETE — only the additive method is added), any docs (contract: none), `PRD
 // StagedDiffOptions.TokenLimit is plain int (S1). 0 IS the unset sentinel (FR3d — no meaningful "explicit
 // 0"). So `TokenLimit: cfg.TokenLimit,` — no method, no dereference. Do NOT wrap it in a resolver.
 
-// GOTCHA (G4 — two variable shapes; don't mix them): sites 1-3 (generate/hook/stagehand) use a local
+// GOTCHA (G4 — two variable shapes; don't mix them): sites 1-3 (generate/hook/stagecoach) use a local
 // `cfg config.Config`; sites 4-6 (decompose planner/message/decompose) use `deps.Config`. The receiver in
 // the two new lines differs: `cfg.TokenLimit`/`cfg.DiffContextValue()` vs `deps.Config.TokenLimit`/
 // `deps.Config.DiffContextValue()`. Verify the receiver name at EACH site before editing.
@@ -290,7 +290,7 @@ COMPLETE — only the additive method is added), any docs (contract: none), `PRD
 // GOTCHA (G6 — behavior-free; existing tests MUST stay green unchanged): S1 landed the 3 fields as UNREAD
 // (the diff functions StagedDiff/TreeDiff/WorkingTreeDiff do not read them until M2/M4). Populating
 // TokenLimit/DiffContext at the 6 literals changes ZERO diff output. So every golden diff test
-// (stagediff/treediff/workingtreediff) and every generate/hook/decompose/stagehand test passes AS-IS.
+// (stagediff/treediff/workingtreediff) and every generate/hook/decompose/stagecoach test passes AS-IS.
 // If any test changes, something beyond the mapping was edited — re-check scope.
 
 // GOTCHA (G7 — value receiver, not pointer): Config is passed BY VALUE at all 6 sites (cfg config.Config;
@@ -300,7 +300,7 @@ COMPLETE — only the additive method is added), any docs (contract: none), `PRD
 // GOTCHA (G8 — gofmt re-aligns the literals): adding 2 fields shifts the struct literal's `:` alignment.
 // Run `gofmt -w` on each edited file; do NOT hand-align. The existing 4 fields' values are unchanged.
 
-// GOTCHA (G9 — no new imports needed): pkg/stagehand and internal/decompose already import internal/config
+// GOTCHA (G9 — no new imports needed): pkg/stagecoach and internal/decompose already import internal/config
 // (ResolveRoleModel / cfg.Output etc.); internal/generate and internal/hook already import internal/config
 // (the cfg param type is config.Config). So cfg.DiffContextValue() / deps.Config.DiffContextValue() resolve
 // with no import additions. (internal/git is NOT imported-into; the resolver lives in config, not git.)
@@ -344,7 +344,7 @@ diff, err := deps.Git.StagedDiff(ctx, git.StagedDiffOptions{
 	DiffContext:      cfg.DiffContextValue(), // FR3f (P1.M1.T2.S2) — *int→int (nil⇒1, *0⇒0); read by M2's -U<n>
 })
 ```
-*(Site 1 generate.go:163 StagedDiff; site 2 hook/exec.go:104 StagedDiff; site 3 pkg/stagehand/stagehand.go:423 StagedDiff.)*
+*(Site 1 generate.go:163 StagedDiff; site 2 hook/exec.go:104 StagedDiff; site 3 pkg/stagecoach/stagecoach.go:423 StagedDiff.)*
 
 **Shape B — sites 4-6 (`deps.Config`):** same two lines, receiver = `deps.Config`.
 ```go
@@ -413,7 +413,7 @@ Task 3: EDIT site 1 — internal/generate/generate.go (StagedDiff, cfg)
 Task 4: EDIT site 2 — internal/hook/exec.go (StagedDiff, cfg)
   - Same as Task 3, literal at ~line 104 (Shape A).
 
-Task 5: EDIT site 3 — pkg/stagehand/stagehand.go (StagedDiff, cfg)
+Task 5: EDIT site 3 — pkg/stagecoach/stagecoach.go (StagedDiff, cfg)
   - Same as Task 3, literal at ~line 423 (Shape A). (internal/config already imported — no new import.)
 
 Task 6: EDIT site 4 — internal/decompose/planner.go (TreeDiff, deps.Config)
@@ -431,10 +431,10 @@ Task 8: EDIT site 6 — internal/decompose/decompose.go (TreeDiff, deps.Config)
 Task 9: VALIDATE — full gate set + scope discipline
   - RUN: go build ./... ; go vet ./... ; gofmt -l .
   - RUN: go test ./...   (ALL green — existing suites unchanged; the new option fields are unread.)
-  - RUN targeted: go test ./internal/config/ ./internal/generate/ ./internal/hook/ ./internal/decompose/ ./pkg/stagehand/
-  - RUN: git grep -n 'TokenLimit:\|DiffContext:' internal/generate internal/hook pkg/stagehand internal/decompose
+  - RUN targeted: go test ./internal/config/ ./internal/generate/ ./internal/hook/ ./internal/decompose/ ./pkg/stagecoach/
+  - RUN: git grep -n 'TokenLimit:\|DiffContext:' internal/generate internal/hook pkg/stagecoach internal/decompose
          (expect: 2 matches per file = 12 total, the TokenLimit + DiffContext lines.)
-  - RUN: git grep -n 'PromptReserveTokens:' internal/generate internal/hook pkg/stagehand internal/decompose
+  - RUN: git grep -n 'PromptReserveTokens:' internal/generate internal/hook pkg/stagecoach internal/decompose
          (expect: NO matches — PromptReserveTokens is NOT set at any site.)
   - RUN: git diff --stat → expect ONLY the 8 files listed in the Desired Codebase Tree.
 ```
@@ -464,12 +464,12 @@ Task 9: VALIDATE — full gate set + scope discipline
 // S1 landed TokenLimit/DiffContext/PromptReserveTokens as UNREAD fields (the diff functions don't read
 // them until M2/M4). Populating TokenLimit/DiffContext at the literals puts values into a struct that
 // nobody reads yet — zero observable effect. Hence every existing golden diff test (stagediff/treediff/
-// workingtreediff) and every pipeline test (generate/hook/decompose/stagehand) passes UNCHANGED. The
+// workingtreediff) and every pipeline test (generate/hook/decompose/stagecoach) passes UNCHANGED. The
 // contract's "all must pass unchanged (no behavior change)" is satisfied by construction, not by luck.
 
 // === Why no new imports ===
 // All 4 files with call sites already import internal/config (the cfg param / deps.Config type is
-// config.Config; decompose uses config.ResolveRoleModel; stagehand uses cfg.Output). So
+// config.Config; decompose uses config.ResolveRoleModel; stagecoach uses cfg.Output). So
 // cfg.DiffContextValue() / deps.Config.DiffContextValue() resolve with no import additions.
 ```
 
@@ -486,7 +486,7 @@ CONFIG TEST (internal/config/config_test.go):
 CALL SITES (6 production literals — each +TokenLimit +DiffContext):
   - internal/generate/generate.go:163    (StagedDiff, cfg)            [Shape A]
   - internal/hook/exec.go:104            (StagedDiff, cfg)            [Shape A]
-  - pkg/stagehand/stagehand.go:423       (StagedDiff, cfg)            [Shape A]
+  - pkg/stagecoach/stagecoach.go:423       (StagedDiff, cfg)            [Shape A]
   - internal/decompose/planner.go:69     (TreeDiff,   deps.Config)    [Shape B]
   - internal/decompose/message.go:71     (TreeDiff,   deps.Config)    [Shape B]
   - internal/decompose/decompose.go:608  (TreeDiff,   deps.Config)    [Shape B]
@@ -513,10 +513,10 @@ DOWNSTREAM CONSUMERS (informational — owned by LATER subtasks, NOT this one):
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/config/config.go internal/config/config_test.go internal/generate/generate.go \
-       internal/hook/exec.go pkg/stagehand/stagehand.go internal/decompose/planner.go \
+       internal/hook/exec.go pkg/stagecoach/stagecoach.go internal/decompose/planner.go \
        internal/decompose/message.go internal/decompose/decompose.go
 # Expected: empty (run gofmt -w on any listed file — it re-aligns the struct literals).
 
@@ -530,14 +530,14 @@ go build ./...
 ### Level 2: Unit Tests (the resolver + behavior-free regression)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # The new resolver logic:
 go test ./internal/config/ -run TestDiffContextValue -v
 # Expected: PASS — nil→1, *0→0, *3→3.
 
 # The 6 call-site packages — existing suites unchanged (fields unread ⇒ no behavior change):
-go test ./internal/generate/ ./internal/hook/ ./internal/decompose/ ./pkg/stagehand/ ./internal/git/
+go test ./internal/generate/ ./internal/hook/ ./internal/decompose/ ./pkg/stagecoach/ ./internal/git/
 # Expected: ALL green. No existing test alters (the diff functions do not read the new fields).
 
 go test ./...
@@ -547,23 +547,23 @@ go test ./...
 ### Level 3: Whole-Repository Regression (no collateral)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race ./...     # Expected: ALL green.
 go vet ./...            # Expected: exit 0.
 
 # Confirm the 6 sites each carry TokenLimit + DiffContext (12 matches total):
 git grep -n 'TokenLimit:\|DiffContext:' internal/generate/generate.go internal/hook/exec.go \
-    pkg/stagehand/stagehand.go internal/decompose/planner.go internal/decompose/message.go \
+    pkg/stagecoach/stagecoach.go internal/decompose/planner.go internal/decompose/message.go \
     internal/decompose/decompose.go | wc -l
 # Expected: 12 (2 per file × 6 files). Each 'DiffContext:' line must call DiffContextValue().
 
 # Confirm PromptReserveTokens is NOT set at any call site (M4.T1.S2 owns it):
-git grep -n 'PromptReserveTokens:' internal/generate internal/hook pkg/stagehand internal/decompose || echo "OK: PromptReserveTokens not set at any call site"
+git grep -n 'PromptReserveTokens:' internal/generate internal/hook pkg/stagecoach internal/decompose || echo "OK: PromptReserveTokens not set at any call site"
 # Expected: "OK: PromptReserveTokens not set at any call site".
 
 # Confirm ONLY the 8 in-scope files changed:
-git diff --stat -- internal/config/ internal/generate/ internal/hook/ internal/decompose/ pkg/stagehand/
+git diff --stat -- internal/config/ internal/generate/ internal/hook/ internal/decompose/ pkg/stagecoach/
 # Expected: config.go + config_test.go + the 6 call-site files. Nothing else.
 
 # Confirm S1's territory (StagedDiffOptions struct + diff functions) UNTOUCHED:
@@ -574,7 +574,7 @@ git diff --stat -- internal/git/git.go
 ### Level 4: Resolver-Semantics Cross-Check (prove *0 is preserved)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Throwaway main: proves the resolver's three semantics (the exact thing the 6 sites depend on).
 cat > /tmp/sh_dc_check.go <<'EOF'

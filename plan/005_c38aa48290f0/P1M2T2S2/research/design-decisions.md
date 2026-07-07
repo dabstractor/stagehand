@@ -11,7 +11,7 @@ and BEFORE `ExtractSubject`/`IsDuplicate`** so §9.7 judges the final (templated
 | Path | File | Accept point (insert seam here) |
 |------|------|--------------------------------|
 | single-commit | `internal/generate/generate.go` | after `parseFail = false` (L237), before `signal.SetCandidate(m)` (L238) |
-| public API dry-run/system-extra | `pkg/stagehand/stagehand.go` `runPipeline` | after `parseFail = false` (L518), before `signal.SetCandidate(m)` (L519) |
+| public API dry-run/system-extra | `pkg/stagecoach/stagecoach.go` `runPipeline` | after `parseFail = false` (L518), before `signal.SetCandidate(m)` (L519) |
 | decompose message role | `internal/decompose/message.go` `generateMessage` | after `parseFail = false` (L161), before `subject := generate.ExtractSubject(m)` (L163) |
 | FR-M11 single shortcut | `internal/decompose/decompose.go` `runSingleShortcut` | template `plannerMsg` (L322) BEFORE the `dupCheckMessage` (L323) call |
 
@@ -33,7 +33,7 @@ This is the "applied to EVERY commit message in a run" guarantee (FR-F8), achiev
 
 ## 3. Seam design: `FinalizeMessage` + `ApplyTemplate` in `internal/generate`
 
-`internal/generate` is imported by BOTH `decompose` and `pkg/stagehand` (they already call
+`internal/generate` is imported by BOTH `decompose` and `pkg/stagecoach` (they already call
 `generate.ExtractSubject` / `generate.IsDuplicate` / `generate.RescueError`). It also imports `config`.
 So it is the single shared home for the seam — no new import edges, no import cycle.
 
@@ -58,13 +58,13 @@ try to be clever and inject into the subject only (that would violate "the full 
 ## 4. Config plumbing: mirror `format`/`locale` EXACTLY (full 5-layer precedence)
 
 Unlike `--context` (S2.T2.S1, flag-only), `--template` has the FULL surface:
-`[generation].template` / `stagehand.template` / `STAGEHAND_TEMPLATE` / `--template`. The `format`/`locale`
+`[generation].template` / `stagecoach.template` / `STAGECOACH_TEMPLATE` / `--template`. The `format`/`locale`
 scalars are the byte-for-byte precedent — add `Template` in the same six spots:
 
 1. `config.go`: field `Template string \`toml:"template"\`` (after `Locale` L89); `Defaults()` `Template: ""` (after L154).
 2. `file.go`: `fileGeneration.Template` (after L60); materialize `if g.Template != "" { c.Template = g.Template }` (~L243); merge `if src.Template != "" { dst.Template = src.Template }` (~L374).
-3. `git.go`: `stagehand.template` `gitConfigGet` block (after L139).
-4. `load.go` `loadEnv`: `STAGEHAND_TEMPLATE` (after L247).
+3. `git.go`: `stagecoach.template` `gitConfigGet` block (after L139).
+4. `load.go` `loadEnv`: `STAGECOACH_TEMPLATE` (after L247).
 5. `load.go` `loadFlags`: `--template` via `fs.Changed` (after L345).
 6. `root.go`: `flagTemplate` var + `pf.StringVar` registration (after the `--locale` registration).
 
@@ -76,8 +76,8 @@ mirroring it exactly (PURE, called ONCE on the fully-resolved value). Rule: `tpl
 `config init` registers a LOCAL bool flag `--template` (`internal/cmd/config.go` L144). The new global
 `--template` is a root PERSISTENT string flag. Cobra's `mergePersistentFlags` calls `Flags().AddFlagSet(parentsPflags)`,
 and pflag's `AddFlagSet` SKIPS any name already present locally — so for `config init` the LOCAL bool wins;
-the inherited string is not added. No panic, no type clash. `stagehand --template '$msg (#205)'` uses the
-string; `stagehand config init --template` uses the bool. Disambiguate via help text (item note) and add a
+the inherited string is not added. No panic, no type clash. `stagecoach --template '$msg (#205)'` uses the
+string; `stagecoach config init --template` uses the bool. Disambiguate via help text (item note) and add a
 regression test that both parse (`config init --template` stays a bool; root `--template x` sets `cfg.Template`).
 
 ## 6. Interaction with format modes / multi-line / dedupe rejection list
@@ -86,4 +86,4 @@ regression test that both parse (`config init --template` stays a bool; root `--
 - On a duplicate, the appended rejected subject is the TEMPLATED subject (what would land). Correct per
   FR-F8 ("judge the final subject"); the agent re-generates a bare message and the template re-applies.
 - Empty-template path MUST stay byte-identical to today — the seam short-circuits on `tpl == ""`. This is the
-  load-bearing regression guard (all existing generate/decompose/stagehand tests pass unchanged).
+  load-bearing regression guard (all existing generate/decompose/stagecoach tests pass unchanged).

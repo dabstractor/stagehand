@@ -1,12 +1,12 @@
 # Code Context — Dry-Run Path Divergence (PRD Issues 2 & 6)
 
-Scope: how `pkg/stagehand`'s DryRun diverges from the real `generate.CommitStaged` pipeline, and the
+Scope: how `pkg/stagecoach`'s DryRun diverges from the real `generate.CommitStaged` pipeline, and the
 exact reusable seams an implementer can lift to make DryRun run the full FR49 pipeline
 (diff→snapshot→generate→parse→**duplicate-check**, no commit).
 
 ## Files Retrieved
 
-1. `pkg/stagehand/stagehand.go` (full file, lines 1-355) — `GenerateCommit` dispatch, `Options`/`Result`,
+1. `pkg/stagecoach/stagecoach.go` (full file, lines 1-355) — `GenerateCommit` dispatch, `Options`/`Result`,
    `runPipeline` (the DryRun/SystemExtra entrypoint). DryRun short-circuit is lines 259-280; commit
    path's duplicated loop is lines 281-339.
 2. `internal/generate/generate.go` (full file, lines 1-end) — `CommitStaged` real pipeline; the
@@ -19,7 +19,7 @@ exact reusable seams an implementer can lift to make DryRun run the full FR49 pi
    merge conflicts / missing git / cancelled ctx.
 6. `internal/provider/parse.go` (full file) — `ParseOutput(raw, m Manifest) (msg, ok, fellback)`.
 7. `internal/provider/executor.go` (full file) — `Execute(ctx, spec, timeout, vb) (stdout, stderr, err)`.
-8. `pkg/stagehand/stagehand_test.go` (lines 140-285) — DryRun test coverage.
+8. `pkg/stagecoach/stagecoach_test.go` (lines 140-285) — DryRun test coverage.
 9. `internal/config/config.go:29,45,62` — `MaxDuplicateRetries` field, default 3.
 10. `plan/.../prd_snapshot.md` (lines 70-93, 160-185) — Issue 2 (FR49 dup-check) & Issue 6 (snapshot).
 
@@ -126,9 +126,9 @@ where `recentSubjects` calls `g.RecentSubjects(ctx, 50)`.
 
 ---
 
-## 2. The DryRun code path (`pkg/stagehand.runPipeline`)
+## 2. The DryRun code path (`pkg/stagecoach.runPipeline`)
 
-File: `pkg/stagehand/stagehand.go`. `GenerateCommit` dispatches at lines 94-110:
+File: `pkg/stagecoach/stagecoach.go`. `GenerateCommit` dispatches at lines 94-110:
 
 ```go
 // Common path: no DryRun, no SystemExtra → delegate to the frozen, tested orchestrator.
@@ -265,7 +265,7 @@ at runPipeline lines 281-339 already does.
 > `signal.SetCandidate` plumbing is already there; the loop body is already duplicated once and can
 > be shared. The loop's `*RescueError{TreeSHA: treeSHA, ...}` would then carry a real TreeSHA in
 > dry-run too (today dry-run returns bare `ErrTimeout` with no TreeSHA — see test at
-> stagehand_test.go:246).
+> stagecoach_test.go:246).
 
 ---
 
@@ -291,7 +291,7 @@ The "do not create the commit or move HEAD" clause is honored; the "full … pip
 
 ---
 
-## 5. DryRun tests in `pkg/stagehand/stagehand_test.go`
+## 5. DryRun tests in `pkg/stagecoach/stagecoach_test.go`
 
 Only two test cases touch DryRun:
 
@@ -319,7 +319,7 @@ non-empty `TreeSHA` via `SystemExtra` to force the runPipeline commit branch.)
 ## 6. Options / Result types
 
 ```go
-// pkg/stagehand/stagehand.go
+// pkg/stagecoach/stagecoach.go
 type Options struct {
     Provider    string        // manifest name; "" → resolved default
     Model       string        // "" → manifest default_model
@@ -340,10 +340,10 @@ type Result struct {
 ```
 
 `generate.Result` (internal) additionally carries `Changes []git.FileChange` (FR42 file listing) —
-`pkg/stagehand.GenerateCommit` deliberately drops `Changes` on the common delegation path (commented
-"drop res.Changes (design §1)", stagehand.go:104). DryRun returns it empty today.
+`pkg/stagecoach.GenerateCommit` deliberately drops `Changes` on the common delegation path (commented
+"drop res.Changes (design §1)", stagecoach.go:104). DryRun returns it empty today.
 
-Re-exported typed errors in `pkg/stagehand` (stagehand.go:53-72):
+Re-exported typed errors in `pkg/stagecoach` (stagecoach.go:53-72):
 `ErrNothingToCommit`, `ErrTimeout`, `ErrRescue`, `ErrCASFailed`; type aliases
 `RescueError = generate.RescueError`, `CASError = generate.CASError`.
 
@@ -352,7 +352,7 @@ Re-exported typed errors in `pkg/stagehand` (stagehand.go:53-72):
 ## Architecture (how the pieces connect)
 
 ```
-GenerateCommit (pkg/stagehand)
+GenerateCommit (pkg/stagecoach)
   ├── resolveConfig   → config.Config (7-layer, opts override)
   ├── buildDeps       → generate.Deps{Git, Manifest, Verbose}
   └── dispatch:
@@ -378,10 +378,10 @@ no-commit flag, or by extracting the loop into a shared helper) fixes Issue 2 an
 
 ## Start Here
 
-Open **`pkg/stagehand/stagehand.go:206-355`** (`runPipeline`). The dry-run short-circuit at
+Open **`pkg/stagecoach/stagecoach.go:206-355`** (`runPipeline`). The dry-run short-circuit at
 **lines 259-280** is the single block to replace with the full loop (already present at lines
 281-339 for the SystemExtra commit path — copy/share it, drop only the `CommitTree`/`UpdateRefCAS`
-tail, keep `WriteTree` unconditional). Then update **`stagehand_test.go:224-250`**
+tail, keep `WriteTree` unconditional). Then update **`stagecoach_test.go:224-250`**
 (`TestGenerateCommit_Timeout`/`dryrun`) which currently asserts the bare-`ErrTimeout` behavior, and
 add dry-run dup-retry / parse-retry tests mirroring the commit-path ones.
 
@@ -398,14 +398,14 @@ beyond read-only inspection. The deliverable is this findings document at the au
     {
       "id": "criterion-1",
       "status": "satisfied",
-      "evidence": "Scoped research only — no code changes made. All 6 requested research questions answered with exact code quotes (loop in generate.go:144-225, dry-run branch in stagehand.go:259-280, WriteTree gate at stagehand.go:227, signatures for CommitStaged/WriteTree/ParseOutput/Execute/IsDuplicate/ExtractSubject, FR49/FR30-33/FR29 status table, dry-run tests at stagehand_test.go:156-250, Options/Result types). Findings written to the authoritative path."
+      "evidence": "Scoped research only — no code changes made. All 6 requested research questions answered with exact code quotes (loop in generate.go:144-225, dry-run branch in stagecoach.go:259-280, WriteTree gate at stagecoach.go:227, signatures for CommitStaged/WriteTree/ParseOutput/Execute/IsDuplicate/ExtractSubject, FR49/FR30-33/FR29 status table, dry-run tests at stagecoach_test.go:156-250, Options/Result types). Findings written to the authoritative path."
     }
   ],
   "changedFiles": [],
   "testsAddedOrUpdated": [],
   "commandsRun": [
     {
-      "command": "read pkg/stagehand/stagehand.go, internal/generate/generate.go, internal/generate/dedupe.go, internal/git/git.go (WriteTree), internal/git/writetree_test.go, internal/provider/parse.go, internal/provider/executor.go, pkg/stagehand/stagehand_test.go, internal/config/config.go, plan/.../prd_snapshot.md",
+      "command": "read pkg/stagecoach/stagecoach.go, internal/generate/generate.go, internal/generate/dedupe.go, internal/git/git.go (WriteTree), internal/git/writetree_test.go, internal/provider/parse.go, internal/provider/executor.go, pkg/stagecoach/stagecoach_test.go, internal/config/config.go, plan/.../prd_snapshot.md",
       "result": "passed",
       "summary": "All target files located and read; no writetree.go standalone file exists (WriteTree lives in internal/git/git.go:219)."
     }
@@ -413,8 +413,8 @@ beyond read-only inspection. The deliverable is this findings document at the au
   "validationOutput": [
     "Confirmed WriteTree implementation is in internal/git/git.go:219 (not internal/git/writetree.go as the task brief assumed — that path does not exist; writetree_test.go does).",
     "Confirmed MaxDuplicateRetries default = 3 (config.go:62), so the real loop runs up to 4 attempts.",
-    "Confirmed the dry-run branch returns bare ErrTimeout on timeout (stagehand.go:269) and a plain errors.New on parse-failure (stagehand.go:274) — neither is a *RescueError and neither carries TreeSHA.",
-    "Confirmed TestGenerateCommit_Timeout/dryrun (stagehand_test.go:246) actively asserts dry-run timeout is NOT a *RescueError — this assertion must change if the fix unifies the paths."
+    "Confirmed the dry-run branch returns bare ErrTimeout on timeout (stagecoach.go:269) and a plain errors.New on parse-failure (stagecoach.go:274) — neither is a *RescueError and neither carries TreeSHA.",
+    "Confirmed TestGenerateCommit_Timeout/dryrun (stagecoach_test.go:246) actively asserts dry-run timeout is NOT a *RescueError — this assertion must change if the fix unifies the paths."
   ],
   "residualRisks": [
     "The task brief referenced internal/git/writetree.go which does not exist; WriteTree is defined in internal/git/git.go:219 (interface at :50). An implementer following the brief literally would not find the file.",
@@ -426,6 +426,6 @@ beyond read-only inspection. The deliverable is this findings document at the au
   "reviewFindings": [
     "no blockers (research-only deliverable)"
   ],
-  "manualNotes": "Implementation hint for the parent: the loop body needed for dry-run is ALREADY duplicated at pkg/stagehand/stagehand.go:281-339 (the SystemExtra commit path). The minimal fix is to (1) move WriteTree out of the `if !dryRun` gate (stagehand.go:227), (2) delete the short-circuit dry-run branch (lines 259-280), and (3) make the existing loop (281-339) run for both dryRun and !dryRun, skipping only CommitTree+UpdateRefCAS+DiffTree when dryRun. That collapses three near-duplicate code paths into one and fixes Issue 2 + Issue 6 simultaneously. Update stagehand_test.go:246 (timeout dryrun assertion) and add dry-run dup/parse-retry tests."
+  "manualNotes": "Implementation hint for the parent: the loop body needed for dry-run is ALREADY duplicated at pkg/stagecoach/stagecoach.go:281-339 (the SystemExtra commit path). The minimal fix is to (1) move WriteTree out of the `if !dryRun` gate (stagecoach.go:227), (2) delete the short-circuit dry-run branch (lines 259-280), and (3) make the existing loop (281-339) run for both dryRun and !dryRun, skipping only CommitTree+UpdateRefCAS+DiffTree when dryRun. That collapses three near-duplicate code paths into one and fixes Issue 2 + Issue 6 simultaneously. Update stagecoach_test.go:246 (timeout dryrun assertion) and add dry-run dup/parse-retry tests."
 }
 ```

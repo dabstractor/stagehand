@@ -193,11 +193,11 @@ re-pinned empirically on this box (git 2.54.0: exit 128, stdout `"HEAD\n"`). No 
 ### Current Codebase Tree (after P1.M1.T2.S1 has landed — assume as-specified)
 
 ```bash
-stagehand/
+stagecoach/
 ├── PRD.md
-├── go.mod                # module github.com/dustin/stagehand, go 1.22, NO deps
+├── go.mod                # module github.com/dustin/stagecoach, go 1.22, NO deps
 ├── Makefile              # build/test/lint/coverage/install/clean (test = go test -race ./...)
-├── cmd/stagehand/main.go # stub
+├── cmd/stagecoach/main.go # stub
 ├── internal/
 │   └── git/
 │       ├── git.go        # ← S1: Git interface + gitRunner + run() + New() + 11 panic-stubs
@@ -208,7 +208,7 @@ stagehand/
 ### Desired Codebase Tree After This Subtask
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/
     └── git/
         ├── git.go            # MODIFIED — added "strings" import; RevParseHEAD stub → real body
@@ -457,7 +457,7 @@ Task 3: VALIDATE — full gate set + scope discipline
 
 ```yaml
 MODULE (consumed, not modified):
-  - module path: "github.com/dustin/stagehand" → package import path "github.com/dustin/stagehand/internal/git"
+  - module path: "github.com/dustin/stagecoach" → package import path "github.com/dustin/stagecoach/internal/git"
   - go directive: 1.22 → context, strings, regexp, t.Setenv (1.17+), errors.Is all available
   - deps: NONE added (strings is stdlib)
 
@@ -485,7 +485,7 @@ PARALLEL-EXECUTION NOTE:
 ### Level 1: Syntax & Style (Immediate Feedback)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 gofmt -l internal/git/          # Expected: no output (run `gofmt -w internal/git/` if it lists files)
 go vet ./internal/git/...        # Expected: exit 0, no warnings (e.g. no unused import, no shadowing)
@@ -498,7 +498,7 @@ go build ./...                   # Expected: exit 0 (whole module compiles)
 ### Level 2: Unit Tests (Component Validation)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 go test -race -v -run 'TestRevParseHEAD' ./internal/git/   # Expected: 4 tests PASS, exit 0
 # Must see: TestRevParseHEAD_UnbornRepo, TestRevParseHEAD_BornRepo,
@@ -529,7 +529,7 @@ make test                        # Expected: exit 0 (S2's target = go test -race
 ### Level 3: Security & Structural Invariants (the §19 enforcement + scope discipline)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # PRD §19: NO shell execution anywhere in the git wrapper (inherited; new code adds none).
 git grep -nE '\b(sh|zsh|bash)\s+-c\b|cmd\s*/c\b' internal/git/
@@ -558,7 +558,7 @@ git diff --name-only go.mod go.sum
 ### Level 4: Runtime Smoke Test (prove RevParseHEAD works against a real repo)
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 
 # Reproduce the unborn/born behavior the test asserts, against the real binary (mirrors the research):
 tmp=$(mktemp -d); git -C "$tmp" init -q

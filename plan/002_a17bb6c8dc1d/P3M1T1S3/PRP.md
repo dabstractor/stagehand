@@ -3,7 +3,7 @@ name: "P3.M1.T1.S3 — Implement arbiter system prompt + JSON contract in intern
 description: |
 
   CREATE ONE NEW FILE `internal/prompt/arbiter.go` in the existing `prompt` package: the **arbiter**
-  prompt half of stagehand's v2 multi-commit decomposition (PRD §17.7). The arbiter is a **bare** agent
+  prompt half of stagecoach's v2 multi-commit decomposition (PRD §17.7). The arbiter is a **bare** agent
   that runs ONLY if the working tree is non-empty after the loop (§13.6.5). It receives the commits made
   this run (SHA + subject + file-list each) + a diff of the remaining changes, and returns a target SHA
   or null. Like the planner (S1), the arbiter emits STRUCTURED JSON (a single `target` field), so a JSON
@@ -103,9 +103,9 @@ fallback (REUSING planner.go's in-package `extractJSONObject`).
 ## User Persona
 
 **Target User**: the decompose arbiter agent invocation (internal code, P3.M3.T1.S1) and, by extension,
-the end user running `stagehand` on an un-staged working tree to get multiple logically-coherent commits.
+the end user running `stagecoach` on an un-staged working tree to get multiple logically-coherent commits.
 The arbiter prompt is NOT user-facing CLI text; it is the system prompt + user payload piped to the bare
-arbiter agent (PRD §13.6.2 / §17.7). The arbiter never performs git itself — stagehand owns all ref
+arbiter agent (PRD §13.6.2 / §17.7). The arbiter never performs git itself — stagecoach owns all ref
 mutations (FR-M10); the arbiter ONLY decides whether leftover changes belong with an existing commit or
 warrant a new one.
 
@@ -319,7 +319,7 @@ required — the contract is fully self-contained at the prompt layer.
        the work item says "verbatim from §17.7", and §17.1/§17.2/§17.5 set the precedent that PRD §17.x
        code blocks are authoritative text.
 - url: PRD.md §13.6.5 (the arbiter runtime semantics — null/target-HEAD/target-mid-chain/ambiguous→null;
-       "Stagehand performs ALL git; the arbiter only decides")
+       "Stagecoach performs ALL git; the arbiter only decides")
   why: the runtime semantics the prompt + parse layer must serve. Confirms ParseArbiterOutput only parses;
        the resolution mechanics (new/tip-amend/mid-chain/ambiguous-default) are the consumer's (P3.M3).
 ```
@@ -470,7 +470,7 @@ type ArbiterOutput struct {
 Task 1: CREATE internal/prompt/arbiter.go — arbiterSystemPrompt const (verbatim §17.7)
   - ADD a package-level doc comment (mirror planner.go's: cite PRD §17.7, explain the arbiter role (bare;
     runs only if the working tree is non-empty after the loop; receives commits-made-this-run + a leftover
-    diff; returns a target SHA or null; performs NO git itself — stagehand owns all ref ops), note that
+    diff; returns a target SHA or null; performs NO git itself — stagecoach owns all ref ops), note that
     constants carry no trailing newline + Build* own inter-block newlines, note §17.7 is ASCII EXCEPT one
     em-dash + has NO style-examples placeholder + has NO backticks).
   - DEFINE `arbiterSystemPrompt` (private const, backtick raw string): the verbatim §17.7 system prompt —
@@ -503,7 +503,7 @@ Task 4: CREATE internal/prompt/arbiter.go — BuildArbiterSystemPrompt() string
     findings §1.3).
   - BODY: `return arbiterSystemPrompt` (the thin wrapper keeps the const private + API symmetry).
   - DOC COMMENT: cite §17.7; note the arbiter system prompt is the verbatim constant with NO appended style
-    examples (unlike the planner §17.5); note this is why the function is zero-arg; note stagehand performs
+    examples (unlike the planner §17.5); note this is why the function is zero-arg; note stagecoach performs
     all git (FR-M10) and the arbiter only decides.
 
 Task 5: CREATE internal/prompt/arbiter.go — BuildArbiterUserPayload(commits, leftoverDiff) string

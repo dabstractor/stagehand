@@ -70,7 +70,7 @@ After FR3j: run the closed-loop wrapper that re-measures and re-trims.
 | # | Site | File | Role | Builder |
 |---|---|---|---|---|
 | 1 | `CommitStaged` | generate.go:~213 | message | `BuildUserPayload` |
-| 2 | `runPipeline` | stagehand.go:~437 | message | `BuildUserPayload` |
+| 2 | `runPipeline` | stagecoach.go:~437 | message | `BuildUserPayload` |
 | 3 | `hook.Run` | hook/exec.go:~123 | message | `BuildUserPayload` |
 | 4 | `generateMessage` | decompose/message.go:~88 | message (decompose) | `BuildUserPayload` |
 | 5 | `callPlanner` | decompose/planner.go:~79 | planner | `BuildPlannerUserPayload` |

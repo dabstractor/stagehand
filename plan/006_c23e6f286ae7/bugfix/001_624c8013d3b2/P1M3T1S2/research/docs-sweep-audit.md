@@ -64,9 +64,9 @@ lock-contention discussion, and no hit contradicts the qualified L155 claim.
 
 **Exact row to insert** (placed after the "Nothing to commit (clean tree) | 2" row, before "General error"):
 ```
-| Another stagehand run holds the per-repo lock | 5 (Busy) | Wait for the in-progress run to finish, then re-run (see [Per-repo run lock](#per-repo-run-lock-fr52)) |
+| Another stagecoach run holds the per-repo lock | 5 (Busy) | Wait for the in-progress run to finish, then re-run (see [Per-repo run lock](#per-repo-run-lock-fr52)) |
 ```
-Consistency check: matches cli.md L374 ("Busy — another stagehand run holds the per-repo lock; retry after it
+Consistency check: matches cli.md L374 ("Busy — another stagecoach run holds the per-repo lock; retry after it
 finishes") and is consistent with (does not contradict) the qualified L155 claim. The path-specific 0-vs-5
 detail stays at L155 + cli.md:379 (single source of truth); the row is the table-index pointer.
 
@@ -84,7 +84,7 @@ detail stays at L155 + cli.md:379 (single source of truth); the row is the table
 | 90 | `hook uninstall` → "(exit 0)" | HOOK_UNINSTALL | NO edit. Unrelated exit 0. |
 | 111-133 | `hook exec` — "Source-gated **no-op** (FR-H4)" / "message … → no-op (exit 0)" | HOOK_NOOP | NO edit. "no-op" = the hook passes through when a message source is present (FR-H4), NOT the lock. Different concept. |
 | 243 | integration decline/no-change → "exit 0" | INTEGRATION | NO edit. Unrelated exit 0. |
-| **366-375** | **Exit-code TABLE** — `0` Success / `1` General error / `2` Nothing to commit / `3` Rescue / `5` Busy / `124` Timeout | **EXIT_TABLE** | **NO edit.** Rows 0 and 5 are GENERIC and consistent with the qualified L379 prose. The contract: "they are generic and should be fine" — CONFIRMED. (Row 5 = "Busy — another stagehand run holds the per-repo lock; retry after it finishes." Row 0 = "Success (commit created, or dry-run message printed)." Neither makes a path-specific contention claim.) |
+| **366-375** | **Exit-code TABLE** — `0` Success / `1` General error / `2` Nothing to commit / `3` Rescue / `5` Busy / `124` Timeout | **EXIT_TABLE** | **NO edit.** Rows 0 and 5 are GENERIC and consistent with the qualified L379 prose. The contract: "they are generic and should be fine" — CONFIRMED. (Row 5 = "Busy — another stagecoach run holds the per-repo lock; retry after it finishes." Row 0 = "Success (commit created, or dry-run message printed)." Neither makes a path-specific contention claim.) |
 | 377 | exit codes mirror constants; timeout=124; dry-run → 1 | EXIT_META | NO edit. |
 | **379** | **"Code 5 (Busy) … two behaviors"** — single-commit→0/5, decompose→5(Busy) | **QUALIFIED_CLAIM** | **NO edit (already qualified by P1.M1.T1.S2). This is the reference.** |
 
@@ -147,7 +147,7 @@ Re-verified 2026-07-04: re-ran the §1/§3/§4 audit grep (contention terms + ba
 live docs. No drift from the audit-time findings.
 
 - **docs/how-it-works.md: EDIT MADE.** Added the generic Busy(5) row to the "Failure modes and exit codes"
-  table (now at L173, between "Nothing to commit (clean tree)" and "General error"): `| Another stagehand
+  table (now at L173, between "Nothing to commit (clean tree)" and "General error"): `| Another stagecoach
   run holds the per-repo lock | 5 (Busy) | Wait for the in-progress run to finish, then re-run (see
   [Per-repo run lock](#per-repo-run-lock-fr52)) |`. The row is generic and points to the qualified L155
   prose via the `#per-repo-run-lock-fr52` anchor; it does NOT re-state the single-commit/decompose split

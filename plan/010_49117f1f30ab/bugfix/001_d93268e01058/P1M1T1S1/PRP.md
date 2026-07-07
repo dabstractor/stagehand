@@ -28,7 +28,7 @@ file only), matching git's documented behavior for a plain commit — not argc=2
 
 - **Git-parity guarantee.** Git's githooks(5) documentation specifies that for a plain commit
   `prepare-commit-msg <msgfile>` is invoked with ONE argument — the `source` parameter is ABSENT. Git
-  2.54.0 empirically confirms `ARGC=1`. Stagehand currently passes 2 args (the empty string `""` as $2).
+  2.54.0 empirically confirms `ARGC=1`. Stagecoach currently passes 2 args (the empty string `""` as $2).
 - **Hooks that branch on `$#` misbehave.** A hook using `[ "$#" -eq 1 ] && …` takes the wrong branch.
   Most common hooks (husky, commitlint) use `[ -z "$2" ]` which works either way, so the practical blast
   radius is narrow — but it is a documented git-parity violation.
@@ -71,7 +71,7 @@ No signature change, no caller change.
 ### Current Codebase Tree
 
 ```bash
-stagehand/
+stagecoach/
 └── internal/hooks/
     ├── runner.go        # EDIT: line ~195 (argv), lines ~52 + ~178 (comments)
     └── runner_test.go   # EDIT: + TestRunCommitHooks_PrepareCommitMsg_ArgcIsOne
@@ -162,7 +162,7 @@ Task 5: VALIDATE
 // === the corrected comment (line ~52) ===
 //   - prepare-commit-msg: ALWAYS runs (NoVerify + DryRun do NOT gate it — git-commit(1) parity).
 //     Invoked as `<msgfile>` (git githooks(5): for a plain commit no second parameter is passed;
-//     argc=1, $2 unset). The S2 seam shouldSkipStagehandPrepareCommitMsg stubs false (stagehand's
+//     argc=1, $2 unset). The S2 seam shouldSkipStagecoachPrepareCommitMsg stubs false (stagecoach's
 //     own hook would recurse; S2 fills via hook.Detect). Non-zero/timeout → *RescueError.
 ```
 
@@ -171,8 +171,8 @@ Task 5: VALIDATE
 // runPrepareCommitMsg runs prepare-commit-msg <msgPath> (git githooks(5): for a plain commit no
 // second parameter is passed; argc=1, $2 unset) on the SHARED message file. ALWAYS runs
 // (NoVerify/DryRun don't gate it — the caller gates the OTHER hooks). Skipped if absent/non-exec
-// OR stagehand's OWN hook (FR-V4 recursion prevention — invoking stagehand's own prepare-commit-msg
-// would exec `stagehand hook exec` and recurse). Returns the CAUSE error on non-zero/timeout (the
+// OR stagecoach's OWN hook (FR-V4 recursion prevention — invoking stagecoach's own prepare-commit-msg
+// would exec `stagecoach hook exec` and recurse). Returns the CAUSE error on non-zero/timeout (the
 // caller wraps the full-context *RescueError).
 ```
 
@@ -199,7 +199,7 @@ no external doc references argc). The Mode A instruction is satisfied by correct
 ### Level 1: Syntax & Style
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 gofmt -w internal/hooks/runner.go internal/hooks/runner_test.go
 gofmt -l .            # Expected: empty
 go vet ./internal/hooks/...  # Expected: exit 0
@@ -209,7 +209,7 @@ go build ./...        # Expected: exit 0
 ### Level 2: Unit Tests
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go test -race -run TestRunCommitHooks_PrepareCommitMsg_ArgcIsOne ./internal/hooks/ -v  # NOW PASSES
 go test -race ./internal/hooks/ -v   # full hooks suite green
 ```
@@ -217,7 +217,7 @@ go test -race ./internal/hooks/ -v   # full hooks suite green
 ### Level 3: Whole-Repository Regression
 
 ```bash
-cd /home/dustin/projects/stagehand
+cd /home/dustin/projects/stagecoach
 go test -race ./...   # Expected: ALL packages green
 git diff --stat       # Expected: internal/hooks/runner.go + runner_test.go only
 ```

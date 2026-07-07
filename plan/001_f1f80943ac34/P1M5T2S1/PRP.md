@@ -34,7 +34,7 @@ description: |
     - `internal/provider/manifest.go` / `merge.go` / `registry.go` — Manifest schema, merge, registry.
       READ ONLY (the test CONSUMES `BuiltinManifests()` + `toml.Unmarshal`).
     - `internal/config/*.go` — the config loader. READ ONLY. Do NOT wire `providers/` into it (the files
-      are inert docs; the loader reads `.stagehand.toml`, not a `providers/` dir).
+      are inert docs; the loader reads `.stagecoach.toml`, not a `providers/` dir).
     - `internal/provider/builtin_test.go` — the existing decode-parity suite (`piTOML`…`cursorTOML`
       constants + `TestBuiltinManifests_DecodeParity`). READ ONLY; the new test MIRRORS its pattern in a
       SEPARATE file (do NOT modify builtin_test.go).
@@ -85,11 +85,11 @@ sync-guard that proves they mirror the code.
 
 ## User Persona
 
-**Target User**: the Stagehand end user / tinkerer (PRD §7.3 "the multi-agent tinkerer"; §7.2 "the
-API-key refusenik") who wants to (a) understand how Stagehand wraps a given agent CLI, or (b) override a
+**Target User**: the Stagecoach end user / tinkerer (PRD §7.3 "the multi-agent tinkerer"; §7.2 "the
+API-key refusenik") who wants to (a) understand how Stagecoach wraps a given agent CLI, or (b) override a
 built-in or add a brand-new provider (§12.8). Secondary: contributors reading the provider system.
 
-**Use Case**: "I want to see EXACTLY what flags Stagehand sends to `codex` / `claude` / `cursor`, and
+**Use Case**: "I want to see EXACTLY what flags Stagecoach sends to `codex` / `claude` / `cursor`, and
 copy a template to define my own `[provider.myagent]`." They open `providers/codex.toml`, read the
 comments, and either learn the manifest schema or copy the body into their config wrapped in
 `[provider.<name>]`.
@@ -244,7 +244,7 @@ providers/                   # ← NEW (this task): does NOT exist yet
   opencode.toml              # ← NEW
   codex.toml                 # ← NEW
   cursor.toml                # ← NEW
-config loader (internal/config/*.go)   # reads .stagehand.toml, NOT providers/. UNCHANGED.
+config loader (internal/config/*.go)   # reads .stagecoach.toml, NOT providers/. UNCHANGED.
 ```
 
 ### Desired Codebase tree with files to be added
@@ -265,7 +265,7 @@ internal/provider/referencefiles_test.go   # NEW — package provider; decode-pa
 ```toml
 # CRITICAL (FLAT FORMAT, NOT [provider.<name>]): each file uses top-level `name = "<agent>"` — the SAME
 # schema as PRD §12.3–§12.7 and `providers show`. Do NOT write `[provider.pi]` / `name = ...` inside a
-# table — that is the §12.8 CONFIG-OVERRIDE syntax (what .stagehand.toml uses), not the manifest format.
+# table — that is the §12.8 CONFIG-OVERRIDE syntax (what .stagecoach.toml uses), not the manifest format.
 # The decode-parity test `toml.Unmarshal(data, &Manifest{})` decodes a FLAT doc into one Manifest; a
 # `[provider.pi]` table would decode into a map, not a Manifest → test fails. The §12.8 recipe goes in a
 # HEADER COMMENT, not the file body.
@@ -325,7 +325,7 @@ internal/provider/referencefiles_test.go   # NEW — package provider; decode-pa
 # retry_instruction->"Output ONLY the commit message. No preamble, no markdown, no quotes.",
 # print_flag/model_flag/etc -> "" i.e. no flag emitted).
 
-# GOTCHA (THE FILES ARE INERT — do NOT wire them in): the config loader reads .stagehand.toml, NOT a
+# GOTCHA (THE FILES ARE INERT — do NOT wire them in): the config loader reads .stagecoach.toml, NOT a
 # providers/ directory (grep-verified: no embed/ReadDir/Glob of providers/ in internal/config). Do NOT
 # add //go:embed, do NOT add a loader path, do NOT touch the registry. The 6 files are pure docs. The
 # ONLY code this task adds is the sync-guard test, which READS the files (never loads them as config).
@@ -524,8 +524,8 @@ Task 1: CREATE providers/pi.toml (the exemplar — get this one RIGHT, then mirr
         — NOT loaded at runtime (built-ins are compiled into the binary in internal/provider/builtin.go).
         This file mirrors builtinPi() byte-for-byte (modulo comments)."
       * HOW TO USE AS OVERRIDE (§12.8): "To override the built-in or define a variant, copy the FIELD
-        lines below (NOT this header) into your config (~/.config/stagehand/config.toml or a repo-local
-        .stagehand.toml) wrapped in a `[provider.<name>]` table, and DELETE the `name = ...` line (the
+        lines below (NOT this header) into your config (~/.config/stagecoach/config.toml or a repo-local
+        .stagecoach.toml) wrapped in a `[provider.<name>]` table, and DELETE the `name = ...` line (the
         table key supplies the name). Change only the fields you want; absent fields inherit the built-in."
       * RENDERED (external_deps.md §pi): show `pi --provider zai --model glm-5-turbo --system-prompt "<sys>"
         --no-tools --no-extensions --no-skills --no-prompt-templates --no-context-files --no-session -p
@@ -652,7 +652,7 @@ Task 8: FINAL VALIDATION
   - RUN: `go vet ./internal/provider/` (clean).
   - RUN: `make test` -> green (full suite; the .toml files are inert — not compiled, not loaded).
   - RUN: `git status --short` -> ONLY the 7 new files (providers/*.toml + referencefiles_test.go).
-  - SANITY (optional): `go run ./cmd/stagehand providers show pi` -> prints the flat manifest; eyeball
+  - SANITY (optional): `go run ./cmd/stagecoach providers show pi` -> prints the flat manifest; eyeball
       that providers/pi.toml's de-commented body matches the CLI output (it must — both derive from builtinPi).
 ```
 
@@ -671,14 +671,14 @@ Task 8: FINAL VALIDATION
 #   Human-readable REFERENCE DOCUMENTATION for the `pi` provider. It mirrors the
 #   compiled-in manifest `builtinPi()` in internal/provider/builtin.go BYTE-FOR-BYTE
 #   (modulo comments). It is NOT loaded at runtime — built-ins are compiled into
-#   the Go binary. (The config loader reads .stagehand.toml, not this directory.)
+#   the Go binary. (The config loader reads .stagecoach.toml, not this directory.)
 #
 # HOW TO USE IT AS A CONFIG OVERRIDE (PRD §12.8)
 #   To override the built-in pi (or define a variant), copy the FIELD lines below
 #   (NOT this header) into your config file and wrap them in a `[provider.pi]`
 #   table, then DELETE the `name = "pi"` line — the table key supplies the name.
 #   Change only the fields you want; fields you omit inherit the built-in's value.
-#       # ~/.config/stagehand/config.toml  (or a repo-local .stagehand.toml)
+#       # ~/.config/stagecoach/config.toml  (or a repo-local .stagecoach.toml)
 #       [provider.pi]
 #       default_model = "glm-5.2"          # e.g. override only the model
 #
@@ -808,7 +808,7 @@ make test            # == go test -race ./... -> green.
 
 # CLI consistency: `providers show <name>` prints the flat manifest; the .toml's de-commented body
 # should match it (both derive from the same constructor). Eyeball one:
-go run ./cmd/stagehand providers show pi
+go run ./cmd/stagecoach providers show pi
 # Expected: a flat TOML block whose keys/values match providers/pi.toml's field lines (modulo the
 # single-vs-double quoting cosmetic — go-toml emits single quotes; the .toml uses double; both valid).
 
@@ -885,7 +885,7 @@ git status --short
 - ❌ **Don't edit `builtin.go` to "fix" a decode-parity mismatch.** `builtin.go` is the frozen source of
   truth (P1.M2.T2). If the test reports a diff, the `.toml` is wrong — align the `.toml` to the built-in.
 - ❌ **Don't wire `providers/` into anything.** No `//go:embed`, no loader path, no registry change. The
-  files are inert documentation; the config loader reads `.stagehand.toml`, not a `providers/` directory.
+  files are inert documentation; the config loader reads `.stagecoach.toml`, not a `providers/` directory.
 - ❌ **Don't use the PRD §12.7 prose values for codex.** The compiled-in codex has TWO revisions
   (`prompt_delivery = "stdin"`; `bare_flags = [--sandbox, read-only, --ephemeral]` — `--ask-for-approval`
   was dropped). Mirror `builtinCodex()` (with revisions), not the raw PRD §12.7 block.

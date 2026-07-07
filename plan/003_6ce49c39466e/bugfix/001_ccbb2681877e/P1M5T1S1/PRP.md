@@ -77,21 +77,21 @@ have to run `config upgrade` just to load such a file.
 
 ## User Persona
 
-**Target User**: a Stagehand user (PRD §7 personas) carrying a config file written during the brief
-intermediate "agent" terminology window (or hand-edited from an old example). They run `stagehand` and it
+**Target User**: a Stagecoach user (PRD §7 personas) carrying a config file written during the brief
+intermediate "agent" terminology window (or hand-edited from an old example). They run `stagecoach` and it
 silently uses no/empty provider because the `[agent.pi]` block was dropped on load — confusing, since the
 file "looks" configured. Today they must discover and run `config upgrade` to fix it.
 
-**Use Case**: user points Stagehand at their existing config → it loads with the provider block preserved
+**Use Case**: user points Stagecoach at their existing config → it loads with the provider block preserved
 (provider/model/manifest resolve correctly) → generation proceeds. No `config upgrade` required for the
 in-memory load.
 
-**User Journey**: user runs `stagehand` with an `[agent.pi]` config → loadTOML textually remaps to
+**User Journey**: user runs `stagecoach` with an `[agent.pi]` config → loadTOML textually remaps to
 `[provider.pi]` before decode → `cfg.Provider == "pi"`, `cfg.Providers["pi"]` populated → the registry
 resolves the pi manifest → generation works.
 
 **Pain Points Addressed**: silent loss of the provider block on load (the file "looks" configured but
-Stagehand runs unconfigured). Defense-in-depth: even though the `agent` terminology likely never shipped
+Stagecoach runs unconfigured). Defense-in-depth: even though the `agent` terminology likely never shipped
 in a release, a file using it now loads correctly instead of failing opaquely.
 
 ## Why

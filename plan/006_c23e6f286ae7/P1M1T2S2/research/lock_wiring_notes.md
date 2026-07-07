@@ -49,7 +49,7 @@ The insertion point (integration_seams §1, verified):
 ```go
 // lines 54-55 (EXISTING)
 repoDir, err := os.Getwd()
-if err != nil { return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: getwd: %w", err)) }
+if err != nil { return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: getwd: %w", err)) }
 g := git.New(repoDir)
 // ← INSERT lock acquire here. repoDir is the key; g is the contender's git for the fast-path probe.
 //   The auto-stage state machine begins at line 73 (flagAll / HasStagedChanges / runDecompose).
@@ -62,8 +62,8 @@ the decompose path (`runDecompose` called at line 110). Read-only subcommands ha
 and never reach `runDefault`; `hookexec.go` (hook mode) has its own `RunE` (`runHookExec`) and only
 WRITES a message (git commits) — it is NOT a ref-mutating action, so it correctly needs no lock.
 
-**Imports already present in default_action.go:** `context, errors, fmt, io, os` + cobra + stagehand
-internals. **`lock` is NOT imported** — ADD `"github.com/dustin/stagehand/internal/lock"`.
+**Imports already present in default_action.go:** `context, errors, fmt, io, os` + cobra + stagecoach
+internals. **`lock` is NOT imported** — ADD `"github.com/dustin/stagecoach/internal/lock"`.
 
 ### 2.2 `internal/generate/generate.go` — SetSnapshot (single-commit path)
 
@@ -76,7 +76,7 @@ signal.SetSnapshot(treeSHA, parentSHA, "") // arm rescue (§18.4)
 // ← ADD: lock.SetSnapshot(treeSHA)   (one line, mirrors the signal.SetSnapshot call above)
 ```
 `treeSHA` is the frozen index tree — exactly the value a contender compares against. Import
-`internal/lock`. `CommitStaged` is called by `pkg/stagehand.GenerateCommit` (the public API) AND by
+`internal/lock`. `CommitStaged` is called by `pkg/stagecoach.GenerateCommit` (the public API) AND by
 `runDefault` (US12 dogfooding) — so this single site publishes for both CLI and library callers.
 
 ### 2.3 `internal/decompose/decompose.go` — SetSnapshot (decompose path)
@@ -115,8 +115,8 @@ func handleLockContention(stderr io.Writer, heldErr *lock.HeldError, g git.Git, 
     }
     // Busy: snapshot empty, tree SHAs differ, or WriteTree failed → refuse, leave new changes staged.
     fmt.Fprintf(stderr,
-        "stagehand: another stagehand run is already in progress on %s (pid %s on %s). "+
-            "Your newly-staged changes will remain staged — re-run stagehand after it finishes. Lock: %s.\n",
+        "stagecoach: another stagecoach run is already in progress on %s (pid %s on %s). "+
+            "Your newly-staged changes will remain staged — re-run stagecoach after it finishes. Lock: %s.\n",
         heldErr.Contents.Repo, heldErr.Contents.Pid, heldErr.Contents.Hostname, heldErr.Path)
     return exitcode.New(exitcode.Busy, nil) // exit 5, SILENT (message already printed)
 }
@@ -143,7 +143,7 @@ auto-stage notice `"Nothing staged — staging all changes"`).
 ```go
 g := git.New(repoDir)
 
-// FR52 / §18.5: acquire the per-repo run lock so two stagehand processes cannot race on update-ref.
+// FR52 / §18.5: acquire the per-repo run lock so two stagecoach processes cannot race on update-ref.
 // One insertion covers both the single-commit and decompose paths (runDecompose is called below);
 // defer Release fires on every early-exit. Read-only subcommands never reach runDefault.
 locker, lockErr := lock.Acquire(repoDir)
@@ -237,5 +237,5 @@ two-subprocess contention E2E is P1.M1.T2.S3 — do NOT build that here.)
 | D3 | Where does `handleLockContention` live? | `default_action.go` (next to handleGenError/handleDecomposeError) | Codebase convention for `handle*` mapping helpers. |
 | D4 | Mock git.Git how? | Embed `git.Git` interface, override only WriteTree | Avoids a real repo AND faking ~15 methods; the helper calls only WriteTree. |
 | D5 | Edit docs/cli.md? | NO — verify only | S1 (parallel) owns the Busy row + contention note; editing risks a conflict. S1's PRP explicitly includes the note. |
-| D6 | hookexec lock? | No | Hook mode writes a message file; git performs the commit — no stagehand ref mutation, so no lock. |
+| D6 | hookexec lock? | No | Hook mode writes a message file; git performs the commit — no stagecoach ref mutation, so no lock. |
 | D7 | Test lock-dir isolation | Explicit `t.Setenv("XDG_CACHE_HOME", temp)` + unset XDG_RUNTIME_DIR | isolateHome doesn't set cache/runtime dirs; avoids colliding with real user locks. |

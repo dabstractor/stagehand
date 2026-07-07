@@ -1,11 +1,11 @@
-name: "P1.M6.T1.S2 — `stagehand models [<provider>]` command with curated-table fallback"
+name: "P1.M6.T1.S2 — `stagecoach models [<provider>]` command with curated-table fallback"
 description: |
 
 ---
 
 ## Goal
 
-**Feature Goal**: Implement the `stagehand models [<provider>]` cobra command (PRD §9.23 FR-L1, §15.3)
+**Feature Goal**: Implement the `stagecoach models [<provider>]` cobra command (PRD §9.23 FR-L1, §15.3)
 that prints the models reachable by a provider. Source-of-truth order per provider (FR-L1): **(a)** if
 the manifest's `list_models_command` (delivered by S1 as `Manifest.ListModelsCommand []string`) is
 non-empty, run it as a subprocess (inherited env, bounded timeout) and print its stdout under a provider
@@ -34,33 +34,33 @@ error with a nonzero exit.
 **Success Definition**:
 - `go build ./...`, `go test ./internal/cmd/... ./internal/config/... -v`, `go vet ./...`,
   `golangci-lint run`, `gofmt -l` all green.
-- `stagehand models claude` (claude detected, no `list_models_command`) prints the curated per-role table
+- `stagecoach models claude` (claude detected, no `list_models_command`) prints the curated per-role table
   with the verification-date footer + `consult \`claude --help\`` hint (FR-L1 (b)).
 - A detected provider whose `list_models_command` succeeds (e.g. opencode on PATH) prints the CLI's live
   stdout under a heading (FR-L1 (a)).
 - A detected provider whose `list_models_command` FAILS (non-zero / timeout / not found) prints the
   curated table on stdout AND a one-line "list command failed; using curated table" notice on stderr.
-- `stagehand models --all` prints one block per detected provider; `stagehand models` (no arg) prints
+- `stagecoach models --all` prints one block per detected provider; `stagecoach models` (no arg) prints
   the resolved default provider's block.
-- `stagehand models ghost` (unknown) and `stagehand models <known-but-undetected>` exit 1 with a clear
-  message; `stagehand models` with nothing detected exits 1; `stagehand models --all <p>` is a usage
+- `stagecoach models ghost` (unknown) and `stagecoach models <known-but-undetected>` exit 1 with a clear
+  message; `stagecoach models` with nothing detected exits 1; `stagecoach models --all <p>` is a usage
   error (exit 1).
-- `stagehand models --help` shows the `--all` help text scoped to models (NOT the root's "git add -A"
+- `stagecoach models --help` shows the `--all` help text scoped to models (NOT the root's "git add -A"
   text) — proving the local flag overrides the inherited persistent one cleanly.
 
 ## User Persona
 
 **Target User**: the "plan-holder" (PRD §7.1) and "multi-agent tinkerer" (§7.3) deciding which model to
 pin per role before running `config init` or editing `[role.*]`. Also the "API-key refusenik" (§7.2) who
-wants to see reachable models WITHOUT handing stagehand an API key.
+wants to see reachable models WITHOUT handing stagecoach an API key.
 
-**Use Case**: `stagehand models` (or `stagehand models opencode`) shows what the installed agent CLI can
-reach — read straight from the agent CLI itself (never stagehand hitting a provider HTTP API with a key,
-which is exactly what the incumbents do and stagehand refuses to require, §6.2 N2).
+**Use Case**: `stagecoach models` (or `stagecoach models opencode`) shows what the installed agent CLI can
+reach — read straight from the agent CLI itself (never stagecoach hitting a provider HTTP API with a key,
+which is exactly what the incumbents do and stagecoach refuses to require, §6.2 N2).
 
 **Pain Points Addressed**: incumbents (aicommits/opencommit) list models via provider HTTP APIs with the
-user's key. Stagehand has no key and asks the agent CLI instead — same reason the product exists. When a
-CLI exposes no listing surface, stagehand falls back to its own curated FR-D4 tier table rather than
+user's key. Stagecoach has no key and asks the agent CLI instead — same reason the product exists. When a
+CLI exposes no listing surface, stagecoach falls back to its own curated FR-D4 tier table rather than
 leaving the user blind.
 
 ## Why
@@ -70,7 +70,7 @@ leaving the user blind.
   every detected provider; never an HTTP call.
 - **FR-L2 (PRD §9.23 / §12.1)**: `list_models_command` is the optional argv this command runs —
   DELIVERED by P1.M6.T1.S1 (the parallel task; treat as the input contract). S2 is its only consumer.
-- **§6.2 N2**: never an HTTP call — stagehand has no key; the agent CLI is the only model authority.
+- **§6.2 N2**: never an HTTP call — stagecoach has no key; the agent CLI is the only model authority.
   `models` routes discovery through the installed CLI the user already has.
 - **architecture/system_context.md §3 (internal/provider seam)**: "`list_models_command` … the one new
   §12.1 field"; and (internal/config seam) "**FR-D4 curated tier table already exists as
@@ -88,7 +88,7 @@ leaving the user blind.
 
 A read-only `models [<provider>]` cobra leaf on root, with a local `--all`/`-a` flag, that resolves a
 target set (one provider, or every detected provider), and for each target prints either the CLI's live
-model list (when `list_models_command` is set and succeeds) or stagehand's curated per-role tier table
+model list (when `list_models_command` is set and succeeds) or stagecoach's curated per-role tier table
 (when the field is absent or the command fails). Output goes to stdout (pipeable); the "falling back to
 curated table" notice goes to stderr. Errors are nonzero exits via `exitcode.New(exitcode.Error, …)`.
 
@@ -112,7 +112,7 @@ curated table" notice goes to stderr. Errors are nonzero exits via `exitcode.New
       default, never-HTTP).
 - [ ] `internal/cmd/models_test.go`: stub-binary live-list test, golden renderer test, command-FAILURE
       fallback test, and the error matrix — all pass.
-- [ ] All build/test/vet/lint/fmt green; `stagehand models --help` shows the models-scoped `--all` text.
+- [ ] All build/test/vet/lint/fmt green; `stagecoach models --help` shows the models-scoped `--all` text.
 
 ## All Needed Context
 
@@ -206,7 +206,7 @@ implementer with no prior codebase knowledge can build it from this document + c
   gotcha: |
     Define BOTH the long name AND the -a shorthand on modelsCmd.Flags().BoolVarP(&flagModelsAll, "all",
     "a", false, ...). If you define only the long name, pflag skips the parent's whole --all flag (name
-    collision) and -a becomes unbound → `stagehand models -a` errors "unknown shorthand flag". Defining
+    collision) and -a becomes unbound → `stagecoach models -a` errors "unknown shorthand flag". Defining
     -a keeps it working.
 
 - file: internal/cmd/root.go
@@ -276,7 +276,7 @@ docs/cli.md                    # EDIT — +### `models [<provider>]` section bef
 //   FR-L1 needs `models --all`. Define a LOCAL modelsCmd.Flags().BoolVarP(&flagModelsAll, "all", "a",
 //   false, <models text>). pflag's AddFlagSet SKIPS the inherited persistent flag when a local same-name
 //   flag exists (proven by config.go:142's local --provider; documented in root.go's comment). MUST
-//   define the -a shorthand too, else -a is left unbound and `stagehand models -a` errors. NO panic.
+//   define the -a shorthand too, else -a is left unbound and `stagecoach models -a` errors. NO panic.
 
 // CRITICAL (ListModelsCommand is the FULL argv): it is [binary, args...] (e.g. ["pi","--list-models"]).
 //   Build provider.CmdSpec{Command: argv[0], Args: argv[1:]}. Do NOT call Manifest.Render (that is the
@@ -319,7 +319,7 @@ addition is ONE exported string constant (`DefaultModelsVerificationDate`).
 ```go
 // internal/config/role_defaults.go — add near the FR-D5 verification block:
 // DefaultModelsVerificationDate is the date the FR-D4 roleDefaults table was last verified (FR-D5).
-// Surfaced by `stagehand models` in the curated-fallback annotation (FR-L1). Update this AND roleDefaults
+// Surfaced by `stagecoach models` in the curated-fallback annotation (FR-L1). Update this AND roleDefaults
 // together on each re-verification.
 const DefaultModelsVerificationDate = "2026-07-02"
 
@@ -348,17 +348,17 @@ Task 2: CREATE internal/cmd/models.go — the command + resolver + executor call
   - IMPLEMENT runModels(cmd, args):
       1. if flagModelsAll && len(args) > 0 → return exitcode.New(exitcode.Error, fmt.Errorf(
          "--all cannot be combined with a provider argument")).
-      2. reg, err := newRegistry(); if err != nil → exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err)).
+      2. reg, err := newRegistry(); if err != nil → exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err)).
       3. installed := installedNames(reg); cfg := Config().
       4. Determine targets ([]modelTarget):
            - flagModelsAll: if len(installed)==0 → exitcode.New(exitcode.Error, fmt.Errorf(
-             "no providers detected on $PATH; install one of stagehand's supported agents")).
+             "no providers detected on $PATH; install one of stagecoach's supported agents")).
              else: for each name in installed → {name, manifest=reg.Get}.
            - len(args)==1 (name=args[0]): m, ok := reg.Get(name); if !ok → error "unknown provider %q".
              if name not in installed → error "provider %q is not detected on $PATH; install it or run
-             'stagehand models --all' for detected providers". targets=[{name,m}].
+             'stagecoach models --all' for detected providers". targets=[{name,m}].
            - else (no arg): dflt := resolvedDefault(cfg, reg, installed); if dflt=="" → error "no
-             provider detected on $PATH; pass a provider name or install one of stagehand's supported
+             provider detected on $PATH; pass a provider name or install one of stagecoach's supported
              agents". m,_ := reg.Get(dflt); targets=[{dflt,m}].
       5. For each target (in order): renderModelBlock(cmd, target, cfg). Separate blocks with a blank
          line when len(targets)>1.
@@ -372,7 +372,7 @@ Task 2: CREATE internal/cmd/models.go — the command + resolver + executor call
               Args: argv[1:], Stdin: ""}, timeout, vb)   // Env nil ⇒ inherit
           if err == nil { printLiveList(cmd.OutOrStdout(), t.name, out); return }
           // FR-L1 (b): command failed → curated fallback
-          fmt.Fprintf(cmd.ErrOrStderr(), "stagehand: %s list command failed (%v); using curated table\n", t.name, err)
+          fmt.Fprintf(cmd.ErrOrStderr(), "stagecoach: %s list command failed (%v); using curated table\n", t.name, err)
           printCuratedTable(cmd.OutOrStdout(), t)   // falls through to curated
       } else {
           printCuratedTable(cmd.OutOrStdout(), t)
@@ -389,7 +389,7 @@ Task 2: CREATE internal/cmd/models.go — the command + resolver + executor call
           fmt.Fprintf(w, "  %-8s %s\n", role, m)
       }
       cmd_ := t.manifest.DetectCommand()
-      fmt.Fprintf(w, "\nStagehand's curated per-role defaults (verified %s). The live list may differ — consult `%s --help`.\n",
+      fmt.Fprintf(w, "\nStagecoach's curated per-role defaults (verified %s). The live list may differ — consult `%s --help`.\n",
           config.DefaultModelsVerificationDate, cmd_)
   - IMPLEMENT printLiveList(w io.Writer, name, stdout string):
       fmt.Fprintf(w, "%s:\n", name)
@@ -428,16 +428,16 @@ Task 4: CREATE internal/cmd/models_test.go — stub-binary + golden + failure-fa
        Command/Name set>}) directly; assert the buf contains "claude:", "  planner   opus",
        "  stager    sonnet", "  message   haiku", "  arbiter   sonnet",
        "verified 2026-07-02", "consult `claude --help`". This is the golden test the contract names.
-    B. TestModels_LiveList_StubBinary: write a fake `opencode` shell script (printf 'STAGEHAND_FAKE\n')
+    B. TestModels_LiveList_StubBinary: write a fake `opencode` shell script (printf 'STAGECOACH_FAKE\n')
        to a temp dir; t.Setenv("PATH", tempDir+os.PathListSeparator+os.Getenv("PATH")) so opencode is
        DETECTED; Execute(["models","opencode"]); assert stdout contains "opencode:" +
-       "STAGEHAND_FAKE". (opencode's built-in list_models_command=["opencode","models"] is run.)
+       "STAGECOACH_FAKE". (opencode's built-in list_models_command=["opencode","models"] is run.)
        Guard: t.Skip if the script can't be made executable (Windows). Alternative: a user-defined
        [provider.stublist] with command + list_models_command pointing at a stub binary name.
     C. TestModels_CommandFailure_Fallback: fake `opencode` that exits 1; Execute(["models","opencode"]);
        assert STDOUT contains the curated footer ("consult `opencode --help`") AND STDERR contains the
        "list command failed" notice; exit code 0 (fallback succeeded).
-    D. TestModels_Timeout_Fallback: fake `opencode` that sleeps 10s; set cfg via STAGEHAND_TIMEOUT=1s
+    D. TestModels_Timeout_Fallback: fake `opencode` that sleeps 10s; set cfg via STAGECOACH_TIMEOUT=1s
        (or a tiny bound); assert curated table on stdout + exit 0 within a few seconds (proves the
        context timeout fired and the fallback ran).
     E. Error matrix (each asserts exitcode.For(err)==exitcode.Error + err string):
@@ -446,7 +446,7 @@ Task 4: CREATE internal/cmd/models_test.go — stub-binary + golden + failure-fa
        nothing detected), TestModels_AllEmpty ("models","--all", nothing detected),
        TestModels_AllWithArg ("models","--all","opencode" → usage error).
     F. TestModels_DefaultResolved: with a fake `pi` (highest priority) on PATH, bare "models" prints
-       pi's block (default resolution); with STAGEHAND_PROVIDER=claude + fake claude on PATH, bare
+       pi's block (default resolution); with STAGECOACH_PROVIDER=claude + fake claude on PATH, bare
        "models" prints claude's block (explicit default).
     G. TestModels_HelpShowsAllScopedText: "models","--help" → output contains the models --all help
        text and does NOT contain "git add -A" (proves the local flag override).
@@ -465,11 +465,11 @@ var modelsCmd = &cobra.Command{
 	Use:   "models [<provider>]",
 	Short: "List models reachable by a provider",
 	Long: `List the models a provider's CLI can reach — read straight from the agent CLI itself
-(never an HTTP call: stagehand has no API key; §6.2 N2 / FR-L1).
+(never an HTTP call: stagecoach has no API key; §6.2 N2 / FR-L1).
 
 Source of truth, in order:
   (a) the manifest's list_models_command — run it, print its stdout; or
-  (b) if absent or it fails — stagehand's curated per-role tier table, annotated with its
+  (b) if absent or it fails — stagecoach's curated per-role tier table, annotated with its
       verification date and "consult '<command> --help' for the live list".
 
 Default target is the resolved default provider; --all covers every detected provider.`,
@@ -493,7 +493,7 @@ func runModels(cmd *cobra.Command, args []string) error {
 	}
 	reg, err := newRegistry() // reuse providers.go helper (same package)
 	if err != nil {
-		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: %w", err))
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
 	}
 	installed := installedNames(reg)      // reuse
 	cfg := Config()                        // non-nil (PersistentPreRunE loaded it)
@@ -529,7 +529,7 @@ func renderModelBlock(cmd *cobra.Command, t modelTarget, cfg *config.Config) {
 			printLiveList(cmd.OutOrStdout(), t.name, out)
 			return
 		}
-		fmt.Fprintf(cmd.ErrOrStderr(), "stagehand: %s list command failed (%v); using curated table\n", t.name, err)
+		fmt.Fprintf(cmd.ErrOrStderr(), "stagecoach: %s list command failed (%v); using curated table\n", t.name, err)
 		// fall through to curated
 	}
 	printCuratedTable(cmd.OutOrStdout(), t)
@@ -550,7 +550,7 @@ func printCuratedTable(w io.Writer, t modelTarget) {
 		}
 		fmt.Fprintf(w, "  %-8s %s\n", role, m)
 	}
-	fmt.Fprintf(w, "\nStagehand's curated per-role defaults (verified %s). The live list may differ — consult `%s --help`.\n",
+	fmt.Fprintf(w, "\nStagecoach's curated per-role defaults (verified %s). The live list may differ — consult `%s --help`.\n",
 		config.DefaultModelsVerificationDate, t.manifest.DetectCommand())
 }
 
@@ -639,29 +639,29 @@ go build ./...
 
 # Curated fallback for a detected provider with no list_models_command (put a fake claude on PATH).
 mkdir -p /tmp/m-bin && printf '#!/bin/sh\nexit 0\n' >/tmp/m-bin/claude && chmod +x /tmp/m-bin/claude
-PATH=/tmp/m-bin:$PATH ./stagehand models claude
+PATH=/tmp/m-bin:$PATH ./stagecoach models claude
 # Expected stdout: "claude:" + the 4 role lines + the "verified 2026-07-02 ... consult `claude --help`" footer.
 
 # Live list for a detected provider whose list_models_command succeeds (fake opencode prints a list).
 printf '#!/bin/sh\necho "gpt-5.4"; echo "gpt-5.4-mini"\n' >/tmp/m-bin/opencode && chmod +x /tmp/m-bin/opencode
-PATH=/tmp/m-bin:$PATH ./stagehand models opencode
+PATH=/tmp/m-bin:$PATH ./stagecoach models opencode
 # Expected stdout: "opencode:" + the two model lines.
 
 # Command-FAILURE fallback (fake opencode exits 1).
-printf '#!/bin/sh\nexit 1\n' >/tmp/m-bin/opencode2 && ... ; PATH=... ./stagehand models opencode
+printf '#!/bin/sh\nexit 1\n' >/tmp/m-bin/opencode2 && ... ; PATH=... ./stagecoach models opencode
 # Expected: curated table on stdout + "opencode list command failed ... using curated table" on stderr; exit 0.
 
 # --all over detected providers.
-PATH=/tmp/m-bin:$PATH ./stagehand models --all
+PATH=/tmp/m-bin:$PATH ./stagecoach models --all
 # Expected: a block per detected provider, blank-line separated.
 
 # Error cases (exit 1 each).
-./stagehand models ghost                      # unknown provider
-./stagehand models nonexistent-cli            # (a known builtin not on PATH, e.g. with a clean PATH)
-./stagehand models --all opencode             # --all + arg → usage error
+./stagecoach models ghost                      # unknown provider
+./stagecoach models nonexistent-cli            # (a known builtin not on PATH, e.g. with a clean PATH)
+./stagecoach models --all opencode             # --all + arg → usage error
 
 # Help shows the models-scoped --all text (NOT "git add -A").
-./stagehand models --help | grep -i "every detected provider"
+./stagecoach models --help | grep -i "every detected provider"
 
 # Expected: all behave as documented; nonzero exits are 1 (exitcode.Error).
 ```
@@ -704,7 +704,7 @@ go test ./internal/cmd/ -run TestModels_CuratedGolden -v
 - [ ] `printCuratedTable` uses FIXED role order, empty stager → "—", prints the verification date + consult hint.
 - [ ] `DefaultModelsVerificationDate` constant added (= "2026-07-02") and printed.
 - [ ] Unknown/undetected/no-default/`--all`-empty errors exit 1 via `exitcode.New(exitcode.Error, …)`.
-- [ ] `stagehand models --help` shows the models-scoped `--all` text (NOT "git add -A").
+- [ ] `stagecoach models --help` shows the models-scoped `--all` text (NOT "git add -A").
 - [ ] `docs/cli.md` has the `### \`models [<provider>]\`` section before `## Exit codes`.
 
 ### Code Quality Validation

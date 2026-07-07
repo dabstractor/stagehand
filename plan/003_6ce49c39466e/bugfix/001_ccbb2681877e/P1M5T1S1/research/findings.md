@@ -211,7 +211,7 @@ git diff --exit-code go.mod go.sum
 git status --porcelain
 ```
 
-go.mod: module `github.com/dustin/stagehand`. NO new deps (`regexp` + `strings` are stdlib).
+go.mod: module `github.com/dustin/stagecoach`. NO new deps (`regexp` + `strings` are stdlib).
 
 ---
 

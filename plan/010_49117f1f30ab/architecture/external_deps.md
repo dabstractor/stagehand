@@ -39,7 +39,7 @@ only matters to `$#`-checking hooks (rare). **Record the verified form in the ru
 
 - **`GIT_INDEX_FILE` — YES, set** for `pre-commit`, `prepare-commit-msg`, `commit-msg`. This is the
   **canonical** mechanism git itself uses (`builtin/commit.c` `run_commit_hook` pushes
-  `GIT_INDEX_FILE=<index_file>`). It is exactly what stagehand wants to mirror for the scoped
+  `GIT_INDEX_FILE=<index_file>`). It is exactly what stagecoach wants to mirror for the scoped
   pre-commit (§5/§7). Source: git source `builtin/commit.c`.
 - **`GIT_EDITOR`** — git sets `GIT_EDITOR=:` (no-op) for the commit hooks so a hook doesn't
   spuriously launch an editor. A faithful emulation should set this too.
@@ -67,7 +67,7 @@ only matters to `$#`-checking hooks (rare). **Record the verified form in the ru
 `prepare-commit-msg` or `post-commit`. Exact `git-commit(1)` wording: "This option bypasses the
 pre-commit and commit-msg hooks."
 
-**Stagehand `--no-verify` MUST mirror this exactly** (FR-V5): skip pre-commit + commit-msg;
+**Stagecoach `--no-verify` MUST mirror this exactly** (FR-V5): skip pre-commit + commit-msg;
 prepare-commit-msg and post-commit still run. Assert this in tests.
 
 ## 6. `prepare-commit-msg` + message file lifecycle
@@ -76,7 +76,7 @@ The hook **edits `<msgfile>` in place**; git reads it back as the final message 
 cleanup mode (default `strip`: removes leading/trailing blank lines, trailing whitespace, collapses
 consecutive blanks, and **strips `#`-comment lines**). The comment char honors `core.commentChar`.
 
-**For stagehand**: write the generated+deduped+`--edit`-finalized message to a temp file, run
+**For stagecoach**: write the generated+deduped+`--edit`-finalized message to a temp file, run
 `prepare-commit-msg`, read it back, strip `#`-comment lines (honor `core.commentChar`), use the
 result as the commit message for `commit-tree -m` (actually `-F -` via stdin). Then `commit-msg`
 runs over the same file; read back again as the final.
@@ -103,14 +103,14 @@ fundamentally **working-tree-coupled**:
 - **Formatters (prettier, eslint --fix, gofmt)** — operate **purely on working-tree files**; they
   ignore `GIT_INDEX_FILE` entirely. Only the subsequent `git add` honors it.
 
-**Implication for stagehand**: on the single-commit snapshot path, the committed tree is
+**Implication for stagecoach**: on the single-commit snapshot path, the committed tree is
 `write-tree` of the live index. If the working tree equals what's staged (the normal case), running
-pre-commit with `GIT_INDEX_FILE=<throwaway-mirror>` is faithful. But stagehand's value prop is
+pre-commit with `GIT_INDEX_FILE=<throwaway-mirror>` is faithful. But stagecoach's value prop is
 **stage-while-generating** — if the working tree has *unstaged* edits relative to the frozen tree,
 formatters run on working-tree content, not frozen content → the pre-commit result may diverge.
 
 **The PRD accepts this** (FR-V3): "A `pre-commit` hook may modify the content of paths already in
-`T_start` (the common case: a formatter re-stages reformatted files); stagehand accepts those
+`T_start` (the common case: a formatter re-stages reformatted files); stagecoach accepts those
 mutations and re-trees the snapshot." The working-tree mutation is a side effect that `git commit`
 also keeps. This is acceptable and matches git-commit parity. **Do not try to snapshot the working
 tree too** — that would forfeit the simplicity and the stage-while-generating property. The subset
