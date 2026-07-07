@@ -16,16 +16,16 @@ import (
 
 const (
 	lazygitTargetName = "lazygit"
-	defaultLazygitKey = "<c-a>"                 // FR-I5: the default key binding
-	lazygitMarker     = "stagehand-integration" // the LineComment substring that identifies stagehand's entry
+	defaultLazygitKey = "<c-a>"                  // FR-I5: the default key binding
+	lazygitMarker     = "stagecoach-integration" // the LineComment substring that identifies stagehand's entry
 )
 
 // entryTpl is the ONE stagehand customCommands entry, as a one-item YAML sequence document.
-// The %s is the key binding. The `# stagehand-integration` marker rides on the `key` VALUE scalar
+// The %s is the key binding. The `# stagecoach-integration` marker rides on the `key` VALUE scalar
 // (LineComment) — stagehand's idempotency identity (FR-I3b), independent of the binding.
 // Field names verified against lazygit v0.62.2 (external_deps.md §1): `output` (not the older
 // subprocess/showOutput), `loadingText` valid, context `files`.
-var entryTpl = `- key: '%s' # stagehand-integration
+var entryTpl = `- key: '%s' # stagecoach-integration
   context: 'files'
   command: 'stagehand'
   loadingText: 'Generating commit message…'
@@ -100,7 +100,7 @@ func (t *lazygitTarget) Upsert() ([]byte, error) {
 	// REPLACE the marked item if present (idempotent — never duplicate), else APPEND.
 	replaced := false
 	for i, it := range seq.Content {
-		if isStagehandItem(it) {
+		if isStagecoachItem(it) {
 			seq.Content[i] = entry
 			replaced = true
 			break
@@ -125,7 +125,7 @@ func (t *lazygitTarget) Remove() ([]byte, error) {
 		return t.encode(t.root) // no customCommands at all — unchanged
 	}
 	for i, it := range seq.Content {
-		if isStagehandItem(it) {
+		if isStagecoachItem(it) {
 			seq.Content = append(seq.Content[:i], seq.Content[i+1:]...)
 			break // at most one marked entry (Upsert guarantees it)
 		}
@@ -182,7 +182,7 @@ func (t *lazygitTarget) findMarkedItem() *yaml.Node {
 		return nil
 	}
 	for _, it := range seq.Content {
-		if isStagehandItem(it) {
+		if isStagecoachItem(it) {
 			return it
 		}
 	}
@@ -203,7 +203,7 @@ func (t *lazygitTarget) findKeyItem(key string) *yaml.Node {
 			continue
 		}
 		// Content[0]="key" name, Content[1]=value; only the first field is the binding
-		if it.Content[0].Value == "key" && it.Content[1].Value == key && !isStagehandItem(it) {
+		if it.Content[0].Value == "key" && it.Content[1].Value == key && !isStagecoachItem(it) {
 			return it
 		}
 	}
@@ -234,8 +234,8 @@ func (t *lazygitTarget) encode(root *yaml.Node) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// isStagehandItem reports whether a sequence item is stagehand's (marker on the `key` value scalar).
-func isStagehandItem(item *yaml.Node) bool {
+// isStagecoachItem reports whether a sequence item is stagehand's (marker on the `key` value scalar).
+func isStagecoachItem(item *yaml.Node) bool {
 	return item.Kind == yaml.MappingNode && len(item.Content) >= 2 &&
 		strings.Contains(item.Content[1].LineComment, lazygitMarker)
 }

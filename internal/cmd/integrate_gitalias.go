@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	gitAliasTarget      = "git-alias"  // Entry.Name()
-	defaultAliasName    = "stagehand"  // default alias name → `git stagehand`
-	stagehandAliasValue = "!stagehand" // the stored value (incl. `!`); command part is "stagehand"
+	gitAliasTarget       = "git-alias"   // Entry.Name()
+	defaultAliasName     = "stagecoach"  // default alias name → `git stagehand`
+	stagecoachAliasValue = "!stagecoach" // the stored value (incl. `!`); command part is "stagehand"
 )
 
 var flagAliasName string // --alias-name (local on integrateInstallCmd AND integrateRemoveCmd)
@@ -126,7 +126,7 @@ func (e *gitAliasEntry) Install(ctx context.Context, opts integrate.InstallOptio
 
 	// Build the preview (command + usage + conflict note if foreign).
 	preview := fmt.Sprintf("Command:  git config --global %s '%s'\nResult:   git %s  →  stagehand\n",
-		e.aliasKey(), stagehandAliasValue, e.aliasName)
+		e.aliasKey(), stagecoachAliasValue, e.aliasName)
 	if found { // foreign (not ours) — include in preview for interactive confirmation
 		preview += fmt.Sprintf("\nNOTE: %s is currently set to %q (not stagehand) — it will be overwritten.\n",
 			e.aliasKey(), cur)
@@ -143,7 +143,7 @@ func (e *gitAliasEntry) Install(ctx context.Context, opts integrate.InstallOptio
 		}
 	}
 
-	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), stagehandAliasValue); err != nil {
+	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), stagecoachAliasValue); err != nil {
 		return res, fmt.Errorf("set alias %s: %w", e.aliasName, err)
 	}
 	if found {

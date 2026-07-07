@@ -45,7 +45,7 @@ func TestGitAlias_Status_States(t *testing.T) {
 	}
 
 	// Set ours → Installed
-	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), "!stagehand"); err != nil {
+	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), "!stagecoach"); err != nil {
 		t.Fatalf("ConfigGlobalSet: %v", err)
 	}
 	s, err = e.Status(ctx)
@@ -96,8 +96,8 @@ func TestGitAlias_Install_Creates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ConfigGlobalGet: %v", err)
 	}
-	if !found || val != "!stagehand" {
-		t.Errorf("alias = %q found=%v, want !stagehand found=true", val, found)
+	if !found || val != "!stagecoach" {
+		t.Errorf("alias = %q found=%v, want !stagecoach found=true", val, found)
 	}
 }
 
@@ -106,7 +106,7 @@ func TestGitAlias_Install_IdempotentAlreadyOurs(t *testing.T) {
 	ctx := context.Background()
 
 	// Pre-set ours.
-	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), "!stagehand"); err != nil {
+	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), "!stagecoach"); err != nil {
 		t.Fatalf("ConfigGlobalSet: %v", err)
 	}
 
@@ -141,8 +141,8 @@ func TestGitAlias_Install_ForeignOverwritesAfterConfirm(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ConfigGlobalGet: %v", err)
 	}
-	if !found || val != "!stagehand" {
-		t.Errorf("alias = %q found=%v, want !stagehand found=true", val, found)
+	if !found || val != "!stagecoach" {
+		t.Errorf("alias = %q found=%v, want !stagecoach found=true", val, found)
 	}
 }
 
@@ -197,7 +197,7 @@ func TestGitAlias_Install_ConfirmReceivesPreview(t *testing.T) {
 	}
 
 	// The preview must contain the command and usage.
-	if !strings.Contains(gotDiff, "git config --global alias.myalias '!stagehand'") {
+	if !strings.Contains(gotDiff, "git config --global alias.myalias '!stagecoach'") {
 		t.Errorf("preview missing command; got %q", gotDiff)
 	}
 	if !strings.Contains(gotDiff, "git myalias") {
@@ -257,7 +257,7 @@ func TestGitAlias_Remove_Ours(t *testing.T) {
 	ctx := context.Background()
 
 	// Install ours first.
-	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), "!stagehand"); err != nil {
+	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), "!stagecoach"); err != nil {
 		t.Fatalf("ConfigGlobalSet: %v", err)
 	}
 
@@ -330,7 +330,7 @@ func TestGitAlias_Remove_Decline(t *testing.T) {
 	ctx := context.Background()
 
 	// Install ours first.
-	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), "!stagehand"); err != nil {
+	if err := e.git.ConfigGlobalSet(ctx, e.aliasKey(), "!stagecoach"); err != nil {
 		t.Fatalf("ConfigGlobalSet: %v", err)
 	}
 
@@ -429,14 +429,14 @@ func TestGitAlias_CustomAliasName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ConfigGlobalGet: %v", err)
 	}
-	if !found || val != "!stagehand" {
-		t.Errorf("alias.ci = %q found=%v, want !stagehand found=true", val, found)
+	if !found || val != "!stagecoach" {
+		t.Errorf("alias.ci = %q found=%v, want !stagecoach found=true", val, found)
 	}
 
-	// alias.stagehand should NOT exist.
-	_, stagehandFound, _ := e.git.ConfigGlobalGet(ctx, "alias.stagehand")
-	if stagehandFound {
-		t.Error("alias.stagehand should not exist (only alias.ci was set)")
+	// alias.stagecoach should NOT exist.
+	_, stagecoachFound, _ := e.git.ConfigGlobalGet(ctx, "alias.stagecoach")
+	if stagecoachFound {
+		t.Error("alias.stagecoach should not exist (only alias.ci was set)")
 	}
 
 	// Status should be Installed.
@@ -481,12 +481,12 @@ func TestIntegrateInstall_GitAlias_Execute(t *testing.T) {
 
 	// Verify the alias was actually set in the isolated config.
 	g := git.New(t.TempDir())
-	val, found, err := g.ConfigGlobalGet(context.Background(), "alias.stagehand")
+	val, found, err := g.ConfigGlobalGet(context.Background(), "alias.stagecoach")
 	if err != nil {
 		t.Fatalf("ConfigGlobalGet: %v", err)
 	}
-	if !found || val != "!stagehand" {
-		t.Errorf("alias.stagehand = %q found=%v, want !stagehand found=true", val, found)
+	if !found || val != "!stagecoach" {
+		t.Errorf("alias.stagecoach = %q found=%v, want !stagecoach found=true", val, found)
 	}
 }
 
@@ -516,19 +516,19 @@ func TestIntegrateAliasNameFlag(t *testing.T) {
 		t.Errorf("output missing 'Installed git-alias'; got %q", got)
 	}
 
-	// Verify alias.ci was set (not alias.stagehand).
+	// Verify alias.ci was set (not alias.stagecoach).
 	g := git.New(t.TempDir())
 	val, found, err := g.ConfigGlobalGet(context.Background(), "alias.ci")
 	if err != nil {
 		t.Fatalf("ConfigGlobalGet (alias.ci): %v", err)
 	}
-	if !found || val != "!stagehand" {
-		t.Errorf("alias.ci = %q found=%v, want !stagehand found=true", val, found)
+	if !found || val != "!stagecoach" {
+		t.Errorf("alias.ci = %q found=%v, want !stagecoach found=true", val, found)
 	}
 
-	_, stagehandFound, _ := g.ConfigGlobalGet(context.Background(), "alias.stagehand")
-	if stagehandFound {
-		t.Error("alias.stagehand should not exist (only alias.ci was set)")
+	_, stagecoachFound, _ := g.ConfigGlobalGet(context.Background(), "alias.stagecoach")
+	if stagecoachFound {
+		t.Error("alias.stagecoach should not exist (only alias.ci was set)")
 	}
 }
 
@@ -570,9 +570,9 @@ func TestIntegrateRemove_GitAlias_Execute(t *testing.T) {
 
 	// Verify the alias is gone.
 	g := git.New(t.TempDir())
-	_, found, _ := g.ConfigGlobalGet(context.Background(), "alias.stagehand")
+	_, found, _ := g.ConfigGlobalGet(context.Background(), "alias.stagecoach")
 	if found {
-		t.Error("alias.stagehand still found after remove")
+		t.Error("alias.stagecoach still found after remove")
 	}
 }
 
@@ -585,8 +585,8 @@ func TestIsOurs(t *testing.T) {
 		val  string
 		want bool
 	}{
-		{"!stagehand", true},
-		{"stagehand", true}, // edge: no leading !
+		{"!stagecoach", true},
+		{"stagecoach", true}, // edge: no leading !
 		{"!other", false},
 		{"!staged-hand", false},
 		{"", false},

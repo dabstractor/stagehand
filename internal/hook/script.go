@@ -11,7 +11,7 @@ import (
 // Marker is the identity line stagehand writes as the SECOND line of its prepare-commit-msg hook (after the
 // shebang). Its presence is how `hook status`/`hook uninstall` (P1.M3.T1.S2) recognize a stagehand-owned
 // hook (marker present → ours, rewrite/remove; absent → foreign, refuse — PRD §9.20 FR-H2/FR-H3).
-const Marker = "# stagehand prepare-commit-msg hook v1"
+const Marker = "# stagecoach prepare-commit-msg hook v1"
 
 // ScriptMode is the file mode stagehand writes the hook with (executable — PRD §9.20 FR-H1).
 const ScriptMode os.FileMode = 0o755

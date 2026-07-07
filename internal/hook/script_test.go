@@ -11,7 +11,7 @@ import (
 func TestHookScript_NonStrict(t *testing.T) {
 	got := hookScript(false, "")
 	want := "#!/bin/sh\n" +
-		"# stagehand prepare-commit-msg hook v1\n" +
+		"# stagecoach prepare-commit-msg hook v1\n" +
 		`exec stagehand hook exec "$@"` + "\n"
 	if got != want {
 		t.Fatalf(`hookScript(false, "") = %q, want %q`, got, want)

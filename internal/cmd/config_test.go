@@ -127,7 +127,7 @@ func TestConfigPath_ConfigFlag_PrintsOverride(t *testing.T) {
 	}
 }
 
-func TestConfigPath_StagehandConfigEnv_PrintsOverride(t *testing.T) {
+func TestConfigPath_StagecoachConfigEnv_PrintsOverride(t *testing.T) {
 	_, origOut, origErr, origRunE := saveRootState(t)
 	defer restoreRootState(t, nil, origOut, origErr, origRunE)
 

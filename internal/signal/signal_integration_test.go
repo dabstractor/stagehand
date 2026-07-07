@@ -27,7 +27,7 @@ func TestSignalIntegration_SigintPostSnapshot(t *testing.T) {
 	}
 
 	stubBin := buildStub(t)
-	stagehandBin := buildStagehand(t)
+	stagecoachBin := buildStagecoach(t)
 
 	// Set up a git repo with staged changes.
 	repo := t.TempDir()
@@ -51,7 +51,7 @@ func TestSignalIntegration_SigintPostSnapshot(t *testing.T) {
 	}
 
 	// Run stagehand with the hanging stub.
-	cmd := exec.Command(stagehandBin, "--config", cfgPath)
+	cmd := exec.Command(stagecoachBin, "--config", cfgPath)
 	cmd.Dir = repo
 	cmd.Env = append(os.Environ(),
 		"STAGEHAND_STUB_SLEEP_MS=30000", // stub hangs 30s (plenty of time)
@@ -149,15 +149,15 @@ func buildStub(t *testing.T) string {
 	return buildStubPath
 }
 
-// buildStagehand compiles cmd/stagehand once and returns its path.
+// buildStagecoach compiles cmd/stagehand once and returns its path.
 var (
-	buildStagehandOnce sync.Once
-	buildStagehandPath string
+	buildStagecoachOnce sync.Once
+	buildStagecoachPath string
 )
 
-func buildStagehand(t *testing.T) string {
+func buildStagecoach(t *testing.T) string {
 	t.Helper()
-	buildStagehandOnce.Do(func() {
+	buildStagecoachOnce.Do(func() {
 		dir, err := os.MkdirTemp("", "stagehand-inttest-*")
 		if err != nil {
 			t.Fatalf("mkdtemp: %v", err)
@@ -168,9 +168,9 @@ func buildStagehand(t *testing.T) string {
 		if o, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("go build stagehand: %v\n%s", err, o)
 		}
-		buildStagehandPath = out
+		buildStagecoachPath = out
 	})
-	return buildStagehandPath
+	return buildStagecoachPath
 }
 
 // runGit executes git -C dir args... and returns trimmed stdout.

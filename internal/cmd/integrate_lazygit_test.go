@@ -146,8 +146,8 @@ func TestLazygitTarget_Upsert_AddsEntrySemantically(t *testing.T) {
 	}
 
 	// (d) marker substring present in output
-	if !strings.Contains(string(out), "stagehand-integration") {
-		t.Error("output missing 'stagehand-integration' marker")
+	if !strings.Contains(string(out), "stagecoach-integration") {
+		t.Error("output missing 'stagecoach-integration' marker")
 	}
 }
 
@@ -217,7 +217,7 @@ func TestLazygitTarget_Upsert_ReplaceNotDuplicate(t *testing.T) {
 	}
 	markedCount := 0
 	for _, it := range seqAfter.Content {
-		if isStagehandItem(it) {
+		if isStagecoachItem(it) {
 			markedCount++
 		}
 	}
@@ -284,7 +284,7 @@ func TestLazygitTarget_Remove_DeletesOnlyMarked(t *testing.T) {
 func TestLazygitTarget_Remove_EmptySeq(t *testing.T) {
 	// Build a config with ONLY the stagehand entry (no sibling).
 	yamlStr := `customCommands:
-  - key: '<c-a>' # stagehand-integration
+  - key: '<c-a>' # stagecoach-integration
     context: 'files'
     command: 'stagehand'
     loadingText: 'Generating commit message…'
@@ -496,8 +496,8 @@ func TestLazygitEntry_Install_Creates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}
-	if !strings.Contains(string(data), "stagehand-integration") {
-		t.Error("config missing stagehand-integration marker")
+	if !strings.Contains(string(data), "stagecoach-integration") {
+		t.Error("config missing stagecoach-integration marker")
 	}
 }
 
@@ -525,8 +525,8 @@ func TestLazygitEntry_Install_Updated(t *testing.T) {
 
 	// Entry should be present.
 	data, _ := os.ReadFile(e.configPath)
-	if !strings.Contains(string(data), "stagehand-integration") {
-		t.Error("config missing stagehand-integration marker after install")
+	if !strings.Contains(string(data), "stagecoach-integration") {
+		t.Error("config missing stagecoach-integration marker after install")
 	}
 }
 
@@ -594,8 +594,8 @@ func TestLazygitEntry_Install_ConfirmReceivesDiff(t *testing.T) {
 	}
 
 	// The diff should contain stagehand-related content.
-	if !strings.Contains(gotDiff, "stagehand-integration") {
-		t.Errorf("diff missing 'stagehand-integration'; got %q", gotDiff)
+	if !strings.Contains(gotDiff, "stagecoach-integration") {
+		t.Errorf("diff missing 'stagecoach-integration'; got %q", gotDiff)
 	}
 	if !strings.Contains(gotDiff, "customCommands") {
 		t.Errorf("diff missing 'customCommands'; got %q", gotDiff)
@@ -638,8 +638,8 @@ func TestLazygitEntry_Install_ForeignKeyWarning(t *testing.T) {
 	if n := strings.Count(string(data), "key: '<c-a>'"); n != 2 {
 		t.Errorf("want exactly 2 customCommands entries with key '<c-a>', got %d.\nconfig:\n%s", n, data)
 	}
-	if !strings.Contains(string(data), "stagehand-integration") {
-		t.Error("config missing stagehand-integration marker")
+	if !strings.Contains(string(data), "stagecoach-integration") {
+		t.Error("config missing stagecoach-integration marker")
 	}
 }
 
@@ -688,7 +688,7 @@ func TestLazygitEntry_Install_ForeignKeyWarningInteractiveConfirm(t *testing.T) 
 	if !strings.Contains(buf.String(), "WARNING") {
 		t.Errorf("opts.Out missing WARNING; got %q", buf.String())
 	}
-	if !strings.Contains(gotDiff, "stagehand-integration") {
+	if !strings.Contains(gotDiff, "stagecoach-integration") {
 		t.Errorf("confirm diff missing stagehand entry; got %q", gotDiff)
 	}
 }
@@ -741,7 +741,7 @@ func TestLazygitEntry_Remove_Removed(t *testing.T) {
 
 	// Re-read and assert no marker.
 	data, _ := os.ReadFile(e.configPath)
-	if strings.Contains(string(data), "stagehand-integration") {
+	if strings.Contains(string(data), "stagecoach-integration") {
 		t.Error("marker still present after Remove")
 	}
 }
@@ -880,8 +880,8 @@ func TestIntegrateInstall_Lazygit_Dispatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}
-	if !strings.Contains(string(data), "stagehand-integration") {
-		t.Error("config missing stagehand-integration marker")
+	if !strings.Contains(string(data), "stagecoach-integration") {
+		t.Error("config missing stagecoach-integration marker")
 	}
 }
 
@@ -908,7 +908,7 @@ func TestIntegrateRemove_Lazygit_Dispatch(t *testing.T) {
 
 	// Verify marker gone.
 	data, _ := os.ReadFile(e.configPath)
-	if strings.Contains(string(data), "stagehand-integration") {
+	if strings.Contains(string(data), "stagecoach-integration") {
 		t.Error("marker still present after Remove")
 	}
 }
@@ -933,18 +933,18 @@ func TestIntegrateLazygitKeyFlag(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// isStagehandItem unit test
+// isStagecoachItem unit test
 // ---------------------------------------------------------------------------
 
-func TestIsStagehandItem(t *testing.T) {
+func TestIsStagecoachItem(t *testing.T) {
 	// Build a marked entry via the template.
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(fmt.Sprintf(entryTpl, "<c-a>")), &doc); err != nil {
 		t.Fatalf("parse template: %v", err)
 	}
 	item := doc.Content[0].Content[0] // SequenceNode → MappingNode
-	if !isStagehandItem(item) {
-		t.Error("isStagehandItem(template entry) = false, want true")
+	if !isStagecoachItem(item) {
+		t.Error("isStagecoachItem(template entry) = false, want true")
 	}
 
 	// Unmarked entry should not match.
@@ -958,7 +958,7 @@ func TestIsStagehandItem(t *testing.T) {
 	}
 	// doc2.Content[0] is the top map; Content[1] is the sequence; Content[0] is the item.
 	seq := doc2.Content[0].Content[1]
-	if len(seq.Content) == 0 || isStagehandItem(seq.Content[0]) {
-		t.Error("isStagehandItem(unmarked) = true, want false")
+	if len(seq.Content) == 0 || isStagecoachItem(seq.Content[0]) {
+		t.Error("isStagecoachItem(unmarked) = true, want false")
 	}
 }

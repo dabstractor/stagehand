@@ -23,7 +23,7 @@ func TestDetect_None(t *testing.T) {
 	}
 }
 
-func TestDetect_Stagehand(t *testing.T) {
+func TestDetect_Stagecoach(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, HookFilename)
 	if err := os.WriteFile(p, []byte(hookScript(false, "")), ScriptMode); err != nil {
@@ -33,8 +33,8 @@ func TestDetect_Stagehand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Detect err=%v", err)
 	}
-	if st != StatusStagehand {
-		t.Errorf("Detect = %v, want StatusStagehand", st)
+	if st != StatusStagecoach {
+		t.Errorf("Detect = %v, want StatusStagecoach", st)
 	}
 }
 
@@ -103,8 +103,8 @@ func TestInstall_IdempotentReinstall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("re-Install err=%v", err)
 	}
-	if prev2 != StatusStagehand {
-		t.Errorf("re-Install prev=%v, want StatusStagehand", prev2)
+	if prev2 != StatusStagecoach {
+		t.Errorf("re-Install prev=%v, want StatusStagecoach", prev2)
 	}
 	data, _ := os.ReadFile(filepath.Join(dir, HookFilename))
 	if string(data) != hookScript(false, "") {
@@ -179,8 +179,8 @@ func TestUninstall_RemovesOurs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Uninstall err=%v", err)
 	}
-	if st != StatusStagehand {
-		t.Errorf("Uninstall st=%v, want StatusStagehand", st)
+	if st != StatusStagecoach {
+		t.Errorf("Uninstall st=%v, want StatusStagecoach", st)
 	}
 	if _, err := os.Stat(filepath.Join(dir, HookFilename)); !os.IsNotExist(err) {
 		t.Error("hook file not removed")
@@ -229,7 +229,7 @@ func TestStatus_String(t *testing.T) {
 		want string
 	}{
 		{StatusNone, "none"},
-		{StatusStagehand, "stagehand (v1)"},
+		{StatusStagecoach, "stagehand (v1)"},
 		{StatusForeign, "foreign"},
 	}
 	for _, tt := range tests {

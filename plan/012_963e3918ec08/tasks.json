@@ -11,7 +11,7 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Go Structural Rename (module, imports, directories, packages)",
-          "status": "Planned",
+          "status": "Ready",
           "description": "The foundation layer: rename the Go module path, all import paths, package directories, package files, and package declarations. After this milestone, `go build ./...` and `go vet ./...` must pass with the new module identity.",
           "tasks": [
             {
@@ -89,14 +89,14 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Rename Go identifiers containing 'stagehand'",
-              "status": "Planned",
+              "status": "Ready",
               "description": "Rename Go-level identifiers (constants, variables, type names, enum values, function names) that contain 'Stagehand' or 'stagehand'. These are not string literals — they are Go symbols that must be consistently renamed across all references.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Rename all Go identifiers containing Stagehand/stagehand",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T1.S4"
@@ -114,7 +114,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S2",
                   "title": "Rename cobra template function and verify full compilation",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S1"
@@ -148,7 +148,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Rename STAGEHAND_* env var literals to STAGECOACH_* across all Go files",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T2.S2"

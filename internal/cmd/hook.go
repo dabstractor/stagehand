@@ -114,7 +114,7 @@ func runHookInstall(cmd *cobra.Command, _ []string) error {
 		return exitcode.New(exitcode.Error, fmt.Errorf("stagehand: install hook: %w", err))
 	}
 	verb := "Installed"
-	if prev == hook.StatusStagehand {
+	if prev == hook.StatusStagecoach {
 		verb = "Updated"
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "%s stagehand prepare-commit-msg hook.\n", verb)

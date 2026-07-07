@@ -15,7 +15,7 @@ import (
 // Stub-reachable scenarios (S2/S3/S4/S6-single/S7) run by default.
 // Stager-dependent scenarios (S1/S5/loop-S6) skip unless STAGEHAND_RUN_REAL=1.
 func TestE2EScenarios(t *testing.T) {
-	bin := buildStagehand(t)
+	bin := buildStagecoach(t)
 	stub := buildStub(t)
 
 	t.Run("S1_NothingStagedNFiles_NCommits", func(t *testing.T) {
@@ -35,7 +35,7 @@ func TestE2EScenarios(t *testing.T) {
 			if model != "" {
 				args = append(args, "--model", model)
 			}
-			res := runStagehand(t, bin, repo, cfg, baseEnv, args...)
+			res := runStagecoach(t, bin, repo, cfg, baseEnv, args...)
 			if res.ExitCode != 0 {
 				t.Fatalf("exit code = %d, want 0; stderr:\n%s", res.ExitCode, res.Stderr)
 			}
@@ -55,7 +55,7 @@ func TestE2EScenarios(t *testing.T) {
 			if model != "" {
 				args = append(args, "--model", model)
 			}
-			res := runStagehand(t, bin, repo, cfg, baseEnv, args...)
+			res := runStagecoach(t, bin, repo, cfg, baseEnv, args...)
 			if res.ExitCode != 0 {
 				t.Fatalf("exit code = %d, want 0; stderr:\n%s", res.ExitCode, res.Stderr)
 			}
@@ -97,7 +97,7 @@ provider = "canary"
 				"STAGEHAND_STUB_OUT":    "feat: solo file",
 				"STAGEHAND_STUB_MARKER": msgMarker,
 			})
-			res := runStagehand(t, bin, repo, cfg, env, "--provider", "stub")
+			res := runStagecoach(t, bin, repo, cfg, env, "--provider", "stub")
 			if res.ExitCode != 0 {
 				t.Fatalf("exit code = %d, want 0; stderr:\n%s", res.ExitCode, res.Stderr)
 			}
@@ -122,7 +122,7 @@ provider = "canary"
 			if model != "" {
 				args = append(args, "--model", model)
 			}
-			res := runStagehand(t, bin, repo, cfg, stubEnv(nil), args...)
+			res := runStagecoach(t, bin, repo, cfg, stubEnv(nil), args...)
 			if res.ExitCode != 0 {
 				t.Fatalf("exit code = %d, want 0; stderr:\n%s", res.ExitCode, res.Stderr)
 			}
@@ -152,7 +152,7 @@ provider = "canary"
 			sentinel := filepath.Join(repo, "intruder.txt")
 			resCh := make(chan e2eResult, 1)
 			go func() {
-				resCh <- runStagehand(t, bin, repo, cfg, env, "--provider", "stub")
+				resCh <- runStagecoach(t, bin, repo, cfg, env, "--provider", "stub")
 			}()
 			waitForMarker(t, msgMarker, 10*time.Second)
 			if err := os.WriteFile(sentinel, []byte("concurrent\n"), 0o644); err != nil {
@@ -191,7 +191,7 @@ provider = "canary"
 			sentinel := filepath.Join(repo, "intruder.txt")
 			resCh := make(chan e2eResult, 1)
 			go func() {
-				resCh <- runStagehand(t, bin, repo, cfg, stubEnv(nil), args...)
+				resCh <- runStagecoach(t, bin, repo, cfg, stubEnv(nil), args...)
 			}()
 			time.Sleep(2 * time.Second)
 			os.WriteFile(sentinel, []byte("concurrent\n"), 0o644)
@@ -229,7 +229,7 @@ default_model = "x"
 			env := stubEnv(map[string]string{
 				"STAGEHAND_STUB_OUT": "feat: x",
 			})
-			res := runStagehand(t, bin, repo, cfg, env,
+			res := runStagecoach(t, bin, repo, cfg, env,
 				"--provider", "testmulti", "--model", "bare")
 			if res.ExitCode != 1 {
 				t.Fatalf("exit code = %d, want 1 (FR-R5b); stderr:\n%s", res.ExitCode, res.Stderr)
@@ -247,7 +247,7 @@ default_model = "x"
 			seedCommit(t, repo, "readme.md", "init")
 			writeFile(t, repo, "change.txt", "change\n")
 
-			res := runStagehand(t, bin, repo, cfg, stubEnv(nil),
+			res := runStagecoach(t, bin, repo, cfg, stubEnv(nil),
 				"--provider", "testmulti", "--model", "bare")
 			if res.ExitCode != 1 {
 				t.Fatalf("exit code = %d, want 1; stderr:\n%s", res.ExitCode, res.Stderr)
@@ -271,7 +271,7 @@ default_model = "x"
 		if model != "" {
 			args = append(args, "--model", model)
 		}
-		res := runStagehand(t, bin, repo, cfg, stubEnv(nil), args...)
+		res := runStagecoach(t, bin, repo, cfg, stubEnv(nil), args...)
 		if res.ExitCode != 0 {
 			t.Fatalf("exit code = %d, want 0; stderr:\n%s", res.ExitCode, res.Stderr)
 		}
@@ -295,7 +295,7 @@ default_model = "x"
 				"STAGEHAND_STUB_OUT":    "",
 				"STAGEHAND_STUB_MARKER": msgMarker,
 			})
-			res := runStagehand(t, bin, repo, cfg, env, "--provider", "stub")
+			res := runStagecoach(t, bin, repo, cfg, env, "--provider", "stub")
 			if res.ExitCode != 3 {
 				t.Fatalf("exit code = %d, want 3 (Rescue); stderr:\n%s", res.ExitCode, res.Stderr)
 			}
@@ -329,7 +329,7 @@ default_model = "x"
 
 			resCh := make(chan e2eResult, 1)
 			go func() {
-				resCh <- runStagehand(t, bin, repo, cfg, env, "--provider", "stub")
+				resCh <- runStagecoach(t, bin, repo, cfg, env, "--provider", "stub")
 			}()
 			waitForMarker(t, msgMarker, 10*time.Second)
 			runGit(t, repo, "commit", "--allow-empty", "-m", "concurrent")
@@ -360,7 +360,7 @@ default_model = "x"
 
 			resCh := make(chan e2eResult, 1)
 			go func() {
-				resCh <- runStagehand(t, bin, repo, cfg, stubEnv(nil), args...)
+				resCh <- runStagecoach(t, bin, repo, cfg, stubEnv(nil), args...)
 			}()
 			time.Sleep(3 * time.Second)
 			runGit(t, repo, "commit", "--allow-empty", "-m", "concurrent")
@@ -390,7 +390,7 @@ default_model = "x"
 exclude = ["excluded.txt"]
 `)
 		baseEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: add feature"})
-		res := runStagehand(t, bin, repo, cfg, baseEnv, "--provider", "stub")
+		res := runStagecoach(t, bin, repo, cfg, baseEnv, "--provider", "stub")
 		if res.ExitCode != 0 {
 			t.Fatalf("exit code = %d, want 0; stderr:\n%s", res.ExitCode, res.Stderr)
 		}

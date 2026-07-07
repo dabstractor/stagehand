@@ -18,15 +18,15 @@ const HookFilename = "prepare-commit-msg"
 type Status int
 
 const (
-	StatusNone      Status = iota // no prepare-commit-msg file
-	StatusStagehand               // stagehand-owned (Marker present)
-	StatusForeign                 // a hook file exists WITHOUT our Marker (never touch it)
+	StatusNone       Status = iota // no prepare-commit-msg file
+	StatusStagecoach               // stagehand-owned (Marker present)
+	StatusForeign                  // a hook file exists WITHOUT our Marker (never touch it)
 )
 
 // String renders the FR-H3 report tokens EXACTLY: "none" / "stagehand (v1)" / "foreign".
 func (s Status) String() string {
 	switch s {
-	case StatusStagehand:
+	case StatusStagecoach:
 		return "stagehand (v1)"
 	case StatusForeign:
 		return "foreign"
@@ -43,7 +43,7 @@ var (
 
 // Detect examines the hooks directory and returns the current hook status.
 // os.ErrNotExist → StatusNone; any other read error is returned.
-// A file without Marker → StatusForeign; a file with Marker → StatusStagehand.
+// A file without Marker → StatusForeign; a file with Marker → StatusStagecoach.
 func Detect(hooksDir string) (Status, error) {
 	data, err := os.ReadFile(filepath.Join(hooksDir, HookFilename))
 	if errors.Is(err, os.ErrNotExist) {
@@ -53,13 +53,13 @@ func Detect(hooksDir string) (Status, error) {
 		return StatusNone, err
 	}
 	if strings.Contains(string(data), Marker) {
-		return StatusStagehand, nil
+		return StatusStagecoach, nil
 	}
 	return StatusForeign, nil
 }
 
 // Install writes the stagehand prepare-commit-msg hook into hooksDir.
-// For StatusNone or StatusStagehand (idempotent rewrite), it creates the dir if absent
+// For StatusNone or StatusStagecoach (idempotent rewrite), it creates the dir if absent
 // and writes the script with mode 0o755 (os.Chmod after WriteFile to defeat umask).
 // For StatusForeign it returns ErrForeignHook WITHOUT touching the file.
 // It returns the previous status so the caller can print "Installed" vs "Updated".
@@ -88,7 +88,7 @@ func Install(hooksDir string, strict bool, configPath string) (Status, error) {
 }
 
 // Uninstall removes the stagehand prepare-commit-msg hook.
-// StatusStagehand → removes the file. StatusForeign → ErrForeignHook (untouched).
+// StatusStagecoach → removes the file. StatusForeign → ErrForeignHook (untouched).
 // StatusNone → ErrNoHook (idempotent — nothing to remove).
 func Uninstall(hooksDir string) (Status, error) {
 	st, err := Detect(hooksDir)
@@ -96,7 +96,7 @@ func Uninstall(hooksDir string) (Status, error) {
 		return st, err
 	}
 	switch st {
-	case StatusStagehand:
+	case StatusStagecoach:
 		return st, os.Remove(filepath.Join(hooksDir, HookFilename))
 	case StatusForeign:
 		return st, ErrForeignHook

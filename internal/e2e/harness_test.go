@@ -37,16 +37,16 @@ type e2eResult struct {
 }
 
 var (
-	stagehandOnce sync.Once
-	stagehandBin  string
+	stagecoachOnce sync.Once
+	stagecoachBin  string
 )
 
-// buildStagehand compiles ./cmd/stagehand ONCE per test process (cached) and returns its path.
+// buildStagecoach compiles ./cmd/stagehand ONCE per test process (cached) and returns its path.
 // Mirrors stubtest.Build — import-path build so cwd-independent. Skips t if the go toolchain
 // is not on PATH.
-func buildStagehand(t *testing.T) string {
+func buildStagecoach(t *testing.T) string {
 	t.Helper()
-	stagehandOnce.Do(func() {
+	stagecoachOnce.Do(func() {
 		goPath, err := exec.LookPath("go")
 		if err != nil {
 			t.Skipf("go toolchain not on PATH; cannot build stagehand: %v", err)
@@ -60,14 +60,14 @@ func buildStagehand(t *testing.T) string {
 		if runtime.GOOS == "windows" {
 			name = "stagehand.exe"
 		}
-		stagehandBin = filepath.Join(dir, name)
-		build := exec.Command(goPath, "build", "-o", stagehandBin,
+		stagecoachBin = filepath.Join(dir, name)
+		build := exec.Command(goPath, "build", "-o", stagecoachBin,
 			"github.com/dustin/stagecoach/cmd/stagecoach")
 		if out, err := build.CombinedOutput(); err != nil {
 			t.Fatalf("go build stagehand: %v\n%s", err, out)
 		}
 	})
-	return stagehandBin
+	return stagecoachBin
 }
 
 // buildStub returns the stub binary path via stubtest.Build (cached, sync.Once).
@@ -188,9 +188,9 @@ func stubEnv(knobs map[string]string) []string {
 	return env
 }
 
-// runStagehand drives the compiled stagehand binary as a subprocess. Returns captured outputs + exit
+// runStagecoach drives the compiled stagehand binary as a subprocess. Returns captured outputs + exit
 // code. Uses a 60s context timeout so a hung agent fails the test (not the suite).
-func runStagehand(t *testing.T, bin, repo, cfg string, env []string, args ...string) e2eResult {
+func runStagecoach(t *testing.T, bin, repo, cfg string, env []string, args ...string) e2eResult {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

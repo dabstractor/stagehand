@@ -46,16 +46,16 @@ func TestTranslatePattern_GoldenTable(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// TestLoadStagehandIgnore
+// TestLoadStagecoachIgnore
 // ---------------------------------------------------------------------------
 
-func TestLoadStagehandIgnore_Basic(t *testing.T) {
+func TestLoadStagecoachIgnore_Basic(t *testing.T) {
 	dir := t.TempDir()
 	content := "*.lock\n/dist/\nvendor/\n"
-	if err := os.WriteFile(filepath.Join(dir, StagehandIgnoreFile), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, StagecoachIgnoreFile), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	globs, err := LoadStagehandIgnore(dir, ui.NewVerbose(nil, false))
+	globs, err := LoadStagecoachIgnore(dir, ui.NewVerbose(nil, false))
 	if err != nil {
 		t.Fatalf("err = %v, want nil", err)
 	}
@@ -65,13 +65,13 @@ func TestLoadStagehandIgnore_Basic(t *testing.T) {
 	}
 }
 
-func TestLoadStagehandIgnore_BlankAndCommentIgnored(t *testing.T) {
+func TestLoadStagecoachIgnore_BlankAndCommentIgnored(t *testing.T) {
 	dir := t.TempDir()
 	content := "# comment\n\n  \t  \n*.lock\n"
-	if err := os.WriteFile(filepath.Join(dir, StagehandIgnoreFile), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, StagecoachIgnoreFile), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	globs, err := LoadStagehandIgnore(dir, ui.NewVerbose(nil, false))
+	globs, err := LoadStagecoachIgnore(dir, ui.NewVerbose(nil, false))
 	if err != nil {
 		t.Fatalf("err = %v, want nil", err)
 	}
@@ -81,14 +81,14 @@ func TestLoadStagehandIgnore_BlankAndCommentIgnored(t *testing.T) {
 	}
 }
 
-func TestLoadStagehandIgnore_NegationSkippedAndWarns(t *testing.T) {
+func TestLoadStagecoachIgnore_NegationSkippedAndWarns(t *testing.T) {
 	dir := t.TempDir()
 	content := "!keep.min.js\n*.min.js\n"
-	if err := os.WriteFile(filepath.Join(dir, StagehandIgnoreFile), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, StagecoachIgnoreFile), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer
-	globs, err := LoadStagehandIgnore(dir, ui.NewVerbose(&buf, true))
+	globs, err := LoadStagecoachIgnore(dir, ui.NewVerbose(&buf, true))
 	if err != nil {
 		t.Fatalf("err = %v, want nil", err)
 	}
@@ -96,19 +96,19 @@ func TestLoadStagehandIgnore_NegationSkippedAndWarns(t *testing.T) {
 	if len(globs) != len(want) || !sliceEqual(globs, want) {
 		t.Fatalf("got %v, want %v", globs, want)
 	}
-	if !strings.Contains(buf.String(), "DEBUG: ignoring unsupported negation pattern in .stagehandignore: !keep.min.js") {
+	if !strings.Contains(buf.String(), "DEBUG: ignoring unsupported negation pattern in .stagecoachignore: !keep.min.js") {
 		t.Fatalf("expected VerboseWarn output, got %q", buf.String())
 	}
 }
 
-func TestLoadStagehandIgnore_NegationNoWarnWhenOff(t *testing.T) {
+func TestLoadStagecoachIgnore_NegationNoWarnWhenOff(t *testing.T) {
 	dir := t.TempDir()
 	content := "!keep.min.js\n"
-	if err := os.WriteFile(filepath.Join(dir, StagehandIgnoreFile), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, StagecoachIgnoreFile), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer
-	globs, err := LoadStagehandIgnore(dir, ui.NewVerbose(&buf, false))
+	globs, err := LoadStagecoachIgnore(dir, ui.NewVerbose(&buf, false))
 	if err != nil {
 		t.Fatalf("err = %v, want nil", err)
 	}
@@ -120,13 +120,13 @@ func TestLoadStagehandIgnore_NegationNoWarnWhenOff(t *testing.T) {
 	}
 }
 
-func TestLoadStagehandIgnore_CRLF(t *testing.T) {
+func TestLoadStagecoachIgnore_CRLF(t *testing.T) {
 	dir := t.TempDir()
 	content := "*.lock\r\n/dist/\r\n"
-	if err := os.WriteFile(filepath.Join(dir, StagehandIgnoreFile), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, StagecoachIgnoreFile), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	globs, err := LoadStagehandIgnore(dir, ui.NewVerbose(nil, false))
+	globs, err := LoadStagecoachIgnore(dir, ui.NewVerbose(nil, false))
 	if err != nil {
 		t.Fatalf("err = %v, want nil", err)
 	}
@@ -136,9 +136,9 @@ func TestLoadStagehandIgnore_CRLF(t *testing.T) {
 	}
 }
 
-func TestLoadStagehandIgnore_MissingFile(t *testing.T) {
+func TestLoadStagecoachIgnore_MissingFile(t *testing.T) {
 	dir := t.TempDir()
-	globs, err := LoadStagehandIgnore(dir, ui.NewVerbose(nil, false))
+	globs, err := LoadStagecoachIgnore(dir, ui.NewVerbose(nil, false))
 	if err != nil {
 		t.Fatalf("err = %v, want nil", err)
 	}
@@ -147,19 +147,19 @@ func TestLoadStagehandIgnore_MissingFile(t *testing.T) {
 	}
 }
 
-func TestLoadStagehandIgnore_ReadError(t *testing.T) {
-	// Point repoRoot at a file (not a dir) so ReadFile on .stagehandignore inside it fails.
+func TestLoadStagecoachIgnore_ReadError(t *testing.T) {
+	// Point repoRoot at a file (not a dir) so ReadFile on .stagecoachignore inside it fails.
 	tmp := t.TempDir()
 	filePath := filepath.Join(tmp, "notafile")
 	if err := os.WriteFile(filePath, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := LoadStagehandIgnore(filePath, ui.NewVerbose(nil, false))
+	_, err := LoadStagecoachIgnore(filePath, ui.NewVerbose(nil, false))
 	if err == nil {
 		t.Fatal("expected error when repoRoot is a file, got nil")
 	}
-	if !strings.Contains(err.Error(), "read .stagehandignore") {
-		t.Fatalf("error should mention .stagehandignore, got: %v", err)
+	if !strings.Contains(err.Error(), "read .stagecoachignore") {
+		t.Fatalf("error should mention .stagecoachignore, got: %v", err)
 	}
 }
 
@@ -170,7 +170,7 @@ func TestLoadStagehandIgnore_ReadError(t *testing.T) {
 func TestResolveExcludePathspecs_BothSources(t *testing.T) {
 	dir := t.TempDir()
 	content := "*.min.js\n/dist/\n"
-	if err := os.WriteFile(filepath.Join(dir, StagehandIgnoreFile), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, StagecoachIgnoreFile), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.Config{Exclude: []string{"testdata/*", "vendor/"}}
@@ -190,7 +190,7 @@ func TestResolveExcludePathspecs_BothSources(t *testing.T) {
 }
 
 func TestResolveExcludePathspecs_CfgExcludeOnly(t *testing.T) {
-	dir := t.TempDir() // no .stagehandignore
+	dir := t.TempDir() // no .stagecoachignore
 	cfg := config.Config{Exclude: []string{"vendor/"}}
 	out, err := ResolveExcludePathspecs(cfg, dir, ui.NewVerbose(nil, false))
 	if err != nil {
@@ -205,7 +205,7 @@ func TestResolveExcludePathspecs_CfgExcludeOnly(t *testing.T) {
 func TestResolveExcludePathspecs_FileOnly(t *testing.T) {
 	dir := t.TempDir()
 	content := "*.lock\n"
-	if err := os.WriteFile(filepath.Join(dir, StagehandIgnoreFile), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, StagecoachIgnoreFile), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.Config{Exclude: nil}
@@ -220,7 +220,7 @@ func TestResolveExcludePathspecs_FileOnly(t *testing.T) {
 }
 
 func TestResolveExcludePathspecs_BothEmpty(t *testing.T) {
-	dir := t.TempDir() // no .stagehandignore
+	dir := t.TempDir() // no .stagecoachignore
 	cfg := config.Config{Exclude: nil}
 	out, err := ResolveExcludePathspecs(cfg, dir, ui.NewVerbose(nil, false))
 	if err != nil {

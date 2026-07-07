@@ -52,10 +52,10 @@ func runGitCommitHook(t *testing.T, bin, repo, cfg string, env []string, gitArgs
 	return runGitCommit(t, repo, env, gitArgs...)
 }
 
-// buildStagehandPath returns just the directory of the built stagehand binary.
-func buildStagehandPath(t *testing.T) string {
+// buildStagecoachPath returns just the directory of the built stagehand binary.
+func buildStagecoachPath(t *testing.T) string {
 	t.Helper()
-	bin := buildStagehand(t)
+	bin := buildStagecoach(t)
 	return filepath.Dir(bin)
 }
 
@@ -72,9 +72,9 @@ func prependPath(env []string, dir string) []string {
 
 // TestE2EHookScenarios exercises the PRD §9.20 FR-H4/H5/H7 hook scenarios via real git commit.
 func TestE2EHookScenarios(t *testing.T) {
-	bin := buildStagehand(t)
+	bin := buildStagecoach(t)
 	stub := buildStub(t)
-	binDir := buildStagehandPath(t)
+	binDir := buildStagecoachPath(t)
 
 	cfg := writeStubConfig(t, stub, `
 [defaults]

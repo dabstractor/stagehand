@@ -9,7 +9,7 @@
 // hooks fire on a stagehand-produced commit.
 //
 // This file owns ONLY the runner. Recursion prevention (skip stagehand's OWN prepare-commit-msg via
-// hook.Detect) is the S2 sibling (P1.M3.T1.S2) via the shouldSkipStagehandPrepareCommitMsg seam; caller
+// hook.Detect) is the S2 sibling (P1.M3.T1.S2) via the shouldSkipStagecoachPrepareCommitMsg seam; caller
 // wiring is P1.M3.T2/M3.T3; the FR-V3 subset backstop lives in subset.go (P1.M2.T2.S1).
 package hooks
 
@@ -50,7 +50,7 @@ type HookOpts struct {
 //     → ErrHookSweptConcurrentWork (the FR-V3 freeze backstop). Non-zero/timeout → *RescueError.
 //   - prepare-commit-msg: ALWAYS runs (NoVerify + DryRun do NOT gate it — git-commit(1) parity).
 //     Invoked as `<msgfile>` (git githooks(5): for a plain commit no second parameter is passed;
-//     argc=1, $2 unset). The S2 seam shouldSkipStagehandPrepareCommitMsg stubs false (stagehand's
+//     argc=1, $2 unset). The S2 seam shouldSkipStagecoachPrepareCommitMsg stubs false (stagehand's
 //     own hook would recurse; S2 fills via hook.Detect). Non-zero/timeout → *RescueError.
 //   - commit-msg: SKIP if cfg.NoVerify (FR-V5); RUNS under DryRun (FR-V8a — lint the would-be
 //     message). Invoked as `<msgfile>`. Non-zero/timeout → *RescueError.
@@ -194,7 +194,7 @@ func runPrepareCommitMsg(ctx context.Context, cfg config.Config, opts HookOpts,
 	if !hookExecutable(hookPath) {
 		return nil // absent/non-exec → silent skip
 	}
-	if shouldSkipStagehandPrepareCommitMsg(hooksDir) { // FR-V4: stagehand's OWN hook → skip (recursion)
+	if shouldSkipStagecoachPrepareCommitMsg(hooksDir) { // FR-V4: stagehand's OWN hook → skip (recursion)
 		if opts.Verbose != nil { // nil-safe
 			opts.Verbose.VerboseWarn("skipping stagehand's own prepare-commit-msg hook on the plumbing path (FR-V4 recursion prevention)")
 		}
@@ -347,15 +347,15 @@ func hookExecutable(path string) bool {
 	return info.Mode().Perm()&0o100 != 0 // owner-executable bit
 }
 
-// shouldSkipStagehandPrepareCommitMsg implements FR-V4 recursion prevention: if the installed
+// shouldSkipStagecoachPrepareCommitMsg implements FR-V4 recursion prevention: if the installed
 // prepare-commit-msg is stagehand's OWN (detected by its Marker line via hook.Detect), skip it on the
 // plumbing path — the message is already generated and invoking it would exec `stagehand hook exec`
 // and recurse. A foreign hook (StatusForeign) RUNS and may annotate; absent (StatusNone) is a no-op.
 // Pure (returns bool; the verbose log is in the caller, runPrepareCommitMsg). A Detect read error ⇒
 // StatusNone ⇒ don't skip (conservative: run rather than recurse-stall on a rare read failure).
-func shouldSkipStagehandPrepareCommitMsg(hooksDir string) bool {
+func shouldSkipStagecoachPrepareCommitMsg(hooksDir string) bool {
 	status, _ := hook.Detect(hooksDir)
-	return status == hook.StatusStagehand
+	return status == hook.StatusStagecoach
 }
 
 // rescueErr maps a hook failure (non-zero/timeout) to *generate.RescueError — byte-identical to a

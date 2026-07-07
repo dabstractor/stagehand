@@ -4,7 +4,7 @@
 // (PRD §18.5). It exercises the LANDED S2 contention wiring (internal/cmd/default_action.go:
 // lock.Acquire + handleLockContention) against REAL stagehand subprocesses on REAL temp git repos —
 // the layer unit tests cannot reach (real flock across real processes). Reuses the harness primitives
-// (buildStagehand/newRepo/runStagehand/waitForMarker/writeStubConfig/stubEnv) and the stub agent's
+// (buildStagecoach/newRepo/runStagecoach/waitForMarker/writeStubConfig/stubEnv) and the stub agent's
 // STAGEHAND_STUB_MARKER + STAGEHAND_STUB_SLEEP_MS blocking pattern (NO new binary). Test-only.
 package e2e
 
@@ -16,7 +16,7 @@ import (
 
 // TestE2ELockContention exercises every PRD §18.5 contention behavior end-to-end.
 func TestE2ELockContention(t *testing.T) {
-	bin := buildStagehand(t)
+	bin := buildStagecoach(t)
 	stub := buildStub(t)
 	cfg := writeStubConfig(t, stub, "") // shared; each subtest makes its own repo
 
@@ -34,7 +34,7 @@ func TestE2ELockContention(t *testing.T) {
 		})
 
 		resCh := make(chan e2eResult, 1)
-		go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+		go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
 		waitForMarker(t, readiness, 10*time.Second) // #1 holds lock + published snapshot=tree(a.txt)
 
 		// GENUINE SECOND BATCH: stage b.txt AFTER #1 snapshotted → not in #1's snapshot → tree differs → Busy.
@@ -42,7 +42,7 @@ func TestE2ELockContention(t *testing.T) {
 		stageFile(t, repo, "b.txt")
 
 		contenderEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: b"})
-		res2 := runStagehand(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
+		res2 := runStagecoach(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
 		if res2.ExitCode != 5 {
 			t.Fatalf("contender exit = %d, want 5 (Busy); stderr:\n%s", res2.ExitCode, res2.Stderr)
 		}
@@ -79,12 +79,12 @@ func TestE2ELockContention(t *testing.T) {
 		})
 
 		resCh := make(chan e2eResult, 1)
-		go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+		go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
 		waitForMarker(t, readiness, 10*time.Second) // #1 snapshot = tree(a.txt)
 
 		// #2 stages NOTHING NEW → its write-tree (tree(a.txt)) == #1's snapshot → no-op fast path → exit 0.
 		contenderEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: a"})
-		res2 := runStagehand(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
+		res2 := runStagecoach(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
 		if res2.ExitCode != 0 {
 			t.Fatalf("contender exit = %d, want 0 (no-op fast path); stderr:\n%s", res2.ExitCode, res2.Stderr)
 		}
@@ -110,7 +110,7 @@ func TestE2ELockContention(t *testing.T) {
 		env := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: a"})
 
 		// #1 runs to completion and its process exits → flock auto-released (no stale lock).
-		res1 := runStagehand(t, bin, repo, cfg, env, "--provider", "stub")
+		res1 := runStagecoach(t, bin, repo, cfg, env, "--provider", "stub")
 		if res1.ExitCode != 0 {
 			t.Fatalf("#1 exit = %d, want 0; stderr:\n%s", res1.ExitCode, res1.Stderr)
 		}
@@ -121,7 +121,7 @@ func TestE2ELockContention(t *testing.T) {
 		writeFile(t, repo, "b.txt", "b\n")
 		stageFile(t, repo, "b.txt")
 		env2 := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: b"})
-		res2 := runStagehand(t, bin, repo, cfg, env2, "--provider", "stub")
+		res2 := runStagecoach(t, bin, repo, cfg, env2, "--provider", "stub")
 		if res2.ExitCode == 5 {
 			t.Fatalf("#2 exited Busy (5) — stale lock! flock must auto-release on #1's exit; stderr:\n%s", res2.Stderr)
 		}
@@ -147,7 +147,7 @@ func TestE2ELockContention(t *testing.T) {
 		})
 
 		resCh := make(chan e2eResult, 1)
-		go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+		go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
 		waitForMarker(t, readiness, 10*time.Second) // #1 holds the lock
 
 		baseEnv := stubEnv(nil)
@@ -156,7 +156,7 @@ func TestE2ELockContention(t *testing.T) {
 			{"config", "path"},
 			{"models", "--help"},
 		} {
-			res := runStagehand(t, bin, repo, cfg, baseEnv, args...)
+			res := runStagecoach(t, bin, repo, cfg, baseEnv, args...)
 			if res.ExitCode == 5 {
 				t.Errorf("%v exited Busy (5) — read-only subcommands must bypass the lock; stderr:\n%s", args, res.Stderr)
 			}
@@ -184,7 +184,7 @@ func TestE2ELockContention(t *testing.T) {
 		})
 
 		resCh := make(chan e2eResult, 1)
-		go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+		go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
 		waitForMarker(t, readiness, 10*time.Second) // #1 snapshot = tree(a.txt)
 
 		// Dry-run contender stages an EXTRA file → tree differs → Busy (proves dry-run goes through runDefault
@@ -192,7 +192,7 @@ func TestE2ELockContention(t *testing.T) {
 		writeFile(t, repo, "b.txt", "b\n")
 		stageFile(t, repo, "b.txt")
 		contenderEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: b"})
-		res2 := runStagehand(t, bin, repo, cfg, contenderEnv, "--dry-run", "--provider", "stub")
+		res2 := runStagecoach(t, bin, repo, cfg, contenderEnv, "--dry-run", "--provider", "stub")
 		if res2.ExitCode != 5 {
 			t.Fatalf("dry-run contender exit = %d, want 5 (Busy — dry-run acquires the lock); stderr:\n%s", res2.ExitCode, res2.Stderr)
 		}
@@ -221,13 +221,13 @@ func TestE2ELockContention(t *testing.T) {
 		})
 
 		resCh := make(chan e2eResult, 1)
-		go func() { resCh <- runStagehand(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
+		go func() { resCh <- runStagecoach(t, bin, repo, cfg, holderEnv, "--provider", "stub") }()
 		waitForMarker(t, readiness, 10*time.Second) // holder: lock held, T_start published, message-gen sleep
 
 		// Contender: same dirty tree, still nothing staged → handleLockContention:
 		//   WriteTree() = baseTree ≠ snap(T_start) → Busy(5). "nothing to do" must NOT appear.
 		contenderEnv := stubEnv(map[string]string{"STAGEHAND_STUB_OUT": "feat: add feature"})
-		res2 := runStagehand(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
+		res2 := runStagecoach(t, bin, repo, cfg, contenderEnv, "--provider", "stub")
 		if res2.ExitCode != 5 {
 			t.Fatalf("contender exit = %d, want 5 (Busy) — decompose no-op fast path is structurally impossible; stderr:\n%s", res2.ExitCode, res2.Stderr)
 		}

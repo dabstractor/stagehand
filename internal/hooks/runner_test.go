@@ -420,29 +420,29 @@ func TestStripCommentLines(t *testing.T) {
 	}
 }
 
-// --- 14. shouldSkipStagehandPrepareCommitMsg — FR-V4 seam via hook.Detect ---
+// --- 14. shouldSkipStagecoachPrepareCommitMsg — FR-V4 seam via hook.Detect ---
 //
-// S1 stubbed this false; S2 fills it via hook.Detect(hooksDir) == hook.StatusStagehand. A repo whose
-// prepare-commit-msg contains the stagehand Marker ⇒ StatusStagehand ⇒ skip; a foreign (no Marker)
+// S1 stubbed this false; S2 fills it via hook.Detect(hooksDir) == hook.StatusStagecoach. A repo whose
+// prepare-commit-msg contains the stagehand Marker ⇒ StatusStagecoach ⇒ skip; a foreign (no Marker)
 // hook ⇒ StatusForeign ⇒ don't skip; no hook ⇒ StatusNone ⇒ don't skip.
 
-func TestShouldSkipStagehandPrepareCommitMsg_StagehandMarker_True(t *testing.T) {
+func TestShouldSkipStagecoachPrepareCommitMsg_StagecoachMarker_True(t *testing.T) {
 	dir := t.TempDir()
 	hooks := filepath.Join(dir, "hooks")
 	if err := os.MkdirAll(hooks, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	// The Marker line baked into stagehand's own prepare-commit-msg hook (internal/hook.Marker).
-	body := "#!/bin/sh\n# stagehand prepare-commit-msg hook v1\nexec stagehand hook exec \"$@\"\n"
+	body := "#!/bin/sh\n# stagecoach prepare-commit-msg hook v1\nexec stagehand hook exec \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(hooks, "prepare-commit-msg"), []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if !shouldSkipStagehandPrepareCommitMsg(hooks) {
-		t.Errorf("shouldSkipStagehandPrepareCommitMsg = false for stagehand's own hook; want true (recursion)")
+	if !shouldSkipStagecoachPrepareCommitMsg(hooks) {
+		t.Errorf("shouldSkipStagecoachPrepareCommitMsg = false for stagehand's own hook; want true (recursion)")
 	}
 }
 
-func TestShouldSkipStagehandPrepareCommitMsg_ForeignOrAbsent_False(t *testing.T) {
+func TestShouldSkipStagecoachPrepareCommitMsg_ForeignOrAbsent_False(t *testing.T) {
 	t.Run("foreign", func(t *testing.T) {
 		dir := t.TempDir()
 		hooks := filepath.Join(dir, "hooks")
@@ -454,30 +454,30 @@ func TestShouldSkipStagehandPrepareCommitMsg_ForeignOrAbsent_False(t *testing.T)
 		if err := os.WriteFile(filepath.Join(hooks, "prepare-commit-msg"), []byte(body), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if shouldSkipStagehandPrepareCommitMsg(hooks) {
-			t.Errorf("shouldSkipStagehandPrepareCommitMsg = true for a foreign hook; want false")
+		if shouldSkipStagecoachPrepareCommitMsg(hooks) {
+			t.Errorf("shouldSkipStagecoachPrepareCommitMsg = true for a foreign hook; want false")
 		}
 	})
 	t.Run("absent", func(t *testing.T) {
 		dir := t.TempDir() // no hooks dir at all ⇒ StatusNone ⇒ don't skip
 		hooks := filepath.Join(dir, "hooks")
-		if shouldSkipStagehandPrepareCommitMsg(hooks) {
-			t.Errorf("shouldSkipStagehandPrepareCommitMsg = true when no hook is installed; want false")
+		if shouldSkipStagecoachPrepareCommitMsg(hooks) {
+			t.Errorf("shouldSkipStagecoachPrepareCommitMsg = true when no hook is installed; want false")
 		}
 	})
 }
 
 // --- 15. FR-V4 contract scenarios (recursion skip / foreign annotate / absent no-op) ---
 
-// TestRunCommitHooks_PrepareCommitMsg_StagehandMarker_Skipped verifies FR-V4 recursion prevention:
+// TestRunCommitHooks_PrepareCommitMsg_StagecoachMarker_Skipped verifies FR-V4 recursion prevention:
 // a prepare-commit-msg that IS stagehand's own (the Marker line present) is SKIPPED on the plumbing
 // path — the message is unchanged and the hook's mutation (which would recurse via `stagehand hook
 // exec`) did NOT run. NoVerify=true isolates prepare-commit-msg (no commit-msg).
-func TestRunCommitHooks_PrepareCommitMsg_StagehandMarker_Skipped(t *testing.T) {
+func TestRunCommitHooks_PrepareCommitMsg_StagecoachMarker_Skipped(t *testing.T) {
 	repo, snapshotTree, parentSHA, g := primeRunnerRepo(t)
 	// Install stagehand's OWN prepare-commit-msg (Marker present) that WOULD mutate the file if run.
 	installHook(t, repo, "prepare-commit-msg",
-		`# stagehand prepare-commit-msg hook v1`+"\n"+`echo 'RECURRED' >> "$1"`)
+		`# stagecoach prepare-commit-msg hook v1`+"\n"+`echo 'RECURRED' >> "$1"`)
 	cfg := defaultCfg()
 	cfg.NoVerify = true // isolate prepare-commit-msg (skip pre-commit + commit-msg)
 
