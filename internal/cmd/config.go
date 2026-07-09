@@ -26,12 +26,6 @@ import (
 	"github.com/dustin/stagecoach/internal/provider"
 )
 
-// preferredBuiltins is the FR-D1 cascading provider priority order (local copy — mirrors
-// internal/provider/registry.go's unexported preferredBuiltins). Used by runConfigInit
-// for the --provider validation error message. (config/bootstrap.go has its own copy for
-// stagerFallback + commented-block ordering — pre-existing mirror pattern.)
-var preferredBuiltins = []string{"pi", "opencode", "cursor", "agy", "codex", "claude"}
-
 // configCmd is the PRD §15.3 "config" command group. It has NO RunE → bare `stagecoach config` prints
 // help (cobra default). init/path are its leaves (registered in init()). Both leaves are in
 // shouldSkipConfigLoad (cmd.Name()=="init"/"path") so root's PersistentPreRunE returns nil immediately
@@ -50,7 +44,7 @@ var configInitCmd = &cobra.Command{
 	Long: `Bootstrap a populated, working config to Stagecoach's global config path.
 
 By DEFAULT, detects the highest-priority installed built-in agent (order: pi, opencode,
-cursor, agy, codex, claude) and writes a config with that provider's per-role
+cursor, agy, qwen-code, codex, claude) and writes a config with that provider's per-role
 default models UNCOMMENTED so the tool works immediately. If no agent is detected, defaults
 to "pi". Other installed providers appear as commented-out [role.*] blocks (one-line
 uncomment to route a role to a different agent).
@@ -447,7 +441,7 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 			reg := provider.NewRegistry(nil)
 			if _, ok := reg.Get(providerName); !ok {
 				return exitcode.New(exitcode.Error, fmt.Errorf("unknown provider %q (use a built-in: %s)",
-					providerName, strings.Join(preferredBuiltins, ", ")))
+					providerName, strings.Join(reg.PreferredBuiltins(), ", ")))
 			}
 		}
 		content = config.GenerateBootstrapConfig(providerName)

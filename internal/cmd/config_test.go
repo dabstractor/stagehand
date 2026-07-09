@@ -683,6 +683,14 @@ func TestConfigInit_UnknownProvider(t *testing.T) {
 	if !strings.Contains(err.Error(), "unknown provider") {
 		t.Errorf("error message %q should contain 'unknown provider'", err.Error())
 	}
+	// Finding 1 regression guard: the "use a built-in" hint must list ALL 7 built-ins, including
+	// qwen-code (the drifted local copy used to omit it). The hint now sources the registry's
+	// PreferredBuiltins() — single source of truth.
+	for _, name := range []string{"pi", "opencode", "cursor", "agy", "qwen-code", "codex", "claude"} {
+		if !strings.Contains(err.Error(), name) {
+			t.Errorf("error message %q should list built-in %q in the hint", err.Error(), name)
+		}
+	}
 }
 
 func TestConfigInit_MkdirAllParent(t *testing.T) {

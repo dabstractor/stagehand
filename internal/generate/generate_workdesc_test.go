@@ -265,8 +265,8 @@ func TestCommitStaged_WorkDescription_NoCascadeToMultiTurn(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.WorkDescription = "huge change"
 	cfg.WorkDescReadRounds = 3
-	cfg.MultiTurnFallback = true       // enabled — but FR-W7 says it must NOT trigger
-	cfg.MultiTurnChunkTokens = 4       // tiny ⇒ multi-turn WOULD fire on the default path
+	cfg.MultiTurnFallback = true // enabled — but FR-W7 says it must NOT trigger
+	cfg.MultiTurnChunkTokens = 4 // tiny ⇒ multi-turn WOULD fire on the default path
 	cfg.MaxDuplicateRetries = 0
 
 	_, err := CommitStaged(context.Background(), Deps{Git: git.New(repo), Manifest: m}, cfg)

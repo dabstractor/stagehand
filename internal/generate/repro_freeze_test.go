@@ -51,7 +51,7 @@ func TestCommitStaged_GenerationFreeze_HoldsForLiveStagedSentinel(t *testing.T) 
 	bin := stubtest.Build(t)
 	// Slow stub: 800ms generation gives us a wide window to stage the sentinel mid-generation.
 	m := stubtest.Manifest(bin, stubtest.Options{Out: "feat: generation-window freeze repro", SleepMS: 800})
-	cfg := config.Defaults() // NoVerify=false but NO hooks configured → deps.Hooks == nil
+	cfg := config.Defaults()                              // NoVerify=false but NO hooks configured → deps.Hooks == nil
 	deps := generate.Deps{Git: git.New(dir), Manifest: m} // Hooks == nil
 
 	done := make(chan struct{})

@@ -121,3 +121,72 @@ func TestRevParseHEAD_ContextCancelled(t *testing.T) {
 		t.Fatalf("RevParseHEAD sha = %q, want empty string", sha)
 	}
 }
+
+// TestInsideWorkTree_InsideRepo verifies InsideWorkTree returns (true, nil) for a directory
+// inside a git work tree (the not-a-repo pre-flight check's happy path).
+func TestInsideWorkTree_InsideRepo(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+
+	g := New(repo)
+	inside, err := g.InsideWorkTree(context.Background())
+	if err != nil {
+		t.Fatalf("InsideWorkTree() err = %v, want nil", err)
+	}
+	if !inside {
+		t.Fatal("InsideWorkTree() = false, want true (inside a repo)")
+	}
+}
+
+// TestInsideWorkTree_OutsideRepo verifies InsideWorkTree returns (false, nil) — NOT an error —
+// for a plain directory outside any git repo. Outside a repo `git rev-parse --is-inside-work-tree`
+// prints "false" and exits 1; that exit must NOT be surfaced as an error (it is the signal).
+func TestInsideWorkTree_OutsideRepo(t *testing.T) {
+	plain := t.TempDir() // a fresh temp dir is not inside any work tree
+
+	g := New(plain)
+	inside, err := g.InsideWorkTree(context.Background())
+	if err != nil {
+		t.Fatalf("InsideWorkTree() err = %v, want nil (outside-a-repo exit 1 is the signal, not an error)", err)
+	}
+	if inside {
+		t.Fatal("InsideWorkTree() = true, want false (outside any git repo)")
+	}
+}
+
+// TestInsideWorkTree_GitBinaryMissing verifies a missing git binary surfaces as a non-nil error
+// (NOT (false, nil) — that would silently look like "not a repo").
+func TestInsideWorkTree_GitBinaryMissing(t *testing.T) {
+	t.Setenv("PATH", "") // makes run()'s LookPath("git") fail
+
+	g := New(t.TempDir())
+	inside, err := g.InsideWorkTree(context.Background())
+	if err == nil {
+		t.Fatal("InsideWorkTree() err = nil, want non-nil (git binary not found)")
+	}
+	if !strings.Contains(err.Error(), "git binary not found") {
+		t.Fatalf("InsideWorkTree() err = %v, want it to contain 'git binary not found'", err)
+	}
+	if inside {
+		t.Fatal("InsideWorkTree() = true, want false (LookPath miss is NOT inside)")
+	}
+}
+
+// TestInsideWorkTree_ContextCancelled verifies a pre-cancelled context surfaces as context.Canceled
+// (not (false, nil)).
+func TestInsideWorkTree_ContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	g := New(t.TempDir())
+	inside, err := g.InsideWorkTree(ctx)
+	if err == nil {
+		t.Fatal("InsideWorkTree() err = nil, want non-nil (context cancelled)")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("InsideWorkTree() err = %v, want context.Canceled", err)
+	}
+	if inside {
+		t.Fatal("InsideWorkTree() = true, want false (context cancel is NOT inside)")
+	}
+}

@@ -1586,3 +1586,75 @@ func TestProgressLabel_DecomposeVerboseRoles(t *testing.T) {
 		t.Errorf("stderr unexpectedly contains a reasoning suffix; got %q", stderr)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Finding 2: running stagecoach OUTSIDE a git repository must fail with a clear
+// "stagecoach: not a git repository" message (exit 1), NOT the baffling
+// `git diff --cached --quiet: failed (exit 129)` from git's outside-a-repo
+// `--no-index` fallback. The pre-flight check (g.InsideWorkTree) runs before
+// the staged-changes check.
+// ---------------------------------------------------------------------------
+func TestRunDefault_OutsideGitRepo_FriendlyError(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	// Run from a plain temp dir that is NOT inside any git work tree, with an isolated HOME so no
+	// real config is touched. --provider stub avoids any provider auto-detection noise.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", home)
+	plainDir := t.TempDir()
+	chdir(t, plainDir)
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub"})
+
+	err := Execute(context.Background())
+	if err == nil {
+		t.Fatal("Execute err=nil, want error (not a git repository)")
+	}
+	if code := exitcode.For(err); code != exitcode.Error {
+		t.Errorf("exitcode.For(err) = %d, want %d (Error)", code, exitcode.Error)
+	}
+	if !strings.Contains(err.Error(), "not a git repository") {
+		t.Errorf("err = %q, want it to contain 'not a git repository'", err.Error())
+	}
+	// The baffling raw git usage error must NOT leak through.
+	if strings.Contains(err.Error(), "git diff --cached") || strings.Contains(err.Error(), "unknown option") {
+		t.Errorf("err = %q; must not surface the raw outside-a-repo git usage error", err.Error())
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Finding 4: on the FR-M2b one-file planner-bypass path (auto mode, exactly
+// ONE dirty file, nothing staged), the progress label must NOT claim
+// "Decomposing with <planner>…" because the planner is never called. It should
+// surface the MESSAGE role ("Generating…") instead. The multi-file path still
+// shows "Decomposing with <planner>…" (covered by TestProgressLabel_DecomposeMainLineVisible).
+// ---------------------------------------------------------------------------
+func TestProgressLabel_OneFileBypass_NotDecomposing(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	repo := setupStubRepo(t, "feat: one file bypass")
+	// EXACTLY one un-staged dirty file → FR-M2b one-file short-circuit bypasses the planner.
+	writeFile(t, repo, "only.txt", "only\n")
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub"})
+
+	_ = Execute(context.Background()) // commits (or errors) — the label assertion is what matters
+
+	stderr := errBuf.String()
+	if strings.Contains(stderr, "↳ Decomposing with ") {
+		t.Errorf("stderr = %q; must NOT emit 'Decomposing' on the one-file planner-bypass path", stderr)
+	}
+	// The bypass path runs the MESSAGE role → the progress line surfaces "Generating…".
+	if !strings.Contains(stderr, "↳ Generating") {
+		t.Errorf("stderr = %q; want it to contain '↳ Generating' (message role) on the one-file bypass", stderr)
+	}
+}

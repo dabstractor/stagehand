@@ -41,9 +41,9 @@ const refuseReadsFmt = "Read budget exhausted (%d/%d) — output the commit mess
 // readState tracks the per-session read loop state: the round count (against cfg.WorkDescReadRounds)
 // and the per-file byte offset (the implicit cursor, FR-W5 — re-requesting a path returns the next chunk).
 type readState struct {
-	rounds int               // number of model responses processed that contained ≥1 READ request
-	N      int               // the round cap (cfg.WorkDescReadRounds)
-	offsets map[string]int   // path → byte offset into its staged diff (the implicit cursor)
+	rounds  int            // number of model responses processed that contained ≥1 READ request
+	N       int            // the round cap (cfg.WorkDescReadRounds)
+	offsets map[string]int // path → byte offset into its staged diff (the implicit cursor)
 }
 
 // RunWorkDescription drives the description-first read/answer loop (PRD §9.26 FR-W4–FR-W7). It is the

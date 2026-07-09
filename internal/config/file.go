@@ -54,7 +54,7 @@ type fileGeneration struct {
 	MaxDuplicateRetries  int      `toml:"max_duplicate_retries"`
 	MultiTurnFallback    bool     `toml:"multi_turn_fallback"`     // §9.24 FR-T1c multi-turn fallback (default true); only-true-propagates (mirrors AutoStageAll)
 	MultiTurnChunkTokens int      `toml:"multi_turn_chunk_tokens"` // §9.24 FR-T3 per-request chunk size in tokens (default 32000); != 0 guard (mirrors TokenLimit)
-	WorkDescReadRounds   int      `toml:"work_desc_read_rounds"`    // §9.26 FR-W6 max read rounds in work-description mode (default 5); != 0 guard (mirrors MultiTurnChunkTokens)
+	WorkDescReadRounds   int      `toml:"work_desc_read_rounds"`   // §9.26 FR-W6 max read rounds in work-description mode (default 5); != 0 guard (mirrors MultiTurnChunkTokens)
 	SubjectTargetChars   int      `toml:"subject_target_chars"`
 	Output               string   `toml:"output"`
 	StripCodeFence       *bool    `toml:"strip_code_fence"`

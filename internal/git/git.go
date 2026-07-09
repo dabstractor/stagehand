@@ -392,6 +392,15 @@ type Git interface {
 	// (branch on code != 0, NOT on code == 128). Read-only w.r.t. refs and the index (PRD §18.1).
 	GitDir(ctx context.Context) (dir string, err error)
 
+	// InsideWorkTree reports whether the working directory is inside a git work tree, via
+	// `git rev-parse --is-inside-work-tree`. It is the not-a-repo PRE-FLIGHT CHECK (PRD §15.1 default
+	// action): running stagecoach outside a git repo otherwise surfaces a baffling
+	// `git diff --cached --quiet: failed (exit 129)` (git's outside-a-repo `--no-index` fallback rejects
+	// `--cached`). Outside a repo git prints `false` to stdout and exits 1 — that is NOT an error here,
+	// so this method returns (false, nil) for exit 1/128 and only returns a non-nil err for a missing git
+	// binary or a cancelled context. Inside a work tree it returns (true, nil). Read-only (PRD §18.1).
+	InsideWorkTree(ctx context.Context) (inside bool, err error)
+
 	// TopLevel returns the ABSOLUTE path to the working tree root via `git rev-parse
 	// --show-toplevel` (honors linked worktrees correctly — derives from CWD's worktree, NOT from
 	// GitDir's parent). Used by the commit-hooks runner (§9.25 FR-V6) to set the hook subprocess's
@@ -2025,6 +2034,23 @@ func (g *gitRunner) GitDir(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("git rev-parse --absolute-git-dir: failed (exit %d): %s", code, strings.TrimSpace(stderr))
 	}
 	return strings.TrimSpace(stdout), nil
+}
+
+// InsideWorkTree reports whether the working directory is inside a git work tree via
+// `git rev-parse --is-inside-work-tree`. Outside a repo git prints `false` and exits 1 — that is NOT
+// an error here, so (false, nil) is returned for exit 1/128. Only a missing git binary or a cancelled
+// context yields a non-nil err. See the Git interface doc for the pre-flight rationale.
+func (g *gitRunner) InsideWorkTree(ctx context.Context) (bool, error) {
+	stdout, _, code, err := g.run(ctx, g.workDir, "rev-parse", "--is-inside-work-tree")
+	if err != nil {
+		return false, err // git binary missing / context cancelled / start failure (run sets code=-1)
+	}
+	// Outside a repo: git prints "false" and exits 1 (also exits 128 for a corrupt/non-repo dir).
+	// Both are "not in a work tree" → (false, nil), NOT an error.
+	if code != 0 {
+		return false, nil
+	}
+	return strings.TrimSpace(stdout) == "true", nil
 }
 
 // TopLevel returns the absolute path to the working tree root (§9.25 FR-V6) via `git rev-parse

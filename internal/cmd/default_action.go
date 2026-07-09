@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -51,6 +52,17 @@ func runDefault(cmd *cobra.Command, args []string) error {
 		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: getwd: %w", err))
 	}
 	g := git.New(repoDir)
+
+	// Pre-flight: refuse to run outside a git repository with a clear message. Without this, the first
+	// git call (HasStagedChanges → `git diff --cached --quiet`) is misread by git's outside-a-repo
+	// `--no-index` fallback, which rejects `--cached` and surfaces a baffling exit-129 usage error.
+	inside, err := g.InsideWorkTree(ctx)
+	if err != nil {
+		return exitcode.New(exitcode.Error, fmt.Errorf("stagecoach: %w", err))
+	}
+	if !inside {
+		return exitcode.New(exitcode.Error, errors.New("stagecoach: not a git repository"))
+	}
 
 	// FR52 / PRD §18.5: acquire the per-repo run lock so two stagecoach processes cannot race on
 	// update-ref. One acquire + one defer covers BOTH the single-commit path and the decompose path
@@ -392,8 +404,17 @@ func runDecompose(ctx context.Context, stdout, stderr io.Writer, u *ui.UI, cfg *
 		{Name: "message", Model: roleModels.Message.Model, Provider: roleModels.Message.Provider, Reasoning: roleModels.Message.Reasoning},
 		{Name: "arbiter", Model: roleModels.Arbiter.Model, Provider: roleModels.Arbiter.Provider, Reasoning: roleModels.Arbiter.Reasoning},
 	})
-	// FR51b: main line surfaces the PLANNER role's resolved invocation.
-	u.Progress(ui.ProgressLabel("Decomposing", roleModels.Planner.Model, roleModels.Planner.Provider))
+	// FR51b: main progress line. FR-M2b (PRD §9.14): in AUTO mode with EXACTLY one dirty path the
+	// planner is bypassed entirely and the MESSAGE role generates the single commit. Emitting
+	// "Decomposing with <planner>…" on that path is a lie (the planner never runs). Detect the
+	// one-file bypass here — same auto-mode condition decompose.go checks, counted via the cheap
+	// porcelain status (runDefault already used it to enter this branch) — and surface the MESSAGE
+	// role as "Generating…" instead. The planner label fires only when the planner will actually run.
+	verb, model, provider := "Decomposing", roleModels.Planner.Model, roleModels.Planner.Provider
+	if plannerWillBeBypassed(ctx, cfg, g) {
+		verb, model, provider = "Generating", roleModels.Message.Model, roleModels.Message.Provider
+	}
+	u.Progress(ui.ProgressLabel(verb, model, provider))
 
 	// Resolve user exclude pathspecs for the diff layer (FR-X1 union + FR-X4 placeholders).
 	excludes, err := exclude.ResolveExcludePathspecs(*cfg, repoDir, verbose)
@@ -446,6 +467,27 @@ func handleDecomposeError(err error) error {
 		return exitcode.New(exitcode.For(err), nil) // SILENT — loop already printed to stderr
 	}
 	return exitcode.New(exitcode.Error, err) // planner/safety/infra — main prints
+}
+
+// plannerWillBeBypassed mirrors the FR-M2b one-file short-circuit condition (PRD §9.14 FR-M2b /
+// §13.6.1) that decompose.Decompose applies AFTER freezing the working tree: AUTO mode (Commits==0,
+// !Single) with EXACTLY one changed path bypasses the planner entirely. It is used ONLY to choose the
+// FR51b progress label (Decomposing vs Generating) — it is NOT a behavioral gate; decompose.go owns
+// the authoritative check against the frozen T_start. The count uses the cheap `git status --porcelain`
+// (each non-empty line is one changed path, consistent with the one-file bypass test fixtures). On any
+// git error it conservatively returns false (→ "Decomposing" label), which is the prior behavior.
+func plannerWillBeBypassed(ctx context.Context, cfg *config.Config, g git.Git) bool {
+	if cfg.Commits != 0 || cfg.Single { // forced count or --single ⇒ planner path (or single escape)
+		return false
+	}
+	status, err := g.StatusPorcelain(ctx)
+	if err != nil {
+		return false // conservative: don't change the label on a git error
+	}
+	if status == "" {
+		return false // clean tree — runDefault would not have reached runDecompose; defensive
+	}
+	return strings.Count(status, "\n")+1 == 1 // exactly one changed path ⇒ FR-M2b bypass fires
 }
 
 // printDryRunMessage writes the generated message to w (stdout) for --dry-run. stdout = message ONLY
