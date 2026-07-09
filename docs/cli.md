@@ -22,7 +22,7 @@ With no subcommand, `stagecoach` runs the **default action**. The routing depend
 | Flag | Type | Default | Env var | Git config | Description |
 |------|------|---------|---------|------------|-------------|
 | `--provider <name>` | string | "" (auto-detect) | `STAGECOACH_PROVIDER` | `stagecoach.provider` | Provider/agent to use |
-| `--model <name>` | string | "" (manifest default) | `STAGECOACH_MODEL` | `stagecoach.model` | Model override |
+| `--model <name>` | string | "" (manifest default) | `STAGECOACH_MODEL` | `stagecoach.model` | Model override. Sets the GLOBAL default — a `[role.<role>]` model in config (or a `--<role>-model` flag) takes precedence for that role (FR-R3), so a populated config can silently shadow `--model`; use `--message-model` to override the message role, or run with `--verbose` to see a note when `--model`/`--provider` is shadowed |
 | `--config <path>` | string | "" | `STAGECOACH_CONFIG` | — | Path to a config file, overrides discovery. A path pointing at a **missing** file fails fast with exit 1 (like a malformed or directory path), rather than falling back to discovery. |
 | `--timeout <dur>` | string | "120s" | `STAGECOACH_TIMEOUT` | `stagecoach.timeout` | Generation timeout (e.g. `"120s"` or `120`) |
 | `--verbose`, `-v` | bool | false | `STAGECOACH_VERBOSE` | — | Print resolved command, raw output, retries |
@@ -61,6 +61,9 @@ With no subcommand, `stagecoach` runs the **default action**. The routing depend
 | `--help`, `-h` | — | — | — | — | Print help |
 
 The `--config` flag is a path override for config-file discovery — it is not itself a `Config` field. An explicit `--config` (or `STAGECOACH_CONFIG`) pointing at a missing file errors with `config: config file not found: <path>` (exit 1) instead of silently falling back to provider auto-detection. Only the discovery default (no `--config` or `STAGECOACH_CONFIG`) tolerates a missing global file. The behavioral flags `--all` and `--dry-run` have no env-var or git-config analogs. (`--no-auto-stage` does: it mirrors `STAGECOACH_AUTO_STAGE_ALL` and `stagecoach.autoStageAll` in the positive sense — true=enable, false=disable.) `--config` is honored by every command — including the default commit action **and the `config init`, `config path`, and `config upgrade` subcommands** (e.g. `stagecoach --config X config upgrade` upgrades file `X`, and `config path` prints the resolved path) — so a user-defined provider declared under `[provider.<name>]` in that file is usable with `--provider <name>` on `stagecoach` directly.
+
+> [!IMPORTANT]
+> **`--model` / `--provider` set the GLOBAL default only (FR-R3 gotcha).** A `[role.<role>]` `model`/`provider` in config (or a `--<role>-model`/`--<role>-provider` flag) takes precedence for that role. So a populated config can silently shadow an explicit `--model`/`--provider` — e.g. `stagecoach --model glm-5.2` against a `[role.message] model = "…"` config uses the config's model for the commit, and the bare `--model` value is never even validated. Use the per-role flag (e.g. `--message-model`) to override a specific role, or run with `--verbose` to see a `DEBUG: note: --model shadowed by [role.message].model; use --message-model to override` hint (and the `--provider` analog) when shadowing is active. This is advisory only — precedence and exit codes are unchanged.
 
 ## Subcommands
 
@@ -118,6 +121,8 @@ Generate a commit message into git's `prepare-commit-msg` file. Called by stagec
 **Never-block (FR-H5):** any generation failure (agent missing, timeout, parse failure, duplicate exhaustion) leaves `<msg-file>` byte-identical to before and exits 0 (so the commit proceeds to an empty editor). With `--strict` (baked into the script by `hook install --strict`), the same failure exits non-zero (aborts the commit).
 
 **Message-role resolution (FR-H6):** resolves provider/model/reasoning exactly like the single-commit path (`--message-*` flags, `[role.message]` config, env vars). Never decomposes.
+
+**Per-role precedence gotcha (FR-R3):** on the single-commit path `--model`/`--provider` set the GLOBAL default only; a `[role.message]` `model`/`provider` in config (or a `--message-model`/`--message-provider` flag) takes precedence for the message role. A populated config can therefore silently shadow `--model`/`--provider`. Run with `--verbose` to see a `DEBUG: note: --model shadowed by [role.message].model; use --message-model to override` hint (and the `--provider` analog) when this happens. Advisory only — precedence and exit codes are unchanged.
 
 ```bash
 stagecoach hook exec <msg-file>                    # normal invocation (source absent → proceed)

@@ -1657,8 +1657,157 @@ func TestProgressLabel_OneFileBypass_NotDecomposing(t *testing.T) {
 	if strings.Contains(stderr, "↳ Decomposing with ") {
 		t.Errorf("stderr = %q; must NOT emit 'Decomposing' on the one-file planner-bypass path", stderr)
 	}
-	// The bypass path runs the MESSAGE role → the progress line surfaces "Generating…".
+	// The bypass path runs the MESSAGE role → the progress line surfaces “Generating…”.
 	if !strings.Contains(stderr, "↳ Generating") {
 		t.Errorf("stderr = %q; want it to contain '↳ Generating' (message role) on the one-file bypass", stderr)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// P1.M2.T6.S1 (Issue 6): --model/--provider shadowing by per-role config → --verbose hint
+// ---------------------------------------------------------------------------
+//
+// On the single-commit path, --model/--provider set the GLOBAL default, but a [role.message]
+// entry takes precedence (FR-R3). The hint makes that shadowing visible on a --verbose run
+// (off-path is a complete no-op). The stub provider ([provider.stub] with no provider_flag)
+// accepts ANY model in ValidateModel, so a test can set an arbitrary [role.message] model and
+// pass --model <other> without a validation error aborting before the hint is emitted.
+
+// writeRoleMessageRepoToml builds a raw .stagecoach.toml body with the stub provider (pointing
+// at the compiled stub binary) plus an optional [role.message] block. Used by the shadow-hint
+// tests so each can precisely control whether a per-role entry shadows the global flag.
+func writeRoleMessageRepoToml(t *testing.T, bin string, roleMessageBody string) string {
+	t.Helper()
+	base := fmt.Sprintf(`[provider.stub]
+command = %q
+prompt_delivery = "stdin"
+output = "raw"
+strip_code_fence = true
+`, bin)
+	if roleMessageBody != "" {
+		base += "\n[role.message]\n" + roleMessageBody + "\n"
+	}
+	return base
+}
+
+// runShadowHintTest is the shared harness for the shadow-hint tests. It builds the stub binary,
+// creates an isolated repo with the given toml body, stages one file (so the run reaches the
+// message-role resolution in runDefault), sets STAGECOACH_STUB_OUT, and runs stagecoach with the
+// given args via the Execute seam. Returns the captured stderr.
+func runShadowHintTest(t *testing.T, tomlBody string, args []string) string {
+	t.Helper()
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	repo := t.TempDir()
+	initRepo(t, repo)
+	chdir(t, repo)
+	isolateHome(t)
+	writeConfigFile(t, repo, ".stagecoach.toml", tomlBody)
+
+	// Commit the config + seed a staged change so HasStagedChanges is true and runDefault reaches
+	// the message-role resolution (ResolveRoleModel("message")) — the line the hint follows.
+	runGit(t, repo, "add", ".stagecoach.toml")
+	runGit(t, repo, "commit", "-m", "initial")
+	writeFile(t, repo, "a.txt", "hi")
+	stageFile(t, repo, "a.txt")
+
+	t.Setenv("STAGECOACH_STUB_OUT", "feat: x")
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs(args)
+	if err := Execute(context.Background()); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	return errBuf.String()
+}
+
+// TestRunDefault_VerboseModelShadowHint proves the PRD Issue 6 footgun is now visible: with a
+// [role.message] model that shadows an explicit --model, a --verbose run prints the one-line hint.
+func TestRunDefault_VerboseModelShadowHint(t *testing.T) {
+	bin := stubtest.Build(t)
+	toml := writeRoleMessageRepoToml(t, bin, `model = "stub-msg"`)
+	stderr := runShadowHintTest(t, toml, []string{"--provider", "stub", "--model", "other", "--verbose", "--dry-run"})
+	if !strings.Contains(stderr, "DEBUG: note: --model shadowed by [role.message].model") {
+		t.Errorf("stderr = %q, want a --model shadow hint", stderr)
+	}
+	if !strings.Contains(stderr, "use --message-model to override") {
+		t.Errorf("stderr = %q, want the hint to name --message-model", stderr)
+	}
+}
+
+// TestRunDefault_VerboseShadowHint_OffIsNoop proves the no-noise guarantee: WITHOUT --verbose the
+// hint is a complete no-op (VerboseWarn guards !v.on). This test IS the off-path silence invariant.
+func TestRunDefault_VerboseShadowHint_OffIsNoop(t *testing.T) {
+	bin := stubtest.Build(t)
+	toml := writeRoleMessageRepoToml(t, bin, `model = "stub-msg"`)
+	stderr := runShadowHintTest(t, toml, []string{"--provider", "stub", "--model", "other", "--dry-run"}) // no --verbose
+	if strings.Contains(stderr, "shadowed") {
+		t.Errorf("stderr = %q, want NO shadow hint when --verbose is off (no-noise guarantee)", stderr)
+	}
+}
+
+// TestRunDefault_VerboseShadowHint_NoFlag proves no hint fires when --model is absent: an intentional
+// per-role config must NOT warn (the user did not pass an explicit flag this run).
+func TestRunDefault_VerboseShadowHint_NoFlag(t *testing.T) {
+	bin := stubtest.Build(t)
+	toml := writeRoleMessageRepoToml(t, bin, `model = "stub-msg"`)
+	stderr := runShadowHintTest(t, toml, []string{"--provider", "stub", "--verbose", "--dry-run"}) // no --model
+	if strings.Contains(stderr, "shadowed") {
+		t.Errorf("stderr = %q, want NO shadow hint when --model is absent (intentional config)", stderr)
+	}
+}
+
+// TestRunDefault_VerboseShadowHint_NoPerRoleModel proves no hint fires when there is no per-role
+// model: the global --model is used as-is, so there is no shadowing to warn about.
+func TestRunDefault_VerboseShadowHint_NoPerRoleModel(t *testing.T) {
+	bin := stubtest.Build(t)
+	toml := writeRoleMessageRepoToml(t, bin, "") // no [role.message] block
+	stderr := runShadowHintTest(t, toml, []string{"--provider", "stub", "--model", "foo", "--verbose", "--dry-run"})
+	if strings.Contains(stderr, "shadowed") {
+		t.Errorf("stderr = %q, want NO shadow hint when there is no per-role message model", stderr)
+	}
+}
+
+// TestRunDefault_VerboseShadowHint_SameValue proves no hint fires when the explicit --model equals
+// the per-role model (no real surprise — the value compare avoids that false positive).
+func TestRunDefault_VerboseShadowHint_SameValue(t *testing.T) {
+	bin := stubtest.Build(t)
+	toml := writeRoleMessageRepoToml(t, bin, `model = "same"`)
+	stderr := runShadowHintTest(t, toml, []string{"--provider", "stub", "--model", "same", "--verbose", "--dry-run"})
+	if strings.Contains(stderr, "shadowed") {
+		t.Errorf("stderr = %q, want NO shadow hint when --model equals the per-role model", stderr)
+	}
+}
+
+// TestRunDefault_VerboseProviderShadowHint proves the --provider analog: a [role.message] provider
+// that shadows an explicit --provider triggers the provider note on a --verbose run. Two provider
+// aliases ([provider.stub] + [provider.alt]) both point at the stub binary so both resolve and the
+// value compare ("stub" != "alt") fires the note.
+func TestRunDefault_VerboseProviderShadowHint(t *testing.T) {
+	bin := stubtest.Build(t)
+	toml := fmt.Sprintf(`[provider.stub]
+command = %q
+prompt_delivery = "stdin"
+output = "raw"
+strip_code_fence = true
+
+[provider.alt]
+command = %q
+prompt_delivery = "stdin"
+output = "raw"
+strip_code_fence = true
+
+[role.message]
+provider = "alt"
+`, bin, bin)
+	stderr := runShadowHintTest(t, toml, []string{"--provider", "stub", "--verbose", "--dry-run"})
+	if !strings.Contains(stderr, "DEBUG: note: --provider shadowed by [role.message].provider") {
+		t.Errorf("stderr = %q, want a --provider shadow hint", stderr)
+	}
+	if !strings.Contains(stderr, "use --message-provider to override") {
+		t.Errorf("stderr = %q, want the hint to name --message-provider", stderr)
 	}
 }

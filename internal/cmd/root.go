@@ -160,7 +160,7 @@ func init() {
 	pf := rootCmd.PersistentFlags()
 	// §15.2 config-backed flags (zero defaults; config.Load owns Layer-7 precedence via fs.Changed).
 	pf.StringVar(&flagProvider, "provider", "", "Provider/agent to use (env STAGECOACH_PROVIDER, git stagecoach.provider; default auto-detected)")
-	pf.StringVar(&flagModel, "model", "", "Model override (env STAGECOACH_MODEL, git stagecoach.model; default per-manifest default_model)")
+	pf.StringVar(&flagModel, "model", "", "Model override (env STAGECOACH_MODEL, git stagecoach.model; default per-manifest default_model). Sets the GLOBAL default — a [role.<role>] model in config (or a --<role>-model flag) takes precedence for that role (FR-R3); use --message-model to override the message role (a --verbose run notes the shadowing)")
 	pf.StringVar(&flagConfig, "config", "", "Path to a config file, overrides discovery (env STAGECOACH_CONFIG)")
 	pf.StringVar(&flagTimeout, "timeout", "", "Generation timeout, e.g. \"120s\" or 120 (env STAGECOACH_TIMEOUT, git stagecoach.timeout; default 120s)")
 	pf.BoolVarP(&flagVerbose, "verbose", "v", false, "Print resolved command, raw output, retries (env STAGECOACH_VERBOSE)")

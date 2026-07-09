@@ -240,6 +240,9 @@ These keys live in `.git/config` (set with `git config --local` or `git config -
 
 Per-role provider/model overrides (flag > env > `[role.<role>]` config > `[defaults]` > built-in): see [providers.md](providers.md#per-role-default-models-fr-d4) for the compiled-in defaults per provider. Every role (including message) exposes `--<role>-provider`/`--<role>-model`/`--<role>-reasoning` (FR-R3).
 
+> [!IMPORTANT]
+> **Precedence gotcha:** because per-role config beats the global `[defaults]`, a `[role.<role>]` entry silently shadows an explicit `--model`/`--provider` (which set the GLOBAL default only) for that role. This is correct per FR-R3 but an easy footgun — e.g. a `[role.message] model = "…"` config means `stagecoach --model X` uses the config's model for the commit. Use `--message-model` (or `--message-provider`) to override the message role specifically, or run with `--verbose` to see a `DEBUG: note: --model shadowed by [role.message].model; use --message-model to override` hint when shadowing is active. See [cli.md](cli.md#global-flags) for the full precedence note.
+
 ### Exclusion globs (`[generation].exclude`)
 
 ```toml

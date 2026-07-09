@@ -174,6 +174,23 @@ func runDefault(cmd *cobra.Command, args []string) error {
 	// names the resolved invocation even when --provider is unset and when the role is pinned
 	// to a different provider than the global default.
 	roleProvider, roleModel, _ := config.ResolveRoleModel("message", *cfg)
+
+	// P1.M2.T6.S1 (Issue 6): --model/--provider set the GLOBAL default, but a [role.message] entry
+	// takes precedence (FR-R3) and silently shadows an explicit flag. Emit a --verbose-ONLY hint so
+	// the footgun is no longer invisible. runDefault had no *ui.Verbose sink today (runDecompose did,
+	// at L399) — create one here. VerboseWarn no-ops when --verbose is off, so normal users see
+	// nothing and there is no behavioral/exit-code change. Detect an EXPLICIT flag via
+	// cmd.Flags().Changed(...) (NOT cfg.Model != "", which also fires for [defaults]/env), and compare
+	// the RESOLVED roleModel/roleProvider against cfg.Model/cfg.Provider (== the flag value under
+	// Changed) so the note fires only when the explicit flag will actually NOT be used.
+	verbose := ui.NewVerbose(stderr, cfg.Verbose)
+	if cmd.Flags().Changed("model") && roleModel != cfg.Model {
+		verbose.VerboseWarn("note: --model shadowed by [role.message].model; use --message-model to override")
+	}
+	if cmd.Flags().Changed("provider") && roleProvider != cfg.Provider {
+		verbose.VerboseWarn("note: --provider shadowed by [role.message].provider; use --message-provider to override")
+	}
+
 	labelProvider := roleProvider
 	if labelProvider == "" {
 		var installed []string
