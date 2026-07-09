@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P2",
       "title": "Provider lineup correction (remove EOL gemini; re-verify agy v1.1.0)",
-      "status": "Researching",
+      "status": "Complete",
       "description": "The built-in provider set reflects reality: gemini (Gemini CLI) is gone (superseded by agy on 2026-06-18); agy's manifest is corrected against its actual v1.1.0 flag surface (value-taking -p, no --approval-mode, --model replaces -m); every cross-reference (priority order, default-model table, package layout, assumptions, appendices, docs) agrees. The code-side work is already committed (2f77bd0, 010ecee, cdbccf5); this phase confirms the code matches the corrected spec and finishes the residual documentation drift.",
       "milestones": [
         {
@@ -111,7 +111,7 @@
           "type": "Milestone",
           "id": "P2.M3",
           "title": "Sync changeset-level documentation (Mode B — residual drift fix)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "The three implementation commits swept code, PRD, README.md, and partially docs/*.md, but did NOT fully reconcile docs/providers.md and docs/README.md with the corrected agy manifest and the removal of gemini. This milestone closes the documentation drift so the shipped docs are not stale. It is the ONLY milestone with actual file edits.",
           "tasks": [
             {
@@ -184,14 +184,14 @@
               "type": "Task",
               "id": "P2.M3.T3",
               "title": "Final cross-reference grep + build/test smoke test (Mode B changeset-level verification)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "The cross-cutting verification task: grep the full repo (excluding plan/) for stale gemini-as-built-in framing, confirm all docs/*.md and README.md enumerate seven built-ins, and run a smoke test (build + providers list/show agy) to confirm the shipped binary matches the corrected spec. This is the final gate that proves the whole delta is coherent.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P2.M3.T3.S1",
                   "title": "Comprehensive grep audit + build/test verification",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P2.M3.T1.S1",
