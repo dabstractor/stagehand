@@ -1,6 +1,6 @@
 # Stagecoach documentation
 
-Stagecoach writes your commit messages using the AI agent you already have installed. It auto-detects pi, Claude Code, Gemini CLI, opencode, Codex, Cursor, agy, or qwen-code, snapshots your staged changes atomically via git plumbing, and commits only what was staged when it started — so you can keep staging while it thinks.
+Stagecoach writes your commit messages using the AI agent you already have installed. It auto-detects pi, Claude Code, opencode, Codex, Cursor, agy, or qwen-code, snapshots your staged changes atomically via git plumbing, and commits only what was staged when it started — so you can keep staging while it thinks.
 
 See the [README](../README.md) for the quick start, feature overview, and FAQ.
 

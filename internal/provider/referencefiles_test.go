@@ -18,7 +18,6 @@ var providerFiles = []struct {
 }{
 	{"pi", "providers/pi.toml"},
 	{"claude", "providers/claude.toml"},
-	{"gemini", "providers/gemini.toml"},
 	{"opencode", "providers/opencode.toml"},
 	{"codex", "providers/codex.toml"},
 	{"cursor", "providers/cursor.toml"},

@@ -17,9 +17,10 @@
 #       [provider.opencode]
 #       default_model = "anthropic/claude-sonnet-4"  # e.g. override only the model
 #
-# RENDERED COMMAND (external_deps.md §opencode)
-#   opencode run -m anthropic/claude-sonnet-4 "<sys>\n\n<user payload>"
-#   (positional delivery; payload is the trailing arg)
+# RENDERED COMMAND (external_deps.md §opencode; delivery revised to stdin 2026-07-08)
+#   opencode run -m anthropic/claude-sonnet-4   < "<sys>\n\n<user payload>"
+#   (stdin delivery; payload piped to stdin. opencode `run [message..]` reads stdin when no positional
+#   message is given; stdin avoids the 128 KB MAX_ARG_STRLEN ceiling that positional hits on big diffs.)
 #
 # TOOLS-DISABLE CATEGORY (§12.7.1): READ-ONLY CONSTRAINT — `opencode run` is already
 #   a non-interactive, read-only one-shot; no extra bare flags needed.
@@ -35,7 +36,9 @@ list_models_command = ["opencode", "models"]  # VERIFIED 2026-07-03 via `opencod
 subcommand = ["run"]                # `opencode run` is non-interactive and prints the final message to stdout.
 
 # --- prompt delivery ---
-prompt_delivery = "positional"     # the user payload (system prompt + diff) is appended as a positional arg.
+prompt_delivery = "stdin"          # REVISED from §12.6 "positional" (2026-07-08). opencode `run` reads
+                                   # stdin when no positional message is given; stdin avoids the 128 KB
+                                   # MAX_ARG_STRLEN ceiling that positional hits on ~300 KB diffs.
 
 # --- non-interactive mode ---
 print_flag = ""                     # NON-NIL empty: `run` is already non-interactive (no separate print flag).

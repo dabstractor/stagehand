@@ -12,7 +12,7 @@ import (
 // preferredBuiltins is the FR-D1 cascading provider priority order (local copy — mirrors
 // internal/provider/registry.go's unexported preferredBuiltins). Used by stagerFallback + commented-block
 // ordering. (Moved from internal/cmd/config.go; P1.M4.T4.S1.)
-var preferredBuiltins = []string{"pi", "opencode", "cursor", "agy", "gemini", "qwen-code", "codex", "claude"}
+var preferredBuiltins = []string{"pi", "opencode", "cursor", "agy", "qwen-code", "codex", "claude"}
 
 // GenerateBootstrapConfig returns the populated bootstrap TOML (PRD §9.17 FR-B1/B3). provider != "" is
 // used directly (caller validates); "" ⇒ cascading auto-detect (FR-D1) ⇒ "pi" fallback. NO I/O; $PATH
@@ -247,7 +247,7 @@ const bootstrapHeader = `# Stagecoach configuration file (populated bootstrap).
 # both override it; CLI flags and env vars override those.
 #
 # Environment variables (PRD §9.8 FR35) — override this file, are overridden by CLI flags:
-#   STAGECOACH_PROVIDER   default provider/agent (e.g. "pi", "claude", "gemini")
+#   STAGECOACH_PROVIDER   default provider/agent (e.g. "pi", "claude", "agy")
 #   STAGECOACH_MODEL      model override ("" -> provider manifest default_model)
 #   STAGECOACH_TIMEOUT    generation timeout, e.g. "120s" or 120 (seconds)
 #   STAGECOACH_CONFIG     path to a config file, overrides discovery

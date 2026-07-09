@@ -359,7 +359,7 @@ func buildDeps(cfg config.Config, repoDir string) (generate.Deps, error) {
 	if name == "" {
 		return generate.Deps{}, fmt.Errorf(
 			"no provider configured and none of the built-ins (%s) are installed",
-			strings.Join([]string{"pi", "claude", "gemini", "opencode", "codex", "cursor"}, ", "))
+			strings.Join([]string{"pi", "claude", "opencode", "codex", "cursor"}, ", "))
 	}
 
 	m, ok := reg.Get(name)

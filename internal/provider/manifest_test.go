@@ -200,7 +200,7 @@ subcommand = []
 // ---------------------------------------------------------------------------
 
 func TestMarshal_OmitsNilPointers(t *testing.T) {
-	m := Manifest{Name: "gemini"}
+	m := Manifest{Name: "testprov"}
 	data, err := toml.Marshal(m)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)

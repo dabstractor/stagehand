@@ -77,33 +77,14 @@ medium = ["--effort", "medium"]
 low = ["--effort", "low"]
 `
 
-// geminiTOML — PRD §12.5 VERBATIM EXCEPT prompt_delivery is REVISED to "stdin" (the work-item contract;
-// external_deps.md §gemini recommendation; Appendix E #1: stdin avoids arg-length limits on ~300 KB diffs).
-// This is the ONE intentional deviation from the verbatim PRD TOML; decoding it must match builtinGemini().
-const geminiTOML = `name = "gemini"
-detect = "gemini"
-command = "gemini"
-prompt_delivery = "stdin"   # REVISED from §12.5 "positional" (work-item + external_deps.md + Appx E #1)
-print_flag = ""
-model_flag = "-m"
-default_model = "gemini-3.1-pro"
-system_prompt_flag = ""
-provider_flag = ""
-bare_flags = [
-  "--approval-mode", "default",
-]
-output = "raw"
-strip_code_fence = true
-`
-
-// opencodeTOML — PRD §12.6 VERBATIM (no revision). Decoding it must match builtinOpenCode().
+// opencodeTOML — PRD §12.6 with ONE revision (delivery: stdin). Decoding it must match builtinOpenCode().
 // Note bare_flags = [] decodes to a NON-NIL empty slice (FINDING D) — builtinOpenCode sets []string{}.
 const opencodeTOML = `name = "opencode"
 detect = "opencode"
 command = "opencode"
 list_models_command = ["opencode", "models"]
 subcommand = ["run"]
-prompt_delivery = "positional"
+prompt_delivery = "stdin"
 print_flag = ""
 model_flag = "-m"
 default_model = ""
@@ -222,15 +203,15 @@ func renderArgs(m Manifest, provider, model, sys string) []string {
 }
 
 // ---------------------------------------------------------------------------
-// Test 1: KeysAndCount — exactly 7 keys: pi, claude, gemini, opencode, codex, cursor, agy
+// Test 1: KeysAndCount — exactly 7 keys: pi, claude, opencode, codex, cursor, agy, qwen-code
 // ---------------------------------------------------------------------------
 
 func TestBuiltinManifests_KeysAndCount(t *testing.T) {
 	m := BuiltinManifests()
-	if len(m) != 8 {
-		t.Fatalf("BuiltinManifests() returned %d keys, want 8", len(m))
+	if len(m) != 7 {
+		t.Fatalf("BuiltinManifests() returned %d keys, want 7", len(m))
 	}
-	for _, k := range []string{"pi", "claude", "gemini", "opencode", "codex", "cursor", "agy", "qwen-code"} {
+	for _, k := range []string{"pi", "claude", "opencode", "codex", "cursor", "agy", "qwen-code"} {
 		if _, ok := m[k]; !ok {
 			t.Errorf("missing key %q", k)
 		}
@@ -403,7 +384,6 @@ func TestBuiltinManifests_DecodeParity(t *testing.T) {
 	}{
 		{"pi", builtinPi(), piTOML},
 		{"claude", builtinClaude(), claudeTOML},
-		{"gemini", builtinGemini(), geminiTOML},        // geminiTOML = §12.5 with stdin revision
 		{"opencode", builtinOpenCode(), opencodeTOML},  // opencodeTOML = verbatim §12.6
 		{"codex", builtinCodex(), codexTOML},           // codexTOML = §12.7 codex with BOTH revisions
 		{"cursor", builtinCursor(), cursorTOML},        // cursorTOML = verbatim §12.7 cursor
@@ -483,40 +463,6 @@ func TestBuiltinManifests_FreshEachCall(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Test 9: GeminiFields — every gemini field asserted (stdin revision + explicit-empty + absent-nil)
-// ---------------------------------------------------------------------------
-
-func TestBuiltinManifests_GeminiFields(t *testing.T) {
-	m := builtinGemini()
-	assertStr(t, "Detect", m.Detect, "gemini")
-	assertStr(t, "Command", m.Command, "gemini")
-	assertStr(t, "PromptDelivery", m.PromptDelivery, "stdin") // REVISED from §12.5 "positional"
-	assertStr(t, "PrintFlag", m.PrintFlag, "")                // NON-NIL explicit empty
-	assertStr(t, "ModelFlag", m.ModelFlag, "-m")
-	assertStr(t, "DefaultModel", m.DefaultModel, "gemini-3.1-pro")
-	assertStr(t, "SystemPromptFlag", m.SystemPromptFlag, "") // NON-NIL explicit empty (prepend)
-	assertStr(t, "ProviderFlag", m.ProviderFlag, "")         // NON-NIL explicit empty
-	wantBare := []string{"--approval-mode", "default"}
-	if !reflect.DeepEqual(m.BareFlags, wantBare) {
-		t.Errorf("BareFlags = %v, want %v", m.BareFlags, wantBare)
-	}
-	assertStr(t, "Output", m.Output, "raw")
-	if m.StripCodeFence == nil || *m.StripCodeFence != true {
-		t.Errorf("StripCodeFence = %v, want non-nil true", m.StripCodeFence)
-	}
-	// Absent → nil
-	if m.Subcommand != nil {
-		t.Errorf("Subcommand = %v, want nil", m.Subcommand)
-	}
-	assertNilStr(t, "PromptFlag", m.PromptFlag)
-	assertNilStr(t, "JsonField", m.JsonField)
-	assertNilStr(t, "RetryInstruction", m.RetryInstruction)
-	if m.Env != nil {
-		t.Errorf("Env = %v, want nil", m.Env)
-	}
-}
-
-// ---------------------------------------------------------------------------
 // Test 10: OpenCodeFields — every opencode field asserted (Subcommand=["run"], NON-NIL-empty BareFlags)
 // ---------------------------------------------------------------------------
 
@@ -528,8 +474,8 @@ func TestBuiltinManifests_OpenCodeFields(t *testing.T) {
 	if !reflect.DeepEqual(m.Subcommand, wantSub) {
 		t.Errorf("Subcommand = %v, want %v", m.Subcommand, wantSub)
 	}
-	assertStr(t, "PromptDelivery", m.PromptDelivery, "positional")
-	assertStr(t, "PrintFlag", m.PrintFlag, "") // NON-NIL explicit empty
+	assertStr(t, "PromptDelivery", m.PromptDelivery, "stdin") // REVISED from §12.6 "positional" (large diffs need stdin)
+	assertStr(t, "PrintFlag", m.PrintFlag, "")                // NON-NIL explicit empty
 	assertStr(t, "ModelFlag", m.ModelFlag, "-m")
 	assertStr(t, "DefaultModel", m.DefaultModel, "")         // NON-NIL explicit empty (user must set)
 	assertStr(t, "SystemPromptFlag", m.SystemPromptFlag, "") // NON-NIL explicit empty (prepend)
@@ -555,32 +501,15 @@ func TestBuiltinManifests_OpenCodeFields(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Test 11: RenderedCommand_Gemini — stdin delivery: argv has NO payload (piped)
-// ---------------------------------------------------------------------------
-
-func TestBuiltinManifests_RenderedCommand_Gemini(t *testing.T) {
-	argv := renderArgs(builtinGemini(), "", "", "<sys>") // model="" → default gemini-3.1-pro
-	want := []string{
-		"gemini", "-m", "gemini-3.1-pro",
-		"--approval-mode", "default",
-		// stdin delivery: "<sys>\n\n<user payload>" piped to stdin (NOT in argv). No print/sys/provider flag.
-	}
-	if !reflect.DeepEqual(argv, want) {
-		t.Errorf("gemini rendered argv:\n got %v\nwant %v", argv, want)
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Test 12: RenderedCommand_OpenCode — positional delivery: payload IS trailing arg
+// Test 12: RenderedCommand_OpenCode — stdin delivery: payload piped (NOT in argv)
 // ---------------------------------------------------------------------------
 
 func TestBuiltinManifests_RenderedCommand_OpenCode(t *testing.T) {
-	flags := renderArgs(builtinOpenCode(), "", "anthropic/claude-sonnet-4", "") // explicit model (default is "")
-	argv := append(flags, "<sys>\n\n<payload>")                                 // positional: payload appended per §12.2
+	argv := renderArgs(builtinOpenCode(), "", "anthropic/claude-sonnet-4", "") // explicit model (default is "")
 	want := []string{
 		"opencode", "run", // command + subcommand
 		"-m", "anthropic/claude-sonnet-4", // model_flag + user-set model
-		"<sys>\n\n<payload>", // positional payload (sys prepended — no sys flag on `run`)
+		// stdin delivery: "<sys>\n\n<payload>" piped to stdin (NOT in argv). No sys flag on `run`.
 	}
 	if !reflect.DeepEqual(argv, want) {
 		t.Errorf("opencode rendered argv:\n got %v\nwant %v", argv, want)
@@ -831,7 +760,7 @@ func TestBuiltinManifests_ListModelsCommand(t *testing.T) {
 	}
 
 	// 4 unpopulated builtins — field must be nil (absent in struct literal).
-	for _, name := range []string{"claude", "codex", "gemini", "qwen-code"} {
+	for _, name := range []string{"claude", "codex", "qwen-code"} {
 		bm := m[name]
 		if bm.ListModelsCommand != nil {
 			t.Errorf("%s ListModelsCommand = %v, want nil", name, bm.ListModelsCommand)

@@ -40,7 +40,7 @@ func bogusRegistry(t *testing.T, installed []string) *provider.Registry {
 	overrides := make(map[string]provider.Manifest)
 	// Override ALL built-in names to a bogus command AND detect (DetectCommand returns Detect first).
 	bogus := "definitely-not-a-real-command-xyzzy"
-	for _, name := range []string{"pi", "opencode", "cursor", "agy", "gemini", "codex", "claude"} {
+	for _, name := range []string{"pi", "opencode", "cursor", "agy", "codex", "claude"} {
 		overrides[name] = provider.Manifest{Command: &bogus, Detect: &bogus}
 	}
 	// Then override the "installed" ones back to "go".
@@ -73,13 +73,13 @@ func claudeManifest(t *testing.T) provider.Manifest {
 	return m
 }
 
-// geminiManifest returns the merged gemini manifest from a fresh registry (no overrides).
-func geminiManifest(t *testing.T) provider.Manifest {
+// agyManifest returns the merged agy manifest from a fresh registry (no overrides).
+func agyManifest(t *testing.T) provider.Manifest {
 	t.Helper()
 	reg := provider.NewRegistry(nil)
-	m, ok := reg.Get("gemini")
+	m, ok := reg.Get("agy")
 	if !ok {
-		t.Fatal("gemini not found in built-in manifests")
+		t.Fatal("agy not found in built-in manifests")
 	}
 	return m
 }
@@ -132,16 +132,16 @@ func TestResolveRoles_HappyPath_AllPi(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestResolveRoles_StagerFallback(t *testing.T) {
-	// Stager is set to gemini (TooledFlags nil → cannot stage); fallback to claude (first tooled-capable
-	// installed after gemini). Pi is NOT installed in this fixture (so fallback skips it). Claude is
+	// Stager is set to agy (TooledFlags nil → cannot stage); fallback to claude (first tooled-capable
+	// installed after agy). Pi is NOT installed in this fixture (so fallback skips it). Claude is
 	// single-backend (ProviderFlag="") so the FR-R5b guard does not fire on the fallback model.
-	reg := bogusRegistry(t, []string{"gemini", "claude"})
+	reg := bogusRegistry(t, []string{"agy", "claude"})
 	wantClaude := claudeManifest(t)
 
 	cfg := config.Config{
-		Provider: "gemini",
+		Provider: "agy",
 		Roles: map[string]config.RoleConfig{
-			"stager": {Provider: "gemini", Model: "gemini-2.5-pro"},
+			"stager": {Provider: "agy", Model: "agy-2.5-pro"},
 		},
 	}
 
@@ -169,11 +169,11 @@ func TestResolveRoles_StagerFallback(t *testing.T) {
 		t.Error("Stager.TooledFlags is empty after fallback, want non-empty")
 	}
 
-	// Other roles should be gemini (global default).
+	// Other roles should be agy (global default).
 	for _, role := range []string{"planner", "message", "arbiter"} {
 		rc := roleModel(rmodels, role)
-		if rc.Provider != "gemini" {
-			t.Errorf("role %q provider = %q, want gemini", role, rc.Provider)
+		if rc.Provider != "agy" {
+			t.Errorf("role %q provider = %q, want agy", role, rc.Provider)
 		}
 	}
 }
@@ -183,15 +183,15 @@ func TestResolveRoles_StagerFallback(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestResolveRoles_StagerFallback_PiNotInstalled_FallsToClaude(t *testing.T) {
-	// Pi NOT installed; gemini is the global (not stager-capable); claude IS installed and capable.
-	// Stager set to gemini → fallback should go to claude (pi is not installed).
-	reg := bogusRegistry(t, []string{"gemini", "claude"})
+	// Pi NOT installed; agy is the global (not stager-capable); claude IS installed and capable.
+	// Stager set to agy → fallback should go to claude (pi is not installed).
+	reg := bogusRegistry(t, []string{"agy", "claude"})
 	wantClaude := claudeManifest(t)
 
 	cfg := config.Config{
-		Provider: "gemini",
+		Provider: "agy",
 		Roles: map[string]config.RoleConfig{
-			"stager": {Provider: "gemini"},
+			"stager": {Provider: "agy"},
 		},
 	}
 
@@ -217,7 +217,7 @@ func TestResolveRoles_StagerFallback_PiNotInstalled_FallsToClaude(t *testing.T) 
 // ---------------------------------------------------------------------------
 
 func TestResolveRoles_StagerFallback_ToPi_MultiProviderModel(t *testing.T) {
-	// Stager is set to gemini (TooledFlags nil → cannot stage); fallback to pi (first
+	// Stager is set to agy (TooledFlags nil → cannot stage); fallback to pi (first
 	// tooled-capable installed). Pi is multi-provider (ProviderFlag="--provider").
 	// Tests two sub-cases via subtests:
 	//   - bare model from the old provider's config → cleared (invalid on pi)
@@ -230,20 +230,20 @@ func TestResolveRoles_StagerFallback_ToPi_MultiProviderModel(t *testing.T) {
 	}{
 		{
 			name:     "bare_model_from_old_provider",
-			stagerRC: config.RoleConfig{Provider: "gemini", Model: "gemini-2.5-pro"},
+			stagerRC: config.RoleConfig{Provider: "agy", Model: "agy-2.5-pro"},
 		},
 		{
 			name:     "no_explicit_model",
-			stagerRC: config.RoleConfig{Provider: "gemini"},
+			stagerRC: config.RoleConfig{Provider: "agy"},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			reg := bogusRegistry(t, []string{"gemini", "pi"})
+			reg := bogusRegistry(t, []string{"agy", "pi"})
 
 			cfg := config.Config{
-				Provider: "gemini",
+				Provider: "agy",
 				Roles: map[string]config.RoleConfig{
 					"stager": tc.stagerRC,
 				},
@@ -268,11 +268,11 @@ func TestResolveRoles_StagerFallback_ToPi_MultiProviderModel(t *testing.T) {
 				t.Errorf("Stager model = %q, want empty string (bare model cleared for multi-provider pi)", rmodels.Stager.Model)
 			}
 
-			// Other roles should remain gemini (global default).
+			// Other roles should remain agy (global default).
 			for _, role := range []string{"planner", "message", "arbiter"} {
 				rc := roleModel(rmodels, role)
-				if rc.Provider != "gemini" {
-					t.Errorf("role %q provider = %q, want gemini", role, rc.Provider)
+				if rc.Provider != "agy" {
+					t.Errorf("role %q provider = %q, want agy", role, rc.Provider)
 				}
 			}
 		})
@@ -284,13 +284,13 @@ func TestResolveRoles_StagerFallback_ToPi_MultiProviderModel(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestResolveRoles_NoStagerCapable(t *testing.T) {
-	// Stager set to gemini (not capable); pi and claude NOT installed → no fallback possible.
-	// Only gemini is installed (via Command="go" override); all others have bogus commands.
-	reg := bogusRegistry(t, []string{"gemini"})
+	// Stager set to agy (not capable); pi and claude NOT installed → no fallback possible.
+	// Only agy is installed (via Command="go" override); all others have bogus commands.
+	reg := bogusRegistry(t, []string{"agy"})
 
 	cfg := config.Config{
 		Roles: map[string]config.RoleConfig{
-			"stager": {Provider: "gemini"},
+			"stager": {Provider: "agy"},
 		},
 	}
 
@@ -612,7 +612,7 @@ func TestComputeInstalled(t *testing.T) {
 func TestIsMultiProvider(t *testing.T) {
 	pi := piManifest(t)
 	claude := claudeManifest(t)
-	gemini := geminiManifest(t)
+	agy := agyManifest(t)
 
 	if !isMultiProvider(pi) {
 		t.Error("pi should be multi-provider (ProviderFlag=\"--provider\")")
@@ -620,8 +620,8 @@ func TestIsMultiProvider(t *testing.T) {
 	if isMultiProvider(claude) {
 		t.Error("claude should NOT be multi-provider (ProviderFlag=\"\")")
 	}
-	if isMultiProvider(gemini) {
-		t.Error("gemini should NOT be multi-provider (ProviderFlag=\"\")")
+	if isMultiProvider(agy) {
+		t.Error("agy should NOT be multi-provider (ProviderFlag=\"\")")
 	}
 
 	// Nil ProviderFlag (hypothetical override).

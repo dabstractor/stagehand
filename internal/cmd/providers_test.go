@@ -40,7 +40,7 @@ func TestProvidersList_Builtins(t *testing.T) {
 	}
 
 	got := out.String()
-	names := []string{"claude", "codex", "cursor", "gemini", "opencode", "pi"}
+	names := []string{"claude", "codex", "cursor", "opencode", "pi"}
 	for _, name := range names {
 		if !strings.Contains(got, name) {
 			t.Errorf("list output missing provider %q", name)

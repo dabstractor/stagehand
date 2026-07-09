@@ -1,7 +1,7 @@
 # Stagecoach
 
 > **Stagecoach writes your commit messages using the AI agent you already pay for.**
-> No API key. No per-token billing. It shells out to Claude Code, Codex, Gemini CLI, pi, opencode, agy, qwen-code, or Cursor — whatever you already have installed — and spends your existing coding-plan quota instead. Stage while it thinks; it commits only what was staged when it started, atomically, and can never corrupt your repo. With a dirty working tree and nothing staged, it automatically decomposes your changes into a sequence of logically-coherent commits.
+> No API key. No per-token billing. It shells out to Claude Code, Codex, pi, opencode, agy, qwen-code, or Cursor — whatever you already have installed — and spends your existing coding-plan quota instead. Stage while it thinks; it commits only what was staged when it started, atomically, and can never corrupt your repo. With a dirty working tree and nothing staged, it automatically decomposes your changes into a sequence of logically-coherent commits.
 
 A snapshot-based AI commit message generator that uses YOUR local CLI agent. v2.1 adds payload exclusions, message shaping, git hook mode, editor/git integrations, `--edit`/`--push`, and model discovery — see [Features](#features) below.
 
@@ -18,7 +18,7 @@ A snapshot-based AI commit message generator that uses YOUR local CLI agent. v2.
 
 ## Why not opencommit/aicommits?
 
-The incumbent tools — opencommit, aicommits — own the HTTP call to the model, so they can normalize providers, handle retries, and abstract auth. Once you own the HTTP call, you cannot use a coding-plan subscription, because that subscription is not reachable over the public API. Not every plan is locked down this way — a few are permissive (Opencode's, for one) — but the most popular ones gate their quota to the official harness (Anthropic, Google Antigravity, Cursor, gemini-cli), and Z.ai even subsidizes harness use with free tokens. The quota lives behind your agent's CLI either way, which is exactly why stagecoach shells out to that CLI instead of opening its own connection.
+The incumbent tools — opencommit, aicommits — own the HTTP call to the model, so they can normalize providers, handle retries, and abstract auth. Once you own the HTTP call, you cannot use a coding-plan subscription, because that subscription is not reachable over the public API. Not every plan is locked down this way — a few are permissive (Opencode's, for one) — but the most popular ones gate their quota to the official harness (Anthropic, Google Antigravity, Cursor), and Z.ai even subsidizes harness use with free tokens. The quota lives behind your agent's CLI either way, which is exactly why stagecoach shells out to that CLI instead of opening its own connection.
 
 Stagecoach inverts the architecture: it shells out to your installed CLI agent, trading provider normalization for quota reuse — the agent brings its own auth and billing. That trade-off — give up control of the model call in exchange for access to the user's existing quota — is the entire product.
 
@@ -42,14 +42,13 @@ out to your agent rather than calling an API.
   reachable over the public API.
 - **Google Antigravity** — strict (and newly arriving). Quota is reserved for the harness.
 - **Cursor** — has explicit policies against use outside its own harness.
-- **gemini-cli** — has explicit policies against this kind of outside/automated use.
 - **Z.ai** — permissive in principle, but actively pro-harness: it hands subscribers free tokens
   for using the Z.ai harness, steering (rewarding) harness use rather than locking it.
 - **Opencode (Opencode Go plan)** — permissive; the notable exception that doesn't gate quota to
   a harness.
 
 Net: almost every provider cares about keeping you on their harness, whether by lock (Anthropic,
-Antigravity, Cursor, gemini-cli) or by incentive (Z.ai). Opencode is the outlier.
+Antigravity, Cursor) or by incentive (Z.ai). Opencode is the outlier.
 
 </details>
 
@@ -82,7 +81,7 @@ Stagecoach does one thing — commit messages — and a few things around them.
 
 ## Install
 
-**Prerequisite:** a coding-agent CLI already installed and on `$PATH` (pi, Claude Code, Gemini CLI, opencode, Codex, Cursor, agy, or qwen-code).
+**Prerequisite:** a coding-agent CLI already installed and on `$PATH` (pi, Claude Code, opencode, Codex, Cursor, agy, or qwen-code).
 
 > [!NOTE]
 > Stagecoach is pre-release and still being tested locally — **build from source** is the only working install method today. The package-managed channels below are coming with the first public release.
@@ -208,7 +207,7 @@ customCommands:
 
 ## Configure your agent
 
-Stagecoach auto-detects which agents are installed and uses the first one it finds (in preference order: pi, opencode, cursor, agy, gemini, qwen-code, codex, claude). To see what's detected:
+Stagecoach auto-detects which agents are installed and uses the first one it finds (in preference order: pi, opencode, cursor, agy, qwen-code, codex, claude). To see what's detected:
 
 ```bash
 $ stagecoach providers list
@@ -217,7 +216,6 @@ agy        ✓
 claude     ✓
 codex      ✓
 cursor     ✓
-gemini     ✓
 opencode   ✓
 pi         ✓         (default)
 qwen-code  ✗
@@ -354,7 +352,9 @@ It learns from the last 20 commits in your repo, with a prohibition on reusing t
 
 ### Which agents are supported?
 
-Eight built-ins are auto-detected: **pi**, **opencode**, **cursor**, **agy** *(experimental)*, **gemini**, **qwen-code** *(experimental)*, **codex**, **claude**. Any agent with a non-interactive CLI interface can be added via a `[provider.<name>]` manifest — see [Adding a new agent](#adding-a-new-agent).
+Seven built-ins are auto-detected: **pi**, **opencode**, **cursor**, **agy** *(experimental)*, **qwen-code** *(experimental)*, **codex**, **claude**. (Google's `gemini` / Gemini CLI is **no longer shipped** — it was superseded by **agy**, the Antigravity CLI, on 2026-06-18.) Any agent with a non-interactive CLI interface can be added via a `[provider.<name>]` manifest — see [Adding a new agent](#adding-a-new-agent).
+
+**End-to-end verification status** (this build): **pi**, **agy**, **codex**, **opencode**, and **claude** have each been driven through a real commit-generation run. **cursor is NOT yet verified end-to-end** — its manifest is assembled from `agent --help` and ships untested here. If you're a paying **Cursor** subscriber and would be willing to spend a few `agent` runs helping confirm the cursor path (the `--mode ask --trust -p` read-only combo), please open an issue — cursor is the one provider the maintainer can't validate without an account.
 
 ### How do I see what command it runs?
 

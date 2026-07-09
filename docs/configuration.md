@@ -36,7 +36,7 @@ Use `stagecoach config path` to print the resolved config path (override-aware: 
 
 `stagecoach config init` writes a **populated, working config** to the global path by default. It:
 
-1. Runs cascading provider detection (highest-priority installed built-in, in order: pi, opencode, cursor, agy, gemini, qwen-code, codex, claude).
+1. Runs cascading provider detection (highest-priority installed built-in, in order: pi, opencode, cursor, agy, qwen-code, codex, claude).
 2. Writes `[defaults] provider = "<detected>"` and that provider's per-role model defaults UNCOMMENTED (from the FR-D4 table) — EXCEPT for **pi**, whose per-role models are left EMPTY (pi is a multi-backend provider; set the model with an inference-provider prefix, e.g. `model = "zai/glm-5.2"`, FR-R5b). Pi's shipped per-role models are blank so you supply your own backend/model.
 3. Writes other installed providers as commented-out `[role.*]` blocks (one-line uncomment to route a role to a different agent).
 4. If no agent is detected, defaults to `"pi"` with an annotation.

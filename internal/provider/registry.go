@@ -9,11 +9,11 @@ import (
 )
 
 // preferredBuiltins is the FR-D1 cascading provider priority (PRD §9.16 FR-D1): open/self-hostable
-// harnesses first (pi, opencode, cursor, agy), closed subscription CLIs last (gemini, codex, claude);
+// harnesses first (pi, opencode, cursor, agy), closed subscription CLIs last (codex, claude);
 // pi first. DefaultProvider returns the first name in this list that the caller reports installed.
 // It MUST stay in sync with BuiltinManifests() keys — a test (TestPreferredBuiltins_MatchesBuiltinKeys)
 // enforces this. Only built-in names are candidates; user-defined §12.8 providers are never auto-selected.
-var preferredBuiltins = []string{"pi", "opencode", "cursor", "agy", "gemini", "qwen-code", "codex", "claude"}
+var preferredBuiltins = []string{"pi", "opencode", "cursor", "agy", "qwen-code", "codex", "claude"}
 
 // Registry holds the fully-merged provider manifests: the built-in defaults (BuiltinManifests, P1.M2.T2)
 // overlaid field-by-field with user overrides via MergeManifest (S2) per PRD §16.1/§12.8. Brand-new §12.8

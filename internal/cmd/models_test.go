@@ -49,18 +49,18 @@ func TestModels_CuratedGolden(t *testing.T) {
 
 func TestModels_CuratedGolden_NonStagerProvider(t *testing.T) {
 	reg := provider.NewRegistry(nil)
-	m, ok := reg.Get("gemini")
+	m, ok := reg.Get("agy")
 	if !ok {
-		t.Fatal("gemini not found in registry")
+		t.Fatal("agy not found in registry")
 	}
 
 	var buf bytes.Buffer
-	printCuratedTable(&buf, modelTarget{name: "gemini", manifest: m})
+	printCuratedTable(&buf, modelTarget{name: "agy", manifest: m})
 
 	got := buf.String()
 	// Stager should be "—" for non-stager-capable providers
 	if !strings.Contains(got, "  stager   —") { // %-8s: 6-char + 2 pad + 1 literal = 3 spaces
-		t.Errorf("expected stager to be '—' for gemini\nGot:\n%s", got)
+		t.Errorf("expected stager to be '—' for agy\nGot:\n%s", got)
 	}
 	if !strings.Contains(got, "verified 2026-07-02") {
 		t.Errorf("curated table missing verification date\nGot:\n%s", got)

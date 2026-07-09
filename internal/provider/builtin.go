@@ -1,24 +1,24 @@
 package provider
 
 // BuiltinManifests returns the compiled-in default provider manifests (PRD §12.3 pi, §12.4 claude,
-// §12.5 gemini, §12.6 opencode, §12.7 codex + cursor, §12.5.1 agy), keyed by manifest name. These are the zero-config
-// defaults a user override (config [provider.<name>]) merges onto via MergeManifest (S2) in the registry
-// (P1.M2.T3).
+// §12.6 opencode, §12.7 codex + cursor, §12.5.1 agy, §12.5.2 qwen-code), keyed by manifest name. These are
+// the zero-config defaults a user override (config [provider.<name>]) merges onto via MergeManifest (S2) in
+// the registry (P1.M2.T3).
 //
 // The manifests are constructed FRESH on every call (no package-level var): strPtr/boolPtr allocate new
 // pointers and slice literals allocate new backing arrays each call, so no caller can corrupt a built-in
 // by mutating a returned BareFlags/Env. MergeManifest (S2) already never mutates base, so the normal
 // registry path is safe either way — fresh-per-call additionally guards against any direct mutation.
 //
-// The full §12.7 set: pi + claude (the "explicit tool-disable switch" pair, S1), gemini + opencode
-// (read-only constraint, S2), codex + cursor (read-only constraint, S3 — codex's two revisions
-// resolve the external_deps.md §codex discrepancy), and §12.5.1 agy (experimental — the Gemini-CLI
-// successor). All eight providers are now present (pi, claude, gemini, opencode, codex, cursor, agy, qwen-code).
+// The full set: pi + claude (the "explicit tool-disable switch" pair, S1), opencode (read-only constraint,
+// S2 — `run` is already a read-only one-shot; delivery revised to stdin), codex + cursor (read-only
+// constraint, S3 — codex's two revisions resolve the external_deps.md §codex discrepancy), §12.5.1 agy
+// (experimental — the Gemini-CLI successor; gemini-cli itself is EOL and no longer shipped), and §12.5.2
+// qwen-code (experimental). Seven providers: pi, claude, opencode, codex, cursor, agy, qwen-code.
 func BuiltinManifests() map[string]Manifest {
 	return map[string]Manifest{
 		"pi":        builtinPi(),
 		"claude":    builtinClaude(),
-		"gemini":    builtinGemini(),
 		"opencode":  builtinOpenCode(),
 		"codex":     builtinCodex(),
 		"cursor":    builtinCursor(),
@@ -151,36 +151,6 @@ func builtinClaude() Manifest {
 	}
 }
 
-// builtinGemini returns the gemini manifest per PRD §12.5 (VERIFIED vs `gemini --help`, external_deps.md
-// §gemini), with prompt_delivery REVISED to "stdin" per the work-item contract (external_deps.md §gemini
-// recommendation + Appendix E #1: stdin avoids arg-length limits on ~300 KB diffs; gemini appends stdin
-// to the prompt). gemini has no global tool-disable switch; `--approval-mode default` constrains it to a
-// read-only, never-ask profile (§12.7.1 "read-only constraint").
-//
-// NOTE: (1) PrintFlag/SystemPromptFlag/ProviderFlag are strPtr("") — §12.5 WRITES them "" (NON-NIL empty):
-// no print flag (positional/stdin implies one-shot), no sys-prompt flag (sys PREPENDED to the payload per
-// §12.2), no sub-provider. (2) ReasoningLevels is nil — §12.5 OMITS the key. (3) The sys
-// prompt is prepended to the payload (no --system-prompt flag exists on gemini-cli).
-func builtinGemini() Manifest {
-	return Manifest{
-		Name:             "gemini",
-		Detect:           strPtr("gemini"),
-		Command:          strPtr("gemini"),
-		PromptDelivery:   strPtr("stdin"), // REVISED from §12.5 "positional" (work-item + external_deps.md + Appx E #1)
-		PrintFlag:        strPtr(""),      // §12.5 explicit empty (NON-NIL) — positional/stdin implies one-shot
-		ModelFlag:        strPtr("-m"),
-		DefaultModel:     strPtr("gemini-3.1-pro"), // WAS gemini-2.5-pro — refreshed per FR-D5 (verified 2026-07-02)
-		SystemPromptFlag: strPtr(""),               // §12.5 explicit empty (NON-NIL) — no sys flag; sys prepended to payload (§12.2)
-		ProviderFlag:     strPtr(""),               // §12.5 explicit empty (NON-NIL) — gemini has no sub-provider
-		BareFlags: []string{
-			"--approval-mode", "default", // read-only, never-ask profile (don't auto-run tools)
-		},
-		Output:         strPtr("raw"),
-		StripCodeFence: boolPtr(true),
-		// Subcommand, PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent in §12.5).
-	}
-}
-
 // builtinAgy returns the agy (Google Antigravity CLI) manifest per PRD §12.5.1 (the Gemini-CLI successor,
 // superseded gemini on 2026-06-18). Flag surface RE-VERIFIED vs `agy --help` + live stdin runs on
 // 2026-07-08 against agy v1.1.0. The Antigravity CLI has DIVERGED from the gemini-cli lineage it forked
@@ -200,7 +170,7 @@ func builtinGemini() Manifest {
 //
 // The model flag is `--model` ONLY (`-m` is rejected: "flags provided but not defined"; agy defines short
 // aliases only for -c/-i/-p). agy has no first-class system-prompt flag → sys is PREPENDED to the payload
-// (§12.2), like gemini.
+// (§12.2).
 //
 // MODEL NAMES (verified 2026-07-08): agy's --model takes the DISPLAY LABEL from `agy models` VERBATIM,
 // reasoning level included — e.g. "Gemini 3.5 Flash (Low)" / "GPT-OSS 120B (Medium)". Reasoning is NOT a
@@ -222,9 +192,9 @@ func builtinGemini() Manifest {
 // (sys prepended, §12.2), no sub-provider. (3) DefaultModel="Gemini 3.5 Flash (Low)" (label form; verified
 // 2026-07-08). (4) Experimental=boolPtr(true) (item 4 still open). (5) BareFlags=["--mode","plan"] (the
 // v1.1.0 read-only equivalent of the removed --approval-mode default). (6) Subcommand/PromptFlag/JsonField/
-// RetryInstruction/Env/TooledFlags/ReasoningLevels are nil (absent, like gemini). agy is the Gemini-lineage
-// twin of gemini, differing in model flag (--model vs -m), delivery (stdin w/o -p), bare flag (--mode plan
-// vs --approval-mode default), default_model + Experimental.
+// RetryInstruction/Env/TooledFlags/ReasoningLevels are nil (absent). agy is a Gemini-CLI-lineage
+// provider (it superseded the EOL'd gemini-cli on 2026-06-18); it differs from codex/cursor in its model
+// flag (--model), delivery (stdin w/o -p), bare flag (--mode plan), default model + Experimental.
 func builtinAgy() Manifest {
 	return Manifest{
 		Name:              "agy",
@@ -244,7 +214,7 @@ func builtinAgy() Manifest {
 		StripCodeFence: boolPtr(true),
 		Experimental:   boolPtr(true), // §12.5.1.1 ships experimental (tooled/stager flags, item 4, still open)
 		// TooledFlags: nil — agy cannot serve as a stager until §12.5.1.1 item 4 is verified.
-		// Subcommand, PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent, like gemini).
+		// Subcommand, PromptFlag, JsonField, RetryInstruction, Env, ReasoningLevels: nil (absent).
 	}
 }
 
@@ -252,8 +222,9 @@ func builtinAgy() Manifest {
 // (npm @qwen-code/qwen-code; GitHub QwenLM/qwen-code) is a FORK of Google's Gemini CLI tuned for the
 // Qwen3-Coder family, reached via Alibaba Cloud Model Studio / DashScope (DASHSCOPE_API_KEY, or
 // `qwen-code login` for the free coding-plan quota). It is SINGLE-BACKEND (Qwen/DashScope), so
-// provider_flag is empty and a bare model is used. Its flag surface mirrors gemini (§12.5) — a Gemini-CLI
-// fork keeps the gemini-cli lineage's flags: stdin delivery, -m model, --approval-mode default (read-only),
+// provider_flag is empty and a bare model is used. Its flag surface mirrors the gemini-cli lineage (the
+// surface the former, now-removed gemini provider used) — a Gemini-CLI fork keeps that lineage's flags:
+// stdin delivery, -m model, --approval-mode default (read-only),
 // no first-class system-prompt flag → sys is PREPENDED to the payload (§12.2). NOTE: agy (§12.5.1) DIVERGED
 // from this lineage in v1.1.0 (--model, --mode plan, value-taking -p) and no longer matches; do NOT treat
 // agy and qwen-code as identical.
@@ -295,9 +266,15 @@ func builtinQwenCode() Manifest {
 }
 
 // builtinOpenCode returns the opencode manifest per PRD §12.6 (VERIFIED vs `opencode run --help`,
-// external_deps.md §opencode), VERBATIM (no revisions). opencode `run` is non-interactive and prints the
-// final message to stdout. It has no global tool-disable switch and no bare flags — `run` is already a
+// external_deps.md §opencode), with ONE revision (delivery). opencode `run` is non-interactive and prints
+// the final message to stdout. It has no global tool-disable switch and no bare flags — `run` is already a
 // read-only, non-interactive one-shot (§12.7.1 "read-only constraint").
+//
+// REVISION (delivery): PromptDelivery="stdin" (§12.6 said "positional"). opencode `run [message..]` reads
+// the prompt from STDIN when no positional message is given (verified 2026-07-08, opencode 1.1.23). stdin
+// avoids the 128 KB MAX_ARG_STRLEN ceiling that positional delivery hits on ~300 KB diffs (Appendix E #1)
+// — the same reason codex ships stdin (and the former gemini did). (opencode accepts a positional message too, but a single
+// argv string is capped, so stdin is required for large diffs.)
 //
 // NOTE: (1) Subcommand = ["run"] (§12.6 writes subcommand = ["run"] → NON-NIL 1-element). (2)
 // PrintFlag/DefaultModel/SystemPromptFlag/ProviderFlag are strPtr("") — §12.6 WRITES them "" (NON-NIL
@@ -312,7 +289,7 @@ func builtinOpenCode() Manifest {
 		Command:           strPtr("opencode"),
 		ListModelsCommand: []string{"opencode", "models"}, // VERIFIED 2026-07-03 via `opencode models` (exit 0); FR-L2/FR-D5.
 		Subcommand:        []string{"run"},                // §12.6 `subcommand = ["run"]` → NON-NIL 1-element slice
-		PromptDelivery:    strPtr("positional"),
+		PromptDelivery:    strPtr("stdin"),
 		PrintFlag:         strPtr(""), // §12.6 explicit empty (NON-NIL) — `run` is already non-interactive
 		ModelFlag:         strPtr("-m"),
 		DefaultModel:      strPtr(""), // §12.6 explicit empty (NON-NIL) — user MUST set model (Appx E #3)
@@ -344,9 +321,14 @@ func builtinOpenCode() Manifest {
 // sys-prompt flag (sys PREPENDED to the payload per §12.2), no sub-provider. (3) ReasoningLevels is nil
 // — §12.7 OMITS the key. (4) The sys prompt is prepended (no --system-prompt flag on codex exec).
 //
-// TO CONFIRM (integration): that `codex exec` writes the assistant's final answer to stdout and exits 0
-// on success. Expected; -o <file> (write last message to file) and --json (JSONL events) are fallback
-// output channels if stdout proves unreliable. Verify during the real-agent scaffold (P1.M5.T1.S2).
+// VERIFIED (integration, 2026-07-08, codex-cli 0.143.0): `codex exec` writes the assistant's final
+// answer to stdout and exits 0 on success — confirmed end-to-end through a z.ai OpenAI-compatible proxy
+// (openai_base_url). The full flag surface above (`exec` subcommand, `-m` model, `--sandbox read-only`,
+// `--ephemeral`, stdin delivery with NO positional prompt so codex reads the prompt from stdin) is valid
+// against 0.143.0. Event/progress chatter — including a benign "426 Upgrade Required" when the proxy
+// rejects the responses-websocket and codex falls back to HTTP — goes to STDERR; stdout carries only the
+// answer. `-o <file>` (write last message to file) and `--json` (JSONL events) remain fallback channels if
+// a future stdout regression appears.
 func builtinCodex() Manifest {
 	return Manifest{
 		Name:             "codex",

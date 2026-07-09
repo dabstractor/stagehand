@@ -2,7 +2,7 @@ package config
 
 import "testing"
 
-// TestDefaultModelsForProvider_PerProvider asserts each of the 8 built-in providers returns its
+// TestDefaultModelsForProvider_PerProvider asserts each of the 7 built-in providers returns its
 // expected 4-role column (hardcoded — NOT derived from the table, so the test is meaningful).
 // PINS stager="" for the 6 non-stager-capable providers and non-empty stager for pi/claude.
 func TestDefaultModelsForProvider_PerProvider(t *testing.T) {
@@ -12,9 +12,6 @@ func TestDefaultModelsForProvider_PerProvider(t *testing.T) {
 		},
 		"claude": {
 			"planner": "opus", "stager": "sonnet", "message": "haiku", "arbiter": "sonnet",
-		},
-		"gemini": {
-			"planner": "gemini-3.1-pro", "stager": "", "message": "gemini-3.1-flash-lite", "arbiter": "gemini-3.5-flash",
 		},
 		"agy": {
 			"planner": "Gemini 3.5 Flash (High)", "stager": "", "message": "Gemini 3.5 Flash (Low)", "arbiter": "Gemini 3.5 Flash (Medium)",
@@ -50,7 +47,7 @@ func TestDefaultModelsForProvider_PerProvider(t *testing.T) {
 // 4 canonical role keys (planner/stager/message/arbiter), including stager when its value is "".
 func TestDefaultModelsForProvider_AllRolesPresent(t *testing.T) {
 	roles := []string{"planner", "stager", "message", "arbiter"}
-	for _, name := range []string{"pi", "claude", "gemini", "agy", "opencode", "codex", "cursor", "qwen-code"} {
+	for _, name := range []string{"pi", "claude", "agy", "opencode", "codex", "cursor", "qwen-code"} {
 		col := DefaultModelsForProvider(name)
 		if col == nil {
 			t.Errorf("DefaultModelsForProvider(%q) = nil, want a column", name)
@@ -75,7 +72,7 @@ func TestDefaultModelsForProvider_StagerCapability(t *testing.T) {
 			t.Errorf("%q should be stager-capable (non-empty stager), got %q", capable, m)
 		}
 	}
-	for _, incapable := range []string{"gemini", "agy", "opencode", "codex", "cursor", "qwen-code"} {
+	for _, incapable := range []string{"agy", "opencode", "codex", "cursor", "qwen-code"} {
 		if m := DefaultModelsForProvider(incapable)["stager"]; m != "" {
 			t.Errorf("%q must have stager==\"\" (not stager-capable), got %q", incapable, m)
 		}
@@ -100,11 +97,11 @@ func TestDefaultModelsForProvider_CopySemantics(t *testing.T) {
 	}
 }
 
-// TestRoleDefaults_KeySanity asserts the table has exactly the 8 built-in provider keys and no
+// TestRoleDefaults_KeySanity asserts the table has exactly the 7 built-in provider keys and no
 // provider column contains a role key outside the canonical set {planner, stager, message, arbiter}.
 func TestRoleDefaults_KeySanity(t *testing.T) {
 	expectedProviders := map[string]bool{
-		"pi": true, "claude": true, "gemini": true, "opencode": true,
+		"pi": true, "claude": true, "opencode": true,
 		"codex": true, "cursor": true, "agy": true, "qwen-code": true,
 	}
 	validRoles := map[string]bool{

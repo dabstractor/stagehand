@@ -144,12 +144,11 @@ NAME      DETECTED  DEFAULT
 claude    ✓
 codex     ✓
 cursor    ✓
-gemini    ✓
 opencode  ✓
 pi        ✓         (default)
 ```
 
-`✓` = the provider's command is found on `$PATH`. `(default)` marks the provider selected by auto-detection (first installed built-in in preference order: pi, opencode, cursor, agy, gemini, qwen-code, codex, claude).
+`✓` = the provider's command is found on `$PATH`. `(default)` marks the provider selected by auto-detection (first installed built-in in preference order: pi, opencode, cursor, agy, qwen-code, codex, claude).
 
 ### `providers show <name>`
 
@@ -161,7 +160,7 @@ stagecoach providers show pi
 
 ### `config init`
 
-Bootstrap a **populated, working config** to the resolved config path (override-aware: honors `--config` / `STAGECOACH_CONFIG`, defaulting to the global path). Auto-detects the highest-priority installed built-in agent (order: pi, opencode, cursor, agy, gemini, qwen-code, codex, claude) and writes `config_version = 3`, `[defaults] provider = "<detected>"`, and that provider's per-role model defaults — EXCEPT for **pi** (the default), whose per-role models are left EMPTY so pi picks its own backend model (set the model with an inference-provider prefix (e.g. model = "zai/glm-5.2") to pin a backend (FR-R5b)). Other detected providers get their per-role models UNCOMMENTED. Other installed providers appear as commented-out `[role.*]` blocks. If no agent is detected, defaults to `"pi"`. Creates parent directories as needed. **Refuses to overwrite** an existing file (exit 1) unless `--force` is passed:
+Bootstrap a **populated, working config** to the resolved config path (override-aware: honors `--config` / `STAGECOACH_CONFIG`, defaulting to the global path). Auto-detects the highest-priority installed built-in agent (order: pi, opencode, cursor, agy, qwen-code, codex, claude) and writes `config_version = 3`, `[defaults] provider = "<detected>"`, and that provider's per-role model defaults — EXCEPT for **pi** (the default), whose per-role models are left EMPTY so pi picks its own backend model (set the model with an inference-provider prefix (e.g. model = "zai/glm-5.2") to pin a backend (FR-R5b)). Other detected providers get their per-role models UNCOMMENTED. Other installed providers appear as commented-out `[role.*]` blocks. If no agent is detected, defaults to `"pi"`. Creates parent directories as needed. **Refuses to overwrite** an existing file (exit 1) unless `--force` is passed:
 
 ```bash
 stagecoach config init

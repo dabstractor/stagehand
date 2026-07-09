@@ -27,8 +27,6 @@ const DefaultModelsVerificationDate = "2026-07-02"
 //              refreshed 2026-07-03 per FR-D5 vs live `agy models` + -p runs. agy's --model takes the
 //              DISPLAY LABEL verbatim (reasoning baked into the "(Low/Medium/High)" suffix, NOT a separate
 //              flag); API-style ids (gemini-3.5-flash) are silently ignored → fallback to agy's default.
-//   gemini   — gemini-3.1-pro / gemini-3.5-flash / gemini-3.1-flash-lite — refreshed 2026-07-02 per FR-D5
-//              (was gemini-3.5-pro planner).
 //   qwen-code — qwen3-coder-plus / "" (cannot stager) / qwen3-coder-flash / qwen3-coder-plus — # TO CONFIRM
 //               per FR-D5 (Alibaba Qwen3-Coder via DashScope; no live CLI lookup this pass).
 //   codex    — gpt-5.1-codex-max / gpt-5.1-codex-mini / gpt-5.4-nano — PRD baseline 2026-07.
@@ -36,7 +34,7 @@ const DefaultModelsVerificationDate = "2026-07-02"
 //
 // Stager-capability basis: a provider's stager cell is non-empty IFF its built-in manifest
 // (internal/provider/builtin.go) has non-empty TooledFlags. As of 2026-07-02 that is ONLY pi + claude.
-// gemini/agy/opencode/codex/cursor/qwen-code have stager="" (nil TooledFlags ⇒ RenderTooled errors
+// agy/opencode/codex/cursor/qwen-code have stager="" (nil TooledFlags ⇒ RenderTooled errors
 // ⇒ cannot be stager). The bootstrap (P1.M4.T2) applies the FR-D4 fallback (next TooledFlags-capable
 // provider) on stager=="". VERIFY the TooledFlags state in builtin.go at implementation — if a provider
 // has since gained TooledFlags, give it the mid-tier stager model.
@@ -50,7 +48,7 @@ type RoleModelDefaults map[string]map[string]string
 
 // roleDefaults is the compiled-in FR-D4 table (unexported; access via DefaultModelsForProvider, which
 // returns copies). Stager cells: non-empty IFF the provider's manifest has non-empty TooledFlags
-// (pi, claude); "" otherwise (gemini, agy, opencode, codex, cursor, qwen-code) — the bootstrap applies the fallback.
+// (pi, claude); "" otherwise (agy, opencode, codex, cursor, qwen-code) — the bootstrap applies the fallback.
 var roleDefaults = RoleModelDefaults{
 	"pi": {
 		"planner": "gpt-5.4",      // flagship/smart tier (FR-D3)
@@ -63,12 +61,6 @@ var roleDefaults = RoleModelDefaults{
 		"stager":  "sonnet", // stager-capable (TooledFlags set); bare alias (sonnet=5)
 		"message": "haiku",  // fast tier
 		"arbiter": "sonnet", // mid tier
-	},
-	"gemini": {
-		"planner": "gemini-3.1-pro", // refreshed 2026-07-02 per FR-D5 (was gemini-3.5-pro)
-		"stager":  "",               // NOT stager-capable (TooledFlags nil) — bootstrap applies FR-D4 fallback
-		"message": "gemini-3.1-flash-lite",
-		"arbiter": "gemini-3.5-flash",
 	},
 	"agy": {
 		// agy --model takes the `agy models` display label VERBATIM (spaces + reasoning suffix included);

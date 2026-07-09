@@ -3,7 +3,7 @@
 // Package generate test: the PRD §20.1 layer-4 "Integration — real agents (opt-in, not in CI)" suite.
 // Built ONLY under -tags integration_real; runs ONLY when STAGECOACH_RUN_REAL=1. NOT in CI
 // (make test / make coverage pass no -tags). Drives generate.CommitStaged against each of the 6 real
-// builtin provider manifests (pi/claude/gemini/opencode/codex/cursor). Resolves the two
+// builtin provider manifests (pi/claude/opencode/codex/cursor). Resolves the two
 // `// TO CONFIRM (integration)` notes in internal/provider/builtin.go (codex exec→stdout; cursor --mode ask).
 //
 // Manual run command:
@@ -39,14 +39,13 @@ type realDefault struct {
 var realDefaults = map[string]realDefault{
 	"pi":       {"glm-5-turbo", "zai"},            // explicit personal override (commit-pi); manifest default empty (FR-D2)
 	"claude":   {"", ""},                          // sonnet from manifest default
-	"gemini":   {"", ""},                          // gemini-2.5-pro from manifest default
 	"opencode": {"anthropic/claude-sonnet-4", ""}, // manifest default is "" → MUST supply a model
 	"codex":    {"", ""},                          // model from ~/.codex/config.toml
 	"cursor":   {"", ""},                          // per-account default model
 }
 
 // providerNames — registry preference order (registry.go preferredBuiltins); deterministic subtest order.
-var providerNames = []string{"pi", "opencode", "cursor", "gemini", "codex", "claude"} // FR-D1 preference order (registry.go preferredBuiltins) minus agy (experimental — non-TTY stdout drop, issue #76; not real-tested). Subtest display order only.
+var providerNames = []string{"pi", "opencode", "cursor", "codex", "claude"} // FR-D1 preference order (registry.go preferredBuiltins) minus agy (experimental — not real-tested) and gemini (removed; superseded by agy). Subtest display order only.
 
 // envOr returns the value of the environment variable key, or def if unset or empty.
 func envOr(key, def string) string {

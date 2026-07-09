@@ -368,7 +368,7 @@ func TestConfigInit_ProviderStagerFallback(t *testing.T) {
 	_, _, _ = setupNoRepo(t)
 	rootCmd.SetOut(io.Discard)
 	rootCmd.SetErr(io.Discard)
-	rootCmd.SetArgs([]string{"config", "init", "--provider", "gemini"})
+	rootCmd.SetArgs([]string{"config", "init", "--provider", "agy"})
 
 	err := Execute(context.Background())
 	if err != nil {
@@ -381,24 +381,24 @@ func TestConfigInit_ProviderStagerFallback(t *testing.T) {
 	}
 	content := string(data)
 
-	// [defaults] provider = "gemini"
-	if !strings.Contains(content, `provider = "gemini"`) {
-		t.Error("missing provider = \"gemini\" in [defaults]")
+	// [defaults] provider = "agy"
+	if !strings.Contains(content, `provider = "agy"`) {
+		t.Error("missing provider = \"agy\" in [defaults]")
 	}
 
-	// planner uses gemini's model
-	assertContains(t, content, "[role.planner]", `model = "gemini-3.1-pro"`)
+	// planner uses agy's model (display label, verbatim)
+	assertContains(t, content, "[role.planner]", `model = "Gemini 3.5 Flash (High)"`)
 
 	// stager is routed to pi (fallback)
 	assertContains(t, content, "[role.stager]", `provider = "pi"`)
 	assertContains(t, content, "[role.stager]", `model = "gpt-5.4-mini"`)
 
-	// annotation about gemini not being stager-capable
+	// annotation about agy not being stager-capable
 	if !strings.Contains(content, "cannot serve as the stager") {
-		t.Error("gemini config should have stager fallback annotation")
+		t.Error("agy config should have stager fallback annotation")
 	}
 	if !strings.Contains(content, "routed to pi") {
-		t.Error("gemini config should mention routed to pi")
+		t.Error("agy config should mention routed to pi")
 	}
 }
 

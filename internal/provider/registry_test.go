@@ -30,7 +30,7 @@ func TestPreferredBuiltins_MatchesBuiltinKeys(t *testing.T) {
 		t.Errorf("pi must be first; got %v", preferredBuiltins)
 	}
 	// Exact FR-D1 order assertion (§9.16 FR-D1: open/self-hostable first, closed last).
-	wantOrder := []string{"pi", "opencode", "cursor", "agy", "gemini", "qwen-code", "codex", "claude"}
+	wantOrder := []string{"pi", "opencode", "cursor", "agy", "qwen-code", "codex", "claude"}
 	if !reflect.DeepEqual(preferredBuiltins, wantOrder) {
 		t.Errorf("preferredBuiltins order = %v, want FR-D1 %v", preferredBuiltins, wantOrder)
 	}
@@ -291,13 +291,12 @@ func TestDefaultProvider(t *testing.T) {
 		installed []string
 		want      string
 	}{
-		{[]string{"pi", "claude"}, "pi"},                // pi always wins (rank 1)
-		{[]string{"claude", "gemini"}, "gemini"},        // gemini(5) before claude(7) under FR-D1
-		{[]string{"codex", "claude"}, "codex"},          // codex(6) before claude(7)
-		{[]string{"cursor", "agy", "gemini"}, "cursor"}, // cursor(3) before agy(4)/gemini(5)
-		{[]string{"opencode", "pi"}, "pi"},              // pi still tops opencode(2)
-		{[]string{"myagent"}, ""},                       // user-defined never auto-selected
-		{nil, ""},                                       // nothing installed
+		{[]string{"pi", "claude"}, "pi"},       // pi always wins (rank 1)
+		{[]string{"codex", "claude"}, "codex"}, // codex(6) before claude(7)
+		{[]string{"cursor", "agy"}, "cursor"},  // cursor(3) before agy(4)
+		{[]string{"opencode", "pi"}, "pi"},     // pi still tops opencode(2)
+		{[]string{"myagent"}, ""},              // user-defined never auto-selected
+		{nil, ""},                              // nothing installed
 	}
 	for _, c := range cases {
 		if got := r.DefaultProvider(c.installed); got != c.want {
@@ -362,14 +361,14 @@ func TestFirstTooledProvider(t *testing.T) {
 		installed []string
 		want      string
 	}{
-		{[]string{"pi", "claude"}, "pi"},         // pi is first capable (priority order)
-		{[]string{"claude", "pi"}, "pi"},         // pi still wins regardless of input order
-		{[]string{"claude", "gemini"}, "claude"}, // only claude capable; gemini is not
-		{[]string{"gemini", "agy"}, ""},          // neither gemini nor agy is stager-capable
-		{[]string{"claude"}, "claude"},           // claude alone is capable
-		{[]string{"gemini"}, ""},                 // gemini is NOT stager-capable (nil TooledFlags)
-		{[]string{"myagent"}, ""},                // user-defined never auto-selected
-		{nil, ""},                                // nothing installed
+		{[]string{"pi", "claude"}, "pi"},      // pi is first capable (priority order)
+		{[]string{"claude", "pi"}, "pi"},      // pi still wins regardless of input order
+		{[]string{"claude", "agy"}, "claude"}, // only claude capable; agy is not
+		{[]string{"agy", "qwen-code"}, ""},    // neither agy nor qwen-code is stager-capable
+		{[]string{"claude"}, "claude"},        // claude alone is capable
+		{[]string{"agy"}, ""},                 // agy is NOT stager-capable (nil TooledFlags)
+		{[]string{"myagent"}, ""},             // user-defined never auto-selected
+		{nil, ""},                             // nothing installed
 	}
 	for _, c := range cases {
 		if got := r.FirstTooledProvider(c.installed); got != c.want {

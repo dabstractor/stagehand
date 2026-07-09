@@ -528,7 +528,7 @@ func TestPreferredBuiltins_ContainsKnownProviders(t *testing.T) {
 		t.Fatal("PreferredBuiltins returned empty slice")
 	}
 	// Must contain the known built-in names.
-	expected := []string{"pi", "opencode", "cursor", "agy", "gemini", "qwen-code", "codex", "claude"}
+	expected := []string{"pi", "opencode", "cursor", "agy", "qwen-code", "codex", "claude"}
 	for _, name := range expected {
 		found := false
 		for _, b := range builtins {
@@ -552,7 +552,7 @@ func TestPreferredBuiltins_ContainsKnownProviders(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGenerateBootstrapConfigWithOverrides_NilOverrides_IsIdentity(t *testing.T) {
-	for _, prov := range []string{"pi", "claude", "gemini", "opencode", "codex"} {
+	for _, prov := range []string{"pi", "claude", "opencode", "codex"} {
 		t.Run(prov, func(t *testing.T) {
 			withNil := config.GenerateBootstrapConfigWithOverrides(prov, nil)
 			plain := config.GenerateBootstrapConfig(prov)

@@ -71,9 +71,12 @@ bare_flags = ["--sandbox", "read-only", "--ephemeral"]  # sandbox forbids writes
 output = "raw"                      # cleaned stdout IS the commit message (DEFAULT).
 strip_code_fence = true             # strip one layer of ``` / ~~~ if the agent wraps the output.
 
-# TO CONFIRM (integration): that `codex exec` writes the assistant's final answer
-# to stdout and exits 0 on success. Expected; fallbacks: -o <file> (write last
-# message to file), --json (JSONL events). Resolved by the real-agent suite (P1.M5.T1.S2).
+# VERIFIED (integration, 2026-07-08, codex-cli 0.143.0): `codex exec` writes the assistant's final
+# answer to stdout and exits 0 on success — confirmed end-to-end through a z.ai OpenAI-compatible proxy.
+# The full flag surface above (exec, -m, --sandbox read-only, --ephemeral, stdin w/ no positional prompt)
+# is valid against 0.143.0. Event/progress chatter (incl. a benign "426 Upgrade Required" when the proxy
+# rejects the responses-websocket → HTTP fallback) goes to STDERR; stdout carries only the answer.
+# Fallbacks if a future stdout regression appears: -o <file> (write last message to file), --json (JSONL).
 
 # --- absent fields (PRD §12.1) ---
 # list_models_command, prompt_flag, json_field, retry_instruction, and [env] are NOT set for codex and therefore

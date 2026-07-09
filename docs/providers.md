@@ -44,7 +44,7 @@ A provider supports Stagecoach's **lossless multi-turn fallback** (§9.24 — us
 - `"append"` — re-invoking the same session id appends a recallable turn (multi-turn available).
 - `""` (default) — the provider cannot append turns across one-shot calls (multi-turn unavailable; the run proceeds one-shot → rescue, unchanged).
 
-**Only `pi` ships `session_mode = "append"` today** — VERIFIED 2026-07-05 via a live run (`pi --session-id X <isolation-flags-minus-no-session> -p "remember BANANA"`, then a same-`--session-id` recall turn returning "BANANA"). Every other built-in (claude, opencode, codex, cursor, agy, gemini, qwen-code) ships `""`.
+**Only `pi` ships `session_mode = "append"` today** — VERIFIED 2026-07-05 via a live run (`pi --session-id X <isolation-flags-minus-no-session> -p "remember BANANA"`, then a same-`--session-id` recall turn returning "BANANA"). Every other built-in (claude, opencode, codex, cursor, agy, qwen-code) ships `""`.
 
 **FR-T9 verification bar.** A manifest MUST NOT declare `"append"` speculatively. Setting it requires a verified, reproducible append-turn rendering — the exact flag set confirmed per provider (analogous to FR-D5's model-token verification duty). Until a provider's append mechanism is verified, its `session_mode` stays `""` and multi-turn is silently skipped for it. See §9.24 (FR-T8/FR-T9) for the full contract.
 
@@ -73,13 +73,12 @@ For a multi-backend provider (one whose manifest sets `provider_flag` — pi tod
 
 ## The 8 built-in providers
 
-Auto-detection order (first installed = default): **pi, opencode, cursor, agy, gemini, qwen-code, codex, claude**. User-defined providers are never auto-selected.
+Auto-detection order (first installed = default): **pi, opencode, cursor, agy, qwen-code, codex, claude**. User-defined providers are never auto-selected.
 
 | Provider | Delivery | Print flag | Model flag | Default model | System prompt flag | Tool-disable approach | Stager? |
 |----------|----------|-----------|-----------|----------------|-------------------|----------------------|--------|
 | `pi` | stdin | `-p` | `--model` | "" (user must set) | `--system-prompt` | Explicit `--no-*` flags | ✓ yes |
 | `claude` | stdin | `-p` | `--model` | `sonnet` | `--system-prompt` | Explicit `--tools ""` + settings flags | ✓ yes |
-| `gemini` | stdin | (none) | `-m` | `gemini-3.1-pro` | (prepended) | Read-only constraint (`--approval-mode default`) | — no |
 | `opencode` | positional | (none) | `-m` | (user must set) | (prepended) | Read-only constraint (`run` subcommand) | — no |
 | `codex` | stdin | (none) | `-m` | (user must set) | (prepended) | Read-only constraint (`--sandbox read-only --ephemeral`) | — no |
 | `cursor` | positional | `-p` | `--model` | (user must set) | (prepended) | Read-only constraint (`--mode ask --trust`) | — no |
@@ -94,7 +93,7 @@ The eight built-in providers achieve tool-safety via two distinct mechanisms (PR
 
 - **Explicit switch** (pi, claude): The manifest passes literal flags that **disable tools** (pi: `--no-tools --no-extensions --no-skills --no-prompt-templates --no-context-files --no-session`; claude: `--tools "" --setting-sources "" --no-session-persistence`). This is the cleanest approach — the agent runs as a pure text-in/text-out process.
 
-- **Read-only constraint** (codex, cursor, gemini): The manifest passes flags that **constrain the agent to a read-only, never-ask profile** (codex: `--sandbox read-only --ephemeral`; cursor: `--mode ask --trust`; gemini: `--approval-mode default`). opencode's `run` subcommand is inherently non-interactive and read-only.
+- **Read-only constraint** (codex, cursor): The manifest passes flags that **constrain the agent to a read-only, never-ask profile** (codex: `--sandbox read-only --ephemeral`; cursor: `--mode ask --trust`). opencode's `run` subcommand is inherently non-interactive and read-only.
 
 Both approaches satisfy the §18.1 safety invariant: no provider can mutate the repository.
 
@@ -129,7 +128,6 @@ The compiled-in per-provider table (PRD §9.16 FR-D4) lives in `internal/config/
 |----------|---------|--------|---------|--------|
 | `pi` | `gpt-5.4` | `gpt-5.4-mini` | `gpt-5.4-nano` | `gpt-5.4-mini` |
 | `claude` | `opus` | `sonnet` | `haiku` | `sonnet` |
-| `gemini` | `gemini-3.1-pro` | *(cannot)* | `gemini-3.1-flash-lite` | `gemini-3.5-flash` |
 | `agy` | `Gemini 3.5 Flash (High)` | *(cannot)* | `Gemini 3.5 Flash (Low)` | `Gemini 3.5 Flash (Medium)` |
 | `opencode` | `openai/gpt-5.4` | *(cannot)* | `openai/gpt-5.4-nano` | `openai/gpt-5.4-mini` |
 | `codex` | `gpt-5.1-codex-max` | *(cannot)* | `gpt-5.4-nano` | `gpt-5.1-codex-mini` |

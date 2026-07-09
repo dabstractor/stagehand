@@ -30,7 +30,6 @@ func dualModeManifest() Manifest {
 func TestRender_GoldenPerProvider(t *testing.T) {
 	pi := builtinPi()
 	claude := builtinClaude()
-	gemini := builtinGemini()
 	opencode := builtinOpenCode()
 	codex := builtinCodex()
 	cursor := builtinCursor()
@@ -50,12 +49,9 @@ func TestRender_GoldenPerProvider(t *testing.T) {
 			[]string{"--model", "sonnet", "--system-prompt", "<sys>",
 				"--tools", "", "--setting-sources", "", "--no-session-persistence", "-p"}, // -p LAST
 			"<user>"},
-		{"gemini", gemini, "", "gemini",
-			[]string{"-m", "gemini-3.1-pro", "--approval-mode", "default"},
-			"<sys>\n\n<user>"}, // stdin; no sys flag → sys PREPENDED
 		{"opencode", opencode, "anthropic/claude-sonnet-4", "opencode",
-			[]string{"run", "-m", "anthropic/claude-sonnet-4", "<sys>\n\n<user>"}, // positional → payload trailing
-			""},
+			[]string{"run", "-m", "anthropic/claude-sonnet-4"}, // stdin (REVISED) → payload piped, NOT in argv
+			"<sys>\n\n<user>"}, // stdin; no sys flag on `run` → sys PREPENDED
 		{"codex", codex, "gpt-5", "codex",
 			[]string{"exec", "-m", "gpt-5", "--sandbox", "read-only", "--ephemeral"},
 			"<sys>\n\n<user>"}, // stdin (REVISED builtin); no sys flag → PREPENDED
@@ -107,10 +103,10 @@ func TestRender_Pi_ByteForByteCommitPi(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRender_SystemPromptPrependFallback(t *testing.T) {
-	// gemini has NO sys flag (SystemPromptFlag resolves to "") → sys prepended to stdin payload.
-	got, _ := builtinGemini().Render("", "SYS", "USER", "off")
+	// agy has NO sys flag (SystemPromptFlag resolves to "") → sys prepended to stdin payload.
+	got, _ := builtinAgy().Render("", "SYS", "USER", "off")
 	if got.Stdin != "SYS\n\nUSER" {
-		t.Errorf("gemini prepend: Stdin = %q, want SYS\\n\\nUSER", got.Stdin)
+		t.Errorf("agy prepend: Stdin = %q, want SYS\\n\\nUSER", got.Stdin)
 	}
 	// pi HAS a sys flag → sys via flag, payload = user only.
 	got2, _ := builtinPi().Render("", "SYS", "USER", "off")
@@ -118,7 +114,7 @@ func TestRender_SystemPromptPrependFallback(t *testing.T) {
 		t.Errorf("pi (sys flag): Stdin = %q, want USER", got2.Stdin)
 	}
 	// Empty sys + no flag → no prepend (no leading newlines).
-	got3, _ := builtinGemini().Render("", "", "USER", "off")
+	got3, _ := builtinAgy().Render("", "", "USER", "off")
 	if got3.Stdin != "USER" {
 		t.Errorf("empty sys: Stdin = %q, want USER", got3.Stdin)
 	}
@@ -370,7 +366,7 @@ func TestRender_TooledModeEmptyFlagsErrors(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRender_AllGoldenProvidersStillBareDefault(t *testing.T) {
-	for _, b := range []Manifest{builtinPi(), builtinClaude(), builtinGemini(), builtinOpenCode(), builtinCodex(), builtinCursor()} {
+	for _, b := range []Manifest{builtinPi(), builtinClaude(), builtinOpenCode(), builtinCodex(), builtinCursor()} {
 		spec, err := b.Render("", "<sys>", "<user>", "off") // no mode
 		if err != nil {
 			t.Errorf("provider %q: no-mode Render error: %v", b.Name, err)

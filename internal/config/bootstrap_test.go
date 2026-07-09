@@ -59,16 +59,16 @@ func TestBuildBootstrapConfig_Pi(t *testing.T) {
 	}
 }
 
-func TestBuildBootstrapConfig_GeminiStagerFallback(t *testing.T) {
-	content := buildBootstrapConfig("gemini", nil, nil)
+func TestBuildBootstrapConfig_AgyStagerFallback(t *testing.T) {
+	content := buildBootstrapConfig("agy", nil, nil)
 
-	// provider = "gemini"
-	if !strings.Contains(content, `provider = "gemini"`) {
-		t.Error("missing provider = \"gemini\"")
+	// provider = "agy"
+	if !strings.Contains(content, `provider = "agy"`) {
+		t.Error("missing provider = \"agy\"")
 	}
 
-	// gemini's planner model
-	assertContains(t, content, "[role.planner]", `model = "gemini-3.1-pro"`)
+	// agy's planner model (display label, verbatim)
+	assertContains(t, content, "[role.planner]", `model = "Gemini 3.5 Flash (High)"`)
 
 	// stager routed to pi
 	assertContains(t, content, "[role.stager]", `provider = "pi"`)
@@ -76,15 +76,15 @@ func TestBuildBootstrapConfig_GeminiStagerFallback(t *testing.T) {
 
 	// annotation
 	if !strings.Contains(content, "cannot serve as the stager") {
-		t.Error("gemini config should have stager fallback annotation")
+		t.Error("agy config should have stager fallback annotation")
 	}
 	if !strings.Contains(content, "routed to pi") {
-		t.Error("gemini config should mention routed to pi")
+		t.Error("agy config should mention routed to pi")
 	}
 
-	// gemini's message and arbiter
-	assertContains(t, content, "[role.message]", `model = "gemini-3.1-flash-lite"`)
-	assertContains(t, content, "[role.arbiter]", `model = "gemini-3.5-flash"`)
+	// agy's message and arbiter
+	assertContains(t, content, "[role.message]", `model = "Gemini 3.5 Flash (Low)"`)
+	assertContains(t, content, "[role.arbiter]", `model = "Gemini 3.5 Flash (Medium)"`)
 }
 
 func TestBuildBootstrapConfig_OtherInstalledCommented(t *testing.T) {
@@ -130,7 +130,6 @@ func TestBuildBootstrapConfig_ValidTOML(t *testing.T) {
 		{"pi", []string{"pi"}},
 		{"pi", []string{"pi", "claude"}},
 		{"claude", []string{"claude"}},
-		{"gemini", nil},
 		{"claude", []string{"claude", "pi"}},
 		{"agy", []string{"agy", "pi", "claude"}},
 	}

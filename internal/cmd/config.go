@@ -30,7 +30,7 @@ import (
 // internal/provider/registry.go's unexported preferredBuiltins). Used by runConfigInit
 // for the --provider validation error message. (config/bootstrap.go has its own copy for
 // stagerFallback + commented-block ordering — pre-existing mirror pattern.)
-var preferredBuiltins = []string{"pi", "opencode", "cursor", "agy", "gemini", "codex", "claude"}
+var preferredBuiltins = []string{"pi", "opencode", "cursor", "agy", "codex", "claude"}
 
 // configCmd is the PRD §15.3 "config" command group. It has NO RunE → bare `stagecoach config` prints
 // help (cobra default). init/path are its leaves (registered in init()). Both leaves are in
@@ -50,7 +50,7 @@ var configInitCmd = &cobra.Command{
 	Long: `Bootstrap a populated, working config to Stagecoach's global config path.
 
 By DEFAULT, detects the highest-priority installed built-in agent (order: pi, opencode,
-cursor, agy, gemini, codex, claude) and writes a config with that provider's per-role
+cursor, agy, codex, claude) and writes a config with that provider's per-role
 default models UNCOMMENTED so the tool works immediately. If no agent is detected, defaults
 to "pi". Other installed providers appear as commented-out [role.*] blocks (one-line
 uncomment to route a role to a different agent).
@@ -508,7 +508,7 @@ const exampleConfigTemplate = `# Stagecoach configuration file (PRD §16.2).
 # both override it; CLI flags and env vars override those.
 #
 # Environment variables (PRD §9.8 FR35) — override this file, are overridden by CLI flags:
-#   STAGECOACH_PROVIDER   default provider/agent (e.g. "pi", "claude", "gemini")
+#   STAGECOACH_PROVIDER   default provider/agent (e.g. "pi", "claude", "agy")
 #   STAGECOACH_MODEL      model override ("" -> provider manifest default_model)
 #   STAGECOACH_TIMEOUT    generation timeout, e.g. "120s" or 120 (seconds)
 #   STAGECOACH_CONFIG     path to a config file, overrides discovery
@@ -611,11 +611,11 @@ const exampleConfigTemplate = `# Stagecoach configuration file (PRD §16.2).
 #
 # [role.planner]
 # provider = "agy"
-# model    = "gemini-2.5-pro"
+# model    = "Gemini 3.5 Flash (High)"
 #
 # [role.stager]            # tooled agent that runs git; needs tooled_flags in its provider manifest
 # provider = "agy"
-# model    = "gemini-2.5-flash"
+# model    = "Gemini 3.5 Flash (Medium)"
 #
 # [role.message]           # bare commit-message agent — inherits [defaults] (omit to inherit)
 # provider = ""            # "" -> inherit [defaults].provider
