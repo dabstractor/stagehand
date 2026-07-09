@@ -16,14 +16,25 @@ import (
 // §12.2 cmd.Stdin = (delivery=="stdin") ? reader : /dev/null). CmdSpec intentionally does NOT carry
 // the delivery mode — Stdin="" disambiguates.
 //
+// PayloadBytes is the DELIVERY-AGNOSTIC SIZE of the payload, NOT the delivery mode. It exists
+// alongside the "no delivery mode" rule above because the executor reports the payload size to
+// --verbose via VerbosePayload (PRD §9.13 FR50), and the payload reaches the agent via DIFFERENT
+// channels per mode (stdin / trailing positional arg / prompt_flag arg). Without a dedicated size
+// field the executor could only see `len(Stdin)` — correct for stdin delivery, but 0 (and thus a
+// silent no-op) for positional/flag, where Stdin=="" and the payload lives in Args. Render and
+// RenderMultiTurn set PayloadBytes = len(payload) for ALL modes, so the executor can report the size
+// without knowing (or carrying) the mode. Do NOT delete this as redundant with Stdin. 0 ⇒ no payload
+// (e.g. internal/cmd/models.go list-models probe) ⇒ VerbosePayload no-op.
+//
 // Env semantics: os.Environ() (the parent process env) followed by the manifest's Env entries as
 // "KEY=VAL". exec.Cmd.Env uses last-wins, so manifest entries (appended last) override the parent —
 // matching PRD §12.2 cmd.Env = os.Environ() + m.env.
 type CmdSpec struct {
-	Command string   // the executable (resolved manifest.Command), e.g. "pi", "agent"
-	Args    []string // the flag portion AFTER command, in §12.2 token order (NOT including Command)
-	Stdin   string   // payload to pipe (stdin delivery); "" → executor uses os.DevNull
-	Env     []string // os.Environ() + manifest Env entries as "KEY=VAL" (manifest wins on collision)
+	Command      string   // the executable (resolved manifest.Command), e.g. "pi", "agent"
+	Args         []string // the flag portion AFTER command, in §12.2 token order (NOT including Command)
+	Stdin        string   // payload to pipe (stdin delivery); "" → executor uses os.DevNull
+	PayloadBytes int      // delivered payload size in bytes (ALL delivery modes); set by Render/RenderMultiTurn; 0 ⇒ none
+	Env          []string // os.Environ() + manifest Env entries as "KEY=VAL" (manifest wins on collision)
 }
 
 // RenderMode selects which flag-set Manifest.Render appends after the system-prompt block (PRD §11.5,
@@ -171,6 +182,9 @@ func (m Manifest) Render(model, sysPrompt, userPayload, reasoning string, mode .
 	default:
 		return nil, fmt.Errorf("provider render %q: unsupported prompt_delivery %q", m.Name, *r.PromptDelivery)
 	}
+	// Delivery-agnostic payload SIZE for --verbose (FR50). `payload` is identical in all three valid
+	// cases (the default case returned above), so a single read after the switch covers every mode.
+	spec.PayloadBytes = len(payload)
 
 	// Env = os.Environ() + manifest Env entries (manifest appended last → exec last-wins → override).
 	env := os.Environ()
@@ -280,6 +294,8 @@ func (m Manifest) RenderMultiTurn(model, sysPrompt, userPayload, reasoning, sess
 	default:
 		return nil, fmt.Errorf("provider render %q: unsupported prompt_delivery %q", m.Name, *r.PromptDelivery)
 	}
+	// Delivery-agnostic payload SIZE for --verbose (FR50). Mirrors Render: one read after the switch.
+	spec.PayloadBytes = len(payload)
 
 	env := os.Environ()
 	for k, v := range r.Env {

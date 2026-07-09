@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -136,11 +137,14 @@ func TestExecute_CommandNotFound(t *testing.T) {
 
 //  10. Verbose mode: verifies DEBUG: command and DEBUG: raw output land in the injected buffer,
 //     and that NO env vars (PATH, etc.) leak into the verbose output (PRD §19 security guard).
+//     Also verifies the DEBUG: payload line emits from spec.PayloadBytes (FR50) — after the fix the
+//     executor reads PayloadBytes, not len(Stdin), so the keystone must construct a spec with
+//     PayloadBytes set and assert the payload-size line.
 func TestExecute_Verbose(t *testing.T) {
 	mustBin(t, "cat")
 	var buf bytes.Buffer
 	vb := ui.NewVerbose(&buf, true)
-	spec := CmdSpec{Command: "cat", Stdin: "feat: hello\n", Env: os.Environ()}
+	spec := CmdSpec{Command: "cat", Stdin: "feat: hello\n", PayloadBytes: len("feat: hello\n"), Env: os.Environ()}
 	out, _, err := Execute(context.Background(), spec, 5*time.Second, vb)
 	if err != nil {
 		t.Fatalf("Execute: err = %v, want nil", err)
@@ -155,11 +159,40 @@ func TestExecute_Verbose(t *testing.T) {
 	if !strings.Contains(got, "DEBUG: raw output:\nfeat: hello\n") {
 		t.Errorf("verbose missing DEBUG raw output line; got %q", got)
 	}
+	if want := "DEBUG: payload: 12 bytes"; !strings.Contains(got, want) {
+		t.Errorf("verbose missing DEBUG payload line %q; got %q", want, got)
+	}
 	if strings.Contains(got, "PATH") {
 		t.Errorf("SECURITY (§19): env var leaked to verbose output; got %q", got)
 	}
 	if strings.Contains(got, "API_KEY") {
 		t.Errorf("SECURITY (§19): API_KEY leaked to verbose output; got %q", got)
+	}
+}
+
+// 10b. THE REGRESSION: positional-delivery spec (Stdin=="", payload as a trailing arg, PayloadBytes
+//      set by the renderer) MUST emit the DEBUG: payload line. Before the fix the executor called
+//      VerbosePayload(len(spec.Stdin)) == VerbosePayload(0), hitting the no-op guard — so
+//      positional/flag providers printed NO payload-size line at all, defeating FR50 for them.
+func TestExecute_VerbosePayload_PositionalDelivery(t *testing.T) {
+	mustBin(t, "echo")
+	var buf bytes.Buffer
+	vb := ui.NewVerbose(&buf, true)
+	payload := "some diff payload that is NOT on stdin"
+	spec := CmdSpec{
+		Command:      "echo",
+		Args:         []string{payload}, // positional delivery: payload is a trailing arg
+		Stdin:        "",              // positional → no stdin
+		PayloadBytes: len(payload),     // the renderer sets this; we set it directly here
+		Env:          os.Environ(),
+	}
+	if _, _, err := Execute(context.Background(), spec, 3*time.Second, vb); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	got := buf.String()
+	want := fmt.Sprintf("DEBUG: payload: %d bytes", len(payload))
+	if !strings.Contains(got, want) {
+		t.Errorf("positional delivery: missing %q in verbose output:\n%s", want, got)
 	}
 }
 

@@ -61,7 +61,7 @@ func Execute(ctx context.Context, spec CmdSpec, timeout time.Duration, vb *ui.Ve
 	setupProcessGroup(cmd) // platform seam (procgroup_*.go): Setpgid + Cancel + WaitDelay
 
 	vb.VerboseCommand(strings.Join(append([]string{spec.Command}, spec.Args...), " "))
-	vb.VerbosePayload(len(spec.Stdin)) // size only (never contents) — exposes whether the token-limit gate ran
+	vb.VerbosePayload(spec.PayloadBytes) // size only (never contents) — exposes whether the token-limit gate ran
 	if err := cmd.Start(); err != nil {
 		return "", "", fmt.Errorf("provider %q: start: %w", spec.Command, err)
 	}

@@ -201,12 +201,79 @@ func TestRender_FlagDelivery(t *testing.T) {
 	if spec.Stdin != "" {
 		t.Errorf("flag delivery Stdin = %q, want empty", spec.Stdin)
 	}
+	// FR50: PayloadBytes must reflect the delivered payload even though it is NOT on Stdin.
+	if spec.PayloadBytes != len("PAYLOAD") {
+		t.Errorf("flag delivery PayloadBytes = %d, want %d", spec.PayloadBytes, len("PAYLOAD"))
+	}
 }
 
 // ---------------------------------------------------------------------------
 // Test 8: Validate error propagation: missing Command → error; invalid
 // prompt_delivery → error.
 // ---------------------------------------------------------------------------
+
+// Test 7b: positional delivery: payload appended as a trailing arg; Stdin empty;
+// PayloadBytes == len(payload) (the regression — without a dedicated size field the
+// executor would see 0 for positional/flag and emit no --verbose payload line).
+func TestRender_PositionalDelivery_PayloadBytes(t *testing.T) {
+	m := Manifest{Name: "test", Command: strPtr("agent"), PromptDelivery: strPtr("positional")}
+	payload := "some diff payload"
+	spec, err := m.Render("", "", payload, "off")
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	// payload is the LAST arg (trailing positional)
+	if len(spec.Args) == 0 || spec.Args[len(spec.Args)-1] != payload {
+		t.Errorf("positional delivery: payload %q not last arg: %v", payload, spec.Args)
+	}
+	if spec.Stdin != "" {
+		t.Errorf("positional delivery Stdin = %q, want empty", spec.Stdin)
+	}
+	if spec.PayloadBytes != len(payload) {
+		t.Errorf("positional delivery PayloadBytes = %d, want %d", spec.PayloadBytes, len(payload))
+	}
+}
+
+// Test 7c: stdin delivery: PayloadBytes == len(Stdin) (keeps the executor read uniform
+// across all three modes; stdin providers are unchanged in behavior).
+func TestRender_StdinDelivery_PayloadBytes(t *testing.T) {
+	m := Manifest{Name: "test", Command: strPtr("agent"), PromptDelivery: strPtr("stdin")}
+	payload := "user payload on stdin"
+	spec, err := m.Render("", "", payload, "off")
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if spec.Stdin != payload {
+		t.Errorf("stdin delivery Stdin = %q, want %q", spec.Stdin, payload)
+	}
+	if spec.PayloadBytes != len(payload) {
+		t.Errorf("stdin delivery PayloadBytes = %d, want %d", spec.PayloadBytes, len(payload))
+	}
+	if spec.PayloadBytes != len(spec.Stdin) {
+		t.Errorf("stdin delivery PayloadBytes %d != len(Stdin) %d", spec.PayloadBytes, len(spec.Stdin))
+	}
+}
+
+// Test 7d: system-prompt-prepend fallback makes payload != userPayload; PayloadBytes must track
+// the UNIFIED (prepended) payload, not the raw userPayload (the executor reports what is shipped).
+func TestRender_PrependFallback_PayloadBytesMatchesUnified(t *testing.T) {
+	// No SystemPromptFlag → sys prepended to payload (delimiter "\n\n").
+	m := Manifest{Name: "test", Command: strPtr("agent"), PromptDelivery: strPtr("positional")}
+	const sys, user = "SYSTEM", "USER"
+	wantPayload := sys + "\n\n" + user
+	spec, err := m.Render("", sys, user, "off")
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if spec.PayloadBytes != len(wantPayload) {
+		t.Errorf("prepend PayloadBytes = %d, want %d (len of unified payload %q)",
+			spec.PayloadBytes, len(wantPayload), wantPayload)
+	}
+	// the trailing positional arg should be the unified payload
+	if len(spec.Args) == 0 || spec.Args[len(spec.Args)-1] != wantPayload {
+		t.Errorf("prepend: unified payload not last arg: %v", spec.Args)
+	}
+}
 
 func TestRender_ValidateErrors(t *testing.T) {
 	if _, err := (Manifest{}).Render("", "", "U", "off"); err == nil {
@@ -518,6 +585,10 @@ func TestRenderMultiTurn_PiTurn1_Golden(t *testing.T) {
 	if spec.Stdin != "<payload>" {
 		t.Errorf("turn1 Stdin = %q, want <payload>", spec.Stdin)
 	}
+	// FR50: PayloadBytes must equal the delivered (stdin) payload size for the multi-turn path too.
+	if spec.PayloadBytes != len("<payload>") {
+		t.Errorf("turn1 PayloadBytes = %d, want %d", spec.PayloadBytes, len("<payload>"))
+	}
 	// Belt + suspenders on the FR-T6 swap.
 	if !containsToken(spec.Args, "--session-id") {
 		t.Errorf("--session-id missing: %v", spec.Args)
@@ -630,6 +701,37 @@ func TestRenderMultiTurn_GoldenTable(t *testing.T) {
 			}
 			if spec.Stdin != "<payload>" {
 				t.Errorf("turn %d: Stdin = %q, want <payload> (no sys prepend via stdin)", tc.turn, spec.Stdin)
+			}
+		})
+	}
+}
+
+// TestRenderMultiTurn_PositionalAndFlag_PayloadBytes proves RenderMultiTurn sets PayloadBytes for
+// positional/flag delivery too (the multi-turn fallback path was also missing the size). Mirrors the
+// Render-side tests but on the sibling renderer.
+func TestRenderMultiTurn_PositionalAndFlag_PayloadBytes(t *testing.T) {
+	const payload = "<payload>"
+	for _, tc := range []struct {
+		name     string
+		delivery string
+		flag     string
+	}{
+		{"positional", "positional", ""},
+		{"flag", "flag", "--prompt"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := mtPiManifest()
+			m.PromptDelivery = strPtr(tc.delivery)
+			m.PromptFlag = strPtr(tc.flag)
+			spec, err := m.RenderMultiTurn("zai/glm-5.2", "<sys>", payload, "", "sid", 1)
+			if err != nil {
+				t.Fatalf("RenderMultiTurn: %v", err)
+			}
+			if spec.Stdin != "" {
+				t.Errorf("%s: Stdin = %q, want empty", tc.name, spec.Stdin)
+			}
+			if spec.PayloadBytes != len(payload) {
+				t.Errorf("%s: PayloadBytes = %d, want %d", tc.name, spec.PayloadBytes, len(payload))
 			}
 		})
 	}
