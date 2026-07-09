@@ -244,6 +244,16 @@ func loadEnv(cfg *Config) error {
 		cfg.Timeout = d
 	}
 	if v, ok := os.LookupEnv("STAGECOACH_VERBOSE"); ok && v != "" {
+		// VERBOSE=2 is advertised by PRD §19 / docs as the level that would additionally log the
+		// stdin CONTENTS. It is NOT implemented today (Config.Verbose is a bool, and logging payload
+		// contents would require promoting it to an int). Rather than failing with an opaque
+		// strconv.ParseBool error, reject it up front with an actionable message so the failure is
+		// a clear "unimplemented" instead of a confusing parse trace. Any genuinely malformed value
+		// ("notabool") still gets the normal wrapped ParseBool error below.
+		if v == "2" {
+			return fmt.Errorf("STAGECOACH_VERBOSE: 2 is not supported yet (payload contents logging is unimplemented); " +
+				"use STAGECOACH_VERBOSE=true for the size-only diagnostics")
+		}
 		b, err := strconv.ParseBool(v)
 		if err != nil {
 			return fmt.Errorf("STAGECOACH_VERBOSE: %w", err)

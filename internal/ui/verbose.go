@@ -15,7 +15,9 @@ import (
 //
 // SECURITY (PRD §19): VerboseCommand logs ARGV ONLY (Command+Args). It NEVER logs spec.Env (which
 // carries *_API_KEY credentials). Stdin contents are NOT logged at VERBOSE=1 (deferred to a future
-// VERBOSE=2 — see D9; Config.Verbose is a bool, so VERBOSE=2 is currently un-parseable and out of scope).
+// VERBOSE=2 — see D9). VERBOSE=2 is documented but NOT yet implemented; config.loadEnv rejects the
+// value "2" with a clear "not supported yet" message rather than an opaque parse error, so a user
+// following the docs gets an actionable failure instead of a strconv trace.
 //
 // The writer is INJECTABLE: the CLI passes cmd.ErrOrStderr() (stderr); a library consumer of
 // pkg/stagecoach passes its own writer or nil. This keeps the library side-effect-free by default
@@ -50,7 +52,8 @@ func (v *Verbose) VerboseCommand(cmd string) {
 // No-op when v==nil, v.w==nil, or !v.on.
 //
 // NOTE: stdin contents are NOT logged at VERBOSE=1 (deferred to a future VERBOSE=2 — would require
-// Config.Verbose to become an int; currently it is a bool and ParseBool("2") errors).
+// Config.Verbose to become an int). VERBOSE=2 is rejected up front by config.loadEnv with a clear
+// "not supported yet" message.
 func (v *Verbose) VerboseRawOutput(output string) {
 	if v == nil || v.w == nil || !v.on {
 		return

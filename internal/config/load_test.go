@@ -239,6 +239,33 @@ func TestLoadEnv_BadBoolErrors(t *testing.T) {
 	}
 }
 
+// TestLoadEnv_Verbose2Rejected (Finding 1): PRD §19 / docs advertise STAGECOACH_VERBOSE=2 as a future
+// payload-contents level, but it is NOT implemented (Config.Verbose is a bool). It must be rejected
+// with a CLEAR, actionable message — not the opaque strconv.ParseBool error it produced before.
+func TestLoadEnv_Verbose2Rejected(t *testing.T) {
+	cfg := Defaults()
+	t.Setenv("STAGECOACH_VERBOSE", "2")
+
+	err := loadEnv(&cfg)
+	if err == nil {
+		t.Fatal("loadEnv err=nil, want error for STAGECOACH_VERBOSE=2")
+	}
+	msg := err.Error()
+	for _, want := range []string{"STAGECOACH_VERBOSE", "not supported", "2"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("err=%q, want it to contain %q", msg, want)
+		}
+	}
+	// The clear message must NOT be the bare strconv parse trace.
+	if strings.Contains(msg, "strconv.ParseBool") {
+		t.Errorf("err=%q still surfaces the opaque strconv.ParseBool error; want the clear rejection", msg)
+	}
+	// Verbose must remain its default (false), not be left half-set.
+	if cfg.Verbose {
+		t.Errorf("Verbose=true want false (loadEnv must not mutate on error)")
+	}
+}
+
 func TestLoadEnv_BadTimeoutErrors(t *testing.T) {
 	cfg := Defaults()
 	t.Setenv("STAGECOACH_TIMEOUT", "abc")

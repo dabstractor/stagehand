@@ -171,9 +171,10 @@ func TestExecute_Verbose(t *testing.T) {
 }
 
 // 10b. THE REGRESSION: positional-delivery spec (Stdin=="", payload as a trailing arg, PayloadBytes
-//      set by the renderer) MUST emit the DEBUG: payload line. Before the fix the executor called
-//      VerbosePayload(len(spec.Stdin)) == VerbosePayload(0), hitting the no-op guard — so
-//      positional/flag providers printed NO payload-size line at all, defeating FR50 for them.
+//
+//	set by the renderer) MUST emit the DEBUG: payload line. Before the fix the executor called
+//	VerbosePayload(len(spec.Stdin)) == VerbosePayload(0), hitting the no-op guard — so
+//	positional/flag providers printed NO payload-size line at all, defeating FR50 for them.
 func TestExecute_VerbosePayload_PositionalDelivery(t *testing.T) {
 	mustBin(t, "echo")
 	var buf bytes.Buffer
@@ -182,8 +183,8 @@ func TestExecute_VerbosePayload_PositionalDelivery(t *testing.T) {
 	spec := CmdSpec{
 		Command:      "echo",
 		Args:         []string{payload}, // positional delivery: payload is a trailing arg
-		Stdin:        "",              // positional → no stdin
-		PayloadBytes: len(payload),     // the renderer sets this; we set it directly here
+		Stdin:        "",                // positional → no stdin
+		PayloadBytes: len(payload),      // the renderer sets this; we set it directly here
 		Env:          os.Environ(),
 	}
 	if _, _, err := Execute(context.Background(), spec, 3*time.Second, vb); err != nil {

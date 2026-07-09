@@ -25,7 +25,7 @@ With no subcommand, `stagecoach` runs the **default action**. The routing depend
 | `--model <name>` | string | "" (manifest default) | `STAGECOACH_MODEL` | `stagecoach.model` | Model override. Sets the GLOBAL default — a `[role.<role>]` model in config (or a `--<role>-model` flag) takes precedence for that role (FR-R3), so a populated config can silently shadow `--model`; use `--message-model` to override the message role, or run with `--verbose` to see a note when `--model`/`--provider` is shadowed |
 | `--config <path>` | string | "" | `STAGECOACH_CONFIG` | — | Path to a config file, overrides discovery. A path pointing at a **missing** file fails fast with exit 1 (like a malformed or directory path), rather than falling back to discovery. |
 | `--timeout <dur>` | string | "120s" | `STAGECOACH_TIMEOUT` | `stagecoach.timeout` | Generation timeout (e.g. `"120s"` or `120`) |
-| `--verbose`, `-v` | bool | false | `STAGECOACH_VERBOSE` | — | Print resolved command, raw output, retries |
+| `--verbose`, `-v` | bool | false | `STAGECOACH_VERBOSE` | — | Print resolved command, raw output, retries (`STAGECOACH_VERBOSE` accepts `true`/`false`/`1`/`0`; `2` is documented but not yet implemented and is rejected with a clear message) |
 | `--no-color` | bool | TTY-aware | `STAGECOACH_NO_COLOR` | — | Disable color (also honors `NO_COLOR`) |
 | `--all`, `-a` | bool | false | — | — | Run `git add -A` before snapshotting, even if something is staged |
 | `--no-auto-stage` | bool | false | `STAGECOACH_AUTO_STAGE_ALL` (inverse) | `stagecoach.autoStageAll` | If nothing is staged, exit instead of auto-staging (env/git-config use the POSITIVE sense: true=enable, false=disable) |

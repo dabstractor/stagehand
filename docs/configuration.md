@@ -176,7 +176,7 @@ All `STAGECOACH_*` variables override the config file and are overridden by CLI 
 | `STAGECOACH_MODEL` | `--model` | Model override | `STAGECOACH_MODEL=sonnet stagecoach` |
 | `STAGECOACH_TIMEOUT` | `--timeout` | Generation timeout | `STAGECOACH_TIMEOUT=60s stagecoach` |
 | `STAGECOACH_CONFIG` | `--config` | Config file path | `STAGECOACH_CONFIG=./alt.toml stagecoach` |
-| `STAGECOACH_VERBOSE` | `--verbose` | Print resolved command and output | `STAGECOACH_VERBOSE=true stagecoach` |
+| `STAGECOACH_VERBOSE` | `--verbose` | Print resolved command and output. Accepts `true`/`false`/`1`/`0`. (`2` is documented as a future payload-contents level but **not yet implemented** — it is rejected with a clear message.) | `STAGECOACH_VERBOSE=true stagecoach` |
 | `STAGECOACH_NO_COLOR` | `--no-color` | Disable color | `STAGECOACH_NO_COLOR=true stagecoach` |
 | `NO_COLOR` | `--no-color` | Universal color-disable (honored when set) | `NO_COLOR=1 stagecoach` |
 | `STAGECOACH_COMMITS` | `--commits` | Force N commits (0=auto, 1≡single) | `STAGECOACH_COMMITS=3 stagecoach` |
