@@ -81,7 +81,7 @@ one person's personal plan pay for every contributor's pushes.
 
 One partial exception exists: Anthropic sanctions `claude setup-token` for CI use by Pro/Max
 subscribers. That is one provider's bespoke blessing, not a generalizable architecture across
-pi/opencode/gemini/codex. **Revisit only if providers standardize sanctioned headless
+pi/opencode/codex. **Revisit only if providers standardize sanctioned headless
 plan-tokens.** Until then: rejected, not deferred-by-laziness.
 
 ---

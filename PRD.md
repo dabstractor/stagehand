@@ -40,7 +40,7 @@ The single most important section for understanding the product's defensibility 
 
 **Stagecoach** is a command-line tool that writes your git commit messages for you using the AI coding agent you already have installed and already pay for.
 
-It is **not** another "API key in your config file, pay-per-token" commit generator. The incumbent tools in this space — `opencommit`, `aicommits`, `cz-git` — all talk directly to provider APIs (OpenAI, Anthropic, local Ollama) and require you to provision an API key and spend tokens against your API billing. Stagecoach refuses to do that. Instead, it shells out to whatever coding-agent CLI you already run — **Claude Code, Codex, Gemini CLI, pi, opencode, Cursor CLI** — and lets the generation count against the **coding-plan quota** you have already paid for (Claude Max, Codex Pro/Plus, Gemini Advanced, a self-hosted pi/opencode setup, etc.).
+It is **not** another "API key in your config file, pay-per-token" commit generator. The incumbent tools in this space — `opencommit`, `aicommits`, `cz-git` — all talk directly to provider APIs (OpenAI, Anthropic, local Ollama) and require you to provision an API key and spend tokens against your API billing. Stagecoach refuses to do that. Instead, it shells out to whatever coding-agent CLI you already run — **Claude Code, Codex, pi, opencode, Cursor CLI** — and lets the generation count against the **coding-plan quota** you have already paid for (Claude Max, Codex Pro/Plus, Gemini Advanced, a self-hosted pi/opencode setup, etc.).
 
 This is a structural gap the incumbents cannot close without ceasing to be what they are. The coding-plan subscriptions are deliberately billed against the _CLI product_ via proprietary OAuth flows, not the public API. There is no API key that draws down a Claude Max allotment. Stagecoach is built entirely around that fact.
 
@@ -152,7 +152,7 @@ That trade-off — _give up control of the model call in exchange for access to 
 
 Stagecoach's positioning, in priority order:
 
-1. **Use the coding plan you already pay for.** No API key. No new billing relationship. The agent you already run does the work, against the quota you already bought. Works with Claude Code, Codex, Gemini CLI, pi, opencode, Cursor CLI, or any agent that exposes a non-interactive prompt interface.
+1. **Use the coding plan you already pay for.** No API key. No new billing relationship. The agent you already run does the work, against the quota you already bought. Works with Claude Code, Codex, pi, opencode, Cursor CLI, or any agent that exposes a non-interactive prompt interface.
 2. **Keep staging while it thinks.** Snapshot-based commits mean generation time is no longer dead time. Stage the next batch while the current message generates; the in-flight commit only ever contains what was staged when it started.
 3. **Never corrupt your repo.** A failed generation leaves the repository byte-for-byte unchanged. The index and HEAD are touched only at the final, atomic `update-ref` step, and only if HEAD hasn't moved underneath us.
 4. **Match your project's voice.** Style is learned from the last 20 commits, with an explicit prohibition on reusing their wording, and a hard guarantee that no generated subject duplicates one of the last 50.
@@ -162,7 +162,7 @@ Stagecoach's positioning, in priority order:
 The README hero pitch, verbatim candidate:
 
 > **Stagecoach writes your commit messages using the AI agent you already pay for.**
-> No API key. No per-token billing. It shells out to Claude Code, Codex, Gemini CLI, pi, opencode, or Cursor — whatever you already have installed — and spends your existing coding-plan quota instead. Stage while it thinks; it commits only what was staged when it started, atomically, and can never corrupt your repo.
+> No API key. No per-token billing. It shells out to Claude Code, Codex, pi, opencode, or Cursor — whatever you already have installed — and spends your existing coding-plan quota instead. Stage while it thinks; it commits only what was staged when it started, atomically, and can never corrupt your repo.
 
 ---
 
@@ -171,7 +171,7 @@ The README hero pitch, verbatim candidate:
 ### 6.1 Goals (v1)
 
 - **G1.** Generate a commit message from staged changes by invoking a user-selected CLI agent, with zero API-key configuration.
-- **G2.** Support at least four agents out of the box: **pi, Claude Code, Gemini CLI, opencode**. Document **Codex** and **Cursor CLI** manifests as best-effort (verify flags at integration time; see §12.5).
+- **G2.** Support at least four agents out of the box: **pi, Claude Code, agy, opencode**. Document **Codex** and **Cursor CLI** manifests as best-effort (verify flags at integration time; see §12.5.1).
 - **G3.** Implement the snapshot-based atomic commit flow (write-tree → generate → commit-tree → update-ref) faithfully ported from `commit-pi`.
 - **G4.** Implement stage-while-generating: the commit is created against the frozen snapshot, not the live index.
 - **G5.** Implement auto-stage-all when invoked with nothing staged (the v1 simplification requested by the author).
@@ -213,7 +213,7 @@ The README hero pitch, verbatim candidate:
 
 ### 7.1 Primary persona — "the plan-holder"
 
-**Dustin (the author).** Pays for Claude Max (or equivalent). Runs `claude`, `pi`, `gemini`, and `opencode` daily. Already uses `commit-pi` via lazygit `<c-a>`. Wants to (a) stop maintaining per-agent forks, (b) share the tool with colleagues, (c) keep the snapshot-based workflow he already relies on. He will install via Homebrew and configure via a TOML file or git config.
+**Dustin (the author).** Pays for Claude Max (or equivalent). Runs `claude`, `pi`, `agy`, and `opencode` daily. Already uses `commit-pi` via lazygit `<c-a>`. Wants to (a) stop maintaining per-agent forks, (b) share the tool with colleagues, (c) keep the snapshot-based workflow he already relies on. He will install via Homebrew and configure via a TOML file or git config.
 
 ### 7.2 Secondary persona — "the API-key refusenik"
 
@@ -236,7 +236,7 @@ Format: _As a &lt;persona&gt;, I want &lt;capability&gt;, so that &lt;benefit&gt
 - **US1.** As a plan-holder, I want to run `stagecoach` and get a commit message generated by my default agent against my existing quota, so that I don't have to configure or pay for an API key.
 - **US2.** As a plan-holder, I want to stage files for the _next_ commit while the _current_ message is generating, so that generation latency is not dead time.
 - **US3.** As a plan-holder, I want a failed generation to leave my repository completely untouched, so that I never have to recover from a half-committed state.
-- **US4.** As a multi-agent tinkerer, I want to switch agents with `stagecoach --provider gemini`, so that I can route commit generation to whichever agent I prefer at the moment.
+- **US4.** As a multi-agent tinkerer, I want to switch agents with `stagecoach --provider agy`, so that I can route commit generation to whichever agent I prefer at the moment.
 - **US5.** As a multi-agent tinkerer, I want a per-repo default (`git config stagecoach.provider pi`), so that each repository remembers its preferred agent.
 - **US6.** As a plan-holder, I want Stagecoach to match my project's commit-message style (length, tone, subject-vs-body), so that generated messages don't stick out in `git log`.
 - **US7.** As a plan-holder, I want Stagecoach to guarantee no duplicate subjects, so that `git log` doesn't contain the same line twice.
@@ -400,13 +400,13 @@ Each role resolves its **provider** (the agent platform), its **model** (which c
 - **FR-R4. One setting for everything.** Setting only the global default (FR-R2) covers all roles and all three fields. Per-role overrides are opt-in granularity.
 - **FR-R5. Model strings are provider-specific.** Because `gpt-5.4`, `anthropic/claude-sonnet-4`, `gemini-3.1-pro` belong to different inference backends, a per-role `model` is interpreted by that role's resolved **provider**'s manifest. For multi-backend providers the model is `inference/model` (FR-R5b); changing a role's provider without updating its model is a configuration error stagecoach surfaces (not silently ignores).
 - **FR-R6. Reasoning level (per role).** Each role accepts a normalized `reasoning` level — `off | low | medium | high` — controlling the model's reasoning/thinking effort for that role's invocation. Resolution is per-field like `provider`/`model`: `--<role>-reasoning` / `stagecoach_<ROLE>_REASONING` / `[role.<role>].reasoning` / the global `[defaults] reasoning` (`--reasoning` / `stagecoach_REASONING` / `stagecoach.reasoning`). **Shipped defaults: `planner = stager = message = arbiter = off`** — thinking/reasoning adds latency and cost and is rarely the right default for commit-message work, so it is **opt-in everywhere**: set any role to `low`/`medium`/`high` to enable it where it helps (most commonly the planner). The level is rendered via each provider's `reasoning_levels` manifest table (§12.1), appended at `Render` (§12.2). **Graceful no-op:** if the resolved provider/model has no reasoning control — the manifest declares no tokens for that level (or omits the table), or the model is not a reasoning model — the level is silently not applied (logged at `--verbose`), **never an error**. This lets a user pin a non-reasoning model on the planner (or a reasoning model on the message role) without configuring around it.
-- **FR-R5b. Multi-backend models carry their inference provider as a prefix.** For providers that route to a choice of inference backend — **pi** (separate `--provider` flag) and **opencode** (`backend/model` token) — the `model` string MUST be in `inference-provider/model` form (e.g. `zai/glm-5.2`, `openai/gpt-5.4`). At `Render` (§12.2), a provider whose manifest declares a `provider_flag` (pi — the only one today) splits the model on the first `/` and emits `--provider <prefix> --model <rest>`; providers without one (opencode, and every single-backend provider) pass the model verbatim. A model without a `/` on a `provider_flag` provider is a **hard configuration error** (e.g. `model = "glm-5.2"` on pi is rejected with "include the inference provider, e.g. `zai/glm-5.2`") — never a silent bare `--model` that returns empty output. There is no separate inference-provider field to forget: **the prefix IS the field.** Authoritative enforcement lives at `Render` (the single command-emission chokepoint shared by every call path), and role resolution re-checks it earlier for a role-named error. Single-backend providers (claude, codex, cursor, gemini, agy, qwen-code) take a bare model.
+- **FR-R5b. Multi-backend models carry their inference provider as a prefix.** For providers that route to a choice of inference backend — **pi** (separate `--provider` flag) and **opencode** (`backend/model` token) — the `model` string MUST be in `inference-provider/model` form (e.g. `zai/glm-5.2`, `openai/gpt-5.4`). At `Render` (§12.2), a provider whose manifest declares a `provider_flag` (pi — the only one today) splits the model on the first `/` and emits `--provider <prefix> --model <rest>`; providers without one (opencode, and every single-backend provider) pass the model verbatim. A model without a `/` on a `provider_flag` provider is a **hard configuration error** (e.g. `model = "glm-5.2"` on pi is rejected with "include the inference provider, e.g. `zai/glm-5.2`") — never a silent bare `--model` that returns empty output. There is no separate inference-provider field to forget: **the prefix IS the field.** Authoritative enforcement lives at `Render` (the single command-emission chokepoint shared by every call path), and role resolution re-checks it earlier for a role-named error. Single-backend providers (claude, codex, cursor, agy, qwen-code) take a bare model.
 
 ### 9.16 Default provider & per-role model defaults (P0, → G12, G14)
 
-- **FR-D1. Cascading provider priority.** The auto-default provider is the highest-priority built-in whose command is found on `$PATH`, in this order: **pi, opencode, cursor, agy, gemini, qwen-code, codex, claude.** (Rationale: open / self-hostable harnesses first; closed subscription CLIs last. This is the maintainer's stated preference and lives in one slice in the registry — trivial to reorder.) User-defined providers (§12.8) are never auto-selected. Implemented as `Registry.DefaultProvider(installed)` over `preferredBuiltins`.
+- **FR-D1. Cascading provider priority.** The auto-default provider is the highest-priority built-in whose command is found on `$PATH`, in this order: **pi, opencode, cursor, agy, qwen-code, codex, claude.** (Rationale: open / self-hostable harnesses first; closed subscription CLIs last. This is the maintainer's stated preference and lives in one slice in the registry — trivial to reorder.) User-defined providers (§12.8) are never auto-selected. Implemented as `Registry.DefaultProvider(installed)` over `preferredBuiltins`.
 - **FR-D2. Decoupled from any one subscription.** No built-in default assumes a specific account or inference backend — notably **pi does NOT ship `glm-*` / `zai` as its default** (that was the original author's personal z.ai Max subscription). Because there is no universally-correct inference backend for a multi-backend provider, pi's shipped `default_model` is **blank** (the user supplies the `inference/model` prefix, FR-R5b). The personal z.ai/GLM setup is a documented _override_ (`model = "zai/glm-5.2"`), not the default. The bootstrap (FR-B1) surfaces this explicitly rather than guessing a backend.
-- **FR-D3. Universal role→tier strategy.** Out of the box each role is sized to its job: **planner = flagship/smart** (decomposition reasoning — one call per run, so a gated/rate-limited model like Gemini Pro is tolerable even on a free tier), **stager = mid** (reliable tool-use for git staging — deliberately _not_ the fastest tier, because tooled staging needs dependable tool calls), **message = fast** (bare text generation — the **cheapest / free-tier-eligible** model is ideal, since message is the highest-volume role and many users are on free tiers), **arbiter = mid** (leftover judgment). Concretely, message defaults to Flash-Lite (gemini/agy), Haiku/nano (claude/cursor), etc. — the tier that stays available and cheap on a free plan. Users can override any role (§16.4); these are just the shipped defaults.
+- **FR-D3. Universal role→tier strategy.** Out of the box each role is sized to its job: **planner = flagship/smart** (decomposition reasoning — one call per run, so a gated/rate-limited model like Gemini Pro is tolerable even on a free tier), **stager = mid** (reliable tool-use for git staging — deliberately _not_ the fastest tier, because tooled staging needs dependable tool calls), **message = fast** (bare text generation — the **cheapest / free-tier-eligible** model is ideal, since message is the highest-volume role and many users are on free tiers), **arbiter = mid** (leftover judgment). Concretely, message defaults to Flash-Lite (agy), Haiku/nano (claude/cursor), etc. — the tier that stays available and cheap on a free plan. Users can override any role (§16.4); these are just the shipped defaults.
 - **FR-D4. Per-provider default-model table.** The bootstrap config (§9.17) materializes one provider's column. Exemplars are current as of 2026-07; **see FR-D5 — they MUST be re-verified at implementation.**
 
 | Provider      | planner (smart)                                                 | stager (mid, tooled)  | message (fast)          | arbiter (mid)         |
@@ -415,7 +415,6 @@ Each role resolves its **provider** (the agent platform), its **model** (which c
 | **opencode**  | `openai/gpt-5.4`                                                | `openai/gpt-5.4-mini` | `openai/gpt-5.4-nano`   | `openai/gpt-5.4-mini` |
 | **cursor**    | flagship (e.g. `gpt-5.4`)                                       | mid                   | nano                    | mid                   |
 | **agy**       | `gemini-3.1-pro`                                                | `gemini-3.5-flash`    | `gemini-3.1-flash-lite` | `gemini-3.5-flash`    |
-| **gemini**    | `gemini-3.1-pro`                                                | `gemini-3.5-flash`    | `gemini-3.1-flash-lite` | `gemini-3.5-flash`    |
 | **qwen-code** | `qwen3-coder-plus`                                              | `qwen3-coder-flash`   | `qwen3-coder-flash`     | `qwen3-coder-plus`    |
 | **codex**     | `gpt-5.1-codex-max`                                             | `gpt-5.1-codex-mini`  | `gpt-5.4-nano`          | `gpt-5.1-codex-mini`  |
 | **claude**    | `opus` (4.8)                                                    | `sonnet` (5)          | `haiku`                 | `sonnet` (5)          |
@@ -518,7 +517,7 @@ This is deliberately NOT the lossy "chunk-summarize-combine" chunking rejected i
   - The session is one-run-scope: stagecoach never resumes it on a later run. Providers that persist sessions leave it behind (harmless).
   - The system prompt is set on turn 1 only (via `system_prompt_flag`); the provider must carry it for the session. (If a provider does not persist the system prompt across turns, its `session_mode` stays `""` until a verified rendering is found — FR-T9.)
 - **FR-T7. Failure handling.** Multi-turn is best-effort. On any of — a turn's provider error (non-zero exit that is not a timeout), a turn timeout, or the final turn's output failing to parse/dedupe — stagecoach aborts the multi-turn attempt and proceeds to the existing rescue protocol (§9.10) exactly as a one-shot failure would. Multi-turn can never leave the run in a worse state than one-shot-exhausted; it is pure upside.
-- **FR-T8. Provider support; capability flag.** A provider manifest gains a `session_mode` field (§12.1): `""` (default; no support — multi-turn unavailable for that provider) or `"append"`. The shipped **pi** manifest declares `session_mode = "append"` (verified). claude / opencode / codex / cursor / agy / gemini ship `""` until each provider's append-turn mechanism is verified (FR-T9); for those providers, condition (d) of FR-T1 is false and multi-turn is skipped silently (one-shot → rescue unchanged).
+- **FR-T8. Provider support; capability flag.** A provider manifest gains a `session_mode` field (§12.1): `""` (default; no support — multi-turn unavailable for that provider) or `"append"`. The shipped **pi** manifest declares `session_mode = "append"` (verified). claude / opencode / codex / cursor / agy ship `""` until each provider's append-turn mechanism is verified (FR-T9); for those providers, condition (d) of FR-T1 is false and multi-turn is skipped silently (one-shot → rescue unchanged).
 - **FR-T9. Verification duty for `session_mode`.** A manifest MUST NOT declare `"append"` speculatively. Setting it requires a verified, reproducible append-turn rendering: a second one-shot invocation against the same session id whose response demonstrably recalls content from the first call. The implementer confirms the exact flag set per provider (analogous to FR-D5's model-token verification duty) and records it; until then the field stays `""`. pi's verification: `pi --session-id X <isolation-flags> -p "remember BANANA"` then `pi --session-id X <isolation-flags> -p "recall it"` returns "BANANA".
 - **FR-T10. Role scope.** Multi-turn serves the **message** role (the single-commit path, §13.1–§13.5). The **planner** role (decompose §13.6) may adopt it in a later revision (its working-tree diff can also be large); out of scope here. The **stager** and **arbiter** operate on smaller per-concept diffs and do not need it.
 - **FR-T11. Verbose surface.** `--verbose` (FR50) prints, for a multi-turn run: the trigger ("one-shot exhausted → multi-turn fallback"), N+1, the per-chunk token estimate, the session id, and — per turn — the payload size + raw stdout + raw stderr (FR50). The final parsed message is logged as usual. No new flags.
@@ -558,7 +557,7 @@ The read loop is a **loose text protocol, not tool-calling**: the model requests
 
 ### 10.1 v1.0 (shipped — the single-commit core)
 
-Everything in §9 marked P0 or P1 _other than_ the §9.14/§9.15 additions. Concretely: diff capture, snapshot, prompt construction, auto-stage-all, generation via provider manifest, raw/json parsing with robust fallback, duplicate rejection, atomic commit, rescue protocol, config precedence, `providers list/show`, `config init/path`, `--dry-run`, `--verbose`, color. Built-in manifests for pi, Claude Code, Gemini CLI, opencode; documented (possibly stubbed) manifests for Codex and Cursor CLI. This is the implemented baseline against which the v2.0 additions below compose.
+Everything in §9 marked P0 or P1 _other than_ the §9.14/§9.15 additions. Concretely: diff capture, snapshot, prompt construction, auto-stage-all, generation via provider manifest, raw/json parsing with robust fallback, duplicate rejection, atomic commit, rescue protocol, config precedence, `providers list/show`, `config init/path`, `--dry-run`, `--verbose`, color. Built-in manifests for pi, Claude Code, agy, opencode; documented (possibly stubbed) manifests for Codex and Cursor CLI. This is the implemented baseline against which the v2.0 additions below compose.
 
 ### 10.2 v1.1 (resolved)
 
@@ -691,10 +690,10 @@ Stagecoach's provider system is the heart of its agent-agnosticism: given a logi
 
 | Concept      | What it is                                        | Examples                                                    | Config field | Flag         | Env                   | Git key               |
 | ------------ | ------------------------------------------------- | ----------------------------------------------------------- | ------------ | ------------ | --------------------- | --------------------- |
-| **provider** | the agent platform / CLI stagecoach shells out to | pi, opencode, claude, codex, cursor, gemini, agy, qwen-code | `provider`   | `--provider` | `stagecoach_PROVIDER` | `stagecoach.provider` |
+| **provider** | the agent platform / CLI stagecoach shells out to | pi, opencode, claude, codex, cursor, agy, qwen-code | `provider`   | `--provider` | `stagecoach_PROVIDER` | `stagecoach.provider` |
 | **model**    | the model identifier                              | `zai/glm-5.2`, `openai/gpt-5.4`, `sonnet`, `gemini-3.1-pro` | `model`      | `--model`    | `stagecoach_MODEL`    | `stagecoach.model`    |
 
-**The inference provider lives in the model string, not a separate field.** Some providers route to a choice of upstream inference backend — **pi** (via a separate `--provider <backend>` flag) and **opencode** (via a `backend/model` token like `openai/gpt-5.4`). For these, the model string carries the inference provider as a **slash-prefixed namespace**: `zai/glm-5.2`, `openai/gpt-5.4`, `anthropic/claude-sonnet-4`. Providers with a fixed backend (claude, codex, cursor, gemini, agy, qwen-code) take a bare model (`sonnet`, `gemini-3.1-pro`).
+**The inference provider lives in the model string, not a separate field.** Some providers route to a choice of upstream inference backend — **pi** (via a separate `--provider <backend>` flag) and **opencode** (via a `backend/model` token like `openai/gpt-5.4`). For these, the model string carries the inference provider as a **slash-prefixed namespace**: `zai/glm-5.2`, `openai/gpt-5.4`, `anthropic/claude-sonnet-4`. Providers with a fixed backend (claude, codex, cursor, agy, qwen-code) take a bare model (`sonnet`, `gemini-3.1-pro`).
 
 - **pi renders the prefix as a separate flag; opencode passes it whole.** At `Render` (§12.2), if the provider's manifest declares a `provider_flag` (pi — the only one today), stagecoach splits the model on the first `/` and emits `--provider <prefix> --model <rest>` (so `zai/glm-5.2` → `pi --provider zai --model glm-5.2`). Providers without a `provider_flag` (opencode, and every single-backend provider) pass the model string verbatim.
 - **A bare model on a `provider_flag` provider is a hard error** (FR-R5b): `model = "glm-5.2"` on pi is rejected with "include the inference provider, e.g. `zai/glm-5.2`" — never silently rendered as an unroutable `pi --model glm-5.2`. This is precisely the bug class that motivated the design: there is no separate inference-provider field to forget, because **the prefix IS the field**.
@@ -941,35 +940,9 @@ Notes:
 - `--system-prompt` _replaces_ the default; `--append-system-prompt` _adds to_ it. We use the replacing form for a clean, bare call. (Configurable: a user who wants CC's default persona retained can switch the flag to `--append-system-prompt`.)
 - `--output-format json` + `json_field = "result"` is an alternative if raw mode proves unreliable with a given model.
 
-### 12.5 Built-in provider: Gemini CLI
+### 12.5 ~~Built-in provider: Gemini CLI~~ — REMOVED (superseded by agy, §12.5.1)
 
-Captured from `gemini --help`.
-
-```toml
-name = "gemini"
-detect = "gemini"
-command = "gemini"
-prompt_delivery = "positional"      # positional `query`; stdin is appended if present
-print_flag = ""                     # no separate print flag; positional implies one-shot
-model_flag = "-m"
-default_model = "gemini-3.1-pro"
-system_prompt_flag = ""             # gemini-cli has no first-class --system flag at present
-provider_flag = ""
-bare_flags = [
-  "--approval-mode", "default",     # don't auto-run tools
-]
-output = "raw"
-strip_code_fence = true
-# fallback: system prompt prepended to the positional payload (see §12.2)
-```
-
-Rendered (model `gemini-3.1-pro`):
-
-```
-gemini -m gemini-3.1-pro --approval-mode default "<sys>\n\n<user payload>"
-```
-
-Caveats (to verify at integration time): the `-p/--prompt` flag is deprecated in favor of the positional `query`, and the help notes stdin is appended to the prompt — so `prompt_delivery = "stdin"` may also work and is preferable for large diffs (avoids arg-length limits). The manifest should default to whichever is verified to handle a ~300 KB payload; candidates are `stdin` first, `positional` as fallback. Gemini CLI's lack of a system-prompt flag means the system prompt is prepended to the payload per §12.2.
+Google's **Gemini CLI (`gemini`) is no longer shipped** — it was superseded by **agy** (the Antigravity CLI, §12.5.1) on 2026-06-18, and agy has since diverged from the gemini-cli lineage. The `gemini` built-in manifest, its reference file (`providers/gemini.toml`), and its role-tier defaults (§9.16 FR-D4) have all been removed. Users on the Gemini line should point stagecoach at `agy`.
 
 ### 12.5.1 Built-in provider: Antigravity CLI (`agy`) — the Gemini-CLI successor
 
@@ -1363,7 +1336,7 @@ stagecoach/
 │   │   └── config_test.go
 │   ├── provider/
 │   │   ├── manifest.go            # Manifest struct (+ tooled_flags), Render(mode) → exec.Cmd spec
-│   │   ├── builtin.go             # compiled-in manifests (pi, claude, gemini, agy, ...)
+│   │   ├── builtin.go             # compiled-in manifests (pi, claude, agy, ...)
 │   │   ├── registry.go            # name → manifest, with override merge
 │   │   ├── executor.go            # run manifest, feed stdin, capture stdout, timeout
 │   │   ├── parse.go               # parseOutput() pipeline (§12.9)
@@ -1418,7 +1391,6 @@ stagecoach/
 ├── providers/                     # shipped reference manifests (TOML), human-readable
 │   ├── pi.toml
 │   ├── claude.toml
-│   ├── gemini.toml
 │   ├── agy.toml                   # Antigravity CLI (experimental; §12.5.1)
 │   ├── opencode.toml
 │   ├── codex.toml
@@ -1537,7 +1509,7 @@ With no command, runs the default action: commit staged changes (auto-staging al
 
 ### 15.3 Subcommands
 
-- **`stagecoach providers list`** — List all known providers (built-in + user). Mark detected (on `$PATH`) vs not. Show the resolved default (highest-priority _installed_ built-in per FR-D1's order: pi, opencode, cursor, agy, gemini, qwen-code, codex, claude).
+- **`stagecoach providers list`** — List all known providers (built-in + user). Mark detected (on `$PATH`) vs not. Show the resolved default (highest-priority _installed_ built-in per FR-D1's order: pi, opencode, cursor, agy, qwen-code, codex, claude).
 - **`stagecoach providers show <name>`** — Print the fully-resolved manifest as TOML.
 - **`stagecoach config init`** — Bootstrap a **populated, working** config (auto-detects the default provider and writes its per-role models); `--provider <name>` to target one, `--force` to overwrite, `--template` for the inert reference, `--interactive` for the TTY-gated wizard (§9.17, §9.23 FR-L3).
 - **`stagecoach config path`** — Print the resolved global config path.
@@ -2183,7 +2155,7 @@ Semantic versioning. v1.0.0 = feature-complete against this PRD's P0/P1 set. Pro
 - The user has at least one supported coding-agent CLI installed and authenticated. (Anti-persona §7.4 is explicitly unsupported.)
 - Git ≥ 2.20 (for `write-tree`/`commit-tree`/`update-ref` CAS semantics — all ancient, but we state a floor).
 - A POSIX-ish environment for the curl|sh installer; Homebrew/Scoop/Go-install paths cover the rest.
-- The agent's non-interactive mode writes the answer to stdout and exits non-zero on failure (true for pi, claude, gemini, opencode per their `--help`).
+- The agent's non-interactive mode writes the answer to stdout and exits non-zero on failure (true for pi, claude, opencode per their `--help`).
 
 ### 22.3 Dependencies
 
@@ -2270,7 +2242,7 @@ $ stagecoach -v
 
 ```
 $ stagecoach
-↳ Generating with gemini-3.1-pro in gemini…
+↳ Generating with Gemini 3.5 Flash (Low) in agy…
 ^C
 ❌ Commit generation failed (interrupted).
 ------------------------------------------------------------
@@ -2306,7 +2278,6 @@ To commit the originally staged files manually:
 | -------- | -------------- | ---------------- | ------------ | ----------------------- | ----------------- | ---------------------------------------------------------------------------------------------- | --------------------------- |
 | pi       | `pi`           | stdin            | `-p`         | `--model`               | `--system-prompt` | `--no-tools --no-extensions --no-skills --no-prompt-templates --no-context-files --no-session` | raw                         |
 | claude   | `claude`       | stdin            | `-p`         | `--model`               | `--system-prompt` | `--tools "" --setting-sources "" --no-session-persistence`                                     | raw (json optional)         |
-| gemini   | `gemini`       | positional/stdin | (positional) | `-m`                    | _(prepend)_       | `--approval-mode default`                                                                      | raw                         |
 | **agy**  | `agy`          | stdin            | —            | `--model`               | _(prepend)_       | `--mode plan`                                                                                  | raw (experimental; §12.5.1) |
 | opencode | `opencode run` | positional       | —            | `-m` (`provider/model`) | _(prepend)_       | —                                                                                              | raw                         |
 | codex    | `codex exec`   | positional       | (exec)       | `-m`                    | _(prepend)_       | `--sandbox read-only --ask-for-approval never`                                                 | raw                         |
@@ -2326,7 +2297,7 @@ To commit the originally staged files manually:
 8. **`agy` tooled (stager) flags (§12.5.1.1 item 4):** determine the exact non-interactive, git-scoped, non-bypass flag combination. Gates `agy` (and any provider) as a stager.
 9. **Mid-chain amend plumbing (§13.6.5):** finalize the exact `read-tree`/`write-tree`/`commit-tree` reconstruction sequence (what `read-tree` base for each j, how leftovers fold in at the target) during implementation planning; prove via the §20.2 fidelity invariant.
 10. **Stager toolset scope per provider:** pin the minimal allowlist each tooled profile needs (git add, read, edit, apply) so no provider's stager can do more than stage.
-11. **Verify current model names per provider (FR-D5, blocking for defaults):** confirm the live flagship/mid/fast model token for each of pi, opencode, cursor, agy, gemini, qwen-code, codex, claude (e.g. is it `gpt-5.4` or newer? `gemini-3.1-pro` or newer? Claude Opus/Sonnet/Haiku current versions? `qwen3-coder-plus` current?). Record names + verification date in the manifest source.
+11. **Verify current model names per provider (FR-D5, blocking for defaults):** confirm the live flagship/mid/fast model token for each of pi, opencode, cursor, agy, qwen-code, codex, claude (e.g. is it `gpt-5.4` or newer? `gemini-3.1-pro` or newer? Claude Opus/Sonnet/Haiku current versions? `qwen3-coder-plus` current?). Record names + verification date in the manifest source.
 12. **pi OpenAI routing:** determine which of pi's current sub-providers routes to an OpenAI model (openrouter? a native openai sub-provider?) so pi's shipped `backend/model` default is wired end-to-end; if none is universal, ship pi's model empty and let `config init` prompt for the prefix.
 13. **Config `upgrade` mechanics:** finalize how `config upgrade` preserves user values vs. comments-out renamed keys (FR-B5) — keep it simple (no value-type migration) until a real rename occurs.
 14. **lazygit `customCommands` schema (gates FR-I5):** verify against the current lazygit release the exact field names (`output` vs the older `subprocess`/`showOutput`), the `context` value for the files panel, and config-dir resolution via `lazygit --print-config-dir`; confirm the chosen comment-preserving YAML approach (e.g. `yaml.v3` Node API) round-trips a real hand-maintained config byte-identically outside the edited node. Record names + verification date (FR-D5 discipline).
@@ -2349,7 +2320,7 @@ To commit the originally staged files manually:
 - **Binaries replaced with filename+status placeholders, never dropped silently.** The decomposition planner needs to know a binary asset changed to group it correctly. (§9.1, FR3b)
 - **`agy` ships experimental behind its `# TO CONFIRM` block.** Honest about the non-TTY stdout bug (#76) rather than pretending the manifest is verified; matches the §12.7.2 progressive-verification ethos. (§12.5.1)
 - **Decoupled defaults from the author's z.ai subscription.** pi no longer ships `glm-*`/`zai`; defaults are account-agnostic and the z.ai setup is a documented personal override. (§9.16 FR-D2, §12.3)
-- **Cascading provider priority (pi → opencode → cursor → agy → gemini → codex → claude).** Open/self-hostable harnesses first; closed subscription CLIs last; highest-priority _installed_ one wins. (§9.16 FR-D1)
+- **Cascading provider priority (pi → opencode → cursor → agy → codex → claude).** Open/self-hostable harnesses first; closed subscription CLIs last; highest-priority _installed_ one wins. (§9.16 FR-D1)
 - **Tier-based per-role defaults (smart/mid/fast), materialized by a populated `config init`.** Each role is sized to its job (stager mid not fast — it needs tool-use; message fast — it's bare), and the bootstrap config writes them uncommented so it works out of the box. (§9.16, §9.17)
 - **Model defaults are research-driven and refreshable, not pinned from stale knowledge.** The implementing agent verifies current names per provider; a future automated refresh process keeps them current. (§9.16 FR-D5)
 - **Config schema versioning + advisory staleness warning.** Simple integer version + a warning + `config upgrade`; no auto-migration (no existing users). (§9.17 FR-B4/B5)
