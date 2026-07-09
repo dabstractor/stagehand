@@ -63,14 +63,14 @@
           "type": "Milestone",
           "id": "P2.M2",
           "title": "Confirm the corrected agy manifest against agy v1.1.0 (2026-07-08)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "agy diverged from the gemini-cli lineage in v1.1.0: -p became value-taking, --approval-mode was removed (replaced by --mode plan), and --model replaced -m. The corrected manifest is already committed (2f77bd0); confirm it matches the spec and the verification status is recorded.",
           "tasks": [
             {
               "type": "Task",
               "id": "P2.M2.T1",
               "title": "Confirm the corrected agy manifest and verification status in code and PRD",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Verify the agy manifest in builtin.go and providers/agy.toml matches §12.5.1 exactly, with the 2026-07-08 verification date recorded, and confirm PRD §12.5.1/§12.5.1.1/§22.1 reflect the re-verification.",
               "subtasks": [
                 {
@@ -91,7 +91,7 @@
                   "type": "Subtask",
                   "id": "P2.M2.T1.S2",
                   "title": "Confirm PRD §12.5.1/§12.5.1.1/§22.1 reflect the agy re-verification",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 0.5,
                   "dependencies": [
                     "P2.M2.T1.S1"
@@ -125,7 +125,7 @@
                   "type": "Subtask",
                   "id": "P2.M3.T1.S1",
                   "title": "Correct the agy quick-reference table row (print flag + tool-disable cells)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 0.5,
                   "dependencies": [
                     "P2.M2.T1.S1"
