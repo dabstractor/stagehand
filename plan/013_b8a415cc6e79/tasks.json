@@ -63,21 +63,21 @@
           "type": "Milestone",
           "id": "P2.M2",
           "title": "Confirm the corrected agy manifest against agy v1.1.0 (2026-07-08)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "agy diverged from the gemini-cli lineage in v1.1.0: -p became value-taking, --approval-mode was removed (replaced by --mode plan), and --model replaced -m. The corrected manifest is already committed (2f77bd0); confirm it matches the spec and the verification status is recorded.",
           "tasks": [
             {
               "type": "Task",
               "id": "P2.M2.T1",
               "title": "Confirm the corrected agy manifest and verification status in code and PRD",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Verify the agy manifest in builtin.go and providers/agy.toml matches §12.5.1 exactly, with the 2026-07-08 verification date recorded, and confirm PRD §12.5.1/§12.5.1.1/§22.1 reflect the re-verification.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P2.M2.T1.S1",
                   "title": "Verify the agy manifest fields in code match §12.5.1",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 0.5,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Architecture audit (code_gemini_agy_audit.md Check 1) confirmed all eight agy manifest fields MATCH at builtin.go:199-217. This is a verification subtask.\n2. INPUT: `internal/provider/builtin.go` `builtinAgy()` (around line 199) and `providers/agy.toml`.\n3. LOGIC: Confirm the manifest matches PRD §12.5.1 exactly:\n   - `PrintFlag = strPtr(\"\")` (non-nil empty) — agy v1.1.0's -p is value-taking; bare -p fails.\n   - `ModelFlag = strPtr(\"--model\")` — NOT `-m` (rejected in v1.1.0).\n   - `PromptDelivery = \"stdin\"` — agy reads stdin when -p is absent.\n   - `DefaultModel = \"Gemini 3.5 Flash (Low)\"` — agy models display label VERBATIM (reasoning suffix included).\n   - `BareFlags = []string{\"--mode\", \"plan\"}`` — NOT `[\"--approval-mode\", \"default\"]` (removed in v1.1.0).\n   - `ListModelsCommand = []string{\"agy\", \"models\"}`.\n   - `Experimental = true`.\n   - `TooledFlags` nil (agy cannot serve as stager until §12.5.1.1 item 4 is resolved).\n   Also confirm `internal/config/role_defaults.go` agy defaults use display labels: planner=\"Gemini 3.5 Flash (High)\", message=\"Gemini 3.5 Flash (Low)\", arbiter=\"Gemini 3.5 Flash (Medium)\", stager=\"\" (nil TooledFlags).\n   The corrected render is: `agy --model \"<label>\" --mode plan < <sys+user payload via stdin>` (no -p).\n4. OUTPUT: A one-line confirmation per field. All should PASS.\n5. DOCS: The manifest comments in builtin.go/providers/agy.toml carry the 2026-07-08 verification record — confirm they are present and dated. This is the in-code documentation (Mode A).",
@@ -91,7 +91,7 @@
                   "type": "Subtask",
                   "id": "P2.M2.T1.S2",
                   "title": "Confirm PRD §12.5.1/§12.5.1.1/§22.1 reflect the agy re-verification",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 0.5,
                   "dependencies": [
                     "P2.M2.T1.S1"
