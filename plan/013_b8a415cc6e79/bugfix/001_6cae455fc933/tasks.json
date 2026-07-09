@@ -11,7 +11,7 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Restore persistent disable for default-true booleans (Issues 1-3)",
-          "status": "Ready",
+          "status": "Complete",
           "description": "A core documented option (auto_stage_all) cannot be persistently disabled through any correctly-documented method: the TOML path silently ignores false (Issue 1), the documented snake_case git-config key is un-settable (Issue 2), and there is no env var (Issue 3). Together these mean the ONLY working persistent escape is an undocumented camelCase git-config key — and even that hits the same overlay bug. This milestone converts AutoStageAll and MultiTurnFallback to *bool (mirroring the proven DiffContext *int pattern), adds the missing env vars, and reconciles the git-config docs.",
           "tasks": [
             {
@@ -83,14 +83,14 @@
               "type": "Task",
               "id": "P1.M1.T3",
               "title": "Reconcile git-config key documentation: snake_case → camelCase (Issue 2)",
-              "status": "Ready",
+              "status": "Complete",
               "description": "The documented git-config key stagecoach.auto_stage_all (snake_case) is invalid — git rejects underscores in the final config-key segment. The implementation reads camelCase stagecoach.autoStageAll. The docs are the side that needs fixing: two lines in docs/configuration.md use the wrong spelling.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T3.S1",
                   "title": "Fix docs/configuration.md git-config key spelling (lines 210 + 218) and verify all multi-word keys are camelCase",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: Verified in research_gitconfig_keys.md. The implementation (internal/config/git.go) reads camelCase keys exclusively — all 8 multi-word keys are camelCase (autoStageAll, stripCodeFence, noVerify, maxDiffBytes, maxMdLines, tokenLimit, diffContext, maxDuplicateRetries, subjectTargetChars). git forbids underscores in the final dotted segment of a config key name, so `git config stagecoach.auto_stage_all false` fails with 'error: invalid key'. The docs have exactly TWO wrong lines.\n2. INPUT: The exact discrepancies (from research_gitconfig_keys.md §3):\n   - docs/configuration.md line 210 (INI example): `auto_stage_all = true` → should be `autoStageAll = true`\n   - docs/configuration.md line 218 (table row): `| stagecoach.auto_stage_all | bool | git config --get --bool stagecoach.auto_stage_all | Auto-stage all when nothing staged |` → should use `stagecoach.autoStageAll` in all three occurrences in that row.\n3. LOGIC:\n   a. Edit docs/configuration.md line 210: change `auto_stage_all = true` to `autoStageAll = true` in the git-config INI example block.\n   b. Edit docs/configuration.md line 218: change the table row to use `stagecoach.autoStageAll` for the Key column, the Reads-with column, and any inline reference.\n   c. Verify (grep) that NO other git-config keys (prefixed `stagecoach.` or inside a `[stagecoach]` INI block) use snake_case. The TOML config-file keys (`[defaults] auto_stage_all`, `[generation] max_diff_bytes`, etc.) are a DIFFERENT layer and legitimately use snake_case — do NOT change those.\n   d. Secondary finding (optional, out of strict PRD scope): the git-config table (lines 215-226) is missing 6 keys that git.go reads (stagecoach.verbose, stagecoach.noVerify, stagecoach.maxDiffBytes, stagecoach.maxMdLines, stagecoach.maxDuplicateRetries, stagecoach.subjectTargetChars). Consider adding these for completeness but prioritize the snake_case fix.\n   e. MOCKING: None — pure documentation.\n4. OUTPUT: Every git-config key in docs/configuration.md matches the spelling read by internal/config/git.go. `git config stagecoach.autoStageAll false` works and correctly disables auto-stage (cross-verified by the existing git_test.go coverage of git.go:158).\n5. DOCS: [Mode A] This subtask IS the documentation fix. The two edits above are the entire deliverable. No separate docs task needed for this issue.",

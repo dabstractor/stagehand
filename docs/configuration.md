@@ -209,7 +209,7 @@ These keys live in `.git/config` (set with `git config --local` or `git config -
     provider = pi
     model = glm-5.2
     timeout = 120s
-    auto_stage_all = true
+    autoStageAll = true
 ```
 
 | Key | Type | Reads with | Description |
@@ -217,7 +217,7 @@ These keys live in `.git/config` (set with `git config --local` or `git config -
 | `stagecoach.provider` | string | `git config --get stagecoach.provider` | Default provider |
 | `stagecoach.model` | string | `git config --get stagecoach.model` | Model override |
 | `stagecoach.timeout` | string | `git config --get stagecoach.timeout` | Generation timeout (duration string) |
-| `stagecoach.auto_stage_all` | bool | `git config --get --bool stagecoach.auto_stage_all` | Auto-stage all when nothing staged |
+| `stagecoach.autoStageAll` | bool | `git config --get --bool stagecoach.autoStageAll` | Auto-stage all when nothing staged |
 | `stagecoach.output` | string | `git config --get stagecoach.output` | Agent output mode: `raw` \| `json` (overrides per-provider default) |
 | `stagecoach.stripCodeFence` | bool | `git config --get --bool stagecoach.stripCodeFence` | Strip ``` fences from agent output (overrides per-provider default) |
 | `stagecoach.tokenLimit` | int | `git config --get stagecoach.tokenLimit` | Holistic token budget for the whole payload; `0` = unset ⇒ legacy `max_diff_bytes`/`max_md_lines` caps (§9.1 FR3d). Supersedes both legacy caps when >0 (mutually exclusive). |
