@@ -531,7 +531,7 @@ const exampleConfigTemplate = `# Stagecoach configuration file (PRD §16.2).
 #   git config stagecoach.provider pi
 #   git config stagecoach.model ""
 #   git config stagecoach.timeout 120s
-#   git config stagecoach.auto_stage_all true
+#   git config stagecoach.autoStageAll true
 #   (read via ` + "`git config --get stagecoach.<key>`" + `)
 
 # ---------------------------------------------------------------------------

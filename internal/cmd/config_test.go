@@ -489,6 +489,18 @@ func TestConfigInit_TemplateIsInert(t *testing.T) {
 	if !strings.Contains(content, "stagecoach.provider") {
 		t.Error("template missing stagecoach.provider git-key doc")
 	}
+
+	// Regression for Issue 2 (P1.M2.T7.S1): the git-config hint must advertise the SETTABLE
+	// camelCase key (stagecoach.autoStageAll). git rejects underscores in the final config-key
+	// segment, so shipping `git config stagecoach.auto_stage_all` gives users `error: invalid key`.
+	// NOTE: assert on the git-config hint only — the TOML field `auto_stage_all` (snake_case) is
+	// correct and remains elsewhere in this file.
+	if strings.Contains(content, "git config stagecoach.auto_stage_all") {
+		t.Errorf("template advertises un-settable snake_case git key stagecoach.auto_stage_all; use camelCase autoStageAll")
+	}
+	if !strings.Contains(content, "stagecoach.autoStageAll") {
+		t.Errorf("template missing camelCase git key stagecoach.autoStageAll")
+	}
 }
 
 func TestConfigInit_Template_GenerationKeys(t *testing.T) {

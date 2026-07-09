@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Configuration-Precedence & Diagnostics Bugfix",
-      "status": "Planned",
+      "status": "Complete",
       "description": "Fix the six issues found during end-to-end PRD validation. The changeset is concentrated in two areas: (1) the config-precedence layer for default-true boolean fields (auto_stage_all, multi_turn_fallback) which cannot be persistently disabled through any correctly-documented method (Major Issues 1-3), and (2) minor diagnostics gaps in the verbose/payload/model-shadowing surfaces (Minor Issues 4-6). All six PRD claims have been validated against the codebase with exact line numbers — see plan/013_b8a415cc6e79/bugfix/001_6cae455fc933/architecture/. No changes to the atomic-commit core, freeze invariants, or rescue protocol are required.",
       "milestones": [
         {
@@ -108,7 +108,7 @@
           "type": "Milestone",
           "id": "P1.M2",
           "title": "Minor diagnostics fixes & changeset-level documentation sync (Issues 4-6)",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Three independent minor issues: (4) STAGECOACH_VERBOSE=2 is rejected with an opaque parse error instead of a clear message; (5) the --verbose payload-size line is a no-op for positional/flag-delivery providers; (6) --model is silently shadowed by per-role config with no hint. These are in different packages (config, provider, cmd) and have no interdependencies.",
           "tasks": [
             {
@@ -181,14 +181,14 @@
               "type": "Task",
               "id": "P1.M2.T7",
               "title": "Sync changeset-level documentation",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Final cross-cutting documentation sweep. The per-feature doc updates (Mode A) rode with each implementing subtask; this task (Mode B) covers README.md and any overview docs that span the whole changeset and only make sense once all fixes are in place. It ensures no stale references to the old 'cannot disable auto_stage_all' behavior, the old snake_case git-config key, or the old opaque VERBOSE=2 error survive in the overview docs.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T7.S1",
                   "title": "Sweep README.md and overview docs for stale config-precedence references",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",
