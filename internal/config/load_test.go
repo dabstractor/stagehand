@@ -729,6 +729,71 @@ func TestLoad_EnvBoolFalseEscape(t *testing.T) {
 	}
 }
 
+// TestLoad_AutoStageAll_EnvOverridesFile proves the env layer (5) beats the file layer (2) for the
+// default-true *bool AutoStageAll. Bidirectional control: false-over-true AND true-over-false, so a
+// setup defect cannot produce a false-positive pass (PRD §15.2 layer 5 > layer 2).
+func TestLoad_AutoStageAll_EnvOverridesFile(t *testing.T) {
+	// env false beats file true (the headline Issue 3 escape)
+	_, repo, globalDir := loadEnvSetup(t)
+	chdir(t, repo)
+	writeConfigFile(t, globalDir, "config.toml", "[defaults]\nauto_stage_all = true\n")
+	t.Setenv("STAGECOACH_AUTO_STAGE_ALL", "false") // env DIRECT *false beats file true (layer 5 > 2)
+
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	if cfg.AutoStageAllValue() {
+		t.Errorf("AutoStageAll=true want false (env DIRECT set must override file's true)")
+	}
+
+	// true control (same setup, inverted): env true beats file false
+	_, repo2, globalDir2 := loadEnvSetup(t)
+	chdir(t, repo2)
+	writeConfigFile(t, globalDir2, "config.toml", "[defaults]\nauto_stage_all = false\n")
+	t.Setenv("STAGECOACH_AUTO_STAGE_ALL", "true") // env DIRECT *true beats file false (layer 5 > 2)
+
+	cfg2, err := Load(context.Background(), LoadOpts{RepoDir: repo2})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	if !cfg2.AutoStageAllValue() {
+		t.Errorf("AutoStageAll=false want true (env DIRECT set must override file's false)")
+	}
+}
+
+// TestLoad_MultiTurnFallback_EnvOverridesFile mirrors TestLoad_AutoStageAll_EnvOverridesFile for the
+// default-true *bool MultiTurnFallback (PRD §9.24 FR-T1c / §15.2 layer 5 > layer 2). Bidirectional.
+func TestLoad_MultiTurnFallback_EnvOverridesFile(t *testing.T) {
+	// env true beats file false
+	_, repo, globalDir := loadEnvSetup(t)
+	chdir(t, repo)
+	writeConfigFile(t, globalDir, "config.toml", "[generation]\nmulti_turn_fallback = false\n")
+	t.Setenv("STAGECOACH_MULTI_TURN_FALLBACK", "true") // env DIRECT *true beats file false (layer 5 > 2)
+
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	if !cfg.MultiTurnFallbackValue() {
+		t.Errorf("MultiTurnFallback=false want true (env DIRECT set must override file's false)")
+	}
+
+	// false control (same setup, inverted): env false beats file true
+	_, repo2, globalDir2 := loadEnvSetup(t)
+	chdir(t, repo2)
+	writeConfigFile(t, globalDir2, "config.toml", "[generation]\nmulti_turn_fallback = true\n")
+	t.Setenv("STAGECOACH_MULTI_TURN_FALLBACK", "false") // env DIRECT *false beats file true (layer 5 > 2)
+
+	cfg2, err := Load(context.Background(), LoadOpts{RepoDir: repo2})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	if cfg2.MultiTurnFallbackValue() {
+		t.Errorf("MultiTurnFallback=true want false (env DIRECT set must override file's true)")
+	}
+}
+
 func TestLoad_NoColorFromCLI(t *testing.T) {
 	_, repo, _ := loadEnvSetup(t)
 	chdir(t, repo)
@@ -1347,6 +1412,104 @@ func TestLoadEnv_Push(t *testing.T) {
 	}
 	if cfg2.Push {
 		t.Errorf("Push=true want false (STAGECOACH_PUSH=false DIRECT set escape)")
+	}
+}
+
+// TestLoadEnv_AutoStageAll mirrors TestLoadEnv_Push but reads the *bool via AutoStageAllValue()
+// (PRD §9.4 FR16 / §9.8 FR35 / §15.2 layer 5). boolPtr(b) makes a non-nil incl. *false the explicit
+// override a default-true field needs.
+func TestLoadEnv_AutoStageAll(t *testing.T) {
+	// true
+	cfg := Defaults()
+	t.Setenv("STAGECOACH_AUTO_STAGE_ALL", "true")
+	if err := loadEnv(&cfg); err != nil {
+		t.Fatalf("loadEnv err=%v", err)
+	}
+	if !cfg.AutoStageAllValue() {
+		t.Errorf("AutoStageAll=false want true (STAGECOACH_AUTO_STAGE_ALL=true)")
+	}
+
+	// DIRECT-set escape hatch: STAGECOACH_AUTO_STAGE_ALL=false ⇒ *false non-nil wins over the default-true seed
+	cfg2 := Defaults()
+	t.Setenv("STAGECOACH_AUTO_STAGE_ALL", "false")
+	if err := loadEnv(&cfg2); err != nil {
+		t.Fatalf("loadEnv escape err=%v", err)
+	}
+	if cfg2.AutoStageAllValue() {
+		t.Errorf("AutoStageAll=true want false (STAGECOACH_AUTO_STAGE_ALL=false DIRECT set escape)")
+	}
+}
+
+// TestLoadEnv_AutoStageAll_UnsetNoOp covers the unset case in its own function so t.Setenv scoping is
+// clean (within a single function, an earlier t.Setenv stays set until function end).
+func TestLoadEnv_AutoStageAll_UnsetNoOp(t *testing.T) {
+	cfg := Defaults()
+	if err := loadEnv(&cfg); err != nil {
+		t.Fatalf("loadEnv err=%v", err)
+	}
+	if !cfg.AutoStageAllValue() {
+		t.Errorf("AutoStageAll=false want true (no env set)")
+	}
+}
+
+// TestLoadEnv_MultiTurnFallback mirrors TestLoadEnv_AutoStageAll for MultiTurnFallback
+// (PRD §9.24 FR-T1c / §9.8 FR35 / §15.2 layer 5).
+func TestLoadEnv_MultiTurnFallback(t *testing.T) {
+	// true
+	cfg := Defaults()
+	t.Setenv("STAGECOACH_MULTI_TURN_FALLBACK", "true")
+	if err := loadEnv(&cfg); err != nil {
+		t.Fatalf("loadEnv err=%v", err)
+	}
+	if !cfg.MultiTurnFallbackValue() {
+		t.Errorf("MultiTurnFallback=false want true (STAGECOACH_MULTI_TURN_FALLBACK=true)")
+	}
+
+	// DIRECT-set escape hatch: =false ⇒ *false non-nil wins over the default-true seed
+	cfg2 := Defaults()
+	t.Setenv("STAGECOACH_MULTI_TURN_FALLBACK", "false")
+	if err := loadEnv(&cfg2); err != nil {
+		t.Fatalf("loadEnv escape err=%v", err)
+	}
+	if cfg2.MultiTurnFallbackValue() {
+		t.Errorf("MultiTurnFallback=true want false (STAGECOACH_MULTI_TURN_FALLBACK=false DIRECT set escape)")
+	}
+}
+
+// TestLoadEnv_MultiTurnFallback_UnsetNoOp covers the unset case in its own function (see AutoStageAll).
+func TestLoadEnv_MultiTurnFallback_UnsetNoOp(t *testing.T) {
+	cfg := Defaults()
+	if err := loadEnv(&cfg); err != nil {
+		t.Fatalf("loadEnv err=%v", err)
+	}
+	if !cfg.MultiTurnFallbackValue() {
+		t.Errorf("MultiTurnFallback=false want true (no env set)")
+	}
+}
+
+func TestLoadEnv_AutoStageAll_BadBoolErrors(t *testing.T) {
+	cfg := Defaults()
+	t.Setenv("STAGECOACH_AUTO_STAGE_ALL", "bogus")
+
+	err := loadEnv(&cfg)
+	if err == nil {
+		t.Fatal("loadEnv err=nil, want error for bad bool")
+	}
+	if !strings.Contains(err.Error(), "STAGECOACH_AUTO_STAGE_ALL") {
+		t.Errorf("err=%v, want it to contain 'STAGECOACH_AUTO_STAGE_ALL'", err)
+	}
+}
+
+func TestLoadEnv_MultiTurnFallback_BadBoolErrors(t *testing.T) {
+	cfg := Defaults()
+	t.Setenv("STAGECOACH_MULTI_TURN_FALLBACK", "bogus")
+
+	err := loadEnv(&cfg)
+	if err == nil {
+		t.Fatal("loadEnv err=nil, want error for bad bool")
+	}
+	if !strings.Contains(err.Error(), "STAGECOACH_MULTI_TURN_FALLBACK") {
+		t.Errorf("err=%v, want it to contain 'STAGECOACH_MULTI_TURN_FALLBACK'", err)
 	}
 }
 

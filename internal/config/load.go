@@ -315,6 +315,28 @@ func loadEnv(cfg *Config) error {
 		cfg.NoVerify = b // DIRECT set — can be false (escape hatch, mirrors STAGECOACH_PUSH)
 	}
 
+	// §9.4 FR16 / §9.8 FR35 / §15.2 layer 5 — auto_stage_all via env (presence-semantic, DIRECT *bool
+	// set; mirrors STAGECOACH_PUSH). boolPtr(b) makes a non-nil incl. *false the explicit override a
+	// default-true field needs (env DIRECT-set beats default/file/git layers 1-4).
+	if v, ok := os.LookupEnv("STAGECOACH_AUTO_STAGE_ALL"); ok && v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("STAGECOACH_AUTO_STAGE_ALL: %w", err)
+		}
+		cfg.AutoStageAll = boolPtr(b) // DIRECT *bool set — non-nil so false overrides the default-true lower layers
+	}
+
+	// §9.24 FR-T1c / §9.8 FR35 / §15.2 layer 5 — multi_turn_fallback via env (presence-semantic, DIRECT
+	// *bool set; mirrors STAGECOACH_PUSH). boolPtr(b) makes a non-nil incl. *false the explicit override
+	// a default-true field needs (env DIRECT-set beats default/file/git layers 1-4).
+	if v, ok := os.LookupEnv("STAGECOACH_MULTI_TURN_FALLBACK"); ok && v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("STAGECOACH_MULTI_TURN_FALLBACK: %w", err)
+		}
+		cfg.MultiTurnFallback = boolPtr(b) // DIRECT *bool set — non-nil so false overrides the default-true lower layers
+	}
+
 	// §9.26 FR-W1 — work-description text via env (presence-semantic, mirrors STAGECOACH_PROVIDER).
 	// --work-description-file (when set) wins over this in loadFlags; env sets the base value here.
 	if v, ok := os.LookupEnv("STAGECOACH_WORK_DESCRIPTION"); ok && v != "" {

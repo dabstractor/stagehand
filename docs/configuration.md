@@ -197,6 +197,8 @@ All `STAGECOACH_*` variables override the config file and are overridden by CLI 
 | `STAGECOACH_LOCALE` | `--locale` | Message language (free-form; never validated) | `STAGECOACH_LOCALE=ja stagecoach` |
 | `STAGECOACH_TEMPLATE` | `--template` | Message template; `$msg` = generated message; must contain `$msg` (hard error) | `STAGECOACH_TEMPLATE='$msg (#205)' stagecoach` |
 | `STAGECOACH_PUSH` | `--push` | Run `git push` after a fully-successful run (true = push; false = disable); on failure commits stand, exit 1 | `STAGECOACH_PUSH=1 stagecoach` |
+| `STAGECOACH_AUTO_STAGE_ALL` | `--no-auto-stage` (inverse) | Auto-stage all when nothing staged (true = enable, false = disable) | `STAGECOACH_AUTO_STAGE_ALL=false stagecoach` |
+| `STAGECOACH_MULTI_TURN_FALLBACK` | (no flag) | Enable lossless multi-turn fallback on large diffs (true = enable, false = disable) | `STAGECOACH_MULTI_TURN_FALLBACK=false stagecoach` |
 
 ## Git-config keys
 
