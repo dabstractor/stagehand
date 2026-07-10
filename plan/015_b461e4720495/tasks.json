@@ -322,7 +322,7 @@
       "type": "Phase",
       "id": "P2",
       "title": "Decomposition Freeze Hardening (FR-M1e + amended FR-M1c, §9.14)",
-      "status": "Researching",
+      "status": "Complete",
       "description": "FR-M1e (new): the Decompose() entrypoint re-asserts FR-M1's empty-index precondition and refuses with a clear, actionable error if the index is non-empty (defense-in-depth — the trigger is the primary guard, but a stale/buggy trigger now fails loudly with a remedy instead of the opaque 'freeze violation: … not traceable to T_start'). FR-M1c (amended): the hard error now names the offending paths AND provides a remedy — the current error already names paths but uses opaque phrasing, identifies concepts by numeric index instead of title, and provides no remedy.",
       "milestones": [
         {
@@ -410,7 +410,7 @@
           "type": "Milestone",
           "id": "P2.M2",
           "title": "Tests & Documentation for freeze hardening",
-          "status": "Researching",
+          "status": "Complete",
           "description": "E2e tests for FR-M1e (non-empty index → clear error) and FR-M1c (improved error messages), plus changeset-level docs sync.",
           "tasks": [
             {
@@ -444,14 +444,14 @@
               "type": "Task",
               "id": "P2.M2.T2",
               "title": "Sync changeset-level documentation for freeze hardening",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Mode B changeset-level docs: update README.md and docs/how-it-works.md to document the FR-M1e defense-in-depth re-check and improved error messages as a coherent reliability improvement.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P2.M2.T2.S1",
                   "title": "Update README + docs overview for freeze hardening (FR-M1e + FR-M1c)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P2.M2.T1.S1"
