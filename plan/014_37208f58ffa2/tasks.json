@@ -104,7 +104,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T2.S1",
                   "title": "Watchdog package — prctl fast path (Linux) + getppid polling (Unix), Windows no-op",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T2.S1"
