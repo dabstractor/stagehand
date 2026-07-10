@@ -291,6 +291,7 @@ stagecoach --help          # every flag, subcommand, and option
 stagecoach config init     # bootstraps a populated working config (auto-detects your agent)
 stagecoach config upgrade  # upgrades an existing config to the current schema version
 stagecoach config path     # shows where the global config lives
+stagecoach lock status     # inspect the per-repo run lock holder (path, pid, liveness, orphan status)
 ```
 
 See the [docs/](docs/) for the full reference (growing).
@@ -337,6 +338,8 @@ For field reference, copy from the [shipped `providers/*.toml` files](providers/
 No. Stagecoach uses `git write-tree` + `git commit-tree` + `git update-ref` (atomic snapshot commits). A failed generation leaves the repo byte-for-byte unchanged — it never touches the live index during generation.
 
 **Safe to run twice.** A per-repo run lock prevents two concurrent commit-producing runs from racing on HEAD. On the **single-commit path** (changes staged), an accidental double-invoke exits `0` if nothing new has been staged since the in-progress run began (*nothing to do — an in-progress run already covers your staged changes*), or exits `5` (Busy) if genuinely new work is staged (your changes stay staged to re-run). On the **decompose path** (nothing staged, dirty working tree), an accidental double-run exits `5` (Busy) rather than `0` — the in-progress run publishes a working-tree snapshot a contender can't reproduce without the lock, so it conservatively refuses and leaves your working tree untouched. (On a shared filesystem across hosts the lock can't help — the atomic `update-ref` CAS is the never-clobber-HEAD guarantee there.)
+
+If the launcher closed without killing stagecoach — you closed the lazygit TUI, quit your IDE, or detached the terminal mid-run — the orphaned run **self-exits** via a parent-death watchdog (FR-K1) and releases the lock, so it never strands. `stagecoach lock status` (FR-K4) shows the holder's path and liveness so you can decide whether to `kill`/`rm` yourself; it never force-breaks a live lock.
 
 ### Does it send my code anywhere new?
 

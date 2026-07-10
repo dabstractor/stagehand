@@ -370,6 +370,29 @@ stagecoach models --help          # see the models-scoped --all text
 |------|-------------|
 | `--all`, `-a` | List models for every detected provider (default: the resolved default provider) |
 
+### `lock status`
+
+Read-only diagnostic for this repo's run lock (§9.27, FR-K4). Prints the lock path, the holder's pid/hostname/repo/timestamp/snapshot, whether the holder process is alive, and — on Unix — whether it appears orphaned (reparented). With no lock held, prints `no run lock for <repo>` and exits 0. It acquires no `flock` and never breaks/removes a lock (FR52 preserved); you decide whether to `kill <pid>` or `rm <path>`. Works outside a git repo.
+
+```text
+Lock: /home/you/.cache/stagecoach/locks/<hash>.lock
+  pid:       12345
+  hostname:  laptop
+  repo:      /home/you/proj
+  timestamp: 2026-07-10T00:00:00Z
+  snapshot:  <tree-sha>          # only shown once the snapshot is armed
+  alive:     true
+  orphaned:  true (holder reparented — launcher has exited)
+```
+
+The `orphaned:` line has three outcomes: `true (holder reparented — launcher has exited)` (Unix; the holder's parent pid changed — its launcher closed without killing it), `false` (alive and not reparented — Windows always lands here), or `unknown (holder is dead)` (the holder process is no longer alive). With no lock held, the output is `no run lock for <repo>` (exit 0). Exit is **0 in all cases** — even when the holder is dead or orphaned — the read is the help; the action (kill/rm) is yours.
+
+```bash
+stagecoach lock status          # → "no run lock for <cwd>" (exit 0) when nothing holds it
+stagecoach lock status          # → the block above when a holder exists
+stagecoach lock --help          # the `lock` command group (bare `lock` prints help)
+```
+
 ## Exit codes
 
 | Code | Meaning |
@@ -384,6 +407,8 @@ stagecoach models --help          # see the models-scoped --all text
 Exit codes mirror the constants in `internal/exitcode/exitcode.go`. A timeout is reported as `124` (matching GNU `timeout`), not `3`. With `--dry-run`, generation failures (timeout or parse/duplicate-check exhaustion) report exit **1** with a short stderr message (not 3/124 + the recovery recipe) — codes 3 and 124 remain the non-dry-run (commit-path) semantics.
 
 Code `5` (Busy) is distinct from the commit-failure codes so scripts can tell "busy, retry" from "failed." Contention on the per-repo run lock (FR52) has two behaviors. On the single-commit path (changes staged): if a contending run's staged changes are already covered by the in-progress run's published index snapshot, it exits **0** ("nothing to do — an in-progress run already covers your staged changes"); if genuinely new work is staged, it exits **5** with the holder's pid/host and leaves the new changes staged for a re-run. On the decompose path (nothing staged, working tree dirty): an accidental double-run exits **5** (Busy) rather than 0 — the holder publishes a working-tree snapshot (`T_start`) that a lock-free contender cannot reproduce from the index alone, so it conservatively refuses. Stagecoach never force-breaks the lock.
+
+`SIGHUP` (Unix) and the parent-death watchdog route through the **rescue path** (exit `3` when a snapshot is armed) rather than introducing signal-specific exit codes — see [how-it-works.md — Per-repo run lock](how-it-works.md#per-repo-run-lock-fr52).
 
 ## Flag ↔ env ↔ git-config map
 
@@ -421,6 +446,7 @@ Config-backed flags can also be set via environment variables or git-config keys
 | `--message-model` | `STAGECOACH_MESSAGE_MODEL` | — |
 | `--message-reasoning` | `STAGECOACH_MESSAGE_REASONING` | — |
 | `--arbiter-reasoning` | `STAGECOACH_ARBITER_REASONING` | — |
+| — (no flag) | `STAGECOACH_NO_PARENT_WATCHDOG` | `stagecoach.noParentWatchdog` (also `[generation].no_parent_watchdog` in config) |
 
 ## Examples
 

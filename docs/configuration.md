@@ -116,6 +116,7 @@ model = "sonnet"
 # template              = ""       # wrap every message; must contain literal $msg, e.g. "$msg (#205)"
 # hook_timeout          = "10m"    # per-hook execution timeout (§9.25 FR-V6); file + default only
 # no_verify             = false    # skip pre-commit and commit-msg hooks (§9.25 FR-V5; mirrors `git commit --no-verify`); CANNOT disable-via-file is N/A (default is already false)
+# no_parent_watchdog    = false    # opt out of the parent-death lock watchdog — set true if you launch via nohup/setsid/systemd-run (§9.27 FR-K6)
 # ...
 ```
 
@@ -149,20 +150,26 @@ These are the values when no config file, env var, git-config key, or flag sets 
 | `push` | `false` | `config.Defaults()` (§9.22 FR-P1) |
 | `hook_timeout` | `10m` | `config.Defaults()` (§9.25 FR-V6 — per-hook execution timeout; file + default only) |
 | `no_verify` | `false` | `config.Defaults()` (§9.25 FR-V5 — skip pre-commit/commit-msg hooks; mirrors `git commit --no-verify`) |
+| `no_parent_watchdog` | `false` | `config.Defaults()` (§9.27 FR-K6 — parent-death watchdog runs by default) |
 
 `NoColor` is TTY-aware at runtime (set by the UI layer); it is not a file field and has no config-file key.
 
 > **Hook execution knobs.** Two `[generation]` knobs control the §9.25 hook-execution surface (pre-commit / prepare-commit-msg / commit-msg / post-commit):
+>
 > - **`hook_timeout`** (default `10m`) — bounds each hook invocation so a wedged hook cannot hang a commit (§9.25 FR-V6). A duration string (e.g. `"30s"`, `"10m"`); malformed values fail at config load. **File + default only** (no env var, no flag, no git-config key) — set it in a config file.
 > - **`no_verify`** (default `false`) — the `--no-verify` bypass (§9.25 FR-V5): when true, skips `pre-commit` and `commit-msg` hooks (`prepare-commit-msg` and `post-commit` still run). It resolves through the full 5-layer precedence (`--no-verify` / `STAGECOACH_NO_VERIFY` / `stagecoach.noVerify` / `[generation].no_verify`). The `[generation].no_verify` file key uses the same only-true-propagates limitation as `push`: a file setting `no_verify = false` is a no-op (false is already the default); use the flag/env layers to set it false explicitly. (Note: `auto_stage_all` and `multi_turn_fallback` are `*bool` and do NOT have this limitation — they are default-`true`, so a file/git-config `false` is honored; `no_verify`/`push` are default-`false`, so only-true-propagates is harmless for them.)
 
 The `output` and `strip_code_fence` settings apply to **parsing** of agent output. Setting `output = "json"` makes Stagecoach parse the agent's stdout as JSON (extracting the `json_field` value) across all providers. These `[generation]` values are an **opt-in override**: when `[generation]` (and git-config) omit them, the per-provider `[provider.<name>]` value is honored, falling back to the §12.1 manifest defaults (`output = "raw"`, `strip_code_fence = true`). Set `output = "json"` here only to force JSON parsing across ALL providers.
 
 > **Token budget & diff context.** Two `[generation]` knobs size and shape the diff payload:
+>
 > - **`token_limit`** (default `0` = unset) — a holistic token budget over the **whole** agent payload (system prompt + style examples + the concatenated diff). When set (e.g. `120000`), Stagecoach reserves room for the prompt/examples and truncates the diff to fit using the ≈4 chars/token estimate; after truncation it assembles the actual full prompt, re-measures it, and re-trims until it fits — a closed-loop guarantee (§9.1 FR3j) that the payload never exceeds `token_limit`. The payload always fits your model's context window **without Stagecoach maintaining a per-model context registry** (§9.1 FR3d). A non-zero `token_limit` **supersedes** the legacy per-section caps `max_diff_bytes` and `max_md_lines` for that run; the two modes are mutually exclusive. When `0`/unset, the legacy caps apply unchanged.
 > - **`diff_context`** (default `1`) — unchanged context lines surrounding each diff hunk: `0` = changed lines only (maximal savings), `1` = one anchor line (default), `3` = git's default (§9.1 FR3f). Applies in every diff path (staged, multi-commit snapshot, per-concept tree diff). Valid range is 0–3; an out-of-range value is rejected at config load with a clear error (§9.1 FR3f).
 
+Where `token_limit` *truncates* a too-large payload, the multi-turn fallback instead delivers it in request-sized pieces — the two never compose for a single message (§9.24 FR-T12).
+
 > **Multi-turn fallback.** Two `[generation]` knobs control the lossless multi-turn fallback path (§9.24), which activates only after the one-shot retry loop exhausts on a large diff:
+>
 > - **`multi_turn_fallback`** (default `true`) — enables the fallback. This is a `*bool` field (precedence-aware), so you **can disable it by setting `multi_turn_fallback = false` in a config file** — the `false` is honored end-to-end (a `false` survives the materialize→overlay chain instead of being silently dropped). Settable via a config file (`multi_turn_fallback = false`) or the `STAGECOACH_MULTI_TURN_FALLBACK=false` env var; there is no CLI flag or git-config key for it, so to disable multi-turn persistently use the config file or env var (or set `session_mode = ""` on the provider — see [providers.md](providers.md#the-schema)). The shipped pi default is `"append"`.
 > - **`multi_turn_chunk_tokens`** (default `32000`) — the per-request chunk size (tokens est.) the large diff is split into for multi-turn priming. **This does NOT interact with `token_limit`** (§9.24 FR-T12): `token_limit` truncates the one-shot payload, while multi-turn deliberately uses the **untruncated** payload, delivered in request-sized pieces — the two never compose for a single message.
 
@@ -199,6 +206,7 @@ All `STAGECOACH_*` variables override the config file and are overridden by CLI 
 | `STAGECOACH_PUSH` | `--push` | Run `git push` after a fully-successful run (true = push; false = disable); on failure commits stand, exit 1 | `STAGECOACH_PUSH=1 stagecoach` |
 | `STAGECOACH_AUTO_STAGE_ALL` | `--no-auto-stage` (inverse) | Auto-stage all when nothing staged (true = enable, false = disable) | `STAGECOACH_AUTO_STAGE_ALL=false stagecoach` |
 | `STAGECOACH_MULTI_TURN_FALLBACK` | (no flag) | Enable lossless multi-turn fallback on large diffs (true = enable, false = disable) | `STAGECOACH_MULTI_TURN_FALLBACK=false stagecoach` |
+| `STAGECOACH_NO_PARENT_WATCHDOG` | (no flag) | Opt out of the parent-death lock watchdog (§9.27 FR-K6). Presence-semantic with a DIRECT set: `=1`/`true` disables it; `=false` is an explicit escape hatch. `SIGHUP` handling and `lock status` are unaffected (always on). | `STAGECOACH_NO_PARENT_WATCHDOG=1 stagecoach` |
 
 ## Git-config keys
 
@@ -226,6 +234,7 @@ These keys live in `.git/config` (set with `git config --local` or `git config -
 | `stagecoach.locale` | string | `git config --get stagecoach.locale` | Message language (free-form name or BCP-47 tag; never validated). |
 | `stagecoach.template` | string | `git config --get stagecoach.template` | Message template; the literal `$msg` is replaced with the generated message. Must contain `$msg` (hard error, exit 1). |
 | `stagecoach.push` | bool | `git config --get --bool stagecoach.push` | Run `git push` after a fully-successful run (§9.22 FR-P1). On failure the commits stand — git's stderr is shown verbatim, "commits created; push failed" prints, exit 1. |
+| `stagecoach.noParentWatchdog` | bool | `git config --get --bool stagecoach.noParentWatchdog` | Opt out of the parent-death lock watchdog (§9.27 FR-K6). Default false (the watchdog runs by default); set true for intentional-detach workflows (`nohup`/`setsid`/`systemd-run`). |
 
 > [!NOTE]
 > The git-config layer has **no** per-role keys (`stagecoach.role.*`), no `stagecoach.commits`, and no `stagecoach.max_commits`. Per-role configuration is available via CLI flags (`--planner-provider`, etc.), env vars (`STAGECOACH_PLANNER_*`), and config-file `[role.*]` blocks only. Decompose settings (`--commits`, `--single`, `--no-decompose`) are flag/env only; `--max-commits` also reads from the `[generation]` config-file section. There is also no `stagecoach.exclude` git-config key and no `STAGECOACH_EXCLUDE` env var (deliberate — see [Exclusion globs](#exclusion-globs-generationexclude) below); exclusions are config-file + `--exclude`/`-x` only.
@@ -276,11 +285,13 @@ The per-repo run lock (FR52) is stored outside the repository to avoid polluting
 
 Where `<hash>` is the sha256 hex digest of the repo's canonical absolute path (resolved via `filepath.EvalSymlinks` to handle symlinked paths). Relative XDG values are ignored (only absolute paths are honored). If no resolution path exists, stagecoach exits with an error — it never falls back to the current working directory or the repo itself.
 
+To inspect the current repo's lock holder (path, pid/host, liveness, orphan status), run `stagecoach lock status` (FR-K4); see [CLI reference — lock status](cli.md#lock-status).
+
 **Exclusions are payload-only:** excluded files are hidden from what the agent sees but are still captured and committed normally.
 
 Example:
 
-```
+```gitignore
 # .stagecoachignore
 *.min.js          # any-depth
 /dist/            # root dist/ dir contents only

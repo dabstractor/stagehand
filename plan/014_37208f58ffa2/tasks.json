@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Orphaned-Run Lock Reclamation (FR-K1–K7, §9.27)",
-      "status": "Planned",
+      "status": "Complete",
       "description": "The v2.7 headline feature: when stagecoach's launcher closes without killing it (the lazygit/IDE case), a parent-death watchdog self-exits the run through the rescue + lock-release path so a reparented, still-running holder cannot hold the per-repo run lock forever. Adds SIGHUP to caught signals, a read-only lock status diagnostic, and a no_parent_watchdog opt-out. All other PRD features (v1–v2.6) are already implemented.",
       "milestones": [
         {
@@ -220,21 +220,21 @@
           "type": "Milestone",
           "id": "P1.M4",
           "title": "E2E Tests + Documentation Sync",
-          "status": "Planned",
+          "status": "Complete",
           "description": "Add e2e scenario tests for the orphaned-run lock reclamation (§20.5) and sync changeset-level documentation (README.md, docs/).",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M4.T1",
               "title": "E2E scenario tests for orphaned-run lock reclamation (§20.5)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Per §20.5: launch stagecoach from a short-lived parent that exits mid-generation and assert the holder self-exits via the parent-death watchdog, the lock file is removed, and HEAD+index are unchanged. Drive SIGHUP. Assert lock status reports correctly. Assert the opt-out suppresses the watchdog.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T1.S1",
                   "title": "Orphaned-run lock reclamation e2e scenarios",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T1.S1",
@@ -256,14 +256,14 @@
               "type": "Task",
               "id": "P1.M4.T2",
               "title": "Sync changeset-level documentation",
-              "status": "Planned",
+              "status": "Complete",
               "description": "Update README.md, docs/, and any overview documentation to surface the new lock status subcommand, the SIGHUP/watchdog behavior, and the no_parent_watchdog opt-out. This is the Mode B catch-all for cross-cutting doc changes.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T2.S1",
                   "title": "Update README.md, docs/ for orphaned-run lock reclamation",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",
