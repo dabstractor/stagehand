@@ -308,6 +308,40 @@ func lockPath(repoPath string) (string, error) {
 	return filepath.Join(dir, hash+".lock"), nil
 }
 
+// Status returns the parsed lock-file state for repoPath: the lock file path, the
+// holder's parsed contents, whether the holder process is alive (processAlive),
+// and — on Unix — whether it APPEARS orphaned (its parent is init/a subreaper,
+// i.e. reparented — appearsOrphaned). READ-ONLY: it never acquires the flock and
+// never breaks/removes a lock (FR52 preserved; PRD §9.27 FR-K4: "It changes
+// nothing"). path=="" (with a nil error) means no lock is held for this repo.
+//
+// Consumed by `stagecoach lock status` (FR-K4) and the Busy-message orphan hint
+// (FR-K5). It reuses the SAME lockPath + file format + processAlive that
+// Acquire/HeldError use, so the read path and write path can never disagree.
+func Status(repoPath string) (path string, contents LockContents, alive bool, orphan bool, err error) {
+	path, err = lockPath(repoPath)
+	if err != nil {
+		return "", LockContents{}, false, false, fmt.Errorf("lock path: %w", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", LockContents{}, false, false, nil // no lock held (FR-K4 "no run lock")
+		}
+		return "", LockContents{}, false, false, fmt.Errorf("read lock file: %w", err)
+	}
+	contents = parseContents(data) // never errors; empty fields for malformed lines
+	pid, perr := strconv.Atoi(contents.Pid)
+	if perr != nil {
+		return path, contents, false, false, nil // path+contents are diagnostic; can't assess liveness
+	}
+	alive = processAlive(pid, contents.Hostname)
+	if alive {
+		orphan = appearsOrphaned(pid) // a dead pid's orphan status is irrelevant
+	}
+	return path, contents, alive, orphan, nil
+}
+
 // IsHeldError reports whether err is a *HeldError.
 func IsHeldError(err error) bool {
 	var he *HeldError

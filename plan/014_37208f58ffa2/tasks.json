@@ -147,14 +147,14 @@
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Lock status read API + orphan detection (FR-K4)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Export a read-only Status() function from the lock package that returns the parsed lock-file state plus liveness and orphan detection. The orphan check reads the holder pid's parent (via /proc on Linux, ps on Darwin) and reports whether it appears reparented (parent is init/subreaper).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T1.S1",
                   "title": "Export Status() read path + orphan detection helper (Unix + Windows)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/014_37208f58ffa2/architecture/lock_extension.md. The lock package has unexported helpers: lockPath() (lock.go:302), parseContents() (lock.go:259), processAlive() (lock_unix.go:23). LockContents and HeldError are already exported. The orphan check is NEW platform code: read ANOTHER pid's parent (not our own getppid). Linux: /proc/<pid>/status PPid field. Darwin: `ps -o ppid= -p <pid>`. Windows: always false (FR-K7). The lock package must stay stdlib-only (os, os/exec, bufio, strconv are all stdlib).\n2. INPUT: The existing lockPath(repoPath) function (returns the lock file path), parseContents(data) (returns LockContents), and processAlive(pid, hostname) (returns bool). The LockContents struct (Pid, Hostname, Repo, Timestamp, Snapshot string).\n3. LOGIC: (a) Add `func Status(repoPath string) (path string, contents LockContents, alive bool, orphan bool, err error)` to internal/lock/lock.go. Implementation: call lockPath(repoPath) to get the path; os.ReadFile(path) — if file doesn't exist, return (\"\", LockContents{}, false, false, nil) meaning no lock; parseContents(data) to get contents; strconv.Atoi(contents.Pid) for the pid; processAlive(pid, contents.Hostname) for alive; if alive, appearsOrphaned(pid) for orphan. (b) Create internal/lock/orphan_unix.go (`//go:build !windows`): `func appearsOrphaned(pid int) bool` — on Linux read `/proc/<pid>/status`, parse `PPid:` line, return ppid==1; on Darwin (runtime.GOOS==\"darwin\"), shell out to `ps -o ppid= -p <pid>`, parse int, return ppid==1. On failure (file not found, ps error), return false (conservative — don't claim orphan on ambiguity). (c) Create internal/lock/orphan_windows.go (`//go:build windows`): `func appearsOrphaned(pid int) bool { return false }`. Mock nothing — test with temp lock files and known pids.\n4. OUTPUT: `lock.Status(repoPath)` — a read-only diagnostic that returns the full lock state. path==\"\" means no lock held. Never acquires the flock, never breaks/removes a lock (FR52 preserved). Consumed by P1.M3.T2.S1 (lock status subcommand) and P1.M3.T3.S1 (Busy message orphan hint).\n5. DOCS: [Mode A] Godoc on Status() explaining it is read-only and never breaks a lock. Godoc on appearsOrphaned explaining the heuristic (ppid==1 ≈ reparented) and its limitations (subreapers may have ppid≠1).",
@@ -169,14 +169,14 @@
               "type": "Task",
               "id": "P1.M3.T2",
               "title": "stagecoach lock status subcommand (FR-K4)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add a new `lock` command group with a `status` leaf that prints the lock holder's path, pid/hostname/repo/timestamp/snapshot, liveness, and orphan status. Read-only — never auto-breaks.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T2.S1",
                   "title": "Implement lock status cobra subcommand",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T1.S1"
