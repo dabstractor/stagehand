@@ -63,6 +63,18 @@ func (c *Config) setRoleReasoning(role, reasoning string) {
 	c.Roles[role] = rc
 }
 
+// setRoleTimeout sets the Timeout field for a role in cfg.Roles, lazily allocating the map.
+// Map-value-copy write-back is REQUIRED (same idiom as setRoleReasoning).
+// Setting Timeout does NOT clobber existing Provider/Model/Reasoning — FR-R3 field-merge.
+func (c *Config) setRoleTimeout(role string, d time.Duration) {
+	if c.Roles == nil {
+		c.Roles = make(map[string]RoleConfig)
+	}
+	rc := c.Roles[role]
+	rc.Timeout = d
+	c.Roles[role] = rc
+}
+
 // Load resolves the full Stagecoach configuration by applying PRD §16.1 layers in precedence order
 // (lowest → highest): (1) built-in Defaults(); (2) global TOML; (3) repo-local TOML; (4) repo git
 // config; (5) STAGECOACH_* env vars; (7) CLI flags (only explicitly-set ones). Higher wins. Returns one
@@ -92,7 +104,7 @@ func Load(ctx context.Context, opts LoadOpts) (*Config, error) {
 	// read/parse error is wrapped. A MISSING file is "layer absent" (no error) for discovery, but a
 	// HARD ERROR when the path was explicit (a typo'd --config must not silently fall back to
 	// auto-detection and invoke an unintended agent). loadTOML's (nil,nil) contract is preserved.
-	var fileLoaded bool // true when ANY config file (global or repo-local) was loaded — used by the advisory
+	var fileLoaded bool  // true when ANY config file (global or repo-local) was loaded — used by the advisory
 	globalInert := false // true when the GLOBAL file is inert (zero active settings) — FR-B9 notice suppression
 	if g, err := loadTOML(globalPath); err != nil {
 		return nil, fmt.Errorf("global config: %w", err)
@@ -300,6 +312,16 @@ func loadEnv(cfg *Config) error {
 		}
 		if v, ok := os.LookupEnv(prefix + "_REASONING"); ok && v != "" {
 			cfg.setRoleReasoning(role, v)
+		}
+		// FR-R7 / §9.15 / §9.8 FR35 — per-role generation timeout via env (presence-semantic, DIRECT-set
+		// via setRoleTimeout — bypasses overlay; mirrors the global STAGECOACH_TIMEOUT case). parseTimeout
+		// accepts "480s" and bare "480" (cross-layer consistency with --timeout / stagecoach.timeout).
+		if v, ok := os.LookupEnv(prefix + "_TIMEOUT"); ok && v != "" {
+			d, err := parseTimeout(v)
+			if err != nil {
+				return fmt.Errorf("%s_TIMEOUT: %w", prefix, err)
+			}
+			cfg.setRoleTimeout(role, d)
 		}
 	}
 

@@ -320,6 +320,30 @@ func TestSetRole_LazyAllocAndFieldMerge(t *testing.T) {
 	}
 }
 
+func TestSetRole_Timeout_LazyAllocAndFieldMerge(t *testing.T) {
+	// setRoleTimeout lazily allocs + sets Timeout on a nil-Roles Config (mirrors the other setters).
+	cfg := Config{} // Roles == nil
+	cfg.setRoleTimeout("planner", 480*time.Second)
+	if cfg.Roles == nil || cfg.Roles["planner"].Timeout != 480*time.Second {
+		t.Fatalf("setRoleTimeout did not lazily alloc + set: %+v", cfg.Roles)
+	}
+	// field-merge: setRoleProvider after setRoleTimeout must NOT erase Timeout (FR-R3).
+	cfg.setRoleProvider("planner", "agy")
+	rc := cfg.Roles["planner"]
+	if rc.Timeout != 480*time.Second || rc.Provider != "agy" {
+		t.Errorf("Roles[planner]=%+v want Timeout=480s Provider=agy (field-merge)", rc)
+	}
+
+	// And the reverse order on a fresh cfg: Provider first, then Timeout → both survive.
+	cfg2 := Config{}
+	cfg2.setRoleProvider("stager", "agy")
+	cfg2.setRoleTimeout("stager", 300*time.Second)
+	rc2 := cfg2.Roles["stager"]
+	if rc2.Provider != "agy" || rc2.Timeout != 300*time.Second {
+		t.Errorf("Roles[stager]=%+v want Provider=agy Timeout=300s (field-merge, reverse order)", rc2)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // loadEnv — per-role + decompose tests
 // ---------------------------------------------------------------------------
@@ -337,6 +361,40 @@ func TestLoadEnv_PerRole(t *testing.T) {
 	}
 	if rc := cfg.Roles["stager"]; rc.Provider != "" || rc.Model != "codex-2.5-flash" {
 		t.Errorf("Roles[stager]=%+v want {\"\" codex-2.5-flash} (partial — field-level)", rc)
+	}
+}
+
+func TestLoadEnv_PerRoleTimeout(t *testing.T) {
+	cfg := Defaults()
+	t.Setenv("STAGECOACH_PLANNER_TIMEOUT", "480s") // duration form
+	t.Setenv("STAGECOACH_STAGER_TIMEOUT", "300")   // bare-int form (proves parseTimeout, not time.ParseDuration)
+	t.Setenv("STAGECOACH_PLANNER_PROVIDER", "agy") // field-merge: same role, different field
+	if err := loadEnv(&cfg); err != nil {
+		t.Fatalf("loadEnv err=%v", err)
+	}
+	// planner: duration form + field-merge with _PROVIDER (FR-R3).
+	if rc := cfg.Roles["planner"]; rc.Timeout != 480*time.Second || rc.Provider != "agy" {
+		t.Errorf("Roles[planner]=%+v want Timeout=480s Provider=agy", rc)
+	}
+	// stager: bare-int form proves parseTimeout was used (time.ParseDuration rejects "300").
+	if rc := cfg.Roles["stager"]; rc.Timeout != 300*time.Second {
+		t.Errorf("Roles[stager].Timeout=%v want 300s (bare int via parseTimeout)", rc.Timeout)
+	}
+	// unset role: no _TIMEOUT → absent or Timeout==0 (no spurious population).
+	if rc, ok := cfg.Roles["message"]; ok && rc.Timeout != 0 {
+		t.Errorf("Roles[message].Timeout=%v want 0/absent (no env set)", rc.Timeout)
+	}
+}
+
+func TestLoadEnv_PerRoleTimeout_BadValueErrors(t *testing.T) {
+	cfg := Defaults()
+	t.Setenv("STAGECOACH_PLANNER_TIMEOUT", "not-a-dur")
+	err := loadEnv(&cfg)
+	if err == nil {
+		t.Fatal("loadEnv err=nil, want error for bad per-role timeout")
+	}
+	if !strings.Contains(err.Error(), "STAGECOACH_PLANNER_TIMEOUT") {
+		t.Errorf("err=%v, want it to contain 'STAGECOACH_PLANNER_TIMEOUT'", err)
 	}
 }
 
