@@ -140,7 +140,7 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Lock Diagnostics — lock status + Busy Message (FR-K4/K5)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Add a read-only `stagecoach lock status` subcommand (FR-K4) and reformat the Busy contention message with the lock path on its own line and an orphan hint (FR-K5). Both consume a shared orphan-detection helper.",
           "tasks": [
             {
@@ -169,14 +169,14 @@
               "type": "Task",
               "id": "P1.M3.T2",
               "title": "stagecoach lock status subcommand (FR-K4)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Add a new `lock` command group with a `status` leaf that prints the lock holder's path, pid/hostname/repo/timestamp/snapshot, liveness, and orphan status. Read-only — never auto-breaks.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T2.S1",
                   "title": "Implement lock status cobra subcommand",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T1.S1"
@@ -194,14 +194,14 @@
               "type": "Task",
               "id": "P1.M3.T3",
               "title": "Busy message reformat — lock path on own line + orphan hint (FR-K5)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Reformat the contention Busy message so the lock path is on its own line (scriptable), and add an orphan hint when the holder appears orphaned.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T3.S1",
                   "title": "Refactor handleLockContention with orphan hint and lock path on own line",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T1.S1"
