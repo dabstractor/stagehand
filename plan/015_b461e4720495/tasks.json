@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Per-Role Generation Timeouts (FR-R7, §9.15)",
-      "status": "Ready",
+      "status": "Complete",
       "description": "Each role (planner, stager, message, arbiter) resolves its OWN timeout independently. The global --timeout default changes 480s→120s (the fallback any role inherits); the planner role gets a built-in default of 480s (the heavy role — reasoning over the entire frozen T_start diff routinely exceeds the lighter roles' budget). Stager/message/arbiter inherit 120s, each independently tunable via --<role>-timeout / STAGECOACH_<ROLE>_TIMEOUT / [role.<role>].timeout / stagecoach.role.<role>.timeout. Mirrors the existing per-role provider/model/reasoning resolution pattern exactly (FR-R3). Motivated by a real 'decompose: planner failed: context deadline exceeded' with thinking-high planner over a large diff.",
       "milestones": [
         {
@@ -179,7 +179,7 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Consumption — Wire per-role timeouts at all 13 Execute call sites",
-          "status": "Ready",
+          "status": "Complete",
           "description": "Replace the flat `cfg.Timeout` / `deps.Config.Timeout` at all 13 provider.Execute call sites with the per-role resolved timeout via config.ResolveRoleTimeout. The executor itself needs NO change — it already takes a per-call timeout parameter.",
           "tasks": [
             {
@@ -228,14 +228,14 @@
               "type": "Task",
               "id": "P1.M3.T2",
               "title": "Decompose path: resolve per-role timeouts for planner/stager/message/arbiter",
-              "status": "Ready",
+              "status": "Complete",
               "description": "Each of the 4 decompose roles (planner, stager, message, arbiter) currently passes deps.Config.Timeout. Each must resolve its own timeout via config.ResolveRoleTimeout.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T2.S1",
                   "title": "Update planner.go, stager.go, message.go, arbiter.go to use per-role timeouts",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S1"
