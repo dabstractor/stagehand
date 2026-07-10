@@ -11,7 +11,7 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Signal Infrastructure — SIGHUP + Trigger Export",
-          "status": "Ready",
+          "status": "Complete",
           "description": "Extend the signal handler to catch SIGHUP (FR-K3) on Unix, and export a Trigger wrapper so the parent-death watchdog can programmatically invoke the rescue path (FR-K1 enabler). These are small additive changes to internal/signal — the existing handle()/run()/RestoreDefault are signal-agnostic and need no changes.",
           "tasks": [
             {
@@ -41,14 +41,14 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Export signal.Trigger for programmatic rescue (FR-K1 enabler)",
-              "status": "Ready",
+              "status": "Complete",
               "description": "The parent-death watchdog detects parent death via getppid() polling but must programmatically invoke the rescue+exit path. handle() is unexported, so a new exported Trigger wrapper is needed. This is the single new signal-package API the watchdog requires.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Add Trigger(sig) exported wrapper to signal package",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/014_37208f58ffa2/architecture/signal_extension.md. handle() is unexported (signal.go:122). The watchdog lives outside the signal package and cannot call it directly. signal.Active() is already exported (signal.go:110) and returns *Handler.\n2. INPUT: The existing `active atomic.Pointer[Handler]` singleton (signal.go:72) and the unexported `handle(sig os.Signal)` method (signal.go:122-155) which does: check stopped → forward to child → cancel ctx → rescue-or-exit with OnRescueExit.\n3. LOGIC: Add to internal/signal/signal.go a new exported function: `func Trigger(sig os.Signal) { if h := active.Load(); h != nil { h.handle(sig) } }`. This reuses handle() exactly — the stopped guard (first line of handle) prevents it from firing past RestoreDefault. The watchdog (P1.M2.T2.S1) will call `signal.Trigger(syscall.SIGTERM)` on parent death. Mock nothing — test via the existing installTestHandler pattern in signal_test.go (call Trigger and assert the Exit fake fired with the right code).\n4. OUTPUT: `signal.Trigger(os.Signal)` — a nil-safe, stopped-guarded programmatic entry into the rescue path. No-op when no handler installed (library use) or after RestoreDefault (update-ref window). Consumed by the watchdog (P1.M2.T2.S1).\n5. DOCS: [Mode A] Add a godoc comment on Trigger explaining its purpose (parent-death watchdog rescue trigger) and the stopped-guard guarantee. No external docs change.",
@@ -73,14 +73,14 @@
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "no_parent_watchdog config field (FR-K6)",
-              "status": "Researching",
+              "status": "Ready",
               "description": "Add the NoParentWatchdog config field via a 7-point copy from the existing NoVerify field pattern. Sources: env STAGECOACH_NO_PARENT_WATCHDOG, git config stagecoach.noParentWatchdog, TOML [generation].no_parent_watchdog. No CLI flag (unlike no_verify/no_color). Default off (watchdog runs by default).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Add NoParentWatchdog config field with full 7-layer precedence",
-                  "status": "Researching",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/014_37208f58ffa2/architecture/watchdog_config.md. NoVerify is the exact 7-point copy template. The codebase uses ALL-CAPS env vars (STAGECOACH_*) and camelCase git config keys (stagecoach.noVerify). git rejects underscores in the final config segment per the codebase's own comment at git.go:180.\n2. INPUT: The existing NoVerify field pattern across 7 files: config.go:142 (struct field `NoVerify bool toml:\"no_verify\"`), config.go:214 (Defaults `NoVerify: false`), file.go:68 (fileGeneration field), file.go:299 (materialize `if g.NoVerify { c.NoVerify = true }`), file.go:363 (overlay `if src.NoVerify { dst.NoVerify = true }`), load.go:320 (env `STAGECOACH_NO_VERIFY` DIRECT set), git.go:182 (git config `stagecoach.noVerify`).\n3. LOGIC: Add `NoParentWatchdog` at each of the 7 touch points, mirroring NoVerify exactly: (a) config.go struct: `NoParentWatchdog bool \\`toml:\"no_parent_watchdog\"\\`` with doc comment referencing §9.27 FR-K6; (b) config.go Defaults: `NoParentWatchdog: false`; (c) file.go fileGeneration: `NoParentWatchdog bool \\`toml:\"no_parent_watchdog\"\\``; (d) file.go materialize: `if g.NoParentWatchdog { c.NoParentWatchdog = true }`; (e) file.go overlay: `if src.NoParentWatchdog { dst.NoParentWatchdog = true }`; (f) load.go loadEnv: `STAGECOACH_NO_PARENT_WATCHDOG` with strconv.ParseBool DIRECT set (can be false — escape hatch); (g) git.go loadGitConfig: `stagecoach.noParentWatchdog` via gitConfigBool. Do NOT add a CLI flag in root.go or an entry in loadFlags — FR-K6 has no flag. Also add a commented line to the bootstrap config template in internal/config/bootstrap.go (the config init generated template) documenting `# noParentWatchdog = false  # opt out of the parent-death lock watchdog (§9.27 FR-K6)`.\n4. OUTPUT: cfg.NoParentWatchdog resolves through all 7 layers. Consumed by the watchdog arming in P1.M2.T2.S2 (`if !cfg.NoParentWatchdog { watchdog.Arm(...) }`).\n5. DOCS: [Mode A] Update the generated config template in bootstrap.go to document the new option. The bootstrap template's env-var reference block should add `#   STAGECOACH_NO_PARENT_WATCHDOG=1   # opt out of the parent-death lock watchdog (§9.27 FR-K6)`. The final docs task (P1.M4.T2) will cover README/docs for the overall feature.",

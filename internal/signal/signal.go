@@ -118,6 +118,23 @@ func Install(parent context.Context, opts Options) (context.Context, *Handler) {
 // Active returns the installed handler, or nil if Install was never called (library use).
 func Active() *Handler { return active.Load() }
 
+// Trigger routes a synthetic signal through the rescue/exit path. It is the programmatic entry point
+// the parent-death watchdog (PRD §9.27 FR-K1; P1.M2.T2.S1) uses to tear a run down when it detects the
+// launcher died: the watchdog calls signal.Trigger(syscall.SIGTERM) and the run unwinds exactly as if a
+// SIGTERM had arrived from the terminal — forward to the child process group, cancel the signal-aware
+// context, then rescue (exit 3, if a snapshot is armed) or plain exit (143 for SIGTERM), with
+// OnRescueExit releasing the lock file before exit on BOTH branches (FR52 §18.5).
+//
+// Trigger delegates to the same handle() the OS-signal goroutine uses, so there is exactly ONE rescue
+// path (no duplicated teardown). It is nil-safe (no-op when no handler is installed — library use of
+// pkg/stagecoach) and stopped-guarded (handle()'s first line checks h.stopped, so a call after
+// RestoreDefault — the update-ref window — is a no-op). Safe to call at any lifecycle stage.
+func Trigger(sig os.Signal) {
+	if h := active.Load(); h != nil {
+		h.handle(sig)
+	}
+}
+
 // run is the handler goroutine. One signal ⇒ forward-to-group → cancel → rescue-or-exit.
 // (v1 exits on the first signal; double-Ctrl-C force-exit polish is future work.)
 func (h *Handler) run() {

@@ -356,6 +356,135 @@ func TestHandler_OnRescueExit_SkippedAfterRestoreDefault(t *testing.T) {
 	}
 }
 
+// TestTrigger_RoutesThroughHandle verifies that the EXPORTED package-level Trigger(sig) reaches
+// handle() via the active singleton, producing the same exit codes a direct handle() call does
+// (SIGTERM→143, os.Interrupt→130). This is the core delegation contract the parent-death watchdog
+// (P1.M2.T2.S1) relies on: Trigger must NOT re-implement the path, it must route through handle.
+func TestTrigger_RoutesThroughHandle(t *testing.T) {
+	cases := []struct {
+		name string
+		sig  os.Signal
+		want int
+	}{
+		{"SIGTERM_143", syscall.SIGTERM, 143},
+		{"SIGINT_130", os.Interrupt, 130},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var exitCode int
+			installTestHandler(t, Options{
+				Exit: func(code int) { exitCode = code },
+				Out:  new(bytes.Buffer),
+			})
+
+			Trigger(tc.sig) // package-level — proves active.Load() → handle() delegation
+
+			if exitCode != tc.want {
+				t.Errorf("exitCode = %d, want %d (Trigger must route %v through handle)", exitCode, tc.want, tc.sig)
+			}
+		})
+	}
+}
+
+// TestTrigger_RescueOnSnapshot verifies that Trigger with an armed snapshot runs the §18.3 rescue:
+// exit 3, the rescue message printed, and OnRescueExit (the FR52 lock-release seam) fires exactly
+// once — proving the rescue/lock-release path is reached through the export, not just the plain exit.
+func TestTrigger_RescueOnSnapshot(t *testing.T) {
+	var exitCode int
+	var rescueCalls int
+	buf := &bytes.Buffer{}
+
+	installTestHandler(t, Options{
+		RescueFormat: func(tree, parent, cand string) string {
+			return "RESCUE: Tree=" + tree + " Parent=" + parent + " Cand=" + cand
+		},
+		OnRescueExit: func() { rescueCalls++ },
+		Exit:         func(code int) { exitCode = code },
+		Out:          buf,
+	})
+
+	SetSnapshot("abc", "def", "cand")
+	Trigger(syscall.SIGTERM)
+
+	if exitCode != 3 {
+		t.Errorf("exitCode = %d, want 3 (snapshot armed → rescue through Trigger)", exitCode)
+	}
+	got := buf.String()
+	if !contains(got, "Tree=abc") {
+		t.Errorf("rescue output missing Tree=abc: %q", got)
+	}
+	if rescueCalls != 1 {
+		t.Errorf("OnRescueExit calls = %d, want 1 (lock-release seam fires through Trigger)", rescueCalls)
+	}
+}
+
+// TestTrigger_ForwardsToChild verifies that Trigger forwards the signal to a registered child PID via
+// the injectable Kill seam — the forward-to-child-group step works through the export.
+func TestTrigger_ForwardsToChild(t *testing.T) {
+	var killedPid int
+	var killedSig os.Signal
+	var exitCode int
+
+	installTestHandler(t, Options{
+		Kill: func(pid int, sig os.Signal) error {
+			killedPid = pid
+			killedSig = sig
+			return nil
+		},
+		Exit: func(code int) { exitCode = code },
+		Out:  new(bytes.Buffer),
+	})
+
+	RegisterChild(1234)
+	Trigger(syscall.SIGTERM)
+
+	if killedPid != 1234 {
+		t.Errorf("Kill pid = %d, want 1234 (forwarding through Trigger)", killedPid)
+	}
+	if killedSig != syscall.SIGTERM {
+		t.Errorf("Kill sig = %v, want SIGTERM (forwarding through Trigger)", killedSig)
+	}
+	if exitCode != 143 {
+		t.Errorf("exitCode = %d, want 143", exitCode)
+	}
+}
+
+// TestTrigger_NoOpAfterRestoreDefault verifies the stopped-guard guarantee: after RestoreDefault(),
+// Trigger must be a no-op — handle()'s first line checks h.stopped and returns, so neither Kill nor
+// Exit is called. This is the update-ref-window safety the watchdog needs (a late Trigger during
+// update-ref must not kill a recycled PID or exit). Mirrors TestHandler_RestoreDefaultStopsForward.
+func TestTrigger_NoOpAfterRestoreDefault(t *testing.T) {
+	var killCalled, exitCalled bool
+
+	installTestHandler(t, Options{
+		Kill: func(int, os.Signal) error { killCalled = true; return nil },
+		Exit: func(int) { exitCalled = true },
+		Out:  new(bytes.Buffer),
+	})
+
+	RestoreDefault()         // handler stopped (the update-ref window)
+	Trigger(syscall.SIGTERM) // must be a no-op — handle() returns at `if h.stopped.Load()`
+
+	if killCalled {
+		t.Error("Kill called after RestoreDefault, want no-op (stopped guard)")
+	}
+	if exitCalled {
+		t.Error("Exit called after RestoreDefault, want no-op (stopped guard)")
+	}
+}
+
+// TestTrigger_NilSafeNoHandler verifies that Trigger is safe when no handler is installed
+// (active == nil — library use of pkg/stagecoach that never calls Install). It must not panic.
+// Mirrors the spirit of TestHandler_NilWrappersNoOp.
+func TestTrigger_NilSafeNoHandler(t *testing.T) {
+	// Ensure no handler is installed.
+	active.Store(nil)
+
+	// Must NOT panic — a no-op is the correct library-use behavior.
+	Trigger(syscall.SIGTERM)
+}
+
 // contains reports whether s contains substr.
 func contains(s, substr string) bool {
 	for i := 0; i+len(substr) <= len(s); i++ {
