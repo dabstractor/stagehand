@@ -155,6 +155,27 @@ func loadGitConfig(repoDir string) (*Config, error) {
 		c.Timeout = d
 	}
 
+	// §9.15 FR-R7 / §9.8 FR36 / §16.1 layer 4 — per-role generation timeout via git config
+	// (NEW infrastructure: git.go read NO per-role keys before this). Mirrors the global
+	// stagecoach.timeout block above EXACTLY: gitConfigGet → parseTimeout → wrapped error →
+	// setRoleTimeout. gitConfigGet maps a missing key (git exit 1) to found=false (no-op), so a
+	// role with no stagecoach.role.<role>.timeout key is untouched. parseTimeout accepts "600s"
+	// and bare "600". A malformed value is a HARD ERROR (loadGitConfig has an error return) —
+	// the OPPOSITE of S2's loadFlags silent-ignore. Per-role provider/model/reasoning git keys
+	// are intentionally NOT read here (file/env/flag only); this loop is timeout-only.
+	for _, role := range roleNames {
+		key := "stagecoach.role." + role + ".timeout"
+		if v, found, err := gitConfigGet(repoDir, key); err != nil {
+			return nil, err
+		} else if found {
+			d, perr := parseTimeout(v)
+			if perr != nil {
+				return nil, fmt.Errorf("git config %s: %w", key, perr)
+			}
+			c.setRoleTimeout(role, d)
+		}
+	}
+
 	// --- booleans (--bool canonicalizes; FINDING C) ---
 	if v, found, err := gitConfigBool(repoDir, "stagecoach.autoStageAll"); err != nil { // camelCase!
 		return nil, err

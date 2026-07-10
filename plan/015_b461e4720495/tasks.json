@@ -11,7 +11,7 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Config Infrastructure — Add Timeout to RoleConfig and wire through all loading layers",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Add a per-role Timeout field to RoleConfig and fileRoleConfig, rewrite the materialize loop (which breaks when field types diverge), add timeout field-merge to overlay, and wire all config-loading paths (setRoleTimeout, env loop, flag loop, CLI flags, git-config per-role — the latter is NEW infrastructure since git.go has NO per-role support today).",
           "tasks": [
             {
@@ -59,7 +59,7 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Wire per-role timeout through all config-loading paths (env, flag, git-config, CLI flags)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Add the setRoleTimeout helper, env-loop _TIMEOUT branch, flag-loop -timeout branch, 4 CLI flag registrations, and the NEW per-role git-config reader. This gives per-role timeout full 7-layer precedence parity with provider/model/reasoning.",
               "subtasks": [
                 {
@@ -98,7 +98,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T2.S3",
                   "title": "Add per-role git-config reading (NEW infrastructure — stagecoach.role.<role>.timeout)",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T2.S1"
@@ -126,14 +126,14 @@
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "ResolveRoleTimeout function + planner 480s built-in default",
-              "status": "Planned",
+              "status": "Researching",
               "description": "The per-role timeout resolver that consumers call at each Execute call site, plus the planner-specific built-in default of 480s.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Add ResolveRoleTimeout + defaultRoleTimeouts map (planner=480s)",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T1.S1"

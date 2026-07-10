@@ -225,6 +225,7 @@ These keys live in `.git/config` (set with `git config --local` or `git config -
 | `stagecoach.provider` | string | `git config --get stagecoach.provider` | Default provider |
 | `stagecoach.model` | string | `git config --get stagecoach.model` | Model override |
 | `stagecoach.timeout` | string | `git config --get stagecoach.timeout` | Generation timeout (duration string) |
+| `stagecoach.role.<role>.timeout` | string | `git config --get stagecoach.role.<role>.timeout` | Per-role generation timeout (§9.15 FR-R7); `<role>` ∈ `planner`\|`stager`\|`message`\|`arbiter`. Duration string (`"600s"` or bare `600`); unset ⇒ inherit global `stagecoach.timeout`. |
 | `stagecoach.autoStageAll` | bool | `git config --get --bool stagecoach.autoStageAll` | Auto-stage all when nothing staged |
 | `stagecoach.output` | string | `git config --get stagecoach.output` | Agent output mode: `raw` \| `json` (overrides per-provider default) |
 | `stagecoach.stripCodeFence` | bool | `git config --get --bool stagecoach.stripCodeFence` | Strip ``` fences from agent output (overrides per-provider default) |
@@ -237,7 +238,7 @@ These keys live in `.git/config` (set with `git config --local` or `git config -
 | `stagecoach.noParentWatchdog` | bool | `git config --get --bool stagecoach.noParentWatchdog` | Opt out of the parent-death lock watchdog (§9.27 FR-K6). Default false (the watchdog runs by default); set true for intentional-detach workflows (`nohup`/`setsid`/`systemd-run`). |
 
 > [!NOTE]
-> The git-config layer has **no** per-role keys (`stagecoach.role.*`), no `stagecoach.commits`, and no `stagecoach.max_commits`. Per-role configuration is available via CLI flags (`--planner-provider`, etc.), env vars (`STAGECOACH_PLANNER_*`), and config-file `[role.*]` blocks only. Decompose settings (`--commits`, `--single`, `--no-decompose`) are flag/env only; `--max-commits` also reads from the `[generation]` config-file section. There is also no `stagecoach.exclude` git-config key and no `STAGECOACH_EXCLUDE` env var (deliberate — see [Exclusion globs](#exclusion-globs-generationexclude) below); exclusions are config-file + `--exclude`/`-x` only.
+> The git-config layer has per-role **timeout** keys (`stagecoach.role.<role>.timeout`, §9.15 FR-R7), but **no** per-role provider/model/reasoning keys — those are CLI flags (`--planner-provider`, etc.), env vars (`STAGECOACH_PLANNER_*`), and config-file `[role.*]` blocks only. There is no `stagecoach.commits` and no `stagecoach.max_commits` (decompose settings `--commits`/`--single`/`--no-decompose` are flag/env only; `--max-commits` also reads from the `[generation]` config-file section). There is also no `stagecoach.exclude` git-config key and no `STAGECOACH_EXCLUDE` env var (deliberate — see [Exclusion globs](#exclusion-globs-generationexclude) below); exclusions are config-file + `--exclude`/`-x` only.
 
 ### Decompose config keys
 
