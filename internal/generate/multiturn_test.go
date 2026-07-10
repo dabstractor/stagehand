@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/dustin/stagecoach/internal/config"
@@ -243,6 +244,33 @@ func TestRun_TurnError(t *testing.T) {
 	_, _, cause := Run(context.Background(), Deps{}, cfg, sm, "sys", "aaaa\nbbbb\n", "zai/glm-5.2", "")
 	if cause == nil {
 		t.Fatal("Run cause = nil, want non-nil (turn-1 non-zero exit ⇒ FR-T7 abort)")
+	}
+}
+
+// TestRun_MessageRoleTimeoutBoundsTurn verifies FR-R7/FR-T5 on the multi-turn path: the message role's
+// resolved timeout (ResolveRoleTimeout("message", cfg)) — NOT the flat cfg.Timeout — bounds each
+// per-turn Execute. Sets the GLOBAL large (30s, which would NOT time out against a 2000ms stub sleep)
+// and the MESSAGE-ROLE small (150ms → times out). Asserting DeadlineExceeded here proves msgTimeout
+// (150ms), not cfg.Timeout (30s), reached turn-1's Execute. This is the positive proof of the
+// P1.M3.T1.S2 multi-turn wiring; TestRun_HappyPath/TestRun_TurnError are the behavior-preserving-by-
+// default regression canaries (there msgTimeout == cfg.Timeout).
+func TestRun_MessageRoleTimeoutBoundsTurn(t *testing.T) {
+	bin := stubtest.Build(t)
+	m := stubtest.Manifest(bin, stubtest.Options{Out: "ok", SleepMS: 2000}) // slow on EVERY turn
+	appendMode := "append"
+	m.SessionMode = &appendMode // REQUIRED: RenderMultiTurn's session_mode gate must pass to reach Execute
+
+	cfg := config.Defaults()
+	cfg.MultiTurnChunkTokens = 1                                                           // "aaaa\nbbbb\n" ⇒ 2 chunks ⇒ 3 turns (turn 1 times out)
+	cfg.Timeout = 30 * time.Second                                                         // LARGE global (would NOT time out)
+	cfg.Roles = map[string]config.RoleConfig{"message": {Timeout: 150 * time.Millisecond}} // SMALL role → times out
+
+	_, _, cause := Run(context.Background(), Deps{}, cfg, m, "sys", "aaaa\nbbbb\n", "zai/glm-5.2", "")
+	if cause == nil {
+		t.Fatal("Run cause = nil, want non-nil (message-role 150ms should bound turn-1 Execute, not the 30s global)")
+	}
+	if !errors.Is(cause, context.DeadlineExceeded) {
+		t.Errorf("cause = %v, want context.DeadlineExceeded (the 150ms message-role timeout)", cause)
 	}
 }
 

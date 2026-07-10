@@ -295,6 +295,47 @@ func TestRun_TimeoutNeverBlock(t *testing.T) {
 	}
 }
 
+// TestRun_MessageRoleTimeoutNeverBlock verifies FR-R7 on the hook one-shot path: the message role's
+// resolved timeout (ResolveRoleTimeout("message", cfg)) — NOT the flat cfg.Timeout — bounds the hook
+// one-shot Execute. Sets the GLOBAL large (30s, which would NOT time out against a 5000ms stub sleep)
+// and the MESSAGE-ROLE small (50ms → times out). Asserting "hook generation timed out" + an untouched
+// msg-file here proves msgTimeout (50ms), not cfg.Timeout (30s), reached the one-shot Execute. This is
+// the positive proof of the P1.M3.T1.S2 hook wiring; TestRun_TimeoutNeverBlock is the behavior-
+// preserving-by-default regression canary (there msgTimeout == cfg.Timeout == 50ms). The :252 budget
+// display is not exercised here (the one-shot times out before multi-turn); it is grep-guarded instead.
+func TestRun_MessageRoleTimeoutNeverBlock(t *testing.T) {
+	stubBin := stubtest.Build(t)
+	repoDir, g := initTempRepo(t)
+
+	changePath := filepath.Join(repoDir, "new.txt")
+	mustWriteFile(t, changePath, []byte("new content\n"))
+	runGit(t, repoDir, "add", "new.txt")
+
+	msgFile := filepath.Join(t.TempDir(), "msg")
+	orig := "# original comments\n"
+	mustWriteFile(t, msgFile, []byte(orig))
+
+	m := stubtest.Manifest(stubBin, stubtest.Options{SleepMS: 5000})
+	cfg := config.Config{
+		Timeout:             30 * time.Second, // LARGE global (would NOT time out under the old cfg.Timeout read)
+		MaxDuplicateRetries: 2,
+		Roles:               map[string]config.RoleConfig{"message": {Timeout: 50 * time.Millisecond}}, // SMALL role → times out
+	}
+
+	err := Run(context.Background(), generate.Deps{Git: g, Manifest: m}, cfg, msgFile, "")
+	if err == nil {
+		t.Error("expected timeout error, got nil")
+	}
+	if err != nil && !strings.Contains(err.Error(), "timed out") {
+		t.Errorf("expected timeout error, got: %v", err)
+	}
+
+	data, _ := os.ReadFile(msgFile)
+	if string(data) != orig {
+		t.Errorf("msg-file was modified on message-role timeout; got:\n%s", string(data))
+	}
+}
+
 func TestRun_NoPlumbing(t *testing.T) {
 	src, err := os.ReadFile("exec.go")
 	if err != nil {

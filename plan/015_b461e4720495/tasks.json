@@ -179,14 +179,14 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Consumption — Wire per-role timeouts at all 13 Execute call sites",
-          "status": "Planned",
+          "status": "Ready",
           "description": "Replace the flat `cfg.Timeout` / `deps.Config.Timeout` at all 13 provider.Execute call sites with the per-role resolved timeout via config.ResolveRoleTimeout. The executor itself needs NO change — it already takes a per-call timeout parameter.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Single-commit path: resolve message-role timeout at all call sites",
-              "status": "Researching",
+              "status": "Complete",
               "description": "The single-commit path (message role) has 8 Execute call sites across generate.go, multiturn.go, workdesc.go, and hook/exec.go. Each must resolve the message-role timeout.",
               "subtasks": [
                 {
@@ -209,7 +209,7 @@
                   "type": "Subtask",
                   "id": "P1.M3.T1.S2",
                   "title": "Update multiturn.go + workdesc.go + hook/exec.go to use message-role timeout",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T1.S1"
@@ -228,14 +228,14 @@
               "type": "Task",
               "id": "P1.M3.T2",
               "title": "Decompose path: resolve per-role timeouts for planner/stager/message/arbiter",
-              "status": "Planned",
+              "status": "Ready",
               "description": "Each of the 4 decompose roles (planner, stager, message, arbiter) currently passes deps.Config.Timeout. Each must resolve its own timeout via config.ResolveRoleTimeout.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T2.S1",
                   "title": "Update planner.go, stager.go, message.go, arbiter.go to use per-role timeouts",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S1"
@@ -263,14 +263,14 @@
               "type": "Task",
               "id": "P1.M4.T1",
               "title": "Tests for per-role timeout resolution and consumption",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Unit tests for ResolveRoleTimeout, per-role timeout config loading (env/flag/file/git-config), and the default change (planner 480s, global 120s).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T1.S1",
                   "title": "Unit tests for ResolveRoleTimeout + config loading + default change",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M3.T1.S2",

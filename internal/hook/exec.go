@@ -160,6 +160,11 @@ func Run(ctx context.Context, deps generate.Deps, cfg config.Config, msgFile, so
 
 	// Step F: resolve the message role (FR-H6 — exactly like the single-commit path).
 	_, msgModel, msgReasoning := config.ResolveRoleModel("message", cfg)
+	// FR-R7/FR-H6: resolve the message role's timeout so [role.message].timeout / --message-timeout bound
+	// the hook one-shot generation (and the multi-turn total budget, FR-T5) instead of the flat cfg.Timeout.
+	// With no per-role override ResolveRoleTimeout returns cfg.Timeout (no message built-in) — behavior-
+	// preserving by default.
+	msgTimeout := config.ResolveRoleTimeout("message", cfg)
 	resolved := deps.Manifest.Resolve() // bound: the FR-T1 gate (P1.M3.T1.S2) reads resolved.SessionMode
 	retryInstr := *resolved.RetryInstruction
 
@@ -179,7 +184,7 @@ func Run(ctx context.Context, deps generate.Deps, cfg config.Config, msgFile, so
 			return fmt.Errorf("hook render: %w", rerr)
 		}
 
-		out, _, execErr := provider.Execute(ctx, *spec, cfg.Timeout, deps.Verbose)
+		out, _, execErr := provider.Execute(ctx, *spec, msgTimeout, deps.Verbose)
 		if execErr != nil {
 			if errors.Is(execErr, context.DeadlineExceeded) {
 				return errors.New("stagecoach: hook generation timed out") // no retry; never-block
@@ -249,7 +254,7 @@ func Run(ctx context.Context, deps generate.Deps, cfg config.Config, msgFile, so
 		// Condition (b): the (now-untruncated) payload must exceed one chunk for multi-turn to help.
 		if git.EstimateTokens(mtPayload) > cfg.MultiTurnChunkTokens {
 			turns := generate.ChunkCount(mtPayload, cfg.MultiTurnChunkTokens) + 1 // N chunks + 1 final turn
-			totalMin := int((cfg.Timeout * time.Duration(turns)).Minutes())
+			totalMin := int((msgTimeout * time.Duration(turns)).Minutes())
 			if totalMin < 1 {
 				totalMin = 1
 			}

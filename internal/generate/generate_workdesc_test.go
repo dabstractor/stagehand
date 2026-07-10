@@ -17,6 +17,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dustin/stagecoach/internal/config"
 	"github.com/dustin/stagecoach/internal/git"
@@ -218,6 +219,45 @@ func TestCommitStaged_WorkDescription_HappyPath(t *testing.T) {
 	}
 	if headSHA(t, repo) == beforeHEAD {
 		t.Error("HEAD did not advance")
+	}
+}
+
+// TestCommitStaged_WorkDescription_MessageRoleTimeout verifies FR-R7 on the work-description path:
+// the message role's resolved timeout (ResolveRoleTimeout("message", cfg)) — NOT the flat cfg.Timeout —
+// bounds RunWorkDescription's per-turn Execute. Sets the GLOBAL large (30s, which would NOT time out
+// against a 2000ms stub sleep) and the MESSAGE-ROLE small (150ms → times out). Asserting ErrTimeout
+// here proves msgTimeout (150ms), not cfg.Timeout (30s), reached turn-1's Execute. The workdesc path is
+// cleanly isolated via CommitStaged's workDescActive branch (it runs RunWorkDescription and SKIPS the
+// one-shot/multi-turn default loop, so S1's one-shot msgTimeout path is not exercised). On a turn-1
+// timeout RunWorkDescription returns cause=DeadlineExceeded → CommitStaged returns *RescueError{ErrTimeout}.
+func TestCommitStaged_WorkDescription_MessageRoleTimeout(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	initRepo(t, repo)
+	commitRaw(t, repo, "initial")
+	writeFile(t, repo, "feature.go", "package main\n\nfunc F() {}\n")
+	stageFile(t, repo, "feature.go")
+
+	// turn-1 Execute sleeps 2000ms; the 150ms message-role timeout kills it before any READ/message.
+	m := stubtest.Manifest(bin, stubtest.Options{Out: "feat: never reached", SleepMS: 2000})
+	appendMode := "append"
+	m.SessionMode = &appendMode // REQUIRED: RunWorkDescription's turn-1 RenderMultiTurn gate
+
+	cfg := config.Defaults()
+	cfg.WorkDescription = "add F"                                                          // activates the workdesc branch (skips one-shot)
+	cfg.Timeout = 30 * time.Second                                                         // LARGE global (would NOT time out)
+	cfg.Roles = map[string]config.RoleConfig{"message": {Timeout: 150 * time.Millisecond}} // SMALL role → times out
+
+	_, err := CommitStaged(context.Background(), Deps{Git: git.New(repo), Manifest: m}, cfg)
+	if err == nil {
+		t.Fatal("expected *RescueError on message-role timeout, got nil")
+	}
+	var re *RescueError
+	if !errors.As(err, &re) {
+		t.Fatalf("err = %T, want *RescueError (workdesc turn-1 timeout → rescue)", err)
+	}
+	if !errors.Is(err, ErrTimeout) {
+		t.Errorf("errors.Is(err, ErrTimeout) = false, want true (the 150ms message-role timeout bounded turn-1 Execute)")
 	}
 }
 
