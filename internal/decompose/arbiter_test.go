@@ -231,6 +231,38 @@ func TestRunArbiter_TimeoutNull(t *testing.T) {
 	}
 }
 
+// TestRunArbiter_PerRoleTimeoutNull proves the per-role [role.arbiter].timeout override bounds
+// runArbiter's Execute, not the global cfg.Timeout (FR-R7, §9.15/§16.1). With the GLOBAL set large
+// (30s — would NOT time out vs the 2000ms stub sleep) and the PER-ROLE small (100ms — times out),
+// the timeout firing proves ResolveRoleTimeout("arbiter", …) reached Execute. The arbiter has NO
+// built-in timeout, so with no override the global is used (behavior-preserving — proven by
+// TestRunArbiter_TimeoutNull above). The failure semantic is graceful null (§13.6.5 "when in doubt,
+// null"), UNCHANGED. Clone of S1's TestCommitStaged_MessageRoleTimeout.
+func TestRunArbiter_PerRoleTimeoutNull(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	arbInitRepo(t, repo)
+	commits := arbCommits(t, repo, context.Background())
+
+	m := stubtest.Manifest(bin, stubtest.Options{Out: `{"target": null}`, SleepMS: 2000})
+	cfg := config.Defaults()
+	cfg.Timeout = 30 * time.Second // LARGE — 2000ms stub sleep would NOT time out here
+	cfg.Roles = map[string]config.RoleConfig{
+		"arbiter": {Timeout: 100 * time.Millisecond}, // SMALL → times out (proves ResolveRoleTimeout bounds Execute)
+	}
+
+	deps := arbDeps(t, repo, m)
+	deps.Config = cfg
+
+	out, err := runArbiter(context.Background(), deps, commits, "leftover diff")
+	if err != nil {
+		t.Fatalf("runArbiter: %v (expected nil error, graceful null on per-role timeout)", err)
+	}
+	if out.Target != nil {
+		t.Errorf("Target = %q, want nil (per-role timeout should degrade to null)", *out.Target)
+	}
+}
+
 func TestRunArbiter_NonZeroExitValidStdout(t *testing.T) {
 	bin := stubtest.Build(t)
 	repo := t.TempDir()

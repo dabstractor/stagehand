@@ -125,6 +125,7 @@ func generateMessage(ctx context.Context, deps Deps, treeA, treeB string) (strin
 	// 5. Derive the <role> model — Deps has no Models field. (Provider is the manifest name; it is NOT
 	// passed to Render — v3 FR-R5b folds the inference backend into the model slash-prefix.)
 	_, mdl, rsn := config.ResolveRoleModel("message", deps.Config)
+	messageTimeout := config.ResolveRoleTimeout("message", deps.Config) // FR-R7 (§9.15/§16.1): per-role timeout (no built-in → cfg.Timeout by default)
 	resolved := deps.Roles.Message.Resolve()
 	retryInstr := *resolved.RetryInstruction
 
@@ -152,7 +153,7 @@ func generateMessage(ctx context.Context, deps Deps, treeA, treeB string) (strin
 			return "", fmt.Errorf("%w: render: %w", ErrMessageFailed, rerr)
 		}
 
-		out, _, execErr := provider.Execute(ctx, *spec, deps.Config.Timeout, deps.Verbose)
+		out, _, execErr := provider.Execute(ctx, *spec, messageTimeout, deps.Verbose)
 		if execErr != nil {
 			if errors.Is(execErr, context.DeadlineExceeded) {
 				// §5: immediate rescue, NO retry — agent was killed.

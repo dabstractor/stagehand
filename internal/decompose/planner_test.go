@@ -342,7 +342,14 @@ func TestCallPlanner_Timeout(t *testing.T) {
 
 	m := stubtest.Manifest(bin, stubtest.Options{Out: validMultiJSON, SleepMS: 2000})
 	cfg := config.Defaults()
-	cfg.Timeout = 100 * time.Millisecond
+	// FR-R7 (§9.15/§16.1): the planner now resolves its OWN timeout (the 480s built-in default,
+	// longer than the 120s global), so cfg.Timeout no longer bounds the planner. Set the GLOBAL large
+	// (it would NOT time out vs the 2000ms stub sleep) and the PER-ROLE small — only the per-role
+	// 100ms times out, which proves ResolveRoleTimeout("planner", …) bounded Execute, not the global.
+	cfg.Timeout = 30 * time.Second
+	cfg.Roles = map[string]config.RoleConfig{
+		"planner": {Timeout: 100 * time.Millisecond},
+	}
 
 	deps := plannerDeps(t, repo, m)
 	deps.Config = cfg

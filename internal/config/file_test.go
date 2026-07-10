@@ -1346,3 +1346,21 @@ func TestMaterializeRoleTimeout(t *testing.T) {
 		}
 	})
 }
+
+// TestMaterializeRoleTimeout_ArbiterRole closes GAP4 (FR-R7 clause (c) literal): TestMaterializeRoleTimeout
+// covers planner (table) + planner/stager (two_roles subtest) but NOT arbiter. materialize IS role-agnostic
+// (loops the Role map), but clause (c) names [role.arbiter].timeout="200s" explicitly, and pinning the
+// 4th role is cheap insurance against a future role-specific regression in the parse path.
+func TestMaterializeRoleTimeout_ArbiterRole(t *testing.T) {
+	fc := &fileConfig{Role: map[string]fileRoleConfig{"arbiter": {Timeout: "200s"}}}
+	cfg, err := materialize(fc, 0, 0)
+	if err != nil {
+		t.Fatalf("materialize([role.arbiter].timeout='200s'): %v", err)
+	}
+	if cfg == nil || cfg.Roles == nil {
+		t.Fatalf("materialize: cfg=%v, want non-nil Config with Roles populated", cfg)
+	}
+	if got := cfg.Roles["arbiter"].Timeout; got != 200*time.Second {
+		t.Errorf("Roles[arbiter].Timeout = %v, want 200s ([role.arbiter].timeout parsed via parseTimeout)", got)
+	}
+}

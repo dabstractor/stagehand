@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Per-Role Generation Timeouts (FR-R7, §9.15)",
-      "status": "Planned",
+      "status": "Researching",
       "description": "Each role (planner, stager, message, arbiter) resolves its OWN timeout independently. The global --timeout default changes 480s→120s (the fallback any role inherits); the planner role gets a built-in default of 480s (the heavy role — reasoning over the entire frozen T_start diff routinely exceeds the lighter roles' budget). Stager/message/arbiter inherit 120s, each independently tunable via --<role>-timeout / STAGECOACH_<ROLE>_TIMEOUT / [role.<role>].timeout / stagecoach.role.<role>.timeout. Mirrors the existing per-role provider/model/reasoning resolution pattern exactly (FR-R3). Motivated by a real 'decompose: planner failed: context deadline exceeded' with thinking-high planner over a large diff.",
       "milestones": [
         {
@@ -256,21 +256,21 @@
           "type": "Milestone",
           "id": "P1.M4",
           "title": "Tests & Documentation for per-role timeouts",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Comprehensive tests for per-role timeout resolution across all precedence layers, plus changeset-level documentation sync.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M4.T1",
               "title": "Tests for per-role timeout resolution and consumption",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Unit tests for ResolveRoleTimeout, per-role timeout config loading (env/flag/file/git-config), and the default change (planner 480s, global 120s).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T1.S1",
                   "title": "Unit tests for ResolveRoleTimeout + config loading + default change",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M3.T1.S2",
@@ -291,14 +291,14 @@
               "type": "Task",
               "id": "P1.M4.T2",
               "title": "Sync changeset-level documentation for per-role timeouts",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Mode B changeset-level docs: update README.md, docs/how-it-works.md, and docs/configuration.md to document per-role timeouts as a coherent feature. Per-role flag/env/git-config docs already landed as Mode A in P1.M1.T2 subtasks.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M4.T2.S1",
                   "title": "Update README + docs/how-it-works + docs/configuration overview for per-role timeouts",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M4.T1.S1"

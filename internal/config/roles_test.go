@@ -252,3 +252,61 @@ func TestResolveRoleTimeout_RolesNilGlobalFallback(t *testing.T) {
 		t.Errorf("ResolveRoleTimeout(message) = %v, want 120s [Roles nil ⇒ global fallback]", got)
 	}
 }
+
+// TestResolveRoleTimeout_MessagePerRoleOverride closes GAP1 (FR-R7 clause (a)): NO LANDED test sets a
+// NON-ZERO cfg.Roles["message"].Timeout. TestResolveRoleTimeout_FieldMergeTimeoutOnly uses message with
+// Timeout==0 (inherit); _PerRoleOverride uses planner. The message role is the ONLY active role on the
+// single-commit path, so its non-zero per-role-override branch is the highest-value untested case — a
+// refactor that dropped the non-planner per-role-override path would pass every LANDED test but fail here.
+func TestResolveRoleTimeout_MessagePerRoleOverride(t *testing.T) {
+	cfg := Defaults()
+	cfg.Timeout = 120 * time.Second // distinct from the 90s override so the assertion is unambiguous
+	cfg.Roles = map[string]RoleConfig{"message": {Timeout: 90 * time.Second}}
+	got := ResolveRoleTimeout("message", cfg)
+	if got != 90*time.Second {
+		t.Errorf("ResolveRoleTimeout(message) = %v, want 90s [message has no built-in; per-role override beats 120s global]", got)
+	}
+}
+
+// TestResolveRoleTimeout_AllCanonicalRoles closes GAP2 (FR-R7 consolidation): the timeout axis had no
+// "all canonical roles" table, unlike TestResolveRoleModel_AllCanonicalRoles (line 108) for the model
+// axis. One table over roleNames proves the full FR-R7 resolution matrix in a single readable place:
+// planner → per-role override (beats the 480s built-in); stager → per-role override (beats the 120s
+// global); message/arbiter (absent from cfg.Roles, no built-in) → 120s global. The 6 LANDED ad-hoc tests
+// cover these branches in isolation; this is the missing consolidated twin.
+func TestResolveRoleTimeout_AllCanonicalRoles(t *testing.T) {
+	cfg := Defaults()
+	cfg.Timeout = 120 * time.Second // distinct from 480s so the planner built-in is unambiguous
+	cfg.Roles = map[string]RoleConfig{
+		"planner": {Timeout: 600 * time.Second}, // override beats the 480s built-in
+		"stager":  {Timeout: 60 * time.Second},  // override beats the 120s global
+		// message, arbiter: no entry ⇒ no built-in ⇒ 120s global
+	}
+	want := map[string]time.Duration{
+		"planner": 600 * time.Second, // per-role override
+		"stager":  60 * time.Second,  // per-role override
+		"message": 120 * time.Second, // no built-in, no override ⇒ global
+		"arbiter": 120 * time.Second, // no built-in, no override ⇒ global
+	}
+	for _, role := range roleNames { // roleNames: load.go package-level canonical list
+		got := ResolveRoleTimeout(role, cfg)
+		if got != want[role] {
+			t.Errorf("ResolveRoleTimeout(%s) = %v, want %v", role, got, want[role])
+		}
+	}
+}
+
+// TestResolveRoleTimeout_PlannerDefaultFromDefaults closes GAP3 (FR-R7 clause (e) explicit): the default
+// change (P1.M2.T2.S1 flipped the global 480s→120s) is proven functionally by _PlannerBuiltinBeatsGlobal
+// (Defaults()+set Timeout=120s — identical, since Defaults().Timeout IS 120s) but no LANDED test calls
+// ResolveRoleTimeout with the literal Defaults(). This one-liner makes "the planner still gets 480s after
+// the global dropped to 120s" a named, greppable assertion.
+func TestResolveRoleTimeout_PlannerDefaultFromDefaults(t *testing.T) {
+	cfg := Defaults()
+	if cfg.Timeout != 120*time.Second {
+		t.Fatalf("Defaults().Timeout = %v, want 120s (the FR-R7 global default)", cfg.Timeout)
+	}
+	if got := ResolveRoleTimeout("planner", cfg); got != 480*time.Second {
+		t.Errorf("ResolveRoleTimeout(planner, Defaults()) = %v, want 480s (built-in beats 120s global)", got)
+	}
+}

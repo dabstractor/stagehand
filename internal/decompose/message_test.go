@@ -213,6 +213,54 @@ func TestGenerateMessage_Timeout(t *testing.T) {
 	}
 }
 
+// TestGenerateMessage_PerRoleTimeout proves the per-role [role.message].timeout override bounds
+// generateMessage's Execute, not the global cfg.Timeout (FR-R7, §9.15/§16.1). With the GLOBAL set
+// large (30s — would NOT time out vs the 2000ms stub sleep) and the PER-ROLE small (100ms — times
+// out), the timeout firing proves ResolveRoleTimeout("message", …) reached Execute. The message
+// role has NO built-in timeout, so with no override the global is used (behavior-preserving —
+// proven by TestGenerateMessage_Timeout above). The failure semantic is *generate.RescueError
+// {Kind: ErrTimeout} (the rescue recipe, exit 124), UNCHANGED. Clone of S1's
+// TestCommitStaged_MessageRoleTimeout.
+func TestGenerateMessage_PerRoleTimeout(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	msgInitRepo(t, repo)
+	msgCommitRaw(t, repo, "initial")
+
+	msgWriteFile(t, repo, "a.txt", "a\n")
+	msgStageFile(t, repo, "a.txt")
+	treeA := msgGitOut(t, repo, "write-tree")
+
+	msgWriteFile(t, repo, "b.txt", "b\n")
+	msgStageFile(t, repo, "b.txt")
+	treeB := msgGitOut(t, repo, "write-tree")
+
+	cfg := config.Defaults()
+	cfg.Timeout = 30 * time.Second // LARGE — 2000ms stub sleep would NOT time out here
+	cfg.Roles = map[string]config.RoleConfig{
+		"message": {Timeout: 100 * time.Millisecond}, // SMALL → times out (proves ResolveRoleTimeout bounds Execute)
+	}
+	m := stubtest.Manifest(bin, stubtest.Options{SleepMS: 2000})
+	deps := messageDeps(t, repo, m)
+	deps.Config = cfg
+
+	_, err := generateMessage(context.Background(), deps, treeA, treeB)
+	if err == nil {
+		t.Fatal("expected error on per-role timeout, got nil")
+	}
+
+	var re *generate.RescueError
+	if !errors.As(err, &re) {
+		t.Fatalf("error type = %T, want *RescueError", err)
+	}
+	if re.Kind != generate.ErrTimeout {
+		t.Errorf("re.Kind = %v, want ErrTimeout", re.Kind)
+	}
+	if !errors.Is(err, generate.ErrTimeout) {
+		t.Errorf("errors.Is(err, generate.ErrTimeout) = false, want true")
+	}
+}
+
 func TestGenerateMessage_EmptyDiff(t *testing.T) {
 	bin := stubtest.Build(t)
 	repo := t.TempDir()

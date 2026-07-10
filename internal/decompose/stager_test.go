@@ -161,6 +161,40 @@ func TestStageConcept_Timeout(t *testing.T) {
 	}
 }
 
+// TestStageConcept_PerRoleTimeout proves the per-role [role.stager].timeout override bounds
+// stageConcept's Execute, not the global cfg.Timeout (FR-R7, §9.15/§16.1). With the GLOBAL set
+// large (30s — would NOT time out vs the 2000ms stub sleep) and the PER-ROLE small (100ms —
+// times out), the timeout firing proves ResolveRoleTimeout("stager", …) reached Execute. The
+// stager has NO built-in timeout, so with no override the global is used (behavior-preserving —
+// proven by TestStageConcept_Timeout above). Clone of S1's TestCommitStaged_MessageRoleTimeout.
+func TestStageConcept_PerRoleTimeout(t *testing.T) {
+	bin := stubtest.Build(t)
+	repo := t.TempDir()
+	stgInitRepo(t, repo)
+	stgCommitRaw(t, repo, "initial")
+
+	cfg := config.Defaults()
+	cfg.Timeout = 30 * time.Second // LARGE — 2000ms stub sleep would NOT time out here
+	cfg.Roles = map[string]config.RoleConfig{
+		"stager": {Timeout: 100 * time.Millisecond}, // SMALL → times out (proves ResolveRoleTimeout bounds Execute)
+	}
+
+	m := tooledStubManifest(t, bin, stubtest.Options{SleepMS: 2000})
+	deps := stagerDepsWithConfig(t, repo, m, cfg)
+	concept := prompt.PlannerCommit{Title: "Add a", Description: "a.txt"}
+
+	err := stageConcept(context.Background(), deps, concept)
+	if err == nil {
+		t.Fatal("expected error on per-role timeout, got nil")
+	}
+	if !errors.Is(err, ErrStagerFailed) {
+		t.Errorf("errors.Is(err, ErrStagerFailed) = false, error = %v", err)
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("errors.Is(err, context.DeadlineExceeded) = false, error = %v", err)
+	}
+}
+
 func TestStageConcept_RenderTooledMode(t *testing.T) {
 	// Use the RAW stubtest.Manifest (nil TooledFlags) to prove RenderTooled errors on it.
 	// RenderBare would silently succeed on nil BareFlags, so the error proves the tooled path.
