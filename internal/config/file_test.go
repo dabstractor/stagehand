@@ -673,6 +673,69 @@ func TestOverlayRolesFieldMerge(t *testing.T) {
 	}
 }
 
+// TestOverlayRolesFieldMerge_Timeout proves the per-role Timeout (time.Duration, FR-R7) merges with the
+// same non-zero-wins discipline as the other role fields and the global Config.Timeout guard. It mirrors
+// TestOverlayRolesFieldMerge (direct Config{...} literals + overlay(dst, src)) and covers the four cases
+// that pin the FR-R7 field-merge invariant for timeout: (a) higher-layer non-zero wins, (b) timeout-only
+// merge must not erase sibling provider/model/reasoning, (c) zero/omitted timeout must NOT clobber a
+// lower-layer timeout (the `!= 0` guard — the assertion that distinguishes "!= 0" from "always copy"),
+// and (d) a src-only role with a timeout is added while an untouched dst role survives.
+func TestOverlayRolesFieldMerge_Timeout(t *testing.T) {
+	// (a) + (b): higher layer sets TIMEOUT only → it OVERRIDES the lower-layer timeout AND the lower-layer
+	// provider/model/reasoning SURVIVE (timeout merge must not erase siblings).
+	dst := &Config{
+		Roles: map[string]RoleConfig{
+			"planner": {
+				Provider:  "agy",
+				Model:     "gemini-3.1-pro",
+				Reasoning: "high",
+				Timeout:   300 * time.Second,
+			},
+			"message": {Provider: "pi", Model: "gpt-5.4-nano"}, // untouched dst role
+		},
+	}
+	src := &Config{
+		Roles: map[string]RoleConfig{
+			"planner": {Timeout: 480 * time.Second}, // higher layer sets TIMEOUT only
+			"arbiter": {Provider: "codex", Model: "gpt-5.1-codex-mini", Timeout: 120 * time.Second},
+		},
+	}
+	overlay(dst, src)
+
+	rc := dst.Roles["planner"]
+	if rc.Timeout != 480*time.Second {
+		t.Errorf("planner.timeout=%v want 480s (higher layer wins)", rc.Timeout)
+	}
+	if rc.Provider != "agy" || rc.Model != "gemini-3.1-pro" || rc.Reasoning != "high" {
+		t.Errorf("planner=%+v want provider=agy model=gemini-3.1-pro reasoning=high (timeout merge must not erase siblings)", rc)
+	}
+
+	// (c) the `!= 0` guard: a higher layer that OMITS timeout (Timeout==0, sets only Model) must NOT
+	// clobber a lower-layer non-zero timeout — this is the assertion that proves the guard is `!= 0`
+	// rather than "always copy".
+	dst2 := &Config{Roles: map[string]RoleConfig{"planner": {Timeout: 300 * time.Second}}}
+	src2 := &Config{Roles: map[string]RoleConfig{"planner": {Model: "x"}}} // no timeout
+	overlay(dst2, src2)
+	if got := dst2.Roles["planner"].Timeout; got != 300*time.Second {
+		t.Errorf("planner.timeout=%v want 300s (zero src must not clobber)", got)
+	}
+	if got := dst2.Roles["planner"].Model; got != "x" {
+		t.Errorf("planner.model=%q want x (sibling field still merges when timeout omitted)", got)
+	}
+
+	// (d) a src-only role with a timeout is added; the untouched dst role survives.
+	arb, ok := dst.Roles["arbiter"]
+	if !ok {
+		t.Fatalf("arbiter role missing (src-only role must be added)")
+	}
+	if arb.Provider != "codex" || arb.Model != "gpt-5.1-codex-mini" || arb.Timeout != 120*time.Second {
+		t.Errorf("arbiter=%+v want {codex gpt-5.1-codex-mini 120s}", arb)
+	}
+	if msg := dst.Roles["message"]; msg.Provider != "pi" || msg.Model != "gpt-5.4-nano" {
+		t.Errorf("message=%+v want {pi gpt-5.4-nano} (untouched role must survive)", msg)
+	}
+}
+
 // --- TestOverlay_V2Scalars ---
 
 // TestOverlay_V2Scalars proves non-zero-wins + partial-merge preservation for ConfigVersion/MaxCommits/

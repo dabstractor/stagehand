@@ -18,7 +18,7 @@
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Add Timeout field to RoleConfig + fileRoleConfig + rewrite materialize",
-              "status": "Ready",
+              "status": "Complete",
               "description": "The foundational struct change: add a per-role timeout field to both the resolved and file-decode config structs, and rewrite the materialize loop that currently uses a direct type conversion that will break.",
               "subtasks": [
                 {
@@ -41,7 +41,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": "Add timeout field-merge to overlay function",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"

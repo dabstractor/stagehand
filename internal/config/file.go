@@ -466,8 +466,10 @@ func overlay(dst, src *Config) {
 	}
 	// V2 [role.<role>] — per-role FIELD-MERGE across config layers (PRD §16.4 FR-R3). A field a higher layer
 	// sets overrides that one field only; fields the higher layer omits survive from lower layers. This is
-	// the typed (Provider/Model) analog of the [provider.X] field-merge above (PRD §9.8 FR37a): a repo
-	// [role.planner] model="X" must NOT erase a global [role.planner] provider="agy". Nil-safe.
+	// the typed (Provider/Model/Reasoning) analog of the [provider.X] field-merge above (PRD §9.8 FR37a): a
+	// repo [role.planner] model="X" must NOT erase a global [role.planner] provider="agy". Timeout is
+	// merged with a duration-non-zero-wins guard (`!= 0`, 0 ⇒ inherit global [defaults].timeout) that
+	// mirrors the Config.Timeout overlay guard above (FR-R7). Nil-safe.
 	if len(src.Roles) > 0 {
 		if dst.Roles == nil {
 			dst.Roles = make(map[string]RoleConfig, len(src.Roles))
@@ -482,6 +484,13 @@ func overlay(dst, src *Config) {
 			}
 			if rc.Reasoning != "" {
 				existing.Reasoning = rc.Reasoning
+			}
+			// FR-R7 — per-role timeout (time.Duration; 0 ⇒ inherit the global [defaults].timeout).
+			// Mirrors the global Config.Timeout overlay guard above (if src.Timeout != 0). Timeout is a
+			// value type, so the guard is != 0 (NOT != nil — that discipline is for *int/*bool pointer
+			// fields where *0/*false are meaningful explicit values; timeout has no meaningful "explicit 0").
+			if rc.Timeout != 0 {
+				existing.Timeout = rc.Timeout
 			}
 			dst.Roles[role] = existing
 		}
