@@ -177,6 +177,14 @@ func buildBootstrapConfig(target string, installed []string, overrides map[strin
 		// it blank so all four roles stay empty. pi remains the stager (stager-capable).
 		stagerModel = ""
 	}
+	// Stager fell back to pi for a non-pi target (agy/opencode/qwen-code/codex/cursor have empty
+	// tooled_flags). pi is a multi-backend provider: a bare fallback model (gpt-5.4-mini) is a
+	// hard FR-R5b error. Blank it so the user supplies their own backend/model. pi REMAINS the
+	// stager (stager-capable) — only the MODEL is blanked. Placed before applyOverrides so an
+	// explicit override can still set a model (mirrors the pi-target path's blank-then-override).
+	if stagerName == "pi" && stagerName != target {
+		stagerModel = ""
+	}
 
 	// Apply overrides AFTER pi-blank + stagerFallback (structural routing preserved; only MODEL values).
 	piHasOverrides := piBlanked && len(overrides) > 0
@@ -200,6 +208,12 @@ func buildBootstrapConfig(target string, installed []string, overrides map[strin
 	var stagerAnnotation string
 	if stagerName != target {
 		stagerAnnotation = target + " cannot serve as the stager (no tooled_flags); routed to " + stagerName + " (the first stager-capable provider)."
+	}
+	// When the stager fell back to pi and no override supplied a model, the bare fallback was
+	// blanked — append the multi-backend guidance (same wording as the target==pi NOTE at 187-188)
+	// so the user knows to prefix their inference backend.
+	if stagerName == "pi" && stagerName != target && stagerModel == "" {
+		stagerAnnotation += " pi is a multi-backend provider — prefix the model with your inference backend, e.g. model = \"zai/glm-5.2\". A bare model (no '/') on pi is a config error (FR-R5b)."
 	}
 	writeRoleBlock(&b, "stager", stagerName, stagerModel, stagerAnnotation)
 

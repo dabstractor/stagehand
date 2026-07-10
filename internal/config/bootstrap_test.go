@@ -84,7 +84,13 @@ func TestBuildBootstrapConfig_AgyStagerFallback(t *testing.T) {
 
 	// stager routed to pi
 	assertContains(t, content, "[role.stager]", `provider = "pi"`)
-	assertContains(t, content, "[role.stager]", `model = "gpt-5.4-mini"`)
+	assertContains(t, content, "[role.stager]", `model = ""`)
+	if strings.Contains(content, `gpt-5.4`) {
+		t.Errorf("agy stager-fallback config must not ship a bare gpt-5.4* stager model (FR-R5b); got:\n%s", content)
+	}
+	if !strings.Contains(content, "multi-backend provider") {
+		t.Error("agy stager-fallback config should include the pi multi-backend guidance in the stager annotation")
+	}
 
 	// annotation
 	if !strings.Contains(content, "cannot serve as the stager") {
