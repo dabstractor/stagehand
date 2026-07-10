@@ -325,6 +325,15 @@ func loadEnv(cfg *Config) error {
 		cfg.NoVerify = b // DIRECT set — can be false (escape hatch, mirrors STAGECOACH_PUSH)
 	}
 
+	// §9.27 FR-K6 — no_parent_watchdog via env (presence-semantic, DIRECT set — can be false, the escape hatch).
+	if v, ok := os.LookupEnv("STAGECOACH_NO_PARENT_WATCHDOG"); ok && v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("STAGECOACH_NO_PARENT_WATCHDOG: %w", err)
+		}
+		cfg.NoParentWatchdog = b // DIRECT set — can be false (escape hatch, mirrors STAGECOACH_NO_VERIFY)
+	}
+
 	// §9.4 FR16 / §9.8 FR35 / §15.2 layer 5 — auto_stage_all via env (presence-semantic, DIRECT *bool
 	// set; mirrors STAGECOACH_PUSH). boolPtr(b) makes a non-nil incl. *false the explicit override a
 	// default-true field needs (env DIRECT-set beats default/file/git layers 1-4).

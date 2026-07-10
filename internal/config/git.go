@@ -184,6 +184,12 @@ func loadGitConfig(repoDir string) (*Config, error) {
 	} else if found {
 		c.NoVerify = v
 	}
+	// §9.27 FR-K6 — noParentWatchdog via git config (camelCase key, same convention as noVerify).
+	if v, found, err := gitConfigBool(repoDir, "stagecoach.noParentWatchdog"); err != nil {
+		return nil, err
+	} else if found {
+		c.NoParentWatchdog = v
+	}
 
 	// --- ints (plain --get -> Atoi) ---
 	if v, found, err := gitConfigGet(repoDir, "stagecoach.maxDiffBytes"); err != nil { // camelCase!

@@ -141,6 +141,15 @@ type Config struct {
 	// layers can set it false. See cmd root.go + hooks.RunCommitHooks (M3).
 	NoVerify bool `toml:"no_verify"`
 
+	// NoParentWatchdog is the §9.27 FR-K6 opt-out for the parent-death watchdog (FR-K1, P1.M2.T2).
+	// When true, stagecoach does NOT arm the watchdog that self-exits the run when its launcher dies
+	// (the lazygit/IDE/detaching-terminal case). Default false — the watchdog runs by default; set this
+	// only for intentional detachment (nohup/setsid/systemd-run). Resolution (FR-K6 = env + git + file,
+	// NO flag): STAGECOACH_NO_PARENT_WATCHDOG / stagecoach.noParentWatchdog / [generation].no_parent_watchdog.
+	// FILE LAYER LIMITATION (same as NoVerify/Push): only-true-propagates — a file setting
+	// no_parent_watchdog = false is a no-op; the env layer can set it false (escape hatch).
+	NoParentWatchdog bool `toml:"no_parent_watchdog"`
+
 	// HookTimeout is the §9.25 FR-V6 per-hook execution timeout. Bounds each hook invocation so a wedged
 	// hook cannot hang a commit. Defaults: 10m. File-only (no env/flag/git-config) per arch §2 decision.
 	HookTimeout time.Duration `toml:"hook_timeout"`
@@ -212,6 +221,7 @@ func Defaults() Config {
 		Edit:                 false,            // §9.22 FR-E1 default (false = non-interactive; no editor gate)
 		Push:                 false,            // §9.22 FR-P1 default (false = no auto-push)
 		NoVerify:             false,            // §9.25 FR-V5 default (hooks run by default)
+		NoParentWatchdog:     false,            // §9.27 FR-K6 default (watchdog runs by default)
 		HookTimeout:          10 * time.Minute, // §9.25 FR-V6 default per-hook timeout
 		Providers:            nil,
 		Roles:                nil, // no per-role overrides → all roles use the global (§16.4 FR-R2)

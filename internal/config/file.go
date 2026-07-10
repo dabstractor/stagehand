@@ -58,15 +58,16 @@ type fileGeneration struct {
 	SubjectTargetChars   int      `toml:"subject_target_chars"`
 	Output               string   `toml:"output"`
 	StripCodeFence       *bool    `toml:"strip_code_fence"`
-	MaxCommits           int      `toml:"max_commits"`       // V2 — safety cap on auto-decompose (§9.14 FR-M4)
-	BinaryExtensions     []string `toml:"binary_extensions"` // V2 — extra non-text exts to filter (§9.1 FR3a)
-	Exclude              []string `toml:"exclude"`           // V2.1 — §9.18 FR-X1 exclusion globs; UNION-merged in overlay()
-	Format               string   `toml:"format"`            // V2.1 — §9.19 FR-F1 message format (validated at Load)
-	Locale               string   `toml:"locale"`            // V2.1 — §9.19 FR-F6 message locale (free-form, never validated)
-	Template             string   `toml:"template"`          // V2.1 — §9.19 FR-F8 message template (validated at Load)
-	Push                 bool     `toml:"push"`              // §9.22 FR-P1 — push after clean run (default false)
-	NoVerify             bool     `toml:"no_verify"`         // §9.25 FR-V5 — only-true-propagates (mirrors Push)
-	HookTimeout          string   `toml:"hook_timeout"`      // §9.25 FR-V6 — duration string "10m", parsed in loadTOML
+	MaxCommits           int      `toml:"max_commits"`        // V2 — safety cap on auto-decompose (§9.14 FR-M4)
+	BinaryExtensions     []string `toml:"binary_extensions"`  // V2 — extra non-text exts to filter (§9.1 FR3a)
+	Exclude              []string `toml:"exclude"`            // V2.1 — §9.18 FR-X1 exclusion globs; UNION-merged in overlay()
+	Format               string   `toml:"format"`             // V2.1 — §9.19 FR-F1 message format (validated at Load)
+	Locale               string   `toml:"locale"`             // V2.1 — §9.19 FR-F6 message locale (free-form, never validated)
+	Template             string   `toml:"template"`           // V2.1 — §9.19 FR-F8 message template (validated at Load)
+	Push                 bool     `toml:"push"`               // §9.22 FR-P1 — push after clean run (default false)
+	NoVerify             bool     `toml:"no_verify"`          // §9.25 FR-V5 — only-true-propagates (mirrors Push)
+	NoParentWatchdog     bool     `toml:"no_parent_watchdog"` // §9.27 FR-K6 — only-true-propagates (mirrors NoVerify/Push)
+	HookTimeout          string   `toml:"hook_timeout"`       // §9.25 FR-V6 — duration string "10m", parsed in loadTOML
 }
 
 // ---------------------------------------------------------------------------
@@ -299,6 +300,10 @@ func materialize(fc *fileConfig, timeout, hookTimeout time.Duration) *Config {
 	if g.NoVerify {
 		c.NoVerify = true
 	}
+	// §9.27 FR-K6 — no_parent_watchdog from file (only-true-propagates, mirrors NoVerify/Push).
+	if g.NoParentWatchdog {
+		c.NoParentWatchdog = true
+	}
 	// V2 top-level metadata — non-zero copy (the §9.17 advisory is P1.M4.T1's job, not here).
 	if fc.ConfigVersion != 0 {
 		c.ConfigVersion = fc.ConfigVersion
@@ -362,6 +367,10 @@ func overlay(dst, src *Config) {
 	// §9.25 FR-V5 — no_verify (only-true-propagates, same as Push)
 	if src.NoVerify {
 		dst.NoVerify = true
+	}
+	// §9.27 FR-K6 — no_parent_watchdog (only-true-propagates, same as NoVerify/Push)
+	if src.NoParentWatchdog {
+		dst.NoParentWatchdog = true
 	}
 	// §9.25 FR-V6 — hook_timeout (duration-zero guard, same as Timeout)
 	if src.HookTimeout != 0 {

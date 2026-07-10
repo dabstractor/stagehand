@@ -253,6 +253,7 @@ const bootstrapHeader = `# Stagecoach configuration file (populated bootstrap).
 #   STAGECOACH_CONFIG     path to a config file, overrides discovery
 #   STAGECOACH_VERBOSE    "true"/"false" — print resolved command, raw output, retries
 #   STAGECOACH_NO_COLOR   "true"/"false" — disable color (also honors NO_COLOR)
+#   STAGECOACH_NO_PARENT_WATCHDOG=1   # opt out of the parent-death lock watchdog (§9.27 FR-K6)
 #   STAGECOACH_PLANNER_PROVIDER / _MODEL   per-role override: decomposition planner (PRD §16.4, §9.15)
 #   STAGECOACH_STAGER_PROVIDER  / _MODEL   per-role override: (tooled) staging agent
 #   STAGECOACH_MESSAGE_PROVIDER / _MODEL   per-role override: bare commit-message agent
@@ -303,4 +304,5 @@ const generationCommented = `
 # binary_extensions     = []      # extra non-text extensions to filter beyond the built-in denylist (§9.1 FR3a)
 # multi_turn_fallback     = true   # lossless multi-turn fallback on one-shot exhaustion (§9.24 FR-T1c); set false to DISABLE (now honored via file/git-config)
 # multi_turn_chunk_tokens = 32000  # per-turn chunk budget in tokens for multi-turn (§9.24 FR-T3); does NOT interact with token_limit (FR-T12)
+# no_parent_watchdog    = false  # opt out of the parent-death lock watchdog — set true if you launch via nohup/setsid/systemd-run (§9.27 FR-K6)
 `

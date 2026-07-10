@@ -149,6 +149,7 @@ func TestLoadEnv_StringsTimeoutBools(t *testing.T) {
 	t.Setenv("STAGECOACH_VERBOSE", "true")
 	t.Setenv("STAGECOACH_NO_COLOR", "true")
 	t.Setenv("STAGECOACH_NO_VERIFY", "true")
+	t.Setenv("STAGECOACH_NO_PARENT_WATCHDOG", "true")
 
 	if err := loadEnv(&cfg); err != nil {
 		t.Fatalf("loadEnv err=%v", err)
@@ -171,6 +172,9 @@ func TestLoadEnv_StringsTimeoutBools(t *testing.T) {
 	if !cfg.NoVerify {
 		t.Errorf("NoVerify=false want true (STAGECOACH_NO_VERIFY=true)")
 	}
+	if !cfg.NoParentWatchdog {
+		t.Errorf("NoParentWatchdog=false want true (STAGECOACH_NO_PARENT_WATCHDOG=true)")
+	}
 }
 
 // TestLoadEnv_WorkDescription (§9.26 FR-W1): STAGECOACH_WORK_DESCRIPTION activates work-description mode.
@@ -186,10 +190,11 @@ func TestLoadEnv_WorkDescription(t *testing.T) {
 }
 
 func TestLoadEnv_BoolFalseEscape(t *testing.T) {
-	cfg := Config{Verbose: true, NoColor: true, NoVerify: true} // start with true
+	cfg := Config{Verbose: true, NoColor: true, NoVerify: true, NoParentWatchdog: true} // start with true
 	t.Setenv("STAGECOACH_VERBOSE", "false")
 	t.Setenv("STAGECOACH_NO_COLOR", "false")
 	t.Setenv("STAGECOACH_NO_VERIFY", "false")
+	t.Setenv("STAGECOACH_NO_PARENT_WATCHDOG", "false")
 
 	if err := loadEnv(&cfg); err != nil {
 		t.Fatalf("loadEnv err=%v", err)
@@ -202,6 +207,9 @@ func TestLoadEnv_BoolFalseEscape(t *testing.T) {
 	}
 	if cfg.NoVerify {
 		t.Errorf("NoVerify=true want false (DIRECT set escape hatch)")
+	}
+	if cfg.NoParentWatchdog {
+		t.Errorf("NoParentWatchdog=true want false (DIRECT set escape hatch)")
 	}
 }
 
@@ -1714,8 +1722,34 @@ func TestLoad_NoVerifyPrecedence(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Load — ctx cancellation
+// Load — noParentWatchdog precedence (§9.27 FR-K6; mirrors TestLoad_NoVerifyPrecedence)
 // ---------------------------------------------------------------------------
+
+func TestLoad_NoParentWatchdogPrecedence(t *testing.T) {
+	_, repo, _ := loadEnvSetup(t)
+	chdir(t, repo)
+
+	// Layer 4: git config sets noParentWatchdog=true (camelCase key).
+	setGitConfig(t, repo, "stagecoach.noParentWatchdog", "true")
+	cfg, err := Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	if !cfg.NoParentWatchdog {
+		t.Errorf("NoParentWatchdog=false want true (stagecoach.noParentWatchdog=true via git config)")
+	}
+
+	// Layer 5: env overrides (DIRECT set — the escape hatch that CAN set false,
+	// unlike the file/git only-true-propagates layers).
+	t.Setenv("STAGECOACH_NO_PARENT_WATCHDOG", "false")
+	cfg, err = Load(context.Background(), LoadOpts{RepoDir: repo, DisableBootstrap: true})
+	if err != nil {
+		t.Fatalf("Load err=%v", err)
+	}
+	if cfg.NoParentWatchdog {
+		t.Errorf("NoParentWatchdog=true want false (STAGECOACH_NO_PARENT_WATCHDOG=false > stagecoach.noParentWatchdog=true)")
+	}
+}
 
 func TestLoad_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())

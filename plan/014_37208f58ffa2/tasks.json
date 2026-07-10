@@ -66,21 +66,21 @@
           "type": "Milestone",
           "id": "P1.M2",
           "title": "Parent-Death Watchdog — Detection + Config + Arming (FR-K1/K2/K6/K7)",
-          "status": "Planned",
+          "status": "Ready",
           "description": "The core deliverable: a new internal/watchdog package that detects parent death (by parent-pid change, not getppid()==1) and routes the process through the existing rescue + lock-release exit path. Gated by a no_parent_watchdog config opt-out. Unix-only (Linux prctl fast path + getppid polling fallback; Darwin polling only). Windows is a no-op.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "no_parent_watchdog config field (FR-K6)",
-              "status": "Ready",
+              "status": "Complete",
               "description": "Add the NoParentWatchdog config field via a 7-point copy from the existing NoVerify field pattern. Sources: env STAGECOACH_NO_PARENT_WATCHDOG, git config stagecoach.noParentWatchdog, TOML [generation].no_parent_watchdog. No CLI flag (unlike no_verify/no_color). Default off (watchdog runs by default).",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Add NoParentWatchdog config field with full 7-layer precedence",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See plan/014_37208f58ffa2/architecture/watchdog_config.md. NoVerify is the exact 7-point copy template. The codebase uses ALL-CAPS env vars (STAGECOACH_*) and camelCase git config keys (stagecoach.noVerify). git rejects underscores in the final config segment per the codebase's own comment at git.go:180.\n2. INPUT: The existing NoVerify field pattern across 7 files: config.go:142 (struct field `NoVerify bool toml:\"no_verify\"`), config.go:214 (Defaults `NoVerify: false`), file.go:68 (fileGeneration field), file.go:299 (materialize `if g.NoVerify { c.NoVerify = true }`), file.go:363 (overlay `if src.NoVerify { dst.NoVerify = true }`), load.go:320 (env `STAGECOACH_NO_VERIFY` DIRECT set), git.go:182 (git config `stagecoach.noVerify`).\n3. LOGIC: Add `NoParentWatchdog` at each of the 7 touch points, mirroring NoVerify exactly: (a) config.go struct: `NoParentWatchdog bool \\`toml:\"no_parent_watchdog\"\\`` with doc comment referencing §9.27 FR-K6; (b) config.go Defaults: `NoParentWatchdog: false`; (c) file.go fileGeneration: `NoParentWatchdog bool \\`toml:\"no_parent_watchdog\"\\``; (d) file.go materialize: `if g.NoParentWatchdog { c.NoParentWatchdog = true }`; (e) file.go overlay: `if src.NoParentWatchdog { dst.NoParentWatchdog = true }`; (f) load.go loadEnv: `STAGECOACH_NO_PARENT_WATCHDOG` with strconv.ParseBool DIRECT set (can be false — escape hatch); (g) git.go loadGitConfig: `stagecoach.noParentWatchdog` via gitConfigBool. Do NOT add a CLI flag in root.go or an entry in loadFlags — FR-K6 has no flag. Also add a commented line to the bootstrap config template in internal/config/bootstrap.go (the config init generated template) documenting `# noParentWatchdog = false  # opt out of the parent-death lock watchdog (§9.27 FR-K6)`.\n4. OUTPUT: cfg.NoParentWatchdog resolves through all 7 layers. Consumed by the watchdog arming in P1.M2.T2.S2 (`if !cfg.NoParentWatchdog { watchdog.Arm(...) }`).\n5. DOCS: [Mode A] Update the generated config template in bootstrap.go to document the new option. The bootstrap template's env-var reference block should add `#   STAGECOACH_NO_PARENT_WATCHDOG=1   # opt out of the parent-death lock watchdog (§9.27 FR-K6)`. The final docs task (P1.M4.T2) will cover README/docs for the overall feature.",
@@ -97,14 +97,14 @@
               "type": "Task",
               "id": "P1.M2.T2",
               "title": "Watchdog implementation + arming (FR-K1/K2/K7)",
-              "status": "Planned",
+              "status": "Ready",
               "description": "Create the new internal/watchdog package that detects parent death and routes through signal.Trigger. Wire the arming in default_action.go after lock.Acquire, gated by cfg.NoParentWatchdog.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T2.S1",
                   "title": "Watchdog package — prctl fast path (Linux) + getppid polling (Unix), Windows no-op",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T2.S1"
@@ -120,7 +120,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T2.S2",
                   "title": "Wire watchdog arming in default_action.go, gated by no_parent_watchdog",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S1",

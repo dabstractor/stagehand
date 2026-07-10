@@ -88,6 +88,8 @@ func TestLoadGitConfig_ReadsValues(t *testing.T) {
 	// §9.25 FR-V5 — noVerify via git config (camelCase key: git rejects underscores
 	// in the final segment, matching the autoStageAll/maxDiffBytes/stripCodeFence convention).
 	setGitConfig(t, repo, "stagecoach.noVerify", "true")
+	// §9.27 FR-K6 — noParentWatchdog via git config (camelCase key, same convention as noVerify).
+	setGitConfig(t, repo, "stagecoach.noParentWatchdog", "true")
 
 	cfg, err := loadGitConfig(repo)
 	if err != nil {
@@ -134,6 +136,10 @@ func TestLoadGitConfig_ReadsValues(t *testing.T) {
 	// §9.25 FR-V5 — noVerify via git config
 	if !cfg.NoVerify {
 		t.Errorf("NoVerify=false want true (stagecoach.noVerify set)")
+	}
+	// §9.27 FR-K6 — noParentWatchdog via git config
+	if !cfg.NoParentWatchdog {
+		t.Errorf("NoParentWatchdog=false want true (stagecoach.noParentWatchdog set)")
 	}
 }
 
