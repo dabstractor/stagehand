@@ -54,41 +54,42 @@ h1.1 PART I — PRODUCT REQUIREMENTS
   h3.41 9.25 Hook execution on the commit path (P1, → G22)
   h3.42 9.26 Work-description mode (description-first, read-on-demand) (P1, → G23)
   h3.43 9.27 Orphaned-run lock reclamation (the launcher-closed case) (P1, → G24)
+  h3.44 9.28 Chrome-disable for every provider (isolation, determinism, cost) (P2, → G25)
  h2.10 10. Version scope (v1.0 → v2.1)
-  h3.44 10.1 v1.0 (shipped — the single-commit core)
-  h3.45 10.2 v1.1 (resolved)
-  h3.46 10.3 v2.0 — multi-commit decomposition + per-role models
-  h3.47 10.4 v2.1 (this revision) — competitor parity + tool integrations
-  h3.48 10.5 Beyond this document
+  h3.45 10.1 v1.0 (shipped — the single-commit core)
+  h3.46 10.2 v1.1 (resolved)
+  h3.47 10.3 v2.0 — multi-commit decomposition + per-role models
+  h3.48 10.4 v2.1 (this revision) — competitor parity + tool integrations
+  h3.49 10.5 Beyond this document
 h1.2 PART II — TECHNICAL SPECIFICATION
  h2.11 11. Architecture overview
-  h3.49 11.1 High-level data flow
-  h3.50 11.2 Process model
-  h3.51 11.3 Design constraints that protect v2 (now realized)
-  h3.52 11.4 Multi-commit pipeline (data flow)
-  h3.53 11.5 Two invocation modes: bare and tooled
+  h3.50 11.1 High-level data flow
+  h3.51 11.2 Process model
+  h3.52 11.3 Design constraints that protect v2 (now realized)
+  h3.53 11.4 Multi-commit pipeline (data flow)
+  h3.54 11.5 Two invocation modes: bare and tooled
  h2.12 12. The provider system
-  h3.54 12.1 The manifest schema
-  h3.55 12.2 Command rendering algorithm
-  h3.56 12.3 Built-in provider: pi
-  h3.57 12.4 Built-in provider: Claude Code
-  h3.58 12.5 Built-in provider: Gemini CLI — REMOVED (superseded by agy, §12.5.1)
-  h3.59 12.5.1 Built-in provider: Antigravity CLI (agy) — the Gemini-CLI successor
+  h3.55 12.1 The manifest schema
+  h3.56 12.2 Command rendering algorithm
+  h3.57 12.3 Built-in provider: pi
+  h3.58 12.4 Built-in provider: Claude Code
+  h3.59 12.5 Built-in provider: Gemini CLI — REMOVED (superseded by agy, §12.5.1)
+  h3.60 12.5.1 Built-in provider: Antigravity CLI (agy) — the Gemini-CLI successor
    h4.0 12.5.1.1 Status (agy) — verified 2026-07-08 against agy v1.1.0
-  h3.60 12.5.2 Built-in provider: qwen-code — the Qwen3-Coder CLI (a Gemini-CLI fork)
-  h3.61 12.6 Built-in provider: opencode
-  h3.62 12.7 Verified providers: Codex, Cursor Agent
+  h3.61 12.5.2 Built-in provider: qwen-code — the Qwen3-Coder CLI (a Gemini-CLI fork)
+  h3.62 12.6 Built-in provider: opencode
+  h3.63 12.7 Verified providers: Codex, Cursor Agent
    h4.1 12.7.1 The tools-disable asymmetry (important, documented honestly)
    h4.2 12.7.2 On stubbing and progressive verification
-  h3.63 12.8 Extensibility: user-defined providers
-  h3.64 12.9 Output parsing pipeline (detailed)
+  h3.64 12.8 Extensibility: user-defined providers
+  h3.65 12.9 Output parsing pipeline (detailed)
  h2.13 13. The snapshot-based generation flow (the core IP)
-  h3.65 13.1 Why git commit is the wrong primitive
-  h3.66 13.2 The plumbing alternative
-  h3.67 13.3 The resulting workflow
-  h3.68 13.4 Stage-while-generating: the user's mental model
-  h3.69 13.5 Edge cases and their handling
-  h3.70 13.6 Multi-commit decomposition (the v2 core, now specified)
+  h3.66 13.1 Why git commit is the wrong primitive
+  h3.67 13.2 The plumbing alternative
+  h3.68 13.3 The resulting workflow
+  h3.69 13.4 Stage-while-generating: the user's mental model
+  h3.70 13.5 Edge cases and their handling
+  h3.71 13.6 Multi-commit decomposition (the v2 core, now specified)
    h4.3 13.6.1 When it activates (the trigger model)
    h4.4 13.6.2 The four agent roles
    h4.5 13.6.3 The pipeline (sequential staging, overlapped generation)
@@ -97,63 +98,63 @@ h1.2 PART II — TECHNICAL SPECIFICATION
    h4.8 13.6.6 Failure handling within the loop
    h4.9 13.6.7 Why this is safe (the one-paragraph proof)
  h2.14 14. Package layout (Go)
-  h3.71 14.1 The public library surface (pkg/stagecoach)
+  h3.72 14.1 The public library surface (pkg/stagecoach)
  h2.15 15. CLI reference
-  h3.72 15.1 Synopsis
-  h3.73 15.2 Global flags
-  h3.74 15.3 Subcommands
-  h3.75 15.4 Exit codes
-  h3.76 15.5 Example invocations
+  h3.73 15.1 Synopsis
+  h3.74 15.2 Global flags
+  h3.75 15.3 Subcommands
+  h3.76 15.4 Exit codes
+  h3.77 15.5 Example invocations
  h2.16 16. Configuration model (full)
-  h3.77 16.1 Resolution order (FR34), lowest to highest
-  h3.78 16.2 Full config file example
-  h3.79 16.3 Git-config keys (alternative to a file)
-  h3.80 16.4 Per-role provider/model configuration (v3; → G12, FR-R1–R6)
+  h3.78 16.1 Resolution order (FR34), lowest to highest
+  h3.79 16.2 Full config file example
+  h3.80 16.3 Git-config keys (alternative to a file)
+  h3.81 16.4 Per-role provider/model configuration (v3; → G12, FR-R1–R6)
  h2.17 17. Prompt engineering
-  h3.81 17.1 The system prompt (mature repo, >1 commit)
-  h3.82 17.2 The system prompt (new repo, ≤1 commit)
-  h3.83 17.3 The user payload
-  h3.84 17.4 Why raw output, not JSON (the v1 design call)
-  h3.85 17.5 Planner prompt (v2; §13.6.2, FR-M3)
-  h3.86 17.6 Stager task prompt (v2; §13.6.2, FR-M5)
-  h3.87 17.7 Arbiter prompt (v2; §13.6.5, FR-M9)
-  h3.88 17.8 Format modes, locale, and context (v2.1; §9.19)
+  h3.82 17.1 The system prompt (mature repo, >1 commit)
+  h3.83 17.2 The system prompt (new repo, ≤1 commit)
+  h3.84 17.3 The user payload
+  h3.85 17.4 Why raw output, not JSON (the v1 design call)
+  h3.86 17.5 Planner prompt (v2; §13.6.2, FR-M3)
+  h3.87 17.6 Stager task prompt (v2; §13.6.2, FR-M5)
+  h3.88 17.7 Arbiter prompt (v2; §13.6.5, FR-M9)
+  h3.89 17.8 Format modes, locale, and context (v2.1; §9.19)
  h2.18 18. Error handling, rescue protocol, and safety
-  h3.89 18.1 The invariant
-  h3.90 18.2 Failure modes and responses
-  h3.91 18.3 The rescue message (FR43–FR45)
-  h3.92 18.4 Signal handling
-  h3.93 18.5 Concurrency: the per-repo run lock (FR52)
+  h3.90 18.1 The invariant
+  h3.91 18.2 Failure modes and responses
+  h3.92 18.3 The rescue message (FR43–FR45)
+  h3.93 18.4 Signal handling
+  h3.94 18.5 Concurrency: the per-repo run lock (FR52)
  h2.19 19. Security considerations
  h2.20 20. Testing and QA strategy
-  h3.94 20.1 Layers
-  h3.95 20.2 Property/invariant tests
-  h3.96 20.3 Coverage target
-  h3.97 20.4 CI matrix
-  h3.98 20.5 End-to-end scenario harness (strongly encouraged)
+  h3.95 20.1 Layers
+  h3.96 20.2 Property/invariant tests
+  h3.97 20.3 Coverage target
+  h3.98 20.4 CI matrix
+  h3.99 20.5 End-to-end scenario harness (strongly encouraged)
  h2.21 21. Distribution and release
-  h3.99 21.1 Build
-  h3.100 21.2 goreleaser
-  h3.101 21.3 Install paths
-  h3.102 21.4 Versioning
-  h3.103 21.5 README structure (the marketing surface)
+  h3.100 21.1 Build
+  h3.101 21.2 goreleaser
+  h3.102 21.3 Install paths
+  h3.103 21.4 Versioning
+  h3.104 21.5 README structure (the marketing surface)
  h2.22 22. Risks, assumptions, dependencies
-  h3.104 22.1 Risks
-  h3.105 22.2 Assumptions
-  h3.106 22.3 Dependencies
+  h3.105 22.1 Risks
+  h3.106 22.2 Assumptions
+  h3.107 22.3 Dependencies
  h2.23 23. Glossary
 h1.3 Appendices
  h2.24 Appendix A — Full v1 system prompt templates
  h2.25 Appendix B — Example terminal sessions
-  h3.107 B.1 Happy path
-  h3.108 B.2 Stage-while-generating
-  h3.109 B.3 Dry run
-  h3.110 B.4 Duplicate retry
-  h3.111 B.5 Rescue
+  h3.108 B.1 Happy path
+  h3.109 B.2 Stage-while-generating
+  h3.110 B.3 Dry run
+  h3.111 B.4 Duplicate retry
+  h3.112 B.5 Rescue
  h2.26 Appendix C — Line-by-line porting map from commit-pi
  h2.27 Appendix D — Built-in manifest quick reference
  h2.28 Appendix E — Open questions (to resolve before/during v1 implementation)
  h2.29 Appendix F — Decision log (key calls and why)
  h2.30 Note: this project was originally named "stagehand" and has been renamed. All references to "stagehand" must be replaced with "stagecoach".
 ---
-code:43 para:180 list:72 table:12 quote:3
+code:43 para:181 list:73 table:12 quote:3

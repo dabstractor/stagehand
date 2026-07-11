@@ -11,14 +11,14 @@
           "type": "Milestone",
           "id": "P1.M1",
           "title": "Critical — Bootstrap Stager-Fallback Bare Pi Model (Issue 1)",
-          "status": "Researching",
+          "status": "Ready",
           "description": "Fix the config bootstrap's stager-fallback path so that when a non-stager-capable provider (agy, opencode, qwen-code, codex, cursor) is the target, and the stager role falls back to pi (a provider_flag / multi-backend provider), the stager model is written BLANK (not bare 'gpt-5.4-mini'). Add a post-bootstrap ValidateModel regression net that catches this class of bug automatically. Root cause: piBlanked only fires when target=='pi', not when pi is the stager fallback. See architecture/bootstrap_pi_model_bug.md.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Fix stager-fallback to blank pi model in buildBootstrapConfig (Issue 1)",
-              "status": "Ready",
+              "status": "Complete",
               "description": "In internal/config/bootstrap.go buildBootstrapConfig(), after the StagerFallback() call returns (stagerName, stagerModel), add a guard: if stagerName == 'pi' AND stagerName != target (i.e. pi was chosen as the stager fallback for a non-pi target), blank stagerModel to ''. Emit the same multi-backend guidance comment on the stager block as the target==pi path uses. Update the test assertion at bootstrap_test.go:87 from 'gpt-5.4-mini' to blank. Extend the negative gpt-5.4 guard to the stager-fallback test cases.",
               "subtasks": [
                 {
@@ -39,7 +39,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": "Update test assertions and extend negative gpt-5.4 guard for stager-fallback cases",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
@@ -56,14 +56,14 @@
               "type": "Task",
               "id": "P1.M1.T2",
               "title": "Post-bootstrap ValidateModel regression net (catches Issue 1 & 2 class of bugs automatically)",
-              "status": "Researching",
+              "status": "Ready",
               "description": "Add a test that generates bootstrap configs for every (target, installed) combination, parses the active (uncommented) [role.*] blocks, resolves each role's provider+model, and calls Manifest.ValidateModel on the model. Any non-nil result = test failure. This would have caught Issue 1 immediately (bare 'gpt-5.4-mini' on pi fails ValidateModel) and provides a permanent regression net against future bootstrap changes that introduce invalid models.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M1.T2.S1",
                   "title": "Add post-bootstrap ValidateModel test for all (target, installed) combinations",
-                  "status": "Researching",
+                  "status": "Ready",
                   "story_points": 2,
                   "dependencies": [
                     "P1.M1.T1.S2"
@@ -97,7 +97,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Modify commented-block loop to blank pi models with guidance comment",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
