@@ -176,6 +176,51 @@ func TestBuildBootstrapConfig_OtherInstalledCommented(t *testing.T) {
 	}
 }
 
+// TestBuildBootstrapConfig_CommentedPiBlockBlanked guards Issue 2 (FR-R5b/FR-B1): when a non-pi
+// target is generated with pi ALSO installed, the commented-out pi provider block must ship BLANK
+// models + a multi-backend guidance NOTE — NOT the bare gpt-5.4* defaults that are a hard FR-R5b
+// error when uncommented. Mirror of TestBuildBootstrapConfig_OtherInstalledCommented (which proves
+// the non-pi claude block is NOT blanked). See findings §1/§2/§7.
+func TestBuildBootstrapConfig_CommentedPiBlockBlanked(t *testing.T) {
+	content := buildBootstrapConfig("claude", []string{"claude", "pi"}, nil)
+
+	// (a) commented pi block header present
+	if !strings.Contains(content, "# === pi (installed)") {
+		t.Fatalf("missing commented pi block header; content:\n%s", content)
+	}
+
+	piBlock := extractCommentedProviderBlock(content, "pi") // scope assertions to the pi block only
+
+	// (b) ships BLANK models (`# model = ""`)
+	if !strings.Contains(piBlock, `# model = ""`) {
+		t.Errorf("commented pi block missing blank `# model = \"\"`; pi block:\n%s", piBlock)
+	}
+	// all FOUR roles blanked
+	if got := strings.Count(piBlock, `# model = ""`); got != 4 {
+		t.Errorf("commented pi block: want 4 blank `# model = \"\"` (planner/stager/message/arbiter), got %d; pi block:\n%s", got, piBlock)
+	}
+
+	// (c) multi-backend guidance NOTE present
+	if !strings.Contains(piBlock, "multi-backend provider") {
+		t.Errorf("commented pi block missing the multi-backend guidance NOTE; pi block:\n%s", piBlock)
+	}
+
+	// (d) NEGATIVE: no BARE gpt-5.4* model ASSIGNMENT (the actual bug shape).
+	// NOTE: the literal substring "gpt-5.4" ALSO appears inside S1's NOTE example
+	// (`# e.g. model = "zai/gpt-5.4"`) — a slash-PREFIXED model in a `# e.g.` comment, which is
+	// CORRECT and must NOT trip the guard. So we assert on the bare ASSIGNMENT form
+	// `# model = "gpt-5.4`, which matches the OLD bug and only the old bug. See findings §2.
+	if strings.Contains(piBlock, `# model = "gpt-5.4`) {
+		t.Errorf("commented pi block must not ship bare gpt-5.4* model assignments (FR-R5b); pi block:\n%s", piBlock)
+	}
+
+	// Companion sanity: the ACTIVE claude role models are NOT blanked (claude has no ProviderFlag →
+	// bare aliases are legal). Confirms the pi-blank didn't collateral-damage the active block.
+	if !strings.Contains(content, `model = "haiku"`) {
+		t.Errorf("active claude block unexpectedly missing `model = \"haiku\"` (claude must NOT be blanked)")
+	}
+}
+
 func TestBuildBootstrapConfig_NoInstallFallback(t *testing.T) {
 	content := buildBootstrapConfig("pi", nil, nil)
 
@@ -282,6 +327,27 @@ func extractStagerBlock(content string) string {
 	// the next table header / section separator terminates the block
 	nextIdx := len(rest)
 	for _, marker := range []string{"\n[role.", "\n[generation", "\n# ---"} {
+		if i := strings.Index(rest[1:], marker); i >= 0 && i+1 < nextIdx {
+			nextIdx = i + 1
+		}
+	}
+	return rest[:nextIdx]
+}
+
+// extractCommentedProviderBlock returns the commented-provider block for `provider`: from the
+// `# === <provider> (installed)` header up to (not including) the next section boundary (another
+// commented-provider block, the [generation] dashed separator, or EOF). Idiom mirrors
+// extractStagerBlock. Scopes assertions to a single commented provider so active role models
+// elsewhere don't interfere. See findings §4.
+func extractCommentedProviderBlock(content, provider string) string {
+	header := "# === " + provider + " (installed)"
+	start := strings.Index(content, header)
+	if start < 0 {
+		return ""
+	}
+	rest := content[start:]
+	nextIdx := len(rest)
+	for _, marker := range []string{"\n# ===", "\n# ---"} {
 		if i := strings.Index(rest[1:], marker); i >= 0 && i+1 < nextIdx {
 			nextIdx = i + 1
 		}

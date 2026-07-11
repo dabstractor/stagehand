@@ -90,7 +90,7 @@
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "Fix commented-out pi provider block to use blank/prefixed models (Issue 2)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "In the commented-block generation loop of buildBootstrapConfig (bootstrap.go:205-222), when the provider is pi (a provider_flag provider), write the models as blank with a guidance comment, OR write placeholder-prefixed example models. Any uncommented value must be FR-R5b-valid.",
               "subtasks": [
                 {
@@ -112,7 +112,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S2",
                   "title": "Add test for commented-out pi block FR-R5b validity",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M2.T1.S1"
@@ -136,7 +136,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T2.S1",
                   "title": "Insert WriteTimestampedBackup before os.WriteFile in runConfigUpgrade",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See architecture/config_upgrade_backup.md. The bug is at internal/cmd/config.go:182-189 in `runConfigUpgrade`. After the `if !changed { return nil }` check (line 182), the function writes directly via `os.WriteFile(path, []byte(newContent), 0o644)` (line 186) with NO preceding backup. The correct pattern is at writeBootstrapFile (config.go:504-533), which calls `config.WriteTimestampedBackup(path)` before the write (lines 521-528). WriteTimestampedBackup (backup.go:18) returns (\"\", nil) if file doesn't exist, (backupPath, nil) on success, (\"\", error) on failure. No new import needed — `internal/config` is already imported; `fmt` and `exitcode` are in scope.\n2. INPUT: `runConfigUpgrade(cmd *cobra.Command, args []string) error` at internal/cmd/config.go:157. The `config.WriteTimestampedBackup(path string) (string, error)` function from internal/config/backup.go. The `cmd.OutOrStderr()` writer for the backup notice message.\n3. LOGIC: In `runConfigUpgrade`, between the `if !changed { … return nil }` block (line 182) and the `os.WriteFile` call (line 186), insert: `if backup, berr := config.WriteTimestampedBackup(path); berr != nil { return exitcode.New(exitcode.Error, fmt.Errorf(\"backup existing config %s: %w\", path, berr)) } else if backup != \"\" { fmt.Fprintf(cmd.OutOrStderr(), \"Backed up previous config to %s\\n\", backup) }`. This mirrors writeBootstrapFile lines 521-528 exactly. The backup runs ONLY when `changed == true` (a real write happens). The inert (line 174), already-current (line 182), malformed-TOML, and no-file paths all return early without reaching the backup code.\n4. OUTPUT: runConfigUpgrade now creates a `<file>.bak.<timestamp>` backup before overwriting, identical to config init --force. The upgrade output includes a 'Backed up previous config to …' notice on stderr. For consumption by P1.M2.T2.S2 (test assertions).\n5. DOCS: none — the backup is transparent user-facing behavior, not a config/API surface change. The FR-B8 requirement is already documented in the PRD.",
