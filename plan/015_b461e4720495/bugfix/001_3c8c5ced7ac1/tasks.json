@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Bug Fix Implementation — Config Bootstrap, Upgrade Backup, and Minor Polish",
-      "status": "Researching",
+      "status": "Complete",
       "description": "Fix 6 issues found during end-to-end testing: 1 Critical (bootstrap stager-fallback writes invalid bare pi model), 2 Major (commented-out pi block invalid models; config upgrade missing backup), 3 Minor (token-limit sub-270 floor violation; doubled stagecoach: prefix; auto-stage grammar). All fixes are grounded in the architecture research in plan/015_b461e4720495/bugfix/001_3c8c5ced7ac1/architecture/.",
       "milestones": [
         {
@@ -168,21 +168,21 @@
           "type": "Milestone",
           "id": "P1.M3",
           "title": "Minor Fixes — Token Gate Floor, Doubled Prefix, Auto-Stage Grammar (Issues 4, 5, 6)",
-          "status": "Researching",
+          "status": "Complete",
           "description": "Fix three Minor issues: (Issue 4) FR3j token-limit invariant violated for very small token_limit values — add irreducible floor rejection; (Issue 5) doubled 'stagecoach:' prefix in --edit empty-message abort; (Issue 6) auto-stage notice uses '(1 files)' grammar. All three are small, localized fixes. See architecture/minor_fixes.md.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Token gate irreducible floor rejection (Issue 4, FR3j)",
-              "status": "Researching",
+              "status": "Complete",
               "description": "Add a floor check at each opts.TokenLimit > 0 call site in internal/git/git.go that rejects token_limit values below the computed irreducible floor (EstimateTokens(skeleton) + promptReserve + tokenBudgetMargin) with a clear error, instead of silently violating the FR3j 'always' invariant.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T1.S1",
                   "title": "Export IrreducibleFloor helper and add floor check at git.go call sites",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 2,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See architecture/minor_fixes.md §Issue 4. The closed-loop gate at internal/git/tokengate.go:195-216 returns the best attempt after maxClosedLoopPasses=4 even if the assembled prompt still exceeds token_limit. The degenerate case fires when bodyBudget <= 0 (tokengate.go:138): bodyBudget = tokenLimit - skeletonTokens - promptReserve - tokenBudgetMargin. Constants: tokenBudgetMargin=1024 (tokengate.go:48), minBodyTokens=8 (tokengate.go:75). Three call sites in internal/git/git.go call closedLoopGate inside `if opts.TokenLimit > 0` branches: StagedDiff at line 1058, TreeDiff at line 1583, WorkingTreeDiff at line 1758. At each call site, `skeleton` and `opts.PromptReserveTokens` are available. `EstimateTokens` is an in-package function in internal/git. The three functions return (string, error).\n2. INPUT: `internal/git/tokengate.go` with constants `tokenBudgetMargin`, `EstimateTokens`, `applyWaterFillGate`, `closedLoopGate`. `internal/git/git.go` with three `closedLoopGate` call sites. The `StagedDiffOptions` struct with `TokenLimit int`, `PromptReserveTokens int`, `MeasureAssembled func(string) int` fields.\n3. LOGIC: (a) In tokengate.go, export a helper: `func IrreducibleFloor(skeleton string, promptReserve int) int { return EstimateTokens(skeleton) + promptReserve + tokenBudgetMargin }`. Export `TokenBudgetMargin` as a constant alias if needed (currently unexported `tokenBudgetMargin`). (b) In git.go, at EACH of the three `if opts.TokenLimit > 0` branches, before the `closedLoopGate(...)` call, add: `floor := IrreducibleFloor(skeleton, opts.PromptReserveTokens); if opts.TokenLimit < floor { return \"\", fmt.Errorf(\"token_limit %d is below the irreducible prompt floor %d (system prompt + numstat skeleton + framing); raise it to at least %d\", opts.TokenLimit, floor, floor) }`. The error propagates through the (string, error) return. (c) This does NOT change closedLoopGate's signature — the check is purely at the caller. (d) Make sure the error message clearly states the floor value so the user knows what to set.\n4. OUTPUT: git.go now rejects sub-floor token_limit values with a clear error at all three diff functions. The FR3j 'always' invariant is preserved by failing loud instead of silently violating it. For consumption by P1.M3.T1.S2 (test).\n5. DOCS: Mode A — update docs/configuration.md:167 (the token_limit description) to document the floor rejection: add a note that token_limit values below the irreducible floor (system prompt + skeleton + framing, which varies per run) are rejected with an error. The current text says 'a closed-loop guarantee (§9.1 FR3j) that the payload never exceeds token_limit' — append 'For extremely small limits (below the irreducible prompt floor), stagecoach rejects the limit with an error rather than silently violating the guarantee.'",

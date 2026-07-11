@@ -37,6 +37,8 @@
 
 package git
 
+import "errors"
+
 // tokenBudgetMargin is the FR3d/FR3i safety buffer subtracted from body_budget (PRD §9.1 FR3i:
 // body_budget = token_limit − skeleton − prompt − margin). It absorbs (a) the chars/4 vs actual-
 // tokenization density gap (the estimator is conservative; code is ~3-4 chars/token, prose ~4-5), (b)
@@ -88,15 +90,25 @@ const maxClosedLoopPasses = 4
 // pass makes strictly more progress than the raw overshoot, so the loop converges instead of hovering.
 const closedLoopSlack = 64
 
+// ErrBelowTokenFloor is the sentinel (Issue 4 / FR-T12 reconciliation) returned by the three git diff
+// entry points (StagedDiff/TreeDiff/WorkingTreeDiff) when opts.TokenLimit is set but below
+// IrreducibleFloor. The concrete error is WRAPPED around this sentinel (fmt.Errorf("... %w", ErrBelowTokenFloor))
+// so callers can detect the floor condition via errors.Is without string-matching. The generate layer
+// uses it to route a sub-floor one-shot capture to multi-turn (FR-T12: multi-turn deliberately ignores
+// token_limit, re-capturing with TokenLimit=0 which bypasses the floor) instead of failing outright —
+// preserving FR3j's loud failure for impossible one-shot configs while honoring FR-T12's lossless path.
+// Decompose and other no-multi-turn callers propagate it unchanged (the config genuinely cannot fit).
+var ErrBelowTokenFloor = errors.New("token_limit is below the irreducible prompt floor")
+
 // IrreducibleFloor returns the minimum token_limit below which the assembled prompt cannot possibly fit,
 // so the FR3j closed-loop "payload never exceeds token_limit" invariant cannot be honored (Issue 4). It is
 // the non-body minimum: the numstat skeleton (EstimateTokens) + the system-prompt reserve (promptReserve,
 // measured upstream) + the tokenBudgetMargin framing buffer. Diff BODIES are truncatable (down to
 // minBodyTokens slivers); these three terms are not — they are the floor. The three git.go diff entry
 // points (StagedDiff/TreeDiff/WorkingTreeDiff) reject token_limit < IrreducibleFloor(...) with a clear
-// error instead of silently returning an over-budget best-effort payload from closedLoopGate. PURE
-// (mirrors applyWaterFillGate): no git/ctx/I/O — it composes only EstimateTokens (tokens.go, in-package)
-// and the unexported tokenBudgetMargin const.
+// error (wrapping ErrBelowTokenFloor) instead of silently returning an over-budget best-effort payload
+// from closedLoopGate. PURE (mirrors applyWaterFillGate): no git/ctx/I/O — it composes only EstimateTokens
+// (tokens.go, in-package) and the unexported tokenBudgetMargin const.
 func IrreducibleFloor(skeleton string, promptReserve int) int {
 	return EstimateTokens(skeleton) + promptReserve + tokenBudgetMargin
 }

@@ -1056,7 +1056,7 @@ func (g *gitRunner) StagedDiff(ctx context.Context, opts StagedDiffOptions) (str
 		// promptReserve + margin + bodies) cannot fit, so closedLoopGate would return a silently over-budget best-effort.
 		floor := IrreducibleFloor(skeleton, opts.PromptReserveTokens)
 		if opts.TokenLimit < floor {
-			return "", fmt.Errorf("token_limit %d is below the irreducible prompt floor %d (system prompt + numstat skeleton + framing); raise it to at least %d", opts.TokenLimit, floor, floor)
+			return "", fmt.Errorf("token_limit %d is below the irreducible prompt floor %d (system prompt + numstat skeleton + framing); raise it to at least %d: %w", opts.TokenLimit, floor, floor, ErrBelowTokenFloor)
 		}
 		// FR3d/FR3i/FR3j: closedLoopGate does the first-cut water-fill (applyWaterFillGate) AND, when
 		// opts.MeasureAssembled is non-nil, re-measures the ASSEMBLED prompt and re-trims if over
@@ -1587,7 +1587,7 @@ func (g *gitRunner) TreeDiff(ctx context.Context, treeA, treeB string, opts Stag
 		// promptReserve + margin + bodies) cannot fit, so closedLoopGate would return a silently over-budget best-effort.
 		floor := IrreducibleFloor(skeleton, opts.PromptReserveTokens)
 		if opts.TokenLimit < floor {
-			return "", fmt.Errorf("token_limit %d is below the irreducible prompt floor %d (system prompt + numstat skeleton + framing); raise it to at least %d", opts.TokenLimit, floor, floor)
+			return "", fmt.Errorf("token_limit %d is below the irreducible prompt floor %d (system prompt + numstat skeleton + framing); raise it to at least %d: %w", opts.TokenLimit, floor, floor, ErrBelowTokenFloor)
 		}
 		// FR3d/FR3i/FR3j: closedLoopGate does the first-cut water-fill (applyWaterFillGate) AND, when
 		// opts.MeasureAssembled is non-nil, re-measures the ASSEMBLED prompt and re-trims if over
@@ -1768,7 +1768,7 @@ func (g *gitRunner) WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions)
 		// promptReserve + margin + bodies) cannot fit, so closedLoopGate would return a silently over-budget best-effort.
 		floor := IrreducibleFloor(skeleton, opts.PromptReserveTokens)
 		if opts.TokenLimit < floor {
-			return "", fmt.Errorf("token_limit %d is below the irreducible prompt floor %d (system prompt + numstat skeleton + framing); raise it to at least %d", opts.TokenLimit, floor, floor)
+			return "", fmt.Errorf("token_limit %d is below the irreducible prompt floor %d (system prompt + numstat skeleton + framing); raise it to at least %d: %w", opts.TokenLimit, floor, floor, ErrBelowTokenFloor)
 		}
 		// FR3d/FR3i/FR3j: closedLoopGate does the first-cut water-fill (applyWaterFillGate) AND, when
 		// opts.MeasureAssembled is non-nil, re-measures the ASSEMBLED prompt and re-trims if over

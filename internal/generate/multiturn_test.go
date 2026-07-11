@@ -863,3 +863,41 @@ func TestCommitStaged_MultiTurnProgressLine_ChunkTokens(t *testing.T) {
 		t.Errorf("progress line missing 'falling back to multi-turn';\ngot stderr: %q", captured)
 	}
 }
+
+// TestCommitStaged_SubFloorTokenLimit_NoMultiTurn_PropagatesFloorError (Issue 4 / FR-T12
+// reconciliation, regression guard): when token_limit is set BELOW the irreducible floor AND multi-turn
+// is NOT available (no session_mode="append" manifest), the one-shot StagedDiff returns
+// ErrBelowTokenFloor and CommitStaged MUST propagate it (FR3j's loud failure for an impossible config)
+// rather than silently delivering an over-budget payload OR routing to a non-existent multi-turn path.
+// This is the counterpart to TestMultiTurnGate_TokenLimitTruncated_Recaptures (which verifies the
+// multi-turn rescue WHEN session_mode="append" is present): together they pin the reconciliation —
+// sub-floor routes to multi-turn when available, errors loudly when not.
+func TestCommitStaged_SubFloorTokenLimit_NoMultiTurn_PropagatesFloorError(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+	commitRaw(t, repo, "initial")
+	writeFile(t, repo, "feature.go", "package main\n")
+	stageFile(t, repo, "feature.go")
+	body := strings.Repeat("change line content here\n", 60) // a real staged change (content irrelevant)
+	writeFile(t, repo, "big.go", body)
+	stageFile(t, repo, "big.go")
+
+	// Plain stub manifest: NO session_mode (Resolve → SessionMode==nil) ⇒ multi-turn gate cond (d) is
+	// FALSE ⇒ the floor error is NOT rescued and MUST propagate. (Contrast stubAppendManifest, which
+	// sets session_mode="append" and DOES rescue — see TestMultiTurnGate_TokenLimitTruncated_Recaptures.)
+	stub := stubtest.Build(t)
+	m := stubtest.Manifest(stub, stubtest.Options{Out: "feat: add big feature"})
+
+	cfg := config.Defaults()
+	cfg.TokenLimit = 4 // << floor (~1382-1411) ⇒ StagedDiff returns ErrBelowTokenFloor
+
+	_, err := CommitStaged(context.Background(), Deps{Git: git.New(repo), Manifest: m}, cfg)
+	if err == nil {
+		t.Fatalf("CommitStaged err = nil, want non-nil (sub-floor token_limit with no multi-turn must " +
+			"propagate ErrBelowTokenFloor — FR3j loud failure)")
+	}
+	if !errors.Is(err, git.ErrBelowTokenFloor) {
+		t.Errorf("CommitStaged err = %v, want it to wrap git.ErrBelowTokenFloor (the one-shot floor "+
+			"rejection; no multi-turn rescue is available for this manifest)", err)
+	}
+}

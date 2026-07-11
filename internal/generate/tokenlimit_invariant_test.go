@@ -38,12 +38,15 @@ func TestCommitStaged_TokenLimitInvariant_AssembledPromptFits(t *testing.T) {
 	repo := t.TempDir()
 	initRepo(t, repo)
 
-	// A large staged diff: ~1600 runes of changes => EstimateTokens(diff) ~= 390 >> tokenLimit=200.
-	// The gate MUST truncate to fit (forcing the closed loop to run).
+	// A large staged diff whose UNTRUNCATED assembled prompt sits well ABOVE the irreducible floor
+	// (Issue 4: skeleton + sysPrompt reserve + tokenBudgetMargin1024 ≈ 1411) so a token_limit can be
+	// chosen strictly between the two — above the floor (the closed loop can satisfy FR3j) yet below
+	// the untruncated prompt (the gate MUST truncate). ~92,000 runes of changes => EstimateTokens(body)
+	// ≈ 23,000 >> floor ≈ 1411; with the sysPrompt + skeleton the untruncated assembled prompt is ≈ 24,000.
 	writeFile(t, repo, "feature.go", "package main\n")
 	stageFile(t, repo, "feature.go")
-	body := strings.Repeat("change line content here\n", 60) // 23 runes/line x 60 ~= 1380 runes ~= 345 tokens
-	writeFile(t, repo, "big.go", body)                       // the large body the gate truncates
+	body := strings.Repeat("change line content here\n", 4000) // 23 runes/line x 4000 ~= 92,000 runes ~= 23,000 tokens
+	writeFile(t, repo, "big.go", body)                         // the large body the gate truncates
 	stageFile(t, repo, "big.go")
 
 	// Capture the stub's received stdin (the assembled prompt). Mirrors
@@ -58,7 +61,10 @@ func TestCommitStaged_TokenLimitInvariant_AssembledPromptFits(t *testing.T) {
 		Model:    "stub",
 		Timeout:  30 * time.Second,
 	}
-	cfg.TokenLimit = 200 // << 345 => the water-fill + closed-loop gate MUST truncate to fit
+	// token_limit sits ABOVE the irreducible floor (~1411) so the closed loop can honor FR3j, yet
+	// WELL BELOW the untruncated assembled prompt (~24,000) => the water-fill + closed-loop gate MUST
+	// truncate big.go's body to fit (forcing the closed loop to run and emit the [truncated] sentinel).
+	cfg.TokenLimit = 3000 // 1411 (floor) < 3000 < ~24,000 (untruncated) => gate truncates AND fits
 
 	deps := Deps{Git: git.New(repo), Manifest: m}
 	if _, err := CommitStaged(context.Background(), deps, cfg); err != nil {
@@ -82,7 +88,7 @@ func TestCommitStaged_TokenLimitInvariant_AssembledPromptFits(t *testing.T) {
 	}
 
 	// (Gate-ran proof) the closed loop ACTIVELY truncated — the water-fill sentinel is present. A no-op
-	// (payload fit without truncation) would lack it; with tokenLimit=200 << 345, truncation is mandatory.
+	// (payload fit without truncation) would lack it; with tokenLimit=3000 << untruncated~23000, truncation is mandatory.
 	if !strings.Contains(captured, "[truncated]") {
 		t.Errorf("expected the water-fill '[truncated]' sentinel in the captured stdin (tokenLimit=%d << untruncated~%d), "+
 			"got none — the closed-loop gate did not truncate (was it wired?)\ncaptured (first 400 chars): %q",

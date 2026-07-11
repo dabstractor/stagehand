@@ -2592,7 +2592,7 @@ func TestDecompose_TokenLimitInvariant_PlannerPromptFits(t *testing.T) {
 	// Large UNSTAGED working-tree diff (two files so the FR-M2b one-file short-circuit does NOT fire and
 	// the planner is invoked). The body must exceed tokenLimit so the planner's TreeDiff gate truncates.
 	dcmWriteFile(t, repo, "a.go", "package a\n")
-	body := strings.Repeat("change line content here\n", 60) // 23 runes/line x 60 ~= 1380 runes ~= 345 tokens
+	body := strings.Repeat("change line content here\n", 600) // 23 runes/line x 600 ~= 13,800 runes ~= 3,450 tokens
 	dcmWriteFile(t, repo, "big.go", body)
 
 	// Planner returns FR-M11 single:true + a message => runSingleShortcut uses the planner's message
@@ -2617,13 +2617,13 @@ func TestDecompose_TokenLimitInvariant_PlannerPromptFits(t *testing.T) {
 	roles := RoleManifests{Planner: plannerM, Message: messageM}
 
 	cfg := config.Defaults()
-	// The planner system prompt alone is ~497 tokens (BuildPlannerSystemPrompt carries the partition
-	// rules + the single/multi guidance); with even a minimal payload the assembled-prompt floor is
-	// ~510 tokens. tokenLimit MUST sit ABOVE that floor (else the closed loop can never satisfy the
-	// invariant and returns best-effort, i.e. the full diff). 700 is above the floor (510) yet well
-	// below the untruncated assembled prompt (~884) => the water-fill MUST truncate big.go and the
-	// closed loop converges to sysPrompt+payload <= 700.
-	cfg.TokenLimit = 700 // 510 (floor) < 700 < 884 (untruncated) => gate truncates AND fits
+	// The irreducible floor (Issue 4) is skeleton + planner sysPrompt reserve (~497 + overhead +
+	// reserveSafetyMargin256) + tokenBudgetMargin1024 ≈ 1825 (observed). tokenLimit MUST sit ABOVE that
+	// floor (else the closed loop can never satisfy the invariant and StagedDiff/TreeDiff reject with
+	// ErrBelowTokenFloor) yet BELOW the untruncated assembled prompt (~3,950: ~497 sysPrompt + ~3,450
+	// body + framing) so the water-fill MUST truncate big.go and the closed loop converges to
+	// sysPrompt+payload <= tokenLimit.
+	cfg.TokenLimit = 2500 // 1825 (floor) < 2500 < ~3,950 (untruncated) => gate truncates AND fits
 	deps := dcmDepsWithConfig(t, repo, roles, cfg)
 	deps.stager = stager
 

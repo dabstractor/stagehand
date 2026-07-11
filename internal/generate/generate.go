@@ -215,6 +215,15 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 
 	// Step 3: diff payload; empty → nothing to commit (design §6). PromptReserveTokens carries the
 	// worst-case prompt token count for M4.T2's water-fill / M4.T3's gate (unread until M4.T3).
+	// FR-T12 / Issue 4 reconciliation: a sub-floor token_limit makes the one-shot StagedDiff return
+	// ErrBelowTokenFloor (the one-shot payload cannot fit, so FR3j's closed loop cannot honor it). When
+	// multi-turn is available (MultiTurnFallback + session_mode="append") multi-turn is the CORRECT path:
+	// it deliberately ignores token_limit (FR-T12), re-capturing the diff with TokenLimit=0 (which bypasses
+	// the floor) for lossless chunked delivery. So instead of failing, we re-capture the UNTRUNCATED diff
+	// here (so the snapshot + generation flow can proceed) and arm skipOneShot to bypass the one-shot
+	// generation loop and fall straight through to the multi-turn gate below. When multi-turn is NOT
+	// available the config is genuinely impossible → propagate the floor error (FR3j's loud failure).
+	skipOneShot := false
 	diff, err := deps.Git.StagedDiff(ctx, git.StagedDiffOptions{
 		MaxDiffBytes:        cfg.MaxDiffBytes,
 		MaxMDLines:          cfg.MaxMdLines,
@@ -226,7 +235,32 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 		MeasureAssembled:    measureAssembled,
 	})
 	if err != nil {
-		return Result{}, err
+		if errors.Is(err, git.ErrBelowTokenFloor) && cfg.TokenLimit > 0 {
+			resolved0 := deps.Manifest.Resolve()
+			if cfg.MultiTurnFallbackValue() && cfg.WorkDescription == "" &&
+				resolved0.SessionMode != nil && *resolved0.SessionMode == "append" {
+				// FR-T12: re-capture the UNTRUNCATED diff (TokenLimit=0 bypasses the floor). Multi-turn will
+				// chunk/deliver it losslessly; the one-shot loop is skipped (it cannot honor token_limit).
+				fullDiff, derr := deps.Git.StagedDiff(ctx, git.StagedDiffOptions{
+					MaxDiffBytes:     cfg.MaxDiffBytes,
+					MaxMDLines:       cfg.MaxMdLines,
+					BinaryExtensions: cfg.BinaryExtensions,
+					Excludes:         deps.Excludes,
+					TokenLimit:       0, // FR-T12: multi-turn ignores token_limit
+					DiffContext:      cfg.DiffContextValue(),
+					// No PromptReserveTokens/MeasureAssembled: TokenLimit=0 skips the gate branch entirely.
+				})
+				if derr != nil {
+					return Result{}, derr
+				}
+				diff = fullDiff
+				skipOneShot = true
+			} else {
+				return Result{}, err // no multi-turn rescue possible → FR3j loud failure
+			}
+		} else {
+			return Result{}, err
+		}
 	}
 	if diff == "" {
 		return Result{}, ErrNothingToCommit
@@ -321,7 +355,7 @@ func CommitStaged(ctx context.Context, deps Deps, cfg config.Config) (Result, er
 		}
 	}
 
-	for attempt := 0; attempt <= cfg.MaxDuplicateRetries && !success && !workDescActive; attempt++ {
+	for attempt := 0; attempt <= cfg.MaxDuplicateRetries && !success && !workDescActive && !skipOneShot; attempt++ {
 		// Build user payload each attempt (rejection list / retry_instruction change).
 		payload = prompt.BuildUserPayload(diff, cfg.Context, rejected)
 		if parseFail {
