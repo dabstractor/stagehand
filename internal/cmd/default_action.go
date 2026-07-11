@@ -147,7 +147,11 @@ func runDefault(cmd *cobra.Command, args []string) error {
 				// to the FR17 exit-2 path (Issue 7 cosmetic fix; D5).
 				return exitcode.New(exitcode.NothingToCommit, errors.New("Nothing to commit."))
 			}
-			fmt.Fprintln(stderr, u.Yellow(fmt.Sprintf("Nothing staged — staging all changes (%d files).", n))) // FR18 (text verbatim, em-dash; colorized)
+			noun := "files"
+			if n == 1 {
+				noun = "file" // Issue 6: singular grammar for the one-file auto-stage case (n>=1 guaranteed: n==0 returns early above)
+			}
+			fmt.Fprintln(stderr, u.Yellow(fmt.Sprintf("Nothing staged — staging all changes (%d %s).", n, noun))) // FR18 (text verbatim, em-dash; colorized; singular/plural per Issue 6)
 			hasStaged, err = g.HasStagedChanges(ctx)
 			if err != nil {
 				return exitcode.New(exitcode.Error, fmt.Errorf("staged changes check: %w", err))

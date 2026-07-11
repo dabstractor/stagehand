@@ -469,6 +469,47 @@ func TestRunDefault_AutoStageNotice_FR18(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestRunDefault_AutoStageNoticeSingular_Issue6 — one file auto-staged → "(1 file)." (singular)
+// ---------------------------------------------------------------------------
+
+// TestRunDefault_AutoStageNoticeSingular_Issue6 pins the Issue 6 fix: when exactly ONE file is
+// auto-staged, the FR18 notice uses the singular "file" (not the ungrammatical "(1 files)").
+// Mirrors TestRunDefault_AutoStageNotice_FR18 (n=2) but with a single untracked file.
+func TestRunDefault_AutoStageNoticeSingular_Issue6(t *testing.T) {
+	origArgs, origOut, origErr, origRunE := saveRootState(t)
+	defer restoreRootState(t, origArgs, origOut, origErr, origRunE)
+
+	repo := setupStubRepo(t, "feat: one")
+	writeFile(t, repo, "only.txt", "content") // ONE untracked file → n=1 after AddAll
+
+	var outBuf, errBuf bytes.Buffer
+	rootCmd.SetOut(&outBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"--provider", "stub", "--single"})
+
+	err := Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Execute err=%v, want nil", err)
+	}
+
+	stderr := errBuf.String()
+	// Issue 6 fix: singular "file" for n=1.
+	if !strings.Contains(stderr, "Nothing staged — staging all changes (1 file).") {
+		t.Errorf("stderr = %q, want to contain singular FR18 notice 'Nothing staged — staging all changes (1 file).'", stderr)
+	}
+	// Regression guard: the ungrammatical plural must be ABSENT for n=1.
+	if strings.Contains(stderr, "(1 files)") {
+		t.Errorf("stderr = %q, must NOT contain ungrammatical '(1 files)' (Issue 6 regression)", stderr)
+	}
+
+	// HEAD moved (proves the run completed through the notice path — mirrors _FR18).
+	logMsg := gitOut(t, repo, "log", "--format=%s", "-n1")
+	if logMsg != "feat: one" {
+		t.Errorf("git log subject = %q, want 'feat: one'", logMsg)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // TestRunDefault_CleanTreeNoAutoStageNotice_Issue7 — clean tree: NO "(0 files)" notice
 // ---------------------------------------------------------------------------
 

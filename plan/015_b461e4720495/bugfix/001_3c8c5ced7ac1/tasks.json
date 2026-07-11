@@ -234,14 +234,14 @@
               "type": "Task",
               "id": "P1.M3.T3",
               "title": "Fix auto-stage notice '(1 files)' grammar (Issue 6)",
-              "status": "Ready",
+              "status": "Complete",
               "description": "In internal/cmd/default_action.go:150, conditionally singularize 'files' to 'file' when the count is 1. Add a test for the n=1 singular case.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T3.S1",
                   "title": "Add conditional singular/plural in auto-stage notice and update tests",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See architecture/minor_fixes.md §Issue 6. The format string is at internal/cmd/default_action.go:150: `fmt.Fprintln(stderr, u.Yellow(fmt.Sprintf(\"Nothing staged — staging all changes (%d files).\", n)))`. `n` comes from `g.StagedFileCount(ctx)` at line 143. The n==0 clean-tree path returns early at lines 147-150 (skips the notice). Existing test at internal/cmd/default_action_test.go:460 asserts 'Nothing staged — staging all changes (2 files).' (n=2 — stays green).\n2. INPUT: The format string at default_action.go:150. The `u.Yellow` colorizer wrapper. The `n` int variable.\n3. LOGIC: (a) At default_action.go:150, replace the hardcoded plural with a conditional: `noun := \"files\"; if n == 1 { noun = \"file\" }; fmt.Fprintln(stderr, u.Yellow(fmt.Sprintf(\"Nothing staged — staging all changes (%d %s).\", n, noun)))`. (b) In default_action_test.go, add a test case for n=1 that asserts the notice contains '(1 file)' (singular). The existing n=2 test at line 460 continues to assert '(2 files)'. Run `go test ./internal/cmd/ -v -run TestRunDefault_AutoStageNotice`.\n4. OUTPUT: The auto-stage notice now correctly prints '1 file' for a single file and 'N files' for multiple.\n5. DOCS: none — minor UI text polish, no config/API surface.",
@@ -272,7 +272,7 @@
                   "type": "Subtask",
                   "id": "P1.M4.T1.S1",
                   "title": "Review and update README.md for changeset-level impacts",
-                  "status": "Researching",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S2",
