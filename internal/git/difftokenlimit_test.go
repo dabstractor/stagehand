@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -521,4 +522,79 @@ func TestWorkingTreeDiff_TokenLimitGt0(t *testing.T) {
 	if strings.Contains(out, "diff truncated at") {
 		t.Errorf("WorkingTreeDiff >0: legacy sentinel must be ABSENT; out=\n%s", out)
 	}
+}
+
+// === SUB-FLOOR token_limit REJECTION (Issue 4 / FR3j — S2 test) ============================
+//
+// TestTokenLimitFloor pins Issue 4's fix (FR3j): StagedDiff REJECTS token_limit below the irreducible prompt
+// floor with a clear error, and ACCEPTS it at the floor (the minimum valid value — the strict-< check passes
+// through to closedLoopGate's best-effort) and above. The floor is computed from the EXACT skeleton StagedDiff
+// uses internally via StagedNumstatSkeleton (the same numstatSkeleton renderer — git.go:930-938 vs 2190-2198 —
+// identical args), so the floor-1/floor/floor+100 boundaries are precise. Run: go test ./internal/git/ -v -run TestTokenLimitFloor.
+func TestTokenLimitFloor(t *testing.T) {
+	repo := t.TempDir()
+	initRepo(t, repo)
+	// Stage a couple of files so the numstat skeleton is non-empty (⇒ floor > tokenBudgetMargin alone).
+	writeFile(t, repo, "a.go", "package main\n// a\n")
+	stageFile(t, repo, "a.go")
+	writeFile(t, repo, "b.go", "package lib\n// b\n")
+	stageFile(t, repo, "b.go")
+
+	g := New(repo)
+	// Compute the EXACT skeleton StagedDiff will use (StagedNumstatSkeleton shares numstatSkeleton with
+	// StagedDiff — identical args, identical output). PromptReserveTokens=0 for a tight, predictable floor.
+	opts := StagedDiffOptions{DiffContext: 1, PromptReserveTokens: 0}
+	skeleton, serr := g.StagedNumstatSkeleton(context.Background(), opts)
+	if serr != nil {
+		t.Fatalf("StagedNumstatSkeleton: %v", serr)
+	}
+	if skeleton == "" {
+		t.Fatal("skeleton empty — nothing staged (fixture setup failed)")
+	}
+	floor := IrreducibleFloor(skeleton, opts.PromptReserveTokens)
+
+	// (a) BELOW the floor (floor-1): the floor check fires → error naming the floor.
+	t.Run("below_floor_rejects", func(t *testing.T) {
+		o := opts
+		o.TokenLimit = floor - 1
+		_, err := g.StagedDiff(context.Background(), o)
+		if err == nil {
+			t.Fatal("StagedDiff err = nil, want non-nil (token_limit below the floor must be rejected)")
+		}
+		if !strings.Contains(err.Error(), "below the irreducible prompt floor") {
+			t.Errorf("err = %q, want it to contain 'below the irreducible prompt floor'", err.Error())
+		}
+		// The error names the floor value (actionable — the user knows exactly what to set).
+		if !strings.Contains(err.Error(), fmt.Sprintf("floor %d", floor)) {
+			t.Errorf("err = %q, want it to name the floor value %d", err.Error(), floor)
+		}
+	})
+
+	// (b) AT the floor (exactly): the strict-< check is FALSE → proceeds to closedLoopGate → returns a
+	// best-effort string, NO error. The floor is the minimum VALID value.
+	t.Run("at_floor_succeeds", func(t *testing.T) {
+		o := opts
+		o.TokenLimit = floor
+		out, err := g.StagedDiff(context.Background(), o)
+		if err != nil {
+			t.Fatalf("StagedDiff at floor err = %v, want nil (the floor is the minimum valid value)", err)
+		}
+		// The skeleton is always prepended (git.go:942, BEFORE the token-limit branch) — proves the gate ran.
+		if !strings.Contains(out, "Change summary (numstat") {
+			t.Errorf("at-floor output missing the skeleton; out=\n%s", out)
+		}
+	})
+
+	// (c) ABOVE the floor (floor+100): normal path, no error.
+	t.Run("above_floor_succeeds", func(t *testing.T) {
+		o := opts
+		o.TokenLimit = floor + 100
+		out, err := g.StagedDiff(context.Background(), o)
+		if err != nil {
+			t.Fatalf("StagedDiff above floor err = %v, want nil", err)
+		}
+		if !strings.Contains(out, "Change summary (numstat") {
+			t.Errorf("above-floor output missing the skeleton; out=\n%s", out)
+		}
+	})
 }

@@ -175,7 +175,7 @@
               "type": "Task",
               "id": "P1.M3.T1",
               "title": "Token gate irreducible floor rejection (Issue 4, FR3j)",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add a floor check at each opts.TokenLimit > 0 call site in internal/git/git.go that rejects token_limit values below the computed irreducible floor (EstimateTokens(skeleton) + promptReserve + tokenBudgetMargin) with a clear error, instead of silently violating the FR3j 'always' invariant.",
               "subtasks": [
                 {
@@ -195,7 +195,7 @@
                   "type": "Subtask",
                   "id": "P1.M3.T1.S2",
                   "title": "Add test for sub-floor token_limit rejection",
-                  "status": "Planned",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M3.T1.S1"
@@ -212,14 +212,14 @@
               "type": "Task",
               "id": "P1.M3.T2",
               "title": "Fix doubled 'stagecoach:' prefix in --edit empty-message abort (Issue 5)",
-              "status": "Planned",
+              "status": "Ready",
               "description": "Remove the 'stagecoach:' prefix from the ErrEmptyMessage literal in internal/generate/finalize.go:45, since main.go:67 unconditionally prepends it. The sentinel identity (errors.Is) is preserved. Update any tests that assert on the literal string.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M3.T2.S1",
                   "title": "Remove prefix from ErrEmptyMessage literal and update test assertions",
-                  "status": "Planned",
+                  "status": "Ready",
                   "story_points": 1,
                   "dependencies": [],
                   "context_scope": "CONTRACT DEFINITION:\n1. RESEARCH NOTE: See architecture/minor_fixes.md §Issue 5. `var ErrEmptyMessage = errors.New(\"stagecoach: empty commit message — aborted\")` at internal/generate/finalize.go:45. `cmd/stagecoach/main.go:67`: `fmt.Fprintf(os.Stderr, \"stagecoach: %v\\n\", err)` — prepends 'stagecoach: ' to any non-empty error. Result: 'stagecoach: stagecoach: empty commit message — aborted' (double prefix). The sentinel is propagated BARE via generate.go:486, decompose.go:409, message.go:254. exitcode.go:65 checks `errors.Is(err, generate.ErrEmptyMessage)`. Tests: internal/generate/generate_test.go:858-883 and internal/decompose/message_test.go reference ErrEmptyMessage.\n2. INPUT: ErrEmptyMessage at finalize.go:45. main.go:67 error printing. All propagation paths return the BARE sentinel.\n3. LOGIC: (a) Change finalize.go:45 from `errors.New(\"stagecoach: empty commit message — aborted\")` to `errors.New(\"empty commit message — aborted\")`. The sentinel identity is preserved (same *errors.errorString pointer; errors.Is still works). Both the --edit path (finalize.go:118) and the hooks-empty path (message.go:254 returns generate.ErrEmptyMessage) are fixed by this one change. (b) Search for any test that asserts on the literal string containing 'stagecoach: empty commit message' and update it to expect 'empty commit message' (without the prefix). Check internal/generate/generate_test.go and internal/decompose/message_test.go. (c) Run `go test ./internal/generate/ ./internal/decompose/ -v` to verify.\n4. OUTPUT: The --edit abort now prints 'stagecoach: empty commit message — aborted' (single prefix). The sentinel identity is unchanged so errors.Is and exitcode.For still map it to exit 1.\n5. DOCS: none — internal error message formatting, no user-facing config/API surface.",

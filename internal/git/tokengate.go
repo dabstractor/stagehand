@@ -88,6 +88,19 @@ const maxClosedLoopPasses = 4
 // pass makes strictly more progress than the raw overshoot, so the loop converges instead of hovering.
 const closedLoopSlack = 64
 
+// IrreducibleFloor returns the minimum token_limit below which the assembled prompt cannot possibly fit,
+// so the FR3j closed-loop "payload never exceeds token_limit" invariant cannot be honored (Issue 4). It is
+// the non-body minimum: the numstat skeleton (EstimateTokens) + the system-prompt reserve (promptReserve,
+// measured upstream) + the tokenBudgetMargin framing buffer. Diff BODIES are truncatable (down to
+// minBodyTokens slivers); these three terms are not — they are the floor. The three git.go diff entry
+// points (StagedDiff/TreeDiff/WorkingTreeDiff) reject token_limit < IrreducibleFloor(...) with a clear
+// error instead of silently returning an over-budget best-effort payload from closedLoopGate. PURE
+// (mirrors applyWaterFillGate): no git/ctx/I/O — it composes only EstimateTokens (tokens.go, in-package)
+// and the unexported tokenBudgetMargin const.
+func IrreducibleFloor(skeleton string, promptReserve int) int {
+	return EstimateTokens(skeleton) + promptReserve + tokenBudgetMargin
+}
+
 // applyWaterFillGate is the FR3d/FR3i token-limit gate (PRD §9.1 FR3d/FR3i; system_context.md §5/§6). It
 // replaces the legacy max_md_lines/max_diff_bytes caps with a dynamic water-fill over ALL diff bodies
 // (markdown + non-markdown) sharing ONE body_budget (FR3i: "across files" — one shared budget, NOT two

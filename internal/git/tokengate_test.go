@@ -436,6 +436,40 @@ func TestClosedLoopGate_AdversarialDrift_GrowingMeasure(t *testing.T) {
 	}
 }
 
+// TestIrreducibleFloor_Arithmetic pins the IrreducibleFloor helper's formula (Issue 4 / FR3j): the floor is the
+// non-body minimum — EstimateTokens(skeleton) + promptReserve + tokenBudgetMargin. PURE (no git repo, no I/O).
+// The E2E test (difftokenlimit_test.go TestTokenLimitFloor) consumes this floor at the StagedDiff call site.
+func TestIrreducibleFloor_Arithmetic(t *testing.T) {
+	cases := []struct {
+		name          string
+		skeleton      string
+		promptReserve int
+	}{
+		{"empty_skeleton_no_reserve", "", 0},
+		{"typical_skeleton_no_reserve", "Change summary (numstat: added\tdeleted\tpath):\n3\t1\tmain.go\n5\t0\thelper.go\n", 0},
+		{"skeleton_with_reserve", "1\t0\tf.go\n", 512},
+		{"multibyte_skeleton", "5\t2\t中文.go\n", 0}, // rune-based EstimateTokens (chars/4, NOT bytes)
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got := IrreducibleFloor(tc.skeleton, tc.promptReserve)
+			want := EstimateTokens(tc.skeleton) + tc.promptReserve + tokenBudgetMargin
+			if got != want {
+				t.Errorf("IrreducibleFloor(%q, %d) = %d, want %d (EstimateTokens=%d + reserve=%d + margin=%d)",
+					tc.skeleton, tc.promptReserve, got, want,
+					EstimateTokens(tc.skeleton), tc.promptReserve, tokenBudgetMargin)
+			}
+			// The floor is ALWAYS ≥ tokenBudgetMargin (1024) — the margin alone floors it even with an empty
+			// skeleton + zero reserve. This is WHY every existing git-layer test (TokenLimit ≥ 2000) stays above
+			// the floor (S1 behavior-preserving).
+			if got < tokenBudgetMargin {
+				t.Errorf("floor %d < tokenBudgetMargin %d (the margin alone floors it)", got, tokenBudgetMargin)
+			}
+		})
+	}
+}
+
 // TestClosedLoopGate_EffectiveLimitFloor verifies the effectiveLimit < 1 clamp: a pathological overshoot
 // (measure reports vastly over tokenLimit) drives effectiveLimit negative, which MUST be clamped to 1 so
 // applyWaterFillGate's bodyBudget ≤ 0 / minBodyTokens path fires (a strictly-positive limit is required —

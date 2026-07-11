@@ -1052,6 +1052,12 @@ func (g *gitRunner) StagedDiff(ctx context.Context, opts StagedDiffOptions) (str
 	}
 	nmDiff = stripIndexLines(nmDiff) // FR3h: drop `index <oid>..<oid> <mode>` before the byte cap
 	if opts.TokenLimit > 0 {
+		// FR3j (Issue 4): reject sub-floor token_limit loudly. Below this floor the assembled prompt (skeleton +
+		// promptReserve + margin + bodies) cannot fit, so closedLoopGate would return a silently over-budget best-effort.
+		floor := IrreducibleFloor(skeleton, opts.PromptReserveTokens)
+		if opts.TokenLimit < floor {
+			return "", fmt.Errorf("token_limit %d is below the irreducible prompt floor %d (system prompt + numstat skeleton + framing); raise it to at least %d", opts.TokenLimit, floor, floor)
+		}
 		// FR3d/FR3i/FR3j: closedLoopGate does the first-cut water-fill (applyWaterFillGate) AND, when
 		// opts.MeasureAssembled is non-nil, re-measures the ASSEMBLED prompt and re-trims if over
 		// tokenLimit (FR3j hard guarantee). nil MeasureAssembled ⇒ first-cut only (behavior unchanged).
@@ -1577,6 +1583,12 @@ func (g *gitRunner) TreeDiff(ctx context.Context, treeA, treeB string, opts Stag
 	}
 	nmDiff = stripIndexLines(nmDiff) // FR3h: drop `index <oid>..<oid> <mode>` before the byte cap
 	if opts.TokenLimit > 0 {
+		// FR3j (Issue 4): reject sub-floor token_limit loudly. Below this floor the assembled prompt (skeleton +
+		// promptReserve + margin + bodies) cannot fit, so closedLoopGate would return a silently over-budget best-effort.
+		floor := IrreducibleFloor(skeleton, opts.PromptReserveTokens)
+		if opts.TokenLimit < floor {
+			return "", fmt.Errorf("token_limit %d is below the irreducible prompt floor %d (system prompt + numstat skeleton + framing); raise it to at least %d", opts.TokenLimit, floor, floor)
+		}
 		// FR3d/FR3i/FR3j: closedLoopGate does the first-cut water-fill (applyWaterFillGate) AND, when
 		// opts.MeasureAssembled is non-nil, re-measures the ASSEMBLED prompt and re-trims if over
 		// tokenLimit (FR3j hard guarantee). nil MeasureAssembled ⇒ first-cut only (behavior unchanged).
@@ -1752,6 +1764,12 @@ func (g *gitRunner) WorkingTreeDiff(ctx context.Context, opts StagedDiffOptions)
 	}
 	nmDiff = stripIndexLines(nmDiff) // FR3h: drop `index <oid>..<oid> <mode>` before the byte cap
 	if opts.TokenLimit > 0 {
+		// FR3j (Issue 4): reject sub-floor token_limit loudly. Below this floor the assembled prompt (skeleton +
+		// promptReserve + margin + bodies) cannot fit, so closedLoopGate would return a silently over-budget best-effort.
+		floor := IrreducibleFloor(skeleton, opts.PromptReserveTokens)
+		if opts.TokenLimit < floor {
+			return "", fmt.Errorf("token_limit %d is below the irreducible prompt floor %d (system prompt + numstat skeleton + framing); raise it to at least %d", opts.TokenLimit, floor, floor)
+		}
 		// FR3d/FR3i/FR3j: closedLoopGate does the first-cut water-fill (applyWaterFillGate) AND, when
 		// opts.MeasureAssembled is non-nil, re-measures the ASSEMBLED prompt and re-trims if over
 		// tokenLimit (FR3j hard guarantee). nil MeasureAssembled ⇒ first-cut only (behavior unchanged).
