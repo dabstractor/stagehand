@@ -1162,6 +1162,17 @@ func TestConfigUpgrade_OlderUpdated(t *testing.T) {
 	if !strings.Contains(content, "max_md_lines = 7") {
 		t.Error("max_md_lines = 7 not preserved")
 	}
+
+	// FR-B8: a timestamped backup of the prior (v1) config must exist alongside the upgraded file.
+	matches, _ := filepath.Glob(filepath.Join(globalDir, "config.toml.bak.*"))
+	if len(matches) == 0 {
+		t.Errorf("no timestamped backup created after config upgrade (FR-B8)")
+	} else {
+		bak, _ := os.ReadFile(matches[0])
+		if !strings.Contains(string(bak), "config_version = 1") {
+			t.Errorf("backup does not hold prior (v1) content; got:\n%s", bak)
+		}
+	}
 }
 
 func TestConfigUpgrade_Idempotent(t *testing.T) {
@@ -1465,6 +1476,17 @@ func TestConfigUpgrade_V2ToV3Rewrite(t *testing.T) {
 		t.Errorf("on-disk config_version not 3:\n%s", upgraded)
 	}
 
+	// FR-B8: a timestamped backup of the prior (v2) config must exist alongside the upgraded file.
+	matches, _ := filepath.Glob(filepath.Join(globalDir, "config.toml.bak.*"))
+	if len(matches) == 0 {
+		t.Errorf("no timestamped backup created after config upgrade (FR-B8)")
+	} else {
+		bak, _ := os.ReadFile(matches[0])
+		if string(bak) != v2 {
+			t.Errorf("backup does not hold prior (v2) content; got:\n%s", bak)
+		}
+	}
+
 	// Re-run → no change (idempotent).
 	out.Reset()
 	rootCmd.SetArgs(nil)
@@ -1483,5 +1505,11 @@ func TestConfigUpgrade_V2ToV3Rewrite(t *testing.T) {
 	data2, _ := os.ReadFile(globalPath)
 	if string(data2) != upgraded {
 		t.Errorf("second run changed the file (not idempotent)")
+	}
+
+	// FR-B8: the idempotent re-run must NOT create a second backup (changed==false returns before the backup block).
+	matches2, _ := filepath.Glob(filepath.Join(globalDir, "config.toml.bak.*"))
+	if len(matches2) != 1 {
+		t.Errorf("expected exactly 1 backup after idempotent re-run, got %d (FR-B8 no-op gate)", len(matches2))
 	}
 }
