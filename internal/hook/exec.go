@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/generate"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/prompt"
-	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/generate"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/prompt"
+	"github.com/dabstractor/stagecoach/internal/provider"
 )
 
 // ErrNoOp indicates Run declined to generate (FR-H4): a named message source was present, or the

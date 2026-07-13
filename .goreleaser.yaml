@@ -2,10 +2,10 @@
 # Docs: https://goreleaser.com/customization/
 # Validate: `goreleaser check`  then  `goreleaser release --snapshot --clean` (publishes NOTHING).
 #
-# Owner note: uses `dustin/stagecoach` (+ dustin/homebrew-tap, dustin/scoop-bucket) per PRD §21.2/§21.3
-# and the go.mod module path (github.com/dustin/stagecoach). See PRP "Namespace decision tree": the
+# Owner note: uses `dabstractor/stagecoach` (+ dabstractor/homebrew-tap, dabstractor/scoop-bucket) per PRD §21.2/§21.3
+# and the go.mod module path (github.com/dabstractor/stagecoach). See PRP "Namespace decision tree": the
 # current git remote is `dabstractor/stagecoach`; before the first REAL tag the repo must be reachable
-# at github.com/dustin/stagecoach (or the namespace is reconciled repo-wide). Snapshot validation is
+# at github.com/dabstractor/stagecoach (or the namespace is reconciled repo-wide). Snapshot validation is
 # unaffected (it publishes nothing).
 version: 2
 
@@ -65,7 +65,7 @@ changelog:
 
 release:
   github:
-    owner: dustin                  # explicit; WINS over git-remote auto-detect (which is `dabstractor`).
+    owner: dabstractor                  # explicit; WINS over git-remote auto-detect (which is `dabstractor`).
     name: stagecoach
   draft: false
   prerelease: auto                 # prerelease if the tag looks like a pre-release (e.g. -rc1).
@@ -73,13 +73,13 @@ release:
 # Homebrew formula (brews:). stagecoach is a CLI binary, so it ships as a Homebrew formula
 # (installed to $HOMEBREW_PREFIX/bin, on $PATH), NOT a cask (casks are for macOS GUI .app bundles
 # installed to /Applications). `brews:` is the current, non-deprecated field in goreleaser v2.
-# Users install with: brew install dustin/tap/stagecoach
+# Users install with: brew install dabstractor/tap/stagecoach
 brews:
   - repository:
-      owner: dustin
-      name: homebrew-tap           # PRD §21.2: tap repo github.com/dustin/homebrew-tap
+      owner: dabstractor
+      name: homebrew-tap           # PRD §21.2: tap repo github.com/dabstractor/homebrew-tap
       token: '{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}'   # fine-grained PAT, contents:write on the tap repo
-    homepage: https://github.com/dustin/stagecoach
+    homepage: https://github.com/dabstractor/stagecoach
     description: 'Snapshot-based AI commit message generator that uses YOUR local CLI agent'
     license: MIT                   # ADJUST to the repo's actual license if different.
     install: |
@@ -90,13 +90,13 @@ scoops:
     ids:
       - default
     repository:
-      owner: dustin
-      name: scoop-bucket           # PRD §21.3: scoop install dustin/stagecoach -> bucket github.com/dustin/scoop-bucket
+      owner: dabstractor
+      name: scoop-bucket           # PRD §21.3: scoop install dabstractor/stagecoach -> bucket github.com/dabstractor/scoop-bucket
       token: '{{ .Env.SCOOP_BUCKET_GITHUB_TOKEN }}'
-    homepage: https://github.com/dustin/stagecoach
+    homepage: https://github.com/dabstractor/stagecoach
     description: 'Snapshot-based AI commit message generator that uses YOUR local CLI agent'
     license: MIT                   # ADJUST to the repo's actual license if different.
-    url_template: 'https://github.com/dustin/stagecoach/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
+    url_template: 'https://github.com/dabstractor/stagecoach/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
 
 # AUR — BEST-EFFORT (PRD §21.2; contract LOGIC bullets don't list AUR, so this is nice-to-have).
 # Native pipe produces stagecoach-BIN only (prebuilt binary PKGBUILD), pushed over SSH (NOT a PAT).
@@ -107,10 +107,10 @@ aurs:
   - name: stagecoach-bin
     ids:
       - default
-    homepage: https://github.com/dustin/stagecoach
+    homepage: https://github.com/dabstractor/stagecoach
     description: 'Snapshot-based AI commit message generator that uses YOUR local CLI agent'
     maintainers:
-      - 'Dustin <dustin@example.com>'   # REPLACE with the maintainer's real name <email>.
+      - 'dabstractor <dabstractor@example.com>'   # REPLACE with the maintainer's real name <email>.
     license: MIT                        # ADJUST to the repo's actual license if different.
     depends:
       - git

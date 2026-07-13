@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/exitcode"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/lock"
+	"github.com/dabstractor/stagecoach/internal/exitcode"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/lock"
 )
 
 // contentionFakeGit embeds git.Git and overrides only WriteTree — the sole method

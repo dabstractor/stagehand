@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/signal"
-	"github.com/dustin/stagecoach/internal/ui"
+	"github.com/dabstractor/stagecoach/internal/signal"
+	"github.com/dabstractor/stagecoach/internal/ui"
 )
 
 // Execute runs a provider CmdSpec as a subprocess and returns its captured stdout, captured stderr,

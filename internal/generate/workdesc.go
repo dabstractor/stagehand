@@ -24,9 +24,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/provider"
 )
 
 // readChunkTokenCap is the per-call diff chunk cap (PRD §9.26 FR-W5: "default ~16K tokens, internal").

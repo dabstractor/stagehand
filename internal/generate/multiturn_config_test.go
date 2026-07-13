@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/stubtest"
-	"github.com/dustin/stagecoach/internal/ui"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/stubtest"
+	"github.com/dabstractor/stagecoach/internal/ui"
 )
 
 // TestMultiTurnFallback_FalseFromFile proves Issue 1's *bool fix (P1.M1.T1.S1) propagates

@@ -11,16 +11,16 @@ See the [README](../README.md) for the quick start, feature overview, and FAQ.
 
 ```bash
 # Homebrew (macOS / Linuxbrew)
-brew install dustin/tap/stagecoach
+brew install dabstractor/tap/stagecoach
 
 # Go install (anywhere with Go)
-go install github.com/dustin/stagecoach/cmd/stagecoach@latest
+go install github.com/dabstractor/stagecoach/cmd/stagecoach@latest
 
 # Direct binary (curl|sh one-liner from GitHub Releases)
-curl -fsSL https://github.com/dustin/stagecoach/raw/main/install.sh | bash
+curl -fsSL https://github.com/dabstractor/stagecoach/raw/main/install.sh | bash
 
 # Windows (Scoop)
-scoop install dustin/stagecoach
+scoop install dabstractor/stagecoach
 ```
 
 > [!NOTE]

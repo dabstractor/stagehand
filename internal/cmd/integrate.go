@@ -20,8 +20,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dustin/stagecoach/internal/exitcode"
-	"github.com/dustin/stagecoach/internal/integrate"
+	"github.com/dabstractor/stagecoach/internal/exitcode"
+	"github.com/dabstractor/stagecoach/internal/integrate"
 )
 
 // defaultEntries is the SINGLE registration seam (PRD §9.21). S2 ships NONE — the

@@ -12,8 +12,8 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/exitcode"
 )
 
 // ---------------------------------------------------------------------------

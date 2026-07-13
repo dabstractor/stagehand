@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dustin/stagecoach/internal/integrate"
+	"github.com/dabstractor/stagecoach/internal/integrate"
 	"gopkg.in/yaml.v3" // v3.0.1 — archived upstream (2025); pinned for the Node API (HeadComment/LineComment/
 	// FootComment) used for comment-preserving customCommands upsert. Verified 2026-07-02 against lazygit v0.62.2.
 )

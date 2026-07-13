@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/git"
 )
 
 // --- minimal repo helpers (internal/git's are package-private; recreated here) ---

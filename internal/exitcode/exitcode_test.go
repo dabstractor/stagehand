@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/generate"
+	"github.com/dabstractor/stagecoach/internal/generate"
 )
 
 func TestFor(t *testing.T) {

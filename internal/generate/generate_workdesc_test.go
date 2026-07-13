@@ -19,10 +19,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/prompt"
-	"github.com/dustin/stagecoach/internal/stubtest"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/prompt"
+	"github.com/dabstractor/stagecoach/internal/stubtest"
 )
 
 // ---- 1. Prompt builder unit tests ----

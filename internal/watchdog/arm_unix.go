@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/signal"
+	"github.com/dabstractor/stagecoach/internal/signal"
 )
 
 // armImpl arms Unix parent-death detection (§9.27 FR-K1/K2): a getppid() poll goroutine (reliable,

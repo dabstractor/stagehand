@@ -17,9 +17,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/provider"
 )
 
 // realDefault is the best-effort model + inference provider for one AGENT's real run (env-overridable).

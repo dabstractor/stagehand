@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/generate"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/provider"
-	"github.com/dustin/stagecoach/internal/stubtest"
-	"github.com/dustin/stagecoach/internal/ui"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/generate"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/provider"
+	"github.com/dabstractor/stagecoach/internal/stubtest"
+	"github.com/dabstractor/stagecoach/internal/ui"
 )
 
 // --- Fixture helpers (msg*-prefixed to avoid colliding with planner_test.go's un-prefixed

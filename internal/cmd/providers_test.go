@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dabstractor/stagecoach/internal/exitcode"
 )
 
 // setupRepo creates isolated temp dirs for HOME/XDG and a fresh git repo, then chdir's into it.

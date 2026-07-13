@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/signal"
+	"github.com/dabstractor/stagecoach/internal/signal"
 )
 
 // TestArm_NegativeIntervalDefaults verifies that Arm with a non-positive interval does not panic

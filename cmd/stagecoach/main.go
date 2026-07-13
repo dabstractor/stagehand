@@ -6,11 +6,11 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/dustin/stagecoach/internal/cmd"
-	"github.com/dustin/stagecoach/internal/exitcode"
-	"github.com/dustin/stagecoach/internal/generate"
-	"github.com/dustin/stagecoach/internal/lock" // exit-path lock-release seam (FR52 §18.5)
-	"github.com/dustin/stagecoach/internal/signal"
+	"github.com/dabstractor/stagecoach/internal/cmd"
+	"github.com/dabstractor/stagecoach/internal/exitcode"
+	"github.com/dabstractor/stagecoach/internal/generate"
+	"github.com/dabstractor/stagecoach/internal/lock" // exit-path lock-release seam (FR52 §18.5)
+	"github.com/dabstractor/stagecoach/internal/signal"
 )
 
 // version is injected at build time via -ldflags "-X main.version=…" (Makefile VERSION, default "dev").

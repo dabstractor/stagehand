@@ -9,10 +9,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/exitcode"
-	"github.com/dustin/stagecoach/internal/provider"
-	"github.com/dustin/stagecoach/internal/ui"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/exitcode"
+	"github.com/dabstractor/stagecoach/internal/provider"
+	"github.com/dabstractor/stagecoach/internal/ui"
 )
 
 // interactiveStdinIsTTY is the TTY gate for --interactive. Overridable in tests so the happy-path

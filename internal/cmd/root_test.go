@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/dustin/stagecoach/internal/exitcode"
+	"github.com/dabstractor/stagecoach/internal/exitcode"
 )
 
 // ---------------------------------------------------------------------------

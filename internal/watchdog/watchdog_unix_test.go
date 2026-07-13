@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/signal"
+	"github.com/dabstractor/stagecoach/internal/signal"
 )
 
 // TestArm_FiresTriggerOnParentDeath is the detection-path proof (§9.27 FR-K1/K2): when the poll

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/integrate"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/integrate"
 )
 
 // newIsolatedGitAliasEntry builds a gitAliasEntry isolated from the real global config.

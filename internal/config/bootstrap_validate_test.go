@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dabstractor/stagecoach/internal/provider"
 	"github.com/pelletier/go-toml/v2"
 )
 

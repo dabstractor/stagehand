@@ -14,9 +14,9 @@ package hooks
 import (
 	"context"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/ui"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/ui"
 )
 
 // DefaultRunner is the production CommitHookRunner. Its zero value is ready to use. It satisfies

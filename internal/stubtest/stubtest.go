@@ -15,7 +15,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dabstractor/stagecoach/internal/provider"
 )
 
 // Options configures a stub invocation; Manifest/Env translate it to STAGECOACH_STUB_* env vars.
@@ -56,7 +56,7 @@ func Build(t testing.TB) string {
 		}
 		stubPath = filepath.Join(dir, name)
 		// Import-path form resolves from any cwd (no cmd.Dir needed).
-		build := exec.Command(goPath, "build", "-o", stubPath, "github.com/dustin/stagecoach/cmd/stubagent")
+		build := exec.Command(goPath, "build", "-o", stubPath, "github.com/dabstractor/stagecoach/cmd/stubagent")
 		if out, err := build.CombinedOutput(); err != nil {
 			t.Fatalf("go build stubagent: %v\n%s", err, out)
 		}

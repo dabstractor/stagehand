@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/exitcode"
-	"github.com/dustin/stagecoach/internal/lock"
+	"github.com/dabstractor/stagecoach/internal/exitcode"
+	"github.com/dabstractor/stagecoach/internal/lock"
 )
 
 // TestLockStatus_NoLockHeld verifies the path=="" contract: with no lock held the

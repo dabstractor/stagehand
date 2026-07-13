@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/integrate"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/integrate"
 )
 
 const (

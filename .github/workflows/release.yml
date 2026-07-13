@@ -2,8 +2,8 @@
 # Triggered ONLY on `v*` tags. CI (build/test/lint/coverage) lives in ci.yml (P1.M5.T3.S1).
 # Required repo SECRETS (Settings → Secrets → Actions), needed ONLY for a REAL release (not for config
 # validation; `goreleaser release --snapshot` publishes nothing):
-#   HOMEBREW_TAP_GITHUB_TOKEN  fine-grained PAT, contents:write on dustin/homebrew-tap
-#   SCOOP_BUCKET_GITHUB_TOKEN  fine-grained PAT, contents:write on dustin/scoop-bucket
+#   HOMEBREW_TAP_GITHUB_TOKEN  fine-grained PAT, contents:write on dabstractor/homebrew-tap
+#   SCOOP_BUCKET_GITHUB_TOKEN  fine-grained PAT, contents:write on dabstractor/scoop-bucket
 #   AUR_SSH_PRIVATE_KEY        SSH private key for the AUR account (only if the `aurs:` block is kept)
 # (GITHUB_TOKEN is auto-provided — no secret needed for the GitHub Release itself.)
 name: release

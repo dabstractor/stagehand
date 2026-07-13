@@ -22,9 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/stubtest"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/stubtest"
 )
 
 // repoSnapshot captures the pre-run repo state for the §20.2 invariant comparison.

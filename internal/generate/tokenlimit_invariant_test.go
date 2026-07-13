@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/stubtest"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/stubtest"
 )
 
 // assembledPromptSeparatorTokens is the Render stdin-separator allowance: provider.Render prepends

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/integrate"
+	"github.com/dabstractor/stagecoach/internal/integrate"
 	"gopkg.in/yaml.v3"
 )
 

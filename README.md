@@ -7,7 +7,7 @@ A snapshot-based AI commit message generator that uses YOUR local CLI agent. v2.
 
 <!-- TODO: add LICENSE file and badge -->
 
-![CI](https://github.com/dustin/stagecoach/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/dabstractor/stagecoach/actions/workflows/ci.yml/badge.svg)
 
 ## 30-second demo
 
@@ -91,7 +91,7 @@ Stagecoach does one thing — commit messages — and a few things around them.
 Requires [Go](https://go.dev) 1.22+:
 
 ```bash
-git clone https://github.com/dustin/stagecoach.git
+git clone https://github.com/dabstractor/stagecoach.git
 cd stagecoach
 make install          # installs the binary to $GOPATH/bin
 ```
@@ -109,10 +109,10 @@ stagecoach --version   # stagecoach version dev
 
 These will land with the first release, once the tap/bucket repos are published:
 
-- **Homebrew** (macOS / Linuxbrew) — `brew install dustin/tap/stagecoach`
-- **Scoop** (Windows) — `scoop install dustin/stagecoach`
-- **`go install`** — `go install github.com/dustin/stagecoach/cmd/stagecoach@latest`
-- **Direct binary** (curl​|​sh one-liner) — `curl -fsSL https://github.com/dustin/stagecoach/raw/main/install.sh | bash`
+- **Homebrew** (macOS / Linuxbrew) — `brew install dabstractor/tap/stagecoach`
+- **Scoop** (Windows) — `scoop install dabstractor/stagecoach`
+- **`go install`** — `go install github.com/dabstractor/stagecoach/cmd/stagecoach@latest`
+- **Direct binary** (curl​|​sh one-liner) — `curl -fsSL https://github.com/dabstractor/stagecoach/raw/main/install.sh | bash`
 
 ## Quick start
 

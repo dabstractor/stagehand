@@ -1,4 +1,4 @@
-module github.com/dustin/stagecoach
+module github.com/dabstractor/stagecoach
 
 go 1.22
 

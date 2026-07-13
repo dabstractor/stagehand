@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/ui"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/ui"
 )
 
 // ---------------------------------------------------------------------------

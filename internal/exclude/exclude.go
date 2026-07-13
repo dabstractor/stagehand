@@ -20,8 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/ui"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/ui"
 )
 
 // StagecoachIgnoreFile is the fixed repo-root filename (PRD §9.18 FR-X1b/FR-X2).

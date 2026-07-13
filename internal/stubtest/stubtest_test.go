@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dabstractor/stagecoach/internal/provider"
 )
 
 func TestStub_EchoSuccess(t *testing.T) {

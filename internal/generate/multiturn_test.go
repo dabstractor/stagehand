@@ -14,11 +14,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/provider"
-	"github.com/dustin/stagecoach/internal/stubtest"
-	"github.com/dustin/stagecoach/internal/ui"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/provider"
+	"github.com/dabstractor/stagecoach/internal/stubtest"
+	"github.com/dabstractor/stagecoach/internal/ui"
 )
 
 // stripPartPrefix removes the leading "PART i/N:\n" line from a chunk's text, returning the body. Used

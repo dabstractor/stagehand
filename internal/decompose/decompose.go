@@ -32,11 +32,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dustin/stagecoach/internal/generate"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/lock"
-	"github.com/dustin/stagecoach/internal/prompt"
-	"github.com/dustin/stagecoach/internal/signal"
+	"github.com/dabstractor/stagecoach/internal/generate"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/lock"
+	"github.com/dabstractor/stagecoach/internal/prompt"
+	"github.com/dabstractor/stagecoach/internal/signal"
 )
 
 // ErrDecomposeFailed is the sentinel for orchestrator-level INFRA failures not owned by a sibling

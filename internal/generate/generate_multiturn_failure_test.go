@@ -30,10 +30,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/git"
-	"github.com/dustin/stagecoach/internal/provider"
-	"github.com/dustin/stagecoach/internal/stubtest"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/git"
+	"github.com/dabstractor/stagecoach/internal/provider"
+	"github.com/dabstractor/stagecoach/internal/stubtest"
 )
 
 // assertMultiTurnRescue runs CommitStaged expecting a *RescueError{Kind:ErrRescue} and asserts the

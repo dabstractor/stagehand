@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dustin/stagecoach/internal/config"
-	"github.com/dustin/stagecoach/internal/provider"
+	"github.com/dabstractor/stagecoach/internal/config"
+	"github.com/dabstractor/stagecoach/internal/provider"
 )
 
 // goRegistry builds a Registry with overrides that set Command to "go" on the named providers,

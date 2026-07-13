@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dustin/stagecoach/internal/stubtest"
+	"github.com/dabstractor/stagecoach/internal/stubtest"
 )
 
 // e2eResult bundles a stagecoach subprocess run's observable outputs for assertion.
@@ -62,7 +62,7 @@ func buildStagecoach(t *testing.T) string {
 		}
 		stagecoachBin = filepath.Join(dir, name)
 		build := exec.Command(goPath, "build", "-o", stagecoachBin,
-			"github.com/dustin/stagecoach/cmd/stagecoach")
+			"github.com/dabstractor/stagecoach/cmd/stagecoach")
 		if out, err := build.CombinedOutput(); err != nil {
 			t.Fatalf("go build stagecoach: %v\n%s", err, out)
 		}
