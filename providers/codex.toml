@@ -32,6 +32,13 @@
 #     - bare_flags = [--sandbox, read-only, --ephemeral] (PRD had --ask-for-approval
 #       never): --ask-for-approval is NOT a codex exec flag (it lives on interactive
 #       `codex`; codex exec is already non-interactive). --ephemeral replaces it.
+#
+# CHROME-DISABLE (FR-C5, §9.28): verified vs `codex exec --help` (external_deps.md
+#   §codex, codex-cli 0.143.0, 2026-07-08). codex exec exposes NO per-surface
+#   chrome-disable switch for MCP/AGENTS.md/skills. --sandbox read-only + --ephemeral
+#   (bare_flags) are the read-only, session-clean CONSTRAINT (mutation safety,
+#   §12.7.1), NOT chrome. Chrome MAY load; the call stays read-only. Documented
+#   LIMITATION (FR-C4).
 # ============================================================================
 
 # --- identity / discovery ---

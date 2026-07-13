@@ -28,6 +28,11 @@
 # DETECT/COMMAND NOTE: the standalone Cursor Agent binary is `agent` (NOT `cursor`).
 #   cursor is the ONLY provider where detect != name. If `agent` is not on $PATH, override
 #   with command="cursor" subcommand=["agent"] in your config.
+#
+# CHROME-DISABLE (FR-C5, §9.28): verified vs `agent --help` (external_deps.md §cursor).
+#   cursor exposes NO per-surface chrome-disable switch. --mode ask + --trust
+#   (bare_flags) are the read-only Q&A CONSTRAINT (mutation safety, §12.7.1), NOT
+#   chrome. Chrome MAY load; the call stays read-only. Documented LIMITATION (FR-C4).
 # ============================================================================
 
 # --- identity / discovery ---

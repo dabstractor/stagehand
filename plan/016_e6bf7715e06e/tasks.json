@@ -18,7 +18,7 @@
               "type": "Task",
               "id": "P1.M1.T1",
               "title": "Per-provider chrome audit + CHROME-DISABLE manifest notes",
-              "status": "Ready",
+              "status": "Complete",
               "description": "For each of the 7 built-in providers in internal/provider/builtin.go, verify which chrome surfaces {skills, extensions/prompt-templates, context files, MCP} the agent CLI exposes a disable switch for (against captured --help findings), set any exposed-but-unset chrome-disable flag in bare_flags (FR-C2), document the pi MCP gap (FR-C3), and add a CHROME-DISABLE note recording per surface what is disabled, what is not, and the verification date/source (FR-C5). Also mirror the notes in providers/*.toml reference files.",
               "subtasks": [
                 {
@@ -48,7 +48,7 @@
                   "type": "Subtask",
                   "id": "P1.M1.T1.S2",
                   "title": "Mirror CHROME-DISABLE notes in providers/*.toml reference files",
-                  "status": "Ready",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"

@@ -24,6 +24,12 @@
 #
 # TOOLS-DISABLE CATEGORY (§12.7.1): READ-ONLY CONSTRAINT — `opencode run` is already
 #   a non-interactive, read-only one-shot; no extra bare flags needed.
+#
+# CHROME-DISABLE (FR-C5, §9.28): verified vs `opencode run --help` (external_deps.md
+#   §opencode, opencode 1.1.23, 2026-07-08). `run` is inherently read-only by design
+#   and exposes NO per-surface chrome-disable switch. bare_flags is empty because `run`
+#   is already a read-only one-shot — mutation safety, NOT chrome. Chrome MAY load;
+#   the call stays read-only. Documented LIMITATION (FR-C4).
 # ============================================================================
 
 # --- identity / discovery ---

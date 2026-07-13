@@ -24,6 +24,12 @@
 # TOOLS-DISABLE CATEGORY (§12.7.1): EXPLICIT switch — claude uses `--tools ""` to
 #   disable ALL built-in tools (documented: 'Use "" to disable all tools'), making
 #   the call a pure text-in/text-out.
+#
+# CHROME-DISABLE (FR-C5, §9.28): verified vs `claude --help` (external_deps.md §claude).
+#   Chrome is COVERED via two mechanisms: --tools "" disables ALL built-in tools (MCP
+#   surfaces as tools), and --setting-sources "" blocks the settings files where MCP
+#   servers, skills, and extensions are configured. Both are in bare_flags. No
+#   per-surface gap.
 # ============================================================================
 
 # --- identity / discovery ---

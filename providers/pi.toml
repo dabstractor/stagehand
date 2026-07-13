@@ -25,6 +25,13 @@
 #
 # TOOLS-DISABLE CATEGORY (§12.7.1): EXPLICIT switch — pi offers literal --no-* flags,
 #   so the call is a pure text-in/text-out with NO agent loop (the "bare" ideal).
+#
+# CHROME-DISABLE (FR-C5, §9.28): verified vs `pi --help` (external_deps.md §pi, 2026-06-29).
+#   Per surface: extensions --no-extensions, skills --no-skills, prompt-templates
+#   --no-prompt-templates, context-files (AGENTS.md/CLAUDE.md) --no-context-files
+#   (all in bare_flags). MCP is NOT disabled: pi has NO --no-mcp; --no-tools suppresses
+#   MCP tool USE but configured servers may still connect at startup. Documented, tracked
+#   LIMITATION (FR-C3), never an assumption that MCP is off.
 # ============================================================================
 
 # --- identity / discovery ---

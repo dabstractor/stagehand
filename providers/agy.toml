@@ -54,6 +54,12 @@
 #   tool-disable switch; `--mode plan` constrains it to a read-only, never-ask
 #   profile (plan mode forbids edits; verified to produce clean commit-message
 #   output with no plan-mode formatting noise).
+#
+# CHROME-DISABLE (FR-C5, §9.28): verified vs `agy --help` (agy v1.1.0, 2026-07-08).
+#   agy exposes NO per-surface chrome-disable switch. --mode plan (bare_flags) is the
+#   read-only, never-ask CONSTRAINT (mutation safety, §12.7.1) — NOT a chrome
+#   substitute. Chrome MAY load; the call stays read-only. Documented LIMITATION
+#   (FR-C4). Re-check at the next agy --help re-verification.
 # ============================================================================
 
 # --- identity / discovery ---

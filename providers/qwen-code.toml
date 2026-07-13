@@ -39,6 +39,12 @@
 # TOOLS-DISABLE CATEGORY (§12.7.1): READ-ONLY CONSTRAINT — qwen-code has NO global
 #   tool-disable switch; `--approval-mode default` constrains it to a read-only,
 #   never-ask profile (don't auto-run tools, never prompt).
+#
+# CHROME-DISABLE (FR-C5, §9.28): flag surface assembled from docs (NOT yet
+#   --help-verified; # TO CONFIRM per FR-D5). qwen-code exposes NO known per-surface
+#   chrome-disable switch. --approval-mode default (bare_flags) is the read-only
+#   CONSTRAINT, not chrome. Chrome surface is unverified — documented LIMITATION
+#   (FR-C4). Re-verify at the FR-D5 token refresh.
 # ============================================================================
 
 # --- identity / discovery ---
