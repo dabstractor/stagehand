@@ -4,7 +4,7 @@
       "type": "Phase",
       "id": "P1",
       "title": "Chrome-disable for every provider (FR-C1–C5, G25)",
-      "status": "Planned",
+      "status": "Researching",
       "description": "v2.9 delta. Make every built-in provider render chrome-less (skills, extensions/prompt-templates, context files, MCP servers) for every surface the agent CLI exposes a disable switch for, and treat any surface a provider cannot switch off as a documented, tracked limitation with a re-check date. This is a verification + documentation discipline layered on already-shipped provider manifests — no commit/CAS/rescue/lock changes, no mutation-safety change, no manifest schema change, no new CLI flags/env/config keys.",
       "milestones": [
         {
@@ -100,21 +100,21 @@
           "type": "Milestone",
           "id": "P1.M2",
           "title": "Sync changeset-level documentation (Mode B)",
-          "status": "Planned",
+          "status": "Researching",
           "description": "Changeset-level documentation task that depends on M1 (it records the verified manifest state). Extends docs/providers.md (Chrome-disable column + asymmetry section bullet), docs/how-it-works.md (safety paragraph), docs/README.md (capability index), and top-level README.md (brief chrome mention). Per SOW §5, this is the Mode B catch-all that prevents a coherent delta from shipping with stale overview docs.",
           "tasks": [
             {
               "type": "Task",
               "id": "P1.M2.T1",
               "title": "Extend docs/providers.md + cross-cutting overview for chrome-disable",
-              "status": "Planned",
+              "status": "Researching",
               "description": "Add a 'Chrome-disable' column to the 7-provider table in docs/providers.md (FR-C5). Add the 'Chrome is a separate axis' bullet to the Tools-disable asymmetry section (§12.7.1 v2.9 extension). Extend the docs/how-it-works.md safety paragraph with a chrome sentence. Add a capability-index entry to docs/README.md. Add a brief chrome-less mention to top-level README.md where safety messaging exists.",
               "subtasks": [
                 {
                   "type": "Subtask",
                   "id": "P1.M2.T1.S1",
                   "title": "Add Chrome-disable column and asymmetry bullet to docs/providers.md",
-                  "status": "Researching",
+                  "status": "Complete",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1"
@@ -131,7 +131,7 @@
                   "type": "Subtask",
                   "id": "P1.M2.T1.S2",
                   "title": "Extend docs/how-it-works.md safety paragraph, docs/README.md index, and README.md",
-                  "status": "Planned",
+                  "status": "Researching",
                   "story_points": 1,
                   "dependencies": [
                     "P1.M1.T1.S1",
