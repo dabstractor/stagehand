@@ -39,6 +39,14 @@ func BuiltinManifests() map[string]Manifest {
 // Per FR-D2 (PRD §9.16/§12.3), the shipped pi default is DECOUPLED from any one subscription:
 // default_model is "". config init fills per-role models from the FR-D4 table; the user/config
 // picks the backend (inference provider) via the model slash-prefix (v3 FR-R5b).
+//
+// CHROME-DISABLE (FR-C5, §9.28): verified vs `pi --help` (external_deps.md §pi, 2026-06-29).
+// Per chrome surface: extensions — disabled by --no-extensions (bare_flags); skills — disabled by
+// --no-skills (bare_flags); prompt-templates — disabled by --no-prompt-templates (bare_flags);
+// context files (AGENTS.md/CLAUDE.md) — disabled by --no-context-files (bare_flags). MCP servers
+// are NOT disabled: pi has NO --no-mcp flag (only --mcp-config <path>). --no-tools suppresses MCP
+// tool USE, but configured servers may still be discovered/connected at startup. This is a
+// documented, tracked LIMITATION (FR-C3), never an assumption that MCP is off.
 func builtinPi() Manifest {
 	return Manifest{
 		Name:              "pi",
@@ -108,6 +116,11 @@ func builtinPi() Manifest {
 // no sub-provider concept). (2) ReasoningLevels is populated — claude `--effort` (verified,
 // external_deps.md §claude); off ⇒ no-op.
 // (3) BareFlags has TWO "" value tokens (the args to --tools / --setting-sources) — do NOT drop them.
+//
+// CHROME-DISABLE (FR-C5, §9.28): verified vs `claude --help` (external_deps.md §claude). Chrome is
+// COVERED via two mechanisms: --tools "" disables ALL built-in tools (MCP surfaces as tools), and
+// --setting-sources "" blocks the settings files where MCP servers, skills, and extensions are
+// configured. Both are in bare_flags. No per-surface gap.
 func builtinClaude() Manifest {
 	return Manifest{
 		Name:             "claude",
@@ -195,6 +208,12 @@ func builtinClaude() Manifest {
 // RetryInstruction/Env/TooledFlags/ReasoningLevels are nil (absent). agy is a Gemini-CLI-lineage
 // provider (it superseded the EOL'd gemini-cli on 2026-06-18); it differs from codex/cursor in its model
 // flag (--model), delivery (stdin w/o -p), bare flag (--mode plan), default model + Experimental.
+//
+// CHROME-DISABLE (FR-C5, §9.28): verified vs `agy --help` (agy v1.1.0, 2026-07-08). agy exposes NO
+// per-surface chrome-disable switch for skills/extensions/context-files/MCP. --mode plan
+// (bare_flags) is the read-only, never-ask CONSTRAINT (mutation safety, §12.7.1) — it is NOT a chrome
+// substitute. Chrome MAY load; the call stays read-only and never-mutate. Documented LIMITATION
+// (FR-C4), not an assumption. Re-check at the next agy --help re-verification.
 func builtinAgy() Manifest {
 	return Manifest{
 		Name:              "agy",
@@ -243,6 +262,11 @@ func builtinAgy() Manifest {
 // (4) DefaultModel="qwen3-coder-plus" (# TO CONFIRM FR-D5). (5) Subcommand/PromptFlag/JsonField/
 // RetryInstruction/Env/TooledFlags/ReasoningLevels are nil (absent, like agy). qwen-code is the
 // gemini-lineage twin of agy, differing in Name/Detect/Command + DefaultModel + the Qwen/DashScope context.
+//
+// CHROME-DISABLE (FR-C5, §9.28): flag surface assembled from docs (NOT yet --help-verified; # TO
+// CONFIRM per FR-D5). qwen-code exposes NO known per-surface chrome-disable switch. --approval-mode
+// default (bare_flags) is the read-only CONSTRAINT, not chrome. Chrome surface is unverified —
+// documented LIMITATION (FR-C4). Re-verify at the FR-D5 token refresh (S2).
 func builtinQwenCode() Manifest {
 	return Manifest{
 		Name:             "qwen-code",
@@ -282,6 +306,12 @@ func builtinQwenCode() Manifest {
 // default — model space is huge), no sys-prompt flag (sys prepended), provider is part of the model string.
 // (3) BareFlags = []string{} — §12.6 writes bare_flags = []; a present empty array decodes NON-NIL empty
 // (FINDING D). (4) ReasoningLevels is nil — §12.6 OMITS the key.
+//
+// CHROME-DISABLE (FR-C5, §9.28): verified vs `opencode run --help` (external_deps.md §opencode,
+// opencode 1.1.23, 2026-07-08). The `run` subcommand is inherently read-only by design and exposes
+// NO per-surface chrome-disable switch. bare_flags is empty because `run` is already a read-only
+// one-shot — that is mutation safety, NOT chrome. Chrome MAY load; the call stays read-only.
+// Documented LIMITATION (FR-C4).
 func builtinOpenCode() Manifest {
 	return Manifest{
 		Name:              "opencode",
@@ -329,6 +359,12 @@ func builtinOpenCode() Manifest {
 // rejects the responses-websocket and codex falls back to HTTP — goes to STDERR; stdout carries only the
 // answer. `-o <file>` (write last message to file) and `--json` (JSONL events) remain fallback channels if
 // a future stdout regression appears.
+//
+// CHROME-DISABLE (FR-C5, §9.28): verified vs `codex exec --help` (external_deps.md §codex,
+// codex-cli 0.143.0, 2026-07-08). codex exec exposes NO per-surface chrome-disable switch for
+// MCP/AGENTS.md/skills. --sandbox read-only + --ephemeral (bare_flags) are the read-only,
+// session-clean CONSTRAINT (mutation safety, §12.7.1), NOT chrome. Chrome MAY load; the call stays
+// read-only and never-mutate. Documented LIMITATION (FR-C4).
 func builtinCodex() Manifest {
 	return Manifest{
 		Name:             "codex",
@@ -367,6 +403,11 @@ func builtinCodex() Manifest {
 // TO CONFIRM (integration): that `--mode ask` wins over `-p`'s default full-tools profile — i.e. the
 // combo (-p --mode ask --trust) is genuinely read-only. Expected (ask is defined as read-only Q&A);
 // verify against a real run during the real-agent scaffold (P1.M5.T1.S2).
+//
+// CHROME-DISABLE (FR-C5, §9.28): verified vs `agent --help` (external_deps.md §cursor). cursor
+// exposes NO per-surface chrome-disable switch. --mode ask + --trust (bare_flags) are the read-only
+// Q&A CONSTRAINT (mutation safety, §12.7.1), NOT chrome. Chrome MAY load; the call stays read-only.
+// Documented LIMITATION (FR-C4).
 func builtinCursor() Manifest {
 	return Manifest{
 		Name:              "cursor",
